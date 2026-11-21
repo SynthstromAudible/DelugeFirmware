@@ -70,7 +70,7 @@ void checkOwner(ModControllable& owner, const char* name) {
 	          && record.compressor.ratio == (7 << 24) && record.stutter.reversed
 	          && record.filter.lpf_mode == FilterMode::SVF_BAND,
 	      name);
-	check(owner.effectsOwner()->binding->snapshot().effects == record, name);
+	check(owner.effectsOwner()->binding->renderEffects() == record, name);
 }
 
 /// The chain of @p owner (a kit or the master) in @p song, or null.

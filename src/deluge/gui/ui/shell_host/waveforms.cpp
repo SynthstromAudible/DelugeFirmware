@@ -10,7 +10,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -73,7 +73,7 @@ public:
 				return std::nullopt;
 			}
 			auto* range =
-			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
+			    static_cast<MultisampleRange*>(sound->sourceResources[address.source].ranges.getElement(address.range));
 			SoundVoice* newest = nullptr;
 			for (const Sound::ActiveVoice& voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
@@ -112,7 +112,7 @@ private:
 			if (AudioEngine::sampleForPreview == nullptr) {
 				return {};
 			}
-			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			::SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				return {};
 			}
@@ -137,7 +137,7 @@ private:
 		if (sound == nullptr || address.source >= kNumSources) {
 			return {};
 		}
-		::Source& source = sound->sources[address.source];
+		::SourceResources& source = sound->sourceResources[address.source];
 		if (source.ranges.size() <= address.range || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 			return {};
 		}

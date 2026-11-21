@@ -19,12 +19,12 @@
 
 namespace {
 
-/// The watch `Source::setOscType`'s report goes to, if one is alive.
+/// The watch `SourceResources::setOscType`'s report goes to, if one is alive.
 RangesRetypeWatch* activeWatch = nullptr;
 
 } // namespace
 
-RangesRetypeWatch::RangesRetypeWatch(const Source& source) : source_{&source} {
+RangesRetypeWatch::RangesRetypeWatch(const SourceResources& source) : source_{&source} {
 	activeWatch = this;
 }
 
@@ -34,7 +34,7 @@ RangesRetypeWatch::~RangesRetypeWatch() {
 	}
 }
 
-void RangesRetypeWatch::rangesRetyped(const Source& source, bool cleared) {
+void RangesRetypeWatch::rangesRetyped(const SourceResources& source, bool cleared) {
 	if (activeWatch == nullptr || activeWatch->source_ != &source) {
 		return;
 	}

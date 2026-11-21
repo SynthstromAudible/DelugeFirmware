@@ -36,12 +36,13 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenarios/drivers/driver.h"
 #include "serialization/value.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "support/sound_fixtures.h"
 
 #include <cstdio>
 
@@ -61,10 +62,10 @@ Song* freshSong() {
 
 /// Whether the synth's first oscillator has a file bound.
 bool sampleBound(SoundInstrument& synth) {
-	if (synth.sources[0].ranges.empty()) {
+	if (synth.sourceResources[0].ranges.empty()) {
 		return false;
 	}
-	AudioFileHolder* holder = synth.sources[0].ranges.getElement(0)->getAudioFileHolder();
+	AudioFileHolder* holder = synth.sourceResources[0].ranges.getElement(0)->getAudioFileHolder();
 	return holder != nullptr && holder->audioFile != nullptr;
 }
 
@@ -92,8 +93,8 @@ int source_memory_main(int /*argc*/, char** /*argv*/, Io io) {
 		return 0;
 	}
 	auto& synth = *static_cast<SoundInstrument*>(instrument);
-	synth.sources[0].setOscType(OscType::SAMPLE);
-	if (MultiRange* range = synth.sources[0].getOrCreateFirstRange(); range != nullptr) {
+	deluge::test::setOscType(synth, 0, OscType::SAMPLE);
+	if (MultiRange* range = synth.getOrCreateFirstRange(0); range != nullptr) {
 		range->getAudioFileHolder()->filePath = "SAMPLES/SM/TONE.WAV";
 	}
 	song->live.param_backup.backUp(synth, nullptr, &paramManager, true);

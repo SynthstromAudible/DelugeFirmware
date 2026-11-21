@@ -52,7 +52,7 @@ SoundVoice::SoundVoice(Sound& sound) : sound{sound} {
 			kernel.unison_parts[u].slots[s].bind({.sample = &ports_[u][s].sample,
 			                                      .dx = &ports_[u][s].dx,
 			                                      .input = &ports_[u][s].input,
-			                                      .live_inputs = &sound.sources[s].liveInputs.inputs()});
+			                                      .live_inputs = &sound.sourceResources[s].liveInputs.inputs()});
 		}
 	}
 }
@@ -73,10 +73,9 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 
 	// The samples' ports play this note's source through this voice's guides
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
-		    && guides[s].audioFileHolder) {
+		if (sound.getSynthMode() != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
-				ports(u, s).sample.bind(&sound.sources[s], &sound.config().sources[s], &guides[s]);
+				ports(u, s).sample.bind(&sound.config().sources[s], &guides[s]);
 			}
 		}
 	}
@@ -109,9 +108,9 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 	kernel.note_off(release_info_for(sound, paramManager, note_tails_allowed), allow_release_stage, engineClock());
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source* source = &sound.sources[s];
-		if (source->oscType == OscType::SAMPLE) {
-			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+		SourceResources* source = &sound.sourceResources[s];
+		if (sound.oscType(s) == OscType::SAMPLE) {
+			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
 }
@@ -151,7 +150,8 @@ void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_
 			    .part = static_cast<uint8_t>(u),
 			    .source = static_cast<uint8_t>(s),
 			    .active = slot.active,
-			    .cache = cfg.osc_type[s] == OscType::SAMPLE && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
+			    .cache = config.sources[s].osc_type == OscType::SAMPLE
+			             && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
 			    .phase_increment = slot.phase_increment_stored_value.raw(), // the dump records the word
 			};
 		}
@@ -168,7 +168,7 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = engineClock()};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		AudioFileHolder* holder = guides[s].audioFileHolder;
-		const OscType oscType = sound.sources[s].oscType;
+		const OscType oscType = sound.oscType(s);
 		if (oscType == OscType::WAVETABLE && holder != nullptr) {
 			block.wave_tables[s] = static_cast<WaveTable*>(holder->audioFile)->view();
 		}
@@ -177,8 +177,8 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 		    oscType == OscType::SAMPLE && holder != nullptr
 		    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !guides[s].noteOffReceived);
 		block.source_in_stereo[s] =
-		    Source::renderInStereo(oscType, sound.config().voicing.unison_spread, sound.config().voicing.unison.count,
-		                           static_cast<SampleHolder*>(holder));
+		    SourceResources::renderInStereo(oscType, sound.config().voicing.unison_spread,
+		                                    sound.config().voicing.unison.count, static_cast<SampleHolder*>(holder));
 	}
 	return block;
 }
@@ -225,10 +225,11 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
-	const Source& source = sound.sources[s];
+	const SourceResources& source = sound.sourceResources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
+	const bool reversed = sound.playsReversed(s);
+	guides[s].setupPlaybackBounds(reversed);
 
 	LoopType loopingType = guides[s].getLoopingType(sound.config().sources[s].repeat_mode);
 
@@ -242,9 +243,8 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 		SourceSlot* voiceUnisonPartSource = &kernel.unison_parts[u].slots[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive =
-			    ports(u, s).sample.zoneChanged(&guides[s], sample, source.sampleControls.isCurrentlyReversed(),
-			                                   markerType, loopingType, priority_rating());
+			bool stillActive = ports(u, s).sample.zoneChanged(&guides[s], sample, reversed, markerType, loopingType,
+			                                                  priority_rating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);

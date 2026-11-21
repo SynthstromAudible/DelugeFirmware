@@ -70,10 +70,10 @@ inline void osc_types(const MenuContext& ctx, Song& song, OscType first, OscType
 	set_word(*spec::menu_engine(ctx, song).sound, "osc2/type", deluge::instrument::to_string(second));
 }
 
-inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::EFFECT,      Family::ARP,
-                                                Family::ARP_HOST,   Family::CLIP_VALUES, Family::CLIP};
-inline const std::vector<Family> kLaneFamilies{Family::INSTRUMENT, Family::EFFECT, Family::ARP, Family::ARP_HOST,
-                                               Family::NOTE_ROW};
+inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT, Family::ARP,
+                                                Family::ARP_HOST,   Family::CLIP_VALUES,   Family::CLIP};
+inline const std::vector<Family> kLaneFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT,
+                                               Family::ARP,        Family::ARP_HOST,      Family::NOTE_ROW};
 inline const std::vector<Family> kNonSoundLaneFamilies{Family::ARP, Family::ARP_HOST, Family::NOTE_ROW};
 inline const std::vector<Family> kWholeKitFamilies{Family::EFFECT, Family::ARP, Family::ARP_HOST, Family::CLIP_VALUES,
                                                    Family::CLIP};
@@ -99,15 +99,14 @@ inline AudioFile* fake_file() {
 }
 /// Give source @p source of the sound @p ctx edits a loaded file.
 inline void load_file(const MenuContext& ctx, Song& song, int32_t source) {
-	spec::menu_engine(ctx, song).sound->sources[source].getOrCreateFirstRange()->getAudioFileHolder()->audioFile =
-	    fake_file();
+	spec::menu_engine(ctx, song).sound->getOrCreateFirstRange(source)->getAudioFileHolder()->audioFile = fake_file();
 }
 /// Take every fake file off the sound @p ctx edits, before its oscillator types change again.
 inline void unload_files(const MenuContext& ctx, Song& song) {
 	if (spec::menu_engine(ctx, song).sound == nullptr) {
 		return;
 	}
-	for (Source& source : spec::menu_engine(ctx, song).sound->sources) {
+	for (SourceResources& source : spec::menu_engine(ctx, song).sound->sourceResources) {
 		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
 			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
 		}
@@ -119,7 +118,7 @@ inline SettingContext descriptor_context(const Fixture& fixture, const MenuConte
 	Song& song = song_of(fixture.where);
 	if (spec::menu_engine(ctx, song).sound != nullptr) {
 		for (int32_t i = 0; i < static_cast<int32_t>(deluge::plugin::kMaxSoundSources); ++i) {
-			if (spec::menu_engine(ctx, song).sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
+			if (spec::menu_engine(ctx, song).sound->sourceResources[i].hasAtLeastOneAudioFileLoaded()) {
 				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
 			}
 		}

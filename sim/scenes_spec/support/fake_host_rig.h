@@ -7,7 +7,6 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/ports/ports.h"
@@ -78,7 +77,7 @@ struct FakeHostRig {
 	/// @return The context; its ports point at this rig's fakes, so it is valid while the rig lives.
 	[[nodiscard]] menu::MenuContext synth_context() {
 		if (!host.sound.states.contains(kSynthSlot.id)) {
-			hold_synth(instrument::new_synth_state());
+			hold_synth(instrument::SoundState{}); // a default state is a new synth's
 		}
 		const bind::Ports ports = host.ports();
 		return menu::context_for(

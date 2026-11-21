@@ -33,6 +33,7 @@
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -54,7 +55,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/known_differences.h"
 #include "support/menu_engine.h"
@@ -1478,27 +1479,27 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 		{ // --- synth_mode --------------------------------------------------------------------
 			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as main's menu does), so
 			// both sources are saws while the hook is driven.
-			const OscType osc_before[2] = {spec::menu_engine(f.ctx, *f.song.song).sound->sources[0].oscType, spec::menu_engine(f.ctx, *f.song.song).sound->sources[1].oscType};
-			spec::menu_engine(f.ctx, *f.song.song).sound->sources[0].setOscType(OscType::SAW);
-			spec::menu_engine(f.ctx, *f.song.song).sound->sources[1].setOscType(OscType::SAW);
+			const OscType osc_before[2] = {spec::menu_engine(f.ctx, *f.song.song).sound->oscType(0), spec::menu_engine(f.ctx, *f.song.song).sound->oscType(1)};
+			deluge::test::setOscType(*spec::menu_engine(f.ctx, *f.song.song).sound, 0, OscType::SAW);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx, *f.song.song).sound, 1, OscType::SAW);
 			const SynthMode before = spec::menu_engine(f.ctx, *f.song.song).sound->getSynthMode();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
 			expect(spec::menu_engine(f.ctx, *f.song.song).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(spec::menu_engine(f.ctx, *f.song.song).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
-			spec::menu_engine(f.ctx, *f.song.song).sound->setSynthMode(before, f.song.song);
-			spec::menu_engine(f.ctx, *f.song.song).sound->sources[0].setOscType(osc_before[0]);
-			spec::menu_engine(f.ctx, *f.song.song).sound->sources[1].setOscType(osc_before[1]);
+			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(before));
+			deluge::test::setOscType(*spec::menu_engine(f.ctx, *f.song.song).sound, 0, osc_before[0]);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx, *f.song.song).sound, 1, osc_before[1]);
 			covered++;
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
+			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
 			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;

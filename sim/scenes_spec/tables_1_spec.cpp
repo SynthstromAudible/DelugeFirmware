@@ -48,7 +48,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/known_differences.h"
 #include "support/menu_engine.h"
@@ -662,7 +662,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		expect(spec::menu_engine(f.ctx, *f.song.song).range).not_().to_be_null();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
 		expect(menu::permission_for(nodes::source0_transpose, f.ctx)).to_equal(menu::Permission::Yes);
-		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard.
+		// `SourceResources::getOrCreateFirstRange` gives the new range the top of the keyboard.
 		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
 
 		// Idempotent: a second call must not add a second range.
@@ -816,7 +816,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		RangeFixture f{6};
 		const int16_t tops[] = {20, 30, 40, 50, 60, 32767};
 		f.set_tops(tops);
-		static_cast<SoundInstrument*>(f.song.instrument)->sources[0].defaultRangeI = 4;
+		static_cast<SoundInstrument*>(f.song.instrument)->sourceResources[0].defaultRangeI = 4;
 		std::vector<int32_t> got;
 		menu::MenuState picker{};
 		picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
@@ -853,13 +853,13 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		spec::HeldPorts popup{gated};
 		popup.ui.popup = true;
 		nodes::range_delete_press(gated, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
 		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
 		nodes::range_delete_press(f.ctx, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
 		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
 		nodes::range_delete_press(f.ctx, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(2);
 		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
 		expect(static_cast<int32_t>(state.walk.range_choice)).to_equal(1);
 		display->cancelPopup();
@@ -883,12 +883,12 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 	});
 
 	it("moves to a played note's range as noteOnToChangeRange does, a note at a range's top inside it, and not mid-edge", _ {
-		// `MultiRange::noteOnToChangeRange` and `Source::getRangeIndex`: the first range whose top is at or above the note.
+		// `MultiRange::noteOnToChangeRange` and `SourceResources::getRangeIndex`: the first range whose top is at or above the note.
 		RangeFixture f{3};
 		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
 		const int16_t tops[] = {40, 60, 32767};
 		for (int32_t i = 0; i < 3; i++) {
-			sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+			sound->sourceResources[0].ranges.getElement(i)->topNote = tops[i];
 		}
 		deluge::edits::recordRanges(*sound, 0);
 		MenuContext ctx = spec::ctx_of(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
@@ -898,7 +898,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
-		expect(static_cast<int32_t>(sound->sources[0].getRangeIndex(40))).to_equal(0);
+		expect(static_cast<int32_t>(sound->sourceResources[0].getRangeIndex(40))).to_equal(0);
 		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
 		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);

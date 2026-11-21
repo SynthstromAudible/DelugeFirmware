@@ -43,7 +43,7 @@
 ///   * Remembering the previously selected `MultiRange` across sessions, and dropping it when the UI or the source
 ///     index changed. `MenuContext::range_index` is the field it feeds, from the scenes' view state; see
 ///     `permission_for`'s already-selected arm.
-///   * `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
+///   * `SourceResources::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.
 ///
@@ -72,7 +72,7 @@ namespace deluge::scenes::menu {
 namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
-std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
+std::vector<deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
 	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0
 	    || ctx.source_index >= static_cast<int32_t>(instrument::kSourceCount)) {
 		return {};
@@ -80,7 +80,7 @@ std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext&
 	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	return state != nullptr
 	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
-	           : std::span<const deluge::instrument::RangeState>{};
+	           : std::vector<deluge::instrument::RangeState>{};
 }
 
 } // namespace
@@ -92,13 +92,13 @@ int32_t range_count(const MenuContext& ctx) {
 }
 
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
-	const std::span<const deluge::instrument::RangeState> ranges = edited_ranges(ctx);
+	const std::vector<deluge::instrument::RangeState> ranges = edited_ranges(ctx);
 	return {ranges.begin(), ranges.end()};
 }
 
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
-		return deluge::instrument::kOpenTopNote; // `Source::getOrCreateFirstRange`'s "top of the keyboard"
+		return deluge::instrument::kOpenTopNote; // `SourceResources::getOrCreateFirstRange`'s "top of the keyboard"
 	}
 	return edited_ranges(ctx)[static_cast<size_t>(index)].top_note;
 }
@@ -108,8 +108,8 @@ bool ensure_first_range(MenuContext& ctx) {
 		return true; // no sound: nothing is being edited that could want a range
 	}
 	if (range_count(ctx) == 0) {
-		// `Source::getOrCreateFirstRange()`, as a request: the first range, which the app makes and the record holds. A
-		// refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
+		// `SourceResources::getOrCreateFirstRange()`, as a request: the first range, which the app makes and the record
+		// holds. A refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
 		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
 		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
 		if (ctx.ports.sound_writes == nullptr

@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multisample_range.h"
 
 VoiceSamplePlaybackGuide::VoiceSamplePlaybackGuide() {

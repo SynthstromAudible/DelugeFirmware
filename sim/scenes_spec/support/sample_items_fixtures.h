@@ -5,18 +5,21 @@
 ///        oscillator configurations the relevance predicates are asked under. The spec and the menu oracle freezer
 ///        share them.
 
+#include "instruments/deluge/words.h"
 #include "memory/heaps.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "support/record_state.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <new>
+#include <string>
 
 namespace deluge::scenes::spec::sampleitems {
 
@@ -76,13 +79,18 @@ inline constexpr OscCase kOscCases[] = {
 /// as
 ///        a load does, so the record the menu reads is the sound's truth.
 inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCase& c, int32_t which) {
-	sound.assignSynthMode(c.synth_mode);
+	// The kinds and the engine go in through their rules, as a load reaches them: a file can hold ring mod or FM over a
+	// sample or wavetable kind, which the menus refuse to write
 	for (int32_t i = 0; i < 2; i++) {
-		Source& s = sound.sources[i];
-		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
-		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
+		SourceResources& s = sound.sourceResources[i];
+		*sound.state_ = deluge::test::with_kind(*sound.state_, static_cast<deluge::instrument::SourceId>(i),
+		                                        i == which ? c.osc_type : OscType::SQUARE);
+		sound.projectSnapshot();
+		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}
+	sound.record() = deluge::instrument::switch_engine(sound.record(), c.synth_mode);
+	sound.projectSnapshot();
 	deluge::bridge::recordLoadedSound(sound, song);
 }
 

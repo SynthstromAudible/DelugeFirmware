@@ -52,6 +52,7 @@ std::vector<OwnedTable> owned_tables() {
 	    {SettingGroupId::AUDIO_INPUT, "AUDIO_INPUT", table_of(SettingGroupId::AUDIO_INPUT)},
 	    {SettingGroupId::CLIP_ARP, "CLIP_ARP", table_of(SettingGroupId::CLIP_ARP)},
 	    {SettingGroupId::LANE_ARP, "LANE_ARP", table_of(SettingGroupId::LANE_ARP)},
+	    {SettingGroupId::SOUND_ROUTING, "SOUND_ROUTING", table_of(SettingGroupId::SOUND_ROUTING)},
 	};
 }
 

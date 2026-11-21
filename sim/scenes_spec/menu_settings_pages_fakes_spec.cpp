@@ -27,6 +27,7 @@
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "midi/device_id.h"
 #include "music-theory/preset_scales.h"
 #include "notify/dirty_set.h"
@@ -352,8 +353,9 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		ctx.addresses.slot = deluge::project::SlotAddress{.kind = deluge::project::SlotAddress::Kind::OUTPUT, .id = 7};
 		ctx.source_index = 0;
 		deluge::instrument::SoundState& state = r.fakes.host.sound.states[7];
-		state.sources[0].ranges = {deluge::instrument::RangeState{.top_note = 60},
-		                           deluge::instrument::RangeState{.top_note = 72}};
+		state = deluge::instrument::with_ranges(state, deluge::instrument::SourceId::A,
+		                                        {deluge::instrument::RangeState{.top_note = 60},
+		                                         deluge::instrument::RangeState{.top_note = 72}});
 		// Range 1 starts at the note above range 0's top, 61: C sharp 3 or D flat 3.
 		std::array<char, 32> buf{};
 		deluge::ui::shell::TextScratch scratch;

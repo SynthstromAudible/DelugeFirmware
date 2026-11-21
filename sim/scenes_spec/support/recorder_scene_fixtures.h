@@ -6,6 +6,7 @@
 ///        process's globals with.
 
 #include "gui/ui/menu_view_of.h"
+#include "model/edits/setting_edit.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -23,7 +24,7 @@
 #include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multisample_range.h"
 
 #include "support/song_fixture.h"
@@ -35,6 +36,7 @@
 
 #include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -79,7 +81,7 @@ struct RecorderDisplay final : deluge::hid::Display {
 struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sound* sound = nullptr;
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	const BoardProfile& profile;
@@ -110,10 +112,11 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		currentSong = song.song; // the app's ports resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		source = &sound->sources[0];
-		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
-		source->sampleControls.reversed = false;
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		source = &sound->sourceResources[0];
+		deluge::test::set(*sound->state_, "osc1/type", "square"); // so "became SAMPLE" is a real observation
+		sound->projectSnapshot();
+		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
+		deluge::edits::recordRanges(*sound, 0); // the range made here is the record's, as a gesture records it
 	}
 
 	MenuContext ctx() {

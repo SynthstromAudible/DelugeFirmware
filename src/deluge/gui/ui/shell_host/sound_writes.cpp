@@ -58,7 +58,7 @@ public:
 	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override {
 		::Sound* sound = sound_at(slot);
 		if (sound != nullptr && source < kNumSources) {
-			sound->sources[source].defaultRangeI = range;
+			sound->sourceResources[source].defaultRangeI = range;
 		}
 	}
 
@@ -68,40 +68,46 @@ public:
 		if (sound == nullptr || source >= kNumSources) {
 			return false;
 		}
-		// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): range
-		// storage is about to change, so every voice is unassigned and none may be assigned during the allocation.
-		sound->killAllVoices();
-		::MultiRange* inserted = nullptr;
-		{
-			AudioEngine::AudioTickHold hold;
-			inserted = sound->sources[source].ranges.insertMultiRange(at);
-		}
-		if (inserted == nullptr) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+		// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a
+		// range with no file at @p at, the one below it narrowed
+		const auto id = static_cast<instrument::SourceId>(source);
+		std::vector<instrument::RangeState> ranges = instrument::source_ranges(sound->state(), id);
+		if (at > ranges.size()) {
 			return false;
 		}
-		inserted->topNote = top_note;
+		// A new sample range's end is unset until a file gives it one, as a runtime range starts; a wavetable range
+		// has no zone
+		const bool sample = instrument::source_type(sound->state(), id) == OscType::SAMPLE;
+		ranges.insert(ranges.begin() + at,
+		              instrument::RangeState{.top_note = top_note, .end_pos = sample ? instrument::kUnsetEndPos : 0});
 		if (previous_top && at > 0) {
-			sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
+			ranges[at - 1].top_note = *previous_top;
 		}
-		edits::recordRanges(*sound, source);
-		return true;
+		const Error error = edits::rangesFor(*sound, source, std::move(ranges));
+		if (error == Error::INSUFFICIENT_RAM) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+		}
+		return error == Error::NONE;
 	}
 
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override {
 		::Sound* sound = sound_at(slot);
-		if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
+		if (sound == nullptr || source >= kNumSources) {
 			return false;
 		}
-		// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): `deleteMultiRange`
-		// unassigns the voices.
-		sound->deleteMultiRange(source, index);
-		if (lower_top && index > 0) {
-			sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
+		// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the range goes, the one
+		// below it widened
+		std::vector<instrument::RangeState> ranges =
+		    instrument::source_ranges(sound->state(), static_cast<instrument::SourceId>(source));
+		if (index >= ranges.size()) {
+			return false;
 		}
-		edits::recordRanges(*sound, source);
-		return true;
+		ranges.erase(ranges.begin() + index);
+		if (lower_top && index > 0) {
+			ranges[index - 1].top_note = *lower_top;
+		}
+		return edits::rangesFor(*sound, source, std::move(ranges)) == Error::NONE;
 	}
 
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override {
@@ -114,7 +120,7 @@ public:
 
 	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override {
 		::Sound* sound = sound_at(slot);
-		if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
+		if (sound == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7) {
 			return false;
 		}
 		// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`,
@@ -126,8 +132,8 @@ public:
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override {
 		::Sound* sound = sound_at(slot);
 		DX7Cartridge* bank = dxCartridgeBank();
-		if (sound == nullptr || bank == nullptr || source >= kNumSources
-		    || sound->sources[source].oscType != OscType::DX7 || program < 0 || program >= bank->numPatches()) {
+		if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7
+		    || program < 0 || program >= bank->numPatches()) {
 			return false;
 		}
 		loadDxProgram(*sound, source, *bank, program);
@@ -147,12 +153,12 @@ public:
 		// One sound: a sample source with ranges (not FM) in its range, any other source in its own setting.
 		const auto one = [&](project::SlotAddress slot, std::optional<uint16_t> in_range) {
 			::Sound* sound = sound_at(slot);
-			if (sound == nullptr || sound->boundState() == nullptr) {
+			if (sound == nullptr) {
 				return false;
 			}
-			const instrument::SoundState& state = *sound->boundState();
+			const instrument::SoundState& state = sound->state();
 			const auto id = static_cast<instrument::SourceId>(source);
-			const std::span<const instrument::RangeState> held = instrument::source_ranges(state, id);
+			const std::vector<instrument::RangeState> held = instrument::source_ranges(state, id);
 			if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
 			    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
 				std::vector<instrument::RangeState> ranges{held.begin(), held.end()};

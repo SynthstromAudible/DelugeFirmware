@@ -25,6 +25,7 @@
 #include "effects/plugin.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
+#include "instruments/deluge/state_access.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -47,6 +48,19 @@ namespace deluge::harness {
 namespace {
 
 using deluge::serialization::Value;
+
+/// @p record with what @p sound's runtime still holds of it in its place: each oscillator's type, DX7 patch and
+/// ranges, and the effects the render plays. The rest the sound plays through its config, which the snapshot check
+/// holds to the record; its routing's runtime copies the song-settings check holds to the routing's record.
+deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
+	deluge::instrument::sound_effects(record) = sound.renderEffects();
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch());
+		record = deluge::instrument::with_ranges(std::move(record), id, sound.sourceResources[s].heldRanges());
+	}
+	return record;
+}
 
 /// Every sound of @p output: a synth's own, or a kit's sound drums.
 void forEachSound(Output& output, const std::function<void(Sound&, const std::string&)>& visit) {
@@ -112,25 +126,28 @@ std::optional<Value> encodedSlot(::Song& song, deluge::project::SlotAddress addr
 
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr) {
+	if (!address) {
 		return {};
 	}
-	const deluge::instrument::SoundState& record = *sound.boundState();
+	const deluge::instrument::SoundState& record = sound.state();
 	const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
 	if (slot == nullptr) {
 		return "slot missing";
 	}
 	if (checks.runtime) {
-		const std::string d = deluge::serialization::first_difference(
-		    deluge::instrument::dump_state(sound.seededState()), deluge::instrument::dump_state(record));
+		const deluge::instrument::SoundState held = heldBy(sound, record);
+		const std::string d = deluge::serialization::first_difference(deluge::instrument::dump_state(held),
+		                                                              deluge::instrument::dump_state(record));
 		if (!d.empty()) {
 			return "runtime at " + d;
 		}
-		if (const deluge::effects::EffectStates played = sound.seededState().effects; !(played == record.effects)) {
+		if (const deluge::effects::EffectStates& played = deluge::instrument::sound_effects(held);
+		    !(played == deluge::instrument::sound_effects(record))) {
 			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
-			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),
-			                                                 deluge::effects::encode(record.effects, context));
+			       + deluge::serialization::first_difference(
+			           deluge::effects::encode(played, context),
+			           deluge::effects::encode(deluge::instrument::sound_effects(record), context));
 		}
 	}
 	if (checks.bound && slot->state.as<deluge::instrument::DelugeSynth>() != &record) {
@@ -154,7 +171,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (!decoded) {
 			return "decode refused";
 		}
-		if (!(*decoded == record)) {
+		if (!(deluge::instrument::SoundState(*decoded) == record)) {
 			return "decode at "
 			       + deluge::serialization::first_difference(deluge::instrument::dump_state(*decoded),
 			                                                 deluge::instrument::dump_state(record));
@@ -185,10 +202,10 @@ std::string chainDifference(const deluge::model::EffectsOwner& owner, const delu
 	if (const std::string d = deluge::serialization::first_difference(decoded.encode(context), encoded); !d.empty()) {
 		return "decode at " + d;
 	}
-	if (owner.binding->snapshot().effects != owner.effects()) {
+	if (owner.binding->renderEffects() != owner.effects()) {
 		return "render copy";
 	}
-	if (owner.binding->snapshot().mod_fx_param != owner.view->modFXParam()) {
+	if (owner.binding->renderModFXParam() != owner.view->modFXParam()) {
 		return "render copy's mod FX knob";
 	}
 	return {};

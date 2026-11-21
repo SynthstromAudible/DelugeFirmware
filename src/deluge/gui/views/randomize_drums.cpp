@@ -197,7 +197,7 @@ bool RandomizeDrums::stepScanRow() {
 			continue;
 		}
 		auto* soundDrum = static_cast<SoundDrum*>(drum);
-		AudioFileHolder* holder = soundDrum->sources[0].getRange(0)->getAudioFileHolder();
+		AudioFileHolder* holder = soundDrum->sourceResources[0].getRange(0)->getAudioFileHolder();
 		const std::string& path = holder->filePath;
 		const size_t slash = path.rfind('/');
 		if (slash == std::string::npos) {

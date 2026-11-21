@@ -198,6 +198,12 @@ LIBRARIES: dict[str, Library] = {
             "synth/voice/sound_config.h",
             "synth/voice/unison.h",
             "dsp-next/fixed/pitch/",
+            # the components' states, which the instrument's state is composed of
+            "synth/sources/source_state.h",
+            "synth/sources/input/input_channel.h",
+            "synth/engines/engine_state.h",
+            "synth/modulation/lfo_state.h",
+            "synth/voice/voicing_state.h",
         ),
     ),
     "host-chain": Library(

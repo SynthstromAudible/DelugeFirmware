@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-20 (the menu on the UI's ports, with the other scenes and the cut still to go; Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-20). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-20 (the menu on the UI's ports, with the other scenes and the cut still to go; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-20). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -18,10 +18,14 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 - Instrument events (Track A step 1b-i, `feat/instrument-events`): note tails are `Voiced`'s, an expression lane's
   change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;
   `ModControllable` is the `effectsOwner()` bridge only.
-- Track A step 3 (the Deluge synth's state) runs as five plans, A to E. Plan A is merged: code outside the
-  instrument reads and writes a sound's state through `instruments/deluge/state_access.h`; only `Sound`, `Source`
-  and three bridges still read its fields, and plans B and D replace them.
-- Next actions: step 3 plan B (`DelugeSynth`, its derived config, one apply path; the setters go); the ModelStack
+- Track A step 3 (the Deluge synth's state) is done: five plans, A to E, merged. A sound's
+  record (`instrument::SoundState`) is composed of its components' states, with a typed `Recall` for a switch back;
+  one derived `Config` and one apply path replace the setters; `BlockValues` and `ParamView` replace `VoiceConfig`'s
+  settings; an oscillator's runtime is its `SourceResources`. The codec, settings and rules work on the record per
+  component; the file's flat layout is the codec's parse form alone, and the tests check the record against its
+  recorded answers. A sound's sidechain send and MIDI output are the host's: `project::SoundRouting` on its synth track
+  or kit row, a setting group the menus write. Its effects are its `FxSection`, its LFOs' settings `synth::LfoState`.
+- Next actions: the ModelStack
   stage 1 spec (it ends Track A step 1b-ii); the arpeggiator's params vs settings (D7) spec; the C2 spec and
   R2 (the scenes' reads behind `bind`); the float instrument's voice pool (Track B).
 
@@ -69,7 +73,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | P3a to c | Effect components: filters, compressor, sidechain, delay, mod FX, granular, stutter | Done |
 | P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done; 1c done (MCA/GE deleted); 1d done (per-effect param tables) |
 | P4 | Clip player (live input is one mode) | Not started |
-| P5 | Topology + reconciler: track = chain, kit = rack of lanes, clip-scoped values, one mapping table | Step 1 records done |
+| P5 | Topology + reconciler: track = chain, kit = a `Kit` of `KitRow`s, clip-scoped values, one mapping table | Step 1 records done |
 | P6 | Interface | Read half begun: `scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
 
 ### P3d-1c execution tree
@@ -134,7 +138,7 @@ what they read (each header with the number of counted files that include it):
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` layer rule (`scripts/check_layer_rules.py`), whose per-file baseline in `scripts/layer_rules_baseline.txt` may only fall, so later work adds no new reads | n/a |
 | R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b). Left: R2c, the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
-| R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = rack of lanes). The scenes' calls do not change, because addresses are already the API | P5 topology |
+| R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
 **R2c carries these from the menu:**
@@ -196,7 +200,7 @@ with its spec that the firmware does not push yet; `GlobalControls`' root-view a
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | Small UIs | 3 | Scenes for the audio clip view (`AudioClipScene` shipped, its not-yet-ported arms closed), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |
-| Big views | 3 | Scenes for the instrument clip view, the session view, the arranger and the automation view, built on P5's topology (track = chain, kit = rack of lanes) beside R3's re-keyed readers | Small UIs; P5 topology |
+| Big views | 3 | Scenes for the instrument clip view, the session view, the arranger and the automation view, built on P5's topology (track = chain, kit = a `Kit` of `KitRow`s) beside R3's re-keyed readers | Small UIs; P5 topology |
 | Shell as root | 3 | The shell boots into the root scenes; `ShellHostUI` and the glue that forwards input to legacy root views are deleted | Big views |
 
 Exit: the shell is root; `ShellHostUI` deleted.
@@ -219,8 +223,8 @@ budget.
 | 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin-api`; board profiles), then the classes go. Branches: `controls-library`, `controls-root-views` (the root views' knobs, presses and mod buttons go through the library; the legacy knob path is gone), `controls-shape` (owners publish their pages, the library assembles them for any board, CV tracks and MIDI and gate drums have an empty layout, and the instrument's layouts are data) and `controls-learn` (learned MIDI knobs and MIDI follow reach params by address through the library, with takeover state kept by table entry; learned knobs load through the model's codec and the engine plays none) and `mca-ge-deletion` (the classes deleted; an owner's effects are a `model::EffectsOwner`, reached from a ModelStack through the `ModControllable::effectsOwner()` bridge until ModelStack stage 1) are done. P3d-1d / C4 (per-effect tables) is done: each effect param is declared once and both tables' effect rows are built from it; the host chain keeps its flat ids until effect slots (P3d-2) | 3d (done) |
 | 1b-i | Instrument events: note tails are `Voiced`'s; an expression lane's change reaches the clip's instrument or the row's drum by address (`model::expressionReceiverOf`); a MIDI instrument sends its own CCs; `ModControllable` is the `effectsOwner()` bridge only, held there by the `mod-controllable-bridge-only` layer rule (done on `feat/instrument-events`) | 1 |
 | 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
-| 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
-| 3 | The Deluge synth's state (`DelugeSynth::State`, the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. The effect settings ("5b") are already value types. Five plans: A (query surface) merged; B config and apply; C per-block pack; D resources; E the variant state | 1b-i |
+| 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion), C3 (one store per instance; `ParamBackup` retires; after step 3, replacing `ParamView`'s adapter), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
+| 3 | The Deluge synth's state (`instrument::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
 | 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |
 | 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin-api` on CLAP's types; TODO.md) | can run beside 2 to 4 |
 | 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
@@ -258,9 +262,9 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 
 | Lane | 1 Ship the UI | 2 Retire legacy | 3 Topology, clips | 4 Long term |
 | --- | --- | --- | --- | --- |
-| UI shell | Done: 3b blockers, 3c flip, R1 read ratchet; flash-test 3a | Done: 3d legacy menus deleted, oracle specs frozen; R2 reads behind `bind` | Root-view program (small UIs, the big views with P5, then the shell as root and `ShellHostUI` deleted); kit lanes and mapping-table UI; R3 readers on P5 ids | P6 interface (R4) |
+| UI shell | Done: 3b blockers, 3c flip, R1 read ratchet; flash-test 3a | Done: 3d legacy menus deleted, oracle specs frozen; R2 reads behind `bind` | Root-view program (small UIs, the big views with P5, then the shell as root and `ShellHostUI` deleted); kit rows and mapping-table UI; R3 readers on P5 ids | P6 interface (R4) |
 | Model | ModelStack plan, inventory of readers (shared with R1) | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
-| Synth | Done: FM/DX7, wavetable, reverb, voice lift, M3 matrix | Track A 1 to 2 (MCA/GE and C4 done; D7, C2, C3, C5); Track B voice pool | Track A 3 to 5 (`Patch`, voice ownership, layout and CLAP arcs); SampleSource and P4 clip player; float instrument | Track A 6: L3 adapter, both instruments behind it; external `.clap` hosting |
+| Synth | Done: FM/DX7, wavetable, reverb, voice lift, M3 matrix | Track A 1 to 2 (MCA/GE and C4 done; D7, C2, C3, C5); Track B voice pool | Track A 3 to 5 (the synth's state, voice ownership, layout and CLAP arcs); SampleSource and P4 clip player; float instrument | Track A 6: L3 adapter, both instruments behind it; external `.clap` hosting |
 | Platform, storage | Device flash-tests, USB-MIDI fix push, live-bug triage | Tier B sync callers, tier D comments, FS-lock queue wait | Allocator redesign, libdeluge hard wall | Supervisor + MMU, warm restart |
 | Release, features | UI branch into `next`, nightly with both corpora | `next` to `main` PR, port #5049 follow-ups | Merge each phase, merge `main` into `next` often | Faster-than-real-time export |
 

@@ -4,6 +4,7 @@
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
 #include "support/printers/song_document_printer.h"
+#include "support/printers/sound_routing_printer.h"
 
 #include <cppspec.hpp>
 
@@ -86,6 +87,21 @@ describe document("the model's parts of a whole song", ${
 		expect(a.outputs.at(1).instrument->state.encode({.input_tick_magnitude = 2}).find("arpeggiator")).to_be_null();
 		expect(through_json(a)).to_equal(a);
 		expect(decoded(kSong).outputs.at(1).arp.has_value()).to_be_false();
+	});
+
+	it("reads and writes a synth track's and a sound kit row's routing", _ {
+		constexpr const char* kRouted =
+		    R"(<song firmwareVersion="4.1.0" inputTickMagnitude="1"><instruments>)"
+		    R"(<sound id="1" presetName="SYN" sideChainSend="1234"><midiOutput channel="3" noteForDrum="255"/></sound>)"
+		    R"(<kit id="2" presetName="KIT"><soundSources>)"
+		    R"(<sound id="5" name="KICK" sideChainSend="2147483647"><midiOutput channel="0" noteForDrum="40"/></sound>)"
+		    R"(</soundSources></kit></instruments></song>)";
+		SongDocument a = decoded(kRouted);
+		expect(a.outputs.at(1).instrument->routing)
+		    .to_equal(SoundRouting{.side_chain_send = 1234, .midi_channel = 3});
+		expect(a.drums.at(5).instrument->routing)
+		    .to_equal(SoundRouting{.side_chain_send = INT32_MAX, .midi_channel = 0, .midi_note = 40});
+		expect(through_json(a)).to_equal(a);
 	});
 
 	it("tells a kit clip by its rows, so a kit row keeps its colour and takes no y from the file", _ {

@@ -151,7 +151,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -175,6 +175,7 @@
 #include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
+#include "support/record_state.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -431,11 +432,12 @@ Sample* make_sample() {
 /// @return The range, so a caller can read the marker positions back.
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
 	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-	Source& source = sound->sources[0];
-	source.oscType = OscType::SAMPLE;
-	source.repeatMode = SampleRepeatMode::ONCE;
-	source.sampleControls.reversed = false;
-	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+	SourceResources& source = sound->sourceResources[0];
+	deluge::test::set(*sound->state_, "osc1/type", "sample");
+	deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
+	deluge::test::set(*sound->state_, "osc1/reversed", "0");
+	sound->projectSnapshot();
+	auto* range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 	if (sample != nullptr) {
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.startPos = 0;
@@ -772,8 +774,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `permission_for`'s `MustSelectRange` arm (`context.cpp`): more than one `MultiRange` on the
 		// source and none selected yet -- the exact setup `menu_scene_spec.cpp`'s own range-permission
 		// test uses, here against the REAL `nodes::source0_transpose` instead of a synthetic param.
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(kRangePermRoots);
@@ -810,8 +812,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().state().walk.pending_after_range).to_equal(&nodes::source0_transpose);
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
 		// so it took `numRanges >> 1` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
-		// `MultiRange::beginSession`), which the picker writes back to `Source::defaultRangeI`.
-		expect(static_cast<SoundInstrument*>(song.instrument)->sources[0].defaultRangeI).to_equal(1);
+		// `MultiRange::beginSession`), which the picker writes back to `SourceResources::defaultRangeI`.
+		expect(static_cast<SoundInstrument*>(song.instrument)->sourceResources[0].defaultRangeI).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);
 	});

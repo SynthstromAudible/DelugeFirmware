@@ -18,12 +18,17 @@
 #include "deluge-project/codec.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
+#include "instruments/deluge/state_rules.h"
+#include "instruments/deluge/words.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -41,8 +46,11 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "support/record_state.h"
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -221,6 +229,9 @@ bool sameTuning(const deluge::dsp::fixed::FineTune& a, const deluge::dsp::fixed:
 	return a.apply(kProbe) == b.apply(kProbe);
 }
 
+/// The oscillator slots a sound has, in file order.
+constexpr std::array kSourceIds{instrument::SourceId::A, instrument::SourceId::B};
+
 /// Each bound Sound of @p song: a synth instrument's, or a kit's sound drum's, live or hibernating.
 template <typename F>
 void forEachBoundSound(Song& song, F&& f) {
@@ -229,17 +240,13 @@ void forEachBoundSound(Song& song, F&& f) {
 		for (Output* o = first; o != nullptr; o = o->next) {
 			if (o->type == OutputType::SYNTH) {
 				Sound* sound = static_cast<SoundInstrument*>(o);
-				if (sound->state_ != nullptr) {
-					f(*sound);
-				}
+				f(*sound);
 			}
 			else if (o->type == OutputType::KIT) {
 				for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
 					if (d->type == DrumType::SOUND) {
 						Sound* sound = static_cast<SoundDrum*>(d);
-						if (sound->state_ != nullptr) {
-							f(*sound);
-						}
+						f(*sound);
 					}
 				}
 			}
@@ -247,18 +254,51 @@ void forEachBoundSound(Song& song, F&& f) {
 	}
 }
 
-/// Every bound Sound's snapshot must equal the projection of its SoundState record, and each snapshot setter must
-/// write the record and reproject. @return the number of mismatches, each printed under @p label.
+/// A retrigger phase word as a file writes it: the signed 32-bit number with the same bits.
+std::string phaseText(uint32_t word) {
+	return std::to_string(std::bit_cast<int32_t>(word));
+}
+
+/// Takes @p sound's setting at @p path to @p text (as the file writes it) as an editor does (an Edit on its slot in
+/// the current song, else the unslotted write): the value is what the setting reads in the record with @p text written
+/// to a copy. @return Whether the state then holds the value.
+bool setThrough(Sound& sound, std::string_view path, std::string_view text) {
+	const std::optional<deluge::instrument::SoundState> wanted = deluge::test::try_set(*sound.state_, path, text);
+	if (!wanted) {
+		return false;
+	}
+	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(*wanted, path);
+	if (!value) {
+		return false;
+	}
+	deluge::edits::settingFor(sound, path, *value);
+	const std::optional<deluge::serialization::Value> landed = deluge::instrument::setting_value(*sound.state_, path);
+	return landed && landed->str() == value->str();
+}
+
+/// Every bound Sound's snapshot must equal the projection of its record, and each setting's Edit must
+/// write the record and bring the snapshot along. @return the number of mismatches, each printed under @p label.
 int32_t checkSoundConfigs(Song& song, const char* label) {
 	int32_t sounds = 0, bad = 0;
 	Sound* probe = nullptr;
+	Sound* modeProbe = nullptr; // one that can go to ring mod and back (or back from it) without leaving FM
+	Sound* fmProbe = nullptr;   // one whose modulators an Edit writes
 	forEachBoundSound(song, [&](Sound& sound) {
-		const deluge::instrument::SoundState& d = *sound.state_;
+		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
 		sounds++;
 		probe = (probe != nullptr) ? probe : &sound;
-		if (sound.getTranspose() != d.transpose) {
+		const bool ringable = std::ranges::all_of(kSourceIds, [&](instrument::SourceId id) {
+			return instrument::source_type(d(), id) <= OscType::WAVETABLE;
+		});
+		if (modeProbe == nullptr && instrument::synth_mode(d()) != SynthMode::FM && ringable) {
+			modeProbe = &sound;
+		}
+		if (fmProbe == nullptr && instrument::synth_mode(d()) == SynthMode::FM) {
+			fmProbe = &sound;
+		}
+		if (sound.getTranspose() != instrument::voicing(d()).master.transpose) {
 			std::fprintf(io.err, "M4b FAIL %s: transpose snapshot=%d record=%d\n", label, sound.getTranspose(),
-			             d.transpose);
+			             instrument::voicing(d()).master.transpose);
 			bad++;
 		}
 		// A copy: the unison-table check below reprojects, and every field must be compared as loaded.
@@ -269,13 +309,15 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				bad++;
 			}
 		};
-		expect(snap.engine.osc_sync == d.oscillator_sync, "oscillator_sync");
-		expect(snap.voicing.priority == static_cast<VoicePriority>(d.voice_priority), "voice_priority");
-		expect(snap.engine.modulator1_to_modulator0 == d.modulator1_to_modulator0, "modulator1_to_modulator0");
-		expect(sound.modControllableSnapshot().effects == sound.effects(), "effects");
-		expect(snap.voicing.unison.count == d.num_unison, "num_unison");
-		expect(snap.voicing.unison_detune == d.unison_detune, "unison_detune");
-		expect(snap.voicing.unison_spread == d.unison_stereo_spread, "unison_stereo_spread");
+		expect(snap.engine.osc_sync == instrument::oscillator_sync(d()), "oscillator_sync");
+		expect(snap.voicing.priority == static_cast<VoicePriority>(instrument::voicing(d()).priority),
+		       "voice_priority");
+		expect(snap.engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d()),
+		       "modulator1_to_modulator0");
+		expect(sound.renderEffects() == sound.effects(), "effects");
+		expect(snap.voicing.unison.count == instrument::unison(d()).count, "num_unison");
+		expect(snap.voicing.unison_detune == instrument::unison(d()).detune, "unison_detune");
+		expect(snap.voicing.unison_spread == instrument::unison(d()).spread, "unison_stereo_spread");
 		{
 			// The unison tables are derived; the loaded ones must match a fresh projection from the record.
 			sound.projectSnapshot();
@@ -285,126 +327,118 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				expect(snap.voicing.unison.pans[u] == sound.config().voicing.unison.pans[u], "unison_pan");
 			}
 		}
-		expect(snap.voicing.cents == d.cents, "cents");
-		expect(sameTuning(snap.voicing.tune, centsTuner(d.cents)), "fine_tuner");
+		expect(snap.voicing.cents == instrument::voicing(d()).master.cents, "cents");
+		expect(sameTuning(snap.voicing.tune, centsTuner(instrument::voicing(d()).master.cents)), "fine_tuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
-			expect(snap.lfos[l].wave_type == static_cast<LFOType>(d.lfo_wave_type[l]), "lfo_config.wave_type");
-			expect(snap.lfos[l].sync_type == static_cast<SyncType>(d.lfo_sync_type[l]), "lfo_config.sync_type");
-			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(d.lfo_sync_level[l]), "lfo_config.sync_level");
+			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_state.shape");
+			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instrument::lfo(d(), l).sync_type),
+			       "lfo_state.sync_type");
+			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instrument::lfo(d(), l).sync_level),
+			       "lfo_state.sync_level");
 		}
 		for (int32_t i = 0; i < 2; i++) {
-			expect(snap.engine.modulators[i].cents == d.modulator_cents[i], "modulator_cents");
-			expect(sameTuning(snap.engine.modulators[i].tune, centsTuner(d.modulator_cents[i])),
+			expect(snap.engine.modulators[i].cents == instrument::modulators(d())[i].tuning.cents, "modulator_cents");
+			expect(sameTuning(snap.engine.modulators[i].tune, centsTuner(instrument::modulators(d())[i].tuning.cents)),
 			       "modulator_transposers");
-			expect(snap.engine.modulators[i].transpose == d.modulator_transpose[i], "modulator_transpose");
-			expect(snap.engine.osc_retrigger_phase[i] == d.osc_retrigger_phase[i], "osc_retrigger_phase");
-			expect(snap.engine.modulators[i].retrigger_phase == d.modulator_retrigger_phase[i],
+			expect(snap.engine.modulators[i].transpose == instrument::modulators(d())[i].tuning.transpose,
+			       "modulator_transpose");
+			expect(snap.engine.osc_retrigger_phase[i]
+			           == instrument::phase_word(instrument::source_retrigger(d(), kSourceIds[i])),
+			       "osc_retrigger_phase");
+			expect(snap.engine.modulators[i].retrigger_phase
+			           == instrument::phase_word(instrument::modulators(d())[i].retrigger),
 			       "modulator_retrigger_phase");
 		}
-		if (sound.getSynthMode() != static_cast<SynthMode>(d.synth_mode)) {
+		if (sound.getSynthMode() != static_cast<SynthMode>(instrument::synth_mode(d()))) {
 			std::fprintf(io.err, "M4b FAIL %s: synthMode snapshot=%d record=%d\n", label,
-			             static_cast<int>(sound.getSynthMode()), d.synth_mode);
+			             static_cast<int>(sound.getSynthMode()), instrument::synth_mode(d()));
 			bad++;
 		}
 	});
 	if (probe != nullptr) {
 		Sound& sound = *probe;
-		const deluge::instrument::SoundState& d = *sound.state_;
-		const int16_t transpose = sound.getTranspose();
-		sound.setTranspose(static_cast<int16_t>(transpose + 7));
-		if (sound.getTranspose() != transpose + 7 || d.transpose != transpose + 7) {
-			std::fprintf(io.err, "M4b FAIL %s: setTranspose did not write the record and reproject\n", label);
-			bad++;
-		}
-		sound.setTranspose(transpose);
-		const SynthMode mode = sound.getSynthMode();
-		const SynthMode other = (mode == SynthMode::FM) ? SynthMode::RINGMOD : SynthMode::FM;
-		sound.assignSynthMode(other);
-		if (sound.getSynthMode() != other || static_cast<SynthMode>(d.synth_mode) != other) {
-			std::fprintf(io.err, "M4b FAIL %s: assignSynthMode did not write the record and reproject\n", label);
-			bad++;
-		}
-		sound.assignSynthMode(mode);
-		auto roundTrip = [&](bool ok, const char* setter) {
+		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		auto roundTrip = [&](bool ok, const char* setting) {
 			if (!ok) {
-				std::fprintf(io.err, "M4b FAIL %s: %s did not write the record and reproject\n", label, setter);
+				std::fprintf(io.err, "M4b FAIL %s: the %s Edit did not write the record and reproject\n", label,
+				             setting);
 				bad++;
 			}
 		};
+		const int16_t transpose = sound.getTranspose();
+		const int16_t otherTranspose = static_cast<int16_t>(transpose + 7);
+		roundTrip(setThrough(sound, "transpose", std::to_string(otherTranspose))
+		              && sound.getTranspose() == otherTranspose
+		              && instrument::voicing(d()).master.transpose == otherTranspose,
+		          "transpose");
+		setThrough(sound, "transpose", std::to_string(transpose));
 		const deluge::synth::SoundConfig before = sound.config();
-		sound.setOscillatorSync(!before.engine.osc_sync);
-		roundTrip(sound.config().engine.osc_sync == d.oscillator_sync && d.oscillator_sync != before.engine.osc_sync,
-		          "setOscillatorSync");
-		sound.setOscillatorSync(before.engine.osc_sync);
+		roundTrip(setThrough(sound, "osc2/oscillatorSync", before.engine.osc_sync ? "0" : "1")
+		              && sound.config().engine.osc_sync == instrument::oscillator_sync(d())
+		              && instrument::oscillator_sync(d()) != before.engine.osc_sync,
+		          "osc2/oscillatorSync");
+		setThrough(sound, "osc2/oscillatorSync", before.engine.osc_sync ? "1" : "0");
 		const VoicePriority otherPriority =
 		    before.voicing.priority == VoicePriority::HIGH ? VoicePriority::LOW : VoicePriority::HIGH;
-		sound.setVoicePriority(otherPriority);
-		roundTrip(sound.config().voicing.priority == otherPriority
-		              && static_cast<VoicePriority>(d.voice_priority) == otherPriority,
-		          "setVoicePriority");
-		sound.setVoicePriority(before.voicing.priority);
-		sound.setModulator1ToModulator0(!before.engine.modulator1_to_modulator0);
-		roundTrip(sound.config().engine.modulator1_to_modulator0 == d.modulator1_to_modulator0
-		              && d.modulator1_to_modulator0 != before.engine.modulator1_to_modulator0,
-		          "setModulator1ToModulator0");
-		sound.setModulator1ToModulator0(before.engine.modulator1_to_modulator0);
-		sound.setOscRetriggerPhase(1, before.engine.osc_retrigger_phase[1] + 5);
-		roundTrip(sound.config().engine.osc_retrigger_phase[1] == d.osc_retrigger_phase[1]
-		              && d.osc_retrigger_phase[1] == before.engine.osc_retrigger_phase[1] + 5,
-		          "setOscRetriggerPhase");
-		sound.setOscRetriggerPhase(1, before.engine.osc_retrigger_phase[1]);
-		sound.setModulatorRetriggerPhase(1, before.engine.modulators[1].retrigger_phase + 5);
-		roundTrip(sound.config().engine.modulators[1].retrigger_phase == d.modulator_retrigger_phase[1]
-		              && d.modulator_retrigger_phase[1] == before.engine.modulators[1].retrigger_phase + 5,
-		          "setModulatorRetriggerPhase");
-		sound.setModulatorRetriggerPhase(1, before.engine.modulators[1].retrigger_phase);
-		const LFOConfig lfo = before.lfos[LFO2_ID];
-		const LFOType otherWave = lfo.wave_type == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
-		sound.setLfoWaveType(LFO2_ID, otherWave);
-		roundTrip(sound.config().lfos[LFO2_ID].wave_type == otherWave
-		              && static_cast<LFOType>(d.lfo_wave_type[LFO2_ID]) == otherWave,
-		          "setLfoWaveType");
-		sound.setLfoWaveType(LFO2_ID, lfo.wave_type);
+		roundTrip(setThrough(sound, "voicePriority", std::to_string(std::to_underlying(otherPriority)))
+		              && sound.config().voicing.priority == otherPriority
+		              && static_cast<VoicePriority>(instrument::voicing(d()).priority) == otherPriority,
+		          "voicePriority");
+		setThrough(sound, "voicePriority", std::to_string(std::to_underlying(before.voicing.priority)));
+		const uint32_t otherPhase = before.engine.osc_retrigger_phase[1] + 5;
+		roundTrip(setThrough(sound, "osc2/retrigPhase", phaseText(otherPhase))
+		              && sound.config().engine.osc_retrigger_phase[1]
+		                     == instrument::phase_word(instrument::source_retrigger(d(), instrument::SourceId::B))
+		              && instrument::phase_word(instrument::source_retrigger(d(), instrument::SourceId::B))
+		                     == otherPhase,
+		          "osc2/retrigPhase");
+		setThrough(sound, "osc2/retrigPhase", phaseText(before.engine.osc_retrigger_phase[1]));
+		const deluge::synth::LfoState lfo = before.lfos[LFO2_ID];
+		const LFOType otherWave = lfo.shape == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
+		roundTrip(setThrough(sound, "lfo2/type", instrument::to_string(otherWave))
+		              && sound.config().lfos[LFO2_ID].shape == otherWave
+		              && static_cast<LFOType>(instrument::lfo(d(), LFO2_ID).shape) == otherWave,
+		          "lfo2/type");
+		setThrough(sound, "lfo2/type", instrument::to_string(lfo.shape));
 		const SyncLevel otherLevel = lfo.sync_level == SYNC_LEVEL_8TH ? SYNC_LEVEL_16TH : SYNC_LEVEL_8TH;
-		sound.setLfoSync(LFO2_ID, SYNC_TYPE_TRIPLET, otherLevel);
-		roundTrip(sound.config().lfos[LFO2_ID].sync_type == SYNC_TYPE_TRIPLET
+		const bool typeLanded =
+		    setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(SYNC_TYPE_TRIPLET)));
+		roundTrip(typeLanded && setThrough(sound, "lfo2/syncLevel", std::to_string(plugin::index_of(otherLevel)))
+		              && sound.config().lfos[LFO2_ID].sync_type == SYNC_TYPE_TRIPLET
 		              && sound.config().lfos[LFO2_ID].sync_level == otherLevel
-		              && static_cast<SyncType>(d.lfo_sync_type[LFO2_ID]) == SYNC_TYPE_TRIPLET
-		              && static_cast<SyncLevel>(d.lfo_sync_level[LFO2_ID]) == otherLevel,
-		          "setLfoSync");
-		sound.setLfoSync(LFO2_ID, lfo.sync_type, lfo.sync_level);
+		              && static_cast<SyncType>(instrument::lfo(d(), LFO2_ID).sync_type) == SYNC_TYPE_TRIPLET
+		              && static_cast<SyncLevel>(instrument::lfo(d(), LFO2_ID).sync_level) == otherLevel,
+		          "lfo2/syncType and lfo2/syncLevel");
+		setThrough(sound, "lfo2/syncLevel", std::to_string(plugin::index_of(lfo.sync_level)));
+		setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(lfo.sync_type)));
 		const int8_t otherCents = static_cast<int8_t>(before.voicing.cents == 25 ? -25 : 25);
-		sound.set_cents(otherCents);
-		roundTrip(sound.config().voicing.cents == otherCents && d.cents == otherCents
+		roundTrip(setThrough(sound, "cents", std::to_string(otherCents)) && sound.config().voicing.cents == otherCents
+		              && instrument::voicing(d()).master.cents == otherCents
 		              && sameTuning(sound.config().voicing.tune, centsTuner(otherCents)),
-		          "set_cents");
-		sound.set_cents(before.voicing.cents);
-		const int8_t otherModCents = static_cast<int8_t>(before.engine.modulators[1].cents == 30 ? -30 : 30);
-		sound.setModulatorCents(1, otherModCents, nullptr);
-		roundTrip(sound.config().engine.modulators[1].cents == otherModCents && d.modulator_cents[1] == otherModCents
-		              && sameTuning(sound.config().engine.modulators[1].tune, centsTuner(otherModCents)),
-		          "setModulatorCents");
-		sound.setModulatorCents(1, before.engine.modulators[1].cents, nullptr);
+		          "cents");
+		setThrough(sound, "cents", std::to_string(before.voicing.cents));
 		const uint8_t otherUnison = before.voicing.unison.count == 4 ? 3 : 4;
-		sound.setNumUnison(otherUnison, nullptr);
-		sound.setUnisonDetune(before.voicing.unison_detune == 20 ? 30 : 20, nullptr);
-		sound.setUnisonStereoSpread(before.voicing.unison_spread == 10 ? 15 : 10);
+		const bool unisonLanded =
+		    setThrough(sound, "unison/num", std::to_string(otherUnison))
+		    && setThrough(sound, "unison/detune", before.voicing.unison_detune == 20 ? "30" : "20")
+		    && setThrough(sound, "unison/spread", before.voicing.unison_spread == 10 ? "15" : "10");
 		{
 			const deluge::synth::SoundConfig edited = sound.config();
-			roundTrip(edited.voicing.unison.count == otherUnison && d.num_unison == otherUnison
-			              && edited.voicing.unison_detune == d.unison_detune
-			              && edited.voicing.unison_spread == d.unison_stereo_spread,
-			          "setNumUnison/setUnisonDetune/setUnisonStereoSpread");
+			roundTrip(unisonLanded && edited.voicing.unison.count == otherUnison
+			              && instrument::unison(d()).count == otherUnison
+			              && edited.voicing.unison_detune == instrument::unison(d()).detune
+			              && edited.voicing.unison_spread == instrument::unison(d()).spread,
+			          "unison/num, unison/detune and unison/spread");
 			sound.projectSnapshot();
 			for (int32_t u = 0; u < otherUnison; u++) {
 				roundTrip(sameTuning(edited.voicing.unison.detunes[u], sound.config().voicing.unison.detunes[u])
 				              && edited.voicing.unison.pans[u] == sound.config().voicing.unison.pans[u],
-				          "unison tables after an edit");
+				          "unison tables after the unison");
 			}
 		}
-		sound.setUnisonStereoSpread(before.voicing.unison_spread);
-		sound.setUnisonDetune(before.voicing.unison_detune, nullptr);
-		sound.setNumUnison(before.voicing.unison.count, nullptr);
+		setThrough(sound, "unison/spread", std::to_string(before.voicing.unison_spread));
+		setThrough(sound, "unison/detune", std::to_string(before.voicing.unison_detune));
+		setThrough(sound, "unison/num", std::to_string(before.voicing.unison.count));
 		{
 			const deluge::effects::EffectStates effectsBefore = sound.effects();
 			deluge::model::changeEffects(*sound.effectsOwner(), [&](deluge::effects::EffectStates& e) {
@@ -416,7 +450,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				e.filter.route = effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
 				                                                                     : FilterRoute::PARALLEL;
 			});
-			const deluge::effects::EffectStates& ms = sound.modControllableSnapshot().effects;
+			const deluge::effects::EffectStates& ms = sound.renderEffects();
 			roundTrip(ms == sound.effects() && ms.saturation != effectsBefore.saturation
 			              && ms.filter.lpf_mode != effectsBefore.filter.lpf_mode
 			              && ms.filter.hpf_mode != effectsBefore.filter.hpf_mode
@@ -424,6 +458,50 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 			          "the saturation and filter settings");
 			deluge::model::storeEffects(*sound.effectsOwner(), effectsBefore);
 		}
+	}
+	if (modeProbe != nullptr) {
+		// Between subtractive and ring mod: neither the filters nor the knobs move with the mode.
+		Sound& sound = *modeProbe;
+		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		const SynthMode mode = sound.getSynthMode();
+		const SynthMode other = (mode == SynthMode::RINGMOD) ? SynthMode::SUBTRACTIVE : SynthMode::RINGMOD;
+		const bool landed = setThrough(sound, "mode", instrument::to_string(other));
+		if (!landed || sound.getSynthMode() != other || static_cast<SynthMode>(instrument::synth_mode(d())) != other) {
+			std::fprintf(io.err, "M4b FAIL %s: the mode Edit did not write the record and reproject\n", label);
+			bad++;
+		}
+		setThrough(sound, "mode", instrument::to_string(mode));
+	}
+	if (fmProbe != nullptr) {
+		Sound& sound = *fmProbe;
+		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		auto roundTrip = [&](bool ok, const char* setting) {
+			if (!ok) {
+				std::fprintf(io.err, "M4b FAIL %s: the %s Edit did not write the record and reproject\n", label,
+				             setting);
+				bad++;
+			}
+		};
+		const deluge::synth::SoundConfig before = sound.config();
+		roundTrip(setThrough(sound, "modulator2/toModulator1", before.engine.modulator1_to_modulator0 ? "0" : "1")
+		              && sound.config().engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d())
+		              && instrument::modulator1_to_modulator0(d()) != before.engine.modulator1_to_modulator0,
+		          "modulator2/toModulator1");
+		setThrough(sound, "modulator2/toModulator1", before.engine.modulator1_to_modulator0 ? "1" : "0");
+		const uint32_t otherPhase = before.engine.modulators[1].retrigger_phase + 5;
+		roundTrip(setThrough(sound, "modulator2/retrigPhase", phaseText(otherPhase))
+		              && sound.config().engine.modulators[1].retrigger_phase
+		                     == instrument::phase_word(instrument::modulators(d())[1].retrigger)
+		              && instrument::phase_word(instrument::modulators(d())[1].retrigger) == otherPhase,
+		          "modulator2/retrigPhase");
+		setThrough(sound, "modulator2/retrigPhase", phaseText(before.engine.modulators[1].retrigger_phase));
+		const int8_t otherModCents = static_cast<int8_t>(before.engine.modulators[1].cents == 30 ? -30 : 30);
+		roundTrip(setThrough(sound, "modulator2/cents", std::to_string(otherModCents))
+		              && sound.config().engine.modulators[1].cents == otherModCents
+		              && instrument::modulators(d())[1].tuning.cents == otherModCents
+		              && sameTuning(sound.config().engine.modulators[1].tune, centsTuner(otherModCents)),
+		          "modulator2/cents");
+		setThrough(sound, "modulator2/cents", std::to_string(before.engine.modulators[1].cents));
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

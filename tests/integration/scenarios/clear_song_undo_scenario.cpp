@@ -26,6 +26,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "gui/context_menu/clear_song.h"
 #include "gui/ui/browser/browser.h"
@@ -42,6 +43,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -149,8 +151,8 @@ Instrument* firstInstrument() {
 }
 
 /// The first sample holder of a synth's source, or null.
-AudioFileHolder* firstHolder(Source& source) {
-	MultiRange* range = source.getOrCreateFirstRange();
+AudioFileHolder* firstHolder(Sound& sound, int32_t s) {
+	MultiRange* range = sound.getOrCreateFirstRange(s);
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
@@ -160,7 +162,7 @@ bool clipBound() {
 	if (instrument == nullptr || instrument->type != OutputType::SYNTH) {
 		return false;
 	}
-	AudioFileHolder* holder = firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]);
+	AudioFileHolder* holder = firstHolder(*static_cast<SoundInstrument*>(instrument), 0);
 	return holder != nullptr && !holder->filePath.empty();
 }
 
@@ -174,12 +176,13 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	AudioFileHolder* holder = firstHolder(synth->sources[0]);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
+	AudioFileHolder* holder = firstHolder(*synth, 0);
 	if (holder == nullptr) {
 		return false;
 	}
 	holder->filePath = samplePath;
+	deluge::edits::recordRanges(*synth, 0); // the set-up synth plays its state, which the save writes
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {

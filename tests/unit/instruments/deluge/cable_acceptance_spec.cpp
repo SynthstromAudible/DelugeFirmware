@@ -1,7 +1,11 @@
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/state_access.h"
 
+#include "support/record_state.h"
 #include <cppspec.hpp>
+#include <string>
+#include <utility>
 
 using namespace deluge::instrument;
 using deluge::effects::FilterMode;
@@ -11,9 +15,7 @@ using deluge::plugin::SyncLevel;
 namespace {
 
 SoundState subtractive() {
-	SoundState state;
-	state.synth_mode = SynthMode::SUBTRACTIVE;
-	return state;
+	return deluge::test::with(SoundState{}, "mode", to_string(SynthMode::SUBTRACTIVE));
 }
 
 bool allowed(PatchSource source, ParamId destination, const SoundState& state = subtractive(), bool is_drum = false) {
@@ -22,8 +24,8 @@ bool allowed(PatchSource source, ParamId destination, const SoundState& state = 
 
 SoundState with_filters(FilterMode lpf, FilterMode hpf) {
 	SoundState state = subtractive();
-	state.effects.filter.lpf_mode = lpf;
-	state.effects.filter.hpf_mode = hpf;
+	sound_effects(state).filter.lpf_mode = lpf;
+	sound_effects(state).filter.hpf_mode = hpf;
 	return state;
 }
 
@@ -48,10 +50,8 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 	});
 
 	it("follows the synth mode", _ {
-		SoundState fm = subtractive();
-		fm.synth_mode = SynthMode::FM;
-		SoundState ringmod = subtractive();
-		ringmod.synth_mode = SynthMode::RINGMOD;
+		const SoundState fm = deluge::test::with(subtractive(), "mode", to_string(SynthMode::FM));
+		const SoundState ringmod = deluge::test::with(subtractive(), "mode", to_string(SynthMode::RINGMOD));
 		expect(allowed(PatchSource::VELOCITY, param::kOscAPhaseWidth, fm)).to_be_false();
 		expect(allowed(PatchSource::VELOCITY, param::kOscAPhaseWidth)).to_be_true();
 		expect(allowed(PatchSource::VELOCITY, param::kOscBVolume, ringmod)).to_be_false();
@@ -71,11 +71,10 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 	});
 
 	it("lets a synced LFO's rate take no cable", _ {
-		SoundState synced = subtractive();
-		synced.lfo_sync_level[0] = SyncLevel::QUARTER;
+		SoundState synced = deluge::test::with(subtractive(), "lfo1/syncLevel", std::to_string(std::to_underlying(SyncLevel::QUARTER)));
 		expect(allowed(PatchSource::LFO_GLOBAL_2, param::kLfo1Rate, synced)).to_be_false();
 		expect(allowed(PatchSource::LFO_GLOBAL_2, param::kLfo3Rate, synced)).to_be_true();
-		synced.lfo_sync_level[2] = SyncLevel::QUARTER;
+		deluge::test::set(synced, "lfo3/syncLevel", std::to_string(std::to_underlying(SyncLevel::QUARTER)));
 		expect(allowed(PatchSource::LFO_GLOBAL_1, param::kLfo3Rate, synced)).to_be_false();
 	});
 

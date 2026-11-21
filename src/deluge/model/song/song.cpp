@@ -1377,6 +1377,11 @@ void Song::adoptDrum(Drum* drum) {
 		// A drum read from a file is adopted before its element is read, and adopts what that read settles then.
 		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
+		if (!readingFromFile_) {
+			// A row added to a running song (a kit row's preset) brings the files it loaded: what loading made of them
+			// reaches its record, as a song's load records its rows
+			deluge::bridge::recordLoadedSound(*sound, *this);
+		}
 	}
 	// A row added to a running song brings the bindings its preset read. A song's own read leaves them to the sweep
 	// once every id is final.
@@ -1394,17 +1399,13 @@ void Song::removeDocDrum(Drum* drum) {
 	// current) may share its id.
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		if (drum->type == DrumType::SOUND) {
-			static_cast<SoundDrum*>(drum)->unbindState(); // it plays its record's state, which goes now
+			static_cast<SoundDrum*>(drum)->unbindState(); // it plays its record's state, which this removes
 		}
 		project.drum_structure.remove(*drum->id());
 		deluge::bridge::forgetDrumMappings(*this, *drum->id());
 	}
 }
 
-// Bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only if it lacks one, as
-// assignMissingIds does via generateNewOutputId), seed the record from the engine output via
-// seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
-// the assignMissingIds call site composes without double-binding or double-minting.
 // A sound's bound state points at its own member, so a copy would point at the original's.
 static_assert(!std::is_copy_constructible_v<SoundInstrument> && !std::is_copy_assignable_v<SoundInstrument>);
 static_assert(!std::is_copy_constructible_v<SoundDrum> && !std::is_copy_assignable_v<SoundDrum>);
@@ -1413,6 +1414,10 @@ static_assert(!std::is_copy_constructible_v<Song> && !std::is_copy_assignable_v<
 static_assert(!std::is_copy_constructible_v<Kit> && !std::is_copy_assignable_v<Kit>);
 static_assert(!std::is_copy_constructible_v<AudioOutput> && !std::is_copy_assignable_v<AudioOutput>);
 
+// Bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only if it lacks one, as
+// assignMissingIds does via generateNewOutputId), seed the record from the engine output via
+// seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
+// the assignMissingIds call site composes without double-binding or double-minting.
 void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
 		return;
@@ -1465,7 +1470,8 @@ void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		if (output->type == OutputType::SYNTH) {
-			// It plays its record's state, which goes now. The double static_cast lands on the Sound base subobject.
+			// It plays its record's state, which this removes. The double static_cast lands on the Sound base
+			// subobject.
 			static_cast<Sound*>(static_cast<SoundInstrument*>(output))->unbindState();
 		}
 		else if (const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainOwnerOf(*output)) {

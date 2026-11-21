@@ -15,13 +15,13 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
 #include "instruments/deluge/cables.h"
-#include "instruments/deluge/codec.h" // new_synth_state
 #include "instruments/deluge/sound_state.h"
 #include "shell/scene.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
 
 #include "support/fake_menu_shell.h"
+#include "support/record_state.h"
 
 #include "cppspec.hpp"
 
@@ -65,9 +65,8 @@ void hold_device(FakeHostRig& fakes, DevicePath path, int32_t menu_value) {
 
 /// @brief The synth's first source a loaded sample, so the menu lists the sample's own pages.
 void hold_sample_synth(FakeHostRig& fakes) {
-	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
-	state.sources[0].osc_type = deluge::instrument::OscType::SAMPLE;
-	fakes.hold_synth(state);
+	fakes.hold_synth(deluge::test::with_kind(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
+	                                         deluge::instrument::OscType::SAMPLE));
 	fakes.host.sound.loaded[FakeHostRig::kSynthSlot.id] = 0b01;
 }
 

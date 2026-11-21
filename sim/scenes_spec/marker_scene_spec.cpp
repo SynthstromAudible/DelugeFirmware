@@ -73,7 +73,7 @@
 #include "model/voice/voice_sample.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -86,6 +86,7 @@
 #include "support/menu_over_root.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/slot_record.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -96,11 +97,12 @@
 #include "support/printers/project_address_printer.h"
 #include "support/printers/ranges_cause_printer.h"
 #include "support/printers/rgb_printer.h"
-#include "support/printers/sound_state_printer.h"
+#include "support/printers/sound_record_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
+#include "support/record_state.h"
 
 #include <array>
 #include <cstdint>
@@ -486,7 +488,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = menu::host_ports().sound->sound_state(slot)->sources[0].ranges.empty();
+		const bool had_none = deluge::scenes::spec::first_ranges(slot).empty();
 
 		MenuContext recorded = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingSoundWrites recording;
@@ -506,14 +508,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound->sources[1].getOrCreateFirstRange();
-		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
-		const std::vector<deluge::instrument::RangeState>& first =
-		    menu::host_ports().sound->sound_state(slot)->sources[0].ranges;
+		(void)sound->getOrCreateFirstRange(1);
+		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
+		const std::vector<deluge::instrument::RangeState> first =
+		    deluge::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -541,7 +543,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(menu::host_ports().sound->sound_state(r.slot())->sources[0].ranges[0].file_path)
+		expect(deluge::scenes::spec::first_ranges(r.slot())[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);
@@ -624,11 +626,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		deluge::edits::recordRanges(*r.sound, 0); // the range set up here is the record's
 		// A range below the edited one, so the edited one is the source's second.
 		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* below = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		below->sampleHolder.filePath = "SAMPLES/A.WAV";
 		below->sampleHolder.audioFile = r.sample;
+		deluge::edits::recordRanges(*r.sound, 0);
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		// The edited range's remembered view and lock, in the store under its identity.
 		deluge::scenes::services::view_state().forget_unless(r.song.song->project.identity());
@@ -1576,14 +1580,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		const std::string forwards = r.oled();
 
-		r.source->sampleControls.reversed = true;
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
 		r.open(MarkerType::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
 		expect(forwards).not_().to_equal(reversed);
 
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
-		r.source->sampleControls.reversed = false;
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "0");
 		r.range->sampleHolder.endPos = 3 * kZoomMax;
 		r.open(MarkerType::END);
 		r.tick(20);
@@ -1874,13 +1878,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// `reverseRemap` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
-		r.source->sampleControls.reversed = true;
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
-		r.source->sampleControls.reversed = false;
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "0");
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

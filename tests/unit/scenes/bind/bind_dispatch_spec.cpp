@@ -1,16 +1,19 @@
 #include "deluge-project/device_settings.h"
 #include "gui/l10n/setting_names.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "plugin-api/types/plugin_id.h"
 #include "plugin-api/types/setting.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
+#include "support/record_state.h"
 
 #include <array>
 #include <cppspec.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace deluge::scenes::bind;
@@ -81,8 +84,8 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("shows a stored choice that no longer applies as a marked entry the menu cannot write", _ {
 		ModelFixture fixture;
-		auto state = fixture.host.sound.states.at(kDrum.id);
-		state.sources[0].osc_type = OscType::INPUT_R;
+		deluge::instrument::SoundState state = fixture.host.sound.states.at(kDrum.id);
+		deluge::test::set(state, "osc1/type", deluge::instrument::to_string(OscType::INPUT_R));
 		fixture.set_state(kDrum, state);
 		const auto shown = view(sound("osc1/type"), &fixture.song, at(kDrum), fixture.ports());
 		expect(shown->stale.has_value()).to_be_true();
@@ -104,9 +107,9 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("reads a stored value the menu never writes as legacy shows it", _ {
 		ModelFixture fixture;
-		auto state = fixture.host.sound.states.at(kSynth.id);
-		state.polyphonic = deluge::instrument::PolyphonyMode::POLY;
-		state.max_voice_count = 20;
+		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::POLY));
+		deluge::test::set(state, "maxVoices", "20");
 		fixture.set_state(kSynth, state);
 		const auto shown = view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports());
 		expect(shown->value).to_equal(deluge::plugin::to_menu(row_at("maxVoices"), 20));
@@ -114,11 +117,11 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("reads a combined menu through its partner row", _ {
 		ModelFixture fixture;
-		auto state = fixture.host.sound.states.at(kSynth.id);
-		state.transpose = -3;
-		state.cents = 25;
-		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{4};
-		state.lfo_sync_type[0] = deluge::plugin::SyncType::TRIPLET;
+		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "transpose", "-3");
+		deluge::test::set(state, "cents", "25");
+		deluge::test::set(state, "lfo1/syncLevel", "4");
+		deluge::test::set(state, "lfo1/syncType", std::to_string(std::to_underlying(deluge::plugin::SyncType::TRIPLET)));
 		fixture.set_state(kSynth, state);
 		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
 		expect(view(sound("transpose"), &fixture.song, at(kSynth), fixture.ports())->value).to_equal(-275);
@@ -128,11 +131,11 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("says a row does not apply where its conditions fail", _ {
 		ModelFixture fixture;
-		auto state = fixture.host.sound.states.at(kSynth.id);
-		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
+		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::MONO));
 		fixture.set_state(kSynth, state);
 		expect(view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports())->applies).to_be_false();
-		state.polyphonic = deluge::instrument::PolyphonyMode::POLY;
+		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::POLY));
 		fixture.set_state(kSynth, state);
 		expect(view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports())->applies).to_be_true();
 	});

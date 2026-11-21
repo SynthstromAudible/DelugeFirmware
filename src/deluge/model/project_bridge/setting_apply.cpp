@@ -24,6 +24,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/dx7_init_voice.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/state_rules.h"
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
@@ -36,7 +37,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/tree.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "util/comparison.h"
@@ -59,122 +60,6 @@ int32_t oscillatorOf(std::string_view path, std::string_view& rest) {
 bool isSamplePlayback(std::string_view rest) {
 	return rest == "loopMode" || rest == "reversed" || rest == "timeStretchEnable" || rest == "timeStretchAmount"
 	       || rest == "linearInterpolation";
-}
-
-/// Change source @p s of @p sound to @p type as the oscillator type menu does: voices stop when either type plays
-/// audio files, input or a DX7 patch, and the params are re-patched when square comes or goes (its pulse width).
-void changeOscType(::Sound& sound, int32_t s, OscType type, ::Song& song) {
-	const OscType old = sound.sources[s].oscType;
-	const auto needsUnassignment = {
-	    OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE, OscType::DX7, OscType::WAVETABLE,
-	};
-	if (util::one_of(old, needsUnassignment) || util::one_of(type, needsUnassignment)) {
-		sound.killAllVoices();
-	}
-	sound.sources[s].setOscType(type);
-	if (old == OscType::SQUARE || type == OscType::SQUARE) {
-		sound.setupPatchingForAllParamManagers(&song);
-	}
-}
-
-/// Apply an `oscN/` path: false when the path has no setter here, or names sample playback on a source that does not
-/// use it (interpolation: a sample or live-input source; the rest: a sample source).
-bool applyOscillatorSetting(::Sound& sound, int32_t s, std::string_view rest, const std::string& text, int32_t number,
-                            ::Song& song) {
-	if (isSamplePlayback(rest)) {
-		Source& source = sound.sources[s];
-		const bool input = source.oscType == OscType::INPUT_L || source.oscType == OscType::INPUT_R
-		                   || source.oscType == OscType::INPUT_STEREO;
-		// Only a sample source plays samples; live input is interpolated too.
-		if (sound.getSynthMode() == SynthMode::FM
-		    || !(source.oscType == OscType::SAMPLE || (input && rest == "linearInterpolation"))) {
-			return false;
-		}
-		if (rest == "loopMode") {
-			// Stretching to note length needs pitch and speed independent; leaving it gives the independence up.
-			const auto mode = static_cast<SampleRepeatMode>(number);
-			if (mode == SampleRepeatMode::STRETCH) {
-				sound.killAllVoices();
-				source.setPitchAndSpeedIndependent(true);
-			}
-			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
-				sound.killAllVoices();
-				source.setPitchAndSpeedIndependent(false);
-			}
-			source.setRepeatMode(mode);
-		}
-		else if (rest == "reversed") {
-			sound.killAllVoices(); // a voice playing forwards cannot turn round
-			source.setReversed(number != 0);
-		}
-		else if (rest == "timeStretchEnable") {
-			source.setPitchAndSpeedIndependent(number != 0);
-		}
-		else if (rest == "timeStretchAmount") {
-			source.setTimeStretchAmount(static_cast<int8_t>(number));
-		}
-		else {
-			source.setInterpolationMode(number != 0 ? InterpolationMode::LINEAR : InterpolationMode::SMOOTH);
-		}
-		return true;
-	}
-	if (rest == "type") {
-		changeOscType(sound, s, deluge::instrument::parse_osc_type(text), song);
-	}
-	else if (rest == "transpose" || rest == "cents") {
-		// A sample source's tuning is its ranges' (SetSourceRanges); its own is not what a file holds.
-		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE) {
-			return false;
-		}
-		if (rest == "transpose") {
-			sound.sources[s].setTranspose(static_cast<int16_t>(number));
-		}
-		else {
-			sound.sources[s].setCents(number);
-		}
-	}
-	else if (rest == "retrigPhase") {
-		sound.setOscRetriggerPhase(s, static_cast<uint32_t>(number));
-	}
-	else if (rest == "oscillatorSync" && s == 1) {
-		sound.setOscillatorSync(number != 0);
-	}
-	else {
-		return false;
-	}
-	return true;
-}
-
-/// The LFO index a path's `lfoN/` prefix names, or -1 when it names none; @p rest is the path after the prefix.
-int32_t lfoOf(std::string_view path, std::string_view& rest) {
-	if (path.size() > 5 && path.starts_with("lfo") && path[3] >= '1' && path[3] <= '4' && path[4] == '/') {
-		rest = path.substr(5);
-		return path[3] - '1';
-	}
-	return -1;
-}
-
-/// Apply an `lfoN/` path as the LFO menus do, resyncing the song-wide LFOs and, for sync, re-patching: false when the
-/// path has no setter here.
-bool applyLfoSetting(::Sound& sound, int32_t l, std::string_view rest, const std::string& text, int32_t number,
-                     ::Song& song) {
-	const LFOConfig& now = sound.config().lfos[l];
-	if (rest == "type") {
-		sound.setLfoWaveType(l, deluge::instrument::parse_lfo_type(text));
-	}
-	else if (rest == "syncType") {
-		sound.setLfoSync(l, static_cast<SyncType>(number), now.sync_level);
-		sound.setupPatchingForAllParamManagers(&song);
-	}
-	else if (rest == "syncLevel") {
-		sound.setLfoSync(l, now.sync_type, static_cast<SyncLevel>(number));
-		sound.setupPatchingForAllParamManagers(&song);
-	}
-	else {
-		return false;
-	}
-	sound.resyncGlobalLFOs();
-	return true;
 }
 
 /// The model stack a gesture on @p sound works in: its clip (a kit row's note row in its kit's clip) and the params it
@@ -202,61 +87,6 @@ ModelStackWithSoundFlags* modelStackFor(void* memory, ::Sound& sound, ::Song& so
 	return params != nullptr
 	           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &synth, clip, params)->addSoundFlags()
 	           : nullptr;
-}
-
-/// Apply a `unison/` path as the unison menus do, re-tuning the sound's live voices: false when the path has no setter
-/// here, or the sound has no params to re-tune its voices with.
-bool applyUnisonSetting(::Sound& sound, std::string_view rest, int32_t number, ::Song& song) {
-	if (rest == "spread") {
-		sound.setUnisonStereoSpread(number);
-		return true;
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
-	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
-		return false;
-	}
-	if (rest == "num") {
-		sound.setNumUnison(number, modelStack);
-	}
-	else if (rest == "detune") {
-		sound.setUnisonDetune(number, modelStack);
-	}
-	else {
-		return false;
-	}
-	return true;
-}
-
-/// Apply a `modulatorN/` path (N = @p m + 1) as the FM modulator menus do, re-tuning the live voices: false when the
-/// path has no setter here, the sound is not FM (only FM writes its modulators), or it has live voices and no params.
-bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int32_t number, ::Song& song) {
-	if (sound.getSynthMode() != SynthMode::FM) {
-		return false;
-	}
-	if (rest == "retrigPhase") {
-		sound.setModulatorRetriggerPhase(m, static_cast<uint32_t>(number));
-		return true;
-	}
-	if (rest == "toModulator1" && m == 1) {
-		sound.setModulator1ToModulator0(number != 0);
-		return true;
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
-	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
-		return false;
-	}
-	if (rest == "transpose") {
-		sound.setModulatorTranspose(m, number, modelStack);
-	}
-	else if (rest == "cents") {
-		sound.setModulatorCents(m, number, modelStack);
-	}
-	else {
-		return false;
-	}
-	return true;
 }
 
 /// The settings @p from with the effect setting at @p path made @p text / @p number, as its menu sets it; nullopt when
@@ -346,7 +176,7 @@ bool runtimeTakes(const ::Sound& sound, std::string_view path) {
 	const bool fm = sound.getSynthMode() == SynthMode::FM;
 	std::string_view rest;
 	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
-		const OscType type = sound.sources[s].oscType;
+		const OscType type = sound.oscType(s);
 		if (isSamplePlayback(rest)) {
 			const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
 			return !fm && (type == OscType::SAMPLE || (input && rest == "linearInterpolation"));
@@ -376,11 +206,14 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// Voices stop first, as each setting's menu stops them before it changes anything.
 	bool stopVoices = changed(Part::MODE);
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const deluge::instrument::SourceState& was = before.sources[s];
-		const deluge::instrument::SourceState& now = after.sources[s];
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		const deluge::instrument::SamplePlayback was = deluge::instrument::sample_playback(before, id);
+		const deluge::instrument::SamplePlayback now = deluge::instrument::sample_playback(after, id);
 		stopVoices =
 		    stopVoices
-		    || (changed(slotPart(Part::SOURCE_A_TYPE, s)) && (playsFiles(was.osc_type) || playsFiles(now.osc_type)))
+		    || (changed(slotPart(Part::SOURCE_A_TYPE, s))
+		        && (playsFiles(deluge::instrument::source_type(before, id))
+		            || playsFiles(deluge::instrument::source_type(after, id))))
 		    || was.reversed != now.reversed
 		    || (was.repeat_mode != now.repeat_mode
 		        && (was.repeat_mode == SampleRepeatMode::STRETCH || now.repeat_mode == SampleRepeatMode::STRETCH));
@@ -389,21 +222,27 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		sound.killAllVoices();
 	}
 
-	// The sound's own fields and its sources' follow the record; a new type reshapes a source's ranges.
-	if (changed(Part::HOST)) {
-		sound.sideChainSendLevel = after.side_chain_send_level;
-		sound.outputMidiChannel = after.output_midi_channel;
-		sound.outputMidiNoteForDrum = after.output_midi_note_for_drum;
-	}
+	// The sound's sources follow the record; a new type reshapes a source's ranges.
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source& source = sound.sources[s];
+		SourceResources& source = sound.sourceResources[s];
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		const bool reversedNow = deluge::instrument::sample_playback(after, id).reversed;
 		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
-			squareCameOrWent = squareCameOrWent || before.sources[s].osc_type == OscType::SQUARE
-			                   || after.sources[s].osc_type == OscType::SQUARE;
-			source.setOscType(after.sources[s].osc_type);
+			const OscType type = deluge::instrument::source_type(after, id);
+			squareCameOrWent = squareCameOrWent || deluge::instrument::source_type(before, id) == OscType::SQUARE
+			                   || type == OscType::SQUARE;
+			source.setOscType(type);
+			// The render reads the type from the config: it learns the new one as soon as the ranges have it. Retyping
+			// itself can release clusters, which must not happen with the render excluded.
+			AudioExcludedSection section;
+			sound.projectSnapshot();
 		}
-		source.reflect(after.sources[s]);
+		if (deluge::instrument::sample_playback(before, id).reversed != reversedNow) {
+			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
+			source.followDirection(reversedNow != source.invertReversed); // the config is not yet the new one
+			sound.recordHeldRanges(s);
+		}
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
@@ -416,13 +255,13 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			sound.recalculateAllVoicePhaseIncrements(modelStack);
 		}
 		if (changed(Part::UNISON_COUNT)) {
-			// After the retune: a new part plays on from its neighbour, increment included (Sound::setNumUnison's
-			// order)
-			sound.revoiceUnison(before.num_unison, after.num_unison, modelStack);
+			// After the retune: a new part plays on from its neighbour, increment included
+			sound.revoiceUnison(deluge::instrument::unison(before).count, deluge::instrument::unison(after).count,
+			                    modelStack);
 		}
 	}
 	if (changed(Part::EFFECTS)) {
-		deluge::model::storeEffects(*sound.effectsOwner(), after.effects);
+		deluge::model::storeEffects(*sound.effectsOwner(), deluge::instrument::sound_effects(after));
 	}
 	if (changed(Part::MODE) || squareCameOrWent || changed(Part::LFO_SYNC)) {
 		sound.setupPatchingForAllParamManagers(&song);
@@ -434,28 +273,31 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// The ranges and DX7 patches the runtime holds follow the change's, as the record held them before it: a new type
 	// has just reshaped them in the runtime, which reflected them into the record. A source whose ranges or patch the
 	// runtime refuses keeps what the runtime holds, in the record too.
+	const auto optionalOf = [](const deluge::instrument::DxPatchState* patch) {
+		return patch != nullptr ? std::optional{*patch} : std::nullopt;
+	};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const deluge::instrument::SourceState& wanted = after.sources[s];
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		const deluge::instrument::DxPatchState* wantedPatch = deluge::instrument::dx_patch(after, id);
 		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
-		deluge::instrument::SourceState held;
-		sound.sources[s].seedDxPatchInto(held);
-		sound.sources[s].seedRangesInto(held);
-		const std::optional<deluge::instrument::DxPatchState>& heldPatch =
-		    retyped ? held.dx_patch : before.sources[s].dx_patch;
-		const std::vector<deluge::instrument::RangeState>& heldRanges =
-		    retyped ? held.ranges : before.sources[s].ranges;
+		const std::optional<deluge::instrument::DxPatchState> heldPatch =
+		    retyped ? sound.sourceResources[s].heldDxPatch() : optionalOf(deluge::instrument::dx_patch(before, id));
+		// Ranges are copied only when they may differ: a retyped slot's runtime reshaped its own
+		const bool rangesDiffer =
+		    retyped ? sound.sourceResources[s].heldRanges() != deluge::instrument::source_ranges(after, id)
+		            : !deluge::instrument::same_ranges(before, after, id);
 		Error error = Error::NONE;
-		if (wanted.dx_patch && heldPatch != wanted.dx_patch && sound.sources[s].oscType == OscType::DX7) {
-			error = applyDxPatch(sound, s, *wanted.dx_patch);
+		if (wantedPatch != nullptr && heldPatch != *wantedPatch && sound.oscType(s) == OscType::DX7) {
+			error = applyDxPatch(sound, s, *wantedPatch);
 		}
-		if (error == Error::NONE && heldRanges != wanted.ranges) {
-			error = applyRanges(sound, s, wanted.ranges);
+		if (error == Error::NONE && rangesDiffer) {
+			error = applyRanges(sound, s, deluge::instrument::source_ranges(after, id));
 		}
 		if (error != Error::NONE) {
-			if (deluge::instrument::SoundState* record = sound.boundRecord()) {
-				sound.sources[s].seedDxPatchInto(record->sources[s]);
-				sound.sources[s].seedRangesInto(record->sources[s]);
-			}
+			deluge::instrument::SoundState& record = sound.record();
+			record = deluge::instrument::with_ranges(
+			    deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch()), id,
+			    sound.sourceResources[s].heldRanges());
 			return error;
 		}
 	}
@@ -476,85 +318,6 @@ void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song) {
 	}
 }
 
-namespace {
-
-/// The setting at @p path written into @p sound's runtime.
-Error writeSetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
-	if (!deluge::instrument::check_setting(path, value)) {
-		return Error::UNSPECIFIED;
-	}
-	const std::string& text = *deluge::serialization::text_of(&value);
-	const int32_t number = deluge::serialization::int_of(&value).value_or(0);
-	if (const std::optional<deluge::effects::EffectStates> next =
-	        withEffectValue(sound.effects(), path, text, number)) {
-		deluge::model::storeEffects(*sound.effectsOwner(), *next);
-		return Error::NONE;
-	}
-	std::string_view rest;
-	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
-		if (!applyOscillatorSetting(sound, s, rest, text, number, song)) {
-			return Error::UNSPECIFIED;
-		}
-		if (rest == "transpose" || rest == "cents") {
-			retuneVoices(sound, song);
-		}
-		return Error::NONE;
-	}
-	if (const int32_t l = lfoOf(path, rest); l >= 0) {
-		return applyLfoSetting(sound, l, rest, text, number, song) ? Error::NONE : Error::UNSPECIFIED;
-	}
-	if (path.size() > 11 && path.starts_with("modulator") && (path[9] == '1' || path[9] == '2') && path[10] == '/') {
-		return applyModulatorSetting(sound, path[9] - '1', path.substr(11), number, song) ? Error::NONE
-		                                                                                  : Error::UNSPECIFIED;
-	}
-	if (path.starts_with("unison/")) {
-		return applyUnisonSetting(sound, path.substr(7), number, song) ? Error::NONE : Error::UNSPECIFIED;
-	}
-	if (path == "polyphonic") {
-		sound.setPolyphonic(deluge::instrument::parse_polyphony_mode(text));
-	}
-	else if (path == "voicePriority") {
-		sound.setVoicePriority(static_cast<VoicePriority>(number));
-	}
-	else if (path == "maxVoices") {
-		sound.setMaxVoiceCount(static_cast<uint8_t>(number));
-	}
-	else if (path == "mode") {
-		sound.setSynthMode(deluge::instrument::parse_synth_mode(text), &song);
-	}
-	else if (path == "transpose") {
-		sound.setTranspose(static_cast<int16_t>(number));
-		retuneVoices(sound, song);
-	}
-	else if (path == "cents") {
-		sound.set_cents(static_cast<int8_t>(number));
-		retuneVoices(sound, song);
-	}
-	else if (path == "sideChainSend") {
-		sound.setSideChainSendLevel(number);
-	}
-	else if (path == "midiOutput/channel") {
-		sound.setOutputMidiChannel(static_cast<uint8_t>(number));
-	}
-	else if (path == "midiOutput/noteForDrum") {
-		sound.setOutputMidiNoteForDrum(static_cast<uint8_t>(number));
-	}
-	else {
-		return Error::UNSPECIFIED; // the path has no setter here
-	}
-	return Error::NONE;
-}
-
-} // namespace
-
-Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
-	const Error error = writeSetting(sound, path, value, song);
-	if (error == Error::NONE) {
-		sound.projectSnapshot(); // an unbound sound's oscillator settings reach its config here
-	}
-	return error;
-}
-
 Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view path,
                          const deluge::serialization::Value& value) {
 	if (!deluge::effects::check_effect_setting(path, value)) {
@@ -573,11 +336,8 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
                                                                const deluge::serialization::Value& value) {
 	namespace instrument = deluge::instrument;
-	if (sound.boundState() == nullptr) {
-		return std::nullopt;
-	}
 	if (path == "mode") {
-		return instrument::with_mode(*sound.boundState(), instrument::parse_synth_mode(value.str()));
+		return instrument::switch_engine(sound.state(), instrument::parse_synth_mode(value.str()));
 	}
 	std::string_view rest;
 	const int32_t s = oscillatorOf(path, rest);
@@ -587,13 +347,12 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 	const auto id = static_cast<instrument::SourceId>(s);
 	if (rest == "loopMode") {
 		const auto mode = static_cast<SampleRepeatMode>(deluge::serialization::int_of(&value).value_or(0));
-		return instrument::with_loop_mode(*sound.boundState(), id, mode);
+		return instrument::with_loop_mode(sound.state(), id, mode);
 	}
 	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
-	instrument::SourceState held;
-	sound.sources[s].seedRangesInto(held);
-	const bool heldAreWavetable = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
-	return instrument::with_osc_type(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held.ranges,
+	const std::vector<instrument::RangeState> held = sound.sourceResources[s].heldRanges();
+	const bool heldAreWavetable = sound.sourceResources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
+	return instrument::switch_source(sound.state(), id, instrument::parse_osc_type(value.str()), held,
 	                                 heldAreWavetable);
 }
 

@@ -798,6 +798,9 @@ constexpr std::array<Entry, 230> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
+    Entry{SettingGroupId::SOUND_ROUTING, "midiOutput/channel", &kMidiOutputChannelNames},
+    Entry{SettingGroupId::SOUND_ROUTING, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
+    Entry{SettingGroupId::SOUND_ROUTING, "sideChainSend", &kSideChainSendNames},
     // A DEVICE row named by a `device_path` constant shares its one stored copy with the row (`project::kStoredText`);
     // the built feature, CV and gate paths keep their own copy here, in the same SDRAM table.
     Entry{SettingGroupId::DEVICE, project::stored_text<"clock/midiIn">, &kMidiClockInNames},
@@ -938,8 +941,6 @@ constexpr std::array<Entry, 230> kEntries{{
     Entry{plugin::kDelugeInstrument, "lfo4/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo4/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "maxVoices", &kMaxVoicesNames},
-    Entry{plugin::kDelugeInstrument, "midiOutput/channel", &kMidiOutputChannelNames},
-    Entry{plugin::kDelugeInstrument, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
     Entry{plugin::kDelugeInstrument, "mode", &kModeNames},
     Entry{plugin::kDelugeInstrument, "modulator1/retrigPhase", &kModulator1RetrigPhaseNames},
     Entry{plugin::kDelugeInstrument, "modulator1/transpose", &kModulator1TransposeNames},
@@ -964,7 +965,6 @@ constexpr std::array<Entry, 230> kEntries{{
     Entry{plugin::kDelugeInstrument, "osc2/transpose", &kOsc1TransposeNames},
     Entry{plugin::kDelugeInstrument, "osc2/type", &kOsc1TypeNames},
     Entry{plugin::kDelugeInstrument, "polyphonic", &kPolyphonicNames},
-    Entry{plugin::kDelugeInstrument, "sideChainSend", &kSideChainSendNames},
     Entry{plugin::kDelugeInstrument, "transpose", &kTransposeNames},
     Entry{plugin::kDelugeInstrument, "unison/detune", &kUnisonDetuneNames},
     Entry{plugin::kDelugeInstrument, "unison/num", &kUnisonNumNames},

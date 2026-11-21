@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "instruments/deluge/state_access.h"
 #include "io/debug/log.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
@@ -31,6 +32,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
 
@@ -65,8 +67,8 @@ inline std::string oscSettingPath(int32_t source, std::string_view name) {
 }
 
 /// @brief A sound editor menu's change of @p sound's setting at @p path to @p value (its file form): an Edit on the
-/// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; the runtime's setter
-/// alone for a sound with no slot in it.
+/// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; for a sound in no
+/// slot (the sample browser's preview), the same rules, write and runtime effects on its own state.
 /// @param sound The sound being edited.
 /// @param path  Settings path of the setting.
 /// @param value The new value, in its file form.
@@ -80,13 +82,8 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 		}
 		return;
 	}
-	const SynthMode from = sound.getSynthMode();
-	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
+	if (setUnslottedSetting(sound, path, value, *currentSong) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
-	}
-	else if (path == "mode") {
-		// No record to remap through: the sound's own knobs follow the mode.
-		deluge::bridge::remapKnobsForMode(sound, *currentSong, from, sound.getSynthMode());
 	}
 }
 
@@ -103,25 +100,42 @@ inline void effectSettingFor(ModControllable& owner, std::string_view path, delu
 /// @param sound  The sound being edited.
 /// @param s      Source (oscillator) index.
 /// @param ranges The source's new ranges.
-inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
+/// @return Error::NONE when the ranges landed, else why not (INSUFFICIENT_RAM for a range that could not be made).
+inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
+	Error error = Error::NONE;
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetSourceRanges edit{*slot, static_cast<uint8_t>(s), std::move(ranges)};
-		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-			D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
-		}
-		return;
+		error = deluge::edits::apply(ctx, edit);
 	}
-	if (deluge::bridge::applyRanges(sound, s, ranges) != Error::NONE) {
+	else {
+		error = deluge::bridge::applyRanges(sound, s, ranges);
+	}
+	if (error != Error::NONE) {
 		D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
 	}
+	return error;
+}
+
+/// @brief A gesture's change of range @p i of source @p s of @p sound: @p change edits a copy of the record's range,
+/// which reaches the sound as rangesFor's.
+/// @return Error::NONE when it landed; UNSPECIFIED when the source has no range @p i.
+template <class Change>
+Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
+	std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(sound.state(), static_cast<deluge::instrument::SourceId>(s));
+	if (i >= ranges.size()) {
+		return Error::UNSPECIFIED;
+	}
+	std::forward<Change>(change)(ranges[i]);
+	return rangesFor(sound, s, std::move(ranges));
 }
 
 /// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.
 /// @param sound The sound whose source changed.
 /// @param s     Source (oscillator) index.
 inline void recordRanges(::Sound& sound, int32_t s) {
-	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sources[s]));
+	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sourceResources[s]));
 }
 
 /// @brief A gesture's change of source @p s of @p sound to the DX7 patch @p patch: an Edit on the sound's slot when it
@@ -264,6 +278,34 @@ inline void trackSettingFor(::Output& output, std::string_view path, deluge::ser
 	if (deluge::bridge::applyTrackSetting(output, path, value) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
+}
+
+/// @brief A menu's change of @p sound's routing at @p path (its sidechain send, its MIDI output): an Edit on its
+///        track's or kit row's routing when the sound is bound in the current song; for a sound outside it (the sample
+///        preview), the row's write on the routing it holds itself, then projected.
+/// @param sound The sound.
+/// @param path  The setting's path in the sound routing group.
+/// @param value The new value, in its file form.
+inline void routingSettingFor(::Sound& sound, std::string_view path, deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::SlotAddress> slot =
+	        currentSong != nullptr ? songSlotOf(sound) : std::nullopt) {
+		std::optional<deluge::project::SettingOwner> owner;
+		if (slot->kind == deluge::project::SlotAddress::Kind::OUTPUT) {
+			owner = deluge::project::TrackAddress{.output_id = slot->id};
+		}
+		else if (const auto lane = deluge::bridge::laneAddressOf(static_cast<::SoundDrum&>(sound), *currentSong)) {
+			owner = *lane;
+		}
+		if (owner) {
+			applySettingEdit({deluge::project::SettingGroupId::SOUND_ROUTING, *owner}, path, std::move(value));
+			return;
+		}
+	}
+	if (!deluge::project::write_routing_setting(sound.routingRecord(), path, value)) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+		return;
+	}
+	sound.applyRouting();
 }
 
 /// @brief A gesture's change of @p drum's lane setting at @p path (its name): an Edit when the drum is in one of the

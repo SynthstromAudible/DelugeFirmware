@@ -3,8 +3,10 @@
 #include "equality/equality.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/words.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
+#include "support/record_state.h"
 
 #include <cppspec.hpp>
 #include <fstream>
@@ -144,8 +146,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				if (output.instrument) {
-					output.instrument->state.as<deluge::instrument::DelugeSynth>()->synth_mode =
-					    deluge::instrument::SynthMode::FM;
+					deluge::test::set(*output.instrument->state.as<deluge::instrument::DelugeSynth>(), "mode",
+					                  deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
 					return;
 				}
 			}
@@ -188,8 +190,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, drum] : document.drums) {
 				if (drum.instrument) {
-					drum.instrument->state.as<deluge::instrument::DelugeSynth>()->synth_mode =
-					    deluge::instrument::SynthMode::FM;
+					deluge::test::set(*drum.instrument->state.as<deluge::instrument::DelugeSynth>(), "mode",
+					                  deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
 					return;
 				}
 			}

@@ -41,6 +41,7 @@
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -983,22 +984,22 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 		const uint32_t saved_light_shift = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
 		const uint32_t saved_corners = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
 
-		{ // --- synth_mode: `Sound::setSynthMode` on the target, not just a stored int ------------
+		{ // --- synth_mode: the mode Edit on the target, not just a stored int --------------------
 			const TablesRoot& sound = installed_root("sound");
 			const SynthMode before = spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
 			// relevance does; SAW on both, and the fixture's own types put back after.
-			const OscType before_osc[] = {spec::menu_engine(sound.ctx, *sound.song).sound->sources[0].oscType,
-			                              spec::menu_engine(sound.ctx, *sound.song).sound->sources[1].oscType};
-			spec::menu_engine(sound.ctx, *sound.song).sound->sources[0].setOscType(OscType::SAW);
-			spec::menu_engine(sound.ctx, *sound.song).sound->sources[1].setOscType(OscType::SAW);
+			const OscType before_osc[] = {spec::menu_engine(sound.ctx, *sound.song).sound->oscType(0),
+			                              spec::menu_engine(sound.ctx, *sound.song).sound->oscType(1)};
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 0, OscType::SAW);
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 1, OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
 			expect(spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
-			spec::menu_engine(sound.ctx, *sound.song).sound->setSynthMode(before, sound.song);
-			spec::menu_engine(sound.ctx, *sound.song).sound->sources[0].setOscType(before_osc[0]);
-			spec::menu_engine(sound.ctx, *sound.song).sound->sources[1].setOscType(before_osc[1]);
+			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(before));
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 0, before_osc[0]);
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 1, before_osc[1]);
 			covered.insert(&nodes::synth_mode);
 		}
 
@@ -1072,12 +1073,12 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 
 		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
+			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
 			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);

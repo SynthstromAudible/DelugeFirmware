@@ -100,14 +100,21 @@ inline SongFixture addKit(Song* song) {
 	return f;
 }
 
-/// @brief A sound drum added to @p f's kit, with its params backed up on the kit's clip, and no row yet.
-inline SoundDrum* addSoundDrum(SongFixture& f) {
+/// @brief A sample drum made for @p f's kit as a kit-row preset makes one, its params backed up on the kit's clip,
+/// not yet in the kit.
+inline SoundDrum* makeSoundDrum(SongFixture& f) {
 	auto* drum = detail::place<SoundDrum>();
 	ParamManagerForTimeline params;
 	params.setupWithPatching();
 	Sound::initParams(&params);
 	drum->setupAsSample(&params);
 	f.song->live.param_backup.backUp(drum, f.clip, &params, true);
+	return drum;
+}
+
+/// @brief A sound drum added to @p f's kit, with its params backed up on the kit's clip, and no row yet.
+inline SoundDrum* addSoundDrum(SongFixture& f) {
+	SoundDrum* drum = makeSoundDrum(f);
 	static_cast<Kit*>(f.instrument)->addDrum(drum);
 	return drum;
 }

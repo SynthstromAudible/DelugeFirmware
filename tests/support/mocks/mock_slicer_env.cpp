@@ -16,6 +16,7 @@
  */
 
 #include "mock_slicer_env.h"
+#include "instruments/deluge/state_access.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
@@ -115,11 +116,13 @@ namespace deluge::test {
 LoadAnswer loadAnswer = LoadAnswer::Loaded;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
+std::vector<deluge::instrument::RangeState> lastAppliedRanges;
 
 void resetSlicerEnv() {
 	loadAnswer = LoadAnswer::Loaded;
 	auditionNoteCount = 0;
 	lastAuditionOn = -1;
+	lastAppliedRanges.clear();
 
 	g_kit.zero();
 	g_drum.zero();
@@ -137,6 +140,12 @@ void resetSlicerEnv() {
 	new (&g_sample.get()->filePath) std::string("SAMPLES/SLICE.WAV");
 
 	g_kit.get()->firstDrum = static_cast<Drum*>(g_drum.get());
+	// The drum's record, which the slicer's zone edits copy, change and hand to applyRanges: one range, as the mock's
+	// first range is.
+	static deluge::instrument::SoundState record;
+	record = deluge::instrument::with_ranges(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
+	                                         {deluge::instrument::RangeState{}});
+	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
 	// voice machinery. It is the deferral re-ask at the top of that function the specs are after.
@@ -176,7 +185,11 @@ AudioFileHolder* deluge::gui::audioFileHolderFor(const SoundTarget&) {
 void deluge::gui::cutSound(const SoundTarget&) {
 }
 
-MultiRange* Source::getOrCreateFirstRange() {
+MultiRange* SourceResources::getOrCreateFirstRange() {
+	return g_range.get();
+}
+
+MultiRange* Sound::getOrCreateFirstRange(int32_t /*s*/) {
 	return g_range.get();
 }
 
@@ -352,13 +365,9 @@ DELUGE_STUB_FN(stub_canvasDrawHorizontalLine, "_ZN6deluge3hid7display11oled_canv
 DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*, nullptr)
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
 
-DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
-DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
-DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
+DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN15SourceResources10setOscTypeEN6deluge10instrument7OscTypeE")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
-DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
-DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
-DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
+DELUGE_STUB_FN(stub_sourceDtor, "_ZN15SourceResourcesD1Ev")
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
@@ -408,20 +417,23 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
 ::Sound* soundAt(::Song& /*song*/, deluge::project::SlotAddress /*address*/) {
 	return nullptr;
 }
-std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/) {
+std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& /*source*/) {
 	return {};
 }
-Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
-	return Error::NONE;
-}
-Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
-                   ::Song& /*song*/) {
+Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& ranges) {
+	deluge::test::lastAppliedRanges = ranges;
 	return Error::NONE;
 }
 void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,
                        deluge::instrument::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
+namespace deluge::edits {
+Error setUnslottedSetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
+                          ::Song& /*song*/) {
+	return Error::NONE;
+}
+} // namespace deluge::edits
 
 namespace deluge::edits {
 Error apply(Context& /*ctx*/, Edit& /*edit*/) {

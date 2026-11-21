@@ -105,7 +105,8 @@ struct RenderConfig {
 inline RenderConfig config(SynthMode mode, OscType osc) {
 	RenderConfig cfg{.sound = snapshot(mode), .values = {}};
 	cfg.sound.voicing.unison.level = deluge::dsp::Q<31>::from_raw(134217728);
-	cfg.values.osc_type = {osc, OscType::SQUARE};
+	cfg.sound.sources[0].osc_type = osc;
+	cfg.sound.sources[1].osc_type = OscType::SQUARE;
 	cfg.sound.sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	cfg.sound.sources[1].repeat_mode = SampleRepeatMode::ONCE;
 	cfg.values.note_tails_allowed = true;
@@ -131,7 +132,7 @@ inline NoteOnEvent note(int32_t code) {
 inline ReleaseInfo release(const RenderConfig& cfg) {
 	return {.envelope_has_sustain = {true, false, false, false},
 	        .note_tails_allowed = true,
-	        .osc_types = cfg.values.osc_type,
+	        .osc_types = {cfg.sound.sources[0].osc_type, cfg.sound.sources[1].osc_type},
 	        .synth_mode = cfg.sound.engine.mode,
 	        .num_unison = 1};
 }

@@ -1,7 +1,25 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "instruments/deluge/cable_acceptance.h"
 
 #include "effects/words.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/state_access.h"
 
 namespace deluge::instrument {
 
@@ -17,13 +35,21 @@ constexpr bool is_sound_wide(plugin::ParamId id) {
 	return id.value >= param::kVolumePostFX.value;
 }
 
+/// Whether @p source is one of the four envelopes.
 constexpr bool is_envelope(PatchSource source) {
 	return source >= PatchSource::ENVELOPE_0 && source <= PatchSource::ENVELOPE_3;
 }
 
-} // namespace
+/// What a cable's acceptance reads of a sound: its engine, its filters' modes and LFO1's and LFO3's sync.
+struct CableFacts {
+	SynthMode mode;
+	effects::FilterMode lpf_mode;
+	effects::FilterMode hpf_mode;
+	plugin::SyncLevel lfo1_sync;
+	plugin::SyncLevel lfo3_sync;
+};
 
-bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state, bool is_drum) {
+bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFacts& state, bool is_drum) {
 	if (source == PatchSource::NOTE && is_drum) {
 		return false;
 	}
@@ -33,7 +59,7 @@ bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundS
 	if (is_local(source) && is_sound_wide(destination)) {
 		return false;
 	}
-	const bool fm = state.synth_mode == SynthMode::FM;
+	const bool fm = state.mode == SynthMode::FM;
 	const auto is = [&](plugin::ParamId id) { return destination == id; };
 	if (is(param::kVolume)) {
 		return !is_envelope(source) && source != PatchSource::SIDECHAIN;
@@ -42,7 +68,7 @@ bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundS
 		return !fm;
 	}
 	if (is(param::kOscAVolume) || is(param::kOscBVolume)) {
-		return state.synth_mode != SynthMode::RINGMOD;
+		return state.mode != SynthMode::RINGMOD;
 	}
 	if (is(param::kCarrier1Feedback) || is(param::kCarrier2Feedback) || is(param::kModulator1Volume)
 	    || is(param::kModulator2Volume) || is(param::kModulator1Pitch) || is(param::kModulator2Pitch)
@@ -50,16 +76,16 @@ bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundS
 		return fm;
 	}
 	if (is(param::kLpfFrequency) || is(param::kLpfMorph) || is(param::kLpfResonance)) {
-		return state.effects.filter.lpf_mode != effects::FilterMode::OFF;
+		return state.lpf_mode != effects::FilterMode::OFF;
 	}
 	if (is(param::kHpfFrequency) || is(param::kHpfMorph) || is(param::kHpfResonance)) {
-		return state.effects.filter.hpf_mode != effects::FilterMode::OFF;
+		return state.hpf_mode != effects::FilterMode::OFF;
 	}
 	if (is(param::kLfo1Rate)) {
-		return state.lfo_sync_level[0] == plugin::SyncLevel::NONE;
+		return state.lfo1_sync == plugin::SyncLevel::NONE;
 	}
 	if (is(param::kLfo3Rate)) {
-		return state.lfo_sync_level[2] == plugin::SyncLevel::NONE;
+		return state.lfo3_sync == plugin::SyncLevel::NONE;
 	}
 	if (is(param::kVolumePostFX)) {
 		return false;
@@ -71,6 +97,18 @@ bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundS
 		return source == PatchSource::SIDECHAIN;
 	}
 	return true;
+}
+
+} // namespace
+
+bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state, bool is_drum) {
+	return allowed_by(source, destination,
+	                  {.mode = synth_mode(state),
+	                   .lpf_mode = sound_effects(state).filter.lpf_mode,
+	                   .hpf_mode = sound_effects(state).filter.hpf_mode,
+	                   .lfo1_sync = lfo(state, 0).sync_level,
+	                   .lfo3_sync = lfo(state, 2).sync_level},
+	                  is_drum);
 }
 
 } // namespace deluge::instrument

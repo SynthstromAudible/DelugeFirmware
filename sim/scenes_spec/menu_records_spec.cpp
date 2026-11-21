@@ -29,6 +29,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "instruments/deluge/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -45,10 +46,10 @@ namespace {
 /// @brief Give source @p s of @p sound three sample ranges, recorded as a gesture records them.
 void give_three_ranges(::Sound& sound, int32_t s) {
 	deluge::edits::settingFor(sound, s == 0 ? "osc1/type" : "osc2/type", Value::makeScalar("sample"));
-	(void)sound.sources[s].getOrCreateFirstRange();
-	sound.sources[s].ranges.getElement(0)->topNote = 40;
-	sound.sources[s].ranges.insertMultiRange(1)->topNote = 60;
-	sound.sources[s].ranges.insertMultiRange(2)->topNote = 32767;
+	(void)sound.getOrCreateFirstRange(s);
+	sound.sourceResources[s].ranges.getElement(0)->topNote = 40;
+	sound.sourceResources[s].ranges.insertMultiRange(1)->topNote = 60;
+	sound.sourceResources[s].ranges.insertMultiRange(2)->topNote = 32767;
 	deluge::edits::recordRanges(sound, s);
 }
 
@@ -65,7 +66,7 @@ int32_t picker_cursor(const MenuContext& ctx) {
 describe menu_records("a menu's questions, answered from the record", ${
 	it("opens the range picker on the range the source remembers, and on the middle one for a source with none", _ {
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) reads
-		// `Source::defaultRangeI`, which a flick and every played note (`Source::getRange`) write.
+		// `SourceResources::defaultRangeI`, which a flick and every played note (`SourceResources::getRange`) write.
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
@@ -73,14 +74,14 @@ describe menu_records("a menu's questions, answered from the record", ${
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::range_count(ctx)).to_equal(3);
 		expect(menu::range_top_note(ctx, 1)).to_equal(60);
-		(void)sound.sources[0].getRange(70); // a note played in range 2
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		(void)sound.sourceResources[0].getRange(70); // a note played in range 2
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 		expect(picker_cursor(ctx)).to_equal(2);
 		const MenuContext other = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 1, false, false, false, false);
 		expect(picker_cursor(other)).to_equal(1);
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the invalid default is
 		// worked out afresh and written back.
-		expect(sound.sources[1].defaultRangeI).to_equal(1);
+		expect(sound.sourceResources[1].defaultRangeI).to_equal(1);
 	});
 
 	it("a re-read of the range picker keeps the edge being edited and the range, and writes nothing", _ {
@@ -90,7 +91,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 2;
+		sound.sourceResources[0].defaultRangeI = 2;
 		menu::MenuState st{};
 		st.path[0] = &nodes::multi_range;
 		st.depth = 0;
@@ -100,7 +101,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
 		expect(static_cast<int>(st.list[0].cursor)).to_equal(0);
 		expect(static_cast<int>(st.walk.range_choice)).to_equal(-1);
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 	});
 
 	it("a re-read of the modulation list puts a cursor past the last cable back on the list, as PatchCables::readValueAgain does", _ {
@@ -121,10 +122,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 0;
+		sound.sourceResources[0].defaultRangeI = 0;
 		menu::select_range(ctx, 2);
 		expect(picker_cursor(ctx)).to_equal(2);
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 	});
 
 	it("opens the range picker on the middle range when the one remembered is past the end", _ {
@@ -132,16 +133,16 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 7;
+		sound.sourceResources[0].defaultRangeI = 7;
 		expect(picker_cursor(ctx)).to_equal(1);
-		expect(sound.sources[0].defaultRangeI).to_equal(1);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(1);
 	});
 
 	it("opens the sample browser on the range's recorded file", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", Value::makeScalar("sample"));
-		auto* range = sound.sources[0].getOrCreateFirstRange();
+		auto* range = sound.getOrCreateFirstRange(0);
 		range->getAudioFileHolder()->filePath = "SAMPLES/KICKS/K1.WAV";
 		deluge::edits::recordRanges(sound, 0);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
@@ -149,13 +150,14 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
 		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(*ctx.addresses.slot);
+		const std::vector<deluge::instrument::RangeState> ranges =
+		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
+		                     : std::vector<deluge::instrument::RangeState>{};
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
-			expect(state->sources[0].ranges.empty()).to_be_false();
+			expect(ranges.empty()).to_be_false();
 		}
-		const std::string recorded = state != nullptr && !state->sources[0].ranges.empty()
-		                                 ? state->sources[0].ranges[0].file_path
-		                                 : std::string{};
+		const std::string recorded = !ranges.empty() ? ranges[0].file_path : std::string{};
 		expect(recorded.empty()).to_be_false();
 		expect(dir + "/" + name).to_equal(recorded);
 	});

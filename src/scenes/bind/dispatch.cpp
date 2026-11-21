@@ -298,6 +298,8 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 		return on(target.group, where.lane);
 	case SettingGroupId::NOTE_ROW:
 		return on(target.group, where.note_row);
+	case SettingGroupId::SOUND_ROUTING:
+		return where.lane ? on(target.group, where.lane) : on(target.group, where.track);
 	case SettingGroupId::DEVICE:
 		return project::SettingAddress{SettingGroupId::DEVICE, project::DeviceAddress{}};
 	}

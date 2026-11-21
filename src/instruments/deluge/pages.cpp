@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/pages.h"
+#include "instruments/deluge/state_access.h"
 
 #include "instruments/deluge/deluge_synth.h"
 
@@ -58,7 +59,7 @@ plugin::RemoteSlot decorate_slot(const plugin::PageContext& ctx, plugin::ParamId
 	bool fm = false;
 	if (ctx.state != nullptr) {
 		if (const SoundState* sound = ctx.state->as<DelugeSynth>()) {
-			fm = sound->synth_mode == SynthMode::FM;
+			fm = synth_mode(*sound) == SynthMode::FM;
 		}
 	}
 	return slot_for(param, {.fm = fm, .alt_delay = ctx.alt_delay});

@@ -28,9 +28,14 @@ for routing edges and summing buffers.
 | a sound render's param reads | `synth::param_view` (concept) over `ParamManagerView` | done | |
 | `instrument::DelugeInstrument` | `instrument::DelugeSynth` | done | the plugin id `kDelugeInstrument` is a file word and stays |
 | `PhaseIncrementFineTuner` | `dsp::fixed::FineTune` | the synth library: done; the app's sample holders: DelugeSynth state plan D | |
-| `instrument::SoundState` | `DelugeSynth::State`, composed of its components' states | DelugeSynth state plan E | |
-| app `Source` (`processing/source.h`) | dissolved into the state, the config and `Resources` | DelugeSynth state plan D | `synth::Source` keeps its name |
-| `effects::SoundChain` | `effects::FxSection` | DelugeSynth state plan E | "chain" means a host list of devices |
+| `instrument::SoundState` | `DelugeSynth::State` | at the split (the float instrument's arrival) | composed of its components' states (`plays`) and `Recall` already; the directory and namespace rename with it |
+| app `Source` (`processing/source.h`) | `SourceResources`: an oscillator's files, patch and inputs; its settings in the state and the config | done | `synth::Source` keeps its name |
+| `Sound::sources` | `Sound::sourceResources` | done | |
+| `LFOConfig` | `synth::LfoState` | done | an LFO's component state, from the record to the render |
+| `ModControllableSnapshot` | deleted | done | an effects binding's render copy is its own `renderEffects()` and `renderModFXParam()` |
+| `FlatSoundState` | the codec's parse form, inside the library | done | outside `src/instruments/deluge` only the composition spec names it |
+| a sound's sidechain send and MIDI output in its state | `project::SoundRouting` on the slot | done | the `SOUND_ROUTING` setting group |
+| `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
 | `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
 
 ## Slot

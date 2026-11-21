@@ -260,8 +260,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	it("requires a range for a range-dependent node whose source has more than one, none selected", _ {
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -275,8 +275,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		// `origin/main:src/deluge/gui/menu_item/menu_item.cpp`): LPF frequency lives on the Sound, not in a range.
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -287,7 +287,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	it("allows a range-dependent node when the source has exactly one range, and selects it", _ {
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -302,8 +302,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		// picker is what writes the chosen range back, and this is what it buys.
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -315,8 +315,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	it("never applies the range rule to a node with neither a bound param nor the flag", _ {
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -326,8 +326,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	it("allows a range-dependent node on a kit row however many ranges it has", _ {
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		drum->sources[0].ranges.insertMultiRange(0);
-		drum->sources[0].ranges.insertMultiRange(1);
+		drum->sourceResources[0].ranges.insertMultiRange(0);
+		drum->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*drum, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);

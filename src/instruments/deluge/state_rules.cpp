@@ -17,16 +17,15 @@
 
 #include "instruments/deluge/state_rules.h"
 
+#include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/dx7_init_voice.h"
+#include "instruments/deluge/record_edit.h"
 
 #include <utility>
+#include <variant>
 
 namespace deluge::instrument {
 namespace {
-
-[[nodiscard]] constexpr size_t index_of(SourceId id) noexcept {
-	return std::to_underlying(id);
-}
 
 /// A range holding nothing but its top note.
 [[nodiscard]] RangeState only_top_note(int16_t top_note) {
@@ -35,29 +34,16 @@ namespace {
 	return range;
 }
 
-} // namespace
-
-SoundState with_mode(SoundState state, SynthMode mode) {
-	effects::FilterState& filter = state.effects.filter;
-	if (mode == SynthMode::FM && state.synth_mode != SynthMode::FM) {
-		filter.lpf_mode = effects::FilterMode::OFF;
-		filter.hpf_mode = effects::FilterMode::OFF;
+/// @p source given the DX7 init voice where it has no patch.
+void ensure_init_patch(SourceState& source) {
+	if (!source.dx_patch) {
+		source.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
 	}
-	else if (mode != SynthMode::FM && state.synth_mode == SynthMode::FM) {
-		if (filter.lpf_mode == effects::FilterMode::OFF) {
-			filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
-		}
-		if (filter.hpf_mode == effects::FilterMode::OFF) {
-			filter.hpf_mode = effects::FilterMode::HPLADDER;
-		}
-	}
-	state.synth_mode = mode;
-	return state;
 }
 
-SoundState with_osc_type(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
-                         bool held_are_wavetable) {
-	SourceState& source = state.sources[index_of(id)];
+/// Slot @p source set to @p type: ranges of the other kind keep only their top notes (one open range where there are
+/// none), otherwise the slot takes @p held; a DX7 slot without a patch gains the init voice.
+void apply_osc_type(SourceState& source, OscType type, std::span<const RangeState> held, bool held_are_wavetable) {
 	source.osc_type = type;
 	const bool plays_ranges = type == OscType::SAMPLE || type == OscType::WAVETABLE;
 	if (plays_ranges && held_are_wavetable != (type == OscType::WAVETABLE)) {
@@ -71,14 +57,13 @@ SoundState with_osc_type(SoundState state, SourceId id, OscType type, std::span<
 	else {
 		source.ranges.assign(held.begin(), held.end());
 	}
-	if (type == OscType::DX7 && !source.dx_patch) {
-		source.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	if (type == OscType::DX7) {
+		ensure_init_patch(source);
 	}
-	return state;
 }
 
-SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) {
-	SourceState& source = state.sources[index_of(id)];
+/// Slot @p source's loop mode set: stretching makes pitch and speed independent, leaving it gives that up.
+void apply_loop_mode(SourceState& source, SampleRepeatMode mode) {
 	if (mode == SampleRepeatMode::STRETCH) {
 		source.pitch_and_speed_independent = true;
 	}
@@ -86,6 +71,76 @@ SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) 
 		source.pitch_and_speed_independent = false;
 	}
 	source.repeat_mode = mode;
+}
+
+/// The filters as a switch from @p from to @p to leaves them: into FM both go off; out of it one that is off comes
+/// back on (the low-pass as the 24 dB transistor ladder, the high-pass as the ladder).
+void switch_filters(effects::FilterState& filter, SynthMode from, SynthMode to) {
+	if (to == SynthMode::FM && from != SynthMode::FM) {
+		filter.lpf_mode = effects::FilterMode::OFF;
+		filter.hpf_mode = effects::FilterMode::OFF;
+	}
+	else if (to != SynthMode::FM && from == SynthMode::FM) {
+		if (filter.lpf_mode == effects::FilterMode::OFF) {
+			filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
+		}
+		if (filter.hpf_mode == effects::FilterMode::OFF) {
+			filter.hpf_mode = effects::FilterMode::HPLADDER;
+		}
+	}
+}
+
+} // namespace
+
+SoundState switch_engine(SoundState state, SynthMode mode) {
+	switch_filters(state.plays.fx.filter, synth_mode(state), mode);
+	set_engine(state, mode);
+	return state;
+}
+
+SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
+                         bool held_are_wavetable) {
+	edit_slot(state, slot_index(id),
+	          [&](SlotEdit& edit) { apply_osc_type(edit.source, type, held, held_are_wavetable); });
+	return state;
+}
+
+SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) {
+	edit_slot(state, slot_index(id), [&](SlotEdit& edit) { apply_loop_mode(edit.source, mode); });
+	return state;
+}
+
+SoundState with_song_defaults(SoundState state, const effects::SongDefaults& defaults) {
+	state.plays.fx = effects::with_song_defaults(state.plays.fx, defaults);
+	return state;
+}
+
+SoundState as_sample_sound(SoundState state) {
+	state.plays.voicing.polyphony = PolyphonyMode::AUTO;
+	state.plays.fx.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
+	for (size_t s = 0; s < 2; s++) {
+		edit_slot(state, s, [](SlotEdit& edit) { edit.source.osc_type = OscType::SAMPLE; });
+	}
+	return state;
+}
+
+SoundState as_default_synth(SoundState state) {
+	state.plays.fx.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
+	edit_slot(state, 0, [](SlotEdit& edit) { edit.source.osc_type = OscType::SAW; });
+	edit_slot(state, 1, [](SlotEdit& edit) { edit.source.transpose = -12; });
+	state.plays.voicing.unison.count = 4;
+	state.plays.voicing.unison.detune = 10;
+	state.plays.voicing.master.transpose = -12;
+	return state;
+}
+
+SoundState as_blank_synth(SoundState state, bool dx) {
+	if (dx) {
+		edit_slot(state, 0, [](SlotEdit& edit) {
+			edit.source.osc_type = OscType::DX7;
+			ensure_init_patch(edit.source);
+		});
+	}
 	return state;
 }
 

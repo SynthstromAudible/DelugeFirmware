@@ -266,11 +266,11 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		(void)shellHostUI.timerCallback();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2); // a turn steps one semitone
 		auto* sound = fx.instrument->toModControllable()->effectsOwner()->sound;
-		const int32_t before = sound->sources[0].transpose;
+		const int32_t before = sound->config().sources[0].transpose;
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(sound->sources[0].transpose).to_equal(before + 1);
+		expect(sound->config().sources[0].transpose).to_equal(before + 1);
 	});
 
 	it("a shortcuts VERSION turn fed just before a long-BACK close is applied whole", _ {

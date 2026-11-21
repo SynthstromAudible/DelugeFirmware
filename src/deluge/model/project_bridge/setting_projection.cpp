@@ -17,6 +17,7 @@
 #include "model/output.h"
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -294,6 +295,18 @@ Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) 
 	drum.setName(value.str());
 	return Error::NONE;
 }
+
+namespace {
+
+/// @brief The slot a sound routing group's @p owner names: a kit lane's drum, else a synth track's output.
+project::SlotAddress routedSlot(const project::SettingOwner& owner) {
+	if (const auto* lane = std::get_if<project::LaneAddress>(&owner)) {
+		return {.kind = project::SlotAddress::Kind::DRUM, .id = lane->drum_id};
+	}
+	return {.kind = project::SlotAddress::Kind::OUTPUT, .id = std::get<project::TrackAddress>(owner).output_id};
+}
+
+} // namespace
 
 Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
                           const Value& value, const Value* previous) {
@@ -810,6 +823,15 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		auto* kit = static_cast<::Kit*>(findOutput(song, lane.kit_id));
 		return applyArpSetting(drum->arpSettings, {.drum = drum, .kit = kit}, song, path, *value);
 	}
+	case SettingGroupId::SOUND_ROUTING: {
+		// A bound sound plays its record's routing: projecting is setting the runtime's copies from it.
+		::Sound* sound = bridge::soundAt(song, routedSlot(address.owner));
+		if (sound == nullptr || &sound->routing() != project::sound_routing(song.project, address.owner)) {
+			return Error::UNSPECIFIED;
+		}
+		sound->applyRouting();
+		return Error::NONE;
+	}
 	case SettingGroupId::DEVICE:
 		return Error::UNSPECIFIED; // no song holds the device's own settings; the host's device port stores them
 	}
@@ -924,6 +946,22 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	if (address.group == SettingGroupId::TRACK || address.group == SettingGroupId::INSTRUMENT_DEVICE) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
+	}
+	if (address.group == SettingGroupId::SOUND_ROUTING) {
+		const ::Sound* sound = bridge::soundAt(song, routedSlot(address.owner));
+		if (sound == nullptr) {
+			return std::nullopt;
+		}
+		if (path == "sideChainSend") {
+			return Value::makeNumber(sound->sideChainSendLevel);
+		}
+		if (path == "midiOutput/channel") {
+			return Value::makeScalar(std::to_string(sound->outputMidiChannel));
+		}
+		if (path == "midiOutput/noteForDrum") {
+			return Value::makeNumber(sound->outputMidiNoteForDrum);
+		}
+		return std::nullopt;
 	}
 	if (address.group == SettingGroupId::AUDIO_INPUT) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);

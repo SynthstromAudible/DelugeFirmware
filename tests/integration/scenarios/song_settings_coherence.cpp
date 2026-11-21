@@ -57,6 +57,8 @@ const char* groupName(SettingGroupId group) {
 		return "CLIP_ARP";
 	case SettingGroupId::LANE_ARP:
 		return "LANE_ARP";
+	case SettingGroupId::SOUND_ROUTING:
+		return "SOUND_ROUTING";
 	case SettingGroupId::DEVICE:
 		return "DEVICE";
 	}
@@ -108,10 +110,16 @@ void forEachSettingAddress(
 		if (output.type == OutputType::AUDIO) {
 			visitGroup({SettingGroupId::AUDIO_INPUT, *track}, track->output_id, nullptr);
 		}
+		if (output.type == OutputType::SYNTH) {
+			visitGroup({SettingGroupId::SOUND_ROUTING, *track}, track->output_id, nullptr);
+		}
 		if (output.type == OutputType::KIT) {
 			for (::Drum* drum = static_cast<::Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 				if (const auto lane = deluge::bridge::laneAddressOf(*drum, song)) {
 					visitGroup({SettingGroupId::LANE, *lane}, lane->drum_id, nullptr);
+					if (drum->type == DrumType::SOUND) {
+						visitGroup({SettingGroupId::SOUND_ROUTING, *lane}, lane->drum_id, nullptr);
+					}
 					visitGroup({SettingGroupId::LANE_ARP, *lane}, lane->drum_id, nullptr,
 					           deluge::bridge::arpHostValuesAreSettings({.drum = drum}));
 				}

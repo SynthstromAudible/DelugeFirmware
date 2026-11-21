@@ -16,7 +16,9 @@
  */
 
 #include "deluge-project/document.h"
+
 #include "deluge-project/audio_input.h"
+#include "deluge-project/sound_routing_codec.h"
 
 #include "deluge-project/arp_codec.h"
 #include "deluge-project/controls_codec.h"
@@ -211,6 +213,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			if (plugins.instruments.decode != nullptr) {
 				record.instrument = InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 				                                   .state = plugins.instruments.decode(*output.node, magnitude),
+				                                   .routing = decode_routing(*output.node),
 				                                   .tick_magnitude = magnitude};
 			}
 			if (const Value* arp = output.node->find("arpeggiator")) {
@@ -247,6 +250,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 						drumRecord.instrument =
 						    InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 						                   .state = plugins.instruments.decode(*drum.node, magnitude),
+						                   .routing = decode_routing(*drum.node),
 						                   .tick_magnitude = magnitude};
 					}
 					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", plugins)) {
@@ -383,6 +387,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		}
 		if (output.instrument && plugins.instruments.encode != nullptr) {
 			plugins.instruments.encode(output.instrument->state, element, magnitude);
+			append_entries(element, encode_routing(output.instrument->routing));
 		}
 		if (output.arp) {
 			// A sound's element holds the arp's sync level relative to the song's tick magnitude.
@@ -408,6 +413,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				}
 				if (drumRecord.instrument && plugins.instruments.encode != nullptr) {
 					plugins.instruments.encode(drumRecord.instrument->state, drumElement, magnitude);
+					append_entries(drumElement, encode_routing(drumRecord.instrument->routing));
 				}
 				if (drumRecord.arp && drumRecord.drum_type == DrumType::SOUND) {
 					// A sound's element holds the arp's sync level relative to the song's tick magnitude.

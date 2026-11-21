@@ -55,6 +55,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
@@ -80,7 +81,7 @@
 #include "model/song/song.h"            // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"   // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h" // setupAsBlankSynth(), for the preset fixture writer
-#include "processing/source.h"                 // the DX7 oscillator the stage gives the clip
+#include "processing/sound/source_resources.h" // the DX7 oscillator the stage gives the clip
 #include "runtime/app_loop.h"                  // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"             // the guest's tick, input and what it has on top
 #include "scenes/menu/menu_scene.h"            // the cartridge page the read lands on
@@ -3385,7 +3386,7 @@ Clip* makeDxClip() {
 		return nullptr;
 	}
 	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
-	sound->sources[0].setOscType(OscType::DX7);
+	deluge::test::setOscType(*sound, 0, OscType::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;
 }

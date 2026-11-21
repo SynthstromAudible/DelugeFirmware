@@ -14,6 +14,7 @@
 
 #include "deluge-project/arp_record.h"
 #include "deluge-project/clip_address.h"
+#include "deluge-project/instrument_slot.h"
 #include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
 #include "plugin-api/types/setting.h"
@@ -50,6 +51,8 @@ enum class SettingGroupId : uint8_t {
 	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's. CLIP,
 	                   ///< the track's (KIT for the whole kit's)
 	LANE_ARP,          ///< a kit row's arp, its lane's note device. KIT_LANE, the lane's drum
+	SOUND_ROUTING,     ///< a synth track's or a sound kit row's routing beyond its instrument: the sidechain send and
+	                   ///< the MIDI output. TRACK and the track's synth, or KIT_LANE and the lane's drum
 	DEVICE,            ///< Owner DEVICE, Instrument NONE: the device's own settings, which no song holds
 };
 
@@ -58,7 +61,7 @@ enum class SettingGroupId : uint8_t {
 ///
 /// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, and raise this by one.
 /// Both a missing case and a missing bump fail to compile.
-inline constexpr uint8_t kSettingGroupCount = 12;
+inline constexpr uint8_t kSettingGroupCount = 13;
 
 /// @brief Whether kSettingGroupCount counts @p group, for the static_assert below. The switch names every group, so a
 /// new one fails to compile (-Werror=switch) until it has a case here; a named group is counted when its value is below
@@ -78,6 +81,7 @@ inline constexpr uint8_t kSettingGroupCount = 12;
 	case SettingGroupId::AUDIO_INPUT:
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
+	case SettingGroupId::SOUND_ROUTING:
 	case SettingGroupId::DEVICE:
 		return static_cast<uint8_t>(group) < kSettingGroupCount;
 	}
@@ -151,11 +155,12 @@ struct SettingAddress {
 /// @return The value; a host value the record does not hold reads as its row's default. Nullopt for any other path.
 [[nodiscard]] std::optional<serialization::Value> arp_setting_value(const ArpRecord& record, std::string_view path);
 
-/// @brief A record as it was before a write that may reshape it beyond the written path: an arp's, whose preset writes
-///        three fields and whose first write creates it. Empty for every other group, whose writes touch their path
-///        alone.
+/// @brief A record as it was before a write, for a group whose record a write's own path cannot put back: an arp's,
+///        whose preset writes three fields and whose first write creates it; a sound's routing, whose unset note no
+///        row value writes. Empty for every other group, whose writes touch their path alone.
 struct SettingRecordSnapshot {
 	std::optional<std::optional<ArpRecord>> arp; ///< the arp record slot, when the address names one
+	std::optional<SoundRouting> routing;         ///< the routing, when the address names one
 };
 
 /// @brief @p address's record as it is now, for restore_setting_record.
@@ -204,5 +209,30 @@ void forget_setting(Song& song, const SettingAddress& address, std::string_view 
 ///         path, or the row refuses the value; always false for the DEVICE group, which no song holds.
 [[nodiscard]] bool write_setting(Song& song, const SettingAddress& address, std::string_view path,
                                  const serialization::Value& value);
+
+/// @brief The routing record @p owner names: a synth track's (a TrackAddress) or a sound kit row's (a LaneAddress).
+/// @param song  The song whose records hold it.
+/// @param owner The track or lane.
+/// @return The record, or nullptr when the owner does not resolve or plays no instrument.
+[[nodiscard]] const SoundRouting* sound_routing(const Song& song, const SettingOwner& owner);
+/// @copydoc sound_routing
+[[nodiscard]] SoundRouting* sound_routing(Song& song, const SettingOwner& owner);
+
+/// @brief @p routing's value at @p path, a SOUND_ROUTING row, in its file form: an unset note reads 255, outside the
+/// row, which its menu shows as its default.
+/// @param routing The routing.
+/// @param path    A path of the group's table.
+/// @return The value, or nullopt for a path the group has no row for.
+[[nodiscard]] std::optional<serialization::Value> read_routing_setting(const SoundRouting& routing,
+                                                                       std::string_view path);
+
+/// @brief Set @p routing's value at @p path, a SOUND_ROUTING row, checked against the row: a routing no record holds
+/// (a sound outside the song) takes a write as its owner's record would.
+/// @param routing The routing.
+/// @param path    A path of the group's table.
+/// @param value   The new value, in its file form.
+/// @return True when written; false, with nothing changed, when the row refuses the path or the value.
+[[nodiscard]] bool write_routing_setting(SoundRouting& routing, std::string_view path,
+                                         const serialization::Value& value);
 
 } // namespace deluge::project

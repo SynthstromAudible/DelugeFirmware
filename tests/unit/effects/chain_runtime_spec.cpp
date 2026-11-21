@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The chain runtimes (sound_chain.h, track_chain.h, master_chain.h) against each home's sequence over the same
+// The chain runtimes (fx_section.h, track_chain.h, master_chain.h) against each home's sequence over the same
 // components (bench/reference_chains.h, which the bench times too): two chains built alike, one driven by the runtime
 // and one by the reference, block by block over every workload (chain_workloads.h), each side from the same state of
 // the synth-wide noise stream the filters and the grain draw from, their output, reverb send, recorder tap and noise
@@ -24,8 +24,8 @@
 
 #include "dsp-next/core/buffer_view.h"
 #include "effects/chain.h"
+#include "effects/fx_section.h"
 #include "effects/master_chain.h"
-#include "effects/sound_chain.h"
 #include "effects/track_chain.h"
 
 #include "bench/reference_chains.h"
@@ -96,7 +96,7 @@ struct Scratch {
 	}
 };
 
-/// @return The first difference between SoundChain and the reference over every workload, or empty.
+/// @return The first difference between FxSection and the reference over every workload, or empty.
 std::string sound_difference() {
 	for (const cw::Workload& w : cw::kWorkloads) {
 		const EffectStates s = cw::settings(w);
@@ -104,8 +104,8 @@ std::string sound_difference() {
 		DelayArena arena_b{cw::kArenaMemory};
 		std::string found;
 		{
-			SoundChain run{cw::kAllocator, cw::kAllocator, arena_a};
-			SoundChain ref{cw::kAllocator, cw::kAllocator, arena_b};
+			FxSection run{cw::kAllocator, cw::kAllocator, arena_a};
+			FxSection ref{cw::kAllocator, cw::kAllocator, arena_b};
 			cw::hand_over(run.core(), s);
 			cw::hand_over(ref.core(), s);
 			Stutter stutter_a{cw::kAllocator};
@@ -117,7 +117,7 @@ std::string sound_difference() {
 			for (int b = 0; b < cw::kBlocks && found.empty(); ++b) {
 				const std::size_t frames = cw::kBlockFrames[b % cw::kBlockFrames.size()];
 				const bool sound = cw::sounding(w, b);
-				SoundChainInputs in{
+				FxSectionInputs in{
 				    .fx = cw::fx_inputs(w, s),
 				    .bitcrush = cw::kBitcrush,
 				    .post_fx_volume = deluge::dsp::Q<27>::from_raw(0x0A000000),
@@ -136,7 +136,7 @@ std::string sound_difference() {
 				for (auto [chain, side, stutter] :
 				     {std::tuple{&run, &a, &stutter_a}, std::tuple{&ref, &r, &stutter_b}}) {
 					deluge::synth_noise.seed(noise);
-					SoundChainInputs mine = in;
+					FxSectionInputs mine = in;
 					mine.fx.delay = cw::delay_state(chain->core(), w, s, sound);
 					mine.stutter = w.stutter ? stutter : nullptr;
 					std::vector<StereoSample> block = cw::input(w, b, frames);
@@ -371,7 +371,7 @@ describe chain_runtime("the effect chain runtimes", ${
 	});
 
 	it("render a sound's effects in a track chain's order, without the filter and saturation its voices hold", _ {
-		expect(as_vector(SoundChain::order())).to_equal(chain_order(Home::TRACK, {"saturation", "filter", "sidechain"}));
+		expect(as_vector(FxSection::order())).to_equal(chain_order(Home::TRACK, {"saturation", "filter", "sidechain"}));
 	});
 });
 // clang-format on

@@ -531,7 +531,7 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 	if (sound == nullptr) {
 		return ValueText{};
 	}
-	const std::span<const instrument::RangeState> ranges =
+	const std::vector<instrument::RangeState> ranges =
 	    instrument::source_ranges(*sound, static_cast<instrument::SourceId>(source));
 	if (std::ranges::none_of(ranges, [](const instrument::RangeState& r) { return !r.file_path.empty(); })) {
 		return kValueTextFallback;

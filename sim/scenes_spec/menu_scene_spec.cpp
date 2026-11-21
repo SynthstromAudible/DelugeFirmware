@@ -45,7 +45,7 @@
 #include "modulation/params/param.h"
 #include "modulation/sync.h" // NUM_SYNC_VALUES
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
@@ -1660,8 +1660,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1698,8 +1698,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1792,8 +1792,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1819,9 +1819,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a `defaultRangeI` of -1
 		// is invalid, so the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
-		// `Source::defaultRangeI`, as legacy does.
+		// `SourceResources::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
-		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
+		expect(static_cast<SoundInstrument*>(r.song.instrument)->sourceResources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
 		// returning `menuItemHeadingTo` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
@@ -1847,8 +1847,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1884,17 +1884,17 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
 		// `selectEncoderAction`'s flick writes `defaultRangeI` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
 		// `MultiRange::selectEncoderAction`); a voice start writes it too
-		// (`Source::getRange`), and the open picker's cursor stays where it was.
+		// (`SourceResources::getRange`), and the open picker's cursor stays where it was.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
-		sound->sources[0].ranges.insertMultiRange(2);
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(2);
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1911,14 +1911,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.turn(1, 120);
 		r.shell.tick(125);
 		expect(cursor_of(1)).to_equal(2);
-		expect(sound->sources[0].defaultRangeI).to_equal(2);
+		expect(sound->sourceResources[0].defaultRangeI).to_equal(2);
 
-		(void)sound->sources[0].getRange(30); // a voice starting in range 0
-		expect(sound->sources[0].defaultRangeI).to_equal(0);
+		(void)sound->sourceResources[0].getRange(30); // a voice starting in range 0
+		expect(sound->sourceResources[0].defaultRangeI).to_equal(0);
 		r.shell.tick(140);
 		r.shell.tick(160);
 		expect(cursor_of(1)).to_equal(2);
-		expect(sound->sources[0].defaultRangeI).to_equal(0);
+		expect(sound->sourceResources[0].defaultRangeI).to_equal(0);
 	});
 
 	it("edits a range edge on a horizontal turn, moves it with the select encoder, and cancels it with BACK", _ {
@@ -1928,12 +1928,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
-		sound->sources[0].ranges.insertMultiRange(2);
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(2);
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1964,7 +1964,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		}
 		r.turn(1, 130); // the left edge is range 0's top
 		r.shell.tick(135);
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(41);
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(0)->topNote)).to_equal(41);
 		expect(cursor_of(1)).to_equal(1);
 
 		r.button(7, 1, true, 140); // BACK: cancels the edge, stays on the picker
@@ -2001,12 +2001,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
-		sound->sources[0].ranges.insertMultiRange(2);
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(2);
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2028,7 +2028,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
-		sound->sources[0].defaultRangeI = 0; // a note played meanwhile
+		sound->sourceResources[0].defaultRangeI = 0; // a note played meanwhile
 
 		r.button(7, 1, true, 150);
 		r.button(7, 1, false, 150);
@@ -2039,7 +2039,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// The window opens afresh, the range on its last row as far as it can be (`ListState::keep_scroll`'s -1).
 		expect(static_cast<int>(menu_scene().state().list[1].scroll)).to_equal(-1);
 		expect(cursor_of(1)).to_equal(1);
-		expect(sound->sources[0].defaultRangeI).to_equal(1);
+		expect(sound->sourceResources[0].defaultRangeI).to_equal(1);
 	});
 
 	it("cancels an edge with BACK on a picker opened at the root, where BACK would otherwise close the menu", _ {
@@ -2050,11 +2050,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
-			sound->sources[0].ranges.insertMultiRange(i);
+			sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		const MenuContext ctx = r.open(settings_root);
 		menu_scene().open(nodes::multi_range, ctx);
@@ -2081,11 +2081,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
-			sound->sources[0].ranges.insertMultiRange(i);
+			sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		const MenuContext ctx = r.open(settings_root);
 		menu_scene().open(nodes::multi_range, ctx);
@@ -2114,11 +2114,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
-			sound->sources[0].ranges.insertMultiRange(i);
+			sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2136,9 +2136,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(130);
 		r.button(8, 0, false, 135);
 		r.shell.tick(140);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(4);
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(50);
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(2)->topNote)).to_equal(60);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(4);
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(1)->topNote)).to_equal(50);
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(2)->topNote)).to_equal(60);
 		expect(cursor_of(1)).to_equal(2);
 
 		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
@@ -2147,8 +2147,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
 		    .to_be_true();
 		r.shell.tick(150);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(55);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(1)->topNote)).to_equal(55);
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(1);
 	});
@@ -2163,7 +2163,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		expect(sound->sources[0].ranges.empty()).to_be_true(); // the fixture starts with none
+		expect(sound->sourceResources[0].ranges.empty()).to_be_true(); // the fixture starts with none
 		(void)r.open(settings_root);
 		r.shell.tick(0);
 
@@ -2181,9 +2181,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
-		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
-		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp`).
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
+		expect(static_cast<int>(std::ssize(sound->sourceResources[0].ranges))).to_equal(1);
+		// `SourceResources::getOrCreateFirstRange` gives it the top of the keyboard (`source_resources.cpp`).
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 
 	it("a range-dependent node reached by SceneId::arg creates the range too, not only a descent", _ {
@@ -2209,7 +2209,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		expect(sound->sources[0].ranges.empty()).to_be_true(); // the fixture starts with none
+		expect(sound->sourceResources[0].ranges.empty()).to_be_true(); // the fixture starts with none
 
 		// `Rig::open` ends in `shell.init(SceneId{FirstApp, node_id(root)})`, so opening the leaf
 		// itself IS the deep link -- the same shape site 8 pushes.
@@ -2218,8 +2218,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		expect(depth_of()).to_equal(0);
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
-		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
-		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
+		expect(static_cast<int>(std::ssize(sound->sourceResources[0].ranges))).to_equal(1);
+		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 
 	it("a deep link onto a MULTI-range source opens the picker, not the item", _ {
@@ -2238,8 +2238,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		(void)r.open(transpose_leaf);
@@ -2252,7 +2252,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 		expect(menu_scene().state().walk.pending_after_range).to_equal(&transpose_leaf);
 		// And the two ranges are still the source's own: nothing was allocated on top of them.
-		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		expect(static_cast<int>(std::ssize(sound->sourceResources[0].ranges))).to_equal(2);
 	});
 
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
@@ -2264,13 +2264,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		expect(sound->sources[0].ranges.empty()).to_be_true();
+		expect(sound->sourceResources[0].ranges.empty()).to_be_true();
 
 		(void)r.open(toggle_leaf);
 		r.shell.tick(0);
 
 		expect(menu_scene().focused()).to_equal(&toggle_leaf);
-		expect(sound->sources[0].ranges.empty()).to_be_true();
+		expect(sound->sourceResources[0].ranges.empty()).to_be_true();
 	});
 
 	it("save_state and restore_state round-trip a depth-3 path", _ {

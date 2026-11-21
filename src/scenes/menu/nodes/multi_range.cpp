@@ -167,7 +167,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out) {
 
 void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), on the source's remembered
-	// range (`Source::defaultRangeI`, which every played note moves too).
+	// range (`SourceResources::defaultRangeI`, which every played note moves too).
 	const int32_t count = range_count(ctx);
 	int32_t cursor = 0;
 	if (ctx.addresses.slot) {
@@ -319,7 +319,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	if (count > 0 && cursor >= 0 && cursor < count) {
 		state.walk.range_choice = static_cast<int16_t>(cursor);
 		// A flick is remembered. A voice that starts without a pad or key (MIDI) moves the memory through
-		// `Source::getRange` and not the cursor; a pad or key goes through `range_note_press`.
+		// `SourceResources::getRange` and not the cursor; a pad or key goes through `range_note_press`.
 		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.ports.sound_writes != nullptr) {
 			ctx.ports.sound_writes->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
 			                                          static_cast<uint16_t>(cursor));

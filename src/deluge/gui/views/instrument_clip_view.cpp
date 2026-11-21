@@ -1998,7 +1998,7 @@ bool InstrumentClipView::drumIsRandomizable(Drum* drum) {
 		return false;
 	}
 	SoundDrum* soundDrum = (SoundDrum*)drum;
-	MultiRange* r = soundDrum->sources[0].getRange(0);
+	MultiRange* r = soundDrum->sourceResources[0].getRange(0);
 	if (r == nullptr) {
 		return false;
 	}

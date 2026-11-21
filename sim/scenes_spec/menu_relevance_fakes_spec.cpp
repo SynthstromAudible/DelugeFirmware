@@ -10,12 +10,12 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
-#include "instruments/deluge/codec.h" // new_synth_state
 #include "instruments/deluge/sound_state.h"
 #include "serialization/value.h"
 
 #include "support/fake_host_rig.h"
 #include "support/fake_menu_shell.h"
+#include "support/record_state.h"
 
 #include "cppspec.hpp"
 
@@ -54,19 +54,18 @@ describe menu_relevance_fakes("the menu's relevance over the ports' fakes and a 
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_false();
 		expect(listed(nodes::sound_root, nodes::modulator1, ctx)).to_be_false();
 
-		synth_state(fakes).synth_mode = deluge::instrument::SynthMode::FM;
+		deluge::test::set(synth_state(fakes), "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_true();
 		expect(listed(nodes::sound_root, nodes::modulator1, ctx)).to_be_true();
 
-		synth_state(fakes).synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE;
+		deluge::test::set(synth_state(fakes), "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::SUBTRACTIVE));
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_false();
 	});
 
 	it("offers a sample source's transpose only while the sound fake says its file is loaded", _ {
 		spec::FakeHostRig fakes;
-		deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
-		state.sources[0].osc_type = deluge::instrument::OscType::SAMPLE;
-		fakes.hold_synth(state);
+		fakes.hold_synth(deluge::test::with_kind(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
+		                                         deluge::instrument::OscType::SAMPLE));
 		const MenuContext ctx = fakes.synth_context();
 		fakes.host.sound.loaded[spec::FakeHostRig::kSynthSlot.id] = 0;
 		expect(menu::bindings::relevant(nodes::source0_transpose, ctx)).to_be_false();
