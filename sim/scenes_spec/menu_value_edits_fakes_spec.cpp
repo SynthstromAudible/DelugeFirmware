@@ -196,10 +196,11 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		const int32_t lower = menu::bindings::read(nodes::default_tempo, ctx);
 		r.turn(1, 1000);
 		// Both ends' stores reached the port, which kept neither; the page still draws the stored ends.
-		expect(r.fakes.host.device.stores.empty()).to_be_false();
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{2});
 		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(lower);
 		expect(r.oled()).to_equal(before);
 		expect(menu_scene().state().edit_int).to_equal(lower);
+		expect(menu_scene().state().edit_upper).to_equal(menu::bindings::read_upper(nodes::default_tempo, ctx));
 	});
 });
 // clang-format on

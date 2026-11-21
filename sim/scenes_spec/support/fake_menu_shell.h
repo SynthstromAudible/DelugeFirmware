@@ -38,6 +38,7 @@ namespace deluge::scenes::spec {
 struct FakeMenuShell {
 	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s (`shell/profiles/deluge.cpp`).
 	/// @{
+	static constexpr uint8_t kHorizontalEncoder = 1;
 	static constexpr uint8_t kSelectEncoder = 3;
 	static constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 	static constexpr uint8_t kBackX = 7, kBackY = 1;
@@ -47,9 +48,11 @@ struct FakeMenuShell {
 	static constexpr uint8_t kCrossScreenX = 6, kCrossScreenY = 2;
 	/// @}
 
-	FakeHostRig fakes; ///< the ports' fakes and the model song every context reads
-	ui::shell::SceneRegistry reg = scene_registry();
+	FakeHostRig fakes;                               ///< the ports' fakes and the model song every context reads
+	ui::shell::SceneRegistry reg = scene_registry(); ///< the app's scenes, so the shell can make the menu scene
+	/// The Deluge board's surfaces, faked: the spec reads the drawn OLED and pads back from here.
 	uitest::FakeSurfaceSet surfaces{ui::shell::kDelugeBoard, deluge_profile()};
+	/// The shell the menu runs in, lowering the board events the spec sends and ticking the scene stack.
 	ui::shell::Shell shell{surfaces, deluge_profile(), reg, ui::shell::Services{}, ui::shell::ShellConfig{}};
 
 	FakeMenuShell() {
@@ -93,26 +96,46 @@ struct FakeMenuShell {
 
 	/// @brief @p detents clicks of the select encoder (two edges a click), and the two ticks that render and commit
 	///        the edit.
+	/// @param detents The clicks, negative to turn left.
+	/// @param at_ms   When the turn arrives; the ticks follow at @p at_ms + 5 and + 10.
 	void turn(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(
 		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 		shell.tick(at_ms + 5);
 		shell.tick(at_ms + 10);
 	}
-	/// @brief One edge of matrix button (@p x, @p y).
+	/// @brief @p detents clicks of the horizontal encoder, which picks a range's end, and the two ticks after it.
+	/// @param detents The clicks, negative to turn left.
+	/// @param at_ms   When the turn arrives; the ticks follow at @p at_ms + 5 and + 10.
+	void horizontal(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kHorizontalEncoder, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+		shell.tick(at_ms + 5);
+		shell.tick(at_ms + 10);
+	}
+	/// @brief One edge of matrix button (@p x, @p y), with no tick.
+	/// @param x     The button's matrix column.
+	/// @param y     The button's matrix row.
+	/// @param on    True for the press, false for the release.
+	/// @param at_ms When the edge arrives.
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
 	/// @brief A press and release of matrix button (@p x, @p y), each settled by a tick.
+	/// @param x     The button's matrix column.
+	/// @param y     The button's matrix row.
+	/// @param at_ms When the press arrives; a tick follows at @p at_ms + 5, the release at + 10 and its tick at + 15.
 	void press(uint8_t x, uint8_t y, uint32_t at_ms) {
 		button(x, y, true, at_ms);
 		shell.tick(at_ms + 5);
 		button(x, y, false, at_ms + 10);
 		shell.tick(at_ms + 15);
 	}
-	/// @brief Press and release the select encoder.
+	/// @brief Press and release the select encoder, as `press` does.
+	/// @param at_ms When the press arrives.
 	void select(uint32_t at_ms) { press(kSelectEncButtonX, kSelectEncButtonY, at_ms); }
-	/// @brief A short press of BACK.
+	/// @brief A short press of BACK, as `press` does.
+	/// @param at_ms When the press arrives.
 	void back(uint32_t at_ms) { press(kBackX, kBackY, at_ms); }
 	/// @brief The main OLED as the last tick drew it, as P1 PBM text.
 	[[nodiscard]] std::string oled() { return surfaces.pbm(0); }
