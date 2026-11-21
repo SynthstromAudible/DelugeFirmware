@@ -152,7 +152,7 @@ builds only `golden-vt-render`.
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |
 | param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime | pr | model | ~1s |
 | param-target-check | integration | scenario | unit | gate | the host names params by target | pr | model | ~1s |
-| param-clone | integration | scenario | unit | gate | cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies | pr | model | ~1s |
+| param-clone | integration | scenario | unit | gate | a cloned engine param container must be a deep-independent copy, and a clone that runs out of memory must report it and leave its source as it was | pr | model | ~1s |
 | patch-routing | integration | scenario | property | gate | a patch-cable set's routing and save order must not change | pr | model | ~2s |
 | document-version | integration | scenario | unit | gate | the firmware version a document is read as is that document's own | pr | model | ~1s |
 | preset-parse | integration | scenario | unit | gate | a JSON synth preset reads into a kit row as an XML one does | pr | model | ~1s |
@@ -216,6 +216,7 @@ builds only `golden-vt-render`.
 | app-asan-preset-load | integration | scenario | sanitizer | gate | the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
 | app-asan-recorder-take | integration | scenario | sanitizer | gate | the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
 | app-asan-ui-scenes-spec | integration | scenario | sanitizer | gate | the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
+| app-asan-param-clone | integration | scenario | sanitizer | gate | the param-clone gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~20s |
 | app-asan-effect-owners | integration | scenario | sanitizer | gate | the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~20s |
 | app-asan-edit-substrate | integration | scenario | sanitizer | gate | the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
 <!-- END GENERATED TABLE -->

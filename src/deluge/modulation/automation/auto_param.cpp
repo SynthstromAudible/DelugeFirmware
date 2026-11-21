@@ -54,7 +54,6 @@
 #include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"

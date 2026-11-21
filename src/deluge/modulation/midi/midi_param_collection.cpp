@@ -36,7 +36,6 @@
 #include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/exceptions.h"
 #include <new>
 
 using deluge::project::EditGuard;
@@ -53,18 +52,31 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 
 // domStore_ / domMidiRef_ are intentionally left null: a cloned collection starts unbound (owns its nodes) until
 // separately bound.
-MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
-    : ParamCollection(other), params(other.params) {
-	// If `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to the
-	// tree). Copy the current tree nodes so this clone starts self-owned with correct automation, as
-	// PatchCableSet's copy-ctor does.
-	if (other.domMidiRef_ != nullptr) {
-		for (MIDIParam& midiParam : params) {
-			if (deluge::project::DocAutoParam* live = other.findDomMidiNodes(midiParam.cc)) {
-				midiParam.nodes_ = *live;
-			}
+MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other, ShallowCopy /*tag*/)
+    : ParamCollection(other) {
+}
+
+Error MIDIParamCollection::cloneFrom(MIDIParamCollection const& other) {
+	if (!params.reserveExtra(static_cast<int32_t>(other.params.size()))) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	for (const MIDIParam& source : other.params) {
+		const auto i = static_cast<int32_t>(params.size());
+		(void)params.insertAt(i); // within the room reserved above, and in CC order: cannot fail
+		MIDIParam& copy = params[i];
+		copy.cc = source.cc;
+		copy.param = source.param; // the cursor: allocates nothing
+		// If `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to the
+		// tree): copy the current tree nodes, so this clone starts self-owned with correct automation.
+		const deluge::project::DocAutoParam* live =
+		    other.domMidiRef_ != nullptr ? other.findDomMidiNodes(source.cc) : nullptr;
+		const deluge::project::DocAutoParam& nodes = live != nullptr ? *live : source.nodes_;
+		copy.nodes_.current_value = nodes.current_value;
+		if (!copy.nodes_.nodes.tryAssign(nodes.nodes)) {
+			return Error::INSUFFICIENT_RAM; // the params copied so far are freed with the collection
 		}
 	}
+	return Error::NONE;
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
@@ -166,28 +178,24 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 
 Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
                                  int32_t reverseDirectionWithLength) const {
-	// params is a value member (MIDIParamVector), so the copy ctor deep-copies it (and each embedded AutoParam);
-	// no pointer re-pointing is needed.
 	void* mem = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	MIDIParamCollection* clone;
-	try {
-		clone = new (mem) MIDIParamCollection(*this);
-	} catch (deluge::exception&) {
-		delugeDealloc(mem);
-		return Error::INSUFFICIENT_RAM;
-	}
-	if (!copyAutomation) {
-		clone->stripAutomation();
-	}
-	else if (reverseDirectionWithLength != 0) {
-		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
-			clone->~MIDIParamCollection();
-			delugeDealloc(mem);
-			return error;
+	auto* clone = new (mem) MIDIParamCollection(*this, ShallowCopy{}); // allocates nothing
+	Error error = clone->cloneFrom(*this);
+	if (error == Error::NONE) {
+		if (!copyAutomation) {
+			clone->stripAutomation();
 		}
+		else if (reverseDirectionWithLength != 0) {
+			error = clone->flattenReverseAutomation(reverseDirectionWithLength);
+		}
+	}
+	if (error != Error::NONE) {
+		clone->~MIDIParamCollection(); // frees the params cloneFrom copied
+		delugeDealloc(mem);
+		return error;
 	}
 	result = clone;
 	return Error::NONE;

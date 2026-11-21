@@ -51,9 +51,8 @@ struct CableDepth {
 class PatchCableSet final : public ParamCollection {
 public:
 	PatchCableSet(ParamCollectionSummary* summary);
-	/// @brief Deep-copy a set: real-copies each usable cable's automation and the destination arrays (see clone()).
-	/// @param other The set to copy.
-	PatchCableSet(PatchCableSet const& other);
+	/// A deep copy allocates and can fail, so it is clone(), which reports it.
+	PatchCableSet(PatchCableSet const& other) = delete;
 	~PatchCableSet() override;
 
 	[[nodiscard]] bool domStoreIsExternal() const override { return externalDepths_ != nullptr; }
@@ -205,6 +204,14 @@ public:
 	static void dissectParamId(uint32_t paramId, deluge::synth::CableTarget* destination, PatchSource* s);
 
 private:
+	struct ShallowCopy {};
+	/// @brief Copy @p other's scalars and ParamCollection base only: no cables, no lanes, every pointer null. The
+	/// first half of clone(); cloneFrom() is the second.
+	PatchCableSet(PatchCableSet const& other, ShallowCopy tag);
+	/// @brief Make this shallow copy a deep copy of @p other: its cables, their lanes and the routing.
+	/// @return Error::INSUFFICIENT_RAM when memory runs out; what was built is freed with the set.
+	[[nodiscard]] Error cloneFrom(PatchCableSet const& other);
+
 	/// @brief Append a cable, growing the storage to fit it.
 	/// @return The new cable, default-initialised; nullptr at kMaxNumPatchCables cables, or if out of memory.
 	PatchCable* addCable();
@@ -229,8 +236,7 @@ private:
 	void freeDestinationMemory(bool destructing);
 	/// @brief Deep-copy a sentinel-terminated Destination array (terminated by an entry with sources == 0).
 	/// @param src The array to copy; may be nullptr.
-	/// @return The copy, or nullptr if @p src is nullptr.
-	/// @note Throws deluge::exception::BAD_ALLOC on OOM.
+	/// @return The copy, or nullptr if @p src is nullptr or there is no memory for the copy.
 	static deluge::synth::RoutedDestination* cloneDestinations(deluge::synth::RoutedDestination const* src);
 };
 

@@ -1443,11 +1443,13 @@ runtime_s = 1
 name = "param-clone"
 template = "scenario-driver"
 kind = "unit"
-gates = "cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies"
+gates = "a cloned engine param container must be a deep-independent copy, and a clone that runs out of memory must report it and leave its source as it was"
 scenario = "param_clone"
 tier = "pr"
 job = "model"
 runtime_s = 1
+variants = ["asan"]
+variant_fields = { asan = { runtime_s = 20 } }
 
 [[harness]]
 name = "patch-routing"

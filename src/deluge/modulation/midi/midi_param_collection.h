@@ -38,13 +38,8 @@ struct DocAutoParam;
 class MIDIParamCollection final : public ParamCollection {
 public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
-	/// @brief Copy constructor (used by clone()).
-	///
-	/// Deep-copies `params` (each MIDIParam with its inline nodes_, the tree's live nodes when the source is bound) and
-	/// leaves the clone unbound (domStore_ null): a cloned collection owns its nodes until separately bound.
-	///
-	/// @param other The collection to copy.
-	MIDIParamCollection(MIDIParamCollection const& other);
+	/// A deep copy allocates and can fail, so it is clone(), which reports it.
+	MIDIParamCollection(MIDIParamCollection const& other) = delete;
 	~MIDIParamCollection() override;
 	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
 	/// unnoticeable but limits the amount of data sent
@@ -143,6 +138,15 @@ private:
 	/// @param cc The CC number.
 	/// @return The nodes, or nullptr if unbound or absent.
 	deluge::project::DocAutoParam* findDomMidiNodes(uint8_t cc) const;
+
+	struct ShallowCopy {};
+	/// @brief Copy @p other's ParamCollection base only, with no params: the first half of clone(); cloneFrom() is the
+	/// second. Leaves the clone unbound: a cloned collection owns its nodes until separately bound.
+	MIDIParamCollection(MIDIParamCollection const& other, ShallowCopy tag);
+	/// @brief Deep-copy @p other's params into this (empty) collection: each CC with its nodes, the tree's live nodes
+	/// when @p other is bound.
+	/// @return Error::INSUFFICIENT_RAM when memory runs out; what was copied is freed with the collection.
+	[[nodiscard]] Error cloneFrom(MIDIParamCollection const& other);
 
 	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
 };

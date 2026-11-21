@@ -1621,11 +1621,15 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->bindDomStore();
 		check(unp->domStore() == store, "lazy: bindDomStore idempotent (no realloc)");
 
-		// A copy of a bound set gets an INDEPENDENT deep copy of the store.
-		UnpatchedParamSet copy(*unp);
+		// A clone of a bound set gets an INDEPENDENT deep copy of the store.
+		ParamCollection* cloned = nullptr;
+		check(unp->clone(cloned, true) == Error::NONE, "lazy: a bound set clones");
+		auto& copy = *static_cast<UnpatchedParamSet*>(cloned);
 		check(copy.domStore() != nullptr && copy.domStore() != store, "lazy: a copy owns an independent store");
 		check(copy.docForParam(2) != &store->params[2], "lazy: copy's store slot is not aliased");
 		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(), "lazy: copy has same node count");
+		copy.~UnpatchedParamSet();
+		delugeDealloc(cloned);
 	}
 
 	// ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
