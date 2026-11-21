@@ -30,6 +30,7 @@ const bind::Ports& host_ports() {
 	    .midi_feedback = &gui::shell_host::midi_feedback(),
 	    .transport = &gui::shell_host::transport(),
 	    .transport_actions = &gui::shell_host::transport_actions(),
+	    .waveforms = &gui::shell_host::waveforms(),
 	};
 	return ports;
 }

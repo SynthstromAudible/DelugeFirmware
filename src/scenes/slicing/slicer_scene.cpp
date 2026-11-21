@@ -717,7 +717,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 
 	// `renderFullScreen`'s scan (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), and its early return:
 	// a scan that could not load every cluster leaves the image **untouched** -- it returns before its own clear.
-	const services::WaveformAddress slice{.kind = services::WaveformAddress::Kind::SLICE};
+	const bind::WaveformAddress slice{.kind = bind::WaveformAddress::Kind::SLICE};
 	const std::optional<services::WaveformFrame> wf =
 	    services::read_waveform(menu::host_waveforms(), slice, view_.window());
 	if (!wf) {

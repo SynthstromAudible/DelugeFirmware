@@ -41,8 +41,8 @@
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 #include "scenes/bind/device_reader.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/bind_host.h"
-#include "scenes/services/waveforms.h"
 
 #include <array>
 
@@ -214,8 +214,8 @@ bool audio_clip_has_sample(const MenuContext& ctx) {
 	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.ports.clips == nullptr) {
 		return false;
 	}
-	const std::optional<deluge::scenes::services::WaveformInfo> info = menu::host_waveforms().info(
-	    {.kind = deluge::scenes::services::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip});
+	const std::optional<deluge::scenes::bind::WaveformInfo> info = menu::host_waveforms().info(
+	    {.kind = deluge::scenes::bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip});
 	return info && !info->recording;
 }
 

@@ -4,8 +4,7 @@
 /// @brief A sample's full-screen waveform on the main pads: the read through the waveform's address, then the paint.
 
 #include "sample-view/peaks.h"
-#include "scenes/services/waveform_address.h"
-#include "scenes/services/waveforms.h"
+#include "scenes/bind/ports/waveforms.h"
 
 #include <cstdint>
 #include <optional>
@@ -27,8 +26,8 @@ struct WaveformFrame {
 ///        have widened (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`,
 ///        `WaveformRenderer::renderFullScreen` reads the range after its scan).
 /// @return The frame; none where nothing is loaded at @p address.
-[[nodiscard]] std::optional<WaveformFrame> read_waveform(const Waveforms& waveforms, const WaveformAddress& address,
-                                                         sample_view::Window at);
+[[nodiscard]] std::optional<WaveformFrame> read_waveform(const bind::Waveforms& waveforms,
+                                                         const bind::WaveformAddress& address, sample_view::Window at);
 
 /// @brief Paint @p read's PEAK columns as full-height monochrome bars across @p f's main columns, centred on @p centre
 ///        and scaled to @p span. A column with no peak stays black.

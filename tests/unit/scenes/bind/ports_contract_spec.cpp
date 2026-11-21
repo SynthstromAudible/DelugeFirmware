@@ -36,6 +36,42 @@ class ForgetfulDeviceSettings final : public DeviceSettings {
 	}
 };
 
+/// @brief The info the failing waveforms fakes answer at every address: a finished mono file of 1000 frames.
+constexpr WaveformInfo kThousandFrames{.length_samples = 1000, .sample_rate = 44100, .channels = 1, .identity = 1};
+
+/// @brief A broken waveforms port: it answers a column past the end PENDING, so a caller would wait for a column that
+///        never comes.
+class EagerWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window at) const override {
+		deluge::sample_view::PeakRead read;
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			if (at.scroll + int64_t{c} * at.zoom < static_cast<int64_t>(kThousandFrames.length_samples)) {
+				read.set(c, deluge::sample_view::ColumnRead::of({.min = -1, .max = 1}));
+			}
+		}
+		return read;
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+};
+
+/// @brief A broken waveforms port: each read answers every column another peak.
+class FlakyWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		deluge::sample_view::PeakRead read;
+		reads_++;
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			read.set(c, deluge::sample_view::ColumnRead::of({.min = -reads_, .max = reads_}));
+		}
+		return read;
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+	mutable int32_t reads_{0};
+};
+
 } // namespace
 
 // clang-format off
@@ -526,6 +562,53 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			.to_equal(static_cast<int>(ShortcutsVersion::V3));
 		expect(read_device_flag(nullptr, battery)).to_be_true();
 		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
+	});
+	it("answers the waveforms as the spec set them, records every read, and holds the waveforms contract", _ {
+		using deluge::sample_view::ColumnRead;
+		using deluge::sample_view::PeakRead;
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.waveforms).to_equal(static_cast<const Waveforms*>(&host.waveforms));
+		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,
+		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, 4}};
+		const WaveformAddress nowhere{.kind = WaveformAddress::Kind::PREVIEW};
+		test::FakeWaveforms::Entry entry{.at = range, .info = kThousandFrames, .position = 250};
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			entry.peaks[static_cast<size_t>(c)] = {.min = -c, .max = c};
+		}
+		entry.pending.set(3);
+		entry.pending_reads = 1;
+		host.waveforms.waveforms.push_back(entry);
+
+		expect(host.waveforms.info(range)).to_equal(std::optional{kThousandFrames});
+		expect(host.waveforms.play_position(range)).to_equal(std::optional<int64_t>{250});
+		// Column 3 is pending on the first read alone; at 100 frames a column, columns 10 on lie past the end.
+		const PeakRead first = host.waveforms.peaks(range, {.scroll = 0, .zoom = 100});
+		expect(first.column(3)).to_equal(ColumnRead::pending());
+		expect(first.column(2)).to_equal(ColumnRead::of({.min = -2, .max = 2}));
+		expect(first.column(10)).to_equal(ColumnRead::past_end());
+		const PeakRead second = host.waveforms.peaks(range, {.scroll = 0, .zoom = 100});
+		expect(second.column(3)).to_equal(ColumnRead::of({.min = -3, .max = 3}));
+		// A column wholly before the start is past the end; one straddling it is not.
+		const PeakRead before = host.waveforms.peaks(range, {.scroll = -150, .zoom = 100});
+		expect(before.column(0)).to_equal(ColumnRead::past_end());
+		expect(before.column(1)).to_equal(ColumnRead::of({.min = -1, .max = 1}));
+		expect(host.waveforms.reads.size()).to_equal(size_t{3});
+		if (host.waveforms.reads.size() == 3) {
+			expect(host.waveforms.reads[2])
+			    .to_equal(test::FakeWaveforms::Read{.at = range, .in = {.scroll = -150, .zoom = 100}});
+		}
+
+		expect(contract::waveforms_unknown_address_reads_nothing(host.waveforms, nowhere)).to_be_true();
+		expect(contract::waveforms_empty_window_reads_past_end(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_columns_follow_the_length(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_peaks_are_stable(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_info_is_consistent(host.waveforms, range)).to_be_true();
+	});
+	it("fails the waveforms cases on a port that waits past the end or answers another peak", _ {
+		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE};
+		expect(contract::waveforms_columns_follow_the_length(EagerWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_peaks_are_stable(FlakyWaveforms{}, range)).to_be_false();
 	});
 });
 

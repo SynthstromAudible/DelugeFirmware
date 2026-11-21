@@ -9,6 +9,8 @@
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
 #include "plugin-api/types/display_mapping.h"
+#include "sample-view/divide.h"
+#include "sample-view/peaks.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 
@@ -399,6 +401,70 @@ namespace deluge::scenes::bind::contract {
 	       && device.read(device_path::kFavouritesLayout) == std::to_underlying(favourites)
 	       && device.read(device_path::kFollowFeedbackAutomation) == std::to_underlying(automation)
 	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0);
+}
+
+/// @}
+
+/// @name The waveforms port's cases.
+/// @{
+
+/// @brief An address nothing is loaded at answers no info, nothing to draw or wait for, and no position.
+[[nodiscard]] inline bool waveforms_unknown_address_reads_nothing(const Waveforms& w, const WaveformAddress& nowhere) {
+	return !w.info(nowhere).has_value()
+	       && w.peaks(nowhere, {.scroll = 0, .zoom = 1}) == sample_view::PeakRead::all_past_end()
+	       && !w.play_position(nowhere).has_value();
+}
+
+/// @brief A window that covers no frames has nothing to draw.
+[[nodiscard]] inline bool waveforms_empty_window_reads_past_end(const Waveforms& w, const WaveformAddress& at) {
+	return w.peaks(at, {.scroll = 0, .zoom = 0}) == sample_view::PeakRead::all_past_end();
+}
+
+/// @brief Over a finished file, a column from the length on is past the end, and a pending column lies inside the
+///        file: pending means "ask again", never "nothing there".
+[[nodiscard]] inline bool waveforms_columns_follow_the_length(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> info = w.info(at);
+	if (!info || info->recording || info->length_samples == 0) {
+		return false;
+	}
+	const auto length = static_cast<int64_t>(info->length_samples);
+	// Twice the whole-waveform zoom, so about half the columns lie past the end.
+	const int64_t zoom = std::max<int64_t>(1, sample_view::ceil_div(length, sample_view::kColumns) << 1);
+	const sample_view::PeakRead read = w.peaks(at, {.scroll = 0, .zoom = zoom});
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		// Outside the file, a column is past the end, so a pending one is always inside it.
+		if (int64_t{c} * zoom >= length && read.column(c).state() != sample_view::ColumnState::PAST_END) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// @brief Over a finished file, a column once answered with a peak answers the same peak on the next read.
+[[nodiscard]] inline bool waveforms_peaks_are_stable(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> info = w.info(at);
+	if (!info || info->recording) {
+		return false;
+	}
+	const sample_view::Window window{
+	    .scroll = 0,
+	    .zoom = std::max<int64_t>(
+	        1, sample_view::ceil_div(static_cast<int64_t>(info->length_samples), sample_view::kColumns))};
+	const sample_view::PeakRead first = w.peaks(at, window);
+	const sample_view::PeakRead second = w.peaks(at, window);
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		if (first.column(c).peak() && first.column(c) != second.column(c)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// @brief Two infos of one waveform agree, and a loaded file's facts are consistent.
+[[nodiscard]] inline bool waveforms_info_is_consistent(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> a = w.info(at);
+	const std::optional<WaveformInfo> b = w.info(at);
+	return a.has_value() && a == b && (a->channels == 1 || a->channels == 2) && a->identity != 0;
 }
 
 /// @}

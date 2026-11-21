@@ -31,8 +31,8 @@
 #include "ui/oled/misc.h"
 #include "ui/oled/text.h"
 
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/bind_host.h"
-#include "scenes/services/waveforms.h"
 
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
@@ -143,8 +143,8 @@ bool AudioClipScene::recording_linearly() const {
 	return clip_ && ports_.clips != nullptr && ports_.clips->clip_recording_linearly(*clip_);
 }
 
-deluge::scenes::services::WaveformAddress AudioClipScene::waveform() const {
-	return {.kind = deluge::scenes::services::WaveformAddress::Kind::AUDIO_CLIP,
+deluge::scenes::bind::WaveformAddress AudioClipScene::waveform() const {
+	return {.kind = deluge::scenes::bind::WaveformAddress::Kind::AUDIO_CLIP,
 	        .clip = clip_.value_or(deluge::project::ClipAddress{})};
 }
 
@@ -1121,7 +1121,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
 	const int32_t tick_col = compute_tick_square();
 
-	const std::optional<deluge::scenes::services::WaveformInfo> info =
+	const std::optional<deluge::scenes::bind::WaveformInfo> info =
 	    clip_ ? menu::host_waveforms().info(waveform()) : std::nullopt;
 	const std::optional<deluge::scenes::bind::AudioClipFact> clip_fact = fact();
 	// `renderMainPads`' two "just clear the display" arms: no sample, or no clip. The

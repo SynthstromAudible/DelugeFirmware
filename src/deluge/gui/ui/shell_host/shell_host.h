@@ -21,8 +21,7 @@ class Edit;
 namespace deluge::gui::shell_host {
 
 /// @brief The identity a waveform's info carries for @p sample: its lifetime serial (`Sample::serial`), so another
-/// file,
-///        a take, or a sample constructed later in the same memory has another. Never 0.
+///        file, a take, or a sample constructed later in the same memory has another. Never 0.
 [[nodiscard]] uint64_t waveform_identity(const ::Sample& sample);
 
 /// @brief The host's AudioFacts.
@@ -72,6 +71,10 @@ namespace deluge::gui::shell_host {
 
 /// @brief The host's TransportActions: each the call the legacy buttons make, popups included.
 [[nodiscard]] scenes::bind::TransportActions& transport_actions();
+
+/// @brief The host's Waveforms: the samples a song's ranges and audio clips, the browser's preview and the slicer
+///        hold, with the columns read lately kept per sample.
+[[nodiscard]] const scenes::bind::Waveforms& waveforms();
 
 /// @brief Give the overlays the app's ports they read. Idempotent; the boot and every guest open call it.
 void install_scene_ports();

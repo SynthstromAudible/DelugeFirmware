@@ -21,6 +21,7 @@
 #include "scenes/bind/ports/transport.h"
 #include "scenes/bind/ports/transport_actions.h"
 #include "scenes/bind/ports/ui_facts.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/bind/ports/write_sink.h"
 
 namespace deluge::scenes::bind {
@@ -47,6 +48,7 @@ struct Ports {
 	MidiFeedback* midi_feedback{nullptr};         ///< MIDI follow's feedback to a controller
 	const Transport* transport{nullptr};          ///< the transport's state
 	TransportActions* transport_actions{nullptr}; ///< what the transport is asked to do
+	const Waveforms* waveforms{nullptr};          ///< the waveforms the scenes draw, by address
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

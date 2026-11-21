@@ -533,7 +533,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().open(nullptr); // nothing kept from an earlier example
 		slicer_scene().open(r.sample, shown);
 		// The preview's read, before the overview's peaks change under it.
-		(void)menu::host_waveforms().peaks({.kind = services::WaveformAddress::Kind::SLICE}, view.window());
+		(void)menu::host_waveforms().peaks({.kind = bind::WaveformAddress::Kind::SLICE}, view.window());
 		for (int32_t i = 0; i < kNumClusters; i++) {
 			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = 0;

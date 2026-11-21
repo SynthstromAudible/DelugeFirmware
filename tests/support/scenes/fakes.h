@@ -8,12 +8,14 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
+#include "sample-view/peak_cache.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -514,6 +516,30 @@ struct RecordingControlsSink final : controls::Sink {
 	bool instrument_edited(const KnobFocus& focus) override;
 };
 
+/// @brief Waveforms a spec sets directly, and every peaks call, in order.
+struct FakeWaveforms final : Waveforms {
+	/// @brief One waveform the fake holds.
+	struct Entry {
+		WaveformAddress at;                                           ///< where it is
+		WaveformInfo info;                                            ///< what `info` answers
+		std::array<sample_view::Peak, sample_view::kColumns> peaks{}; ///< each column's peak
+		sample_view::ColumnMask pending{};                            ///< columns answered PENDING while reads remain
+		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
+		std::optional<int64_t> position;                              ///< what `play_position` answers
+	};
+	mutable std::vector<Entry> waveforms; ///< looked up by address; a read counts its entry's pending reads down
+	/// @brief One recorded `peaks` call.
+	struct Read {
+		WaveformAddress at;     ///< the address
+		sample_view::Window in; ///< the window
+		bool operator==(const Read&) const = default;
+	};
+	mutable std::vector<Read> reads; ///< every `peaks` call, in order
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress& address) const override;
+	[[nodiscard]] sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const override;
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress& address) const override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;                        ///< the audio port's fake
@@ -534,6 +560,7 @@ struct FakeHost {
 	RecordingMidiFeedback midi_feedback;         ///< MIDI follow feedback's fake
 	FakeTransport transport;                     ///< the transport's fake
 	RecordingTransportActions transport_actions; ///< the transport actions' recorder
+	FakeWaveforms waveforms;                     ///< the waveforms' fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
 	///        follow learns in the MIDI devices fake, and the transport actions flip the transport fake.
 	[[nodiscard]] Ports ports() {
@@ -556,7 +583,8 @@ struct FakeHost {
 		        .device_actions = &device_actions,
 		        .midi_feedback = &midi_feedback,
 		        .transport = &transport,
-		        .transport_actions = &transport_actions};
+		        .transport_actions = &transport_actions,
+		        .waveforms = &waveforms};
 	}
 };
 

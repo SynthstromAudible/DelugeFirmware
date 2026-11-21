@@ -1498,8 +1498,8 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	// `SampleBrowser::previewIfPossible`'s (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
 	// `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new sample as
 	// `waveformBasicNavigator.opened()` does.
-	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const bind::WaveformAddress preview{.kind = bind::WaveformAddress::Kind::PREVIEW};
+	const std::optional<bind::WaveformInfo> info = menu::host_waveforms().info(preview);
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {

@@ -209,8 +209,8 @@
 #include "gfx/grid/pad_grid.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/services/peak_retry.h"
-#include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
 
 #include <array>
@@ -463,7 +463,7 @@ private:
 	/// @return Whether the clip records a take linearly now.
 	[[nodiscard]] bool recording_linearly() const;
 	/// @return The clip's waveform address.
-	[[nodiscard]] deluge::scenes::services::WaveformAddress waveform() const;
+	[[nodiscard]] deluge::scenes::bind::WaveformAddress waveform() const;
 	/// @return `getSample()`'s test (`audio_clip_view.cpp`): is there a waveform -- the take while recording
 	///         linearly, otherwise the clip's file?
 	[[nodiscard]] bool has_sample() const;

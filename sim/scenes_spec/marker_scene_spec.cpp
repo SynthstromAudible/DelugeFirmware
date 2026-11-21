@@ -272,19 +272,19 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 /// @brief The host's waveforms, passed through, with each frame's read counted. `length` reports another length, a
 ///        file past what 32 bits count over the fixture's sample; `pending_once` answers that column PENDING on the
 ///        first read.
-struct Through final : deluge::scenes::services::Waveforms {
+struct Through final : deluge::scenes::bind::Waveforms {
 	std::optional<uint64_t> length;
 	std::optional<int32_t> pending_once;
 	mutable int32_t reads = 0;
-	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
-	info(const deluge::scenes::services::WaveformAddress& a) const override {
-		std::optional<deluge::scenes::services::WaveformInfo> i = menu::host_waveforms().info(a);
+	[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
+	info(const deluge::scenes::bind::WaveformAddress& a) const override {
+		std::optional<deluge::scenes::bind::WaveformInfo> i = menu::host_waveforms().info(a);
 		if (i && length) {
 			i->length_samples = *length;
 		}
 		return i;
 	}
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress& a,
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress& a,
 	                                                  deluge::sample_view::Window at) const override {
 		deluge::sample_view::PeakRead read = menu::host_waveforms().peaks(a, at);
 		if (reads++ == 0 && pending_once) {
@@ -292,8 +292,7 @@ struct Through final : deluge::scenes::services::Waveforms {
 		}
 		return read;
 	}
-	[[nodiscard]] std::optional<int64_t>
-	play_position(const deluge::scenes::services::WaveformAddress&) const override {
+	[[nodiscard]] std::optional<int64_t> play_position(const deluge::scenes::bind::WaveformAddress&) const override {
 		return std::nullopt;
 	}
 };
@@ -1048,17 +1047,17 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.x_enc_button(false, 30);
 		}
 
-		struct Gone final : deluge::scenes::services::Waveforms {
-			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
-			info(const deluge::scenes::services::WaveformAddress&) const override {
+		struct Gone final : deluge::scenes::bind::Waveforms {
+			[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
+			info(const deluge::scenes::bind::WaveformAddress&) const override {
 				return std::nullopt;
 			}
-			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress&,
+			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress&,
 			                                                  deluge::sample_view::Window) const override {
 				return deluge::sample_view::PeakRead::all_past_end();
 			}
 			[[nodiscard]] std::optional<int64_t>
-			play_position(const deluge::scenes::services::WaveformAddress&) const override {
+			play_position(const deluge::scenes::bind::WaveformAddress&) const override {
 				return std::nullopt;
 			}
 		};
@@ -1255,18 +1254,18 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
 		// `graphicsRoutine` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): `(pos - xScroll) / xZoom`, all
 		// eight rows, through `PadLEDs::setTickSquares`.
-		struct Playing final : deluge::scenes::services::Waveforms {
+		struct Playing final : deluge::scenes::bind::Waveforms {
 			std::optional<int64_t> pos;
-			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
-			info(const deluge::scenes::services::WaveformAddress& a) const override {
+			[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
+			info(const deluge::scenes::bind::WaveformAddress& a) const override {
 				return menu::host_waveforms().info(a);
 			}
-			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress& a,
+			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress& a,
 			                                                  deluge::sample_view::Window at) const override {
 				return menu::host_waveforms().peaks(a, at);
 			}
 			[[nodiscard]] std::optional<int64_t>
-			play_position(const deluge::scenes::services::WaveformAddress&) const override {
+			play_position(const deluge::scenes::bind::WaveformAddress&) const override {
 				return pos;
 			}
 		};

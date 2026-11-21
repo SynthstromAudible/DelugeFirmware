@@ -17,12 +17,12 @@
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_paint.h"
-#include "scenes/services/waveforms.h"
 
 #include "sample-view/divide.h"
 #include "sample-view/view.h"
@@ -114,23 +114,22 @@ std::span<const RGB> marker_colours() {
 // ---------------------------------------------------------------------------------------------
 // Context
 
-std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
+std::optional<bind::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
 	// `getCurrentSampleHolder` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): the audio clip's own sample,
 	// else the selected multisample range's.
 	if (ctx.is_audio_clip) {
 		if (!ctx.addresses.clip) {
 			return std::nullopt;
 		}
-		return services::WaveformAddress{.kind = services::WaveformAddress::Kind::AUDIO_CLIP,
-		                                 .clip = *ctx.addresses.clip};
+		return bind::WaveformAddress{.kind = bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip};
 	}
 	if (!ctx.addresses.slot || ctx.range_index < 0) {
 		return std::nullopt;
 	}
-	return services::WaveformAddress{.kind = services::WaveformAddress::Kind::RANGE,
-	                                 .slot = *ctx.addresses.slot,
-	                                 .source = static_cast<uint8_t>(ctx.source_index),
-	                                 .range = static_cast<uint16_t>(ctx.range_index)};
+	return bind::WaveformAddress{.kind = bind::WaveformAddress::Kind::RANGE,
+	                             .slot = *ctx.addresses.slot,
+	                             .source = static_cast<uint8_t>(ctx.source_index),
+	                             .range = static_cast<uint16_t>(ctx.range_index)};
 }
 
 const deluge::instrument::SoundState* MarkerScene::sound_state() const {
@@ -190,7 +189,7 @@ std::optional<services::ViewKey> MarkerScene::view_key_of() const {
 	// Main keeps the view and the lock on the sample holder: the audio clip's own, or the range's. The range's
 	// identity names that range object, so its view stays with it whatever file is loaded into it and wherever it
 	// moves among its source's ranges.
-	if (where_.kind == services::WaveformAddress::Kind::AUDIO_CLIP) {
+	if (where_.kind == bind::WaveformAddress::Kind::AUDIO_CLIP) {
 		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
 	}
 	const std::optional<uint64_t> range =
@@ -207,7 +206,7 @@ services::SampleView MarkerScene::view() const {
 	                 : services::SampleView{};
 }
 
-void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
+void MarkerScene::follow_waveform(const bind::WaveformInfo& info) {
 	view_ = view_.with_length(info.length_samples);
 }
 
@@ -241,7 +240,7 @@ bool MarkerScene::can(const menu::MenuContext& ctx) {
 	// `SampleMarkerEditor::opened`'s refusal, plus the holder test legacy gets from
 	// `LoopPoint::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) before
 	// it ever opens: no file loaded where the context points, or nowhere to point.
-	const std::optional<services::WaveformAddress> address = address_of(ctx);
+	const std::optional<bind::WaveformAddress> address = address_of(ctx);
 	return address && menu::host_waveforms().info(*address).has_value();
 }
 
@@ -271,7 +270,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	where_ = *address_of(ctx_);
 	view_key_ = view_key_of();
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
-	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
 	const services::SampleView remembered = view();
 	view_ = sample_view::WaveformView::open(
 	    info->length_samples,
@@ -882,7 +881,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
-	if (const std::optional<services::WaveformInfo> info = waveforms().info(where_)) {
+	if (const std::optional<bind::WaveformInfo> info = waveforms().info(where_)) {
 		follow_waveform(*info);
 	}
 
@@ -1032,7 +1031,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
 		return;
 	}
@@ -1078,7 +1077,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
 		// Nothing to slide or to play: a slide left running would hold every input refused.
 		zoom_pending_.reset();
@@ -1228,7 +1227,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
-const services::Waveforms& MarkerScene::waveforms() const {
+const bind::Waveforms& MarkerScene::waveforms() const {
 	return waveforms_override_ != nullptr ? *waveforms_override_ : menu::host_waveforms();
 }
 

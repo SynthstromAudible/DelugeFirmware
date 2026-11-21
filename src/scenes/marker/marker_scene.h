@@ -23,7 +23,7 @@
 ///   * its time and sample-count lines -> `ui::oled::sample_position`.
 ///
 /// The read and the navigation are not widgets: the read goes through the waveform service
-/// (`scenes/services/waveforms.h`), which answers each column as a peak, pending or past the end, and the navigation
+/// (`scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the navigation
 /// is `sample_view::WaveformView` (`sample-view/view.h`). The scene keeps no columns: a frame with pending ones asks
 /// for another (`services::PeakRetry`).
 ///
@@ -83,11 +83,10 @@
 
 #include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
 #include "sample-view/view.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/context.h"
 #include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
-#include "scenes/services/waveform_address.h"
-#include "scenes/services/waveforms.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/grid/effects.h"
@@ -205,7 +204,7 @@ public:
 	/// @brief The last zoom slide begun, running or not.
 	const deluge::ui::grid::ZoomTransition& zoom_slide() const { return zoom_; }
 	/// @brief Read waveforms from @p waveforms in place of the host's, or the host's again with null. For specs.
-	void set_waveforms(const services::Waveforms* waveforms) { waveforms_override_ = waveforms; }
+	void set_waveforms(const bind::Waveforms* waveforms) { waveforms_override_ = waveforms; }
 	/// @brief The zone's markers in zone order, each with its frame and the column it lands on now, as
 	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
 	///        them: a start marker by its first frame, an end marker by its last.
@@ -273,7 +272,7 @@ private:
 	///        (`getCurrentSampleHolder` in `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	/// @param ctx The context to resolve.
 	/// @return The address, or nullopt when the context names neither.
-	static std::optional<services::WaveformAddress> address_of(const menu::MenuContext& ctx);
+	static std::optional<bind::WaveformAddress> address_of(const menu::MenuContext& ctx);
 	/// @brief The edited sound's state, or null on an audio clip, where the facts hold no sound, or where the edited
 	///        source is not one of the sound's two.
 	const deluge::instrument::SoundState* sound_state() const;
@@ -294,12 +293,12 @@ private:
 	/// @brief The view the store remembers for the waveform's range or clip, or an empty one.
 	services::SampleView view() const;
 	/// @brief Follow the waveform @p info describes: its length, and a fresh cache when it is another waveform.
-	void follow_waveform(const services::WaveformInfo& info);
+	void follow_waveform(const bind::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};
 	/// The popup `set_loop_locked` queued during the pad press being handled, filed when `handle` returns.
 	std::optional<l10n::String> pending_popup_{};
-	services::WaveformAddress where_{};
+	bind::WaveformAddress where_{};
 	/// Whose view the editor shows and records, resolved as it opens.
 	std::optional<services::ViewKey> view_key_{};
 	/// The view over the waveform: which frames the main columns show.
@@ -318,9 +317,9 @@ private:
 	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
 	bool xenc_held_ = false;
 	/// A spec's waveforms, in place of the host's.
-	const services::Waveforms* waveforms_override_ = nullptr;
+	const bind::Waveforms* waveforms_override_ = nullptr;
 	/// The waveforms the editor reads: the host's, unless a spec gave its own.
-	const services::Waveforms& waveforms() const;
+	const bind::Waveforms& waveforms() const;
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.

@@ -11,10 +11,10 @@
 
 namespace deluge::scenes::services {
 
-std::optional<WaveformFrame> read_waveform(const Waveforms& waveforms, const WaveformAddress& address,
+std::optional<WaveformFrame> read_waveform(const bind::Waveforms& waveforms, const bind::WaveformAddress& address,
                                            sample_view::Window at) {
 	sample_view::PeakRead read = waveforms.peaks(address, at);
-	const std::optional<WaveformInfo> after = waveforms.info(address);
+	const std::optional<bind::WaveformInfo> after = waveforms.info(address);
 	if (!after) {
 		return std::nullopt;
 	}

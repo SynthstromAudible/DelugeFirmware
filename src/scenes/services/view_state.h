@@ -11,7 +11,6 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/track_kind.h"
 #include "scenes/bind/ports/track_facts.h"
-#include "scenes/services/waveform_address.h"
 
 #include <cstdint>
 #include <optional>
