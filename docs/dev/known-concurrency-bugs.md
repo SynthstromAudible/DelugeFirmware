@@ -30,8 +30,6 @@ reported "not seen" rather than closed.
 racing tiers; its trailing index groups the sites by shared state. Every open site is audio × interaction, except
 `deluge_debug_now_frames` (audio × storage). The groups:
 
-- **`Sound::voices_`** — walked by the render while the interaction tier mutates it (`terminateOneVoice`, the
-  `getNumVoices` lambda). The one group that has crashed a run (SEGV in 2 of 10 triage runs).
 - **Render-routine globals** — `audioSampleTimer`, `renderingBufferOutputPos`, `renderInStereo`,
   `bypassCulling`, read or written from both tiers.
 - **Reverb** — `AudioEngine::reverb` and its parameters, updated by the interaction tier while the render runs it.
@@ -79,6 +77,12 @@ touches that asset's chunks during teardown.
   inside `ConsequenceAudioClipSetSample::revert`. `deluge::gui::Reversion` (`src/deluge/gui/ui/reversion.h`) loads
   the files first and then runs the reversion card-free in one pass, so `revert()` no longer yields. Fixed:
   `7e13a061a`.
+- **A sound's voice list walked by the render while the interaction tier changed it** (`terminateOneVoice`, the
+  `getNumVoices` lambda; it had crashed 2 of 10 triage runs). A sound's voices are an `instrument::VoicePool`
+  (`src/instruments/deluge/voice_pool.h`): only the pool changes the list, every change and every read from outside
+  the render runs under an `AudioExcludedSection`, and the host's culls ask each sound's pool. Both sites are out of
+  `races.txt`. The gate does not confirm it: neither site appeared in five runs, on the fix or on the code before it.
+  Fixed: `4b2fda909`, `27c36b93b`, `5a2b6d162`.
 - **Heap arena (TLSF) and MEM_GUARD side table** entered by two tiers at once. Fixed: `d4f53b0fe`.
 - **Harness underrun instrument** missed `SampleLowLevelReader::moveOnToNextCluster`, the common miss site. Fixed:
   `fb0dc5e3a`.

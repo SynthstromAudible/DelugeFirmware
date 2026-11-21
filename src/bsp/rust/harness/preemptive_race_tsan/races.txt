@@ -27,7 +27,6 @@ open	src/lib/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::
 open	src/deluge/gui/ui/ui.cpp	^getCurrentUI\(\)$	audio×interaction	state: global 'uiNavigationHierarchy'
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::workOutNextEventTime\(\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAudio\(unsigned long\)$	audio×interaction	state: global 'currentSong'
-open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::terminateOneVoice\(unsigned long\)$	audio×interaction	state: global '__frunk_bss_end' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::updateReverbParams\(\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
 open	src/deluge/processing/engines/audio_engine.cpp	^deluge_app_render$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlayback\(int, int, bool, bool, int\)$	audio×interaction	state: global 'playbackHandler'
@@ -35,7 +34,6 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNewRecorder
 open	src/deluge/gui/ui/ui.cpp	^openUI\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
-open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
 open	src/deluge/processing/recording/foreground_recording.cpp	^deluge::recording::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
@@ -102,8 +100,6 @@ open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(Mo
 open	src/deluge/gui/ui/ui.cpp	^uiStackEmpty\(\)$	audio×interaction	state: global 'numUIsOpen' (the render's getCurrentUI() read, from renderSamplePreview, reaches it through uiStackEmpty())
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock\(DelugeStereoSample const\*, DelugeStereoSample\*, unsigned int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (the render's per-block advance; read by the interaction tier's input and timer routines)
 # Index by shared state (state → entries). The second invariant's to-do list.
-#   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
-#     AudioOwnedList — its getNumVoices() entry removed.)
 #   Render-routine globals (audioSampleTimer, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling): deluge_app_render, AudioEngine::renderAppBlock,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
