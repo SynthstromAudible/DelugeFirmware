@@ -1,4 +1,5 @@
 #include "gui/ui/shell_host/shell_host.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "model/clip/audio_clip.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
@@ -11,6 +12,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/source_resources.h"
+#include "sample-view/peak_cache.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -18,6 +20,10 @@
 #include <optional>
 
 namespace deluge::gui::shell_host {
+
+uint64_t waveform_identity(const ::Sample& sample) {
+	return reinterpret_cast<uintptr_t>(&sample);
+}
 
 namespace {
 
@@ -40,13 +46,19 @@ public:
 		                                      .centre = at.sample->getFoundValueCentrePoint(),
 		                                      .span = at.sample->getValueSpan(),
 		                                      .recording = at.recorder != nullptr,
-		                                      .identity = reinterpret_cast<uintptr_t>(at.sample)};
+		                                      .identity = waveform_identity(*at.sample)};
 	}
-	bool peaks(const scenes::services::WaveformAddress& address, int64_t scroll, uint64_t zoom,
-	           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
-		const Resolved at = resolve(address);
-		return at.sample != nullptr
-		       && sample::find_peaks_per_col(at.sample, scroll, zoom, &cache, at.recorder, x_start, x_end);
+	[[nodiscard]] sample_view::PeakRead peaks(const scenes::services::WaveformAddress& address,
+	                                          sample_view::Window at) const override {
+		const Resolved r = resolve(address);
+		if (r.sample == nullptr) {
+			return sample_view::PeakRead::all_past_end();
+		}
+		const auto valid =
+		    static_cast<int64_t>(r.recorder != nullptr ? r.recorder->numSamplesCaptured : r.sample->lengthInSamples);
+		return caches_.read(
+		    waveform_identity(*r.sample), at, valid, r.recorder != nullptr,
+		    [&](sample_view::ColumnMask wanted) { return sample::read_columns(*r.sample, r.recorder, at, wanted); });
 	}
 	[[nodiscard]] std::optional<int64_t>
 	play_position(const scenes::services::WaveformAddress& address) const override {
@@ -98,6 +110,11 @@ public:
 	}
 
 private:
+	/// The columns read lately, one cache per waveform; the scenes keep none. `mutable` because a
+	/// read through the const port fills it; the port's answers do not depend on it, only how many card reads they
+	/// take.
+	mutable sample_view::PeakCacheSet<4> caches_;
+
 	/// @brief The sample an address draws, and the recorder writing it, if one is.
 	struct Resolved {
 		::Sample* sample{nullptr};           ///< the sample; null where the address resolves to none
@@ -108,6 +125,9 @@ private:
 	/// @return The sample and its recorder; both null where the address resolves to no sample.
 	static Resolved resolve(const scenes::services::WaveformAddress& address) {
 		using Kind = scenes::services::WaveformAddress::Kind;
+		if (address.kind == Kind::SLICE) {
+			return {gui::ui::shellSlicedSample()};
+		}
 		if (address.kind == Kind::PREVIEW) {
 			if (AudioEngine::sampleForPreview == nullptr) {
 				return {};

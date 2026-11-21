@@ -17,6 +17,7 @@ struct WaveformAddress {
 		RANGE,      ///< a sound's source @ref source, range @ref range, at @ref slot
 		AUDIO_CLIP, ///< the audio clip @ref clip
 		PREVIEW,    ///< the file the sample browser is previewing; no other field is read
+		SLICE,      ///< the file the slicer is open on; no other field is read
 	};
 	Kind kind{Kind::RANGE};
 	project::SlotAddress slot{};

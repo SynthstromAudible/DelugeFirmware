@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/shell_host/shell_host.h"
 
 #include "gui/ui/browser_host.h"
 #include "gui/ui/slice_core.h"
@@ -90,7 +91,8 @@ public:
 				// An earlier open still loading would land over this one.
 				open_load_.cancel();
 				sample_ = sample;
-				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(
+				                                gui::shell_host::waveform_identity(*sample)));
 				shellSliceReady(true);
 				return;
 			}
@@ -185,7 +187,8 @@ private:
 		Sample* sample = range != nullptr ? static_cast<Sample*>(range->sampleHolder.audioFile) : nullptr;
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
-			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(
+			                                gui::shell_host::waveform_identity(*sample)));
 			shellSliceReady(true);
 			return;
 		}
@@ -213,6 +216,11 @@ HostSliceOps& host() {
 }
 
 } // namespace
+
+::Sample* shellSlicedSample() {
+	// The scene holds the sample the ops opened it on, and a spec that opens the scene directly holds its own.
+	return slicer_scene().sliced_sample();
+}
 
 void wireShellSliceOps() {
 	slicer_scene().set_ops(&host());

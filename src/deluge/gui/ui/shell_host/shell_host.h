@@ -12,12 +12,17 @@
 #include <vector>
 
 class AudioClip;
+class Sample;
 
 namespace deluge::edits {
 class Edit;
 } // namespace deluge::edits
 
 namespace deluge::gui::shell_host {
+
+/// @brief The identity a waveform's info carries for @p sample: one per file in memory, another for another file or a
+///        take.
+[[nodiscard]] uint64_t waveform_identity(const ::Sample& sample);
 
 /// @brief The host's AudioFacts.
 [[nodiscard]] const scenes::bind::AudioFacts& audio_facts();

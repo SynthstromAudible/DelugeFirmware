@@ -4,7 +4,6 @@
 #include "ui/grid/waveform.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "model/sample/waveform_scan.h"
 
 #include <algorithm>
 #include <array>
@@ -12,29 +11,28 @@
 
 namespace deluge::scenes::services {
 
-void paint_columns(deluge::ui::grid::GridFrame& f, const WaveformRenderData& cache, int32_t centre, int32_t span) {
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, deluge::gfx::grid::kDelugeGrid.main_cols);
-	std::array<deluge::ui::grid::PeakCol, deluge::gfx::grid::kDelugeGrid.main_cols> peaks{};
-	for (int32_t x = 0; x < main_cols; x++) {
-		if (cache.colStatus[x] != COL_STATUS_INVESTIGATED) {
-			continue;
-		}
-		int32_t min24 = 0;
-		int32_t max24 = 0;
-		deluge::sample::col_bar_positions(x, &cache, &min24, &max24, centre, span);
-		peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
+std::optional<WaveformFrame> read_waveform(const Waveforms& waveforms, const WaveformAddress& address,
+                                           sample_view::Window at) {
+	sample_view::PeakRead read = waveforms.peaks(address, at);
+	const std::optional<WaveformInfo> after = waveforms.info(address);
+	if (!after) {
+		return std::nullopt;
 	}
-	// `renderOneCol`'s monochrome arm: `renderFullScreen` passes no colour, so the brightness is 128
-	// (`WaveformRenderer::renderOneCol`, `gui/waveform/waveform_renderer.cpp`).
-	deluge::ui::grid::waveform_full(f, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
+	return WaveformFrame{.read = read, .centre = after->centre, .span = after->span};
 }
 
-bool paint_full(deluge::ui::grid::GridFrame& f, const Waveforms& waveforms, const WaveformAddress& address,
-                const WaveformInfo& info, deluge::sample::WaveformNav& nav) {
-	// The scan can read the card, as legacy's does from inside `renderMainPads`.
-	const bool scanned = waveforms.peaks(address, nav.xScroll, static_cast<uint64_t>(nav.xZoom), nav.renderData);
-	paint_columns(f, nav.renderData, info.centre, info.span);
-	return scanned;
+void paint_columns(deluge::ui::grid::GridFrame& f, const sample_view::PeakRead& read, int32_t centre, int32_t span) {
+	static_assert(sample_view::kColumns == deluge::gfx::grid::kDelugeGrid.main_cols);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, sample_view::kColumns);
+	std::array<deluge::ui::grid::PeakCol, sample_view::kColumns> peaks{};
+	for (int32_t x = 0; x < main_cols; x++) {
+		if (const std::optional<sample_view::Bar> bar = read.bar(x, centre, span)) {
+			peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
+		}
+	}
+	// `renderOneCol`'s monochrome arm: `renderFullScreen` passes no colour, so the brightness is 128
+	// (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`, `WaveformRenderer::renderOneCol`).
+	deluge::ui::grid::waveform_full(f, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
 }
 
 } // namespace deluge::scenes::services

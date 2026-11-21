@@ -173,7 +173,7 @@ target_include_directories(deluge_scenes PUBLIC
 if(NOT TARGET deluge_scenes_bind)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/bind ${CMAKE_CURRENT_BINARY_DIR}/bind)
 endif()
-target_link_libraries(deluge_scenes PUBLIC deluge_ui_shell deluge_scenes_bind $<COMPILE_ONLY:deluge_app>)
+target_link_libraries(deluge_scenes PUBLIC deluge_ui_shell deluge_scenes_bind deluge_sample_view $<COMPILE_ONLY:deluge_app>)
 target_compile_options(deluge_scenes PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_scenes PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
 # UI code, run at menu and input rate: built for size, as deluge_scenes_bind is.
