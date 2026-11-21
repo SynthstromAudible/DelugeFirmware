@@ -29,11 +29,13 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "util/functions.h"
 
 extern "C" {}
@@ -316,6 +318,18 @@ justDoArp:
 	if (anyChangeToSessionClipsPlaying) {
 		// use root UI in case this is called from performance view
 		sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	}
+
+	if (playbackHandler.swungTicksTilNextEvent == 2147483647 && posIncrement > 0 && lastProcessedPos > 0
+	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong) && currentSong->loopSong
+	    && playbackHandler.recording == RecordingMode::OFF && !audioRecorder.isCurrentlyResampling()
+	    && !stemExport.processStarted && !playbackHandler.stopOutputRecordingAtLoopEnd) {
+		int32_t playbackStartScroll = arrangerView.xScrollWhenPlaybackStarted;
+		resetPlayPos(0);
+		arrangerView.xScrollWhenPlaybackStarted = playbackStartScroll;
+		playbackStartedAtPos = -playbackHandler.lastSwungTickActioned;
+		doTickForward(0);
+		return;
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing
