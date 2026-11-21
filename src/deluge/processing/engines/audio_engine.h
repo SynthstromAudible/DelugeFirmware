@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "processing/engines/voice_culling.h"
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
@@ -222,7 +223,6 @@ extern bool inputMonitoringWarmedUp;
 // start of each render
 extern uint8_t usbInputsMonitoredByTrack;
 extern bool mustUpdateReverbParamsBeforeNextRender;
-extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
 extern uint32_t i2sRXBufferPos;
 extern int32_t cpuDireness;

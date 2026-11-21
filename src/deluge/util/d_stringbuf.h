@@ -6,6 +6,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
+int32_t stringToInt(char const* string);
 char halfByteToHexChar(uint8_t thisHalfByte);
 void intToHex(uint32_t number, char* output, int32_t numChars = 8);
 uint32_t hexToInt(char const* string);
