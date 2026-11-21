@@ -418,6 +418,7 @@ struct LearnRig {
 
 	LearnRig() {
 		ml.set_ports(&menu::host_ports());
+		gc.set_ports(&menu::host_ports());
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
@@ -807,7 +808,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		release_all_legacy_buttons();
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -847,7 +848,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		release_all_legacy_buttons();
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -889,7 +890,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		release_all_legacy_buttons();
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -1159,7 +1160,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(rig.ml.active()).to_be_false();
 		rig.press(ButtonId::Play, true, 5'000);
 

@@ -274,9 +274,10 @@ describe boot_services("the three services, installed into the guest's own Shell
 		// Which is what makes the LEDs legacy's: -1 is the "no focus" answer that turns every mod LED off.
 		to_be_at_least(expect(knobs->mode()), 0);
 
-		// The other two take the song and nothing else this layer can check from outside.
-		expect(static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls)->song())
-		    .to_equal(f.song);
+		// The global controls take the app's ports and the song's record.
+		const auto* const controls = static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls);
+		expect(controls->ports()).to_equal(&deluge::scenes::menu::host_ports());
+		expect(controls->model()).to_equal(static_cast<const deluge::project::Song*>(&f.song->project));
 
 		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.
 		view.setActiveModControllableTimelineCounter(nullptr);

@@ -66,7 +66,8 @@ struct RealServices {
 			learn->set_ports(&menu::host_ports());
 			learn->set_model(song != nullptr ? &song->project : nullptr);
 			knobs->set_song(song);
-			controls->set_song(song);
+			controls->set_ports(&menu::host_ports());
+			controls->set_model(song != nullptr ? &song->project : nullptr);
 			if (mod_target != nullptr && song != nullptr) {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.
 				view.setActiveModControllableTimelineCounter(mod_target, false);
