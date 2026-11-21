@@ -32,11 +32,23 @@ sides disagree on. The last line printed is `X86-PARITY legs=<n> ref_failed=<a> 
 
 Each run's virtual budget is its last step plus BUDGET_MARGIN_MS. Its wall-clock deadline is DEADLINE_FLOOR_S plus
 DEADLINE_FACTOR times that budget in seconds: the host app runs faster than real time when the machine is idle, and the
-factor keeps a long script inside its deadline when many legs (-j) and other builds share the machine.
+factor keeps a long script inside its deadline when many legs (-j) and other builds share the machine. The app checks
+that deadline only while it plays the script, so a run still going TIMEOUT_GRACE_S past it is killed: a wedged boot
+or dispatch is a failed leg, `error: timeout`, not a hung run.
+
+A script named twice (by name and through its directory, say) runs once, and the repeat is reported up front as
+`X86-PARITY-NOTE`. Two different scripts with one name would write one leg's snapshots, so they are refused before
+anything runs. Each side's got/ is cleared before its legs run, so a reused DIR holds only this run's snapshots.
 
 --worktree builds `golden_vt_render` at REV in a detached worktree and prints the binary's path as its last line.
 The store (default .superpowers/ in this checkout) holds the card cache (x86-cards/), the base worktrees (x86-wt/)
 and the base binaries (x86-bin/).
+
+Gate x86-parity:
+    every script in tests/ui-scripts/parity, parity-card and parity-songs is played on each card its `# card:` header
+    names, twice, by this checkout's golden_vt_render as both sides; every snapshot (panels, LEDs, pads and the DIN
+    MIDI sent) must be byte-identical and no leg may fail, so a base-against-head run's differences are behaviour and
+    never the host app's own nondeterminism
 """
 
 import argparse
@@ -76,6 +88,8 @@ BUDGET_MARGIN_MS = 30_000
 # The wall-clock deadline: this many seconds, plus DEADLINE_FACTOR wall seconds for each virtual second of budget.
 DEADLINE_FLOOR_S = 120
 DEADLINE_FACTOR = 2
+# How long past its own deadline a run may go before it is killed.
+TIMEOUT_GRACE_S = 60
 
 MIDI_STEPS = {"midi", "note", "noteoff", "cc", "pc", "bend"}
 # The browser's pad keyboard: (row, keys from column 3).
@@ -217,6 +231,19 @@ def deadline_s(last_ms: int) -> int:
     return DEADLINE_FLOOR_S + DEADLINE_FACTOR * (last_ms + BUDGET_MARGIN_MS) // 1000
 
 
+def kill_after_s(last_ms: int) -> int:
+    """The wall-clock seconds after which a run whose last step is at @last_ms is killed: past its own deadline, so
+    the app's own check reports first whenever it can."""
+    return deadline_s(last_ms) + TIMEOUT_GRACE_S
+
+
+def text_of(out: str | bytes | None) -> str:
+    """A killed run's captured output, which arrives undecoded."""
+    if isinstance(out, bytes):
+        return out.decode(errors="replace")
+    return out or ""
+
+
 @dataclasses.dataclass
 class Leg:
     """One script on one card, translated and with its card's tree, or the reason it cannot run."""
@@ -305,24 +332,36 @@ def run_prepared(binary: Path, leg: Leg, side_dir: Path) -> dict:
         GOLDEN_SCENARIO_DEADLINE_S=str(deadline_s(leg.last)),
     )
     t0 = time.monotonic()
-    r = subprocess.run(
-        [str(binary)],
-        cwd=REPO,
-        env=env,
-        check=False,  # a failed leg is a result, read from its exit code below
-        capture_output=True,
-        text=True,
-        errors="replace",
-    )
+    try:
+        r = subprocess.run(
+            [str(binary)],
+            cwd=REPO,
+            env=env,
+            check=False,  # a failed leg is a result, read from its exit code below
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=kill_after_s(leg.last),
+        )
+    except subprocess.TimeoutExpired as e:
+        head, stdout, stderr, status = (
+            "timeout",
+            text_of(e.stdout),
+            text_of(e.stderr),
+            "error: timeout",
+        )
+    else:
+        ok = r.returncode == 0 and "UI-SCRIPT-RESULT failures=0" in r.stdout
+        head, stdout, stderr = f"exit {r.returncode}", r.stdout, r.stderr
+        status = "ok" if ok else head
     wall = time.monotonic() - t0
     (side_dir / "logs").mkdir(parents=True, exist_ok=True)
     (side_dir / "logs" / f"{leg.name}.log").write_text(
-        f"exit {r.returncode}\n--- stdout\n{r.stdout}\n--- stderr\n{r.stderr}"
+        f"{head}\n--- stdout\n{stdout}\n--- stderr\n{stderr}"
     )
     mask_state(got, leg.masked)
-    ok = r.returncode == 0 and "UI-SCRIPT-RESULT failures=0" in r.stdout
     return {
-        "status": "ok" if ok else f"exit {r.returncode}",
+        "status": status,
         "wall_s": round(wall, 2),
         "snapshots": len(list(got.glob("*.state"))) if got.exists() else 0,
     }
@@ -426,6 +465,7 @@ def run_side(
 ) -> dict[str, dict]:
     """Every leg on @binary into @side_dir, with @side_dir/results.json written; each leg's result by name."""
     t0 = time.monotonic()
+    shutil.rmtree(side_dir / "got", ignore_errors=True)
     with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
         results = dict(pool.map(lambda leg: run_leg(binary, leg, side_dir), legs))
     side_dir.mkdir(parents=True, exist_ok=True)
@@ -435,6 +475,29 @@ def run_side(
         )
     )
     return results
+
+
+def unique_scripts(named: list[Path]) -> list[Path]:
+    """Every script @named names, a directory standing for its `*.txt`, each once and in the order first named. A
+    repeat is reported as it is dropped; two different scripts with one name raise ValueError, since their legs would
+    share one name and one got/ directory."""
+    expanded: list[Path] = []
+    for s in named:
+        expanded += sorted(s.glob("*.txt")) if s.is_dir() else [s]
+    seen: dict[Path, Path] = {}
+    by_stem: dict[str, Path] = {}
+    out: list[Path] = []
+    for s in expanded:
+        key = s.resolve()
+        if key in seen:
+            print(f"X86-PARITY-NOTE {s}: named twice, runs once", flush=True)
+            continue
+        if s.stem in by_stem:
+            raise ValueError(f"{by_stem[s.stem]} and {s} share the leg name {s.stem!r}")
+        seen[key] = s
+        by_stem[s.stem] = s
+        out.append(s)
+    return out
 
 
 def main() -> int:
@@ -465,9 +528,10 @@ def main() -> int:
     if not (a.ref and a.test and a.out and a.scripts):
         ap.error("--ref, --test, --out and at least one script are required")
 
-    scripts: list[Path] = []
-    for s in a.scripts:
-        scripts += sorted(s.glob("*.txt")) if s.is_dir() else [s]
+    try:
+        scripts = unique_scripts(a.scripts)
+    except ValueError as e:
+        ap.error(str(e))
     cache = store / "x86-cards"
     cache.mkdir(parents=True, exist_ok=True)
     out = a.out.resolve()

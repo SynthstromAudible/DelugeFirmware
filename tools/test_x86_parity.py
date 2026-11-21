@@ -6,6 +6,8 @@ Gate x86-parity-tool:
     lists every file two runs disagree on
 """
 
+import contextlib
+import io
 import os
 import subprocess
 import sys
@@ -160,27 +162,47 @@ class CompareTest(TempTest):
 
 
 FAKE = """#!{python}
-import os, pathlib, sys
+import os, pathlib, sys, time
 got = pathlib.Path(os.environ["UI_SNAPSHOT_DIR"])
 got.mkdir(parents=True, exist_ok=True)
-(got / "a.state").write_text({state!r})
-print("UI-SCRIPT-RESULT failures=0" if {code} == 0 else "UI-SCRIPT-RESULT failures=1")
+for name in {names!r}:
+    (got / name).write_text({state!r})
+print("UI-SCRIPT-RESULT failures=0" if {code} == 0 else "UI-SCRIPT-RESULT failures=1", flush=True)
+time.sleep({sleep})
 sys.exit({code})
 """
 
 
 class MainTest(TempTest):
-    """main() on fake binaries: each writes one snapshot holding @state and exits with @code."""
+    """main() on fake binaries: each writes the snapshots @names holding @state, sleeps @sleep seconds and exits with
+    @code."""
 
-    def fake(self, state: str, code: int = 0) -> Path:
+    def fake(
+        self,
+        state: str,
+        code: int = 0,
+        names: tuple[str, ...] = ("a.state",),
+        sleep: float = 0,
+    ) -> Path:
         path = self.tmp() / "fake"
-        path.write_text(FAKE.format(python=sys.executable, state=state, code=code))
+        path.write_text(
+            FAKE.format(
+                python=sys.executable, state=state, code=code, names=names, sleep=sleep
+            )
+        )
         path.chmod(0o755)
         return path
 
-    def run_main(self, ref: Path, test: Path, script: str) -> tuple[int, str, Path]:
-        out = self.tmp()
-        s = self.script("# card: tests/fixtures/card\n" + script)
+    def run_main(
+        self,
+        ref: Path,
+        test: Path,
+        script: str,
+        out: Path | None = None,
+        scripts: list[Path] | None = None,
+    ) -> tuple[int, str, Path]:
+        out = out or self.tmp()
+        named = scripts or [self.script("# card: tests/fixtures/card\n" + script)]
         r = subprocess.run(
             [
                 sys.executable,
@@ -193,13 +215,13 @@ class MainTest(TempTest):
                 str(out),
                 "--store",
                 str(self.tmp()),
-                str(s),
+                *map(str, named),
             ],
             capture_output=True,
             text=True,
             check=False,
         )
-        return r.returncode, r.stdout, out
+        return r.returncode, r.stdout + r.stderr, out
 
     def test_two_equal_runs_exit_0(self):
         code, stdout, out = self.run_main(
@@ -246,6 +268,88 @@ class MainTest(TempTest):
             stdout.splitlines()[-1],
             "X86-PARITY legs=1 ref_failed=1 test_failed=1 differ=0",
         )
+
+    def test_a_reused_out_holds_only_this_runs_snapshots(self):
+        out = self.tmp()
+        two = self.fake("x", names=("a.state", "gone.state"))
+        code, stdout, _ = self.run_main(two, two, "100 snapshot a\n", out=out)
+        self.assertEqual(code, 0, stdout)
+        one = self.fake("x")
+        code, stdout, _ = self.run_main(one, one, "100 snapshot a\n", out=out)
+        self.assertEqual(code, 0, stdout)
+        for side in ("ref", "test"):
+            got = out / side / "got" / "p99-x@card"
+            self.assertEqual(sorted(p.name for p in got.iterdir()), ["a.state"])
+            results = (out / side / "results.json").read_text()
+            self.assertIn('"snapshots": 1', results)
+
+    def test_a_script_named_twice_runs_once_and_is_reported_first(self):
+        s = self.script("# card: tests/fixtures/card\n100 snapshot a\n")
+        code, stdout, _ = self.run_main(
+            self.fake("x"), self.fake("x"), "", scripts=[s, s.parent]
+        )
+        self.assertEqual(code, 0, stdout)
+        self.assertTrue(
+            stdout.startswith(f"X86-PARITY-NOTE {s.parent / s.name}"), stdout
+        )
+        self.assertIn("X86-PARITY legs=1 ref_failed=0 test_failed=0 differ=0", stdout)
+
+    def test_two_scripts_with_one_name_are_refused_before_anything_runs(self):
+        text = "# card: tests/fixtures/card\n100 snapshot a\n"
+        first, second = self.script(text), self.script(text)
+        code, stdout, out = self.run_main(
+            self.fake("x"), self.fake("x"), "", scripts=[first, second]
+        )
+        self.assertEqual(code, 2, stdout)
+        self.assertIn("share the leg name 'p99-x'", stdout)
+        self.assertFalse((out / "ref").exists())
+
+
+class TimeoutTest(TempTest):
+    """A run that outlives its kill time, in-process so the kill time can be cut short."""
+
+    def test_a_run_past_its_kill_time_is_a_failed_leg_and_the_run_exits_2(self):
+        fake = self.tmp() / "fake"
+        fake.write_text(
+            FAKE.format(
+                python=sys.executable, state="x", code=0, names=("a.state",), sleep=60
+            )
+        )
+        fake.chmod(0o755)
+        s = self.script("# card: tests/fixtures/card\n100 snapshot a\n")
+        out = self.tmp()
+        argv = [
+            "x86_parity.py",
+            "--ref",
+            str(fake),
+            "--test",
+            str(fake),
+            "--out",
+            str(out),
+        ]
+        argv += ["--store", str(self.tmp()), str(s)]
+        printed = io.StringIO()
+        with (
+            mock.patch.object(xp, "kill_after_s", return_value=1),
+            mock.patch.object(sys, "argv", argv),
+            contextlib.redirect_stdout(printed),
+        ):
+            code = xp.main()
+        self.assertEqual(code, 2, printed.getvalue())
+        self.assertIn(
+            "p99-x@card ref=error: timeout test=error: timeout", printed.getvalue()
+        )
+        self.assertEqual(
+            printed.getvalue().splitlines()[-1],
+            "X86-PARITY legs=1 ref_failed=1 test_failed=1 differ=0",
+        )
+        log = (out / "ref" / "logs" / "p99-x@card.log").read_text()
+        self.assertTrue(log.startswith("timeout\n"), log)
+        self.assertIn("UI-SCRIPT-RESULT failures=0", log)
+
+    def test_the_kill_time_is_past_the_apps_own_deadline(self):
+        self.assertEqual(xp.kill_after_s(0), xp.deadline_s(0) + xp.TIMEOUT_GRACE_S)
+        self.assertGreater(xp.TIMEOUT_GRACE_S, 0)
 
 
 if __name__ == "__main__":
