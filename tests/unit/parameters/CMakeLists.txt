@@ -7,6 +7,7 @@ add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp mocks/memo
   ../../../src/deluge/modulation/automation/auto_param_value.cpp
   ../../../src/deluge/modulation/automation/auto_param_storage.cpp
   ../../../src/deluge/modulation/params/param_node_vector.cpp
+  ../../../src/deluge/modulation/params/param_value.cpp
   ../../../src/deluge/util/container/array/resizeable_array.cpp
   ../../../src/deluge/util/container/array/ordered_resizeable_array.cpp
 )
