@@ -1,6 +1,5 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/ui.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"

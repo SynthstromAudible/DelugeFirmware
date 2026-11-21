@@ -5,7 +5,6 @@
 #include "processing/recording/foreground_recording.h"
 
 #include <atomic>
-#include <utility>
 
 namespace deluge::gui::shell_host {
 namespace {
@@ -14,6 +13,10 @@ namespace {
 class HostTakeActions final : public scenes::bind::TakeActions {
 public:
 	[[nodiscard]] bool begin(scenes::bind::TakeChannels channels) override {
+		if (take_ != nullptr) {
+			// One take at a time: a second would leave the first published with nothing to finish it.
+			return false;
+		}
 		const bool stereo = channels == scenes::bind::TakeChannels::STEREO;
 		const AudioInputChannel mode = stereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT;
 		take_ = AudioEngine::getNewRecorder(stereo ? 2 : 1, AudioRecordingFolder::RECORD, mode, false, false,
@@ -42,7 +45,13 @@ public:
 		return {.left = level.l, .right = level.r};
 	}
 	[[nodiscard]] bool take_clipped() override {
-		return take_ != nullptr && std::exchange(take_->recordingClippedRecently, false);
+		// Cleared only once read set: the audio routine raises the flag concurrently, and an unconditional store
+		// could wipe a clip it raised between the read and the store.
+		if (take_ == nullptr || !take_->recordingClippedRecently) {
+			return false;
+		}
+		take_->recordingClippedRecently = false;
+		return true;
 	}
 	void finish() override {
 		if (take_ == nullptr) {

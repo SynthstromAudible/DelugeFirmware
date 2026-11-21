@@ -59,7 +59,7 @@ public:
 	/// @return Its state; none when no take is held.
 	[[nodiscard]] virtual std::optional<InputTake> input_take() const = 0;
 	/// @brief The held take's file.
-	/// @return Its path on the card; none when no take is held.
+	/// @return Its path on the card, empty until the take's file is made; none when no take is held.
 	[[nodiscard]] virtual std::optional<std::string> input_take_path() const = 0;
 	/// @brief The audio clock, in frames at the device's rate.
 	[[nodiscard]] virtual uint32_t audio_sample_timer() const = 0;
