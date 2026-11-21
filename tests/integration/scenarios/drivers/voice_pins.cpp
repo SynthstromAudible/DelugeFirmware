@@ -200,6 +200,22 @@ void cullCase(std::string_view kase, void (*cull)(size_t), int32_t times) {
 	renderBlocks(1);
 }
 
+/// One voice on each synth, then two culls within one block: the second passes over the first's still-fading voice,
+/// so it takes another sound's (the cull compares sounds by the voices each would give).
+void acrossCase(std::string_view kase, void (*cull)(size_t)) {
+	silenceAll();
+	for (size_t s = 0; s < kNumSynths; s++) {
+		noteOn(s, static_cast<int32_t>(60 + s));
+		renderBlocks(1);
+	}
+	listVoices(kase, 0);
+	cull(kBlockFrames);
+	listVoices(kase, 1);
+	cull(kBlockFrames);
+	listVoices(kase, 2);
+	renderBlocks(1);
+}
+
 void admitCase() {
 	playScript();
 	noteOff(4, 64);
@@ -422,6 +438,8 @@ int voice_pins_main(int /*argc*/, char** /*argv*/, Io io) {
 	cullCase("kill", &AudioEngine::killOneVoice, 6);
 	cullCase("terminate", &AudioEngine::terminateOneVoice, 8);
 	cullCase("force-release", &AudioEngine::forceReleaseOneVoice, 6);
+	acrossCase("terminate-across", &AudioEngine::terminateOneVoice);
+	acrossCase("force-release-across", &AudioEngine::forceReleaseOneVoice);
 	admitCase();
 	polyLimitCase();
 	reuseCase("mono", PolyphonyMode::MONO);
