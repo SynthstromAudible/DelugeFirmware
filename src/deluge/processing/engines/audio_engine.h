@@ -431,6 +431,20 @@ extern deluge::audio::VoiceBudget voiceBudget;
 ///        starts. The caller excludes the render (or is the render).
 void admitVoice(uint32_t cost);
 
+/// @brief Stops the voice the cull rates highest across every sound within this block (it may click), or an audio
+///        clip when no sound has a voice: the backstop's hardest cull.
+/// @param num_samples The block's length, for the log.
+void killOneVoice(size_t num_samples);
+
+/// @brief Fast-releases the voice the cull rates highest across every sound, skipping voices already cull-fading.
+/// @param num_samples The block's length, for the log.
+void terminateOneVoice(size_t num_samples);
+
+/// @brief Releases the voice the cull rates highest across every sound, or speeds up its release, skipping voices
+///        already cull-fading.
+/// @param num_samples The block's length, for the log.
+void forceReleaseOneVoice(size_t num_samples);
+
 /// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
 ///        voices and deregisters it at the top of a following block. It is destroyed and freed at the first
 ///        retire() or reclaim-task tick after the render has let go of it and two blocks have begun since the

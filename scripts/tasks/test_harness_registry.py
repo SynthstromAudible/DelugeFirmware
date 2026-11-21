@@ -445,6 +445,7 @@ class BaselineDeclarationTest(unittest.TestCase):
         "unit-arm",
         "ui-scenes-spec",
         "load-policy",
+        "voice-pins",
     }
     # Entries that run an owner's code but record nothing: entry -> why.
     NOT_OWNERS: ClassVar[dict[str, str]] = {
