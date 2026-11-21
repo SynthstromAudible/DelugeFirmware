@@ -42,43 +42,34 @@ using plugin::SettingUnits;
 constexpr size_t kScaleCount = music::NUM_PRESET_SCALES;
 static_assert(kScaleCount <= 100, "a scale's index is written as at most two digits");
 
-/// One preset scale's "disabled by default" path, as text the table's views point into.
-struct ScalePath {
-	std::array<char, device_path::kDisabledScalePrefix.size() + 2> text{}; ///< the prefix, then the index's digits
-	size_t size{0};                                                        ///< how many characters of `text` it is
-};
+/// The longest a preset scale's "disabled by default" path is: the prefix, then the index's two digits.
+constexpr size_t kScalePathLength = device_path::kDisabledScalePrefix.size() + 2;
 
 /// Every preset scale's path, built when the image is: `defaults/scales/disabled/<i>` for each scale's index.
-constexpr std::array<ScalePath, kScaleCount> kScalePaths = [] {
-	std::array<ScalePath, kScaleCount> paths{};
+constexpr std::array<FixedPath<kScalePathLength>, kScaleCount> kScalePaths = [] {
+	std::array<FixedPath<kScalePathLength>, kScaleCount> paths{};
 	for (size_t scale = 0; scale < kScaleCount; ++scale) {
-		ScalePath& path = paths[scale];
-		for (const char c : device_path::kDisabledScalePrefix) {
-			path.text[path.size++] = c;
-		}
+		FixedPath<kScalePathLength>& path = paths[scale];
+		path.append(device_path::kDisabledScalePrefix);
 		if (scale >= 10) {
-			path.text[path.size++] = static_cast<char>('0' + (scale / 10));
+			path.append(static_cast<char>('0' + (scale / 10)));
 		}
-		path.text[path.size++] = static_cast<char>('0' + (scale % 10));
+		path.append(static_cast<char>('0' + (scale % 10)));
 	}
 	return paths;
 }();
 
-/// One output's path, its pattern's `*` replaced by the output's index, as text the table's views point into.
-struct OutputPath {
-	std::array<char, 24> text{}; ///< the pattern, the index in place of its `*`
-	size_t size{0};              ///< how many characters of `text` it is
-};
+/// The longest an output's path is: its pattern, the output's index in place of the `*`.
+constexpr size_t kOutputPathLength = 24;
 
-/// Each of @p Count outputs' paths from @p pattern, built when the image is.
+/// Each of @p Count outputs' paths from @p pattern, its `*` replaced by the output's index, built when the image is.
 template <size_t Count>
-constexpr std::array<OutputPath, Count> output_paths(std::string_view pattern) {
+constexpr std::array<FixedPath<kOutputPathLength>, Count> output_paths(std::string_view pattern) {
 	static_assert(Count <= 10, "an output's index is written as one digit");
-	std::array<OutputPath, Count> paths{};
+	std::array<FixedPath<kOutputPathLength>, Count> paths{};
 	for (size_t output = 0; output < Count; ++output) {
-		OutputPath& path = paths[output];
 		for (const char c : pattern) {
-			path.text[path.size++] = c == '*' ? static_cast<char>('0' + output) : c;
+			paths[output].append(c == '*' ? static_cast<char>('0' + output) : c);
 		}
 	}
 	return paths;
@@ -87,11 +78,6 @@ constexpr std::array<OutputPath, Count> output_paths(std::string_view pattern) {
 constexpr auto kCvVoltsPaths = output_paths<kCvOutputCount>(device_path::kCvVoltsPerOctave);
 constexpr auto kCvTransposePaths = output_paths<kCvOutputCount>(device_path::kCvTranspose);
 constexpr auto kGateModePaths = output_paths<kGateOutputCount>(device_path::kGateMode);
-
-/// @brief @p path as the row path a view of it is.
-constexpr std::string_view text_of(const OutputPath& path) {
-	return {path.text.data(), path.size};
-}
 
 /// The patch cable's polarities, as the cable's own file words name them (`instrument::to_string`).
 constexpr std::array<std::string_view, 2> kPolarityWords{"unipolar", "bipolar"};
@@ -335,15 +321,15 @@ constexpr std::array kCvAndGateRows = [] {
 	std::array<SettingInfo, (2 * kCvOutputCount) + kGateOutputCount + 1> rows{};
 	size_t at = 0;
 	for (size_t output = 0; output < kCvOutputCount; ++output) {
-		rows[at++] = integer(text_of(kCvVoltsPaths[output]), 0, 200, 100);
-		rows[at++] = integer(text_of(kCvTransposePaths[output]), -9600, 9600, 0);
+		rows[at++] = integer(kCvVoltsPaths[output].view(), 0, 200, 100);
+		rows[at++] = integer(kCvTransposePaths[output].view(), -9600, 9600, 0);
 	}
 	for (size_t output = 0; output < kGateOutputCount; ++output) {
 		using Words = std::span<const std::string_view>;
 		const Words words = output == kClockGateOutput ? Words{kClockGateModeWords}
 		                    : output == kRunGateOutput ? Words{kRunGateModeWords}
 		                                               : Words{kGateModeWords};
-		rows[at++] = choice(text_of(kGateModePaths[output]), words, 0);
+		rows[at++] = choice(kGateModePaths[output].view(), words, 0);
 	}
 	rows[at++] = integer(device_path::kGateMinOffTime, 1, 100, 10);
 	return rows;
@@ -372,8 +358,8 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 	for (const SettingInfo& row : kDefaultsRows) {
 		rows[at++] = row;
 	}
-	for (const ScalePath& path : kScalePaths) {
-		rows[at++] = boolean(std::string_view{path.text.data(), path.size}, 0);
+	for (const FixedPath<kScalePathLength>& path : kScalePaths) {
+		rows[at++] = boolean(path.view(), 0);
 	}
 	for (const SettingInfo& row : kPadsAndScreenRows) {
 		rows[at++] = row;
@@ -491,9 +477,9 @@ static_assert([] {
 }());
 // Each output's row holds its own index in its pattern's `*`, as a source-indexed target resolves it.
 static_assert([] {
-	const auto holds = [](std::string_view pattern, std::span<const OutputPath> paths) {
+	const auto holds = [](std::string_view pattern, std::span<const FixedPath<kOutputPathLength>> paths) {
 		for (size_t output = 0; output < paths.size(); ++output) {
-			if (plugin::index_in(pattern, text_of(paths[output])) != output) {
+			if (plugin::index_in(pattern, paths[output].view()) != output) {
 				return false;
 			}
 		}
@@ -515,15 +501,15 @@ std::optional<DevicePath> device_path::disabled_scale(size_t scale) {
 	if (scale >= kScalePaths.size()) {
 		return std::nullopt;
 	}
-	const ScalePath& path = kScalePaths[scale];
-	return DevicePath{std::string_view{path.text.data(), path.size}};
+	return DevicePath{kScalePaths[scale].view()};
 }
 
 namespace {
 /// @brief Output @p output's path among @p paths, or nullopt past them.
 template <size_t Count>
-std::optional<std::string_view> output_path(const std::array<OutputPath, Count>& paths, size_t output) {
-	return output < Count ? std::optional{text_of(paths[output])} : std::nullopt;
+std::optional<std::string_view> output_path(const std::array<FixedPath<kOutputPathLength>, Count>& paths,
+                                            size_t output) {
+	return output < Count ? std::optional{paths[output].view()} : std::nullopt;
 }
 } // namespace
 

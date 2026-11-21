@@ -363,6 +363,29 @@ struct device_path {
 	[[nodiscard]] static constexpr DevicePath feature(Feature f);
 };
 
+inline namespace menu_tables {
+
+/// @brief A row path built when the image is, as text the table's views point into.
+/// @tparam N The most characters the path can have.
+template <size_t N>
+struct FixedPath {
+	std::array<char, N> text{}; ///< the path's characters, then unused room
+	size_t size{0};             ///< how many characters of `text` it is
+
+	/// @brief Adds @p c at the end; there must be room left.
+	constexpr void append(char c) { text[size++] = c; }
+	/// @brief Adds @p part at the end; it must fit in the room left.
+	constexpr void append(std::string_view part) {
+		for (const char c : part) {
+			append(c);
+		}
+	}
+	/// @brief The path, as a view of this one's text.
+	[[nodiscard]] constexpr std::string_view view() const { return {text.data(), size}; }
+};
+
+} // namespace menu_tables
+
 /// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
 /// image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
 namespace feature_paths::inline menu_tables {
@@ -376,22 +399,13 @@ inline constexpr size_t kLongest = [] {
 	return longest;
 }();
 
-/// @brief One feature's path, as text the table's views point into.
-struct FeaturePath {
-	std::array<char, kLongest> text{}; ///< the prefix, then the feature's file name
-	size_t size{0};                    ///< how many characters of `text` it is
-};
-
 /// @brief Every feature's path, `features/<name>`, indexed by its id.
-inline constexpr std::array<FeaturePath, kFeatureCount> kPaths = [] {
-	std::array<FeaturePath, kFeatureCount> paths{};
+inline constexpr std::array<FixedPath<kLongest>, kFeatureCount> kPaths = [] {
+	std::array<FixedPath<kLongest>, kFeatureCount> paths{};
 	for (const FeatureInfo& info : kFeatures) {
-		FeaturePath& path = paths[std::to_underlying(info.id)];
-		for (const std::string_view part : {device_path::kFeaturePrefix, info.path}) {
-			for (const char c : part) {
-				path.text[path.size++] = c;
-			}
-		}
+		FixedPath<kLongest>& path = paths[std::to_underlying(info.id)];
+		path.append(device_path::kFeaturePrefix);
+		path.append(info.path);
 	}
 	return paths;
 }();
@@ -400,8 +414,7 @@ inline constexpr std::array<FeaturePath, kFeatureCount> kPaths = [] {
 
 constexpr DevicePath device_path::feature(Feature f) {
 	// Indexed through `feature_info`, so an id with no entry stops there rather than reading past the paths.
-	const feature_paths::FeaturePath& path = feature_paths::kPaths[std::to_underlying(feature_info(f).id)];
-	return DevicePath{std::string_view{path.text.data(), path.size}};
+	return DevicePath{feature_paths::kPaths[std::to_underlying(feature_info(f).id)].view()};
 }
 
 /// @brief The community feature whose DEVICE row is at @p path.
