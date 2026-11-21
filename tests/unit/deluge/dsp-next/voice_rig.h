@@ -55,7 +55,7 @@ struct Rig {
 		}
 	}
 
-	VoiceClock clock() { return VoiceClock{clock_next}; }
+	VoiceClock clock() { return VoiceClock{&clock_next}; }
 };
 
 /// A sound's presets: one oscillator at full level through no filter, the amplitude envelope instant with full sustain

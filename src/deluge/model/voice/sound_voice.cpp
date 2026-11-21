@@ -41,7 +41,7 @@ uint32_t lastSoundOrder = 0;
 
 /// The clock every voice's envelope stamps are taken from.
 VoiceClock engineClock() {
-	return VoiceClock{AudioEngine::nextVoiceState};
+	return VoiceClock{&AudioEngine::nextVoiceState};
 }
 } // namespace
 

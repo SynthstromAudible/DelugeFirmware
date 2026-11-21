@@ -204,6 +204,8 @@ LIBRARIES: dict[str, Library] = {
             "synth/engines/engine_state.h",
             "synth/modulation/lfo_state.h",
             "synth/voice/voicing_state.h",
+            # the voice seam, whose instrument side the pool is
+            "synth/voice/voice_host.h",
         ),
     ),
     "host-chain": Library(

@@ -45,7 +45,7 @@ struct MinimalHost {
 	void voice_starting() {}
 	void voices_changed() {}
 	void note_edit() {}
-	VoiceClock clock() { return VoiceClock{next}; }
+	VoiceClock clock() { return VoiceClock{&next}; }
 };
 
 /// A kernel that cannot release on demand.
