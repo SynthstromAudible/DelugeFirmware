@@ -18,11 +18,11 @@
 /// @file
 /// @brief The settings root's hooks and its exported root span. The `Node` literals are in `nodes/settings.h`.
 ///
-/// A DEVICE row's node has no hook: the bindings read and write it through the device port. What is here is the rest:
-/// the MIDI follow inputs' channels and learns (the MIDI devices and learn ports), the turns and formats a row's widget
-/// needs, the horizontal-menus after-write, the gate selector's chain, the battery and firmware readouts (the UI facts
-/// port) and the voice-usage readouts. None of them reads the song: a setting is device-wide, which is exactly why the
-/// settings root's `MenuContext` has a null `params` and a null `sound`.
+/// A DEVICE row's node has no `get`/`set` hook: the bindings read and write it through the device port. What is here
+/// is the rest: the MIDI follow inputs' channels and learns (the MIDI devices and learn ports), the turns and formats a
+/// row's widget needs, the horizontal-menus after-write, the gate selector's chain, the battery and firmware readouts
+/// (the UI facts port) and the voice-usage readouts. None of them reads the song: a setting is device-wide, which is
+/// exactly why the settings root's `MenuContext` has a null `params` and a null `sound`.
 
 #include "scenes/menu/nodes/settings.h"
 

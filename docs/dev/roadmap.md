@@ -112,8 +112,23 @@ the ports: no file under `menu/` includes a legacy runtime header. 22 scene file
 (`scenes-reads-outside-bind`). By directory: the menu 0 files / 0 includes, `services/` 6 / 25, `browser/` 4 / 8,
 `audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `slicing/` 2 / 4, `overlay/` and `marker/` 2 / 2
 each, `rename/` and `timeline/` 1 / 1 each. Beyond those, 23 scene files outside `bind/` include
-`definitions_cxx.hpp` directly, 6 of them in the menu. The common reads left are the legacy `Song`, the playback
-handler, and the MIDI engine and device manager. `--list` prints the per-file counts.
+`definitions_cxx.hpp` directly, 6 of them in the menu. `--list` prints the per-file counts. The 60 includes, by
+what they read (each header with the number of counted files that include it):
+
+- **The song and the model:** `model/song/song.h` 6, `model/action/action_logger.h` 3, `model/clip/clip.h` 2,
+  `model/output.h` 1, `model/project_bridge/midi_command.h` 1 (13).
+- **The flash settings and the community features:** `storage/flash_storage.h` 6,
+  `model/settings/runtime_feature_settings.h` 3 (9).
+- **Samples and waveforms:** `model/sample/waveform_scan.h` 4, `waveform_navigator.h` 4, `waveform_render_data.h` 3,
+  `sample.h` 2, `sample_recorder.h` 1 (14).
+- **Playback:** `playback/playback_handler.h` 4, `playback/mode/arrangement.h` 1, `playback/mode/playback_mode.h` 1
+  (6).
+- **The audio engine and recording:** `processing/engines/audio_engine.h` 4,
+  `processing/recording/foreground_recording.h` 2 (6).
+- **The card and its files:** `storage/file_catalogue.h` 2, `storage/storage_manager.h` 2, `storage/file_item.h` 1
+  (5).
+- **MIDI:** `io/midi/midi_engine.h` 2, `io/midi/midi_follow.h` 2, `io/midi/midi_device_manager.h` 1,
+  `io/midi/device_registry.h` 1, `io/midi/learned_midi.h` 1 (7).
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
@@ -125,8 +140,10 @@ handler, and the MIDI engine and device manager. `--list` prints the per-file co
 **R2c carries these from the menu:**
 
 - **The `menu::host_*` hooks** left in `scenes/menu/bind_host.h`, each retired with its callers:
-  - `host_binds`, the only place `::Song` is still declared for the scenes, for `services/` (`mod_knobs`,
-    `midi_learn`, `global_controls`, including the settings root's `context_for` caller) and `audio_clip_scene`;
+  - `host_binds`, the only declaration of the legacy `::Song` inside `menu/` (`services/mod_knobs.h`,
+    `midi_learn.h`, `global_controls.h`, `audio_clip/audio_clip_scene.h` and `timeline/timeline.h` declare it too),
+    for `services/` (`mod_knobs`, `midi_learn`, `global_controls`, including the settings root's `context_for`
+    caller) and `audio_clip_scene`;
   - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
   - `host_end_audition`, for the menu's sample and name items, the browser and the recorder;
   - `host_waveforms`, for the menu's relevance, the audio clip view, the marker editor and the browser;
@@ -134,8 +151,9 @@ handler, and the MIDI engine and device manager. `--list` prints the per-file co
   - `host_grab_tempo` (the audio clip view), and `host_last_sample_path`, `host_release_sample_file`,
     `host_forget_undo` and `host_favourites` (the browser).
 - **`DeviceActions`**, with the context menu's reset items.
-- **`context_for`'s `host_ports().device` fallback** moves to its callers (production passes `&host_ports()` already),
-  so `menu/context.cpp` links without the app.
+- **`context_for`'s `host_ports().device` fallback** moves to its callers, so `menu/context.cpp` links without the
+  app. The case it serves is `services/global_controls.cpp`'s settings-root context, which passes no ports when
+  `host_binds` is false; that caller must then pass the device port itself.
 - **`relevance::audio_clip_has_sample`'s waveform read** moves behind a port, with its relevance case on fakes.
 - **`services/midi_learn.cpp`'s direct `midiEngine` read** (the global MIDI commands), with its own ratchet row.
 - **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app. Ten

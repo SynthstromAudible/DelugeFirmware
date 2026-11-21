@@ -686,7 +686,7 @@ and its undo; and `controls::Facts` for live param values. Their vocabulary is `
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
 * **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
-  `scenes-reads-outside-bind` rule counts none there). What the menu still asks the app for directly is the set of
+  `scenes-reads-outside-bind` rule counts none there). What the menu asks the app for directly is the set of
   `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes and the services share.
 
 ### The DEVICE setting group
