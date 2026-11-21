@@ -50,15 +50,27 @@ public:
 
 	/// Inserts a new, empty range of the current type at index i. Returns nullptr on OOM.
 	MultiRange* insertMultiRange(int32_t i) {
-		auto inserted = holdsWaveTableRanges_
-		                    ? ranges_.try_emplace(ranges_.begin() + i, std::in_place_type<MultiWaveTableRange>)
-		                    : ranges_.try_emplace(ranges_.begin() + i, std::in_place_type<MultisampleRange>);
-		return inserted ? getElement(i) : nullptr;
+		try {
+			if (holdsWaveTableRanges_) {
+				ranges_.emplace(ranges_.begin() + i, std::in_place_type<MultiWaveTableRange>);
+			}
+			else {
+				ranges_.emplace(ranges_.begin() + i, std::in_place_type<MultisampleRange>);
+			}
+		} catch (deluge::exception&) {
+			return nullptr;
+		}
+		return getElement(i);
 	}
 
 	/// Inserts a pre-built range at index i. It must match the current type.
 	Error insertVariant(int32_t i, RangeVariant&& variant) {
-		return ranges_.try_insert(ranges_.begin() + i, std::move(variant)) ? Error::NONE : Error::INSUFFICIENT_RAM;
+		try {
+			ranges_.insert(ranges_.begin() + i, std::move(variant));
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		return Error::NONE;
 	}
 
 	/// Converts all elements to the type indicated by newSize (a sizeof token, like the old API), preserving
@@ -70,19 +82,21 @@ public:
 			return Error::NONE;
 		}
 
-		deluge::try_fast_vector<RangeVariant> newRanges;
-		if (!newRanges.try_reserve(ranges_.size())) {
+		deluge::fast_vector<RangeVariant> newRanges;
+		try {
+			newRanges.reserve(ranges_.size());
+			for (RangeVariant& old : ranges_) {
+				int16_t topNote = variantToRange(old)->topNote;
+				if (toWaveTable) {
+					newRanges.emplace_back(std::in_place_type<MultiWaveTableRange>);
+				}
+				else {
+					newRanges.emplace_back(std::in_place_type<MultisampleRange>);
+				}
+				variantToRange(newRanges.back())->topNote = topNote;
+			}
+		} catch (deluge::exception&) {
 			return Error::INSUFFICIENT_RAM;
-		}
-		for (RangeVariant& old : ranges_) {
-			int16_t topNote = variantToRange(old)->topNote;
-			if (toWaveTable) {
-				newRanges.emplace_back(std::in_place_type<MultiWaveTableRange>); // within capacity
-			}
-			else {
-				newRanges.emplace_back(std::in_place_type<MultisampleRange>); // within capacity
-			}
-			variantToRange(newRanges.back())->topNote = topNote;
 		}
 
 		ranges_ = std::move(newRanges);
@@ -90,14 +104,16 @@ public:
 		return Error::NONE;
 	}
 
-	auto erase(deluge::try_fast_vector<RangeVariant>::iterator at) { return ranges_.erase(at); }
+	auto erase(deluge::fast_vector<RangeVariant>::iterator at) { return ranges_.erase(at); }
 
 	[[nodiscard]] size_t size() const { return ranges_.size(); }
 	[[nodiscard]] bool empty() const { return ranges_.empty(); }
 	void clear() { ranges_.clear(); }
 
 	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
-		if (!ranges_.try_reserve(ranges_.size() + numAdditionalElementsNeeded)) {
+		try {
+			ranges_.reserve(ranges_.size() + numAdditionalElementsNeeded);
+		} catch (deluge::exception&) {
 			return std::unexpected(Error::INSUFFICIENT_RAM);
 		}
 		return {};
@@ -112,6 +128,6 @@ public:
 	}
 
 private:
-	deluge::try_fast_vector<RangeVariant> ranges_{};
+	deluge::fast_vector<RangeVariant> ranges_{};
 	bool holdsWaveTableRanges_ = false;
 };

@@ -25,7 +25,6 @@
 #include "deluge-project/lane_view.h"
 #include "deluge-project/param_automation.h" // DocAutoParam / ParamNode
 #include <cstdint>
-#include <expected>
 
 namespace deluge::project {
 
@@ -150,8 +149,7 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p);
 /// mirroring positions around the loop and re-deriving each node's value/interpolated flag from its old neighbours.
 /// @param p                          The automation.
 /// @param reverseDirectionWithLength Loop length to reverse within, in ticks.
-/// @return AllocError::OUT_OF_MEMORY when there is no memory for the rebuilt nodes; the automation is then unchanged.
-[[nodiscard]] std::expected<void, AllocError> flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength);
+void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength);
 
 /// @brief Trim the timeline to @p newLength: nodes at or beyond @p newLength are dropped.
 ///
@@ -179,16 +177,12 @@ void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength);
 /// @param oldLength                  Length of the repeat already in @p dest, in ticks.
 /// @param reverseThisRepeatWithLength 0 to copy straight, else the length to mirror within.
 /// @param pingpongingGenerally       Whether a pingpong direction-flip applies.
-/// @return AllocError::OUT_OF_MEMORY when @p dest has no room for the nodes (appendParamRoom()) and none can be had;
-///         @p dest is then unchanged. With the room reserved, it cannot fail.
-[[nodiscard]] std::expected<void, AllocError> appendParam(DocAutoParam& dest, const DocAutoParam& src,
-                                                          int32_t oldLength, int32_t reverseThisRepeatWithLength,
-                                                          bool pingpongingGenerally);
+void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                 bool pingpongingGenerally);
 /// @copydoc appendParam(DocAutoParam&, const DocAutoParam&, int32_t, int32_t, bool)
 /// @note @p src as a read-only view: a published lane, which the render appends from.
-[[nodiscard]] std::expected<void, AllocError> appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength,
-                                                          int32_t reverseThisRepeatWithLength,
-                                                          bool pingpongingGenerally);
+void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                 bool pingpongingGenerally);
 /// @brief The nodes appendParam() may add to its @p dest for a source of @p srcNodes nodes: room a caller reserves so
 /// it adds them without allocating.
 constexpr size_t appendParamRoom(size_t srcNodes) {

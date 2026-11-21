@@ -22,6 +22,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device_manager.h"
 #include "util/containers.h"
+#include "util/exceptions.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -36,8 +37,8 @@ static_assert(sizeof(void*) <= sizeof(DeviceId::value));
 #endif
 
 /// The hosted cables named, in the order their handles were given.
-deluge::try_fast_vector<::MIDICable*>& hosted() {
-	static deluge::try_fast_vector<::MIDICable*> table;
+deluge::fast_vector<::MIDICable*>& hosted() {
+	static deluge::fast_vector<::MIDICable*> table;
 	return table;
 }
 
@@ -60,13 +61,15 @@ DeviceId id_of(const ::MIDICable& cable) {
 	if (&cable == &MIDIDeviceManager::upstreamUSBMIDICable3) {
 		return kUpstreamUsb3;
 	}
-	deluge::try_fast_vector<::MIDICable*>& table = hosted();
+	deluge::fast_vector<::MIDICable*>& table = hosted();
 	if (const auto at = std::ranges::find(table, &cable); at != table.end()) {
 		return hosted_id(at - table.begin());
 	}
-	// The one place a `const MIDICable&` (the scenes' learn paths hold it const) becomes the mutable pointer the
-	// legacy writes `cable_of` serves need. Every cable is a mutable object, so the cast is sound.
-	if (!table.try_push_back(const_cast<::MIDICable*>(&cable))) {
+	try {
+		// The one place a `const MIDICable&` (the scenes' learn paths hold it const) becomes the mutable pointer the
+		// legacy writes `cable_of` serves need. Every cable is a mutable object, so the cast is sound.
+		table.push_back(const_cast<::MIDICable*>(&cable));
+	} catch (deluge::exception&) {
 		return {};
 	}
 	return hosted_id(table.size() - 1);
@@ -85,7 +88,7 @@ DeviceId id_of(const ::MIDICable& cable) {
 	if (id == kUpstreamUsb3) {
 		return &MIDIDeviceManager::upstreamUSBMIDICable3;
 	}
-	const deluge::try_fast_vector<::MIDICable*>& table = hosted();
+	const deluge::fast_vector<::MIDICable*>& table = hosted();
 	if (id.value < kFirstHosted.value || id.value - kFirstHosted.value >= table.size()) {
 		return nullptr;
 	}

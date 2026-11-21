@@ -23,6 +23,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <new>
 
@@ -41,8 +42,11 @@ ConsequenceParamChange::ConsequenceParamChange(deluge::project::ParamAddress add
 
 	// Or copy it...
 	else {
-		// Out of memory while recording undo leaves the snapshot's nodes empty (best-effort undo, no crash).
-		(void)state.nodes.tryAssign(modelStack->doc()->nodes);
+		try {
+			state.nodes = modelStack->doc()->nodes;
+		} catch (deluge::exception&) {
+			// OOM while recording undo: leave the snapshot's nodes empty (best-effort undo, no crash).
+		}
 	}
 }
 

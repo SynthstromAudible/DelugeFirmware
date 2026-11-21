@@ -73,7 +73,7 @@ public:
 	int32_t numCycles{};
 	int32_t numCycleTransitionsNextPowerOf2Magnitude{};
 	int32_t waveIndexMultiplier{};
-	deluge::try_fast_vector<WaveTableBand> bands{}; // Sorted ascending by maxPhaseIncrement
+	deluge::fast_vector<WaveTableBand> bands{}; // Sorted ascending by maxPhaseIncrement
 
 private:
 	/// @brief Builds the bands from @p reader's cycles: the shared half of setupFromSample() and setupFromFile().

@@ -452,7 +452,7 @@ public:
 	[[nodiscard]] const ActiveVoice& getLowestPriorityVoice() const;
 
 	/// @brief Get the voices for this sound
-	[[nodiscard]] const deluge::try_fast_vector<ActiveVoice>& voices() const { return voices_; }
+	[[nodiscard]] const deluge::fast_vector<ActiveVoice>& voices() const { return voices_; }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
@@ -520,23 +520,18 @@ private:
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.
 	// Went with a vector instead of a list so that we don't need to always allocate if
 	// we're constantly cycling between a minimum and maximum number of voices.
-	deluge::try_fast_vector<ActiveVoice> voices_{};
+	deluge::fast_vector<ActiveVoice> voices_{};
 
 	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit runs
 	// inside an AudioExcludedSection (free on the audio tier) and reports to the structural-edit probe
 	// (util/structural_edit_probe.h).
-	using ActiveVoiceIterator = deluge::try_fast_vector<ActiveVoice>::iterator;
-	/// @brief Make sure the next publishVoice() has room in voices_, growing it (with the render excluded) only when
-	///        it is full.
-	/// @return false when there is no memory for the room: the note-on then takes a voice of this Sound's own.
-	[[nodiscard]] bool reserveVoiceSlot();
-	/// @brief Push a started voice; reserveVoiceSlot() made its room.
+	using ActiveVoiceIterator = deluge::fast_vector<ActiveVoice>::iterator;
 	void publishVoice(ActiveVoice voice);
 	template <class Pred>
 	void eraseVoicesIf(Pred pred) {
 		AudioExcludedSection section; // the render walks every Sound's voices
 		noteVoicesEdit();
-		deluge::erase_if(voices_, pred);
+		std::erase_if(voices_, pred);
 	}
 	ActiveVoiceIterator eraseVoiceAt(ActiveVoiceIterator it);
 	void clearVoices();

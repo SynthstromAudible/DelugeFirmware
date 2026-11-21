@@ -19,6 +19,7 @@
 
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/name_compare.h"
 
@@ -55,27 +56,9 @@ void FileListing::clear() {
 	AudioEngine::logAction("emptyFileItems 3");
 }
 
-void FileListing::adopt(std::string dir, deluge::try_vector<FileItem> items) {
+void FileListing::adopt(std::string dir, deluge::vector<FileItem> items) {
 	dir_ = std::move(dir);
 	items_ = std::move(items);
-}
-
-bool FileListing::tryCopyFrom(FileListing const& other) {
-	auto items = other.items_.try_clone();
-	if (!items) {
-		return false;
-	}
-	items_ = std::move(*items);
-	dir_ = other.dir_;
-	searchName_ = other.searchName_;
-	direction_ = other.direction_;
-	maxItems_ = other.maxItems_;
-	collation_ = other.collation_;
-	firstRemaining_ = other.firstRemaining_;
-	lastRemaining_ = other.lastRemaining_;
-	numDeletedAtStart_ = other.numDeletedAtStart_;
-	numDeletedAtEnd_ = other.numDeletedAtEnd_;
-	return true;
 }
 
 void FileListing::eraseAt(int32_t index) {
@@ -100,14 +83,18 @@ FileItem* FileListing::newItem() {
 		cull();
 		alreadyCulled = true;
 	}
-	while (!items_.try_push_back(FileItem())) {
-		if (alreadyCulled) {
-			return nullptr;
+	while (true) {
+		try {
+			items_.push_back(FileItem());
+			return &items_.back();
+		} catch (deluge::exception&) {
+			if (alreadyCulled) {
+				return nullptr;
+			}
+			cull();
+			alreadyCulled = true;
 		}
-		cull();
-		alreadyCulled = true;
 	}
-	return &items_.back();
 }
 
 SearchHit FileListing::search(char const* name) const {

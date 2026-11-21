@@ -1,5 +1,4 @@
 #pragma once
-#include "foundation/try_vector.h"
 #include "memory/external_allocator.h"
 #include "memory/fast_allocator.h"
 #include <deque>
@@ -60,14 +59,6 @@ using fast_list = std::list<T, memory::fast_allocator<T>>;
 // Vector (resizeable variable-length array, unknown size)
 template <typename T>
 using fast_vector = std::vector<T, memory::fast_allocator<T>>;
-
-/// @brief A vector whose growth can fail without exceptions (its try_* members), in external SDRAM.
-template <typename T>
-using try_vector = TryVector<T, memory::external_allocator<T>>;
-
-/// @brief A vector whose growth can fail without exceptions (its try_* members), in fast internal SRAM.
-template <typename T>
-using try_fast_vector = TryVector<T, memory::fast_allocator<T>>;
 
 template <typename T>
 using fast_priority_queue = std::priority_queue<T, fast_vector<T>>;

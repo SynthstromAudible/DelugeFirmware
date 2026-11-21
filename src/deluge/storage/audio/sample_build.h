@@ -50,8 +50,8 @@
 /// doc comment for what a published build without one actually does (nothing catches it; it just
 /// plays silence).
 ///
-/// Every function is `noexcept`, and nothing it calls throws (the firmware builds with -fno-exceptions): running out
-/// of memory for a build degrades to the failure return its doc comment names.
+/// Every function is `noexcept`: each catches whatever its body throws (the allocators throw
+/// `deluge::exception::BAD_ALLOC`) and degrades to the failure return its doc comment names.
 #pragma once
 
 #include "definitions_cxx.hpp" // Error

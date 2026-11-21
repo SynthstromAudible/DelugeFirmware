@@ -205,7 +205,7 @@ public:
 	/// @}
 
 	static std::string currentDir;
-	static deluge::try_vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
+	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
 	/// Names of the entries that bracket the culled window, remembered ACROSS the cull that erases them.

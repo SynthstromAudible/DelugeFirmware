@@ -288,14 +288,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-Error ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+void ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (ParamCollectionSummary* summary = summaries; summary->paramCollection; summary++) {
-		if (Error error = summary->paramCollection->flattenReverseAutomation(reverseDirectionWithLength);
-		    error != Error::NONE) {
-			return error;
-		}
+		summary->paramCollection->flattenReverseAutomation(reverseDirectionWithLength);
 	}
-	return Error::NONE;
 }
 
 // Does *not* forget MPE params

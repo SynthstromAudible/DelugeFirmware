@@ -117,12 +117,12 @@ public:
 	                     bool shouldPingpong);
 	/// @brief Reverse this param's automation in place (used when flattening a reversed clip on clone).
 	///
-	/// Rebuilds the nodes reversed.
+	/// Moves the nodes out and rebuilds them reversed.
 	///
 	/// @param doc                         The param's node store.
 	/// @param reverseDirectionWithLength  The loop length to reverse within.
-	/// @return Error::INSUFFICIENT_RAM when there is no memory for the rebuilt nodes (they are then unchanged).
-	[[nodiscard]] Error flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
+	/// @throws deluge::exception::BAD_ALLOC if the node buffer cannot be re-grown.
+	void flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
@@ -146,9 +146,8 @@ public:
 	void transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc);
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
 	void insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert);
-	/// @return Error::INSUFFICIENT_RAM when there is no room for the nodes (@p doc is then unchanged).
-	[[nodiscard]] Error appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
-	                                int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
+	void appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc, int32_t oldLength,
+	                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
 	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,

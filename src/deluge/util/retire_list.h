@@ -18,11 +18,10 @@
 
 #include "deluge/util/published.h"
 
-#include "foundation/fallible_allocator.h"
-#include "foundation/try_vector.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace deluge {
 
@@ -36,8 +35,8 @@ public:
 	explicit RetireList(const util::SnapshotDomain& domain) : domain_(domain) {}
 
 	/// @brief [task] Make room for @p more retire() calls, so they cannot fail for want of memory.
-	/// @return AllocError when there is no memory for the room (the list is then as it was).
-	[[nodiscard]] AllocResult<void> reserve(std::size_t more) { return retired_.try_reserve(retired_.size() + more); }
+	/// @throws std::bad_alloc (or the allocator's exception) when there is no room.
+	void reserve(std::size_t more) { retired_.reserve(retired_.size() + more); }
 
 	/// @brief [task] Hand over ownership of `object`, stamped with the current audio epoch. Destroyed
 	///        immediately if the render has never run (epoch 0: no reader to protect against), otherwise held
@@ -105,7 +104,7 @@ private:
 	};
 
 	const util::SnapshotDomain& domain_;
-	TryVector<Entry, nothrow_new_allocator<Entry>> retired_; ///< global new before: the nothrow form is the same heap
+	std::vector<Entry> retired_;
 	bool reclaiming_ = false; ///< Guards against a `destroy` callback re-entering `reclaim()`.
 };
 

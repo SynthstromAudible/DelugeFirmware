@@ -95,8 +95,7 @@ public:
 	/// Used when a cloned NoteRow must flatten a reversed sequence; the collections were copied
 	/// reverse-agnostically.
 	/// @param reverseDirectionWithLength The loop length.
-	/// @return Error::INSUFFICIENT_RAM when a lane cannot be rebuilt (see ParamCollection::flattenReverseAutomation).
-	[[nodiscard]] Error flattenReverseAutomation(int32_t reverseDirectionWithLength);
+	void flattenReverseAutomation(int32_t reverseDirectionWithLength);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	void destructAndForgetMainParamCollections(); // Retains expression params, like forgetParamCollections()

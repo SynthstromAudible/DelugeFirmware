@@ -25,12 +25,8 @@ public:
 	NoteRow* insertNoteRowAtIndex(int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
-	/// @brief Make this a deep copy of @p other, each row through NoteRow::cloneFrom.
-	///
-	/// The copy is built aside and handed over in one structural edit, so the render never sees a part-copied set.
-	/// @param other The rows to copy.
-	/// @return Error::INSUFFICIENT_RAM when memory runs out; this vector is then unchanged.
-	[[nodiscard]] Error cloneFrom(NoteRowVector const& other);
+	// Deep copies go through copy-assignment (`dst = src`), inherited from OrderedPosVector — each NoteRow is
+	// copy-constructed (its param manager + notes deep-copied). Throws deluge::exception on OOM.
 
 	/// @brief Swap two rows in place (a note-row drag).
 	///

@@ -268,20 +268,22 @@ void Browser::captureListingRestore() {
 	if (!listingShown_) {
 		return; // this listing opens the browser: a failure closes it, and there is nothing to put back
 	}
-	ListingRestore restore{
-	    .currentDir = currentDir,
-	    .fileIndexSelected = fileIndexSelected,
-	    .scrollPosVertical = scrollPosVertical,
-	    .scrollPosHorizontal = scrollPosHorizontal,
-	    .enteredText = enteredText,
-	    .enteredTextEditPos = enteredTextEditPos,
-	    .arrivedAtFileByTyping = arrivedAtFileByTyping,
-	    .qwertyVisible = qwertyVisible,
-	};
-	if (!restore.listing.tryCopyFrom(listing)) {
-		return; // no memory for the copy: this listing's failure closes the browser instead of restoring it
+	try {
+		listingRestore_ = ListingRestore{
+		    .currentDir = currentDir,
+		    .listing = listing,
+		    .fileIndexSelected = fileIndexSelected,
+		    .scrollPosVertical = scrollPosVertical,
+		    .scrollPosHorizontal = scrollPosHorizontal,
+		    .enteredText = enteredText,
+		    .enteredTextEditPos = enteredTextEditPos,
+		    .arrivedAtFileByTyping = arrivedAtFileByTyping,
+		    .qwertyVisible = qwertyVisible,
+		};
+	} catch (deluge::exception&) {
+		// No memory for the copy: this listing's failure closes the browser instead of restoring it.
+		listingRestore_.reset();
 	}
-	listingRestore_ = std::move(restore);
 }
 
 bool Browser::restoreListing() {

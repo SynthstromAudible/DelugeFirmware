@@ -18,8 +18,6 @@
 #pragma once
 
 #include "deluge-project/model_memory.h"
-#include "foundation/alloc_error.h"
-#include "foundation/try_vector.h"
 
 #include <cstdint>
 #include <functional>
@@ -35,9 +33,11 @@ using model_map = std::map<Key, T, Compare, ModelAllocator<std::pair<const Key, 
 
 /// @brief A vector whose memory comes from the host's model hooks.
 template <class T>
-using model_vector = deluge::TryVector<T, ModelAllocator<T>>;
+using model_vector = std::vector<T, ModelAllocator<T>>;
 
-/// @brief Why a fallible model-container operation failed (the foundation's, so the app and the model share one type).
-using AllocError = deluge::AllocError;
+/// @brief Why a fallible model-container operation failed.
+enum class AllocError : uint8_t {
+	OUT_OF_MEMORY, ///< the host could not supply the memory (or an element's construction failed)
+};
 
 } // namespace deluge::project

@@ -46,6 +46,7 @@
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <bit>
 #include <new>
@@ -78,56 +79,18 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-// The copy allocates nothing and is unbound (domStoreRef_ null via the default member init); copyDomStoreFrom() then
-// gives a copy of a bound set its OWN deep copy of the store, so it carries the source's automation without any
-// AutoParam holding a cross-set pointer (an AutoParam is a cursor: its copy carries no nodes). The subclass copy-ctors
-// re-point `params` at their own array.
+// A cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
+// automation without any AutoParam holding a cross-set pointer (the params' element-wise copy carries only their
+// empty inline ownDoc_; the nodes live in the store). No aliasing: the clone owns an independent DocParamSet.
+// An unbound source clones unbound (domStoreRef_ null via the default member init) and the params' ownDoc_ carry
+// the nodes. The subclass copy-ctors re-point `params` at their own array.
 ParamSet::ParamSet(ParamSet const& other)
     : ParamCollection(other), numParams_(other.numParams_), params(other.params),
       topUintToRepParams(other.topUintToRepParams) {
-}
-
-Error ParamSet::copyDomStoreFrom(ParamSet const& other) {
-	if (other.domStoreRef_ == nullptr) {
-		return Error::NONE; // an unbound source clones unbound
+	if (other.domStoreRef_ != nullptr) {
+		domStore_ = std::make_unique<deluge::project::DocParamSet>(*other.domStoreRef_);
+		domStoreRef_ = domStore_.get();
 	}
-	auto copy = deluge::project::tryClone(*other.domStoreRef_);
-	if (!copy) {
-		return Error::INSUFFICIENT_RAM;
-	}
-	auto* store = new (std::nothrow) deluge::project::DocParamSet(std::move(*copy));
-	if (store == nullptr) {
-		return Error::INSUFFICIENT_RAM;
-	}
-	domStore_.reset(store); // domStore_'s default_delete pairs with this nothrow new
-	domStoreRef_ = store;
-	return Error::NONE;
-}
-
-template <class Set>
-Error ParamSet::cloneAs(Set const& source, ParamCollection*& result, bool copyAutomation,
-                        int32_t reverseDirectionWithLength) {
-	void* mem = deluge::memory::alloc_fast(sizeof(Set));
-	if (mem == nullptr) {
-		return Error::INSUFFICIENT_RAM;
-	}
-	Set* clone = new (mem) Set(source); // allocates nothing
-	Error error = clone->copyDomStoreFrom(source);
-	if (error == Error::NONE) {
-		if (!copyAutomation) {
-			clone->stripAutomation();
-		}
-		else if (reverseDirectionWithLength != 0) {
-			error = clone->flattenReverseAutomation(reverseDirectionWithLength);
-		}
-	}
-	if (error != Error::NONE) {
-		clone->~Set();
-		delugeDealloc(mem);
-		return error;
-	}
-	result = clone;
-	return Error::NONE;
 }
 
 // Out-of-line so the unique_ptr<DocParamSet> member is destroyed where DocParamSet is complete.
@@ -208,15 +171,12 @@ void ParamSet::stripAutomation() {
 	}
 }
 
-Error ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		if (Error error = params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength); error != Error::NONE) {
-			return error;
-		}
+		params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength);
 	}
-	return Error::NONE;
 }
 
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
@@ -552,9 +512,9 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-// clone() is ParamSet::cloneAs: a copy (allocating nothing), then the DOM store, then the automation stripped or
-// reverse-flattened as requested. The copy ctor copies the inline params_ array and re-points `params` to it (the
-// base ParamSet copy leaves `params` pointing at the source).
+// clone() copy-constructs (deep-copying the AutoParams), then strips or reverse-flattens the automation as
+// requested. The copy ctor copy-constructs the inline params_ array and re-points `params` to it (the base
+// ParamSet copy leaves `params` pointing at the source).
 
 UnpatchedParamSet::UnpatchedParamSet(UnpatchedParamSet const& other)
     : ParamSet(other), kind(other.kind), params_(other.params_) {
@@ -563,7 +523,31 @@ UnpatchedParamSet::UnpatchedParamSet(UnpatchedParamSet const& other)
 
 Error UnpatchedParamSet::clone(ParamCollection*& result, bool copyAutomation,
                                int32_t reverseDirectionWithLength) const {
-	return cloneAs(*this, result, copyAutomation, reverseDirectionWithLength);
+	void* mem = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	UnpatchedParamSet* clone;
+	try {
+		clone = new (mem) UnpatchedParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~UnpatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
 }
 
 PatchedParamSet::PatchedParamSet(PatchedParamSet const& other) : ParamSet(other), params_(other.params_) {
@@ -571,7 +555,31 @@ PatchedParamSet::PatchedParamSet(PatchedParamSet const& other) : ParamSet(other)
 }
 
 Error PatchedParamSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
-	return cloneAs(*this, result, copyAutomation, reverseDirectionWithLength);
+	void* mem = deluge::memory::alloc_fast(sizeof(PatchedParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	PatchedParamSet* clone;
+	try {
+		clone = new (mem) PatchedParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~PatchedParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
 }
 
 ExpressionParamSet::ExpressionParamSet(ExpressionParamSet const& other)
@@ -581,7 +589,31 @@ ExpressionParamSet::ExpressionParamSet(ExpressionParamSet const& other)
 
 Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
                                 int32_t reverseDirectionWithLength) const {
-	return cloneAs(*this, result, copyAutomation, reverseDirectionWithLength);
+	void* mem = deluge::memory::alloc_fast(sizeof(ExpressionParamSet));
+	if (mem == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	ExpressionParamSet* clone;
+	try {
+		clone = new (mem) ExpressionParamSet(*this);
+	} catch (deluge::exception&) {
+		delugeDealloc(mem);
+		return Error::INSUFFICIENT_RAM;
+	}
+	if (!copyAutomation) {
+		clone->stripAutomation();
+	}
+	else if (reverseDirectionWithLength != 0) {
+		try {
+			clone->flattenReverseAutomation(reverseDirectionWithLength);
+		} catch (deluge::exception&) {
+			clone->~ExpressionParamSet();
+			delugeDealloc(mem);
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
+	result = clone;
+	return Error::NONE;
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {

@@ -1,5 +1,5 @@
-#include "foundation/oom.h"
 #include "memory/heaps.h"
+#include "util/exceptions.h"
 #include <cstdlib>
 #include <cstring>
 #include <new>
@@ -18,10 +18,10 @@
 // memory; operator delete below still returns a stray GMA pointer to GMA. The macOS host is not the
 // golden reference (the Linux host is, and keeps the GMA path unchanged), so routing object `new`
 // through the system heap here costs some GMA fidelity but nothing that's compared.
-void* operator new(std::size_t n) {
+void* operator new(std::size_t n) noexcept(false) {
 	void* address = std::malloc(n != 0 ? n : 1);
 	if (address == nullptr) [[unlikely]] {
-		deluge::oom();
+		throw deluge::exception::BAD_ALLOC;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	std::memset(address, 0, n);
@@ -46,45 +46,16 @@ void operator delete(void* p) noexcept {
 void operator delete(void* p, std::size_t) noexcept {
 	host_operator_delete(p);
 }
-
-// The nothrow forms: what deluge::nothrow_new_allocator and try_new reach, null on failure.
-void* operator new(std::size_t n, const std::nothrow_t&) noexcept {
-	void* address = std::malloc(n != 0 ? n : 1);
-#ifdef DELUGE_DETERMINISTIC_ALLOC
-	if (address != nullptr) {
-		std::memset(address, 0, n);
-	}
-#endif
-	return address;
-}
-void* operator new(std::size_t n, std::align_val_t align, const std::nothrow_t&) noexcept {
-	const auto a = static_cast<std::size_t>(align);
-	void* address = std::aligned_alloc(a, ((n != 0 ? n : 1) + a - 1) / a * a); // size must be a multiple of align
-#ifdef DELUGE_DETERMINISTIC_ALLOC
-	if (address != nullptr) {
-		std::memset(address, 0, n);
-	}
-#endif
-	return address;
-}
-void operator delete(void* p, const std::nothrow_t&) noexcept {
-	host_operator_delete(p);
-}
-void operator delete(void* p, std::align_val_t) noexcept {
-	host_operator_delete(p);
-}
-void operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept {
-	host_operator_delete(p);
-}
 #else
-void* operator new(std::size_t n) {
+void* operator new(std::size_t n) noexcept(false) {
 	// allocate on external RAM (the unified SDRAM heap)
 	void* address = deluge::memory::alloc_external(n, 16);
 	if (address == nullptr) [[unlikely]] {
 		// The throwing operator new must never return null: std::string / std::vector and friends assume a non-null
-		// buffer, so returning null silently corrupts them. Out of memory stops the firmware instead; code that
-		// handles running out allocates through try_allocate or nothrow new.
-		deluge::oom();
+		// buffer, so returning null silently corrupts them. Throw the same lightweight exception the custom STL
+		// allocators (sdram_allocator / external_allocator) do, so existing `catch (deluge::exception)` out-of-memory
+		// handlers can deal with it. Code that wants graceful failure uses the heap API directly.
+		throw deluge::exception::BAD_ALLOC;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// The GeneralMemoryAllocator::alloc path zeroes at its return sites; mirror that here so std-container /
@@ -113,10 +84,10 @@ void operator delete(void* p, std::size_t) noexcept {
 // malloc/aligned_alloc -- undefined on this freestanding target (no _sbrk), so the link fails. Route the
 // aligned forms through GMA exactly like the unaligned ones above; alloc_external already takes a runtime
 // alignment, and dealloc doesn't need one to free correctly.
-void* operator new(std::size_t n, std::align_val_t align) {
+void* operator new(std::size_t n, std::align_val_t align) noexcept(false) {
 	void* address = deluge::memory::alloc_external(n, static_cast<std::size_t>(align));
 	if (address == nullptr) [[unlikely]] {
-		deluge::oom();
+		throw deluge::exception::BAD_ALLOC;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	memset(address, 0, n);
@@ -129,36 +100,6 @@ void operator delete(void* p, std::align_val_t) noexcept {
 }
 
 void operator delete(void* p, std::size_t, std::align_val_t) noexcept {
-	deluge::memory::dealloc(p);
-}
-
-// The nothrow forms: what deluge::nothrow_new_allocator and try_new reach, null on failure. Defining them also keeps
-// libsupc++'s, which call the throwing form inside a try, out of the image.
-void* operator new(std::size_t n, const std::nothrow_t&) noexcept {
-	void* address = deluge::memory::alloc_external(n, 16);
-#ifdef DELUGE_DETERMINISTIC_ALLOC
-	if (address != nullptr) {
-		memset(address, 0, n);
-	}
-#endif
-	return address;
-}
-
-void* operator new(std::size_t n, std::align_val_t align, const std::nothrow_t&) noexcept {
-	void* address = deluge::memory::alloc_external(n, static_cast<std::size_t>(align));
-#ifdef DELUGE_DETERMINISTIC_ALLOC
-	if (address != nullptr) {
-		memset(address, 0, n);
-	}
-#endif
-	return address;
-}
-
-void operator delete(void* p, const std::nothrow_t&) noexcept {
-	deluge::memory::dealloc(p);
-}
-
-void operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept {
 	deluge::memory::dealloc(p);
 }
 #endif // defined(__APPLE__)

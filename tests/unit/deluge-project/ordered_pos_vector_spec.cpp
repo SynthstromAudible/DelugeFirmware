@@ -88,46 +88,6 @@ describe ordered_pos_vector("the model's sorted container", ${
 		expect(keys_of(nodes)).to_equal(std::vector<int32_t>{3});
 		expect(test::counts.depth).to_equal(0);
 	});
-
-	it("tryAssign copies, and on exhausted memory leaves the destination as it was", _ {
-		OrderedPosVector<ParamNode> src;
-		(void)src.insertSorted(1);
-		(void)src.insertSorted(9);
-		OrderedPosVector<ParamNode> dst;
-		(void)dst.insertSorted(4);
-		test::counts.fail_next_allocation = true;
-		expect(dst.tryAssign(src)).not_().to_have_value();
-		expect(keys_of(dst)).to_equal(std::vector<int32_t>{4});
-		expect(dst.tryAssign(src)).to_have_value();
-		expect(keys_of(dst)).to_equal(std::vector<int32_t>{1, 9});
-		expect(test::counts.depth).to_equal(0);
-	});
-
-	it("generateRepeats reports exhausted memory and leaves the elements as they were", _ {
-		OrderedPosVector<ParamNode> nodes;
-		(void)nodes.insertSorted(0);
-		(void)nodes.insertSorted(10);
-		test::counts.fail_next_allocation = true;
-		expect(nodes.generateRepeats(96, 384)).to_be_false();
-		expect(keys_of(nodes)).to_equal(std::vector<int32_t>{0, 10});
-	});
-
-	it("generateRepeats tiles the elements before the wrap point out to the end", _ {
-		OrderedPosVector<ParamNode> nodes;
-		(void)nodes.insertSorted(0);
-		(void)nodes.insertSorted(10);
-		(void)nodes.insertSorted(100); // at or past the wrap point: dropped
-		expect(nodes.generateRepeats(96, 200)).to_be_true();
-		expect(keys_of(nodes)).to_equal(std::vector<int32_t>{0, 10, 96, 106, 192});
-	});
-
-	it("insertAt reports exhausted memory without touching the elements", _ {
-		OrderedPosVector<ParamNode> nodes;
-		(void)nodes.insertSorted(5);
-		test::counts.fail_next_allocation = true;
-		expect(nodes.insertAt(0, 3)).not_().to_have_value();
-		expect(keys_of(nodes)).to_equal(std::vector<int32_t>{5});
-	});
 });
 
 CPPSPEC_SPEC(ordered_pos_vector)

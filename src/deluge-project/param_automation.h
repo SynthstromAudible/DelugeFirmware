@@ -22,7 +22,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <optional>
 #include <vector>
 
@@ -92,21 +91,7 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 /// param with id `first + i`.
 struct DocParamSet {
 	deluge::plugin::ParamId first{};
-	model_vector<DocAutoParam> params;
-
-	DocParamSet() = default;
-	/// @brief Deep copy. Infallible: out of memory stops the firmware (deluge::oom()); use tryClone() where a
-	/// failure is handled.
-	DocParamSet(const DocParamSet& other) : first(other.first), params(other.params.clone()) {}
-	DocParamSet& operator=(const DocParamSet& other) {
-		if (this != &other) {
-			first = other.first;
-			params = other.params.clone();
-		}
-		return *this;
-	}
-	DocParamSet(DocParamSet&&) noexcept = default;
-	DocParamSet& operator=(DocParamSet&&) noexcept = default;
+	std::vector<DocAutoParam> params;
 
 	/// @brief The lane for @p id, or nullptr when this set does not hold it.
 	/// @param id The param id.
@@ -129,37 +114,6 @@ struct DocParamSet {
 		return static_cast<size_t>(id.value - first.value);
 	}
 };
-
-/// @brief A copy of @p src, or AllocError when there is no memory for its nodes.
-/// @param src The lane to copy.
-/// @return The copy, or AllocError::OUT_OF_MEMORY.
-[[nodiscard]] inline std::expected<DocAutoParam, AllocError> tryClone(const DocAutoParam& src) {
-	DocAutoParam copy;
-	copy.current_value = src.current_value;
-	if (auto copied = copy.nodes.tryAssign(src.nodes); !copied) {
-		return std::unexpected(copied.error());
-	}
-	return copy;
-}
-
-/// @brief A deep copy of @p src, or AllocError (nothing is left allocated when it fails).
-/// @param src The param set to copy.
-/// @return The copy, or AllocError::OUT_OF_MEMORY.
-[[nodiscard]] inline std::expected<DocParamSet, AllocError> tryClone(const DocParamSet& src) {
-	DocParamSet copy;
-	copy.first = src.first;
-	if (auto room = copy.params.try_reserve(src.params.size()); !room) {
-		return std::unexpected(room.error());
-	}
-	for (const DocAutoParam& lane : src.params) {
-		auto laneCopy = tryClone(lane);
-		if (!laneCopy) {
-			return std::unexpected(laneCopy.error());
-		}
-		copy.params.push_back(std::move(*laneCopy)); // within the room reserved above: cannot allocate
-	}
-	return copy;
-}
 
 /// @brief One cable depth's lane, named by the depth's id (the instrument derives it from the cable's source and
 /// target). Depths are stored in [-2^30, 2^30).

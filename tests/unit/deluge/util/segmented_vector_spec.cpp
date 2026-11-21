@@ -1,7 +1,5 @@
 #include "util/segmented_vector.h"
 
-#include "support/mocks/failing_allocator.h"
-
 #include "cppspec.hpp"
 #include <cstddef>
 #include <new>
@@ -25,7 +23,7 @@ struct Tracked {
 ///        `fast_allocator` (that needs a live BSP heap, which this host CppSpec
 ///        harness doesn't have) -- this exists purely to prove the allocator
 ///        template plumbing (both `SegAlloc` for segment storage and the
-///        segment-pointer index's `TryVector<Segment*, Alloc<Segment*>>`)
+///        segment-pointer index's `std::vector<Segment*, Alloc<Segment*>>`)
 ///        actually threads a non-default allocator through end-to-end.
 template <typename U>
 struct MinimalAlloc {
@@ -35,9 +33,7 @@ struct MinimalAlloc {
 	template <typename V>
 	MinimalAlloc(const MinimalAlloc<V>&) noexcept {} // NOLINT: allocator rebind ctor
 
-	[[nodiscard]] U* try_allocate(std::size_t n) noexcept {
-		return static_cast<U*>(::operator new(n * sizeof(U), std::nothrow));
-	}
+	[[nodiscard]] U* allocate(std::size_t n) { return static_cast<U*>(::operator new(n * sizeof(U))); }
 	void deallocate(U* p, std::size_t /*n*/) noexcept { ::operator delete(p); }
 
 	template <typename V>
@@ -165,37 +161,6 @@ describe segmented_vector("SegmentedVector<T, N>", $ {
 			expect(Tracked::live).to_equal(3);
 		}
 		expect(Tracked::live).to_equal(0); // destructor freed the rest via MinimalAlloc too
-	});
-
-	it("try_resize leaves size and segments as they were when a segment cannot be had", _{
-		using Seg = SegmentedVector<Tracked, 4, test::FailingAllocator>;
-		using SegAlloc = test::FailingAllocator<Seg::segment_type>;
-		Tracked::live = 0;
-		{
-			Seg v;
-			expect(v.try_resize(4)).to_have_value(); // one segment
-			const auto segmentsBefore = SegAlloc::live();
-			SegAlloc::fail_after(1); // the second segment comes, the third does not
-			auto r = v.try_resize(12);
-			expect(r).not_().to_have_value();
-			expect(v.size()).to_equal(std::size_t{4});
-			expect(Tracked::live).to_equal(4);
-			expect(SegAlloc::live()).to_equal(segmentsBefore); // the second segment was given back
-			SegAlloc::never_fail();
-			expect(v.try_resize(12)).to_have_value();
-			expect(v.size()).to_equal(std::size_t{12});
-		}
-		expect(Tracked::live).to_equal(0);
-	});
-
-	it("try_resize reports a failed index growth without allocating a segment", _{
-		using Seg = SegmentedVector<Tracked, 4, test::FailingAllocator>;
-		using IndexAlloc = test::FailingAllocator<Seg::segment_type*>;
-		Seg v;
-		IndexAlloc::fail_after(0);
-		expect(v.try_resize(4)).not_().to_have_value();
-		expect(v.empty()).to_be_true();
-		IndexAlloc::never_fail();
 	});
 });
 // clang-format on

@@ -46,8 +46,11 @@ static void init_engine() {
 }
 
 gsl::owner<DxPoolVoice*> DxEngine::solicitDxVoice() {
-	auto voice = DxVoicePool::get().try_acquire();
-	return voice ? voice->release() : nullptr;
+	try {
+		return DxVoicePool::get().acquire().release();
+	} catch (const deluge::exception&) {
+		return nullptr;
+	}
 }
 
 void DxEngine::dxVoiceUnassigned(gsl::owner<DxPoolVoice*> dxVoice) {

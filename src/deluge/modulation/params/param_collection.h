@@ -104,9 +104,7 @@ public:
 	virtual void stripAutomation() {}
 	/// @brief Reverse every owned param's automation in place (flatten-reversing on clone). Default: no-op.
 	/// @param reverseDirectionWithLength The loop length to reverse within.
-	/// @return Error::INSUFFICIENT_RAM when a lane cannot be rebuilt; the lanes before it are reversed, it and those
-	///         after it are not.
-	[[nodiscard]] virtual Error flattenReverseAutomation(int32_t reverseDirectionWithLength) { return Error::NONE; }
+	virtual void flattenReverseAutomation(int32_t reverseDirectionWithLength) {}
 
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
@@ -163,11 +161,9 @@ public:
 	/// @brief [interaction] Call @p visit with each of this collection's lanes as a repeat of @p other appended at
 	///        @p oldLength would leave them, changing none: a lane the repeat changes as a copy with the repeat
 	///        appended, the rest as they are, each with nodes, by the key forEachLane() gives it.
-	/// @return false when there is no memory for a copy: @p visit may then have seen only some of the lanes.
-	[[nodiscard]] bool
-	forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
-	                    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-	                    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
+	void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+	                         int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+	                         deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
 
 	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
 	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty

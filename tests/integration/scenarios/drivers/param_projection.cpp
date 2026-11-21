@@ -1621,15 +1621,11 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->bindDomStore();
 		check(unp->domStore() == store, "lazy: bindDomStore idempotent (no realloc)");
 
-		// A clone of a bound set gets an INDEPENDENT deep copy of the store.
-		ParamCollection* cloned = nullptr;
-		check(unp->clone(cloned, true) == Error::NONE, "lazy: a bound set clones");
-		auto& copy = *static_cast<UnpatchedParamSet*>(cloned);
+		// A copy of a bound set gets an INDEPENDENT deep copy of the store.
+		UnpatchedParamSet copy(*unp);
 		check(copy.domStore() != nullptr && copy.domStore() != store, "lazy: a copy owns an independent store");
 		check(copy.docForParam(2) != &store->params[2], "lazy: copy's store slot is not aliased");
 		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(), "lazy: copy has same node count");
-		copy.~UnpatchedParamSet();
-		delugeDealloc(cloned);
 	}
 
 	// ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
@@ -1786,10 +1782,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				check(ap.flattenReverse(*(&apDoc), length) == Error::NONE,
-				      "flattenReverse: the engine's rebuild succeeds");
-				check(deluge::project::flattenReverse(doc, length).has_value(),
-				      "flattenReverse: the model's rebuild succeeds");
+				ap.flattenReverse(*(&apDoc), length);
+				deluge::project::flattenReverse(doc, length);
 				check(ap.played() == doc.current_value,
 				      "flattenReverse: current_value untouched, matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "flattenReverse: matches engine oracle");
@@ -1805,8 +1799,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			doc.current_value = 7;
 			setNodeIn(apDoc, 8, 5, true);
 			deluge::project::setNodeAtPos(doc, 8, 5, true);
-			check(ap.flattenReverse(*(&apDoc), 0) == Error::NONE, "flattenReverse: the engine's rebuild succeeds");
-			check(deluge::project::flattenReverse(doc, 0).has_value(), "flattenReverse: the model's rebuild succeeds");
+			ap.flattenReverse(*(&apDoc), 0);
+			deluge::project::flattenReverse(doc, 0);
 			check(ap.played() == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
 			expectDocMatchesEngine(apDoc, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
 		}
@@ -1922,10 +1916,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 							deluge::project::setNodeAtPos(otherDoc, n.pos, n.value, n.interpolated);
 						}
 
-						check(ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong) == Error::NONE,
-						      "appendParam: the engine's append succeeds");
-						check(deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong).has_value(),
-						      "appendParam: the model's append succeeds");
+						ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong);
+						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
 
 						check(ap.played() == doc.current_value,
 						      "appendParam: current_value untouched, matches engine oracle");

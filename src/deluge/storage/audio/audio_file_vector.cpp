@@ -67,7 +67,9 @@ gotIt:
 
 std::expected<void, Error> AudioFileVector::insertElement(AudioFile* audioFile) {
 	int32_t i = search(audioFile->filePath.c_str());
-	if (!try_insert(begin() + i, audioFile)) {
+	try {
+		insert(begin() + i, audioFile);
+	} catch (deluge::exception&) {
 		return std::unexpected(Error::INSUFFICIENT_RAM);
 	}
 	return {};

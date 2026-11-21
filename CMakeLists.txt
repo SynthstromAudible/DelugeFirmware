@@ -264,10 +264,6 @@ add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
-    # No exceptions: running out of memory is reported by value (try_allocate, TryVector's try_*) or stops the
-    # firmware through deluge::oom() (src/foundation/oom.h). This block is the device build's; the sim and the spec
-    # trees keep exceptions, which CppSpec and the specs' oom() need.
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
 
     # ASM stuff
     $<$<COMPILE_LANGUAGE:ASM>:-x>

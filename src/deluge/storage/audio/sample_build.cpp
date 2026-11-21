@@ -22,13 +22,13 @@
 /// a published build must have. Also the numeric `Error` mapping for the byte libdeluge/audio_load.h
 /// carries a loader verdict in (audio_load_abi.h).
 ///
-/// Every build function is `noexcept`: nothing in the firmware throws (it builds with -fno-exceptions). Running out
-/// of memory for a build itself is reported through its failure return; for the small things along the way (a
-/// path's string) it stops the firmware through deluge::oom().
+/// Every build function is `noexcept`, and each catches with `catch (...)` so that is honest: the
+/// repo's allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and anything escaping a
+/// `noexcept` frame is `std::terminate()` -- on this target an unexplained, silent device death. Where
+/// a catch handler itself calls back into C++ (begin()'s cleanup path), that call is wrapped in its own
+/// nested try/catch so a second exception can't escape either.
 
 #include "storage/audio/sample_build.h"
-
-#include <new>
 
 #include "definitions_cxx.hpp" // kFilenameBufferSize
 #include "model/sample/sample.h"
@@ -351,54 +351,77 @@ namespace deluge::storage::sample_build {
 
 SampleBuild* begin(std::string_view filePath, std::string_view alternatePath, uint64_t sizeBytes,
                    Error* error) noexcept {
-	Error beginError = Error::NONE;
-	Sample* sample =
-	    audioFileManager.beginSampleFromCard(std::string{filePath}, std::string{alternatePath}, sizeBytes, &beginError);
-	if (sample == nullptr) {
-		report(error, beginError);
-		return nullptr;
+	Sample* sample = nullptr;
+	try {
+		Error beginError = Error::NONE;
+		sample = audioFileManager.beginSampleFromCard(std::string{filePath}, std::string{alternatePath}, sizeBytes,
+		                                              &beginError);
+		if (sample == nullptr) {
+			report(error, beginError);
+			return nullptr;
+		}
+		auto* build = new SampleBuild{.sample = sample, .sizeBytes = sizeBytes};
+		report(error, Error::NONE);
+		return build;
 	}
-	auto* build = new (std::nothrow) SampleBuild{.sample = sample, .sizeBytes = sizeBytes};
-	if (build == nullptr) {
-		// beginSampleFromCard adopted and reasoned `sample` before this allocation failed. Destroy it the same way
-		// abandon() would, so this doesn't orphan an adopted, reasoned, zero-geometry Sample with no build left to
-		// close it.
-		Error destroyError = Error::INSUFFICIENT_RAM;
-		(void)audioFileManager.finishSampleFromCard(sample, sizeBytes, &destroyError);
+	// Catches EVERYTHING, not just deluge::exception: this repo's own allocators only ever throw
+	// that, but a stray std::length_error out of std::string (or anything else) unwinding out of
+	// this noexcept function is exactly the silent-terminate() outcome this file's hardening exists
+	// to prevent -- a narrower catch would leave that door open.
+	catch (...) {
+		if (sample != nullptr) {
+			// beginSampleFromCard succeeded -- adopting and reasoning `sample` -- before the
+			// allocation that just threw (the SampleBuild itself). Destroy it the same way abandon()
+			// would, so this doesn't orphan an adopted, reasoned, zero-geometry Sample with no build
+			// left to close it. Nested try: if THIS throws too (e.g. another allocation failure while
+			// destroying), there is nothing further to do safely, so swallow it rather than let a
+			// second exception escape this noexcept function.
+			try {
+				Error destroyError = Error::INSUFFICIENT_RAM;
+				(void)audioFileManager.finishSampleFromCard(sample, sizeBytes, &destroyError);
+			} catch (...) {}
+		}
 		report(error, Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
-	report(error, Error::NONE);
-	return build;
 }
 
 bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept {
-	Error resolveError = Error::NONE;
-	AudioLoadContext noLoad;
-	const bool exists =
-	    audioFileManager.resolveAlternateLoadDirStatus((context != nullptr) ? *context : noLoad, &resolveError);
-	report(error, resolveError);
-	return exists;
+	try {
+		Error resolveError = Error::NONE;
+		AudioLoadContext noLoad;
+		const bool exists =
+		    audioFileManager.resolveAlternateLoadDirStatus((context != nullptr) ? *context : noLoad, &resolveError);
+		report(error, resolveError);
+		return exists;
+	} catch (...) {
+		report(error, Error::INSUFFICIENT_RAM);
+		return false;
+	}
 }
 
 uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, char* out,
                     uint32_t maxCandidates) noexcept {
-	std::string proposed[AudioFileManager::kMaxLoadCandidates];
-	const size_t capacity = std::min<size_t>(maxCandidates, AudioFileManager::kMaxLoadCandidates);
-	const AudioLoadContext noLoad;
-	const size_t count = audioFileManager.proposeLoadCandidates((context != nullptr) ? *context : noLoad,
-	                                                            std::string{filePath}, proposed, capacity);
-	const size_t written = std::min(count, capacity);
-	for (size_t i = 0; i < written; i++) {
-		if (proposed[i].size() + 1 > DELUGE_PATH_MAX) {
-			// A candidate too long to fit is a caller-visible failure, not a silent snprintf
-			// truncation the loader would go on to open -- and either miss, or worse, hit a
-			// different real file sitting at the truncated path.
-			return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED;
+	try {
+		std::string proposed[AudioFileManager::kMaxLoadCandidates];
+		const size_t capacity = std::min<size_t>(maxCandidates, AudioFileManager::kMaxLoadCandidates);
+		const AudioLoadContext noLoad;
+		const size_t count = audioFileManager.proposeLoadCandidates((context != nullptr) ? *context : noLoad,
+		                                                            std::string{filePath}, proposed, capacity);
+		const size_t written = std::min(count, capacity);
+		for (size_t i = 0; i < written; i++) {
+			if (proposed[i].size() + 1 > DELUGE_PATH_MAX) {
+				// A candidate too long to fit is a caller-visible failure, not a silent snprintf
+				// truncation the loader would go on to open -- and either miss, or worse, hit a
+				// different real file sitting at the truncated path.
+				return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED;
+			}
+			std::snprintf(out + (i * DELUGE_PATH_MAX), DELUGE_PATH_MAX, "%s", proposed[i].c_str());
 		}
-		std::snprintf(out + (i * DELUGE_PATH_MAX), DELUGE_PATH_MAX, "%s", proposed[i].c_str());
+		return static_cast<uint32_t>(count);
+	} catch (...) {
+		return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED; // `out` is not trustworthy either way.
 	}
-	return static_cast<uint32_t>(count);
 }
 
 uint32_t candidatesKey(const char* candidates, uint32_t numCandidates) noexcept {
@@ -420,10 +443,14 @@ Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {
 	if (live == nullptr) {
 		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
 	}
-	// SampleStream::open_read_stream owns the deluge_sample_stream registry handle (a DIFFERENT
-	// handle space from whatever efatfs handle the loader used to read/parse the header) and its
-	// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
-	return live->sample->stream().open_read_stream(path);
+	try {
+		// SampleStream::open_read_stream owns the deluge_sample_stream registry handle (a DIFFERENT
+		// handle space from whatever efatfs handle the loader used to read/parse the header) and its
+		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
+		return live->sample->stream().open_read_stream(path);
+	} catch (...) {
+		return Error::INSUFFICIENT_RAM;
+	}
 }
 
 Error bindReadStreamAt(SampleBuild* build, const DelugeFileLocation& location) noexcept {
@@ -431,7 +458,11 @@ Error bindReadStreamAt(SampleBuild* build, const DelugeFileLocation& location) n
 	if (live == nullptr) {
 		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
 	}
-	return live->sample->stream().open_read_stream_at(location);
+	try {
+		return live->sample->stream().open_read_stream_at(location);
+	} catch (...) {
+		return Error::INSUFFICIENT_RAM;
+	}
 }
 
 bool applyGeometry(SampleBuild* build, const Geometry& geometry, Error* error) noexcept {
@@ -476,9 +507,16 @@ AudioFile* finish(SampleBuild* build, Error errorIn, Error* error) noexcept {
 	}
 	raw->magic = SampleBuild::kConsumed;     // consumed now -- a later call through this pointer is a caller
 	                                         // bug, not a live build (see validateBuild()).
-	std::unique_ptr<SampleBuild> owned{raw}; // guarantees the build itself is freed on every path below.
+	std::unique_ptr<SampleBuild> owned{raw}; // guarantees the build itself is freed on every path below,
+	                                         // including the exception path.
 	Error outcome = errorIn;
-	AudioFile* published = audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &outcome);
+	AudioFile* published = nullptr;
+	try {
+		published = audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &outcome);
+	} catch (...) {
+		outcome = Error::INSUFFICIENT_RAM;
+		published = nullptr;
+	}
 	report(error, outcome);
 	return published;
 }
@@ -490,8 +528,14 @@ void abandon(SampleBuild* build) noexcept {
 	}
 	raw->magic = SampleBuild::kConsumed;
 	std::unique_ptr<SampleBuild> owned{raw};
-	Error error = Error::FILE_UNREADABLE; // any non-NONE drives finishSampleFromCard's destroy path
-	(void)audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &error);
+	try {
+		Error error = Error::FILE_UNREADABLE; // any non-NONE drives finishSampleFromCard's destroy path
+		(void)audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &error);
+	} catch (...) {
+		// Best-effort: if finishSampleFromCard threw mid-destroy, the Sample's exact state is no
+		// longer knowable from here -- but the build itself is still freed either way (`owned`'s
+		// destructor runs regardless of this catch).
+	}
 }
 
 } // namespace deluge::storage::sample_build

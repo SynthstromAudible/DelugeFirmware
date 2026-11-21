@@ -27,6 +27,7 @@
 #include "plugin-api/types/arp_rhythm.h"
 #include "storage/flash_storage.h"
 #include "synth/matrix/param_format.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/value_scaling.h"
 #include <cstdint>
@@ -98,10 +99,13 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 }
 
 Arpeggiator::Arpeggiator() {
-	// With no room now, the lists grow as notes arrive instead.
-	(void)notes.try_reserve(kArpNotesReserved);
-	(void)notesAsPlayed.try_reserve(kArpNotesReserved);
-	(void)notesByPattern.try_reserve(kArpNotesReserved);
+	try {
+		notes.reserve(kArpNotesReserved);
+		notesAsPlayed.reserve(kArpNotesReserved);
+		notesByPattern.reserve(kArpNotesReserved);
+	} catch (deluge::exception&) {
+		// No room now: the lists grow as notes arrive instead.
+	}
 }
 
 void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {
@@ -314,16 +318,15 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	}
 	// If note does not exist yet in the arrays, we must insert it in both
 	else {
-		// Room in both before inserting in either, so running out of memory cannot leave them out of step: the
-		// note-on is dropped instead.
-		if (!notes.try_reserve(notes.size() + 1) || !notesAsPlayed.try_reserve(notesAsPlayed.size() + 1)) {
-			return;
-		}
 
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		notes.insert(notes.begin() + notes_key, ArpNote{}); // within the room reserved above
+		try {
+			notes.insert(notes.begin() + notes_key, ArpNote{});
+		} catch (deluge::exception&) {
+			return;
+		}
 		arp_note = &notes[notes_key];
 		arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 		arp_note->baseVelocity = originalVelocity;
@@ -343,7 +346,11 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// "PLAYED ORDER" NOTES
 
 		// Insert it at the end of the notesAsPlayed array
-		notesAsPlayed.push_back(ArpJustNoteCode{static_cast<int16_t>(noteCode)}); // within the room reserved above
+		try {
+			notesAsPlayed.push_back(ArpJustNoteCode{static_cast<int16_t>(noteCode)});
+		} catch (deluge::exception&) {
+			return;
+		}
 
 		// "PATTERN" NOTES
 
@@ -1280,13 +1287,15 @@ void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 	// Add again the note codes in the order dictated by the pattern
 	uint32_t notesByPatternIndex;
 	uint32_t numNotes = notes.size();
-	(void)notesByPattern.try_reserve(numNotes); // so the inserts below need not grow it, memory allowing
 	for (uint32_t i = 0; i < numNotes; i++) {
 		notesByPatternIndex = std::min((uint32_t)settings->notePattern[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
 		// insert at the position in the array indicated by the pattern
 		ArpJustNoteCode justNoteCode{notes[i].inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]};
-		(void)notesByPattern.try_insert(notesByPattern.begin() + notesByPatternIndex, justNoteCode); // a note with
-		// no room is left out of the pattern
+		try {
+			notesByPattern.insert(notesByPattern.begin() + notesByPatternIndex, justNoteCode);
+		} catch (deluge::exception&) {
+			continue;
+		}
 	}
 }
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {

@@ -54,6 +54,7 @@
 #include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"
@@ -1563,8 +1564,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-Error AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
-	return deluge::error_of(deluge::project::flattenReverse(doc, reverseDirectionWithLength)); // the DOM kernel
+void AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
+	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // forwards to the DOM kernel
 }
 
 // Wait, surely this should be undoable?
@@ -1573,11 +1574,10 @@ void AutoParam::generateRepeats(deluge::project::DocAutoParam& doc, uint32_t old
 	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // forwards to the DOM kernel
 }
 
-Error AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
-                             int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+void AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
+                            int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 	// Forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
-	return deluge::error_of(
-	    deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally));
+	deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {

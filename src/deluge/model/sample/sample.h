@@ -134,7 +134,7 @@ public:
 	/// Sized at the same hooks a sample's cluster count can change at (initialize, finalize-grow,
 	/// truncate-shrink -- see those call sites). Never grown concurrently with a reader, so no
 	/// `reserve()` pre-sizing is needed.
-	[[nodiscard]] deluge::AllocResult<void> resizeOverviewCache(size_t n) { return overviewCache_.try_resize(n); }
+	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
 
 	// A float sample's native word, Q31, as convert_word gives an integer one's
 	[[nodiscard]] int32_t convertToNative(float value) const { return deluge::dsp::from_float<31>(value).raw(); }
@@ -202,13 +202,13 @@ public:
 	// audio cluster by advanceOverviewScan / resetOverviewScan (clusters aren't known at construction).
 	int32_t overviewScanNextCluster{0};
 
-	deluge::try_fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
+	deluge::fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
 
 	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	// One for each play-direction: 0=forwards; 1=reversed. Sorted ascending by startPos. On the external
 	// (non-stealable) region so that growing a zone list can never steal this sample's own perc-cache clusters,
 	// which would re-enter these arrays mid-modification.
-	deluge::try_vector<SamplePercCacheZone> percCacheZones[2]{};
+	deluge::vector<SamplePercCacheZone> percCacheZones[2]{};
 
 	ComputedChunk** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};

@@ -29,7 +29,6 @@
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
-#include "util/containers.h"
 #include <algorithm>
 #include <vector>
 
@@ -71,47 +70,30 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
 }
 
-bool ParamCollection::forEachLaneAppended(
+void ParamCollection::forEachLaneAppended(
     ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
     int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
     deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	// The keys the repeat changes: those the other collection has nodes to repeat in
-	deluge::try_vector<int32_t> appended;
-	bool outOfMemory = false;
+	std::vector<int32_t> appended;
 	forEachAppendedKey(other, otherSummary, [&](int32_t key) {
-		if (outOfMemory) {
-			return;
-		}
 		const deluge::project::DocAutoParam* src = other.findDocParamForId(key);
 		if (src == nullptr || src->nodes.empty()) {
 			return;
 		}
-		if (!appended.try_push_back(key)) {
-			outOfMemory = true;
-			return;
-		}
+		appended.push_back(key);
 		const deluge::project::DocAutoParam* lane = findDocParamForId(key);
-		auto copy = lane != nullptr ? deluge::project::tryClone(*lane)
-		                            : std::expected<deluge::project::DocAutoParam, deluge::AllocError>{};
-		if (!copy
-		    || !deluge::project::appendParam(*copy, *src, oldLength, reverseThisRepeatWithLength,
-		                                     pingpongingGenerally)) {
-			outOfMemory = true;
-			return;
-		}
-		if (!copy->nodes.empty()) {
-			visit(key, *copy);
+		deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
+		deluge::project::appendParam(copy, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+		if (!copy.nodes.empty()) {
+			visit(key, copy);
 		}
 	});
-	if (outOfMemory) {
-		return false;
-	}
 	forEachLane([&](int32_t key, const deluge::project::DocAutoParam& lane) {
 		if (std::ranges::find(appended, key) == appended.end()) {
 			visit(key, lane);
 		}
 	});
-	return true;
 }
 
 ParamCollection::~ParamCollection() {

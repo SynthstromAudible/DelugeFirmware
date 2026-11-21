@@ -366,8 +366,8 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 } // namespace
 
 namespace AudioEngine {
-bool reserveRetirements(size_t count) {
-	return retireList.reserve(count).has_value();
+void reserveRetirements(size_t count) {
+	retireList.reserve(count);
 }
 
 void retireMemory(void* object, void (*destroy)(void*)) {
@@ -1078,16 +1078,20 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
 /// objects handed to the render are let go of and freed on schedule.
 extern "C" void deluge_app_render_skipped(void) noexcept {
-	// The render's own work, excluded like a rendered block (see deluge_app_render()).
-	AudioExcludedSection render_block;
+	try {
+		// The render's own work, excluded like a rendered block (see deluge_app_render()).
+		AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
-	View::RenderBlockStackWatch stackWatch;
-	deluge::playback::RenderBlockInteractionWatch interactionWatch;
+		View::RenderBlockStackWatch stackWatch;
+		deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
-	renderRetirementStep();
+		renderRetirementStep();
+	} catch (...) {
+		// Nothing to report to: whatever this step did not let go of stays retired, and the next block's step takes it.
+	}
 }
 
-/// The body of deluge_app_render().
+/// The body of deluge_app_render(), which catches whatever it throws.
 static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
 	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
@@ -1258,11 +1262,24 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 }
 
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) noexcept {
-	renderAppBlock(in, out, frames);
+	try {
+		renderAppBlock(in, out, frames);
+	} catch (...) {
+		// The render must not throw (it must not even allocate); if it does, this block is silence rather than an
+		// unwind out of the BSP's render driver. `out` may be NULL (app.h), and then there is no block to silence.
+		if (out != nullptr) {
+			memset(out, 0, frames * sizeof(DelugeStereoSample));
+		}
+	}
 }
 
 extern "C" bool deluge_app_audio_tick() noexcept {
-	return AudioEngine::routine_task();
+	try {
+		return AudioEngine::routine_task();
+	} catch (...) {
+		// routine()'s re-entry guard clears on unwind, so the next tick renders; this one rendered nothing.
+		return false;
+	}
 }
 
 int32_t* getInputBufferStart(AudioInputChannel channel) {
@@ -2207,8 +2224,11 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 VoiceSample* solicitVoiceSample() {
-	auto voiceSample = VoiceSamplePool::get().try_acquire();
-	return voiceSample ? voiceSample->release() : nullptr;
+	try {
+		return VoiceSamplePool::get().acquire().release();
+	} catch (deluge::exception e) {
+		return nullptr;
+	}
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
@@ -2216,8 +2236,11 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 }
 
 TimeStretcher* solicitTimeStretcher() {
-	auto timeStretcher = TimeStretcherPool::get().try_acquire();
-	return timeStretcher ? timeStretcher->release() : nullptr;
+	try {
+		return TimeStretcherPool::get().acquire().release();
+	} catch (deluge::exception e) {
+		return nullptr;
+	}
 }
 
 // There are no destructors. You gotta clean it up before you call this

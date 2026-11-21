@@ -26,6 +26,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/exceptions.h"
 
 #include <algorithm>
 #include <utility>
@@ -166,19 +167,23 @@ void ParamBackup::backUp(BackupOwner owner, const ::Clip* clip, ParamManagerForT
 		return;
 	}
 	const std::optional<uint32_t> clipId = clipIdOf(clip);
-	// A map node or a list node: small, so out of memory for one stops the firmware.
-	ParamManager* slot = nullptr;
-	if (const std::optional<project::OwnerId> id = owner.adopted()) {
-		slot = &map[project::BackedParamKey{*id, clipId}];
+	try {
+		ParamManager* slot = nullptr;
+		if (const std::optional<project::OwnerId> id = owner.adopted()) {
+			slot = &map[project::BackedParamKey{*id, clipId}];
+		}
+		else {
+			auto it = std::ranges::find_if(
+			    pending, [&](const Pending& entry) { return entry.owner.is(owner) && entry.clip_id == clipId; });
+			slot = it != pending.end() ? &it->params : &pending.emplace_back(Pending{owner, clipId, {}}).params;
+		}
+		// One that already existed has its contents destroyed and replaced.
+		slot->destructAndForgetParamCollections();
+		slot->stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
+	} catch (deluge::exception&) {
+		// If RAM error, destroy paramManager
+		paramManager->destructAndForgetParamCollections();
 	}
-	else {
-		auto it = std::ranges::find_if(
-		    pending, [&](const Pending& entry) { return entry.owner.is(owner) && entry.clip_id == clipId; });
-		slot = it != pending.end() ? &it->params : &pending.emplace_back(Pending{owner, clipId, {}}).params;
-	}
-	// One that already existed has its contents destroyed and replaced.
-	slot->destructAndForgetParamCollections();
-	slot->stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
 }
 
 void ParamBackup::deleteFor(BackupOwner owner) {

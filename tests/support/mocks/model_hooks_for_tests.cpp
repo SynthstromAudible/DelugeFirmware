@@ -12,6 +12,10 @@ namespace test {
 HookCounts counts{};
 } // namespace test
 
+[[noreturn]] void model_out_of_memory() {
+	throw std::bad_alloc{};
+}
+
 } // namespace deluge::project
 
 using deluge::project::test::counts;

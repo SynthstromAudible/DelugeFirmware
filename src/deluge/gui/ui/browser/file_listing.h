@@ -161,13 +161,7 @@ public:
 	/// @warning The directory is NOT optional. A listing whose items have no provenance produces
 	///          paths like "/SONG.XML" from every caller that pairs the two, which is a
 	///          file-not-found a long way from its cause -- measured, not imagined.
-	void adopt(std::string dir, deluge::try_vector<FileItem> items);
-
-	/// @brief Make this a copy of @p other. The items are the part that can fail; the strings are small, and out of
-	///        memory for one stops the firmware.
-	/// @param other The listing to copy.
-	/// @return false when there is no memory for the items; this listing is then as it was.
-	[[nodiscard]] bool tryCopyFrom(FileListing const& other);
+	void adopt(std::string dir, deluge::vector<FileItem> items);
 	/// @}
 
 private:
@@ -175,8 +169,8 @@ private:
 	/// global again with extra steps.
 	friend class ::Browser;
 
-	std::string dir_;                    ///< provenance: the folder these items came from
-	deluge::try_vector<FileItem> items_; ///< sorted by displayName per strcmpspecial (see sort())
+	std::string dir_;                ///< provenance: the folder these items came from
+	deluge::vector<FileItem> items_; ///< sorted by displayName per strcmpspecial (see sort())
 
 	/// @name Read parameters, set by @ref beginRead and consumed by @ref sort and @ref cull
 	/// @{

@@ -2007,10 +2007,7 @@ void stagedSnapshotTarget(Song* song) {
 	if (published == nullptr) {
 		return;
 	}
-	const auto lanes = [&](modulation::LaneVisit visit) {
-		collection.forEachLane(visit);
-		return true;
-	};
+	const auto lanes = [&](modulation::LaneVisit visit) { collection.forEachLane(visit); };
 
 	const modulation::LaneSnapshot* same = modulation::buildSnapshot(lanes, published);
 	bool holdsAll = same != nullptr && same->count == published->count && same->count > 0;

@@ -64,6 +64,7 @@
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
 #include "util/const_functions.h"
+#include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/notify.h"
 #include "util/string.h"
@@ -208,15 +209,16 @@ deleteClipAndGetOut:
 		newClip->paramManager.bindMainParamSetDomStores();
 	}
 
-	// Deep copy: each NoteRow's param manager and notes
-	error = newClip->noteRows.cloneFrom(noteRows);
-	if (error != Error::NONE) {
+	try {
+		newClip->noteRows = noteRows; // deep copy-assign (each NoteRow's param manager + notes copied)
+	} catch (deluge::exception&) {
+		error = Error::INSUFFICIENT_RAM;
 		goto deleteClipAndGetOut;
 	}
 
-	// The copied engine rows are unbound (NoteRow::cloneFrom leaves docNoteRow_ as a new row has it, null). Rebuild the
-	// clone's own note-row pool by copying each SOURCE row's DocNoteRow (the authoritative field values) in vector
-	// order, then binding the cloned row to it. A clone's values flow model->model, never through an engine field.
+	// The copied engine rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own note-row
+	// pool by copying each SOURCE row's DocNoteRow (the authoritative field values) in vector order, then binding the
+	// cloned row to it. A clone's values flow model->model, never through an engine field.
 	if (newClip->docClip_ != nullptr && docClip_ != nullptr) {
 		newClip->docClip_->note_rows.clear();
 		for (int32_t n = 0; n < std::ssize(newClip->noteRows); n++) {

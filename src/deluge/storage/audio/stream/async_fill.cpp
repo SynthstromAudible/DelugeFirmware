@@ -74,7 +74,11 @@ static_assert(sizeof(DelugeStreamingFillContext) == 32);
 extern "C" {
 
 DelugeResource* deluge_streaming_resource_manager(void) noexcept {
-	return GeneralMemoryAllocator::get().resourceManager();
+	try {
+		return GeneralMemoryAllocator::get().resourceManager();
+	} catch (...) {
+		return nullptr;
+	}
 }
 
 } // extern "C"

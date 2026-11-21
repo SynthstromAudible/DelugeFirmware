@@ -159,9 +159,7 @@ function(deluge_specs_driver name)
   set(DELUGE_SPEC_DECLARATIONS "${declarations}")
   set(DELUGE_SPEC_ROWS "${rows}")
   configure_file(${DELUGE_SPECS_MAIN_IN} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp @ONLY)
-  # oom_for_tests.cpp: the specs' deluge::oom(), which any code reaching an allocator's infallible path calls.
-  add_executable(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp ${spec_sources} ${arg_SOURCES}
-    ${DELUGE_REPO_ROOT}/tests/support/mocks/oom_for_tests.cpp)
+  add_executable(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp ${spec_sources} ${arg_SOURCES})
   # Every spec compiles at the standard the firmware's libraries build at, and checks the standard library's
   # preconditions (span and container bounds among them), so a read past an end fails the spec rather than going unseen
   # at the trees' optimisation levels.

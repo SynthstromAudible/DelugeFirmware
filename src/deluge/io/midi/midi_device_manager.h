@@ -118,7 +118,7 @@ extern MIDICableDINPorts dinMIDIPorts;
 extern bool differentiatingInputsByDevice;
 
 /// Hosted USB MIDI cables, sorted case-insensitively by name (may contain entries with empty names, which sort first)
-extern deluge::try_fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
+extern deluge::fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
 
 extern uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
 extern uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput;

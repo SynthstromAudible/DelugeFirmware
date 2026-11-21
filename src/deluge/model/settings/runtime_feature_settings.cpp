@@ -315,8 +315,11 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 
 			// Remember unknown settings for writing them back
 			if (!found) {
-				// A handful of entries, each with a name string: small, so out of memory here stops the firmware
-				unknownSettings.push_back(UnknownSetting{currentName, static_cast<uint32_t>(currentValue)});
+				try {
+					unknownSettings.push_back(UnknownSetting{currentName, static_cast<uint32_t>(currentValue)});
+				} catch (deluge::exception&) {
+					return;
+				}
 			}
 		}
 		reader.exitTag(currentTag);

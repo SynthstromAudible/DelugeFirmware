@@ -102,16 +102,33 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 		// calls requestAt() on itself (a UI timer deadline, a back-off, a watchdog) sets its next
 		// run rather than having it overwritten below.
 		job.nextDue = kNever;
-		job.body();
+		bool threw = false;
+		try {
+			job.body();
+		} catch (...) {
+			// A job that throws still counts as run: catching here, rather than at
+			// deluge_app_service, lets the gap and stats below advance as normal, so this job is
+			// retried no sooner than any other run would be and the jobs after it still run this
+			// pass. Left uncaught, the throw would unwind out of service() with the job never
+			// marked as run, so the same call would be retried at once and nothing after it in the
+			// pass would get a turn.
+			++job.failures;
+			threw = true;
+		}
 		now = clock_();
 		const Micros ran = now - start;
 		job.lastRun = ran;
 		job.maxRun = std::max(job.maxRun, ran);
 		++job.runs;
 		// A gapped job is due again by its gap at the latest, but a self-request for an earlier
-		// time (above) still wins. A timerless job keeps whatever the body asked for, or kNever.
+		// time (above) still wins. A timerless job keeps whatever the body asked for, or kNever --
+		// unless the body threw before it could ask for anything, in which case it gets kThrowRetryUs
+		// instead of being left with no run ever requested again.
 		if (job.gap != kNever) {
 			job.nextDue = std::min(job.nextDue, now + job.gap);
+		}
+		else if (threw) {
+			job.nextDue = std::min(job.nextDue, now + kThrowRetryUs);
 		}
 		cursor_ = i + 1;
 		return now;
@@ -140,13 +157,14 @@ JobStats Loop::stats(JobId id) const {
 		return {};
 	}
 	const Job& job = jobs_[id];
-	return {job.name, job.maxRun, job.lastRun, job.runs};
+	return {job.name, job.maxRun, job.lastRun, job.runs, job.failures};
 }
 
 void Loop::resetStats() {
 	for (size_t i = 0; i < count_; ++i) {
 		jobs_[i].maxRun = 0;
 		jobs_[i].runs = 0;
+		jobs_[i].failures = 0;
 	}
 }
 

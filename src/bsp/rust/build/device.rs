@@ -228,8 +228,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
 }
 
 /// Re-adds the C and C++ runtime the app needs, which rustc's `-nodefaultlibs` drops, grouped
-/// for their circular references. Nothing unwinds: the C++ builds with -fno-exceptions, Rust aborts on panic, and
-/// libstdc++'s exception runtime is kept out by src/deluge/memory/std_throw_shims.cpp.
+/// for their circular references. rza1-rt's `link.x` keeps `.ARM.exidx`, so C++ unwinding works.
 fn emit_runtime_link_args() {
     println!("cargo:rustc-link-arg=-Wl,--start-group");
     for l in ["-lstdc++", "-lsupc++", "-lc", "-lm", "-lgcc", "-lnosys"] {

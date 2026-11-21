@@ -52,6 +52,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
@@ -77,39 +78,35 @@ NoteRow::NoteRow(int16_t newY) {
 	exportStem = false;
 }
 
-NoteRow::NoteRow(ForClone /*tag*/) : ignoreNoteOnsBefore_(0) {
-	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — a clone owns no drum-name list.
-}
-
-// Deep copy. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
+// Deep-copy ctor. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
 //  - value/POD members: copied directly
-//  - notes: a fallible NoteVector deep copy
-//  - paramManager: deep-cloned through the clone()-dispatched path (fallible)
+//  - paramManager: default-constructed then deep-cloned through the clone()-dispatched path (fallible → throw)
+//  - notes: NoteVector deep copy (may throw)
 //  - drum: pointer shared by design (the clone points at the same Drum)
 //  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
-//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, left as a new row has them
-Error NoteRow::cloneFrom(NoteRow const& other) {
-	y_ = other.y_;
-	muted_ = other.muted_;
-	mutedBeforeStemExport = other.mutedBeforeStemExport;
-	exportStem = other.exportStem;
-	loopLengthIfIndependent_ = other.loopLengthIfIndependent_;
-	lastProcessedPosIfIndependent = other.lastProcessedPosIfIndependent;
-	repeatCountIfIndependent = other.repeatCountIfIndependent;
-	currentlyPlayingReversedIfIndependent = other.currentlyPlayingReversedIfIndependent;
-	sequenceDirectionMode_ = other.sequenceDirectionMode_;
-	drum = other.drum;
-	probabilityValue = other.probabilityValue;
-	iteranceValue = other.iteranceValue;
-	fillValue = other.fillValue;
-	muteMIDICommand = other.muteMIDICommand;
-	midiInput = other.midiInput;
-	colourOffset_ = other.colourOffset_;
-	sequenced = other.sequenced;
-	if (!notes.tryAssign(other.notes)) {
-		return Error::INSUFFICIENT_RAM;
+//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
+NoteRow::NoteRow(NoteRow const& other)
+    : y_(other.y_), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
+      exportStem(other.exportStem), loopLengthIfIndependent_(other.loopLengthIfIndependent_),
+      lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
+      repeatCountIfIndependent(other.repeatCountIfIndependent),
+      currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
+      sequenceDirectionMode_(other.sequenceDirectionMode_), drum(other.drum), notes(other.notes),
+      probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
+      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset_(other.colourOffset_),
+      sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
+	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — clones own no drum-name list.
+	// Deep-clone the automation/param collections through the clone()-dispatched path.
+	Error error = paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
+	if (error != Error::NONE) {
+		throw deluge::exception::BAD_ALLOC;
 	}
-	return paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
+}
+
+NoteRow& NoteRow::operator=(NoteRow const& other) {
+	NoteRow tmp(other);     // deep copy (may throw)
+	*this = std::move(tmp); // defaulted move-assign frees this row's old resources
+	return *this;
 }
 
 NoteRow::~NoteRow() {
@@ -136,8 +133,8 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 
 // Post-clone flatten of a reversed sequence. The row was already deep-copied (copy ctor) reverse-agnostically;
 // here we reverse the notes + automation in place (only if this row effectively plays reversed) and collapse
-// the direction mode to OBEY_PARENT. The notes are rebuilt reversed into a fresh buffer that replaces them only once
-// it is whole, so running out of memory leaves the row as it was.
+// the direction mode to OBEY_PARENT. Owned-move semantics: the notes are
+// moved out and rebuilt reversed (no aliasing).
 Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 	int32_t effectiveLength = modelStack->getLoopLength();
 	int32_t numNotes = std::ssize(notes);
@@ -147,16 +144,17 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 
 	if (flatteningReversingNow) {
 		// Reverse the automation (nodes were copied reverse-agnostically by the copy ctor).
-		if (Error automation = paramManager.flattenReverseAutomation(effectiveLength); automation != Error::NONE) {
-			return automation;
+		try {
+			paramManager.flattenReverseAutomation(effectiveLength);
+		} catch (deluge::exception&) {
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		if (numNotes) {
-			// Rebuild the notes reversed into a fresh buffer, handed over only once it is whole: if there is no memory
-			// for it, the notes are as they were.
-			NoteVector& oldNotes = notes; // read only
-			NoteVector reversed;
-			error = deluge::error_of(reversed.insertAt(0, numNotes));
+			// Move the owned notes out, then rebuild them reversed into a fresh buffer.
+			NoteVector oldNotes = std::move(notes);
+			notes.clear();
+			error = deluge::error_of(notes.insertAt(0, numNotes));
 			if (error == Error::NONE) {
 
 				InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -171,7 +169,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
 						if (finalNoteOvershoot > 0) {
 							numNotesBesidesWrapping--;
-							Note* newNote = &reversed[numNotesBesidesWrapping];
+							Note* newNote = &notes[numNotesBesidesWrapping];
 							newNote->pos = effectiveLength - finalNoteOvershoot;
 							newNote->setLength(oldNote->getLength());
 							newNote->setProbability(oldNote->getProbability());
@@ -186,7 +184,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
 
 						Note* oldNote = &oldNotes[iOld];
-						Note* newNote = &reversed[iNew];
+						Note* newNote = &notes[iNew];
 
 						int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
 						newNote->pos = newPos;
@@ -211,7 +209,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 							iNew += numNotes;
 						}
 						Note* oldNote = &oldNotes[iOld];
-						Note* newNote = &reversed[iNew];
+						Note* newNote = &notes[iNew];
 
 						int32_t newPos = -oldNote->pos;
 						if (newPos < 0) {
@@ -226,8 +224,8 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						newNote->setFill(oldNote->getFill());
 					}
 				}
-				notes = std::move(reversed); // the old notes are freed with the moved-from buffer
 			}
+			// oldNotes owns a real deep copy now and frees it on destruction.
 		}
 	}
 

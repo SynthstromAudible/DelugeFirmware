@@ -119,9 +119,8 @@ void appendRepeat(uint32_t repeat, int32_t offset, ManagerWalk walk) {
 					    return;
 				    }
 				    if (project::DocAutoParam* lane = collection.laneToAppendTo(key)) {
-					    // Out of memory leaves this lane without the repeat (and as it was)
-					    (void)project::appendParam(*lane, *src, args.offset, args.reverseThisRepeatWithLength,
-					                               args.pingpongingGenerally);
+					    project::appendParam(*lane, *src, args.offset, args.reverseThisRepeatWithLength,
+					                         args.pingpongingGenerally);
 				    }
 			    });
 			    markLanesChanged(collection);
@@ -216,15 +215,19 @@ void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
 			         if (!rebuild && LanePublication::stagedAgainst(collection, sourcePublications)) {
 				         return;
 			         }
-			         // Out of memory leaves it unstaged: the loop end counts the repeat as missed
-			         const bool staged = LanePublication::stage(
-			             collection,
-			             [&](LaneVisit visit) {
-				             return collection.forEachLaneAppended(other, otherSummary, args.offset,
-				                                                   args.reverseThisRepeatWithLength,
-				                                                   args.pingpongingGenerally, visit);
-			             },
-			             sourcePublications);
+			         bool staged = false;
+			         try {
+				         staged = LanePublication::stage(
+				             collection,
+				             [&](LaneVisit visit) {
+					             collection.forEachLaneAppended(other, otherSummary, args.offset,
+					                                            args.reverseThisRepeatWithLength,
+					                                            args.pingpongingGenerally, visit);
+				             },
+				             sourcePublications);
+			         } catch (...) {
+				         // out of memory: the loop end counts the repeat as missed
+			         }
 			         all = all && staged;
 		         });
 	     });
