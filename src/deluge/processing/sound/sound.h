@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
@@ -57,7 +58,20 @@ namespace deluge::project {
 struct ArpRecord;
 }
 
-class SoundVoice;
+namespace deluge::dsp::fixed {
+class Cong;
+} // namespace deluge::dsp::fixed
+
+namespace deluge::synth {
+struct BlockValues;
+struct NoteSetup;
+struct NoteOnEvent;
+struct ReleaseInfo;
+struct VoiceBlock;
+struct VoiceRenderArgs;
+} // namespace deluge::synth
+
+struct SoundVoice;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -123,6 +137,9 @@ struct SoundVoiceHost {
 	using List = deluge::fast_vector<SoundVoice*>;
 	using Exclusion = AudioExcludedSection;
 	using Context = ModelStackWithSoundFlags*;
+	using Config = deluge::synth::SoundConfig;
+	using Event = deluge::synth::NoteOnEvent;
+	using Noise = deluge::dsp::fixed::Cong;
 
 	Sound* sound; ///< The sound whose voices these are
 
@@ -130,19 +147,54 @@ struct SoundVoiceHost {
 	/// @return It, or null when the pool has no memory.
 	[[nodiscard]] SoundVoice* acquire() const;
 	/// @brief Frees @p voice's resources while it is still listed, its sound's skipping reassessed with @p modelStack.
-	static void unassign(SoundVoice& voice, Context modelStack);
-	/// @brief Destroys @p voice and returns its memory to the engine's pool.
-	static void release(SoundVoice& voice) noexcept;
-	/// @brief Admits a voice costing @p cycles per block, which may cull another sound's voice.
-	static void admit(uint32_t cycles);
+	void unassign(SoundVoice& voice, Context modelStack) const;
+	/// @brief Frees @p voice's resources once more, destroys it and returns its memory to the engine's pool.
+	void release(SoundVoice& voice) const noexcept;
+	/// @brief Rebuilds @p voice in place for a steal: its resources freed once more, then built and bound afresh.
+	void renew(SoundVoice& voice) const noexcept;
+	/// @brief Admits a new voice at the sound's predicted cost per block, plus @p cycles (its note-on's) when the
+	/// note-on ran in the render, against the block it ran in; elsewhere the render may have preempted it, and its
+	/// reading would hold whole blocks. May cull another sound's voice.
+	void admit(uint32_t cycles) const;
 	/// @brief A voice of the sound is about to start: its sidechain hit.
 	void voice_starting() const;
-	/// @brief After an edit of the sound's voices: its skipping reassess.
-	void voices_changed() const;
+	/// @brief After an edit of the sound's voices: its skipping reassess, with @p modelStack (or null).
+	void voices_changed(Context modelStack) const;
 	/// @brief The structural-edit probe's note of a voices edit.
 	static void note_edit();
 	/// @brief The engine's voice clock.
 	static deluge::synth::VoiceClock clock();
+
+	// --- The note path (synth::note_host)
+	/// @brief A note-on's setup for @p voice: what the kernel reads of the sound, and the samples' ports bound to the
+	/// note's files through the voice's guides.
+	[[nodiscard]] deluge::synth::NoteSetup prepare(SoundVoice& voice, Context modelStack, const Event& event,
+	                                               uint32_t sampleSyncLength, int32_t ticksLate) const;
+	/// @brief A note change's setup for @p voice, moving to @p note with the files it plays kept.
+	[[nodiscard]] deluge::synth::NoteSetup prepare_change(SoundVoice& voice, Context modelStack, int32_t note) const;
+	/// @brief The next note's order, counted across every sound's voices.
+	static uint32_t next_voice_order();
+	/// @brief The CPU's cycle counter.
+	static uint32_t cycles();
+	/// @brief After @p voice's note-on: the parameter dump's note and plane.
+	void note_started(SoundVoice& voice) const;
+	/// @brief The synth's one noise stream.
+	static Noise& noise();
+	/// @brief The voice limit's steal fade: a 128-sample (~2.9 ms) fade, as a faster one reads as a pop on sustained
+	/// material when a low voice limit makes every note-on steal.
+	static uint32_t steal_increment();
+	/// @brief A note-off's release for @p voice, whose files are marked as let go.
+	[[nodiscard]] deluge::synth::ReleaseInfo prepare_release(SoundVoice& voice, Context modelStack,
+	                                                         bool noteTailsAllowed) const;
+	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
+	void note_released(SoundVoice& voice) const;
+	/// @brief A LEGATO fall-back's note, which the next glide starts from.
+	void last_note(int32_t note) const;
+	/// @brief Runs @p fn, a note-on answering whether it started, inside the stream bench's note-on bracket.
+	template <class Fn>
+	static bool timed(Fn&& fn) {
+		return deluge::bench::render_profile::timed_note_on(std::forward<Fn>(fn));
+	}
 };
 
 class Sound : public ModControllable, public virtual Voiced {
@@ -509,6 +561,9 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 protected:
+	/// @brief An immediate expression change on @p voice: @p voiceLevelValue for dimension @p s, beside the sound's
+	/// monophonic value.
+	void voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s);
 	/// @brief The sound's voices, for its kinds to change in place through the pool.
 	/// @return The pool.
 	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return voicePool_; }
@@ -516,14 +571,41 @@ protected:
 private:
 	friend struct SoundVoiceHost;
 
-	/// @brief Get the voice with the lowest priority
-	/// @return The voice with the lowest priority
-	[[nodiscard]] SoundVoice* getLowestPriorityVoice() const;
+	/// @brief What a note-on or note-off reads of this sound beside its voices, read once.
+	/// @param modelStack The note's model stack.
+	/// @return The facts.
+	[[nodiscard]] deluge::synth::NoteFacts noteFacts(ModelStackWithSoundFlags* modelStack);
 
-	/// @brief Frees @p voice: its resources while it is still listed, then its slot, released before the list shrinks.
-	/// @param voice The voice, one of this sound's.
-	/// @param modelStack The model stack its sound's skipping reassess may need, or null.
-	void freeActiveVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack = nullptr);
+	// --- A voice's lifecycle, reading this sound (sound_voices.cpp)
+	/// @brief Binds a new voice's source slots to its ports and to this sound's live inputs.
+	void bindVoice(SoundVoice& voice);
+	/// @brief Frees @p voice's sources and marks it for the render's sweep, then reassesses the skipping status.
+	/// @param modelStack The model stack for the reassess, or null (a song swap has none).
+	void unassignVoice(SoundVoice& voice, ModelStackWithSoundFlags* modelStack);
+	/// @brief The voice's rating in the cull order (higher is culled sooner), for this sound as it is now.
+	[[nodiscard]] uint32_t voiceRating(const SoundVoice& voice) const;
+	/// @brief Recomputes @p voice's phase increments for its note.
+	void calculateVoicePhaseIncrements(SoundVoice& voice, ModelStackWithSoundFlags& flags);
+	/// @brief Marks @p voice's files as let go and builds its note-off's release.
+	[[nodiscard]] deluge::synth::ReleaseInfo
+	prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
+	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
+	void voiceReleased();
+	/// @brief Releases @p voice's note.
+	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
+	/// @brief Source @p s's sample zone moved under @p voice's note.
+	/// @return False if the voice must be unassigned now.
+	bool voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
+	/// @brief Renders one block of @p voice.
+	/// @return False once it has ended and must be unassigned.
+	bool renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                 const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
+	                 const deluge::synth::VoiceRenderArgs& args);
+	/// @brief What differs between this sound's voices for @p voice's render.
+	[[nodiscard]] deluge::synth::VoiceBlock voiceBlock(const SoundVoice& voice) const;
+	/// @brief @p voice's sources as this block left them, to the parameter dump (a host render's only).
+	void dumpVoiceSources(const SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                      const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg) const;
 
 	/// @brief Its voices' measured cost per 128-frame block: written by the render, read by a note-on with the render
 	/// excluded.
@@ -574,15 +656,4 @@ private:
 	deluge::instrument::VoicePool<SoundVoiceHost> voicePool_{voiceHost_};
 
 	static void noteVoicesEdit();
-
-	/// @brief Re-trigger a voice already in voicePool_ (a MONO/LEGATO reuse, or a stolen voice), which may still be
-	///        sounding: its envelopes resume from where they are. The caller excludes the render (or is the render
-	///        itself).
-	void retriggerVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
-	                    int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
-	                    int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel);
-
-	/// @brief Steals a currently-in-use voice for use by another note
-	/// @return The stolen voice
-	SoundVoice* stealOneActiveVoice();
 };

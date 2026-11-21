@@ -63,7 +63,7 @@
 #include "model/instrument/kit.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable_set.h"

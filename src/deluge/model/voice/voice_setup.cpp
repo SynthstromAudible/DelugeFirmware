@@ -18,7 +18,7 @@
 #include "model/voice/voice_setup.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -42,7 +42,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		// becomes the guide's, so a voice source with a range always has a file.
 		bool ringModFails = false;
 		for (int32_t s = 0; s < kNumSources; s++) {
-			VoiceSamplePlaybackGuide& guide = voice.guides[s];
+			VoiceSamplePlaybackGuide& guide = voice.part.guides[s];
 			const SourceResources& source = sound.sourceResources[s];
 			guide.audioFileHolder = nullptr;
 			bool playable = flags.checkSourceEverActive(s);
@@ -77,10 +77,10 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		// A sample plays the way the sound reverses it for this note, between the bounds that sets.
 		for (int32_t s = 0; s < kNumSources && !ringModFails; s++) {
 			SourceResources& source = sound.sourceResources[s];
-			if (synthMode != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE && voice.guides[s].audioFileHolder
-			    && flags.checkSourceEverActive(s)) {
+			if (synthMode != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE
+			    && voice.part.guides[s].audioFileHolder && flags.checkSourceEverActive(s)) {
 				source.invertReversed = sound.invertReversed;
-				voice.guides[s].setupPlaybackBounds(sound.playsReversed(s));
+				voice.part.guides[s].setupPlaybackBounds(sound.playsReversed(s));
 			}
 		}
 
@@ -106,7 +106,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		out.ever_active = flags.checkSourceEverActive(s);
 		// Not a wavetable's file: a wavetable plays at the source's own pitch
 		const auto* sampleHolder = sound.oscType(s) == OscType::SAMPLE
-		                               ? static_cast<const SampleHolderForVoice*>(voice.guides[s].audioFileHolder)
+		                               ? static_cast<const SampleHolderForVoice*>(voice.part.guides[s].audioFileHolder)
 		                               : nullptr;
 		const deluge::synth::SourceConfig& settings = sound.config().sources[s];
 		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : settings.transpose;

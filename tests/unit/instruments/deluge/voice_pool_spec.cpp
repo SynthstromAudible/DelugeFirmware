@@ -1,6 +1,7 @@
 #include "instruments/deluge/voice_pool.h"
 #include "support/fake_voice_host.h"
 
+#include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <optional>
@@ -11,10 +12,57 @@ using namespace deluge::instrument;
 using namespace deluge::instrument::test;
 using deluge::plugin::VoicePriority;
 using deluge::synth::CullKind;
+using deluge::synth::NoteFacts;
+using Log = std::vector<std::string>;
 
 namespace {
 
 constexpr VoicePriority kPriority = VoicePriority::MEDIUM;
+constexpr int32_t kContext = 7;
+constexpr std::array<int16_t, 3> kMpe{};
+
+/// A note-on of @p note, before and after the arpeggiator, on channel 3.
+FakeEvent event(int32_t note, int32_t before = -1) {
+	return {.note_before_arp = before < 0 ? note : before, .note_after_arp = note, .midi_channel = 3, .mpe = kMpe};
+}
+
+/// A config in @p mode.
+FakeConfig config(PolyphonyMode mode) {
+	FakeConfig config;
+	config.voicing.polyphony = mode;
+	return config;
+}
+
+/// Facts with note tails allowed and source 0 active.
+NoteFacts tails() {
+	return {.note_tails_allowed = true, .source_active_now = {true, false}};
+}
+
+/// Sets voice i of @p rig to play @p notes[i].
+void play(Rig& rig, const std::vector<int32_t>& notes) {
+	rig.pool.for_each([&](FakeHost::Slot& slot) { slot.kernel.note = notes[static_cast<size_t>(slot.part)]; });
+}
+
+/// The held note 64, on channel 2.
+std::optional<VoicePool<FakeHost>::HeldNote> held() {
+	return VoicePool<FakeHost>::HeldNote{.note = 64, .midi_channel = 2, .mpe = kMpe};
+}
+
+/// Facts with note tails allowed, falling back.
+NoteFacts fallingBack() {
+	return {.note_tails_allowed = true, .falls_back = true};
+}
+
+/// The last release asked of voice @p id.
+std::string lastRelease(Rig& rig, int32_t id) {
+	std::string kind;
+	rig.pool.for_each([&](FakeHost::Slot& slot) {
+		if (slot.part == id) {
+			kind = slot.kernel.last_release;
+		}
+	});
+	return kind;
+}
 
 } // namespace
 
@@ -170,6 +218,190 @@ describe voice_pool("a sound's voices", ${
 			return FakeHost::Exclusion::depth == 1 ? voices.size() : size_t{0};
 		});
 		expect(seen).to_equal(size_t{2});
+	});
+
+	it("starts a POLY note on a new voice outside any exclusion, then admits and publishes it", _{
+		Rig rig;
+		expect(rig.pool.note_on(config(PolyphonyMode::POLY), NoteFacts{}, event(60), 0, 0, kContext)).to_equal(true);
+		expect(rig.host.log).to_equal(Log{"acquire 0", "randomize", "starting", "cycles", "timed", "order 0",
+		                                  "prepare 0 note 60", "note_on 60 reset 1 count 0", "started 0", "cycles",
+		                                  "admit 5", "edit depth 2", "changed ctx 7"});
+		expect(rig.host.prepared_depth).to_equal(0);
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0});
+	});
+
+	it("fast-releases the highest voice at the voice limit instead of admitting", _{
+		Rig rig({5, 9});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.releases_to_stop = 2; });
+		FakeConfig limited = config(PolyphonyMode::POLY);
+		limited.voicing.max_voices = 2;
+		rig.pool.note_on(limited, NoteFacts{}, event(60), 0, 0, kContext);
+		expect(rig.host.log).to_equal(Log{"acquire 2", "randomize", "starting", "cycles", "timed", "order 0",
+		                                  "prepare 2 note 60", "note_on 60 reset 1 count 2", "started 2", "cycles",
+		                                  "edit depth 2", "changed ctx 7"});
+		expect(lastRelease(rig, 1)).to_equal(std::string{"fast 128"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 1, 2});
+	});
+
+	it("releases a new voice whose note fails, never listing it", _{
+		Rig rig;
+		rig.host.starts = false;
+		expect(rig.pool.note_on(config(PolyphonyMode::POLY), NoteFacts{}, event(60), 0, 0, kContext)).to_equal(true);
+		expect(rig.host.log).to_equal(Log{"acquire 0", "randomize", "starting", "cycles", "timed", "order 0",
+		                                  "prepare 0 note 60", "note_on 60 reset 1 count 0", "started 0", "cycles",
+		                                  "release 0 listed 0"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{});
+	});
+
+	it("with no memory restarts the sound's highest voice in place, or answers that the note cannot sound", _{
+		Rig rig({5, 9});
+		rig.host.acquire_fails = true;
+		expect(rig.pool.note_on(config(PolyphonyMode::POLY), NoteFacts{}, event(64), 0, 0, kContext)).to_equal(true);
+		expect(rig.host.log).to_equal(Log{"acquire none", "unassign 1 listed 2", "renew 1 listed 2", "changed ctx 7",
+		                                  "randomize", "starting", "timed", "order 0", "prepare 1 note 64",
+		                                  "note_on 64 reset 1 count 2", "started 1"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 1});
+
+		Rig none;
+		none.host.acquire_fails = true;
+		expect(none.pool.note_on(config(PolyphonyMode::POLY), NoteFacts{}, event(64), 0, 0, kContext)).to_equal(false);
+		expect(none.host.log).to_equal(Log{"acquire none"});
+	});
+
+	it("reuses a MONO sound's voice a fast release ends, discarding the rest, and resumes its envelopes", _{
+		Rig rig({5, 6});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.levels = {3, 4}; });
+		rig.pool.note_on(config(PolyphonyMode::MONO), tails(), event(60), 0, 0, kContext);
+		expect(rig.host.log).to_equal(Log{"unassign_sources 1 0", "unassign 1 listed 2 ctx 7", "edit depth 2",
+		                                  "release 1 listed 1", "starting", "timed", "order 0", "prepare 0 note 60",
+		                                  "note_on 60 reset 0 count 1", "started 0", "resume 3 4"});
+		expect(lastRelease(rig, 0)).to_equal(std::string{"fast 128"});
+		expect(rig.host.prepared_depth).to_equal(1);
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0});
+	});
+
+	it("asks no fast release of a MONO voice when an active source is not a sample, or it is fast-releasing", _{
+		Rig synth({5});
+		FakeConfig saw = config(PolyphonyMode::MONO);
+		saw.sources[0].osc_type = OscType::SAW;
+		synth.pool.note_on(saw, tails(), event(60), 0, 0, kContext);
+		expect(lastRelease(synth, 0)).to_equal(std::string{});
+		expect(synth.host.log.front()).to_equal(std::string{"unassign_sources 1 0"});
+
+		Rig fading({5});
+		fading.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.in_fast_release = true; });
+		fading.pool.note_on(config(PolyphonyMode::MONO), tails(), event(60), 0, 0, kContext);
+		expect(lastRelease(fading, 0)).to_equal(std::string{});
+		expect(fading.host.log.front()).to_equal(std::string{"acquire 1"});
+		expect(fading.ids()).to_equal(std::vector<int32_t>{0, 1});
+	});
+
+	it("frees a reused voice whose note fails, while it is still listed", _{
+		Rig rig({5});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.starts = false; });
+		rig.pool.note_on(config(PolyphonyMode::MONO), tails(), event(60), 0, 0, kContext);
+		expect(rig.host.log).to_equal(Log{"unassign_sources 1 0", "starting", "timed", "order 0", "prepare 0 note 60",
+		                                  "note_on 60 reset 0 count 1", "started 0", "unassign 0 listed 1 ctx 7",
+		                                  "edit depth 2", "release 0 listed 1"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{});
+	});
+
+	it("glides a LEGATO sound's first voice not releasing when note tails are allowed, and nothing else", _{
+		Rig rig({5, 6});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.in_release = slot.part == 0; });
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.releases_to_stop = 2; });
+		expect(rig.pool.note_on(config(PolyphonyMode::LEGATO), tails(), event(62, 61), 0, 0, kContext))
+		    .to_equal(true);
+		expect(rig.host.log).to_equal(Log{"prepare_change 1 note 62", "change 62 61 62 ch 3"});
+		expect(lastRelease(rig, 0)).to_equal(std::string{"fast 128"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 1});
+	});
+
+	it("frees a stolen voice whose note fails, while it is still listed", _{
+		Rig rig({5, 9});
+		rig.host.acquire_fails = true;
+		rig.host.starts = false;
+		rig.pool.note_on(config(PolyphonyMode::POLY), NoteFacts{}, event(64), 0, 0, kContext);
+		expect(rig.host.log).to_equal(Log{"acquire none", "unassign 1 listed 2", "renew 1 listed 2", "changed ctx 7",
+		                                  "randomize", "starting", "timed", "order 0", "prepare 1 note 64",
+		                                  "note_on 64 reset 1 count 2", "started 1", "unassign 1 listed 2 ctx 7",
+		                                  "edit depth 2", "release 1 listed 2"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0});
+	});
+
+	it("reuses rather than glides a LEGATO sound's voice when note tails are not allowed", _{
+		Rig rig({5});
+		const NoteFacts noTails{.source_active_now = {true, false}};
+		rig.pool.note_on(config(PolyphonyMode::LEGATO), noTails, event(60), 0, 0, kContext);
+		expect(rig.host.log.front()).to_equal(std::string{"unassign_sources 1 0"});
+		expect(rig.host.log.back()).to_equal(std::string{"resume 0 0"});
+	});
+
+	it("starts a MONO note on a new voice under the walk's exclusion when no voice is free to reuse", _{
+		Rig rig({5});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.releases_to_stop = 2; });
+		rig.pool.note_on(config(PolyphonyMode::MONO), tails(), event(60), 0, 0, kContext);
+		expect(rig.host.prepared_depth).to_equal(1);
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 1});
+	});
+
+	it("releases each voice playing the note and not yet releasing, leaving the rest", _{
+		Rig rig({1, 2, 3});
+		play(rig, {60, 62, 60});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.in_release = slot.part == 2; });
+		const auto start = rig.pool.note_off(config(PolyphonyMode::POLY), NoteFacts{}, 60, false, std::nullopt,
+		                                     kContext);
+		expect(start.has_value()).to_equal(false);
+		expect(rig.host.log).to_equal(Log{"prepare_release 0", "note_off tails 0 stage 1", "released 0"});
+		expect(rig.host.released_depth).to_equal(1);
+	});
+
+	it("matches every voice for all notes", _{
+		Rig rig({1, 2});
+		play(rig, {60, 62});
+		rig.pool.note_off(config(PolyphonyMode::POLY), tails(), 0, true, std::nullopt, kContext);
+		expect(rig.host.log).to_equal(Log{"prepare_release 0", "note_off tails 1 stage 1", "released 0",
+		                                  "prepare_release 1", "note_off tails 1 stage 1", "released 1"});
+	});
+
+	it("glides a LEGATO sound's voice to the held note, going on to the rest", _{
+		Rig rig({1, 2});
+		play(rig, {60, 60});
+		const auto start = rig.pool.note_off(config(PolyphonyMode::LEGATO), fallingBack(), 60, false, held(), kContext);
+		expect(start.has_value()).to_equal(false);
+		expect(rig.host.log).to_equal(Log{"prepare_change 0 note 64", "change 64 64 64 ch 2", "last_note 64",
+		                                  "prepare_change 1 note 64", "change 64 64 64 ch 2", "last_note 64"});
+	});
+
+	it("hands a MONO sound's held note back to start as a note-on, releasing nothing", _{
+		Rig rig({1});
+		play(rig, {60});
+		const auto start = rig.pool.note_off(config(PolyphonyMode::MONO), fallingBack(), 60, false, held(), kContext);
+		expect(start.has_value()).to_equal(true);
+		expect(start->note).to_equal(64);
+		expect(rig.host.log).to_equal(Log{});
+
+		Rig past({1, 2, 3});
+		play(past, {62, 60, 60});
+		past.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.in_release = slot.part == 1; });
+		const auto again =
+		    past.pool.note_off(config(PolyphonyMode::MONO), fallingBack(), 60, false, held(), kContext);
+		expect(again.has_value()).to_equal(true);
+		expect(past.host.log).to_equal(Log{});
+	});
+
+	it("releases instead of falling back with no held note, or when arpeggiating", _{
+		Rig none({1});
+		play(none, {60});
+		none.pool.note_off(config(PolyphonyMode::MONO), fallingBack(), 60, false, std::nullopt, kContext);
+		expect(none.host.log).to_equal(Log{"prepare_release 0", "note_off tails 1 stage 1", "released 0"});
+
+		Rig arp({1});
+		play(arp, {60});
+		NoteFacts arpeggiating = fallingBack();
+		arpeggiating.arpeggiating = true;
+		arp.pool.note_off(config(PolyphonyMode::MONO), arpeggiating, 60, false, held(), kContext);
+		expect(arp.host.log).to_equal(Log{"prepare_release 0", "note_off tails 1 stage 1", "released 0"});
 	});
 });
 // clang-format on

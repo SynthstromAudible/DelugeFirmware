@@ -44,7 +44,7 @@ class Instrument;
 class Sound;
 class ParamManagerForTimeline;
 class SampleRecorder;
-class SoundVoice;
+struct SoundVoice;
 class VoiceSample;
 class TimeStretcher;
 #include <string>

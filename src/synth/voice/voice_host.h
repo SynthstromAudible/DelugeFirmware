@@ -40,11 +40,16 @@ enum class CullKind : uint8_t {
 	SPEED_UP,     ///< Released, or its release sped up.
 };
 
-/// @brief What a note-on reads of its sound as the note arrives, beside its voices.
+/// @brief What a note-on or note-off reads of its sound as the note arrives, beside its voices.
 struct NoteFacts {
 	bool note_tails_allowed{};               ///< Some active source sustains, so a released note keeps sounding
 	std::array<bool, 2> source_active_now{}; ///< Each source sounds at the current settings
 	bool fm{};                               ///< The sound's engine is FM
+	/// As note_tails_allowed, but a one-shot sample with a loop end counts as sustaining
+	bool note_tails_counting_loops{};
+	bool arpeggiating{}; ///< The sound's arpeggiator is on
+	/// A released note falls back to one still held: LEGATO or MONO, not a drum, and note_tails_counting_loops
+	bool falls_back{};
 	bool operator==(const NoteFacts&) const = default; ///< Field by field
 };
 
@@ -75,9 +80,38 @@ concept voice_host = requires(H& host, H::Slot& slot, H::Context context, uint32
 	{ host.release(slot) } noexcept;                       ///< destroys the slot and returns its memory
 	{ host.admit(cost) };                                  ///< the budget; may cull another sound's voice
 	{ host.voice_starting() };                             ///< a voice is about to start
-	{ host.voices_changed() };                             ///< after an edit, under the exclusion
+	{ host.voices_changed(context) };                      ///< after an edit, under the exclusion
 	{ host.note_edit() };                                  ///< the structural-edit note
 	{ host.clock() } -> std::same_as<VoiceClock>;
+};
+
+/// @brief What a host gives the pool's note path besides voice_host: the note's setup and release, the voice order,
+/// the cost clock and the note-on's own bracket. Config, Event and Noise are the host's types, handed to the kernel.
+///
+/// prepare() builds a note-on's setup and binds the note's files to the part; prepare_change() a note change's, the
+/// files kept; renew() rebuilds a voice in place for a steal; cycles() is the counter the admit cost is read from;
+/// note_started() follows the kernel's note-on (the parameter dump); steal_increment() is the voice-limit steal's
+/// fade; timed() runs a note-on inside the host's bench bracket; prepare_release() builds a note-off's release, the
+/// voice marked as let go; note_released() follows the kernel's note-off; last_note() takes a LEGATO fall-back's note,
+/// for the next glide.
+template <class H>
+concept note_host = requires(H& host, H::Slot& slot, H::Context context, const H::Event& event, uint32_t length,
+                             int32_t late, int32_t note, bool tails, bool (*note_on)()) {
+	requires voice_host<H>;
+	typename H::Config;
+	typename H::Noise;
+	{ host.prepare(slot, context, event, length, late) };
+	{ host.prepare_change(slot, context, note) };
+	{ host.renew(slot) } noexcept;
+	{ host.next_voice_order() } -> std::same_as<uint32_t>;
+	{ host.cycles() } -> std::same_as<uint32_t>;
+	{ host.note_started(slot) };
+	{ host.noise() } -> std::same_as<typename H::Noise&>;
+	{ host.steal_increment() } -> std::same_as<uint32_t>;
+	{ host.timed(note_on) } -> std::same_as<bool>;
+	{ host.prepare_release(slot, context, tails) };
+	{ host.note_released(slot) };
+	{ host.last_note(note) };
 };
 
 } // namespace deluge::synth

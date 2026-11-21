@@ -27,7 +27,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -82,7 +82,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 			voice.kernel.expression_event_smooth(newValue, s);
 		}
 		else {
-			voice.expression_event_immediate(newValue, s);
+			voiceExpressionImmediate(voice, newValue, s);
 		}
 	});
 

@@ -48,7 +48,7 @@ namespace deluge::synth {
 
 /// @brief One voice of a synth sound: its sources in each unison part, envelopes, local LFOs, modulation and filters,
 /// played from what it is handed — the sound's config and per-block config, a NoteSetup at each note, and the
-/// sources' ports. The app's SoundVoice owns one, with the ports and the playback guides.
+/// sources' ports. The app's voice slot holds one beside its part: the ports and the playback guides.
 class Voice final {
 public:
 	Voice();
@@ -101,6 +101,36 @@ public:
 	void randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise);
 	void expression_event_immediate(int32_t monophonic_value, int32_t voice_level_value, int32_t s);
 	bool has_release_stage();
+	/// @brief Whether the amplitude envelope is releasing, or past its release.
+	[[nodiscard]] bool releasing() const { return envelopes_[0].stage() >= Envelope::Stage::RELEASE; }
+	/// @brief Whether the amplitude envelope is in its fast release.
+	[[nodiscard]] bool fast_releasing() const { return envelopes_[0].stage() == Envelope::Stage::FAST_RELEASE; }
+	/// @brief Each envelope's output level now, for a re-triggered note to resume from.
+	/// @return The levels, by envelope.
+	[[nodiscard]] std::array<dsp::Q<31>, kNumEnvelopes> envelope_levels() const {
+		std::array<dsp::Q<31>, kNumEnvelopes> levels{};
+		for (size_t e = 0; e < kNumEnvelopes; e++) {
+			levels[e] = envelopes_[e].output_level();
+		}
+		return levels;
+	}
+	/// @brief Each envelope's attack resumes from @p levels (envelope_levels() before the re-trigger).
+	/// @param levels The levels, by envelope.
+	void resume_attack(const std::array<dsp::Q<31>, kNumEnvelopes>& levels) {
+		for (size_t e = 0; e < kNumEnvelopes; e++) {
+			envelopes_[e].resume_attack(levels[e]);
+		}
+	}
+	/// @brief Unassigns every source of the first @p num_unison unison parts (their files and adapters let go).
+	/// @param num_unison The sound's unison count.
+	/// @param deleting_song True when the song is going, so nothing is handed back.
+	void unassign_sources(int32_t num_unison, bool deleting_song) {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			for (int32_t u = 0; u < num_unison; u++) {
+				unison_parts[u].slots[s].unassign(deleting_song);
+			}
+		}
+	}
 	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the
 	/// sound's voice count), then by the amplitude envelope's stage, then by when it entered it.
 	[[nodiscard]] uint32_t priority_rating(VoicePriority voice_priority, size_t num_active_voices) const;

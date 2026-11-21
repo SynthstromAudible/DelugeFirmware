@@ -35,7 +35,7 @@
 #include "model/fx/chain_params.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -130,6 +130,11 @@ void silenceAll() {
 	}
 }
 
+/// @p voice's rating in the cull order, for @p sound as it is now.
+uint32_t ratingOf(const Sound& sound, const SoundVoice& voice) {
+	return voice.kernel.priority_rating(sound.config().voicing.priority, sound.numActiveVoices());
+}
+
 /// Every sounding voice after step @p step of case @p kase, one line each.
 void listVoices(std::string_view kase, int32_t step) {
 	for (const Synth& synth : g_synths) {
@@ -138,7 +143,7 @@ void listVoices(std::string_view kase, int32_t step) {
 				const SoundVoice& voice = *voices[i];
 				g_lines.push_back(
 				    std::format("{} {} {} {} {} {} {:08x}", kase, step, synth.name, i, voice.kernel.note_code(),
-				                std::to_underlying(voice.kernel.envelope(0).stage()), voice.priority_rating()));
+				                std::to_underlying(voice.kernel.envelope(0).stage()), ratingOf(*synth.sound, voice)));
 			}
 		});
 	}
@@ -267,15 +272,18 @@ bool outOfMemoryCase(Io io) {
 	noteOn(3, 62);
 	renderBlocks(1);
 	listVoices("oom", 0);
-	std::vector<AudioEngine::VoicePool::pointer_type> held;
+	const SoundVoiceHost host{g_synths[3].sound};
+	std::vector<SoundVoice*> held;
 	while (AudioEngine::VoicePool::get().size() > 0) {
-		held.push_back(AudioEngine::VoicePool::get().acquire(*g_synths[3].sound));
+		held.push_back(host.acquire());
 	}
 	deluge::memory::failNextAllocationOfSize(sizeof(SoundVoice));
 	noteOn(3, 64);
 	const bool injected = !deluge::memory::allocationFailurePending();
 	deluge::memory::failNextAllocationOfSize(0);
-	held.clear();
+	for (SoundVoice* voice : held) {
+		host.release(*voice);
+	}
 	listVoices("oom", 1);
 	if (!injected) {
 		std::fprintf(io.err, "voice_pins: the out-of-memory note-on allocated no voice\n");
@@ -296,7 +304,7 @@ void readersCase() {
 		for (const Synth& synth : g_synths) {
 			synth.sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
 				for (const SoundVoice* voice : voices) {
-					if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
+					if (newest == nullptr || voice->order > newest->order) {
 						newest = voice;
 						newestSynth = &synth;
 					}
@@ -310,10 +318,19 @@ void readersCase() {
 }
 
 /// The facts a note-on reads of @p sound beside its voices, as it answers them now through a note-on's model stack.
+/// Read here from the sound's own queries, not through Sound::noteFacts: the pin is a second reader that the note
+/// path's copy has to agree with.
 NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	NoteFacts facts{.note_tails_allowed = sound.allowNoteTails(stackFor(memory, sound, clip)->addSoundFlags(), true),
-	                .fm = sound.getSynthMode() == SynthMode::FM};
+	ModelStackWithSoundFlags* modelStack = stackFor(memory, sound, clip)->addSoundFlags();
+	const ArpeggiatorSettings* arp = sound.getArpSettings();
+	NoteFacts facts{.note_tails_allowed = sound.allowNoteTails(modelStack, true),
+	                .fm = sound.getSynthMode() == SynthMode::FM,
+	                .note_tails_counting_loops = sound.allowNoteTails(modelStack),
+	                .arpeggiating = arp != nullptr && arp->mode != ArpMode::OFF};
+	const PolyphonyMode mode = sound.config().voicing.polyphony;
+	facts.falls_back = (mode == PolyphonyMode::LEGATO || mode == PolyphonyMode::MONO) && !sound.isDrum()
+	                   && facts.note_tails_counting_loops;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		facts.source_active_now[s] = sound.isSourceActiveCurrently(s, &clip.paramManager);
 	}
@@ -322,11 +339,11 @@ NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 
 /// Every voice of @p sound as the record lists it, for comparing before and after a read.
 std::string voicesOf(const Sound& sound) {
-	return sound.voicePool().read([](const SoundVoiceHost::List& voices) {
+	return sound.voicePool().read([&](const SoundVoiceHost::List& voices) {
 		std::string text;
 		for (const SoundVoice* voice : voices) {
 			text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
-			                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
+			                    std::to_underlying(voice->kernel.envelope(0).stage()), ratingOf(sound, *voice),
 			                    int{voice->just_created});
 		}
 		return text;

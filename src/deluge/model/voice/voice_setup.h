@@ -21,7 +21,7 @@
 class ModelStackWithSoundFlags;
 class ParamManagerForTimeline;
 class Sound;
-class SoundVoice;
+struct SoundVoice;
 
 /// @file What the voice kernel's lifecycle reads from a Sound, built where the Sound is: a note-on's or note change's
 /// NoteSetup and a note-off's ReleaseInfo.
