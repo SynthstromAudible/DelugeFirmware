@@ -24,8 +24,6 @@
 #include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_engine.h"
-#include "model/clip/clip.h"
-#include "model/output.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"

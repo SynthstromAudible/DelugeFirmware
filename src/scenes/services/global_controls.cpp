@@ -32,7 +32,6 @@
 
 #include "gui/l10n/strings.h"
 #include "model/action/action_logger.h"
-#include "model/clip/clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
