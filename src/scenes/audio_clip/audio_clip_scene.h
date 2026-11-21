@@ -105,7 +105,7 @@
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen` -> the waveforms port's read at the clip's AUDIO_CLIP
 ///     address (`services::read_waveform`) + `ui::grid::waveform_full` over its PEAK columns. A frame whose read left
-///     a column pending draws no waveform and asks again (`services::PeakRetry`).
+///     a column pending draws no waveform and asks again, for as long as one is pending (`services::PeakRetry`).
 ///   * the grey region and the two marker columns -> `GridFrame::pad` through the
 ///     main-column region, with the colours resolved here.
 ///   * `renderSidebar`'s black fill -> `ui::grid::sidebar_columns`.
@@ -610,8 +610,10 @@ private:
 	const deluge::scenes::bind::Ports* ports_ = nullptr;
 	/// @}
 
-	/// The redraws of a frame whose read left columns pending. The scene keeps no columns: the waveforms port does.
-	deluge::scenes::services::PeakRetry retry_{};
+	/// The redraws of a frame whose read left columns pending, with no give-up: `AudioClipView::renderMainPads`
+	/// (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) asks to render again after every scan that could not
+	/// load its clusters. The scene keeps no columns: the waveforms port does.
+	deluge::scenes::services::PeakRetry retry_{deluge::scenes::services::PeakRetry::Patience::UNTIL_ANSWERED};
 
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h`) baked into the state at construction.

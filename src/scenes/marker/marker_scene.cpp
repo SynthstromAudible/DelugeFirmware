@@ -516,7 +516,6 @@ void MarkerScene::select_encoder(int32_t offset) {
 		// But isn't anymore...
 		if (new_col < 0 || new_col >= kMainCols) {
 			view_ = view_.moved(offset);
-			retry_.restart();
 			record_scroll_and_zoom();
 		}
 	}
@@ -829,7 +828,6 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		success = zoomed.has_value();
 		if (success) {
 			view_ = *zoomed;
-			retry_.restart();
 			// A file the card holds is under 2^32 frames, so its zoom is at most 2^28 + 1 and fits.
 			const auto slide_zoom = [](int64_t zoom) {
 				return static_cast<int32_t>(std::clamp<int64_t>(zoom, 1, std::numeric_limits<int32_t>::max()));
@@ -854,7 +852,6 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		success = scrolled.has_value();
 		if (success) {
 			view_ = *scrolled;
-			retry_.restart();
 		}
 	}
 
@@ -1114,7 +1111,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		if (const std::optional<services::WaveformFrame> wf =
 		        services::read_waveform(*waveforms(), where_, view_.window())) {
 			services::paint_columns(main, wf->read, wf->centre, wf->span);
-			if (retry_.after(wf->read, f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
+			if (retry_.after(wf->read, view_.window(), f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
 				f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
 			}
 		}

@@ -737,7 +737,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	// A read with a column the card could not give draws nothing this frame, and the frame after asks again.
-	if (retry_.after(wf->read, f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
+	if (retry_.after(wf->read, view_.window(), f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
 		f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
 	}
 	if (wf->read.pending()) {

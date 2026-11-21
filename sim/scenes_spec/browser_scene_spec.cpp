@@ -1179,6 +1179,30 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().waveform_redraw_pending()).to_be_false();
 	});
 
+	it("asks again for a zoomed view after giving up on the last one", _ {
+		// A new view counts its own columns: the give-up at the old window does not carry to the new one.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(0));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const int32_t give_ups = browser_scene().waveform_draw_stats().give_ups;
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		run_until(r, r.clock + 400);
+		expect(browser_scene().waveform_draw_stats().give_ups - give_ups).to_equal(1);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+	});
+
 	it("drops a pending redraw when the preview gives its sample up", _ {
 		CleanBrowser clean;
 		ScratchCard card;

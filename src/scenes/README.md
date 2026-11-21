@@ -666,8 +666,9 @@ pads. They share one read and one paint, and none of them holds the sample.
   file's columns in a `PeakCacheSet`, keyed by the waveform's identity (the sample's lifetime serial), and the
   legacy column read (`sample::read_columns`, `model/sample/waveform_scan.h`) reads the columns a cache lacks. A
   column whose cluster the card could not give now answers PENDING; a scene whose read left one pending asks again
-  through `services::PeakRetry`, every `kPeakRetryPollMs` (10) while columns keep arriving, giving up after
-  `kPeakRetryGiveUpMs` (300) with none newly answered.
+  through `services::PeakRetry`, every `kPeakRetryPollMs` (10). The marker editor, the slicer and the browser preview
+  give up after `kPeakRetryGiveUpMs` (300) with none newly answered; the audio clip view asks until none is pending,
+  as `main`'s does. A read at another window starts the count over.
 
 ## The services (`services/`)
 

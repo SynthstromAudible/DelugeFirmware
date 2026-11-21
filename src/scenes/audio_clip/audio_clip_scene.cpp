@@ -1201,11 +1201,13 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		// The scan's failure is legacy's own: `renderFullScreen` returns **before its own
 		// clear** (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
 		// the image untouched and legacy asks to come back later. The port draws nothing for the
-		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again.
-		// `info` came through the port, so the port is here.
-		const std::optional<deluge::scenes::services::WaveformFrame> wf = deluge::scenes::services::read_waveform(
-		    *shown, waveform(), deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
-		if (wf && retry_.after(wf->read, f.now_ms()) == deluge::scenes::services::PeakRetry::Next::ASK_AGAIN) {
+		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again every frame until the
+		// read is whole, as `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)
+		// does. `info` came through the port, so the port is here.
+		const deluge::sample_view::Window window{.scroll = scroll_samples, .zoom = zoom_samples};
+		const std::optional<deluge::scenes::services::WaveformFrame> wf =
+		    deluge::scenes::services::read_waveform(*shown, waveform(), window);
+		if (wf && retry_.after(wf->read, window, f.now_ms()) == deluge::scenes::services::PeakRetry::Next::ASK_AGAIN) {
 			f.grid_gate().request_repaint_after(deluge::scenes::services::kPeakRetryPollMs, f.now_ms());
 		}
 		if (wf && !wf->read.pending()) {

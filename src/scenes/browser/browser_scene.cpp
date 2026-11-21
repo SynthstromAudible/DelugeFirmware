@@ -1544,7 +1544,7 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	if (!first && was_retrying) {
 		draw_stats_.redraws++;
 	}
-	switch (retry_.after(wf->read, now)) {
+	switch (retry_.after(wf->read, view_.window(), now)) {
 	case services::PeakRetry::Next::DONE:
 		if (first || was_retrying) {
 			draw_stats_.complete++;
@@ -2023,7 +2023,6 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 		if (moved) {
 			view_ = *moved;
 			pads_ = BrowserPads::Waveform;
-			retry_.restart(); // a new view: its redraw counts its own columns
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		}
 		return r;

@@ -422,6 +422,46 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(lit_main_pads(second)).to_be_greater_than(0);
 		expect(second.gate.next_deadline().has_value()).to_be_false();
 	});
+
+	it("Q28: keeps asking while a column stays pending past the give-up time, as main's renderMainPads does", _ {
+		// `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) asks to render
+		// again after every scan that could not load its clusters, with no bound.
+		using deluge::scenes::services::kPeakRetryGiveUpMs;
+		using deluge::scenes::services::kPeakRetryPollMs;
+		AudioClipHost h;
+		h.entry().pending.set(5);
+		h.entry().pending_reads = 1000;
+		AudioClipScene scene;
+		opened(scene, h);
+		for (const uint32_t at : {uint32_t{0}, kPeakRetryGiveUpMs, kPeakRetryGiveUpMs + kPeakRetryPollMs,
+		                          10 * kPeakRetryGiveUpMs}) {
+			GridRig rig;
+			render(rig, scene, at);
+			expect(lit_main_pads(rig)).to_equal(0);
+			expect(rig.gate.next_deadline()).to_equal(std::optional<uint32_t>{at + kPeakRetryPollMs});
+		}
+	});
+
+	it("Q28: asks again for a new window whose column is pending after a stall at the old one", _ {
+		using deluge::scenes::services::kPeakRetryGiveUpMs;
+		using deluge::scenes::services::kPeakRetryPollMs;
+		AudioClipHost h;
+		h.entry().pending.set(5);
+		h.entry().pending_reads = 1000;
+		AudioClipScene scene;
+		opened(scene, h);
+		GridRig first;
+		render(first, scene, 0);
+		GridRig stalled;
+		render(stalled, scene, 2 * kPeakRetryGiveUpMs);
+		h.host.clips.samples = {1000, 1000}; // scrolled one column
+		const uint32_t moved = 2 * kPeakRetryGiveUpMs + kPeakRetryPollMs;
+		GridRig scrolled;
+		render(scrolled, scene, moved);
+		expect(h.host.waveforms.reads.back().in.scroll).to_equal(int64_t{1000});
+		expect(lit_main_pads(scrolled)).to_equal(0);
+		expect(scrolled.gate.next_deadline()).to_equal(std::optional<uint32_t>{moved + kPeakRetryPollMs});
+	});
 });
 // clang-format on
 
