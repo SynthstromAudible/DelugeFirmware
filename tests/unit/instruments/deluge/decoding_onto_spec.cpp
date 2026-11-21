@@ -7,7 +7,7 @@
 #include "serialization/tree.h"
 #include "support/printers/sound_record_printer.h"
 #include "support/record_state.h"
-#include "support/state_matrix.h"
+#include "support/sound_matrix.h"
 
 #include <algorithm>
 #include <array>
@@ -50,7 +50,7 @@ std::vector<std::string> with_setting_disagreements() {
 	std::vector<std::string> found;
 	for (const int32_t magnitude : {1, 3}) {
 		const deluge::plugin::CodecContext codec{.input_tick_magnitude = magnitude};
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			const Value whole = encode(state, codec);
 			for (const deluge::plugin::SettingInfo& row : kSettings) {
 				if (row.kind == deluge::plugin::SettingKind::STRUCTURED || reshapes(row.path)) {
@@ -116,7 +116,7 @@ std::vector<std::string> write_setting_disagreements() {
 	std::vector<std::string> found;
 	for (const int32_t magnitude : {1, 3}) {
 		const deluge::plugin::CodecContext codec{.input_tick_magnitude = magnitude};
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			for (const deluge::plugin::SettingInfo& row : kSettings) {
 				if (row.kind == deluge::plugin::SettingKind::STRUCTURED || reshapes(row.path)) {
 					continue;
@@ -340,7 +340,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("names no entry between a state and itself", _ {
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			expect(changed_entries(state, state)).to_equal(std::vector<std::string_view>{});
 		}
 	});

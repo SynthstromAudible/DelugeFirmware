@@ -70,6 +70,10 @@ struct SoundPieces {
 /// @return The Map of the instrument's entries.
 [[nodiscard]] serialization::Value encode(const SoundState& state, const plugin::CodecContext& context);
 
+/// @brief The top-level keys of a sound element the instrument writes, in file order.
+/// @return The keys.
+[[nodiscard]] std::span<const std::string_view> state_keys();
+
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 /// @param key An entry name.
 /// @return True when the instrument writes it.

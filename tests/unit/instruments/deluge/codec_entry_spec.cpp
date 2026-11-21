@@ -1,6 +1,6 @@
 #include "instruments/deluge/codec.h"
 #include "serialization/tree.h"
-#include "support/state_matrix.h"
+#include "support/sound_matrix.h"
 
 #include <cppspec.hpp>
 #include <string>
@@ -8,19 +8,12 @@
 #include <vector>
 
 using namespace deluge::instrument;
-using deluge::instrument::test::matrix;
 using deluge::serialization::Value;
 
 namespace {
 
-/// The top-level keys encode writes, in file order (codec.cpp's kStateKeys).
-const std::vector<std::string_view> kKeys{
-    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
-    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
-    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
-    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
-    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
-    "stutter"};
+/// The host's keys, which a sound element holds and the instrument never writes.
+const std::vector<std::string_view> kHostKeys{"sideChainSend", "midiOutput"};
 
 } // namespace
 
@@ -30,17 +23,32 @@ describe codec_entry("one instrument entry's encoding", ${
 		std::vector<std::string> wrong;
 		for (const int32_t magnitude : {1, 3}) {
 			const deluge::plugin::CodecContext codec{.input_tick_magnitude = magnitude};
-			for (const auto& [name, state] : matrix()) {
+			deluge::test::for_each_named_sound([&](const std::string& name, const SoundState& state) {
 				const Value whole = encode(state, codec);
-				for (const std::string_view key : kKeys) {
+				for (const std::string_view key : state_keys()) {
 					const auto entry = encode_entry(state, key, codec);
 					const Value* held = whole.find(key);
 					if (entry.has_value() != (held != nullptr) || (held != nullptr && !(*entry == *held))) {
 						wrong.push_back(name + "/" + std::string(key) + "@" + std::to_string(magnitude));
 					}
 				}
-			}
+			});
 		}
+		expect(wrong).to_equal(std::vector<std::string>{});
+	});
+
+	it("writes no host entry, at any threshold", _ {
+		std::vector<std::string> wrong;
+		const deluge::plugin::CodecContext codec{.input_tick_magnitude = 2};
+		deluge::test::for_each_named_sound([&](const std::string& name, const SoundState& state) {
+			for (const std::string_view key : kHostKeys) {
+				for (const std::optional<int32_t> threshold : {std::optional<int32_t>{}, std::optional<int32_t>{12345}}) {
+					if (encode_entry(state, key, codec, threshold).has_value() || encode(state, codec).find(key) != nullptr) {
+						wrong.push_back(name + "/" + std::string(key));
+					}
+				}
+			}
+		});
 		expect(wrong).to_equal(std::vector<std::string>{});
 	});
 

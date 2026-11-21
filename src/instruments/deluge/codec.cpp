@@ -65,6 +65,18 @@ static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 /// instrument library does not depend on the model's): the instrument holds none of them, only their place in the file.
 constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
 
+/// The keys of kStateKeys the instrument writes, in file order: all but the host's.
+constexpr auto kInstrumentKeys = [] {
+	std::array<std::string_view, kStateKeys.size() - kHostKeys.size()> keys{};
+	size_t n = 0;
+	for (const std::string_view key : kStateKeys) {
+		if (std::ranges::find(kHostKeys, key) == kHostKeys.end()) {
+			keys[n++] = key;
+		}
+	}
+	return keys;
+}();
+
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
 /// factory presets and official firmware write it.
 constexpr std::array<std::string_view, 1> kOldStateKeys{"compressor"};
@@ -408,6 +420,10 @@ Value encode(const SoundState& state, const plugin::CodecContext& context) {
 	append(map, pieces.delay);
 	append(map, pieces.effect_tags);
 	return map;
+}
+
+std::span<const std::string_view> state_keys() {
+	return kInstrumentKeys;
 }
 
 bool is_state_key(std::string_view key) {

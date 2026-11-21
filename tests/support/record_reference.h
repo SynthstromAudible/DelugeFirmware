@@ -159,16 +159,11 @@ inline std::string setting_text(const in::SoundState& state, const plugin::Setti
 }
 
 inline std::string encode_text(const in::SoundState& state, int32_t magnitude) {
-	constexpr std::array<std::string_view, 27> kKeys{
-	    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
-	    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
-	    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
-	    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
-	    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
-	    "stutter",        "notAKey"};
 	const plugin::CodecContext codec_context{.input_tick_magnitude = magnitude};
 	std::string text = serialization::write_json(in::encode(state, codec_context));
-	for (const std::string_view key : kKeys) {
+	std::vector<std::string_view> keys(in::state_keys().begin(), in::state_keys().end());
+	keys.emplace_back("notAKey"); // a key no sound element has
+	for (const std::string_view key : keys) {
 		for (const std::optional<int32_t> threshold : {std::optional<int32_t>{}, std::optional<int32_t>{12345}}) {
 			text += " | ";
 			text += key;
