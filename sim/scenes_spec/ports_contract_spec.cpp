@@ -60,6 +60,7 @@
 
 #include "support/record_state.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
@@ -222,6 +223,16 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.transport).not_().to_be_null();
 		expect(p.transport_actions).not_().to_be_null();
 		expect(p.waveforms).not_().to_be_null();
+		expect(p.take_actions).not_().to_be_null();
+		expect(p.indicators).not_().to_be_null();
+		expect(p.view_actions).not_().to_be_null();
+		if (p.audio != nullptr && p.take_actions != nullptr) {
+			// No take is held between cases.
+			expect(bind::contract::no_take_reads_nothing(*p.audio)).to_be_true();
+			expect(bind::contract::audio_clock_is_monotonic(*p.audio)).to_be_true();
+			expect(p.audio->audio_sample_timer()).to_equal(AudioEngine::audioSampleTimer);
+			expect(bind::contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
+		}
 		if (p.transport != nullptr) {
 			expect(bind::contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
 			expect(bind::contract::count_in_is_a_count(*p.transport)).to_be_true();
@@ -1370,6 +1381,37 @@ describe waveforms_host("the app's waveforms port, by address", ${
 	});
 });
 
+describe take_host("the app's take port, over the sim's inputs", ${
+	it("begins a take it publishes and reads back, and holds none once it has orphaned it", _ {
+		spec::SongFixture synth = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = synth.song;
+		bind::TakeActions& takes = deluge::gui::shell_host::take_actions();
+		const bind::AudioFacts& audio = deluge::gui::shell_host::audio_facts();
+		const bool stereo = audio.audio_inputs_present();
+		expect(takes.begin(stereo ? bind::TakeChannels::STEREO : bind::TakeChannels::MONO)).to_be_true();
+		SampleRecorder* const held = deluge::gui::shell_host::input_take();
+		expect(held).not_().to_be_null();
+		expect(AudioEngine::foregroundRecorder()).to_equal(held);
+		const std::optional<bind::InputTake> take = audio.input_take();
+		expect(take.has_value()).to_be_true();
+		if (take.has_value()) {
+			expect(take->channels).to_equal(static_cast<uint8_t>(stereo ? 2 : 1));
+			expect(take->capturing_data).to_be_true();
+			expect(take->settled).to_be_false();
+		}
+		expect(audio.input_take_path().has_value()).to_equal(held != nullptr && held->sample != nullptr);
+		takes.orphan();
+		expect(deluge::gui::shell_host::input_take()).to_be_null();
+		expect(bind::contract::no_take_reads_nothing(audio)).to_be_true();
+		// The orphaned take stays published until it settles; settle and free it, as the card routine would.
+		spec::settle_torn_down_take();
+		expect(AudioEngine::foregroundRecorder()).to_be_null();
+		expect(AudioEngine::foregroundRecordingSource()).to_equal(AudioInputChannel::NONE);
+		currentSong = saved;
+	});
+});
+
 // clang-format on
 
-DELUGE_SPEC(ports_contract_spec, ports_contract_host, waveforms_host)
+DELUGE_SPEC(ports_contract_spec, ports_contract_host, waveforms_host, take_host)

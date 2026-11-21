@@ -473,4 +473,30 @@ namespace deluge::scenes::bind::contract {
 
 /// @}
 
+/// @name The input take's cases.
+/// @{
+
+/// @brief With no take held, a take's state and path read none.
+[[nodiscard]] inline bool no_take_reads_nothing(const AudioFacts& audio) {
+	return !audio.input_take().has_value() && !audio.input_take_path().has_value();
+}
+
+/// @brief The audio clock does not run backwards between two calls.
+[[nodiscard]] inline bool audio_clock_is_monotonic(const AudioFacts& audio) {
+	const uint32_t a = audio.audio_sample_timer();
+	return audio.audio_sample_timer() - a < 0x8000'0000U;
+}
+
+/// @brief With no take held, every take call is harmless: the state still reads none afterwards.
+[[nodiscard]] inline bool take_calls_without_a_take_do_nothing(TakeActions& takes, const AudioFacts& audio) {
+	takes.end_soon();
+	(void)takes.take_clipped();
+	(void)takes.take_levels();
+	takes.finish();
+	takes.orphan();
+	return !audio.input_take().has_value();
+}
+
+/// @}
+
 } // namespace deluge::scenes::bind::contract

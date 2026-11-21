@@ -99,6 +99,39 @@ class BlankWaveforms final : public Waveforms {
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
 };
 
+/// @brief A broken audio port: its clock steps back on every read.
+class BackwardsClock final : public AudioFacts {
+	[[nodiscard]] bool audio_inputs_present() const override { return false; }
+	[[nodiscard]] int32_t live_voice_count() const override { return 0; }
+	[[nodiscard]] bool line_in_plugged() const override { return false; }
+	[[nodiscard]] int32_t song_threshold_recording() const override { return 0; }
+	[[nodiscard]] deluge::plugin::SyncType reverb_sidechain_sync_type() const override {
+		return deluge::plugin::SyncType::EVEN;
+	}
+	[[nodiscard]] bool audio_busy() const override { return false; }
+	[[nodiscard]] ForegroundRecording foreground_recording() const override { return ForegroundRecording::NONE; }
+	[[nodiscard]] bool resampling() const override { return false; }
+	[[nodiscard]] std::optional<InputTake> input_take() const override { return std::nullopt; }
+	[[nodiscard]] std::optional<std::string> input_take_path() const override { return std::nullopt; }
+	[[nodiscard]] uint32_t audio_sample_timer() const override { return now_--; }
+	mutable uint32_t now_{1000};
+};
+
+/// @brief A broken take port: its finish leaves a take held on the audio fake, as though it had begun one.
+class HeldTakeActions final : public TakeActions {
+public:
+	explicit HeldTakeActions(test::FakeAudioFacts& audio) : audio_{audio} {}
+	[[nodiscard]] bool begin(TakeChannels) override { return false; }
+	void end_soon() override {}
+	[[nodiscard]] InputLevels take_levels() override { return {}; }
+	[[nodiscard]] bool take_clipped() override { return false; }
+	void finish() override { audio_.take = InputTake{.channels = 1}; }
+	void orphan() override {}
+
+private:
+	test::FakeAudioFacts& audio_;
+};
+
 } // namespace
 
 // clang-format off
@@ -511,6 +544,55 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
 		expect(host.device_actions.calls).to_equal(
 		    std::vector<test::RecordingDeviceActions::Kind>{test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS});
+	});
+	it("holds a take from begin to finish or orphan, reads it back on the audio fake, and holds the take contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.take_actions).to_equal(static_cast<TakeActions*>(&host.take_actions));
+		expect(p.indicators).to_equal(static_cast<Indicators*>(&host.indicators));
+		expect(p.view_actions).to_equal(static_cast<ViewActions*>(&host.view_actions));
+		expect(contract::no_take_reads_nothing(*p.audio)).to_be_true();
+		expect(contract::audio_clock_is_monotonic(*p.audio)).to_be_true();
+		expect(contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
+
+		host.take_actions.calls.clear();
+		expect(p.take_actions->begin(TakeChannels::STEREO)).to_be_true();
+		expect(p.audio->input_take()).to_equal(std::optional{InputTake{.channels = 2}});
+		expect(contract::no_take_reads_nothing(*p.audio)).to_be_false();
+		host.take_actions.clipped = true;
+		expect(p.take_actions->take_clipped()).to_be_true();
+		expect(p.take_actions->take_clipped()).to_be_false();
+		p.take_actions->finish();
+		expect(p.audio->input_take().has_value()).to_be_false();
+		expect(p.take_actions->begin(TakeChannels::MONO)).to_be_true();
+		expect(host.take_actions.channels).to_equal(TakeChannels::MONO);
+		p.take_actions->orphan();
+		expect(p.audio->input_take().has_value()).to_be_false();
+		using Kind = test::RecordingTakeActions::Kind;
+		expect(host.take_actions.calls)
+		    .to_equal(std::vector<Kind>{Kind::BEGIN, Kind::TAKE_CLIPPED, Kind::TAKE_CLIPPED, Kind::FINISH,
+		                                Kind::BEGIN, Kind::ORPHAN});
+		host.take_actions.begins = false;
+		expect(p.take_actions->begin(TakeChannels::MONO)).to_be_false();
+		expect(p.audio->input_take().has_value()).to_be_false();
+
+		p.indicators->clear_tick_squares();
+		p.view_actions->end_audition(AuditionEnd::KeyboardWhenAuditioning);
+		expect(host.indicators.tick_clears).to_equal(1);
+		expect(host.view_actions.ends).to_equal(std::vector<AuditionEnd>{AuditionEnd::KeyboardWhenAuditioning});
+		expect(host.order).to_equal(std::vector<std::string_view>{"begin", "begin", "begin", "ticks", "audition"});
+	});
+	it("fails each take case on a port that breaks it", _ {
+		test::FakeHost host;
+		host.audio.take_path = "SAMPLES/RECORD/REC00001.WAV";
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_false();
+		host.audio.take_path.reset();
+		host.audio.take = InputTake{.channels = 1};
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_false();
+		host.audio.take.reset();
+		expect(contract::audio_clock_is_monotonic(BackwardsClock{})).to_be_false();
+		HeldTakeActions held{host.audio};
+		expect(contract::take_calls_without_a_take_do_nothing(held, host.audio)).to_be_false();
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;

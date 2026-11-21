@@ -31,6 +31,9 @@ const bind::Ports& host_ports() {
 	    .transport = &gui::shell_host::transport(),
 	    .transport_actions = &gui::shell_host::transport_actions(),
 	    .waveforms = &gui::shell_host::waveforms(),
+	    .take_actions = &gui::shell_host::take_actions(),
+	    .indicators = &gui::shell_host::indicators(),
+	    .view_actions = &gui::shell_host::view_actions(),
 	};
 	return ports;
 }

@@ -39,6 +39,9 @@ struct FakeAudioFacts final : AudioFacts {
 	bool busy{false};                                          ///< what `audio_busy` answers
 	ForegroundRecording foreground{ForegroundRecording::NONE}; ///< what `foreground_recording` answers
 	bool resample{false};                                      ///< what `resampling` answers
+	std::optional<InputTake> take;                             ///< what `input_take` answers
+	std::optional<std::string> take_path;                      ///< what `input_take_path` answers
+	uint32_t sample_timer{0};                                  ///< what `audio_sample_timer` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
 	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
@@ -47,6 +50,9 @@ struct FakeAudioFacts final : AudioFacts {
 	[[nodiscard]] bool audio_busy() const override { return busy; }
 	[[nodiscard]] ForegroundRecording foreground_recording() const override { return foreground; }
 	[[nodiscard]] bool resampling() const override { return resample; }
+	[[nodiscard]] std::optional<InputTake> input_take() const override { return take; }
+	[[nodiscard]] std::optional<std::string> input_take_path() const override { return take_path; }
+	[[nodiscard]] uint32_t audio_sample_timer() const override { return sample_timer; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -310,9 +316,15 @@ struct RecordingDeviceActions final : DeviceActions {
 		SAVE_SETTINGS,   ///< save_settings
 		DELETE_ALL_LOGS, ///< delete_all_logs
 	};
-	std::vector<Kind> calls; ///< every action taken, in order
+	std::vector<Kind> calls;                       ///< every action taken, in order
+	std::vector<std::string_view>* order{nullptr}; ///< when set, delete_all_logs appends "wipe" to it
 	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
-	void delete_all_logs() override { calls.push_back(Kind::DELETE_ALL_LOGS); }
+	void delete_all_logs() override {
+		calls.push_back(Kind::DELETE_ALL_LOGS);
+		if (order != nullptr) {
+			order->push_back("wipe");
+		}
+	}
 };
 
 /// @brief Transport a spec sets directly.
@@ -443,6 +455,7 @@ struct RecordingWrites final : WriteSink {
 	std::vector<Gesture>
 	    gestures;      ///< every text, default-input-channel, threshold and sidechain-type request, in order
 	bool accept{true}; ///< what each request answers (set_default_audio_input_channel answers nothing)
+	std::vector<std::string_view>* order{nullptr}; ///< when set, write_text appends "name" to it
 	bool write(const WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
@@ -543,6 +556,62 @@ struct FakeWaveforms final : Waveforms {
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress& address) const override;
 };
 
+/// @brief TakeActions that records every call, in order, and plays its effect on a FakeAudioFacts' take when set.
+struct RecordingTakeActions final : TakeActions {
+	/// @brief Which call it was.
+	enum class Kind : uint8_t {
+		BEGIN,        ///< begin
+		END_SOON,     ///< end_soon
+		TAKE_LEVELS,  ///< take_levels
+		TAKE_CLIPPED, ///< take_clipped
+		FINISH,       ///< finish
+		ORPHAN,       ///< orphan
+	};
+	std::vector<Kind> calls;                       ///< every call, in order
+	TakeChannels channels{TakeChannels::MONO};     ///< the last begin's channels
+	bool begins{true};                             ///< what `begin` answers
+	InputLevels levels{};                          ///< what `take_levels` answers
+	bool clipped{false};                           ///< what the next `take_clipped` answers; it clears
+	FakeAudioFacts* audio{nullptr};                ///< begin holds a take there, finish and orphan drop it and its path
+	std::vector<std::string_view>* order{nullptr}; ///< when set, begin appends "begin" to it
+	[[nodiscard]] bool begin(TakeChannels c) override;
+	void end_soon() override { calls.push_back(Kind::END_SOON); }
+	[[nodiscard]] InputLevels take_levels() override {
+		calls.push_back(Kind::TAKE_LEVELS);
+		return levels;
+	}
+	[[nodiscard]] bool take_clipped() override {
+		calls.push_back(Kind::TAKE_CLIPPED);
+		return std::exchange(clipped, false);
+	}
+	void finish() override;
+	void orphan() override;
+};
+
+/// @brief Indicators that record every call.
+struct RecordingIndicators final : Indicators {
+	int32_t tick_clears{0};                        ///< how many times the tick squares were cleared
+	std::vector<std::string_view>* order{nullptr}; ///< when set, each clear appends "ticks" to it
+	void clear_tick_squares() override {
+		tick_clears++;
+		if (order != nullptr) {
+			order->push_back("ticks");
+		}
+	}
+};
+
+/// @brief ViewActions that record every audition end, in order.
+struct RecordingViewActions final : ViewActions {
+	std::vector<AuditionEnd> ends;                 ///< every end_audition's kind, in order
+	std::vector<std::string_view>* order{nullptr}; ///< when set, each end appends "audition" to it
+	void end_audition(AuditionEnd how) override {
+		ends.push_back(how);
+		if (order != nullptr) {
+			order->push_back("audition");
+		}
+	}
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;                        ///< the audio port's fake
@@ -564,11 +633,23 @@ struct FakeHost {
 	FakeTransport transport;                     ///< the transport's fake
 	RecordingTransportActions transport_actions; ///< the transport actions' recorder
 	FakeWaveforms waveforms;                     ///< the waveforms' fake
+	RecordingTakeActions take_actions;           ///< the take actions' recorder
+	RecordingIndicators indicators;              ///< the indicators' recorder
+	RecordingViewActions view_actions;           ///< the view actions' recorder
+	/// The wipe, the drum's name, the tick clear, the take's begin and the audition end, in the order they came.
+	std::vector<std::string_view> order;
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
-	///        follow learns in the MIDI devices fake, and the transport actions flip the transport fake.
+	///        follow learns in the MIDI devices fake, the transport actions flip the transport fake, the take actions
+	///        hold their take on the audio fake, and the entry's recorders append to @ref order.
 	[[nodiscard]] Ports ports() {
 		learn.devices = &midi;
 		transport_actions.transport = &transport;
+		take_actions.audio = &audio;
+		device_actions.order = &order;
+		writes.order = &order;
+		indicators.order = &order;
+		take_actions.order = &order;
+		view_actions.order = &order;
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,
@@ -587,7 +668,10 @@ struct FakeHost {
 		        .midi_feedback = &midi_feedback,
 		        .transport = &transport,
 		        .transport_actions = &transport_actions,
-		        .waveforms = &waveforms};
+		        .waveforms = &waveforms,
+		        .take_actions = &take_actions,
+		        .indicators = &indicators,
+		        .view_actions = &view_actions};
 	}
 };
 

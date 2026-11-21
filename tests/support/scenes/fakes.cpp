@@ -350,6 +350,9 @@ bool RecordingWrites::delete_automation(const project::ParamAddress& address) {
 
 bool RecordingWrites::write_text(const Target& target, const Addresses& where, std::string_view text) {
 	gestures.push_back({.kind = Gesture::Kind::TEXT, .target = target, .where = where, .text = std::string{text}});
+	if (order != nullptr) {
+		order->push_back("name");
+	}
 	return accept;
 }
 
@@ -489,6 +492,34 @@ sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sampl
 std::optional<int64_t> FakeWaveforms::play_position(const WaveformAddress& address) const {
 	const Entry* entry = entry_at(waveforms, address);
 	return entry != nullptr ? entry->position : std::nullopt;
+}
+
+bool RecordingTakeActions::begin(TakeChannels c) {
+	calls.push_back(Kind::BEGIN);
+	channels = c;
+	if (order != nullptr) {
+		order->push_back("begin");
+	}
+	if (begins && audio != nullptr) {
+		audio->take = InputTake{.channels = static_cast<uint8_t>(c)};
+	}
+	return begins;
+}
+
+void RecordingTakeActions::finish() {
+	calls.push_back(Kind::FINISH);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
+}
+
+void RecordingTakeActions::orphan() {
+	calls.push_back(Kind::ORPHAN);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
 }
 
 } // namespace deluge::scenes::bind::test
