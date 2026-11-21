@@ -289,26 +289,32 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 	}
 }
 
-void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter) {
-
+void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter, const int64_t* scalarBefore) {
+	// getNewAction() returns null without a current song, so read the scalar afterwards.
 	Action* action = getNewAction(ActionType::TEMPO_CHANGE, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
+	int64_t scalar_after = currentSong->paramManager.getUnpatchedParamSet()
+	                           ->getClipValueStorage(deluge::modulation::params::UNPATCHED_TEMPO)
+	                           ->getUnclampedValue();
 
 	// See if there's a previous one we can update
 	if (action->firstConsequence) {
 		ConsequenceTempoChange* consequence = (ConsequenceTempoChange*)action->firstConsequence;
-		consequence->timePerBig[AFTER] = timePerBigAfter;
+		consequence->change.updateAfter(timePerBigAfter, scalar_after);
 	}
 	else {
 
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
-			ConsequenceTempoChange* newConsequence =
-			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
-			action->addConsequence(newConsequence);
+			// Ownership passes to the action.
+			// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+			auto* new_consequence = new (consMemory)
+			    ConsequenceTempoChange(timePerBigBefore, timePerBigAfter,
+			                           scalarBefore != nullptr ? *scalarBefore : scalar_after, scalar_after);
+			action->addConsequence(new_consequence);
 		}
 	}
 }

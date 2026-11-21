@@ -19,17 +19,30 @@
 
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 
-ConsequenceTempoChange::ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter) {
-	timePerBig[BEFORE] = newTimePerBigBefore;
-	timePerBig[AFTER] = newTimePerBigAfter;
+ConsequenceTempoChange::ConsequenceTempoChange(uint64_t before, uint64_t after)
+    : ConsequenceTempoChange(before, after,
+                             currentSong->paramManager.getUnpatchedParamSet()
+                                 ->getClipValueStorage(deluge::modulation::params::UNPATCHED_TEMPO)
+                                 ->getUnclampedValue(),
+                             currentSong->paramManager.getUnpatchedParamSet()
+                                 ->getClipValueStorage(deluge::modulation::params::UNPATCHED_TEMPO)
+                                 ->getUnclampedValue()) {
+}
+
+ConsequenceTempoChange::ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter,
+                                               int64_t scalarBefore, int64_t scalarAfter)
+    : change(newTimePerBigBefore, newTimePerBigAfter, scalarBefore, scalarAfter) {
 }
 
 Error ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
 	float oldBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 
-	modelStack->song->setTimePerTimerTick(timePerBig[time], false);
+	auto* scalar = modelStack->song->paramManager.getUnpatchedParamSet()->getClipValueStorage(
+	    deluge::modulation::params::UNPATCHED_TEMPO);
+	modelStack->song->restoreClockTempo(change.restore(time == AFTER, *scalar));
 
 	float newBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 

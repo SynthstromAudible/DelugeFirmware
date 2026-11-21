@@ -3,7 +3,7 @@
 #include "modulation/automation/auto_param_data.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/patch_cable_preset_values.h"
-#include "modulation/patch/patch_cable.h"
+#include "playback/tempo.h"
 #include "storage/preset_save_values.h"
 #include <array>
 
@@ -535,6 +535,35 @@ TEST(AutoParamTests, UndoPreservesAutomatedScalarOvershootAndRelativeNodes) {
 	CHECK_EQUAL(110, param.getCurrentValue());
 }
 
+TEST(AutoParamTests, EffectiveTempoEditAppliesDeltaWithoutDoubleCountingAutomation) {
+	clip.setValue(12000);
+	CHECK(param.setNodeAtPos(0, 14000, false) >= 0);
+	CHECK(param.setNodeAtPos(16, 16000, false) >= 0);
+	param.grabValueFromPos(0, 32);
+	clip.setValue(param.getScalarForEffectiveValue(14100));
+	CHECK_EQUAL(12100, clip.getValue());
+	CHECK_EQUAL(14100, param.getCurrentValue());
+	CHECK_EQUAL(14100, param.getValueAtPos(0, 32));
+	CHECK_EQUAL(16100, param.getValueAtPos(16, 32));
+	CHECK_EQUAL(2000, param.editNodes().getElement(0)->offset);
+	CHECK_EQUAL(4000, param.editNodes().getElement(1)->offset);
+	param.deleteAutomationBasicForSetup();
+	CHECK_EQUAL(12100, param.getCurrentValue());
+}
+
+TEST(AutoParamTests, EffectiveTempoEditWithoutAutomationSetsScalarDirectly) {
+	CHECK_EQUAL(15000, param.getScalarForEffectiveValue(15000));
+}
+
+TEST(AutoParamTests, EffectiveTempoEditHandlesNegativeOffset) {
+	clip.setValue(12000);
+	CHECK(param.setNodeAtPos(0, 10000, false) >= 0);
+	param.grabValueFromPos(0, 32);
+	clip.setValue(param.getScalarForEffectiveValue(10100));
+	CHECK_EQUAL(12100, clip.getValue());
+	CHECK_EQUAL(10100, param.getCurrentValue());
+}
+
 TEST(AutoParamTests, RelativeFileMetadataPreservesSaturatedCurveAndScalar) {
 	clip.setValue(INT32_MAX - 100);
 	CHECK(param.setNodeAtPos(0, INT32_MAX, false) >= 0);
@@ -593,6 +622,20 @@ TEST(AutoParamTests, CloningPreservesUnclampedScalar) {
 	cloned.deleteAutomationBasicForSetup();
 }
 
+TEST(AutoParamTests, TempoClockClampsNegativeCurveWithoutDestroyingOffsets) {
+	clip.setValue(10000);
+	CHECK(param.setNodeAtPos(0, 10000, false) >= 0);
+	CHECK(param.setNodeAtPos(16, 8000, true) >= 0);
+	clip.setValue(1000);
+	CHECK_EQUAL(1000, deluge::tempo::clockValue(param.getValueAtPos(0, 32)));
+	CHECK_EQUAL(1, deluge::tempo::clockValue(param.getValueAtPos(16, 32)));
+	CHECK_EQUAL(1, deluge::tempo::clockValue(0));
+	CHECK_EQUAL(1, deluge::tempo::clockValue(INT32_MIN));
+	clip.setValue(10000);
+	CHECK_EQUAL(8000, deluge::tempo::clockValue(param.getValueAtPos(16, 32)));
+	CHECK_EQUAL(-2000, param.editNodes().getElement(1)->offset);
+}
+
 TEST(AutoParamTests, SavingPresetRebasesClipsWithoutChangingScalarOrCurve) {
 	addCurve();
 	param.grabValueFromPos(8, 32);
@@ -617,6 +660,24 @@ TEST(AutoParamTests, SavingPresetRebasesClipsWithoutChangingScalarOrCurve) {
 	clip.setValue(preset);
 	CHECK_EQUAL(145, param.getClipValue());
 	CHECK_EQUAL(165, param.getCurrentValue());
+}
+
+TEST(AutoParamTests, TempoUndoAndRedoRestoreCoalescedScalarAndClockWithoutChangingCurve) {
+	clip.setValue(12000);
+	CHECK(param.setNodeAtPos(0, 15000, false) >= 0);
+	CHECK(param.grabValueFromPos(0, 32));
+	deluge::tempo::Change change(735, 730, clip.getUnclampedValue(), 12100);
+	clip.setValue(12100);
+	change.updateAfter(725, 12200);
+	clip.setValue(12200);
+	CHECK_EQUAL(15200, param.getCurrentValue());
+	CHECK_EQUAL(735, change.restore(false, clip));
+	CHECK_EQUAL(12000, clip.getValue());
+	CHECK_EQUAL(15000, param.getCurrentValue());
+	CHECK_EQUAL(725, change.restore(true, clip));
+	CHECK_EQUAL(12200, clip.getValue());
+	CHECK_EQUAL(15200, param.getCurrentValue());
+	CHECK_EQUAL(3000, param.editNodes().getElement(0)->offset);
 }
 
 TEST(AutoParamTests, RelativeMetadataDoesNotCreateNodesExcludedByLegacyReadLimit) {
@@ -760,4 +821,21 @@ TEST(AutoParamTests, RelativeMetadataRejectsOffsetsBeyondNodeStorage) {
 	reader.bytes = relative.bytes;
 	CHECK(param.readRelativeFromFile(reader));
 	CHECK_EQUAL(7, static_cast<int64_t>(param.editNodes().getElement(0)->offset));
+}
+
+TEST(AutoParamTests, ReconcilingLoadedTempoDoesNotShiftSavedScalarOrNodes) {
+	preset = 12000;
+	clip.setValue(12000);
+	CHECK(param.setNodeAtPos(0, 15000, false) >= 0);
+	CHECK(param.grabValueFromPos(0, 96));
+	// The setup wrapper used by Song::setBPM(..., false) calls this production operation.
+	// Reconcile the effective BPM from the saved timer, rather than editing its clip scalar.
+	param.setCurrentValueBasicForSetup(14000);
+	CHECK_EQUAL(12000, preset);
+	CHECK_EQUAL(12000, clip.getValue());
+	CHECK_EQUAL(14000, param.getCurrentValue());
+	CHECK_EQUAL(2000, param.getAutomationOffset());
+	CHECK_EQUAL(3000, param.editNodes().getElement(0)->offset);
+	param.deleteAutomationBasicForSetup();
+	CHECK_EQUAL(12000, param.getCurrentValue());
 }

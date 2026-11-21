@@ -22,3 +22,11 @@ TEST(ParameterControlTests, AutomationRemovalSendsMidiOnlyForActiveClipAndOutput
 	CHECK((AutomationTransition{false, false}.sendMidi(true, false)));
 	CHECK((AutomationTransition{true, true}.sendMidi(true, false)));
 }
+
+TEST(ParameterControlTests, TempoRemovalRefreshesClockForSongOnly) {
+	CHECK((AutomationTransition{true, false}.refreshTempo(true, Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO)));
+	CHECK_FALSE((AutomationTransition{true, true}.refreshTempo(true, Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO)));
+	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(false, Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO)));
+	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(true, Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN)));
+	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(true, Kind::MIDI, UNPATCHED_TEMPO)));
+}

@@ -277,8 +277,6 @@ public:
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
-
 	String dirPath;
 
 	std::array<SessionMacro, 8> sessionMacros{};
@@ -462,7 +460,15 @@ public:
 
 	// Tempo automation
 	void clearTempoAutomation();
-	void updateBPMFromAutomation();
+	void updateBPMFromAutomation(bool force = false);
+	// Set the clock directly, as tap tempo and tempo from an audio clip do. The tempo scalar
+	// follows, as for an encoder edit, so leaving arrangement playback keeps this tempo; the
+	// clock itself stays exact. Each returns the scalar before, for the undo record.
+	int64_t setClockTempo(uint64_t newTimeBig);
+	int64_t setClockTempoFromNumSamples(double newTempoSamples);
+	// Restore an exact clock for undo, once the tempo scalar is restored. Automation playback
+	// sets the clock again only when the automated tempo differs from it.
+	void restoreClockTempo(uint64_t timePerTimerTick);
 
 	float calculateBPM() {
 		float timePerTimerTick = getTimePerTimerTickFloat();
@@ -490,6 +496,9 @@ public:
 private:
 	void changeRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor,
 	                    InstrumentClip* clipEnteringScaleMode);
+	// The tempo, in hundredths of a BPM, which the clock currently plays.
+	int32_t clockTempo();
+	void followClockWithTempoScalar();
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
 	bool fillModeActive;

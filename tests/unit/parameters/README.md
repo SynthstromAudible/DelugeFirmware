@@ -48,9 +48,10 @@ The existing x86 PR workflow builds and runs both binaries through CTest.
 
 `parameter_control_tests.cpp` tests the production layer-selection and
 automation-transition policies used by the firmware callers, covering
-expression/live input, recording/region exceptions and inactive MIDI automation
-removal. Value tests exercise full-width detachment/rebinding
-and MIDI backup destruction with the real storage classes.
+expression/live input, recording/region exceptions, inactive MIDI automation
+removal and tempo-clock refresh selection. Value tests exercise full-width detachment/rebinding
+and MIDI backup destruction with the real storage classes. AutoParam tests cover
+effective-tempo edits with positive and negative automation offsets.
 
 These cases do not simulate physical encoder input, whole UI transactions or menu reset
 commands. Changing a ClipParamValue directly tests that value object's behavior,
@@ -63,7 +64,9 @@ state exchange. They do not instantiate the UI action logger or a clip-length UI
 The save/reload regression cases exercise the production supplemental relative
 serializer and reader with positive and negative overshoot, retained timeline
 limits, and saturated cloning. Preset rebasing tests preserve another clip's
-hidden overshoot and leave unrelated owners untouched. Whole-song UI save routing is
+hidden overshoot and leave unrelated owners untouched. Tempo tests exercise the
+clock-value boundary and the production undo transaction, including coalesced
+edits and redo with a relative curve. Whole-song UI save routing is
 validated separately in delugemu; these unit tests do not emulate those UIs.
 
 Preset-save tests also verify that the scoped snapshot retains the actual
@@ -78,7 +81,8 @@ and scalar-edit operation. It verifies distinct preset/clip/live reads, scalar
 reads with no AutoParam, unchanged curve storage and interpolation state after
 editing, saturation, and patch-cable behavior. MIDI tests call the production
 sparse-vector control reader, including absent CCs without materialization.
-The tests do not mock ParamCollection, the action logger, playback, or UI objects;
+The tempo setup regression preserves the saved scalar and nodes while reconciling
+the live value from the timer. The tests do not mock ParamCollection, the action logger, playback, or UI objects;
 full dispatcher/caller behavior is exercised separately in delugemu.
 
 C++ compile-time assertions verify that the live setter and internal scalar/curve

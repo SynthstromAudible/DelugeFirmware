@@ -41,5 +41,8 @@ struct AutomationTransition {
 	[[nodiscard]] constexpr bool sendMidi(bool outputActive, bool clipActive) const {
 		return outputActive && (!removed() || clipActive);
 	}
+	[[nodiscard]] constexpr bool refreshTempo(bool songTimeline, Kind kind, int32_t id) const {
+		return removed() && songTimeline && kind == Kind::UNPATCHED_GLOBAL && id == UNPATCHED_TEMPO;
+	}
 };
 } // namespace deluge::modulation::params

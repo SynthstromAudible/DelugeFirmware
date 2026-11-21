@@ -63,6 +63,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/tempo.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -604,6 +605,7 @@ void PlaybackHandler::endPlayback() {
 	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
+	currentSong->setParamsInAutomationMode(false);
 
 	// Nothing's going to play on into the Clusters we'd prefetched. Before any song swap, so it can delete Samples.
 	audioFileManager.releaseAllPrefetches();
@@ -2472,7 +2474,9 @@ float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
 	auto* tempo_param = currentSong->getModelStackWithParam(model_stack, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 
 	if (tempo_param && tempo_param->autoParam) {
-		return tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param) / 100.0f;
+		return static_cast<float>(
+		           deluge::tempo::clockValue(tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param)))
+		       / 100.0f;
 	}
 
 	return calculateBPM(currentSong->getTimePerTimerTickFloat());
@@ -2481,8 +2485,11 @@ float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
 void PlaybackHandler::getTempoParamsAtArrangementPos(int32_t pos, int32_t* magnitude, int8_t* whichValue) {
 	float bpm = getTempoBPMAtArrangementPos(pos);
 	double scaledBPM = ldexp(static_cast<double>(bpm), currentSong->getInputTickMagnitude());
-	uint64_t timePer = static_cast<uint64_t>((110250.0 / scaledBPM) * 4294967296.0 + 0.5);
-	getTempoParamsFromTimePer(timePer, magnitude, whichValue);
+	double samples = std::clamp(110250.0 / scaledBPM, static_cast<double>(kMinTimePerTimerTick), 4294967295.0);
+	// Samples are positive; signed lround cannot represent the full uint64 timer range.
+	// NOLINTNEXTLINE(bugprone-incorrect-roundings)
+	auto time_per = static_cast<uint64_t>((samples * 4294967296.0) + 0.5);
+	getTempoParamsFromTimePer(time_per, magnitude, whichValue);
 }
 
 void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValue) {
@@ -2680,7 +2687,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	uint64_t timePerBigBefore = currentSong->timePerTimerTickBig;
 
-	currentSong->setTempoFromNumSamples(timePerTick, false);
+	int64_t scalar_before = currentSong->setClockTempoFromNumSamples(timePerTick);
 
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this
 	// other stuff
@@ -2689,9 +2696,13 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
-			ConsequenceTempoChange* newConsequence =
-			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, currentSong->timePerTimerTickBig);
-			action->addConsequence(newConsequence);
+			int64_t scalar_after = currentSong->paramManager.getUnpatchedParamSet()
+			                           ->getClipValueStorage(params::UNPATCHED_TEMPO)
+			                           ->getUnclampedValue();
+			// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+			auto* new_consequence = new (consMemory)
+			    ConsequenceTempoChange(timePerBigBefore, currentSong->timePerTimerTickBig, scalar_before, scalar_after);
+			action->addConsequence(new_consequence);
 		}
 	}
 
@@ -2715,7 +2726,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	}
 	uint64_t timePerBigBefore = currentSong->timePerTimerTickBig;
 
-	currentSong->setTempoFromNumSamples(timePerTick, false);
+	int64_t scalar_before = currentSong->setClockTempoFromNumSamples(timePerTick);
 
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this
 	// other stuff
@@ -2724,9 +2735,13 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
-			ConsequenceTempoChange* newConsequence =
-			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, currentSong->timePerTimerTickBig);
-			action->addConsequence(newConsequence);
+			int64_t scalar_after = currentSong->paramManager.getUnpatchedParamSet()
+			                           ->getClipValueStorage(params::UNPATCHED_TEMPO)
+			                           ->getUnclampedValue();
+			// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+			auto* new_consequence = new (consMemory)
+			    ConsequenceTempoChange(timePerBigBefore, currentSong->timePerTimerTickBig, scalar_before, scalar_after);
+			action->addConsequence(new_consequence);
 		}
 	}
 
@@ -2876,9 +2891,10 @@ void PlaybackHandler::tapTempoButtonPress(bool useNormalTapTempoBehaviour) {
 
 		if (useNormalTapTempoBehaviour || (tapTempoNumPresses > 2)) {
 			actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't add to previous action
-			currentSong->setTimePerTimerTick(timePerQuarterNoteBig / 3,
-			                                 true); // Put the fraction in the middle; it's more likely to be
-			                                        // accurate since we've been rounding down
+			uint64_t time_before = currentSong->timePerTimerTickBig;
+			// Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
+			int64_t scalar_before = currentSong->setClockTempo(timePerQuarterNoteBig / 3);
+			actionLogger.recordTempoChange(time_before, currentSong->timePerTimerTickBig, &scalar_before);
 			actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
 			commandDisplayTempo();

@@ -128,6 +128,10 @@ void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p)
 
 void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
 	AutoParamPlayback(params[p]).clearAutomationOffset();
+	if (params::AutomationTransition{.before = true, .after = false}.refreshTempo(
+	        modelStack->getTimelineCounterAllowNull() == modelStack->song, getParamKind(), p)) {
+		modelStack->song->updateBPMFromAutomation(true);
+	}
 
 	uint32_t mask = ~((uint32_t)1 << (p & 31));
 	modelStack->summary->whichParamsAreAutomated[p >> 5] &= mask;

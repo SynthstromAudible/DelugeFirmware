@@ -58,6 +58,7 @@ public:
 	using AutoParamData::getClipValue;
 	using AutoParamData::getCurrentValue;
 	using AutoParamData::getNodeValue;
+	using AutoParamData::getScalarForEffectiveValue;
 	using AutoParamData::getUnclampedClipValue;
 	using AutoParamData::getValueAtPos;
 	using AutoParamData::getValueForClip;
