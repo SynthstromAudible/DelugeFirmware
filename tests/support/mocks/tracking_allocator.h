@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <new>
 #include <set>
 
 template <typename T>
@@ -21,6 +22,14 @@ public:
 	[[nodiscard]] value_type* allocate(std::size_t n) {
 		auto* ptr = allocator_type().allocate(n);
 		TrackingAllocator::allocated_.insert(ptr);
+		return ptr;
+	}
+
+	[[nodiscard]] value_type* try_allocate(std::size_t n) noexcept {
+		auto* ptr = static_cast<value_type*>(::operator new(n * sizeof(T), std::nothrow));
+		if (ptr != nullptr) {
+			TrackingAllocator::allocated_.insert(ptr);
+		}
 		return ptr;
 	}
 

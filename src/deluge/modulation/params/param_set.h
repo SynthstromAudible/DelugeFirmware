@@ -61,14 +61,27 @@ protected:
 	/// binding regimes resolve identically without the AutoParam holding a pointer. nullptr = unbound.
 	deluge::project::DocParamSet* domStoreRef_ = nullptr;
 
+	/// @brief Copy everything but the DOM store, allocating nothing: the copy is unbound until copyDomStoreFrom().
+	///
+	/// Only clone() copies a set (cloneAs), so a copy is never left without its source's automation. Out-of-line so
+	/// DocParamSet can stay incomplete in this header.
+	/// @param other The set to copy.
+	ParamSet(ParamSet const& other);
+
+	/// @brief Give this copy its own deep copy of @p other's DOM store, so two sets never alias one store.
+	/// @param other The set this was copied from.
+	/// @return Error::INSUFFICIENT_RAM when there is no memory for it; this set is then still unbound.
+	[[nodiscard]] Error copyDomStoreFrom(ParamSet const& other);
+
+	/// @brief The subclasses' clone(): copy @p source into fresh memory, then its store, then strip or flatten the
+	/// automation as asked. Nothing is left allocated when it fails.
+	template <class Set>
+	static Error cloneAs(Set const& source, ParamCollection*& result, bool copyAutomation,
+	                     int32_t reverseDirectionWithLength);
+
 public:
 	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
-	/// @brief Copy-construct a set; a bound source's DOM store is deep-copied, so two sets never alias one store.
-	///
-	/// An unbound source yields an unbound clone. Out-of-line so DocParamSet can stay incomplete in this header.
-	/// @param other The set to copy.
-	ParamSet(ParamSet const& other);
 	~ParamSet() override;
 
 	/// @brief Ensure this set owns a DOM-owned DocParamSet (RAII-freed with the set).
@@ -133,7 +146,7 @@ public:
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong) final;
 	void stripAutomation() override;
-	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
+	[[nodiscard]] Error flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	/// Knob positions through the param's mapping kind in its plugin table; STANDARD for a param with none.
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -180,8 +193,6 @@ void setParamsToDefaults(ParamSet& set, deluge::modulation::params::Kind kind, s
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	// Deep copy: copy-constructs the inline params_ array (real AutoParam copies) and re-points params.
-	UnpatchedParamSet(UnpatchedParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
@@ -191,13 +202,16 @@ public:
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
+	friend class ParamSet; // cloneAs copies
+	// Copies the inline params_ array (each AutoParam's cursor) and re-points params; the store is ParamSet's.
+	UnpatchedParamSet(UnpatchedParamSet const& other);
+
 	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_{};
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	PatchedParamSet(PatchedParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -205,13 +219,15 @@ public:
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
+	friend class ParamSet; // cloneAs copies
+	PatchedParamSet(PatchedParamSet const& other);
+
 	std::array<AutoParam, deluge::modulation::params::kNumParams> params_{};
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	ExpressionParamSet(ExpressionParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -235,5 +251,8 @@ public:
 	uint8_t bendRanges[2]{};
 
 private:
+	friend class ParamSet; // cloneAs copies
+	ExpressionParamSet(ExpressionParamSet const& other);
+
 	std::array<AutoParam, kNumExpressionDimensions> params_{};
 };

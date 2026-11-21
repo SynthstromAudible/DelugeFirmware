@@ -104,15 +104,11 @@ project::DocAutoParam* copyOf(const project::DocAutoParam& model, size_t room) {
 	if (memory == nullptr) {
 		return nullptr;
 	}
-	try {
-		auto* copy = new (memory) project::DocAutoParam(model);
-		if (copy->nodes.reserveExtra(static_cast<int32_t>(room))) {
-			return copy;
-		}
-		copy->~DocAutoParam();
-	} catch (...) {
-		// out of memory copying the nodes
+	auto* copy = new (memory) project::DocAutoParam{.current_value = model.current_value};
+	if (copy->nodes.tryAssign(model.nodes) && copy->nodes.reserveExtra(static_cast<int32_t>(room))) {
+		return copy;
 	}
+	copy->~DocAutoParam(); // out of memory copying the nodes, or for the room
 	memory::dealloc(memory);
 	return nullptr;
 }
@@ -194,12 +190,7 @@ bool release(Pick pick) {
 	if (held == 0) {
 		return false;
 	}
-	bool reserved = true;
-	try {
-		AudioEngine::reserveRetirements(held);
-	} catch (...) {
-		reserved = false;
-	}
+	const bool reserved = AudioEngine::reserveRetirements(held);
 	std::array<project::DocAutoParam*, kWorkingCopies> freed{};
 	size_t count = 0;
 	bool endedFreed = false;
@@ -440,8 +431,13 @@ bool appendRepeatToCopy(ParamCollection& collection, int32_t key, uint32_t repea
 			if (live(*entry)) {
 				section.emplace();
 			}
-			project::appendParam(*entry->copy, *src, args.offset, args.reverseThisRepeatWithLength,
-			                     args.pingpongingGenerally);
+			if (!project::appendParam(*entry->copy, *src, args.offset, args.reverseThisRepeatWithLength,
+			                          args.pingpongingGenerally)) {
+				// No room for the repeat: the take ends for it, as for a copy with no room at the loop's end, and the
+				// next commit carries it into the model, which the repeat is appended to
+				entry->ended.store(true, std::memory_order_relaxed);
+				return true;
+			}
 			entry->written = true;
 		}
 		entry->held = repeat + 1;
@@ -473,8 +469,9 @@ void appendRepeatIntoCopies(ParamCollection& collection, ParamCollection& source
 			return;
 		}
 		if (src != nullptr) {
-			project::appendParam(copy, src->view(), args.offset, args.reverseThisRepeatWithLength,
-			                     args.pingpongingGenerally);
+			// The room was checked above: this cannot fail, and allocates nothing on the render
+			(void)project::appendParam(copy, src->view(), args.offset, args.reverseThisRepeatWithLength,
+			                           args.pingpongingGenerally);
 			entry->written = true;
 		}
 		entry->held++;

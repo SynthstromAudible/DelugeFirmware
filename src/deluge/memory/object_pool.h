@@ -15,19 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "foundation/fallible_allocator.h"
+#include "foundation/oom.h"
+#include "foundation/try_vector.h"
 #include "libdeluge/system.h"
 #include <cstring>
 #include <gsl/gsl>
 #include <memory>
-#include <vector>
+#include <optional>
 
 namespace deluge::memory {
 /// @brief A simple object pool implementation
 /// @tparam T The type of object to pool
-/// @tparam Alloc The allocator to use for the pool
+/// @tparam Alloc The allocator to use for the pool (a FallibleAllocator)
 /// @note One global pool per object type, shared across execution tiers; the free-list
 /// operations are guarded accordingly. See get() for why this is not thread_local.
-template <typename T, template <typename> typename Alloc = std::allocator>
+template <typename T, template <typename> typename Alloc = deluge::nothrow_new_allocator>
 class ObjectPool {
 	static constexpr size_t kDefaultSize = 48;
 	ObjectPool() { repopulate(); };
@@ -85,31 +88,40 @@ public:
 		}
 	}
 
-	/// @brief Repopulates the pool to its original size
-	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
-	void repopulate() noexcept(false) {
+	/// @brief Refill the pool up to its capacity, stopping at the first allocation that fails
+	/// @returns The number of objects now pooled
+	std::size_t repopulate() {
 		// Reserve before filling: this is what lets try_push() run inside a critical section without
-		// ever reaching the heap, since the free list never exceeds `capacity_` entries.
-		objects_.reserve(capacity_);
-		for (size_t i = objects_.size(); i < capacity_; ++i) {
-			objects_.push_back(alloc_.allocate(1));
+		// ever reaching the heap, since the free list never exceeds its reserved size.
+		if (!objects_.try_reserve(capacity_)) {
+			return objects_.size();
 		}
+		while (objects_.size() < capacity_) {
+			T* obj = alloc_.try_allocate(1);
+			if (obj == nullptr) {
+				break;
+			}
+			objects_.push_back(obj); // within the capacity reserved above: cannot allocate
+		}
+		return objects_.size();
 	}
 
 	/// @brief A managed pointer type for an object from the pool
 	using pointer_type = std::unique_ptr<T, decltype(&recycle)>;
 
-	/// @brief Acquires an object from the pool
+	/// @brief Acquires an object from the pool, else from the heap
 	/// @tparam Args The types of arguments to pass to the object's constructor
 	/// @param args The arguments to pass to the object's constructor
-	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
-	/// @returns A managed pointer to the acquired object
+	/// @returns A managed pointer to the acquired object, or nullopt when the pool is empty and the heap has nothing
 	template <typename... Args>
-	[[nodiscard]] pointer_type acquire(Args&&... args) noexcept(false) {
+	[[nodiscard]] std::optional<pointer_type> try_acquire(Args&&... args) {
 		T* obj = try_pop();
 		if (obj == nullptr) {
 			// The pool is empty, so fall back to the heap -- deliberately outside the guard.
-			obj = alloc_.allocate(1);
+			obj = alloc_.try_allocate(1);
+			if (obj == nullptr) {
+				return std::nullopt;
+			}
 		}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 		// A recycled slot still holds the previous occupant's bytes (recycle() runs the destructor but doesn't
@@ -118,7 +130,18 @@ public:
 		// builds only (see sim/CMakeLists DELUGE_DETERMINISTIC_ALLOC); firmware leaves it off.
 		memset(static_cast<void*>(obj), 0, sizeof(T));
 #endif
-		return {new (obj) T(std::forward<Args>(args)...), &recycle};
+		return pointer_type{new (obj) T(std::forward<Args>(args)...), &recycle};
+	}
+
+	/// @brief try_acquire, or oom()
+	/// @returns A managed pointer to the acquired object
+	template <typename... Args>
+	[[nodiscard]] pointer_type acquire(Args&&... args) {
+		auto obj = try_acquire(std::forward<Args>(args)...);
+		if (!obj) [[unlikely]] {
+			deluge::oom();
+		}
+		return std::move(*obj);
 	}
 
 	/// @brief Clears the pool
@@ -158,11 +181,12 @@ private:
 
 	/// @brief Returns a slot to the free list
 	/// @param obj Object to return to the pool.
-	/// @return false if the pool is already at capacity, so the caller must free the slot instead
-	/// @note Guarded for the same reason as try_pop(), and likewise allocation-free.
+	/// @return false if the pool is already at capacity, or its free list has no reserved room (a short
+	///         repopulate(), or a resize() since), so the caller must free the slot instead
+	/// @note Guarded for the same reason as try_pop(), and likewise allocation-free: it never grows the list.
 	bool try_push(T* obj) {
 		CriticalSectionGuard guard;
-		if (objects_.size() >= capacity_) {
+		if (objects_.size() >= capacity_ || objects_.size() == objects_.capacity()) {
 			return false;
 		}
 		objects_.push_back(obj);
@@ -170,7 +194,7 @@ private:
 	}
 
 	size_t capacity_ = kDefaultSize;
-	std::vector<T*, Alloc<T*>> objects_;
+	deluge::TryVector<T*, Alloc<T*>> objects_;
 	Alloc<T> alloc_;
 };
 } // namespace deluge::memory

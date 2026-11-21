@@ -14,13 +14,20 @@
 // Gate param-clone:
 //     cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable
 //     collections) must give deep-independent copies: mutating the source after a clone must not reach the clone
-//     (self-checking)
+//     (self-checking); and a clone that runs out of memory part-way must report it and leave its source as it was
+//
+// Gate app-asan-param-clone:
+//     the param-clone gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+//     poisoning: a clone that runs out of memory part-way destroys what it built, so a member freed twice, or read
+//     after the part-built clone is freed, is fatal here
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -206,7 +213,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// (d) NoteRow deep-copy ctor: notes + param manager deep-copied and independent; drum pointer shared;
+	// (d) NoteRow::cloneFrom: notes + param manager deep-copied and independent; drum pointer shared;
 	//     the owned drum-name list is NOT shared (reset to empty). This guards the highest-risk conversion.
 	{
 		NoteRow src(5);
@@ -219,7 +226,8 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		Drum* fakeDrum = reinterpret_cast<Drum*>(0xDEAD0000); // pointer is only copied, never dereferenced
 		src.drum = fakeDrum;
 
-		NoteRow dst(src); // copy ctor
+		NoteRow dst;
+		check(dst.cloneFrom(src) == Error::NONE, "noterow copy: cloneFrom succeeds");
 		check(dst.y() == 5, "noterow copy: y copied");
 		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
 		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");
@@ -233,6 +241,85 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(dst.notes[0].pos == 10, "noterow copy: notes independent");
 		check(dst.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes[0].value == 321,
 		      "noterow copy: param automation independent");
+	}
+
+	// (e) A clone that runs out of memory part-way reports it, leaves its source as it was, and frees what it built
+	//     (the destructor of a part-built set runs): the next clone of the same source succeeds. Each case fails one
+	//     allocation of the clone's own, by size, and checks the failure was the clone's (it was consumed).
+	{
+		// A bound param set failing on a lane's nodes, part-way through its store copy. (The store object itself comes
+		// from nothrow new, which on the host is the system allocator's: the seam cannot fail it here.)
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "clone oom: pm setup");
+		UnpatchedParamSet* set = pm.getUnpatchedParamSet();
+		setNodeIn(*set->docForParam(2), 16, 321, false);
+		ParamCollection* cloned = nullptr;
+		deluge::memory::failNextAllocationOfSize(sizeof(deluge::project::ParamNode));
+		check(set->clone(cloned, /*copyAutomation=*/true) == Error::INSUFFICIENT_RAM,
+		      "clone oom: a param set reports running out");
+		check(!deluge::memory::allocationFailurePending(), "clone oom: the param set's clone hit the failure");
+		check(cloned == nullptr, "clone oom: no param set handed back");
+		check(set->docForParam(2)->nodes.size() == 1 && set->docForParam(2)->nodes[0].value == 321,
+		      "clone oom: the source param set is as it was");
+		check(set->clone(cloned, /*copyAutomation=*/true) == Error::NONE && cloned != nullptr,
+		      "clone oom: the param set clones once there is memory");
+
+		// A patch-cable set failing on its destination array, after its cables and lanes are built.
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->appendCable(
+		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
+		pcs->numUsablePatchCables = 1;
+		setNodeIn(*pcs->docForParam(0), 0, 4242, true);
+		auto* dests = static_cast<deluge::synth::RoutedDestination*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * 2));
+		check(dests != nullptr, "clone oom: dests alloc");
+		if (dests != nullptr) {
+			dests[0].sources = 0b1;
+			dests[0].first_cable = 0;
+			dests[0].end_cable = 1;
+			dests[1].sources = 0; // terminator
+			pcs->destinations[0 /*GLOBALITY_LOCAL*/] = dests;
+			ParamCollection* clonedPcs = nullptr;
+			deluge::memory::failNextAllocationOfSize(sizeof(deluge::synth::RoutedDestination) * 2);
+			check(pcs->clone(clonedPcs, /*copyAutomation=*/true) == Error::INSUFFICIENT_RAM,
+			      "clone oom: a patch-cable set reports running out");
+			check(!deluge::memory::allocationFailurePending(),
+			      "clone oom: the patch-cable set's clone hit the failure");
+			check(clonedPcs == nullptr, "clone oom: no patch-cable set handed back");
+			check(pcs->docForParam(0)->nodes.size() == 1 && pcs->destinations[0][0].sources == 0b1,
+			      "clone oom: the source patch-cable set is as it was");
+			check(pcs->clone(clonedPcs, /*copyAutomation=*/true) == Error::NONE && clonedPcs != nullptr,
+			      "clone oom: the patch-cable set clones once there is memory");
+		}
+	}
+	{
+		// A MIDI param collection failing on a CC's nodes, after its params are reserved.
+		ParamManagerForTimeline pm;
+		check(pm.setupMIDI() == Error::NONE, "clone oom: midi pm setup");
+		MIDIParamCollection* midi = pm.getMIDIParamCollection();
+		MIDIParam* cc74 = midi->params.getOrCreateParamFromCC(74);
+		check(cc74 != nullptr, "clone oom: midi param created");
+		if (cc74 != nullptr) {
+			setNodeIn(cc74->nodes_, 8, 77, false);
+			ParamCollection* cloned = nullptr;
+			deluge::memory::failNextAllocationOfSize(sizeof(deluge::project::ParamNode));
+			check(midi->clone(cloned, /*copyAutomation=*/true) == Error::INSUFFICIENT_RAM,
+			      "clone oom: a MIDI collection reports running out");
+			check(!deluge::memory::allocationFailurePending(),
+			      "clone oom: the MIDI collection's clone hit the failure");
+			check(cloned == nullptr, "clone oom: no MIDI collection handed back");
+			check(midi->params.size() == 1 && cc74->nodes_.nodes.size() == 1,
+			      "clone oom: the source MIDI collection is as it was");
+			check(midi->clone(cloned, /*copyAutomation=*/true) == Error::NONE && cloned != nullptr,
+			      "clone oom: the MIDI collection clones once there is memory");
+			if (cloned != nullptr) {
+				auto* clonedMidi = static_cast<MIDIParamCollection*>(cloned);
+				check(clonedMidi->params.size() == 1 && clonedMidi->params[0].cc == 74
+				          && clonedMidi->params[0].nodes_.nodes.size() == 1
+				          && clonedMidi->params[0].nodes_.nodes[0].value == 77,
+				      "clone oom: the MIDI clone carries the CC and its nodes");
+			}
+		}
 	}
 
 	// (c) Undo swap round-trip: the undo path swaps two DOM node stores (AutoParamState vs the live store).

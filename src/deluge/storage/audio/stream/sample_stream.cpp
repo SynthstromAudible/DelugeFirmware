@@ -211,11 +211,7 @@ extern "C" {
 // libdeluge/sample_stream.h alongside its sibling deluge_streaming_resource_manager): forwards to the
 // asset-definition entry point (chunk_residency.cpp).
 uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) noexcept {
-	try {
-		return deluge_streaming_define_asset(&deluge::audio::stream::fromAbi(stream_backing)->sample());
-	} catch (...) {
-		return DELUGE_RESOURCE_NO_ASSET;
-	}
+	return deluge_streaming_define_asset(&deluge::audio::stream::fromAbi(stream_backing)->sample());
 }
 
 } // extern "C"

@@ -140,17 +140,22 @@ public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
 
-	// Movable (so NoteRowVector can shuffle rows) and copyable via an explicit deep-copy ctor: the param
-	// manager and notes are deep-copied, the old-drum-name list is NOT shared (reset to empty on the copy),
-	// and transient playback state is reset. firstOldDrumName being move-only forces the ctor to be explicit
-	// (no defaulted copy).
+	// Movable (so NoteRowVector can shuffle rows), not copyable: a deep copy allocates and can fail, so it is
+	// cloneFrom(), which reports it. The param manager and notes are deep-copied, the old-drum-name list is NOT
+	// shared (a clone starts with none), and transient playback state is left as a new row has it.
 	NoteRow(NoteRow&& other) noexcept = default;
 	NoteRow& operator=(NoteRow&& other) noexcept = default;
-	NoteRow(NoteRow const& other);
-	// Copy-and-move assignment (copy-construct a temporary, then move it in): reuses the audited copy ctor and
-	// the defaulted move-assign, which correctly frees the old param manager / notes / drum-name list. Needed
-	// because OrderedPosVector::insertAt inserts via vector::insert(pos, n, value), requiring CopyAssignable.
-	NoteRow& operator=(NoteRow const& other);
+	NoteRow(NoteRow const& other) = delete;
+	NoteRow& operator=(NoteRow const& other) = delete;
+	/// @brief The constructor a clone starts from: every member as its declaration initialises it, as a copy's were,
+	///        and no colour drawn from the RNG (a clone takes its source's, and drawing one would shift every later
+	///        random draw: oscillator phases, the render).
+	struct ForClone {};
+	explicit NoteRow(ForClone /*tag*/);
+	/// @brief Make this freshly constructed row a deep copy of @p other.
+	/// @param other The row to copy.
+	/// @return Error::INSUFFICIENT_RAM when memory runs out; this row is then safe to destroy.
+	[[nodiscard]] Error cloneFrom(NoteRow const& other);
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);

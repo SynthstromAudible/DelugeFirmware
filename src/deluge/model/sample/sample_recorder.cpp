@@ -40,7 +40,6 @@
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "util/boot.h"
-#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include <algorithm>
@@ -161,14 +160,6 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	sample = new (sample_memory) Sample;
 
-	// Reserve our own buffer table's segment-pointer index to the max recording size up front
-	// (single-threaded, before any concurrent audio-thread growth in createNextCluster), so that
-	// growth never reallocates the index under the card routine's concurrent operator[] reads (B2: the
-	// SegmentedVector keeps element addresses stable, but its pointer index must be pre-reserved
-	// to stay stable under concurrent growth). maxClusters is derived from the runtime cluster size,
-	// so this imposes no recording-length limit beyond the existing MAX_FILE_SIZE cap.
-	bufferTable_.reserve(1 << (MAX_FILE_SIZE_MAGNITUDE - Cluster::size_magnitude));
-
 	audioFileManager.adoptAudioFileObject(sample); // resource-manager evictable object (before addReason)
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error = sample->initialize(1);
@@ -178,14 +169,23 @@ gotError:
 		return error;
 	}
 
+	// Reserve our own buffer table's segment-pointer index to the max recording size up front
+	// (single-threaded, before any concurrent audio-thread growth in createNextCluster), so that
+	// growth never reallocates the index under the card routine's concurrent operator[] reads (B2: the
+	// SegmentedVector keeps element addresses stable, but its pointer index must be pre-reserved
+	// to stay stable under concurrent growth). maxClusters is derived from the runtime cluster size,
+	// so this imposes no recording-length limit beyond the existing MAX_FILE_SIZE cap.
+	if (!bufferTable_.try_reserve(1 << (MAX_FILE_SIZE_MAGNITUDE - Cluster::size_magnitude))) {
+		error = Error::INSUFFICIENT_RAM;
+		goto gotError;
+	}
+
 	currentRecordBuffer = allocateBuffer();
 	if (!currentRecordBuffer) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError;
 	}
-	try {
-		bufferTable_.resize(1);
-	} catch (deluge::exception&) {
+	if (!bufferTable_.try_resize(1)) {
 		delugeDealloc(currentRecordBuffer);
 		currentRecordBuffer = nullptr;
 		error = Error::INSUFFICIENT_RAM;
@@ -753,9 +753,7 @@ Error SampleRecorder::finalizeBookkeeping() {
 		// leaving overviewCache_ at its initialize(1) size while derived num_clusters() reports the
 		// true count -- an OOB when later waveform rendering indexes the cache up to that count.
 		if (finalClusterCount > sample->overviewCacheSize()) {
-			try {
-				sample->resizeOverviewCache(finalClusterCount);
-			} catch (deluge::exception&) {
+			if (!sample->resizeOverviewCache(finalClusterCount)) {
 				return Error::INSUFFICIENT_RAM;
 			}
 		}
@@ -1836,9 +1834,7 @@ Error SampleRecorder::createNextCluster() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	try {
-		bufferTable_.resize(static_cast<size_t>(newIndex) + 1);
-	} catch (deluge::exception&) {
+	if (!bufferTable_.try_resize(static_cast<size_t>(newIndex) + 1)) {
 		delugeDealloc(newBuffer);
 		return Error::INSUFFICIENT_RAM;
 	}

@@ -1,11 +1,15 @@
 #pragma once
 
+#include "foundation/fallible_allocator.h"
+#include "foundation/oom.h"
+#include "foundation/try_vector.h"
+
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <memory>
 #include <new>
 #include <utility>
-#include <vector>
 
 namespace deluge {
 
@@ -19,7 +23,7 @@ namespace deluge {
 /// may grow the container while another holds a reference into it — see
 /// `SampleRecorder::bufferTable_` and docs/dev/known-concurrency-bugs.md (B2).
 ///
-/// @note Single-writer for structural mutation (`resize`). Concurrent readers may
+/// @note Single-writer for structural mutation (`try_resize` / `resize`). Concurrent readers may
 ///       hold references from `operator[]` across a grow. Shrinking destroys the
 ///       removed tail — same contract as `std::vector::resize` to a smaller size:
 ///       it must not race a reader of those tail elements.
@@ -27,12 +31,12 @@ namespace deluge {
 /// @tparam T           Element type; default-constructible, nothrow-destructible;
 ///                     may be move-only.
 /// @tparam SegmentSize Elements per segment; a compile-time power of two.
-/// @tparam Alloc       Segment/heap allocator; defaults to `std::allocator` so this
-///                     header stays BSP-free (links in the plain host CppSpec
-///                     harness with no initialized heap); firmware call sites pass
-///                     a heap-specific allocator (e.g. `deluge::memory::fast_allocator`)
-///                     to control placement.
-template <typename T, std::size_t SegmentSize = 256, template <typename> class Alloc = std::allocator>
+/// @tparam Alloc       Segment/heap allocator, a FallibleAllocator; defaults to
+///                     `deluge::nothrow_new_allocator` so this header stays BSP-free
+///                     (links in the plain host CppSpec harness with no initialized
+///                     heap); firmware call sites pass a heap-specific allocator
+///                     (e.g. `deluge::memory::fast_allocator`) to control placement.
+template <typename T, std::size_t SegmentSize = 256, template <typename> class Alloc = deluge::nothrow_new_allocator>
 class SegmentedVector {
 	static_assert((SegmentSize & (SegmentSize - 1)) == 0 && SegmentSize != 0,
 	              "SegmentSize must be a non-zero power of two");
@@ -52,6 +56,9 @@ class SegmentedVector {
 	using SegAlloc = Alloc<Segment>;
 
 public:
+	/// @brief The segment type, so a spec can make its allocator fail.
+	using segment_type = Segment;
+
 	SegmentedVector() = default;
 	SegmentedVector(const SegmentedVector&) = delete;
 	SegmentedVector& operator=(const SegmentedVector&) = delete;
@@ -82,46 +89,64 @@ public:
 
 	/// @brief Resize to exactly @p n: grow default-constructs new tail elements,
 	///        shrink destroys removed tail elements. Existing elements never move.
-	void resize(std::size_t n) {
-		while (size_ > n) {
-			pop_back();
-		}
-		while (size_ < n) {
-			if ((size_ >> kShift) >= segments_.size()) {
-				// Allocate the Segment first, then hand it to the pointer-array. push_back
-				// grows the index GEOMETRICALLY (std::vector's own strategy), so back-to-back
-				// growth reallocates the index rarely, not on every segment. If that grow
-				// throws (OOM; e.g. `fast_allocator::allocate` throws `BAD_ALLOC`), free the
-				// segment we just allocated so a throw can't orphan it.
-				//
-				// @warning This reallocates `segments_` unless the caller pre-reserved (see
-				//          `reserve`). Growth CONCURRENT with a reader (the recorder's audio
-				//          thread growing while the card routine reads via `operator[]`) MUST
-				//          `reserve` to the final capacity first, single-threaded.
-				Segment* seg = alloc_segment();
-				try {
-					segments_.push_back(seg);
-				} catch (...) {
-					free_segment(seg);
-					throw;
-				}
+	///
+	/// @warning Growth reallocates the segment index unless the caller pre-reserved (see `try_reserve`). Growth
+	///          CONCURRENT with a reader (the recorder's audio thread growing while the card routine reads via
+	///          `operator[]`) MUST reserve to the final capacity first, single-threaded.
+	/// @return AllocError when a segment or the index cannot be had; nothing has changed then (no segment or element
+	///         is left behind).
+	[[nodiscard]] AllocResult<void> try_resize(std::size_t n) {
+		if (n <= size_) {
+			while (size_ > n) {
+				pop_back();
 			}
-			// Construct through the RAW address, not `slot(size_)`: no `T` exists at this
-			// index yet, so laundering here would be UB (nothing to launder). `slot` (which
-			// launders) is used only where a live object exists (`operator[]`, `pop_back`).
-			std::construct_at(reinterpret_cast<T*>(raw_at(size_)));
-			++size_;
+			return {};
 		}
+		const std::size_t segmentsBefore = segments_.size();
+		const std::size_t segmentsNeeded = (n + SegmentSize - 1) >> kShift;
+		if (segmentsNeeded > segments_.capacity()) {
+			// Geometric, as push_back grew the index before: back-to-back growth reallocates it rarely.
+			if (auto r = segments_.try_reserve(std::max(segmentsNeeded, 2 * segments_.size())); !r) {
+				return r;
+			}
+		}
+		while (segments_.size() < segmentsNeeded) {
+			Segment* seg = try_alloc_segment();
+			if (seg == nullptr) {
+				while (segments_.size() > segmentsBefore) {
+					free_segment(segments_.back());
+					segments_.pop_back();
+				}
+				return std::unexpected(AllocError::OUT_OF_MEMORY);
+			}
+			segments_.push_back(seg); // within the capacity reserved above: cannot allocate
+		}
+		// Construct through the RAW address, not `slot(size_)`: no `T` exists at this index yet, so laundering here
+		// would be UB (nothing to launder). `slot` (which launders) is used only where a live object exists
+		// (`operator[]`, `pop_back`).
+		for (; size_ < n; ++size_) {
+			std::construct_at(reinterpret_cast<T*>(raw_at(size_)));
+		}
+		return {};
 	}
+
+	/// @brief try_resize, or oom().
+	void resize(std::size_t n) { or_oom(try_resize(n)); }
 
 	/// @brief Reserve the internal segment-pointer index so growth up to @p n elements will not
 	///        reallocate it. Does NOT allocate any Segment and does NOT construct any element.
 	///
-	/// After `reserve(N)`, growth up to N elements will not reallocate the internal segment-pointer
+	/// After `try_reserve(N)`, growth up to N elements will not reallocate the internal segment-pointer
 	/// array. Growing this container CONCURRENTLY with readers (e.g. the recorder's audio-thread growth
 	/// via `resize` vs the card routine's `operator[]`/`chunk_at`) REQUIRES reserving to the final capacity
 	/// first, single-threaded; single-threaded growth is unrestricted.
-	void reserve(std::size_t n) { segments_.reserve((n + SegmentSize - 1) / SegmentSize); }
+	/// @return AllocError when the index cannot be had (it is then as it was).
+	[[nodiscard]] AllocResult<void> try_reserve(std::size_t n) {
+		return segments_.try_reserve((n + SegmentSize - 1) / SegmentSize);
+	}
+
+	/// @brief try_reserve, or oom().
+	void reserve(std::size_t n) { or_oom(try_reserve(n)); }
 
 private:
 	/// @return The RAW backing address of index @p i. No object need exist there — use this for
@@ -132,9 +157,14 @@ private:
 	/// @return A launderable `T*` for index @p i. Use ONLY where a live `T` exists (access/destroy).
 	[[nodiscard]] T* slot(std::size_t i) const { return std::launder(reinterpret_cast<T*>(raw_at(i))); }
 
-	static Segment* alloc_segment() {
+	/// @return A new Segment, or nullptr when the allocator has none.
+	static Segment* try_alloc_segment() {
 		SegAlloc a;
-		// `allocate(1)` only returns raw storage; it does not start Segment's
+		Segment* raw = a.try_allocate(1);
+		if (raw == nullptr) {
+			return nullptr;
+		}
+		// `try_allocate(1)` only returns raw storage; it does not start Segment's
 		// lifetime. Implicit-lifetime-object creation (P0593) is guaranteed for
 		// `std::allocator` (built on `::operator new`), but NOT for an arbitrary
 		// `Alloc` -- `deluge::memory::fast_allocator` routes through the bespoke
@@ -142,7 +172,7 @@ private:
 		// implicit-object-creation function. `construct_at` here runs Segment's no-op
 		// default ctor (which leaves `storage` uninitialized) and makes this correct for
 		// every `Alloc`.
-		return std::construct_at(a.allocate(1));
+		return std::construct_at(raw);
 	}
 	static void free_segment(Segment* s) {
 		SegAlloc a;
@@ -165,7 +195,7 @@ private:
 		segments_.clear();
 	}
 
-	std::vector<Segment*, Alloc<Segment*>> segments_{};
+	TryVector<Segment*, Alloc<Segment*>> segments_{};
 	std::size_t size_ = 0;
 };
 

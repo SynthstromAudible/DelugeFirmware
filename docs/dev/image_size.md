@@ -103,16 +103,17 @@ In production, the traps should report through `FREEZE_WITH_ERROR`, not `__built
 
 ### Exceptions
 
-Every C++ TU builds with exceptions on. They are used to report allocation failure: the SDRAM, fast and external
-allocators `throw deluge::exception::BAD_ALLOC`, and about 40 files catch it. `-fignore-exceptions` drops the landing
-pads and the LSDAs, which approximates the saving from converting those sites to returned errors (`std::expected` or a
-null check).
+The device C++ builds with `-fno-exceptions` (refactor target 3, done). Running out of memory is reported by value
+where a caller handles it, through an allocator's `try_allocate` and `deluge::TryVector`'s `try_*` members
+(`src/foundation/try_vector.h`), and otherwise stops the firmware through `deluge::oom()` (`src/foundation/oom.h`),
+which freezes with `OOM`. `src/deluge/memory/std_throw_shims.cpp` defines the libstdc++ entry points that would pull
+in its exception runtime (`functexcept.o`, `functional.o`, `pure.o`), so libgcc's unwinder is not linked either.
 
 On ARM EHABI, LLVM emits an `.ARM.exidx` entry for every function whatever the flags, so `-fno-unwind-tables` changes
-nothing. A true `-fno-exceptions` build marks functions `nounwind`, so their entries become `CANTUNWIND`, and lld
-merges adjacent identical `CANTUNWIND` entries. With no unwinder left, `.ARM.exidx` could be discarded outright. That
-is up to a further ~87 KB (*estimate*). Nothing else reads the tables: the fault reporter scans the stack for code
-addresses.
+nothing; under `-fno-exceptions` every entry is `CANTUNWIND`, and lld merges adjacent identical ones. What is left is
+lld's two 8-byte sentinels, one per code region. Discarding the section would save those 16 B but move the anchor of
+`sdram_sections.x`'s boot-only tail (`INSERT AFTER .ARM.exidx`), so it stays. Nothing reads the tables: the fault
+reporter scans the stack for code addresses.
 
 ### The scenes in the device image
 
@@ -276,7 +277,7 @@ unless marked measured.
 |---:|---|---:|---|---|
 | 1 | Oscillator tables to SDRAM | 287 KB | an hour | audio path: bench |
 | 2 | Reverb delay lines to SDRAM | 128 KB | an hour | audio path: bench |
-| 3 | No exceptions | 100–145 KB | 4–6 days | OOM recovery paths |
+| 3 | No exceptions | **done: 145.8 KB of heap** | | |
 | 4 | The class-per-item menu | **done: 27.8 KB of heap** | | |
 | 5 | Finish the domain split | 50–70 KB | large | existing program |
 | 6 | Inline threshold instead of `-fno-inline-functions` | **done: 241 KB** | | |
@@ -299,21 +300,15 @@ unless marked measured.
    Digital; Freeverb is 100 KB). It can go to `.sdram_bss`. Every tap advances sequentially, so it costs about one
    miss per 8 samples per tap (estimate). Bench it. The alternative, heap-allocating only the active model, saves
    just 28 KB.
-3. **No exceptions, 100–145 KB.** Today the image carries `.ARM.extab` 34 KB, `.ARM.exidx` 81 KB, about 29 KB of
-   landing pads and about 5 KB of unwinder.
-   - **Scope:** 16 throw sites (the allocators, the three global `operator new`, `model_out_of_memory`, two copy
-     constructors that throw) and 67 catches in 32 files. Because global `new` throws, every std container can throw.
-   - **What the catches do:** about 42 convert to an error code, mostly on vector growth. About 12 clean up a
-     half-built clone. About 9 ignore the failure. Seven are `catch (...)` firewalls. One is behavioural:
-     `sound.cpp` steals a voice when there is no memory for a new one.
-   - **Plan:**
-     1. `[[noreturn]] oom()` and strong `std::__throw_*` definitions that call it.
-     2. Fallible primitives: `try_alloc`, and a small vector with `try_push_back` / `try_reserve` returning
-        `std::expected`.
-     3. Convert the error-code catches. Make the throwing clones two-phase `cloneFrom() -> Error`.
-     4. Allocators and `operator new` call `oom()`.
-     5. Build with `-fno-exceptions` and delete the firewalls.
-     6. Discard `.ARM.exidx` / `.ARM.extab`. Rust is already `panic=abort`.
+3. **No exceptions: done, 145.8 KB.**
+   - The device C++ builds with `-fno-exceptions` (see [Exceptions](#exceptions)). Against `next` at `df962c469`, on
+     the same RelWithDebInfo build: SRAM headroom 498,960 → 644,736 B, `.ARM.extab` 42,396 → 0 B, `.ARM.exidx`
+     66,128 → 16 B, `.text` 1,435,852 → 1,400,792 B, and the unwinder and the C++ exception runtime are gone.
+   - Every container whose growth a caller handles is a `TryVector`, or reserves through one; a clone that allocates
+     is two-phase (a copy that allocates nothing, then `cloneFrom()` returning `Error`). Small allocations with no
+     useful recovery (`std::string`, map and list nodes) are fatal.
+   - A note-on with no memory for a new voice still takes one of the sound's own; the file catalogue and the browser
+     still cull once and retry.
 4. **The class-per-item menu: done, 27.8 KB.**
    - The menu items, `menus.cpp` and `SoundEditor` are deleted; the menu is `MenuScene` over node tables (see the
      scenes' section under [Measured levers](#measured-levers)). Most of their cost had already moved to SDRAM with the
@@ -399,5 +394,4 @@ fill); `std::function` (0.3 KB).
    - The sample-stream `REGISTRY` (12 KB) to SDRAM, since the playback path may look it up.
    - The efatfs path walk out of line: measure it as a variant after `"z"`, which already inlines less.
 3. Structural:
-   - Remove exceptions (`BAD_ALLOC` → returned errors) and discard `.ARM.exidx`.
    - Cold code to SDRAM.

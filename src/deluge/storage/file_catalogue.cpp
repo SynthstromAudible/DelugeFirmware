@@ -36,7 +36,7 @@ using namespace deluge;
 namespace deluge::storage {
 
 std::string FileCatalogue::currentDir{};
-deluge::vector<FileItem> FileCatalogue::fileItems;
+deluge::try_vector<FileItem> FileCatalogue::fileItems;
 int32_t FileCatalogue::numFileItemsDeletedAtStart;
 int32_t FileCatalogue::numFileItemsDeletedAtEnd;
 std::string FileCatalogue::firstFileItemRemaining;
@@ -106,23 +106,19 @@ void FileCatalogue::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 }
 
 FileItem* FileCatalogue::getNewFileItem(bool interpretNoteNames) {
+	// One cull at most, whether the cap or a failed push asks for it.
 	bool alreadyCulled = false;
-
 	if (static_cast<int32_t>(fileItems.size()) >= maxNumFileItemsNow) {
-doCull:
 		cullSomeFileItems(interpretNoteNames);
 		alreadyCulled = true;
 	}
-
-	try {
-		fileItems.push_back(FileItem());
-	} catch (deluge::exception&) {
+	while (!fileItems.try_push_back(FileItem())) {
 		if (alreadyCulled) {
 			return nullptr;
 		}
-		goto doCull;
+		cullSomeFileItems(interpretNoteNames);
+		alreadyCulled = true;
 	}
-
 	return &fileItems.back();
 }
 

@@ -41,10 +41,12 @@ echo "== building (${CXX} -fsanitize=thread) =="
 # The four binaries build concurrently (through ccache when it is installed); each build's own exit status is checked.
 LAUNCHER=""
 command -v ccache >/dev/null 2>&1 && LAUNCHER="ccache"
+# oom_for_tests.cpp: deluge::oom(), which a container's infallible growth calls (src/foundation/oom.h).
+OOM="${REPO_ROOT}/tests/support/mocks/oom_for_tests.cpp"
 build_one() { # SRC BIN [extra include dir]
     ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
         -I "${REPO_ROOT}/src" ${3:+-I "$3"} -I "${REPO_ROOT}/include" -pthread \
-        "$1" -o "$2"
+        "$1" "${OOM}" -o "$2"
 }
 build_one "${SRC}" "${BIN}" & p1=$!
 build_one "${SRC2}" "${BIN2}" & p2=$!
@@ -71,7 +73,7 @@ build_one4() {
     ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
         -I "${SCRIPT_DIR}/stubs" -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/src/deluge" -I "${REPO_ROOT}/include" -I "${ETL_INCLUDE}" -pthread \
         "${SRC4}" "${REPO_ROOT}/src/deluge/model/instrument/rendering_drums.cpp" \
-        "${REPO_ROOT}/src/deluge/model/project_bridge/model_hooks.cpp" -o "${BIN4}"
+        "${REPO_ROOT}/src/deluge/model/project_bridge/model_hooks.cpp" "${OOM}" -o "${BIN4}"
 }
 build_one4 & p4=$!
 build_failed=0

@@ -344,7 +344,9 @@ bool LanePublication::matches(ParamCollection& collection) {
 
 LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 	uint32_t count = 0;
-	lanes([&](int32_t, const project::DocAutoParam&) { count++; });
+	if (!lanes([&](int32_t, const project::DocAutoParam&) { count++; })) {
+		return nullptr;
+	}
 	LaneSnapshot* next = LaneSnapshot::make(count);
 	if (next == nullptr) {
 		return nullptr;
@@ -353,7 +355,7 @@ LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 	std::span<LaneSnapshot::Entry> entries = next->entriesToFill();
 	uint32_t filled = 0;
 	bool outOfMemory = false;
-	lanes([&](int32_t key, const project::DocAutoParam& lane) {
+	const bool visitedAll = lanes([&](int32_t key, const project::DocAutoParam& lane) {
 		if (outOfMemory || filled == entries.size()) {
 			return;
 		}
@@ -365,7 +367,7 @@ LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 		}
 		entries[filled++] = {.key = key, .lane = published};
 	});
-	if (outOfMemory) {
+	if (outOfMemory || !visitedAll) {
 		discard(entries.first(filled), next, old);
 		return nullptr;
 	}
@@ -378,9 +380,7 @@ void discardSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
 }
 
 bool retireSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
-	try {
-		AudioEngine::reserveRetirements(retirementsFor(*snapshot, kept));
-	} catch (...) {
+	if (!AudioEngine::reserveRetirements(retirementsFor(*snapshot, kept))) {
 		return false;
 	}
 	retireReserved(*snapshot, kept);
@@ -396,15 +396,18 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		return true;
 	}
 	const LaneSnapshot* old = collection.published();
-	LaneSnapshot* next = buildSnapshot([&](LaneVisit visit) { collection.forEachLane(visit); }, old);
+	LaneSnapshot* next = buildSnapshot(
+	    [&](LaneVisit visit) {
+		    collection.forEachLane(visit);
+		    return true;
+	    },
+	    old);
 	if (next == nullptr) {
 		return false;
 	}
 
 	// Room to retire what the new snapshot replaces, made before the swap so retiring it cannot fail
-	try {
-		AudioEngine::reserveRetirements(old != nullptr ? retirementsFor(*old, next) : 0);
-	} catch (...) {
+	if (!AudioEngine::reserveRetirements(old != nullptr ? retirementsFor(*old, next) : 0)) {
 		discardSnapshot(next, old);
 		return false;
 	}
@@ -446,12 +449,7 @@ void LanePublication::walkDirty(bool settle) {
 	}
 	struct Walk {
 		Walk() { g_publishing = true; }
-		~Walk() {
-			g_publishing = false;
-			if (std::uncaught_exceptions() > 0) {
-				g_anyPending.store(true, std::memory_order_relaxed); // the next publish point looks again
-			}
-		}
+		~Walk() { g_publishing = false; }
 	} walk;
 	g_anyPending.store(false, std::memory_order_relaxed);
 	bool failed = false;
@@ -551,11 +549,7 @@ LaneOperation::~LaneOperation() {
 		return;
 	}
 	if (--g_operations == 0) {
-		try {
-			LanePublication::publishDirty(false);
-		} catch (...) {
-			// Out of memory building a snapshot: the lanes stay marked for the next publish point
-		}
+		LanePublication::publishDirty(false);
 	}
 }
 

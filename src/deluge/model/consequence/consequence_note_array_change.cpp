@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
-#include "util/exceptions.h"
 
 ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId,
                                                        NoteVector* newNoteVector, bool stealData) {
@@ -34,11 +33,8 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 
 	// Or copy it...
 	else {
-		try {
-			backedUpNoteVector = *newNoteVector;
-		} catch (deluge::exception&) {
-			// OOM while recording undo: leave the backup empty (best-effort undo, no crash).
-		}
+		// Out of memory while recording undo leaves the backup empty (best-effort undo, no crash).
+		(void)backedUpNoteVector.tryAssign(*newNoteVector);
 	}
 }
 

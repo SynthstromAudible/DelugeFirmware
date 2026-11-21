@@ -38,7 +38,6 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "synth/matrix/compiler.h"
-#include "util/exceptions.h"
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
@@ -776,7 +775,7 @@ deluge::synth::RoutedDestination* PatchCableSet::cloneDestinations(deluge::synth
 	auto* dst = static_cast<deluge::synth::RoutedDestination*>(
 	    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedDestination) * numEntries));
 	if (dst == nullptr) {
-		throw deluge::exception::BAD_ALLOC;
+		return nullptr; // out of memory: the caller reports it
 	}
 	deluge::synth::RoutedDestination* to = dst;
 	deluge::synth::RoutedDestination const* from = src;
@@ -791,89 +790,80 @@ deluge::synth::RoutedDestination* PatchCableSet::cloneDestinations(deluge::synth
 	return dst;
 }
 
-PatchCableSet::PatchCableSet(PatchCableSet const& other)
-    : ParamCollection(other), numUsablePatchCables(other.numUsablePatchCables), numPatchCables(other.numPatchCables) {
+PatchCableSet::PatchCableSet(PatchCableSet const& other, ShallowCopy /*tag*/)
+    : ParamCollection(other), numUsablePatchCables(other.numUsablePatchCables), numPatchCables(0) {
 	sourcesPatchedToAnything[GLOBALITY_LOCAL] = other.sourcesPatchedToAnything[GLOBALITY_LOCAL];
 	sourcesPatchedToAnything[GLOBALITY_GLOBAL] = other.sourcesPatchedToAnything[GLOBALITY_GLOBAL];
+}
 
-	// This set's own cable storage, sized to fit. Nothing renders a set under construction, so no exclusion.
-	if (numPatchCables != 0) {
+Error PatchCableSet::cloneFrom(PatchCableSet const& other) {
+	// Every member is set as soon as it holds something, so the destructor frees a part-built set: numPatchCables
+	// counts the cables constructed so far, and each pointer is null until its block is had. Nothing renders a set
+	// under construction, so no exclusion.
+	if (other.numPatchCables != 0) {
 		patchCables = static_cast<PatchCable*>(
-		    deluge::memory::alloc_fast(sizeof(PatchCable) * numPatchCables, alignof(PatchCable)));
+		    deluge::memory::alloc_fast(sizeof(PatchCable) * other.numPatchCables, alignof(PatchCable)));
 		if (patchCables == nullptr) {
-			throw deluge::exception::BAD_ALLOC;
+			return Error::INSUFFICIENT_RAM;
 		}
 	}
 
-	// Real-copy the live cables (deep-copies each cable's AutoParam nodes — may throw); the rest start empty, keeping
-	// no automation. A throw destroys what was built, as the destructor won't run for a constructor that throws.
-	int32_t built = 0;
-	try {
-		for (; built < numUsablePatchCables; built++) {
-			new (&patchCables[built]) PatchCable(other.patchCables[built]);
-		}
-		// The clone owns a copy of its live cables' lanes, whichever table `other` reads them from; the rest of its
-		// cables start empty, with no lane.
-		for (int32_t c = 0; c < numUsablePatchCables; c++) {
-			const deluge::plugin::ParamId id =
-			    deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destination);
-			for (const deluge::project::DocCableDepth& lane : other.depthStore()) {
-				if (lane.depth == id) {
-					ownDepths_.push_back(lane);
-				}
-			}
-		}
-		deluge::project::DocAutoParam empty{};
-		for (; built < numPatchCables; built++) {
-			new (&patchCables[built]) PatchCable();
-			patchCables[built].param.init(empty);
-		}
-
-		// The records are the cables as built: the usable ones copied, the rest empty.
-		for (int32_t c = 0; c < numPatchCables; c++) {
-			records_.append(recordOf(patchCables[c]));
-		}
-
-		// Deep-copy the destination arrays last, so a throw leaves only the cables to clean up.
-		destinations[GLOBALITY_LOCAL] = cloneDestinations(other.destinations[GLOBALITY_LOCAL]);
-		try {
-			destinations[GLOBALITY_GLOBAL] = cloneDestinations(other.destinations[GLOBALITY_GLOBAL]);
-			if (other.routedCables_ != nullptr && numPatchCables != 0) {
-				routedCables_ = static_cast<deluge::synth::RoutedCable*>(
-				    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
-				if (routedCables_ == nullptr) {
-					throw deluge::exception::BAD_ALLOC;
-				}
-				std::copy_n(other.routedCables_, numPatchCables, routedCables_);
-			}
-			if (other.program_ != nullptr) {
-				void* block =
-				    deluge::memory::alloc_fast(other.program_->bytes, alignof(deluge::synth::matrix::MatrixProgram));
-				if (block == nullptr) {
-					throw deluge::exception::BAD_ALLOC;
-				}
-				program_ = deluge::synth::matrix::copy_program(*other.program_,
-				                                               {static_cast<std::byte*>(block), other.program_->bytes});
-			}
-		} catch (deluge::exception&) {
-			if (routedCables_ != nullptr) {
-				delugeDealloc(routedCables_);
-			}
-			if (destinations[GLOBALITY_LOCAL]) {
-				delugeDealloc(destinations[GLOBALITY_LOCAL]);
-			}
-			if (destinations[GLOBALITY_GLOBAL]) {
-				delugeDealloc(destinations[GLOBALITY_GLOBAL]);
-			}
-			throw;
-		}
-	} catch (deluge::exception&) {
-		for (int32_t c = 0; c < built; c++) {
-			patchCables[c].~PatchCable();
-		}
-		deluge::memory::dealloc(patchCables);
-		throw;
+	// Copy the live cables (a PatchCable's AutoParam is a cursor: its copy allocates nothing); the rest start empty,
+	// keeping no automation.
+	for (; numPatchCables < numUsablePatchCables; numPatchCables++) {
+		new (&patchCables[numPatchCables]) PatchCable(other.patchCables[numPatchCables]);
 	}
+	deluge::project::DocAutoParam empty{};
+	for (; numPatchCables < other.numPatchCables; numPatchCables++) {
+		new (&patchCables[numPatchCables]) PatchCable();
+		patchCables[numPatchCables].param.init(empty);
+	}
+
+	// The clone owns a copy of its live cables' lanes, whichever table `other` reads them from; the rest of its cables
+	// start empty, with no lane. A lane's nodes are copied fallibly; the table itself holds one small entry per cable.
+	for (int32_t c = 0; c < numUsablePatchCables; c++) {
+		const deluge::plugin::ParamId id = deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destination);
+		for (const deluge::project::DocCableDepth& lane : other.depthStore()) {
+			if (lane.depth == id) {
+				auto amount = deluge::project::tryClone(lane.amount);
+				if (!amount) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				ownDepths_.push_back({.depth = lane.depth, .amount = std::move(*amount)});
+			}
+		}
+	}
+
+	// The records are the cables as built: the usable ones copied, the rest empty.
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		records_.append(recordOf(patchCables[c]));
+	}
+
+	for (int32_t g : {GLOBALITY_LOCAL, GLOBALITY_GLOBAL}) {
+		if (other.destinations[g] != nullptr) {
+			destinations[g] = cloneDestinations(other.destinations[g]);
+			if (destinations[g] == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
+		}
+	}
+	if (other.routedCables_ != nullptr && numPatchCables != 0) {
+		routedCables_ = static_cast<deluge::synth::RoutedCable*>(
+		    deluge::memory::alloc_fast(sizeof(deluge::synth::RoutedCable) * numPatchCables));
+		if (routedCables_ == nullptr) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		std::copy_n(other.routedCables_, numPatchCables, routedCables_);
+	}
+	if (other.program_ != nullptr) {
+		void* block = deluge::memory::alloc_fast(other.program_->bytes, alignof(deluge::synth::matrix::MatrixProgram));
+		if (block == nullptr) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		program_ = deluge::synth::matrix::copy_program(*other.program_,
+		                                               {static_cast<std::byte*>(block), other.program_->bytes});
+	}
+	return Error::NONE;
 }
 
 Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
@@ -881,24 +871,20 @@ Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_
 	if (mem == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	PatchCableSet* clone;
-	try {
-		clone = new (mem) PatchCableSet(*this);
-	} catch (deluge::exception&) {
-		delugeDealloc(mem);
-		return Error::INSUFFICIENT_RAM;
-	}
-	if (!copyAutomation) {
-		clone->stripAutomation();
-	}
-	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
-			clone->~PatchCableSet();
-			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+	auto* clone = new (mem) PatchCableSet(*this, ShallowCopy{}); // allocates nothing
+	Error error = clone->cloneFrom(*this);
+	if (error == Error::NONE) {
+		if (!copyAutomation) {
+			clone->stripAutomation();
 		}
+		else if (reverseDirectionWithLength != 0) {
+			error = clone->flattenReverseAutomation(reverseDirectionWithLength);
+		}
+	}
+	if (error != Error::NONE) {
+		clone->~PatchCableSet(); // frees whatever cloneFrom built
+		delugeDealloc(mem);
+		return error;
 	}
 	result = clone;
 	return Error::NONE;
@@ -911,11 +897,15 @@ void PatchCableSet::stripAutomation() {
 	}
 }
 
-void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+Error PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
+		if (Error error = patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
+		    error != Error::NONE) {
+			return error;
+		}
 	}
+	return Error::NONE;
 }
 
 void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomation) {
