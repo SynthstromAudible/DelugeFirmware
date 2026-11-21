@@ -152,9 +152,8 @@ PIC and parity with main.
   - `host_binds`, for `audio_clip/audio_clip_scene.cpp` alone (R2c-2); `audio_clip_scene.h` and `timeline/timeline.h`
     declare the legacy `::Song` too;
   - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
-  - `host_end_audition`, for the menu's sample and name items, the browser and the recorder;
+  - `host_end_audition`, for the browser alone;
   - `host_waveforms`, for the menu's relevance, the audio clip view, the marker editor and the browser;
-  - `host_clear_tick_squares`, for the recorder;
   - `host_grab_tempo` (the audio clip view; it becomes `TransportActions::grab_tempo`), and `host_last_sample_path`,
     `host_release_sample_file`, `host_forget_undo` and `host_favourites` (the browser; `DeviceActions::delete_all_logs`
     is ready for `host_forget_undo`).
@@ -175,8 +174,8 @@ PIC and parity with main.
   | Root | What it reaches |
   | --- | --- |
   | `relevance.cpp` | `host_waveforms()` |
-  | `nodes/sample.cpp` | `host_end_audition`, and the browser, marker editor and recorder scenes' opens |
-  | `nodes/edit_name.cpp` | `host_end_audition`, and the rename scene's open |
+  | `nodes/sample.cpp` | the browser, marker editor and recorder scenes' opens |
+  | `nodes/edit_name.cpp` | the rename scene's open |
   | `nodes/dx.cpp`, `nodes/output_items.cpp` | the browser scene's open |
   | `nodes/context_menu_items.cpp` | the context menu scene's open |
   | `nodes/settings.cpp` | `scenes::menu_scene()` (the registry, which builds every scene) |

@@ -22,7 +22,6 @@
 
 #include "scenes/browser/browser_scene.h" // FileBrowserItem::on_focus opens this
 #include "scenes/marker/marker_scene.h"   // MarkerItem::on_focus opens this
-#include "scenes/menu/bind_host.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -84,7 +83,7 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// context it needs (`browser_scene.h`'s `Descriptor::start_at`).
 	//
 	// Main's `keyboardScreen.exitAuditionMode()`, with the keyboard at the root and a note auditioning, is a root
-	// UI's: `host_end_audition` ends it before the browser opens, as main's runs before its `openUI`.
+	// UI's: the view actions port ends it before the browser opens, as main's runs before its `openUI`.
 	// `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)`, which main runs only when the browser refuses to open,
 	// is the shortcut-pad flash, which `MenuScene` owns rather than an item.
 	//
@@ -101,7 +100,9 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// its own; the page half is resolved from the tables and the re-rooting applied by
 	// `MenuScene::reroot_to_scene_opener_page()`, which `deluge::gui::ui::shellSampleClaimDone` calls on the claim's
 	// success.
-	host_end_audition(AuditionEnd::KeyboardWhenAuditioning);
+	if (auto* v = ctx.ports.view_actions) {
+		v->end_audition(bind::AuditionEnd::KeyboardWhenAuditioning);
+	}
 	browser::browser_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
 }
@@ -109,7 +110,9 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `LoopPoint::beginSession` (a sound's markers; the audio clip's opener has no such arm): a keyboard audition ends.
 	if (source_index() >= 0) {
-		host_end_audition(AuditionEnd::KeyboardWhenAuditioning);
+		if (auto* v = ctx.ports.view_actions) {
+			v->end_audition(bind::AuditionEnd::KeyboardWhenAuditioning);
+		}
 	}
 	// `LoopPoint::beginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) and
 	// `audio_clip::SampleMarkerEditor::beginSession`

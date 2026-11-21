@@ -319,8 +319,8 @@ the tick squares, sticky shift reaches the shift machines, rounded corners resty
 pulses resync the ticks, a MIDI clock starts or stops, a CV output's voltage goes out again and a gate switches. A
 write the device applies only after a restart (USB audio's enable) says so, and the menu raises "restart to apply".
 What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus feature's re-lays
-out the menu. The file selector ends a keyboard audition the same way, with
-`host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
+out the menu. The file selector ends a keyboard audition the same way, through the view actions port
+(`Ports::view_actions`, `end_audition(AuditionEnd::KeyboardWhenAuditioning)`).
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`
 (`scenes/browser/browser_scene.h`): `perform` takes a `BrowserChoice` (the claim of a chosen file, the folder imports

@@ -1,8 +1,6 @@
-#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/ui.h"
-#include "gui/views/instrument_clip_view.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"
@@ -90,24 +88,8 @@ void host_forget_undo() {
 	actionLogger.deleteAllLogs();
 }
 
-void host_end_audition(AuditionEnd how) {
-	switch (how) {
-	case AuditionEnd::ClipViewWhenAuditioning:
-		if (currentUIMode == UI_MODE_AUDITIONING) {
-			instrumentClipView.cancelAllAuditioning();
-		}
-		break;
-	case AuditionEnd::ClipViewForInstrumentClip:
-		if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::INSTRUMENT) {
-			instrumentClipView.cancelAllAuditioning();
-		}
-		break;
-	case AuditionEnd::KeyboardWhenAuditioning:
-		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
-			keyboardScreen.exitAuditionMode();
-		}
-		break;
-	}
+void host_end_audition(bind::AuditionEnd how) {
+	gui::shell_host::view_actions().end_audition(how);
 }
 
 } // namespace deluge::scenes::menu

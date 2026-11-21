@@ -449,7 +449,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	if (id_ == BrowserId::Sample) {
 		// `SampleBrowser::opened`: a held audition ends as the browser opens.
-		menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
+		menu::host_end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
 		// `SampleBrowser::opened`: undo history ends at the browser.
 		menu::host_forget_undo();
 	}

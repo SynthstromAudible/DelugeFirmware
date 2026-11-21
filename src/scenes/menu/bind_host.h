@@ -6,6 +6,7 @@
 /// ports.cpp, the waveforms by waveforms.cpp, the rest by menu_hooks.cpp).
 
 #include "scenes/bind/ports/ports.h"
+#include "scenes/bind/ports/view_actions.h"
 #include "scenes/bind/ports/waveforms.h"
 #include "scenes/services/favourites.h"
 
@@ -40,15 +41,9 @@ std::string host_last_sample_path();
 ///        browser's Shift+SAVE, before it offers to delete the file (`SampleBrowser::buttonAction`).
 /// @return False when the song uses the file, which may then not be deleted.
 bool host_release_sample_file(std::string_view path);
-/// @brief How an opener ends a held audition, each as its legacy opener does.
-enum class AuditionEnd : uint8_t {
-	ClipViewWhenAuditioning,   ///< `AudioRecorder::opened`, `SampleBrowser::opened`
-	ClipViewForInstrumentClip, ///< `EditName::beginSession`
-	KeyboardWhenAuditioning,   ///< `LoopPoint::beginSession`, `FileSelector::beginSession`
-};
-/// @brief End a held audition the way @p how names, before a scene opens over it: the scene claims every pad, so the
-///        held pad's release never reaches the view that started the note.
-void host_end_audition(AuditionEnd how);
+/// @brief End a held audition the way @p how names, before the sample browser opens over it: the app's view actions
+///        (`gui::shell_host::view_actions`), for the browser, which reads no ports for it.
+void host_end_audition(deluge::scenes::bind::AuditionEnd how);
 /// @brief Forget the undo history: what main's sample browser does as it opens.
 void host_forget_undo();
 /// @brief The favourites bank the app's browsers share.
