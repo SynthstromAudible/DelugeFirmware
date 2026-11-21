@@ -16,10 +16,10 @@
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
 /// The same reason `ModKnobs` gives (`services/mod_knobs.h`): `shell::Service` is a shell
-/// interface, but `src/shell/**` may not include `model/**` (`scripts/check_layer_rules.py`'s
-/// `shell-includes-outside` row) and every arm here acts on the song through the scenes' ports -- the transport, the
-/// sync-scaling clip's write, the undo history. So the shell's interface is implemented from inside the scenes library,
-/// which may see both.
+/// interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**` (`scripts/check_layer_rules.py`'s
+/// `shell-includes-outside` row), and every arm here acts on the song through the scenes' ports and reads the song's
+/// record -- the transport, the sync-scaling clip's write, the undo history. So the shell's interface is implemented
+/// from inside the scenes library, which may see both.
 ///
 /// @par Its ports
 ///

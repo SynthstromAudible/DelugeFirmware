@@ -14,8 +14,9 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 namespace deluge::gui::shell_host {
 namespace {
 
-/// The transport's actions, each the call the legacy button handling (`origin/main:src/deluge/hid/buttons.cpp`,
-/// `Buttons::buttonAction`) makes, popups included.
+/// The transport's actions, each the call the legacy button handling makes, popups included. PLAY, RECORD, the tempo
+/// encoder and the output recording are `Buttons::buttonAction`'s (`origin/main:src/deluge/hid/buttons.cpp`); tap
+/// tempo, the metronome, undo and fill are `View::buttonAction`'s (`origin/main:src/deluge/gui/views/view.cpp`).
 class HostTransportActions final : public scenes::bind::TransportActions {
 public:
 	void play() override { playbackHandler.playButtonPressed(kInternalButtonPressLatency); }
@@ -29,6 +30,8 @@ public:
 		// `View::buttonAction`'s BACK arm (`origin/main:src/deluge/gui/views/view.cpp`): the pending command, then the
 		// routine that runs it at once, inside the button's handling.
 		pendingGlobalMIDICommand = redo ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO;
+		// `View::buttonAction` writes `GlobalMIDICommand::PLAYBACK_RESTART` through an `extern GlobalMIDICommand`
+		// declaration of this `int32_t`; that enumerator is 0 and both types are `int`-sized, so 0 is the same bits.
 		pendingGlobalMIDICommandNumClustersWritten = 0;
 		playbackHandler.slowRoutine();
 	}
