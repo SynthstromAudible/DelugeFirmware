@@ -91,7 +91,11 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	}
 
 	else if (loopStartPlaybackAtSample) {
-		int32_t loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
+		// In uint32_t, the width claimClusterReasonsForMarker takes: a loop start past 2^31 / bytesPerSample frames has
+		// a byte offset past INT32_MAX, and a signed product would overflow.
+		const uint32_t loopStartPlaybackAtByte =
+		    sample->audioDataStartPosBytes
+		    + static_cast<uint32_t>(loopStartPlaybackAtSample) * static_cast<uint32_t>(bytesPerSample);
 		claimClusterReasonsForMarker(clustersForLoopStart_, loopStartPlaybackAtByte, playDirection,
 		                             clusterLoadInstruction);
 	}
