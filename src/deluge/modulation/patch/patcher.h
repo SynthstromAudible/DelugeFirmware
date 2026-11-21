@@ -30,6 +30,7 @@ class PatchCableSet;
 struct Destination;
 class ParamManager;
 class PatchCable;
+class ParamRenderValues;
 
 enum Globality {
 	GLOBALITY_LOCAL = 0,
@@ -78,14 +79,16 @@ private:
 	void recalculateFinalValueForParamWithNoCablesImpl(int32_t param, Sound& sound,
 	                                                   ParamManagerForTimeline& param_manager);
 	template <bool kLocks>
-	int32_t presetValue(uint32_t param, Sound& sound, ParamManager& param_manager) const;
+	int32_t presetValue(uint32_t param, Sound& sound, const ParamRenderValues& values) const;
 
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager& param_manager);
+	// The caller supplies one render reader so each preset value read stays inline.
 	template <bool kLocks>
 	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound& sound,
-	                            ParamManager& param_manager);
+	                            ParamManager& param_manager, const ParamRenderValues& values);
 	template <bool kLocks>
-	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager);
+	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager,
+	                         const ParamRenderValues& values);
 	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                        int32_t cable_strength);
 	static int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,

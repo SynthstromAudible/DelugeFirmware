@@ -147,8 +147,8 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		// If no attack-stage...
 		if (noteLocks.get(params::LOCAL_ENV_0_ATTACK + e)
-		        .value_or(paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e))
-		    == -2147483648) {
+		        .value_or(paramManager->getPatchedValueForRender(params::LOCAL_ENV_0_ATTACK + e))
+		    == INT32_MIN) {
 			envelopes[e].lastValue = 1.f;
 		}
 
@@ -189,7 +189,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 	// Porta
 	if (sound.polyphonic != PolyphonyMode::LEGATO
-	    && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
+	    && paramManager->getUnpatchedValueForRender(params::UNPATCHED_PORTAMENTO) != -2147483648
 	    && sound.lastNoteCode != -2147483648) [[unlikely]] {
 		setupPorta(sound);
 	}
@@ -377,7 +377,7 @@ void Voice::changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNote
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	if (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648) {
+	if (paramManager->getUnpatchedValueForRender(params::UNPATCHED_PORTAMENTO) != -2147483648) {
 		setupPorta(sound);
 	}
 
@@ -871,7 +871,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
 		int32_t envelopeSpeed = lookupReleaseRate(cableToExpParamShortcut(
-		                            paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO)))
+		                            paramManager->getUnpatchedValueForRender(params::UNPATCHED_PORTAMENTO)))
 		                        >> 13;
 		portaEnvelopePos += envelopeSpeed * numSamples;
 	}

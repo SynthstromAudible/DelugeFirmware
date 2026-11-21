@@ -298,7 +298,15 @@ public:
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
 		}
-		return paramManager.getPatchedParamSet()->getValue(p);
+		return paramManager.getPatchedValueForRender(p);
+	}
+	// Include param_set.h where this is used, so the reader's value lookup is inlined.
+	[[nodiscard]] [[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p,
+	                                                                          const ParamRenderValues& values) const {
+		if (paramLPF.p == p) {
+			return paramLPF.currentValue;
+		}
+		return values.get(p);
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,

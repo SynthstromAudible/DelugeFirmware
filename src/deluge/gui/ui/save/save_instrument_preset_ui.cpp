@@ -32,6 +32,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/preset_save_values.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
@@ -204,6 +205,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
+	PresetSaveValues saved_values;
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
 	char const* endString;
@@ -229,7 +231,7 @@ fail:
 		goto fail;
 	}
 
-	// Give the Instrument in memory its new slot
+	// The file is saved, so give the Instrument in memory its new slot whatever happens to the baseline.
 	instrumentToSave->name.set(&enteredText);
 	instrumentToSave->dirPath.set(&currentDir);
 	instrumentToSave->mightExistOnCard = true;
@@ -237,7 +239,16 @@ fail:
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot
 
+	error = saved_values.error();
+	if (error == Error::NONE) {
+		error = instrumentToSave->captureSavedPreset(currentSong, getCurrentClip(), saved_values);
+	}
+
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
+	if (error != Error::NONE) {
+		// The preset is saved, but its values could not become the baseline; every baseline is unchanged.
+		display->displayError(error);
+	}
 	close();
 	return true;
 }

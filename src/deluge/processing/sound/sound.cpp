@@ -1574,11 +1574,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+		arpSettings->updateParamsFromParamManager(paramManager);
 	}
 
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
@@ -2319,9 +2317,9 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
 	    && patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(-2147483648)) {
 
 		// We deliberately don't use the LPF'ed param here
-		int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
-		if (*highestReverbAmountFound < reverbHere) {
-			*highestReverbAmountFound = reverbHere;
+		int32_t reverb_here = paramManager->getPatchedValueForRender(params::GLOBAL_REVERB_AMOUNT);
+		if (*highestReverbAmountFound < reverb_here) {
+			*highestReverbAmountFound = reverb_here;
 			*soundWithMostReverb = this;
 			*paramManagerWithMostReverb = paramManager;
 			*globalEffectableWithMostReverb = nullptr;
@@ -2390,7 +2388,7 @@ void Sound::doParamLPF(int32_t numSamples, ModelStackWithSoundFlags* modelStack)
 
 	int32_t oldValue = paramLPF.currentValue;
 
-	int32_t diff = (modelStack->paramManager->getPatchedParamSet()->getValue(paramLPF.p) >> 8) - (oldValue >> 8);
+	int32_t diff = (modelStack->paramManager->getPatchedValueForRender(paramLPF.p) >> 8) - (oldValue >> 8);
 
 	if (diff == 0) {
 		stopParamLPF(modelStack);
@@ -2413,7 +2411,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 		                            // for the current value
 		if (modelStack) {
 			patchedParamPresetValueChanged(p, modelStack, paramLPF.currentValue,
-			                               modelStack->paramManager->getPatchedParamSet()->getValue(p));
+			                               modelStack->paramManager->getPatchedValueForRender(p));
 		}
 	}
 }
@@ -2501,7 +2499,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
 		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		    output.size(), paramManager->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_SHAPE));
 		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
@@ -2521,20 +2519,20 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Arpeggiator
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		// Only the arp reads these here. With it off, noteOn() refreshes them before it uses them, so don't touch
 		// them (cold memory) every render
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+		arpSettings->updateParamsFromParamManager(paramManager);
+		uint32_t gate_threshold =
+		    static_cast<uint32_t>(paramManager->getUnpatchedValueForRender(params::UNPATCHED_ARP_GATE)) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
-		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
+		getArp()->render(arpSettings, &instruction, static_cast<int32_t>(output.size()), gate_threshold,
+		                 phaseIncrement);
 	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
@@ -2636,7 +2634,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
-		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
+		int32_t pan = paramManager->getPatchedValueForRender(params::LOCAL_PAN) >> 1;
 		int32_t amplitudeL, amplitudeR;
 		bool doPanning = AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR);
 
@@ -2695,9 +2693,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 
-	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
-	if (compThreshold > 0) {
+	q31_t comp_threshold = paramManager->getUnpatchedValueForRender(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(comp_threshold);
+	if (comp_threshold > 0) {
 		compressor.renderVolNeutral(sound_stereo, postFXVolume);
 	}
 	else {
@@ -3396,8 +3394,9 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 
 		PatchedParamSet* patchedParams = modelStack->paramManager->getPatchedParamSet();
 
-		int32_t compensation = interpolateTableSigned(patchedParams->getValue(params::LOCAL_LPF_RESONANCE) + 2147483648,
-		                                              32, oldResonanceCompensation, 3);
+		int32_t compensation = interpolateTableSigned(
+		    modelStack->paramManager->getPatchedValueForRender(params::LOCAL_LPF_RESONANCE) + 2147483648, 32,
+		    oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
@@ -3417,10 +3416,10 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 		// If no LPF on, and resonance is at 50%, set it to 0%
 		if (!patchCableSet->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
 		    && !patchedParams->params[params::LOCAL_LPF_FREQ].isAutomated()
-		    && patchedParams->params[params::LOCAL_LPF_FREQ].getCurrentValue() >= 2147483602
+		    && modelStack->paramManager->getPatchedValueForRender(params::LOCAL_LPF_FREQ) >= 2147483602
 		    && !patchedParams->params[params::LOCAL_LPF_RESONANCE].isAutomated()
-		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() <= 0
-		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() >= -23) {
+		    && modelStack->paramManager->getPatchedValueForRender(params::LOCAL_LPF_RESONANCE) <= 0
+		    && modelStack->paramManager->getPatchedValueForRender(params::LOCAL_LPF_RESONANCE) >= -23) {
 			AutoParamSetup(patchedParams->params[params::LOCAL_LPF_RESONANCE])
 			    .setCurrentValueBasicForSetup(-2147483648);
 		}
@@ -4146,7 +4145,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	return true;
 }
 
-void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
+PLACE_SDRAM_TEXT void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -4396,7 +4395,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeAttribute("noteForDrum", outputMidiNoteForDrum);
 	writer.closeTag();
 
-	ModControllableAudio::writeTagsToFile(writer);
+	ModControllableAudio::writeTagsToFile(writer, savingSong);
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
@@ -4474,10 +4473,9 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 		break;
 	}
 
-	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	auto value = [&](int32_t p) {
 		std::optional<int32_t> locked = locks != nullptr ? locks->get(p) : std::nullopt;
-		return locked.value_or(patchedParams->getValue(p));
+		return locked.value_or(paramManager->getPatchedValueForRender(p));
 	};
 
 	// These params are fetched "pre-LPF"
@@ -4509,8 +4507,9 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	                    : patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648))
 	       || (!decayLock && patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated())
 	       || (!releaseLock && patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated())
-	       || (decayLock ? *decayLock : patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e))
-	              > (releaseLock ? *releaseLock : patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
+	       || (decayLock ? *decayLock : paramManager->getPatchedValueForRender(params::LOCAL_ENV_0_DECAY + e))
+	              > (releaseLock ? *releaseLock
+	                             : paramManager->getPatchedValueForRender(params::LOCAL_ENV_0_RELEASE + e));
 }
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {

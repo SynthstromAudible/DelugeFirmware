@@ -32,6 +32,8 @@ class TimelineCounter;
 class Output;
 class Clip;
 class ModelStackWithAutoParam;
+class ModelStackWithThreeMainThings;
+class ClipParamValue;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
@@ -40,6 +42,13 @@ class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
+
+	virtual ClipParamValue* getClipValueStorage(int32_t /*paramId*/) { return nullptr; }
+	static bool controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack);
+	// Collections choose which value layer their normal panel controls edit.
+	virtual int32_t getValueForControl(ModelStackWithAutoParam const* modelStack);
+	void setValueFromControl(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos = 0,
+	                         int32_t length = 0, bool mayDeleteNodesInLinearRun = true);
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
 

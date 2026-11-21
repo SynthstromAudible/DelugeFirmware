@@ -32,7 +32,7 @@
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
-class UnpatchedParamSet;
+class ParamManager;
 
 constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
@@ -50,7 +50,7 @@ class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
 
-	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams);
+	void updateParamsFromParamManager(ParamManager* param_manager);
 
 	void cloneFrom(ArpeggiatorSettings const* other);
 

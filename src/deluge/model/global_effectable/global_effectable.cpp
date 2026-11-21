@@ -757,44 +757,43 @@ ohNo:
 }
 
 void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager) {
+	// The frequency and morph values are used by both conversion and enable checks.
+	const int32_t lpf_frequency_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_LPF_FREQ);
+	const int32_t lpf_morph_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_LPF_MORPH);
+	const int32_t hpf_frequency_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_HPF_FREQ);
+	const int32_t hpf_morph_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_HPF_MORPH);
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	int32_t lpfFrequency =
-	    conversions.lpfFrequency(unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ), [](int32_t v) {
-		    return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ], cableToExpParamShortcut(v));
-	    });
+	int32_t lpf_frequency = conversions.lpfFrequency(lpf_frequency_value, [](int32_t v) {
+		return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ], cableToExpParamShortcut(v));
+	});
 	int32_t lpfResonance =
-	    conversions.lpfResonance(unpatchedParams->getValue(params::UNPATCHED_LPF_RES), [](int32_t v) {
+	    conversions.lpfResonance(paramManager->getUnpatchedValueForRender(params::UNPATCHED_LPF_RES), [](int32_t v) {
 		    return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
 		                                        cableToLinearParamShortcut(v));
 	    });
-	int32_t lpfMorph = conversions.lpfMorph(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH), [](int32_t v) {
+	int32_t lpf_morph = conversions.lpfMorph(lpf_morph_value, [](int32_t v) {
 		return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH], cableToExpParamShortcut(v));
 	});
-	int32_t hpfFrequency =
-	    conversions.hpfFrequency(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ), [](int32_t v) {
-		    return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ], cableToExpParamShortcut(v));
-	    });
+	int32_t hpf_frequency = conversions.hpfFrequency(hpf_frequency_value, [](int32_t v) {
+		return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ], cableToExpParamShortcut(v));
+	});
 	int32_t hpfResonance =
-	    conversions.hpfResonance(unpatchedParams->getValue(params::UNPATCHED_HPF_RES), [](int32_t v) {
+	    conversions.hpfResonance(paramManager->getUnpatchedValueForRender(params::UNPATCHED_HPF_RES), [](int32_t v) {
 		    return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
 		                                        cableToLinearParamShortcut(v));
 	    });
-	int32_t hpfMorph = conversions.hpfMorph(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH), [](int32_t v) {
+	int32_t hpf_morph = conversions.hpfMorph(hpf_morph_value, [](int32_t v) {
 		return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH], cableToExpParamShortcut(v));
 	});
 
-	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
-	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
-	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-	FilterMode lpfModeForRender = doLPF ? lpfMode : FilterMode::OFF;
-	FilterMode hpfModeForRender = doHPF ? hpfMode : FilterMode::OFF;
+	bool do_lpf = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE || lpf_frequency_value < 2147483602
+	               || lpf_morph_value > NEGATIVE_ONE_Q31);
+	bool do_hpf = hpf_frequency_value > NEGATIVE_ONE_Q31 || hpf_morph_value > NEGATIVE_ONE_Q31;
+	FilterMode lpf_mode_for_render = do_lpf ? lpfMode : FilterMode::OFF;
+	FilterMode hpf_mode_for_render = do_hpf ? hpfMode : FilterMode::OFF;
 	*postFXVolume =
-	    filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency, hpfResonance,
-	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
+	    filterSet.setConfig(lpf_frequency, lpfResonance, lpf_mode_for_render, lpf_morph, hpf_frequency, hpfResonance,
+	                        hpf_mode_for_render, hpf_morph, *postFXVolume, filterRoute, false, nullptr);
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
@@ -818,7 +817,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		writer.writeClosingTag("defaultParams");
 	}
 
-	ModControllableAudio::writeTagsToFile(writer);
+	ModControllableAudio::writeTagsToFile(writer, writeAutomation);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -1118,16 +1117,17 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
+	if (modFXType_ == ModFXType::NONE) {
+		return ModFXType::NONE;
+	}
 	ModFXType modFXTypeNow = modFXType_;
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
 	if ((currentModFXParam == ModFXParam::DEPTH
-	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
+	     && paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
 	    || (currentModFXParam == ModFXParam::FEEDBACK
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
+	        && paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
 	    || (currentModFXParam == ModFXParam::OFFSET
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
+	        && paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}
 	return modFXTypeNow;
@@ -1137,10 +1137,9 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
                                                        bool soundComingIn) {
 
 	Delay::State delayWorkingState;
-	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState.delayFeedbackAmount =
-	    conversions.delayFeedback(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT), [](int32_t v) {
+	delayWorkingState.delayFeedbackAmount = conversions.delayFeedback(
+	    paramManager.getUnpatchedValueForRender(params::UNPATCHED_DELAY_AMOUNT), [](int32_t v) {
 		    return getFinalParameterValueLinear(paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
 		                                        cableToLinearParamShortcut(v));
 	    });
@@ -1149,7 +1148,7 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate =
-	    conversions.delayRate(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE), [](int32_t v) {
+	    conversions.delayRate(paramManager.getUnpatchedValueForRender(params::UNPATCHED_DELAY_RATE), [](int32_t v) {
 		    return getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(v));
 	    });
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
@@ -1161,30 +1160,35 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager, const Delay::State& delayWorkingState,
                                                     bool anySoundComingIn, q31_t verbAmount) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int32_t modFXRate = conversions.modFXRate(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE), [](int32_t v) {
-		return getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE], cableToExpParamShortcut(v));
-	});
-	int32_t modFXDepth =
-	    conversions.modFXDepth(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH), [](int32_t v) {
-		    return getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
-		                                        cableToLinearParamShortcut(v));
-	    });
-
-	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
+	ModFXType mod_fx_type = getActiveModFXType(paramManager);
+	int32_t mod_fx_rate = 0;
+	int32_t mod_fx_depth = 0;
+	// NONE never consumes these parameters; automation still advances in the playback path.
+	if (mod_fx_type != ModFXType::NONE) {
+		mod_fx_rate = conversions.modFXRate(
+		    paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_RATE), [](int32_t v) {
+			    return getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
+			                                     cableToExpParamShortcut(v));
+		    });
+		mod_fx_depth = conversions.modFXDepth(
+		    paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_DEPTH), [](int32_t v) {
+			    return getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
+			                                        cableToLinearParamShortcut(v));
+		    });
+	}
 
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
 	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
 	// like "depth".
 	// TODO: this saves a tiny amount of memory at the cost of needing allocations during the audio render cycle...
 	// seems kinda dumb
-	if (util::one_of(modFXTypeNow, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
-	                                ModFXType::DIMENSION})) {
+	if (util::one_of(mod_fx_type, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
+	                               ModFXType::DIMENSION})) {
 		modfx.setupBuffer();
 		disableGrain();
 	}
-	else if (modFXTypeNow == ModFXType::GRAIN) {
+	else if (mod_fx_type == ModFXType::GRAIN) {
 		if (anySoundComingIn && !grainFX) {
 			enableGrain();
 		}
@@ -1194,7 +1198,7 @@ void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buff
 		disableGrain();
 	}
 
-	processFX(buffer, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume, paramManager,
+	processFX(buffer, mod_fx_type, mod_fx_rate, mod_fx_depth, delayWorkingState, postFXVolume, paramManager,
 	          anySoundComingIn, verbAmount);
 }
 

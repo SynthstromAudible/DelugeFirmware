@@ -1,4 +1,10 @@
-add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp mocks/memory.cpp
+add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp mocks/memory.cpp mocks/file_reader.cpp parameter_io_tests.cpp parameter_control_tests.cpp parameter_control_value_tests.cpp
+  ../../../src/deluge/storage/JsonDeserializer.cpp
+  ../../../src/deluge/storage/Deserializer.cpp
+  ../../../src/deluge/util/format_integer.c
+  ../../../src/deluge/util/d_string.cpp
+  ../../../src/deluge/util/firmware_version.cpp
+  ../../../src/deluge/util/semver.cpp
   ../../32bit_unit_tests/container/lazy_param_node_vector.cpp
   ../../../src/deluge/util/d_stringbuf.cpp
   ../../../src/deluge/processing/engines/voice_culling.cpp
@@ -8,6 +14,7 @@ add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp mocks/memo
   ../../../src/deluge/modulation/automation/auto_param_storage.cpp
   ../../../src/deluge/modulation/params/param_node_vector.cpp
   ../../../src/deluge/modulation/params/param_value.cpp
+  ../../../src/deluge/modulation/params/param_control_value.cpp
   ../../../src/deluge/util/container/array/resizeable_array.cpp
   ../../../src/deluge/util/container/array/ordered_resizeable_array.cpp
 )

@@ -1389,7 +1389,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
 		// anyway
-		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
+		int32_t pan = currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_PAN) >> 1;
 
 		if (pan != 0) {
 			// Set up panning
@@ -1407,7 +1407,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		int32_t songVolume =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(
-		                       currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+		                       currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_VOLUME)))
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
@@ -1856,7 +1856,7 @@ void updateReverbParams() {
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain.
 		// If nothing found with more reverb, then we don't want the reverb affected by sidechain
 		int32_t highestReverbAmountFound =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
+		    currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
 		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
@@ -1891,7 +1891,7 @@ void updateReverbParams() {
 
 sidechainFound:
 			reverbSidechainShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
+			    paramManagerWithMostReverb->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_SHAPE);
 			reverbSidechain.attack = modControllable->sidechain.attack;
 			reverbSidechain.release = modControllable->sidechain.release;
 			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;

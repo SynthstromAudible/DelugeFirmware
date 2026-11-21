@@ -710,21 +710,22 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 	if (arpSettings == nullptr) {
 		return;
 	}
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	arpSettings->updateParamsFromParamManager(paramManager);
 	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
 	arpSettings->chordPolyphony = 0;
 	arpSettings->chordProbability = 0;
 	arpSettings->spreadOctave = 0;
 
 	if (arpSettings->mode != ArpMode::OFF) {
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-		    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-		                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
+		uint32_t gate_threshold =
+		    (uint32_t)paramManager->getUnpatchedValueForRender(params::UNPATCHED_ARP_GATE) + 2147483648;
+		uint32_t phase_increment = arpSettings->getPhaseIncrement(getFinalParameterValueExp(
+		    paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+		    cableToExpParamShortcut(paramManager->getUnpatchedValueForRender(params::UNPATCHED_ARP_RATE))));
 
 		ArpReturnInstruction kitInstruction;
-		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
+		arpeggiator.render(arpSettings, &kitInstruction, static_cast<int32_t>(output.size()), gate_threshold,
+		                   phase_increment);
 
 		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 			// Glide note off
@@ -1107,8 +1108,9 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		int32_t compensation = interpolateTableSigned(unpatchedParams->getValue(params::UNPATCHED_LPF_RES) + 2147483648,
-		                                              32, oldResonanceCompensation, 3);
+		int32_t compensation =
+		    interpolateTableSigned(paramManager->getUnpatchedValueForRender(params::UNPATCHED_LPF_RES) + 2147483648, 32,
+		                           oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
@@ -1152,8 +1154,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	arpSettings->updateParamsFromParamManager(paramManager);
 	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
 	arpSettings->chordPolyphony = 0;
 	arpSettings->chordProbability = 0;

@@ -2513,8 +2513,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	int32_t volumePostFX =
 	    getFinalParameterValueVolume(
-	        134217728,
-	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+	        134217728, cableToLinearParamShortcut(paramManager.getUnpatchedValueForRender(params::UNPATCHED_VOLUME)))
 	    >> kSongVolumeAdjustmentShift;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
@@ -2571,18 +2570,17 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
-	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	int32_t reverb_send_amount = getFinalParameterValueVolume(
+	    paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
+	    cableToLinearParamShortcut(paramManager.getUnpatchedValueForRender(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 
 	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
 	// don't need to
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState, true,
-	                                              reverbSendAmount >> 3);
+	                                              reverb_send_amount >> 3);
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
-	                                            reverbSendAmount >> 1);
+	                                            reverb_send_amount >> 1);
 	AudioEngine::logAction("done global effectables");
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -3189,7 +3187,12 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		                           arrangerView.getMaxLength());
 	}
 
-	AutoParamLiveInput(*tempoParam->autoParam).setLiveValuePossiblyForRegion(intTempo, tempoParam, pos, length);
+	if (length == 0 && !shouldLogAction) {
+		AutoParamSetup(*tempoParam->autoParam).setCurrentValueWithNoReversionOrRecording(tempoParam, intTempo);
+	}
+	else {
+		tempoParam->paramCollection->setValueFromControl(intTempo, tempoParam, pos, length);
+	}
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3952,6 +3955,8 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 	if (!paramManager->containsAnyMainParamCollections()) {
 		return;
 	}
+
+	modControllable->bindPresetValues(paramManager);
 
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)modControllable;
@@ -6133,10 +6138,10 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo && currentTempo != intBPM) {
-		setBPMInner((float)currentTempo / 100, false);
-		intBPM = currentTempo;
+	int32_t current_tempo = currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_TEMPO);
+	if (current_tempo != 0 && current_tempo != intBPM) {
+		setBPMInner((float)current_tempo / 100, false);
+		intBPM = current_tempo;
 	}
 }
 

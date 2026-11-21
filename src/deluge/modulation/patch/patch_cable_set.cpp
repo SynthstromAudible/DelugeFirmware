@@ -584,11 +584,11 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
-	int32_t oldValue = param->getCurrentValue();
-	bool should_notify =
-	    AutoParamPlayback(*param).tickSamples(numSamples, shouldInterpolateWithFloat(modelStackWithAutoParam));
+	int32_t old_value = 0;
+	bool should_notify = AutoParamPlayback(*param).tickSamples(
+	    numSamples, shouldInterpolateWithFloat(modelStackWithAutoParam), old_value);
 	if (should_notify) { // Should always actually be true...
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END

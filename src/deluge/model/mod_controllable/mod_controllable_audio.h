@@ -49,13 +49,33 @@ public:
 	ModControllableAudio();
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
+	void bindPresetValues(ParamManager* manager) override;
+	bool isBoundToPresetValues(ParamManager* manager) override;
+	int32_t* getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) override;
+	[[nodiscard]] int32_t getPresetValue(deluge::modulation::params::Kind kind, int32_t id) const;
 
+private:
+	// The preset baselines. Only read when a value changes outside playback, so they are kept
+	// in SDRAM, out of the object, allocated when first needed and never moved while it lives.
+	struct PresetValues {
+		std::array<int32_t, deluge::modulation::params::kNumParams> patched{};
+		std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unpatched{};
+		bool hasPatched = false;
+		bool hasUnpatched = false;
+	};
+	PresetValues* presets_ = nullptr;
+	PresetValues* ensurePresets();
+	static void writeLayeredParamTags(Serializer& writer, ParamManager* paramManager);
+	static bool readRelativeParamTag(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager);
+	static bool readClipParamTag(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager);
+
+public:
 	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
 	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
 	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
 	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
-	void writeTagsToFile(Serializer& writer);
+	void writeTagsToFile(Serializer& writer, bool savingSong = true);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
@@ -84,10 +104,6 @@ public:
 	                       uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	bool isBitcrushingEnabled(ParamManager* paramManager);
-	bool isSRREnabled(ParamManager* paramManager);
-	bool hasBassAdjusted(ParamManager* paramManager);
-	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	// EQ
@@ -167,6 +183,8 @@ protected:
 	void disableGrain();
 
 private:
+	static bool isBitcrushingEnabled(int32_t value) { return value >= -2113929216; }
+	static bool isSRREnabled(int32_t value) { return value != INT32_MIN; }
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
@@ -174,5 +192,5 @@ private:
 	void switchLPFModeWithOff();
 
 	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount);
+	                    ParamManager* param_manager, bool anySoundComingIn, q31_t verbAmount);
 };

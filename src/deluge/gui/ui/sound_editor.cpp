@@ -2330,28 +2330,31 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Instrument* instrument = getCurrentInstrument();
-
 	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		return currentSong->setupModelStackWithCurrentClip(memory)->addOtherTwoThingsButNoNoteRow(
+		    currentModControllable, currentParamManager);
+	}
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument->type == OutputType::KIT && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 	else {
 		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
+		int32_t note_row_index = 0;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
-				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
+				noteRow = clip->getNoteRowForDrum(selectedDrum, &note_row_index);
 			}
 		}
 
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), note_row_index,
 		                                                          noteRow, currentModControllable, currentParamManager);
 	}
 }

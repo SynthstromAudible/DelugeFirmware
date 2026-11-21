@@ -18,44 +18,99 @@
 #include "modulation/automation/auto_param_data.h"
 #include "modulation/params/param_node.h"
 
-AutoParamData::AutoParamData()
-    : currentValue(0), valueIncrementPerHalfTick(0), interpolation_increment_remainder_float(0.0f),
-      renewedOverridingAtTime(0) {
+AutoParamData::AutoParamData() {
 	init();
+	setCurrentValueBasicForSetup(0);
+	resetInterpolationIncrement();
 }
 
 void AutoParamData::init() {
 	nodes.init();
 }
 
-void AutoParamData::cloneFrom(AutoParamData* otherParam, bool copyAutomation) {
+int32_t AutoParamData::getNodeValue(const ParamNode* node) const {
+	return resolveOffset(node->offset);
+}
+
+void AutoParamData::setNodeValue(ParamNode* node, int32_t value) {
+	node->offset = int64_t{value} - getNodeBase();
+}
+
+void AutoParamData::rebaseNodes(int64_t difference) {
+	if (difference == 0) {
+		return;
+	}
+	for (int32_t i = 0; i < nodes.getNumElements(); ++i) {
+		nodes.getElement(i)->offset += difference;
+	}
+}
+
+int32_t AutoParamData::evaluateValueForRender() const {
+	const ClipParamValue* clip = clipValue();
+	if (clip == nullptr) {
+		return standaloneValue();
+	}
+	int32_t base = clip->getValue();
+	const ParamNodeVector* curve = nodes.get();
+	if (curve == nullptr || nodes.getNumElements() == 0) {
+		return base;
+	}
+	int32_t value = curve->value.getValueForBase(base);
+	curve->value.markCurrent();
+	return value;
+}
+
+void AutoParamData::bindClipValue(ClipParamValue* clip) {
+	int32_t old_base = getNodeBase();
+	rebindClipValueAfterMove(clip);
+	rebaseNodes(int64_t{old_base} - getNodeBase());
+}
+
+PLACE_SDRAM_TEXT void AutoParamData::restoreClipValueFromFile(int32_t value) {
+	int32_t old_base = getNodeBase();
+	restoreClipValue(value);
+	rebaseNodes(int64_t{old_base} - getNodeBase());
+}
+
+PLACE_SDRAM_TEXT void AutoParamData::cloneFrom(AutoParamData* otherParam, bool copyAutomation) {
 	if (copyAutomation) {
 		nodes.cloneFrom(&otherParam->nodes);
 	}
 	else {
 		nodes.init();
 	}
-	currentValue = otherParam->currentValue;
+	restoreClipValue(otherParam->getClipValue());
+	rebaseNodes(int64_t{otherParam->getNodeBase()} - getNodeBase());
+	setCurrentValueBasicForSetup(otherParam->getCurrentValue());
+	if (isAutomated()) {
+		setCurveValue(otherParam->getCurveValue() + int64_t{otherParam->getNodeBase()} - getNodeBase());
+	}
+	if (clipValue() != nullptr) {
+		clipValue()->setUnclampedValue(otherParam->getUnclampedClipValue());
+	}
 	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
+	setOverridingTime(0);
 }
 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParamData::deleteAutomationBasicForSetup() {
 	nodes.empty();
-
+	clearAutomationOffset();
 	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
+	setOverridingTime(0);
 }
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
 void AutoParamData::resetInterpolationIncrement() {
+	if (nodes.get() == nullptr) {
+		return;
+	}
 	// Reset initializes the integer member; the interpolation mode selects subsequent accesses.
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-	valueIncrementPerHalfTick = 0;
-	interpolation_increment_remainder_float = 0.0f;
+	nodes.get()->valueIncrementPerHalfTick = 0;
+	nodes.get()->interpolation_increment_remainder_float_ = 0.0f;
 }
 
 int32_t AutoParamData::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
@@ -74,7 +129,7 @@ int32_t AutoParamData::setNodeAtPos(int32_t pos, int32_t value, bool shouldInter
 		our_node = nodes.getElement(i);
 		our_node->pos = pos;
 	}
-	our_node->value = value;
+	setNodeValue(our_node, value);
 	our_node->interpolated = shouldInterpolate;
 
 	return i;
@@ -84,9 +139,13 @@ int32_t AutoParamData::setNodeAtPos(int32_t pos, int32_t value, bool shouldInter
 // value abruptly changes, well whether we want the value to the left or the right depends on which direction we're
 // going.
 int32_t AutoParamData::getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed) {
+	return resolveOffset(getOffsetAtPos(pos, loopLength, reversed));
+}
+
+int64_t AutoParamData::getOffsetAtPos(uint32_t pos, int32_t loopLength, bool reversed) {
 
 	if (nodes.getNumElements() == 0) {
-		return currentValue;
+		return getCurveValue();
 	}
 
 	int32_t right_i = nodes.search(static_cast<int32_t>(pos) + static_cast<int32_t>(!reversed), GREATER_OR_EQUAL);
@@ -101,19 +160,19 @@ int32_t AutoParamData::getValueAtPos(uint32_t pos, int32_t loopLength, bool reve
 	}
 	ParamNode* left_node = nodes.getElement(left_i);
 	if (!right_node->interpolated) {
-		return left_node->value;
+		return left_node->offset;
 	}
 
 	int32_t ticks_since_left_node = static_cast<int32_t>(pos) - left_node->pos;
 	if (ticks_since_left_node == 0) {
-		return left_node->value;
+		return left_node->offset;
 	}
 
 	if (ticks_since_left_node < 0) { // If pos we're looking at is left of leftmost...
 		int32_t length_before_loop = loopLength;
 		if (length_before_loop == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have
 			                                    // arrived at the next node value
-			return right_node->value;
+			return right_node->offset;
 		}
 		ticks_since_left_node += length_before_loop;
 	}
@@ -123,13 +182,13 @@ int32_t AutoParamData::getValueAtPos(uint32_t pos, int32_t loopLength, bool reve
 		int32_t length_before_loop = loopLength;
 		if (length_before_loop
 		    == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
-			return left_node->value;
+			return left_node->offset;
 		}
 		ticks_between_nodes += length_before_loop;
 	}
 
-	int64_t distance = int64_t{right_node->value} - left_node->value;
-	return static_cast<int32_t>(left_node->value + (distance * ticks_since_left_node / ticks_between_nodes));
+	return interpolateAutomationOffset(left_node->offset, right_node->offset, ticks_since_left_node,
+	                                   ticks_between_nodes);
 }
 
 // Returns whether a change was made to the current value.
@@ -138,13 +197,37 @@ bool AutoParamData::grabValueFromPos(uint32_t pos, int32_t loopLength) {
 		return false;
 	}
 
-	int32_t old_value = currentValue;
-	currentValue = getValueAtPos(pos, loopLength);
-	return (currentValue != old_value);
+	int32_t old_value = getCurrentValue();
+	setCurveValue(getOffsetAtPos(pos, loopLength));
+	return (getCurrentValue() != old_value);
+}
+
+void AutoParamData::setCurrentValueBasicForSetup(int32_t value) {
+	if (clipValue() == nullptr) {
+		setStandaloneValue(value);
+	}
+	else if (isAutomated()) {
+		int32_t base = getNodeBase();
+		nodes.get()->value.setOffsetForBase(int64_t{value} - base, base);
+	}
+	else {
+		clipValue()->setValue(value);
+		clearAutomationOffset();
+	}
+}
+void AutoParamData::restoreClipValue(int32_t value) {
+	if (clipValue() != nullptr) {
+		int32_t current = getCurrentValue();
+		clipValue()->setValue(value);
+		setCurveValue(int64_t{current} - value);
+	}
 }
 
 void AutoParamData::captureState(AutoParamState& state, bool stealNodes) {
-	state.value = currentValue;
+	state.value = getCurrentValue();
+	state.clipValue = getUnclampedClipValue();
+	state.curveValue = getCurveValue();
+	state.nodeBase = getNodeBase();
 	// Either steal the nodes, leaving this parameter empty, or clone them.
 	if (stealNodes) {
 		state.nodes.swapStateWith(&nodes);
@@ -152,4 +235,58 @@ void AutoParamData::captureState(AutoParamState& state, bool stealNodes) {
 	else {
 		state.nodes.cloneFrom(&nodes);
 	}
+}
+
+void AutoParamData::swapStateBasicForSetup(AutoParamState* state) {
+	int32_t old_value_here = getCurrentValue();
+	int64_t old_clip_value = getUnclampedClipValue();
+	int64_t old_curve_value = getCurveValue();
+	int32_t old_base = getNodeBase();
+	// Undo exchanges curve data, not the live transport's interpolation/override
+	// context, which stays with the parameter.
+	int64_t increment_bits = 0;
+	float remainder = 0;
+	uint32_t overriding = getOverridingTime();
+	if (nodes.get() != nullptr) {
+		// Copy the active integer/float representation without interpreting it.
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		std::memcpy(&increment_bits, &nodes.get()->valueIncrementPerHalfTick, sizeof(increment_bits));
+		remainder = nodes.get()->interpolation_increment_remainder_float_;
+	}
+	nodes.swapStateWith(&state->nodes);
+	if (nodes.get() != nullptr) {
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		std::memcpy(&nodes.get()->valueIncrementPerHalfTick, &increment_bits, sizeof(increment_bits));
+		nodes.get()->interpolation_increment_remainder_float_ = remainder;
+		setOverridingTime(overriding);
+	}
+	if (clipValue() != nullptr) {
+		clipValue()->setUnclampedValue(state->clipValue);
+	}
+	else {
+		setStandaloneValue(state->value);
+	}
+	if (isAutomated()) {
+		int64_t difference = int64_t{state->nodeBase} - getNodeBase();
+		rebaseNodes(difference);
+		setCurveValue(state->curveValue + difference);
+	}
+	state->value = old_value_here;
+	state->clipValue = old_clip_value;
+	state->curveValue = old_curve_value;
+	state->nodeBase = old_base;
+}
+
+Error AutoParamData::copyNodesForTrim(int32_t num_nodes, LazyParamNodeVector& trimmed) const {
+	Error error = trimmed.insertAtIndex(0, num_nodes);
+	if (error != Error::NONE) {
+		return error;
+	}
+	for (int32_t i = 0; i < num_nodes; ++i) {
+		*trimmed.getElement(i) = *nodes.getElement(i);
+	}
+	// Trimming changes the nodes, not the live value, interpolation or override.
+	// Copy before undo can take ownership of the original vector.
+	trimmed.get()->copyPlaybackStateFrom(*nodes.get());
+	return Error::NONE;
 }

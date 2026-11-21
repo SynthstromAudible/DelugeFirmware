@@ -189,3 +189,23 @@ TEST(ParameterValueTests, RebindingToOppositeExtremePreservesUnclampedValue) {
 	CHECK_EQUAL(-100, clip.getValue());
 	CHECK_EQUAL(int64_t{-100} - INT32_MIN, clip.getOffset());
 }
+
+TEST(ParameterValueTests, AdvancingACurrentValueMatchesFullEvaluation) {
+	constexpr int32_t bases[] = {INT32_MIN, -1000, 0, 1000, INT32_MAX};
+	constexpr int64_t offsets[] = {-int64_t{UINT32_MAX}, -5000, -1, 0, 1, 5000, int64_t{UINT32_MAX}};
+	constexpr int32_t increments[] = {INT32_MIN, -70000, -1, 1, 70000, INT32_MAX};
+	for (int32_t base : bases) {
+		for (int64_t offset : offsets) {
+			for (int32_t increment : increments) {
+				AutoParamValue fast;
+				AutoParamValue full;
+				fast.setOffsetForBase(offset, base);
+				full.setOffsetForBase(offset + increment, base);
+				// The fast path continues from the evaluation that the reader last saw.
+				LONGS_EQUAL(full.getValueForBase(base), fast.advanceCurrent(increment));
+				CHECK(full.getOffset() == fast.getOffset());
+				LONGS_EQUAL(full.getValueForBase(base), fast.getValueForBase(base));
+			}
+		}
+	}
+}

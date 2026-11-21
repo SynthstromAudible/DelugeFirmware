@@ -30,6 +30,7 @@ class Song;
 class Clip;
 class ParamManagerForTimeline;
 class Kit;
+class SoundDrum;
 class Sound;
 class StereoSample;
 class TimelineCounter;
@@ -43,6 +44,7 @@ class LearnedMIDI;
 class ParamManager;
 class Serializer;
 class Deserializer;
+class PresetSaveValues;
 
 inline const char* outputTypeToString(OutputType type) {
 	switch (type) {
@@ -85,6 +87,22 @@ public:
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
+	// Make the saved values the in-memory baseline. Either every baseline is rebased or,
+	// when storage cannot be prepared, none is.
+	Error captureSavedPreset(Song* song, Clip* clip, PresetSaveValues& saved);
+	// The same for one sound drum, after saving its kit row as a sound preset.
+	Error captureSavedDrumPreset(Song* song, SoundDrum* drum, ParamManager* manager, PresetSaveValues& saved);
+	// Makes value the parameter's baseline. saved, the manager whose values were saved, keeps them.
+	// Every other clip, note row and backup keeps its offset and relative curve, so its value moves with
+	// the baseline. Call preparePresetParameter() first.
+	Error rebasePresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                            int32_t value, ParamManager* saved);
+	// Value-neutral: allocates any clip storage the rebase will need.
+	Error preparePresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                             int32_t value);
+	// Announces each clip value a baseline change from previous has moved. Values in preserved did not move.
+	Error announcePresetParameterChange(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind,
+	                                    int32_t id, int32_t previous, const ParamManager* preserved);
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
 	/// Which multitrack USB bus this track goes to instead of the main mix: 0 for none (the main mix), or 1 to

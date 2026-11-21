@@ -21,6 +21,8 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_collection_summary.h"
+#include "modulation/params/param_render_values.h"
 #include "storage/storage_manager.h"
 #include <array>
 
@@ -28,6 +30,7 @@ class Sound;
 class ParamManagerForTimeline;
 class TimelineCounter;
 class ModelStackWithParamCollection;
+class ModelStackWithThreeMainThings;
 
 // ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't
 // need other info stored besides their index - like MIDI CC, or patch cable details. This differs from other inheriting
@@ -40,9 +43,39 @@ protected:
 
 public:
 	AutoParam* params;
+
+private:
+	ClipParamValue* clip_values_;
+
+protected:
+	void setClipValueStorage(ClipParamValue* values) { clip_values_ = values; }
+
+public:
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
 
-	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
+protected:
+	// Internal fallback for automated values and expression storage.
+	[[nodiscard]] [[gnu::noinline]] int32_t getValue(int32_t p) const { return params[p].getValueForRender(); }
+
+private:
+	friend int32_t ParamRenderValues::get(int32_t p) const;
+	// Render readers must use the collection's automation summary so an ordinary
+	// scalar read does not touch AutoParam or its curve storage.
+	[[nodiscard]] int32_t getValueForRender(int32_t p, const ParamCollectionSummary& summary) const {
+		return (summary.whichParamsAreAutomated[p >> 5] & (uint32_t{1} << (p & 31))) != 0 ? getValue(p)
+		                                                                                  : getClipValue(p);
+	}
+
+public:
+	// The menu path needs only clip/timeline context, not an AutoParam stack.
+	int32_t getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack);
+	int32_t getValueForControl(ModelStackWithAutoParam const* modelStack) override;
+	ClipParamValue* getClipValueStorage(int32_t p) override { return &clip_values_[p]; }
+	[[nodiscard]] int32_t getPresetValue(int32_t p) const { return clip_values_[p].getPresetValue(); }
+	[[nodiscard]] int32_t getClipValue(int32_t p) const { return clip_values_[p].getValue(); }
+	[[nodiscard]] int64_t getClipOffset(int32_t p) const { return clip_values_[p].getOffset(); }
+	void bindPresetValues(const int32_t* values) const;
+	void bindAutomationValues() const;
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
@@ -107,10 +140,13 @@ public:
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return kind; }
 
+	// Existing parameter-kind field is part of the public parameter-set interface.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
 	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
+	std::array<ClipParamValue, deluge::modulation::params::kMaxNumUnpatchedParams> clipValues_;
 };
 
 class PatchedParamSet final : public ParamSet {
@@ -126,11 +162,13 @@ public:
 
 private:
 	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
+	std::array<ClipParamValue, deluge::modulation::params::kNumParams> clipValues_;
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
+	[[nodiscard]] int32_t getExpressionValue(int32_t p) const { return getValue(p); }
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -151,8 +189,15 @@ public:
 	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't
 	// "stolen" or "backed up" - unless the last Clip is being deleted, in which case they do move to the
 	// backedUpParamManager. This is exactly the persistence we want for bendRanges too.
+	// Existing public bend-range array is accessed directly by expression/MPE code.
+	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, cppcoreguidelines-non-private-member-variables-in-classes)
 	uint8_t bendRanges[2];
 
 private:
 	std::array<AutoParam, kNumExpressionDimensions> params_;
+	std::array<ClipParamValue, kNumExpressionDimensions> clipValues_;
 };
+
+inline int32_t ParamRenderValues::get(int32_t p) const {
+	return static_cast<const ParamSet&>(collection_).getValueForRender(p, summary_);
+}

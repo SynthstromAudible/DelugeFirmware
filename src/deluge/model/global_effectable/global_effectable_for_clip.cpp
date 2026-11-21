@@ -86,8 +86,6 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		resumed = true;
 	}
 
-	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
-
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
@@ -112,23 +110,24 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
 	int32_t reverbSendAmount = getFinalParameterValueVolume(
-	    reverbAmountAdjust,
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	    reverbAmountAdjust, cableToLinearParamShortcut(
+	                            paramManagerForClip->getUnpatchedValueForRender(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 
-	int32_t pan = unpatchedParams->getValue(params::UNPATCHED_PAN) >> 1;
+	int32_t pan = paramManagerForClip->getUnpatchedValueForRender(params::UNPATCHED_PAN) >> 1;
 
 	// Render sidechain
-	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
+	int32_t sidechain_volume_param =
+	    paramManagerForClip->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_VOLUME);
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	if (sidechainVolumeParam != std::numeric_limits<q31_t>::min()) {
+	if (sidechain_volume_param != std::numeric_limits<q31_t>::min()) {
 		if (sideChainHitPending != 0) {
 			sidechain.registerHit(sideChainHitPending);
 		}
-		int32_t sidechainOutput =
-		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		int32_t sidechain_output = sidechain.render(
+		    output.size(), paramManagerForClip->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
+		    multiply_32x32_rshift32(sidechain_output, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
 		    + 536870912;
 
 		// This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
@@ -138,8 +137,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		postReverbVolumeLastTime = postReverbVolume; // Its last value is from before skipping: don't ramp from it
 	}
 
-	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
+	const q31_t comp_threshold =
+	    paramManagerForClip->getUnpatchedValueForRender(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(comp_threshold);
 
 	// Render saturation
 	if (clippingAmount != 0u) {
@@ -170,7 +170,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
 	                           pan, true);
 
-	if (compThreshold > 0) {
+	if (comp_threshold > 0) {
 		compressor.renderVolNeutral(global_effectable_audio, volumePostFX);
 	}
 	else {
@@ -206,7 +206,7 @@ void GlobalEffectableForClip::tickParamAutomation(ModelStackWithTimelineCounter*
 int32_t GlobalEffectableForClip::RenderAdjustments::volume() {
 	if (!volume_) {
 		volume_ = owner_.conversions.volume(
-		    paramManager_.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME), [](int32_t v) {
+		    paramManager_.getUnpatchedValueForRender(params::UNPATCHED_VOLUME), [](int32_t v) {
 			    return getFinalParameterValueVolume(134217728, cableToLinearParamShortcut(v))
 			           >> kClipVolumeAdjustmentShift;
 		    });
@@ -217,7 +217,7 @@ int32_t GlobalEffectableForClip::RenderAdjustments::volume() {
 int32_t GlobalEffectableForClip::RenderAdjustments::pitch() {
 	if (!pitch_) {
 		pitch_ = owner_.conversions.pitchAdjust(
-		    paramManager_.getUnpatchedParamSet()->getValue(params::UNPATCHED_PITCH_ADJUST),
+		    paramManager_.getUnpatchedValueForRender(params::UNPATCHED_PITCH_ADJUST),
 		    [](int32_t v) { return getFinalParameterValueExp(kMaxSampleValue, v >> 3); });
 	}
 	return *pitch_;
@@ -267,10 +267,9 @@ void GlobalEffectableForClip::startSkippingRendering() {
 void GlobalEffectableForClip::stopSkippingRendering(ParamManager* paramManager) {
 	uint32_t timeOff = AudioEngine::audioSampleTimer - timeStartedSkippingRendering;
 	if (timeOff != 0u) {
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t modFXRate = getFinalParameterValueExp(
 		    paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
-		    cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE)));
+		    cableToExpParamShortcut(paramManager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_RATE)));
 		modfx.tickLFO(timeOff, modFXRate);
 
 		if (AudioEngine::sizeLastSideChainHit != 0) {
@@ -283,8 +282,8 @@ void GlobalEffectableForClip::stopSkippingRendering(ParamManager* paramManager) 
 }
 
 int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager) {
-	int32_t sidechainVolumeParam = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
-	return (sidechainVolumeParam >> 2) + 536870912;
+	int32_t sidechain_volume_param = paramManager->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_VOLUME);
+	return (sidechain_volume_param >> 2) + 536870912;
 }
 
 int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
@@ -377,9 +376,9 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
 		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated()
 		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(-2147483648)) {
 
-			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
-			if (*highestReverbAmountFound < reverbHere) {
-				*highestReverbAmountFound = reverbHere;
+			int32_t reverb_here = activeParamManager->getUnpatchedValueForRender(params::UNPATCHED_REVERB_SEND_AMOUNT);
+			if (*highestReverbAmountFound < reverb_here) {
+				*highestReverbAmountFound = reverb_here;
 				*soundWithMostReverb = nullptr;
 				*paramManagerWithMostReverb = activeParamManager;
 				*globalEffectableWithMostReverb = this;

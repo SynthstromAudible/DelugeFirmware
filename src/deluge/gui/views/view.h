@@ -73,7 +73,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
-	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
+	static int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knob_pos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);

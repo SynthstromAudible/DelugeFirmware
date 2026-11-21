@@ -42,10 +42,14 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "storage/parameter_value_io.h"
 #include "storage/storage_manager.h"
 #include "util/fast_divide.h"
 #include <algorithm>
 #include <arm_neon.h>
+#include <array>
+#include <charconv>
+#include <utility>
 
 namespace params = deluge::modulation::params;
 
@@ -89,9 +93,140 @@ ModControllableAudio::ModControllableAudio() {
 ModControllableAudio::~ModControllableAudio() {
 	// delay.discardBuffers(); // No! The DelayBuffers will themselves destruct and do this
 	delete grainFX;
+	if (presets_ != nullptr) {
+		presets_->~PresetValues();
+		delugeDealloc(presets_);
+	}
+}
+
+ModControllableAudio::PresetValues* ModControllableAudio::ensurePresets() {
+	if (presets_ == nullptr) {
+		void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(PresetValues));
+		if (memory != nullptr) {
+			// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+			presets_ = new (memory) PresetValues();
+		}
+	}
+	return presets_;
+}
+
+namespace {
+// Binds a manager's collections to no baseline, keeping each clip value.
+PLACE_SDRAM_TEXT void detachPresetValues(ParamManager* manager) {
+	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
+		auto kind = summary->paramCollection->getParamKind();
+		if (kind == params::Kind::PATCHED || kind == params::Kind::UNPATCHED_SOUND
+		    || kind == params::Kind::UNPATCHED_GLOBAL) {
+			static_cast<ParamSet*>(summary->paramCollection)->bindPresetValues(nullptr);
+		}
+	}
+}
+
+// Baselines are independent of the legacy effective-value attributes. Older
+// firmware can skip these tags and still load the same audible parameter values.
+PLACE_SDRAM_TEXT void writePresetValues(Serializer& writer, const char* tag, const int32_t* values, int32_t count) {
+	writer.writeOpeningTagBeginning(tag);
+	for (int32_t i = 0; i < count; ++i) {
+		std::array<char, 16> name_storage{};
+		char* name = name_storage.data();
+		name[0] = 'p';
+		std::to_chars(name + 1, name + name_storage.size() - 1, i);
+		writer.writeAttribute(name, values[i]);
+	}
+	writer.closeTag();
+}
+
+PLACE_SDRAM_TEXT bool readPresetValues(Deserializer& reader, const char* tag, int32_t* values, int32_t count) {
+	int32_t entries = 0;
+	std::array<bool, params::kNumParams + params::kMaxNumUnpatchedParams> seen{};
+	readParameterValueObject(reader, tag, [&](uint32_t id, int32_t value) {
+		if (std::cmp_less(id, count)) {
+			values[id] = value;
+			if (!seen[id]) {
+				seen[id] = true;
+				++entries;
+			}
+		}
+	});
+	return entries == count;
+}
+} // namespace
+
+// Clip launches call this, so it stays in internal RAM. A bind covers a whole manager, so one fixed
+// parameter shows whether the manager is bound to these baselines.
+bool ModControllableAudio::isBoundToPresetValues(ParamManager* manager) {
+	// Without baselines there's nothing to bind to; binding now would only allocate them.
+	if (presets_ == nullptr) {
+		return true;
+	}
+	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
+		auto kind = summary->paramCollection->getParamKind();
+		bool patched = kind == params::Kind::PATCHED;
+		if (patched || kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+			const int32_t* baseline = patched ? presets_->patched.data() : presets_->unpatched.data();
+			bool initialized = patched ? presets_->hasPatched : presets_->hasUnpatched;
+			auto* scalar = summary->paramCollection->getClipValueStorage(0);
+			return initialized && scalar != nullptr && scalar->isBoundTo(baseline);
+		}
+	}
+	return false;
+}
+
+PLACE_SDRAM_TEXT void ModControllableAudio::bindPresetValues(ParamManager* manager) {
+	PresetValues* presets = ensurePresets();
+	if (presets == nullptr) {
+		// Without storage every baseline reads as zero. The manager may still be bound to another owner's
+		// baselines, which could be freed, so detach it.
+		detachPresetValues(manager);
+		return;
+	}
+	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
+		auto kind = summary->paramCollection->getParamKind();
+
+		bool patched = kind == params::Kind::PATCHED;
+		if (!patched && kind != params::Kind::UNPATCHED_SOUND && kind != params::Kind::UNPATCHED_GLOBAL) {
+			continue;
+		}
+		auto* set = static_cast<ParamSet*>(summary->paramCollection);
+		int32_t* baseline = patched ? presets->patched.data() : presets->unpatched.data();
+		bool& initialized = patched ? presets->hasPatched : presets->hasUnpatched;
+		if (!initialized) {
+			for (int32_t p = 0; p < set->getNumParams(); ++p) {
+				baseline[p] = set->getClipValue(p);
+			}
+			initialized = true;
+			// Clips may already be bound to the baselines just filled. Otherwise rebinding changes a value
+			// only where its binding changes, which records the change itself, so a clip launch does not
+			// invalidate every resolved value.
+			parameterBaselinesChanged();
+		}
+		set->bindPresetValues(baseline);
+	}
+}
+
+int32_t ModControllableAudio::getPresetValue(params::Kind kind, int32_t id) const {
+	if (presets_ == nullptr) {
+		return 0;
+	}
+	if (kind == params::Kind::PATCHED && id >= 0 && id < static_cast<int32_t>(presets_->patched.size())) {
+		return presets_->patched[id];
+	}
+	if ((kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) && id >= 0
+	    && id < static_cast<int32_t>(presets_->unpatched.size())) {
+		return presets_->unpatched[id];
+	}
+	return 0;
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
+	if (other->presets_ != nullptr) {
+		if (PresetValues* presets = ensurePresets(); presets != nullptr) {
+			*presets = *other->presets_;
+		}
+	}
+	else if (presets_ != nullptr) {
+		*presets_ = PresetValues{};
+	}
 	lpfMode = other->lpfMode;
 	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
@@ -157,55 +292,45 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD]).setCurrentValueBasicForSetup(0);
 }
 
-bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BASS) != 0);
-}
-
-bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
-}
-
 void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
                                      ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	const auto values = paramManager->unpatchedRenderValues();
 
 	// Mod FX -----------------------------------------------------------------------------------
 	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn,
-		               reverbSendAmount);
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, paramManager, anySoundComingIn, reverbSendAmount);
 	}
 	else {
-		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn);
+		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, paramManager, anySoundComingIn);
 	}
 
 	// EQ -------------------------------------------------------------------------------------
-	bool thisDoBass = hasBassAdjusted(paramManager);
-	bool thisDoTreble = hasTrebleAdjusted(paramManager);
+	const int32_t bass = values.get(params::UNPATCHED_BASS);
+	const int32_t treble = values.get(params::UNPATCHED_TREBLE);
+	bool this_do_bass = bass != 0;
+	bool this_do_treble = treble != 0;
 
 	// Bass. No-change represented by 0. Off completely represented by -536870912
-	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
+	int32_t positive = (bass >> 1) + 1073741824;
 	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
 
 	// Treble. No-change represented by 536870912
-	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
+	positive = (treble >> 1) + 1073741824;
 	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
 
-	if (thisDoBass || thisDoTreble) {
+	if (this_do_bass || this_do_treble) {
 
-		if (thisDoBass) {
-			bassFreq = getExp(120000000, (unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ) >> 5) * 6);
+		if (this_do_bass) {
+			bassFreq = getExp(120000000, (values.get(params::UNPATCHED_BASS_FREQ) >> 5) * 6);
 		}
 
-		if (thisDoTreble) {
-			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
+		if (this_do_treble) {
+			trebleFreq = getExp(700000000, (values.get(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
 		}
 
 		for (StereoSample& sample : buffer) {
-			doEQ(thisDoBass, thisDoTreble, &sample.l, &sample.r, bassAmount, trebleAmount);
+			doEQ(this_do_bass, this_do_treble, &sample.l, &sample.r, bassAmount, trebleAmount);
 		}
 	}
 
@@ -213,8 +338,8 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 	delay.process(buffer, delayWorkingState);
 }
 void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
-                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          bool anySoundComingIn, q31_t verbAmount) {
+                                          int32_t* postFXVolume, ParamManager* param_manager, bool anySoundComingIn,
+                                          q31_t verbAmount) {
 	// this shouldn't be possible but just in case
 	if (anySoundComingIn && !grainFX) [[unlikely]] {
 		enableGrain();
@@ -222,10 +347,10 @@ void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_
 
 	if (grainFX) {
 		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
-		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
+		grainFX->processGrainFX(
+		    buffer, modFXRate, modFXDepth, param_manager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_OFFSET),
+		    param_manager->getUnpatchedValueForRender(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
+		    anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
 }
 
@@ -335,33 +460,26 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 	postReverbVolumeLastTime = postReverbVolume;
 }
 
-bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING) >= -2113929216);
-}
-
-bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
-}
-
 void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
+	const auto values = paramManager->unpatchedRenderValues();
+
 	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
 
-	bool srrEnabled = isSRREnabled(paramManager);
+	const int32_t srr_value = values.get(params::UNPATCHED_SAMPLE_RATE_REDUCTION);
+	const int32_t bitcrushing_value = values.get(params::UNPATCHED_BITCRUSHING);
+	bool srr_enabled = isSRREnabled(srr_value);
 
 	// Bitcrushing ------------------------------------------------------------------------------
-	if (isBitcrushingEnabled(paramManager)) {
-		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
-		if (positivePreset > 4) {
-			*postFXVolume >>= (positivePreset - 4);
+	if (isBitcrushingEnabled(bitcrushing_value)) {
+		uint32_t positive_preset = (bitcrushing_value + 2147483648) >> 29;
+		if (positive_preset > 4) {
+			*postFXVolume >>= static_cast<int32_t>(positive_preset - 4);
 		}
 
 		// If not also doing SRR
-		if (!srrEnabled) {
-			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
+		if (!srr_enabled) {
+			uint32_t mask = 0xFFFFFFFF << (19 + (positive_preset));
 			for (StereoSample& sample : buffer) {
 				sample.l &= mask;
 				sample.r &= mask;
@@ -369,12 +487,12 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		}
 
 		else {
-			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positivePreset));
+			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positive_preset));
 		}
 	}
 
 	// Sample rate reduction -------------------------------------------------------------------------------------
-	if (srrEnabled) {
+	if (srr_enabled) {
 
 		// Set up for first time
 		if (!sampleRateReductionOnLastTime) {
@@ -387,11 +505,12 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff
 		// started clipping off where I needed it if sample rate too low
 
-		uint32_t positivePreset =
-		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
-		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
-		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
-		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
+		uint32_t positive_preset = srr_value + 2147483648;
+		int32_t low_sample_rate_increment = getExp(4194304, static_cast<int32_t>(positive_preset >> 3));
+		auto high_sample_rate_increment =
+		    static_cast<int32_t>((uint32_t{0xFFFFFFFF} / (low_sample_rate_increment >> 6)) << 6);
+		// auto high_sample_rate_increment = getExp(4194304, -(int32_t)(positive_preset >> 3)); // This would work
+		// too
 
 		// Work in locals, which the compiler would otherwise have to reload after every store to the buffer
 		uint32_t lowPos = lowSampleRatePos;
@@ -416,12 +535,14 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 				grabbed.r &= bitCrushMaskForSRR;
 
 				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				lowPos += lowSampleRateIncrement;
+				lowPos += low_sample_rate_increment;
 
 				// "Re-sync" the up-conversion spinner.
 				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
 				// better. Ah, writing the massive explanation would take ages.
-				highPos = multiply_32x32_rshift32_rounded(lowPos & 4194303, highSampleRateIncrement << 8) << 2;
+				highPos = multiply_32x32_rshift32_rounded(static_cast<int32_t>(lowPos & 4194303),
+				                                          high_sample_rate_increment << 8)
+				          << 2;
 			}
 			lowPos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
 			last = sample;
@@ -437,7 +558,7 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 			            + multiply_32x32_rshift32_rounded(grabbed.r, strength2 << 9))
 			           << 2;
 
-			highPos += highSampleRateIncrement;
+			highPos += high_sample_rate_increment;
 		}
 
 		lowSampleRatePos = lowPos;
@@ -495,7 +616,16 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	}
 }
 
-void ModControllableAudio::writeTagsToFile(Serializer& writer) {
+PLACE_SDRAM_TEXT void ModControllableAudio::writeTagsToFile(Serializer& writer, bool savingSong) {
+
+	if (savingSong && presets_ != nullptr && presets_->hasPatched) {
+		writePresetValues(writer, "presetPatchedValues", presets_->patched.data(),
+		                  static_cast<int32_t>(presets_->patched.size()));
+	}
+	if (savingSong && presets_ != nullptr && presets_->hasUnpatched) {
+		writePresetValues(writer, "presetUnpatchedValues", presets_->unpatched.data(),
+		                  static_cast<int32_t>(presets_->unpatched.size()));
+	}
 	// Delay
 	writer.writeOpeningTagBeginning("delay");
 	writer.writeAttribute("pingPong", delay.pingPong);
@@ -614,8 +744,92 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamM
 	                                       writeAutomation);
 }
 
-void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-                                                int32_t* valuesForOverride) {
+// Writes the clip values of automated parameters, which their current values can't recover, and
+// relative values wherever the legacy absolute attributes can't represent them.
+PLACE_SDRAM_TEXT void ModControllableAudio::writeLayeredParamTags(Serializer& writer, ParamManager* paramManager) {
+	for (auto* summary = paramManager->summaries; summary->paramCollection != nullptr; ++summary) {
+		auto kind = summary->paramCollection->getParamKind();
+		if (kind != params::Kind::PATCHED && kind != params::Kind::UNPATCHED_SOUND
+		    && kind != params::Kind::UNPATCHED_GLOBAL) {
+			continue;
+		}
+		auto* set = static_cast<ParamSet*>(summary->paramCollection);
+		writer.writeOpeningTagBeginning(kind == params::Kind::PATCHED ? "clipPatchedValues" : "clipUnpatchedValues");
+		for (int32_t p = 0; p < set->getNumParams(); ++p) {
+			if (set->params[p].isAutomated()) {
+				std::array<char, 16> name_storage{};
+				char* name = name_storage.data();
+				name[0] = 'p';
+				std::to_chars(name + 1, name + name_storage.size() - 1, p);
+				writer.writeAttribute(name, set->getClipValue(p));
+			}
+		}
+		writer.closeTag();
+		writer.writeOpeningTagBeginning(kind == params::Kind::PATCHED ? "relativePatchedValues"
+		                                                              : "relativeUnpatchedValues");
+		for (int32_t p = 0; p < set->getNumParams(); ++p) {
+			auto& param = set->params[p];
+			if (!param.isAutomated() && param.getUnclampedClipValue() == set->getClipValue(p)) {
+				continue;
+			}
+			std::array<char, 16> name{};
+			name.front() = 'p';
+			std::to_chars(name.data() + 1, name.data() + name.size() - 1, p);
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator(name.data());
+			writer.write("\"");
+			param.writeRelativeToFile(writer);
+			writer.write("\"");
+		}
+		writer.closeTag();
+	}
+}
+
+// Read the tags written by writeLayeredParamTags(). Each returns whether tagName was its tag.
+PLACE_SDRAM_TEXT bool ModControllableAudio::readRelativeParamTag(Deserializer& reader, char const* tagName,
+                                                                 ParamManagerForTimeline* paramManager) {
+	ParamSet* unpatched_params = paramManager->getUnpatchedParamSet();
+	if (strcmp(tagName, "relativePatchedValues") == 0 || strcmp(tagName, "relativeUnpatchedValues") == 0) {
+		bool patched = strcmp(tagName, "relativePatchedValues") == 0;
+		ParamSet* set = unpatched_params;
+		if (patched) {
+			set = paramManager->getExpressionParamSetOffset() >= 3 ? paramManager->getPatchedParamSet() : nullptr;
+		}
+		readParameterObject(reader, patched ? "relativePatchedValues" : "relativeUnpatchedValues",
+		                    [&](uint32_t id, Deserializer& value) {
+			                    if (set != nullptr && std::cmp_less(id, set->getNumParams())) {
+				                    AutoParamSetup(set->params[id]).readRelativeFromFile(value);
+			                    }
+		                    });
+		return true;
+	}
+	return false;
+}
+
+PLACE_SDRAM_TEXT bool ModControllableAudio::readClipParamTag(Deserializer& reader, char const* tagName,
+                                                             ParamManagerForTimeline* paramManager) {
+	ParamSet* unpatched_params = paramManager->getUnpatchedParamSet();
+	if ((strcmp(tagName, "clipPatchedValues") == 0) || (strcmp(tagName, "clipUnpatchedValues") == 0)) {
+		bool patched = strcmp(tagName, "clipPatchedValues") == 0;
+		ParamSet* set = unpatched_params;
+		if (patched) {
+			set = paramManager->getExpressionParamSetOffset() >= 3 ? paramManager->getPatchedParamSet() : nullptr;
+		}
+		readParameterValueObject(
+		    reader, patched ? "clipPatchedValues" : "clipUnpatchedValues", [&](uint32_t id, int32_t value) {
+			    if (set != nullptr && std::cmp_less(id, set->getNumParams()) && set->params[id].isAutomated()) {
+				    AutoParamSetup(set->params[id]).restoreClipValueFromFile(value);
+			    }
+		    });
+		return true;
+	}
+	return false;
+}
+
+PLACE_SDRAM_TEXT void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager,
+                                                                 bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	writer.writeOpeningTagBeginning("equalizer");
@@ -628,12 +842,20 @@ void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager
 	unpatchedParams->writeParamAsAttribute(writer, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
 	                                       false, valuesForOverride);
 	writer.closeTag();
+	if (writeAutomation) {
+		writeLayeredParamTags(writer, paramManager);
+	}
 }
 
-bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
-                                                ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+PLACE_SDRAM_TEXT bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
+                                                                 ParamManagerForTimeline* paramManager,
+                                                                 int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
+
+	if (readRelativeParamTag(reader, tagName, paramManager) || readClipParamTag(reader, tagName, paramManager)) {
+		return true;
+	}
 
 	if (!strcmp(tagName, "equalizer")) {
 		reader.match('{');
@@ -800,6 +1022,31 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
                                             ArpeggiatorSettings* arpSettings, Song* song) {
 
 	int32_t p;
+
+	if (strcmp(tagName, "presetPatchedValues") == 0) {
+		PresetValues* presets = ensurePresets();
+		std::array<int32_t, params::kNumParams> discard{};
+		bool complete = readPresetValues(reader, "presetPatchedValues",
+		                                 presets != nullptr ? presets->patched.data() : discard.data(),
+		                                 static_cast<int32_t>(discard.size()));
+		if (presets != nullptr) {
+			presets->hasPatched = complete;
+		}
+		parameterBaselinesChanged();
+		return Error::NONE;
+	}
+	if (strcmp(tagName, "presetUnpatchedValues") == 0) {
+		PresetValues* presets = ensurePresets();
+		std::array<int32_t, params::kMaxNumUnpatchedParams> discard{};
+		bool complete = readPresetValues(reader, "presetUnpatchedValues",
+		                                 presets != nullptr ? presets->unpatched.data() : discard.data(),
+		                                 static_cast<int32_t>(discard.size()));
+		if (presets != nullptr) {
+			presets->hasUnpatched = complete;
+		}
+		parameterBaselinesChanged();
+		return Error::NONE;
+	}
 
 	if (!strcmp(tagName, "lpfMode")) {
 		lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
@@ -999,9 +1246,9 @@ doReadPatchedParam:
 			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
 				MIDICable* cable = nullptr;
-				uint8_t channel;
-				uint8_t ccNumber;
-				bool relative;
+				uint8_t channel = 0;
+				uint8_t cc_number = 0;
+				bool relative = false;
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
@@ -1013,11 +1260,11 @@ doReadPatchedParam:
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
 					}
-					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = reader.readTagOrAttributeValueInt();
+					else if (strcmp(tagName, "ccNumber") == 0) {
+						cc_number = reader.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
+						relative = reader.readTagOrAttributeValueInt() != 0;
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
 						// if the unpatched kind for the current mod controllable is sound then we also want to check
@@ -1043,7 +1290,7 @@ doReadPatchedParam:
 						MIDIKnob& new_knob = midi_knobs.emplace_back();
 						new_knob.midiInput.cable = cable;
 						new_knob.midiInput.channelOrZone = channel;
-						new_knob.midiInput.noteOrCC = ccNumber;
+						new_knob.midiInput.noteOrCC = cc_number;
 						new_knob.relative = relative;
 
 						if (s == PatchSource::NOT_AVAILABLE) {
@@ -1194,7 +1441,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				}
 				else {
-					currentValue = modelStackWithParam->autoParam->getCurrentValue();
+					currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 				}
 
 				// convert current value to knobPos to compare to cc value being received
@@ -1219,8 +1466,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else {
-					AutoParamLiveInput(*modelStackWithParam->autoParam)
-					    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+					modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
 				}
 
 				// if you're in automation view and editing the same parameter that was just updated
@@ -1299,7 +1546,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				}
 				else {
-					currentValue = modelStackWithParam->autoParam->getCurrentValue();
+					currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 				}
 
 				// convert current value to knobPos to compare to cc value being received
@@ -1324,8 +1571,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else {
-					AutoParamLiveInput(*modelStackWithParam->autoParam)
-					    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+					modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
 				}
 
 				// check if you're currently editing the same learned param in automation view or
@@ -1404,8 +1651,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else if (held == HeldNoteLock::NONE) {
-					AutoParamLiveInput(*modelStackWithParam->autoParam)
-					    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+					modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
 				}
 				return true;
 			}
@@ -1903,4 +2150,19 @@ void ModControllableAudio::disableGrain() {
 	if (grainFX) {
 		grainFX->startSkippingRendering();
 	}
+}
+
+PLACE_SDRAM_TEXT int32_t* ModControllableAudio::getPresetValueStorage(params::Kind kind, int32_t id) {
+	PresetValues* presets = ensurePresets();
+	if (presets == nullptr) {
+		return nullptr;
+	}
+	if (kind == params::Kind::PATCHED && id >= 0 && id < static_cast<int32_t>(presets->patched.size())) {
+		return &presets->patched[id];
+	}
+	if ((kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) && id >= 0
+	    && id < static_cast<int32_t>(presets->unpatched.size())) {
+		return &presets->unpatched[id];
+	}
+	return nullptr;
 }

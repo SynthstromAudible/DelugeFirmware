@@ -48,18 +48,39 @@ public:
 	using AutoParamData::nodeStorageIdentity;
 	using AutoParamData::searchNodes;
 
+	using AutoParamData::getAutomationOffset;
+	using AutoParamData::getClipValue;
 	using AutoParamData::getCurrentValue;
+	using AutoParamData::getNodeValue;
+	using AutoParamData::getUnclampedClipValue;
 	using AutoParamData::getValueAtPos;
+	using AutoParamData::getValueForClip;
+	using AutoParamData::getValueForRender;
 	using AutoParamData::isAutomated;
+	using AutoParamData::writeRelativeToFile;
 	using AutoParamData::writeToFile;
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
-	bool hasInterpolationIncrement(bool use_float_interpolation);
+	// The collection interpolation mode selects the active member of the playback increment union.
+	// NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+	/// identifies if a parameter is currently interpolating
+	[[nodiscard]] bool hasInterpolationIncrement(bool use_float_interpolation) const {
+		const ParamNodeVector* curve = nodes.get();
+		if (curve == nullptr) {
+			return false;
+		}
+		if (use_float_interpolation) [[unlikely]] {
+			return curve->value_increment_per_half_tick_float != 0.0f;
+		}
+		return curve->valueIncrementPerHalfTick != 0;
+	}
+	// NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
 private:
+	using AutoParamData::getOffsetAtPos;
 	using AutoParamData::grabValueFromPos;
 	void setValueForLiveInput(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t livePos = -1,
 	                          bool mayDeleteNodesInLinearRun = true, bool doMPEMode = false);
@@ -69,10 +90,11 @@ private:
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
 	                       ActionType actionType = ActionType::NOTE_EDIT);
+	// Each returns whether the current value changed, and the value before the tick in old_value.
 	/// tick the interpolator by a number of samples - used for internal synths
-	bool tickSamples(int32_t numSamples, bool use_float_interpolation);
+	bool tickSamples(int32_t numSamples, bool use_float_interpolation, int32_t& old_value);
 	/// tick the interpolator by a number of ticks - used for midi
-	bool tickTicks(int32_t numTicks, bool use_float_interpolation);
+	bool tickTicks(int32_t numTicks, bool use_float_interpolation, int32_t& old_value);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
@@ -108,6 +130,7 @@ private:
 	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 	void notifyPingpongOccurred(bool use_float_interpolation);
+	int64_t getOffsetAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
@@ -116,15 +139,15 @@ private:
 	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
-	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
+	void calculateInterpolationIncrement(int64_t half_distance, int32_t ticks_til_next_node,
 	                                     bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 	void reverseInterpolationIncrement(bool use_float_interpolation);
-	int32_t consumeFloatInterpolationIncrement(float value_increment);
-	bool applyValueIncrement(int32_t value_increment);
+	int64_t consumeFloatInterpolationIncrement(float value_increment);
+	bool applyValueIncrement(int64_t value_increment, int32_t& old_value);
 
 	void cloneFrom(AutoParam* other, bool copyAutomation) { AutoParamData::cloneFrom(other, copyAutomation); }
 };
-static_assert(sizeof(AutoParam) == sizeof(AutoParamData));
+static_assert(sizeof(AutoParam) == 2 * sizeof(void*));
 static_assert(std::is_standard_layout_v<AutoParam>);
 static_assert(alignof(AutoParam) == alignof(AutoParamData));

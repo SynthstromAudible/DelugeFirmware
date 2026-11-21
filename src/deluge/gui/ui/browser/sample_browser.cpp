@@ -633,13 +633,13 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			int32_t outputGainPos = kVolumeParamUnityPos;
 			if (currentSong != nullptr) {
 				int32_t songVolumeParam =
-				    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+				    currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_VOLUME);
 				outputGainPos = multiplyGainPos(volumeParamToGainPos(songVolumeParam), songOutputStageGainPos());
 			}
 
-			PatchedParamSet* targetParams = soundEditor.currentParamManager->getPatchedParamSet();
-			previewVolume.volumePostFX = targetParams->getValue(params::GLOBAL_VOLUME_POST_FX);
-			previewVolume.localVolume = targetParams->getValue(params::LOCAL_VOLUME);
+			previewVolume.volumePostFX =
+			    soundEditor.currentParamManager->getPatchedValueForRender(params::GLOBAL_VOLUME_POST_FX);
+			previewVolume.localVolume = soundEditor.currentParamManager->getPatchedValueForRender(params::LOCAL_VOLUME);
 
 			// The preview drum always notes on at velocity 64, so matching both the depth and the polarity of this
 			// cable makes the preview's final per-voice volume match the target's. The polarity matters as much as
@@ -657,11 +657,12 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			if (getCurrentOutputType() == OutputType::KIT) {
 				ParamManagerForTimeline& kitParamManager = getCurrentInstrumentClip()->paramManager;
 				if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
-					int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+					int32_t kit_volume_param = kitParamManager.getUnpatchedValueForRender(params::UNPATCHED_VOLUME);
 					// The kit's output stage halves its volume, adds a baseline and passes through the filter set's
 					// gain adjustment - about -6 dB at neutral kit volume.
-					outputGainPos = multiplyGainPos(
-					    outputGainPos, multiplyGainPos(volumeParamToGainPos(kitVolumeParam), kitOutputStageGainPos()));
+					outputGainPos =
+					    multiplyGainPos(outputGainPos, multiplyGainPos(volumeParamToGainPos(kit_volume_param),
+					                                                   kitOutputStageGainPos()));
 				}
 			}
 

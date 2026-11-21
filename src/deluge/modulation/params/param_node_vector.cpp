@@ -42,63 +42,67 @@ ParamNode* ParamNodeVector::getLast() {
 }
 
 bool LazyParamNodeVector::allocate() {
-	if (vector_) {
+	if (get() != nullptr) {
 		return true;
 	}
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ParamNodeVector));
 	if (!memory) {
 		return false;
 	}
-	vector_ = new (memory) ParamNodeVector();
+	// The placement-constructed vector is owned and released by empty().
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	setVector(new (memory) ParamNodeVector());
 	return true;
 }
 
 void LazyParamNodeVector::empty() {
-	if (vector_) {
-		vector_->~ParamNodeVector();
-		delugeDealloc(vector_);
-		vector_ = nullptr;
+	if (get() != nullptr) {
+		get()->~ParamNodeVector();
+		delugeDealloc(get());
+		setVector(nullptr);
 	}
 }
 
 void LazyParamNodeVector::freeIfEmpty() {
-	if (vector_ && !vector_->getNumElements()) {
+	if ((get() != nullptr) && (get()->getNumElements() == 0)) {
 		empty();
 	}
 }
 
 bool LazyParamNodeVector::cloneFrom(LazyParamNodeVector const* other) {
-	vector_ = nullptr;
+	setVector(nullptr);
 	if (!other->getNumElements()) {
 		return true;
 	}
 	if (!allocate()) {
 		return false;
 	}
-	bool success = vector_->cloneFrom(other->vector_);
+	bool success = get()->cloneFrom(other->get());
+	get()->copyPlaybackStateFrom(*other->get());
 	freeIfEmpty();
 	return success;
 }
 
 Error LazyParamNodeVector::beenCloned() {
-	ParamNodeVector* source = vector_; // Still belongs to the object we were memcpy'd from
-	vector_ = nullptr;
+	ParamNodeVector* source = get(); // Still belongs to the object we were memcpy'd from
+	setVector(nullptr);
 	if (!source || !source->getNumElements()) {
 		return Error::NONE;
 	}
 	if (!allocate()) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	if (!vector_->cloneFrom(source)) {
+	if (!get()->cloneFrom(source)) {
 		empty();
 		return Error::INSUFFICIENT_RAM;
 	}
+	get()->copyPlaybackStateFrom(*source);
 	return Error::NONE;
 }
 
 void LazyParamNodeVector::searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes) {
-	if (vector_) {
-		vector_->searchDual(searchTerms, resultingIndexes);
+	if (get() != nullptr) {
+		get()->searchDual(searchTerms, resultingIndexes);
 	}
 	else {
 		resultingIndexes[0] = 0;
@@ -110,7 +114,8 @@ Error LazyParamNodeVector::insertAtIndex(int32_t i, int32_t numToInsert, void* t
 	if (!allocate()) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	Error error = vector_->insertAtIndex(i, numToInsert, thingNotToStealFrom);
+	Error error = get()->insertAtIndex(i, numToInsert, thingNotToStealFrom);
+	invalidateValue();
 	freeIfEmpty();
 	return error;
 }
@@ -119,7 +124,8 @@ int32_t LazyParamNodeVector::insertAtKey(int32_t key, bool isDefinitelyLast) {
 	if (!allocate()) {
 		return -1;
 	}
-	int32_t i = vector_->insertAtKey(key, isDefinitelyLast);
+	int32_t i = get()->insertAtKey(key, isDefinitelyLast);
+	invalidateValue();
 	freeIfEmpty();
 	return i;
 }
@@ -128,7 +134,8 @@ bool LazyParamNodeVector::ensureEnoughSpaceAllocated(int32_t numAdditionalElemen
 	if (!allocate()) {
 		return false;
 	}
-	bool success = vector_->ensureEnoughSpaceAllocated(numAdditionalElementsNeeded);
+	bool success = get()->ensureEnoughSpaceAllocated(numAdditionalElementsNeeded);
+	invalidateValue();
 	if (!success) {
 		freeIfEmpty();
 	}
@@ -136,10 +143,11 @@ bool LazyParamNodeVector::ensureEnoughSpaceAllocated(int32_t numAdditionalElemen
 }
 
 void LazyParamNodeVector::deleteAtIndex(int32_t i, int32_t numToDelete, bool mayShortenMemoryAfter) {
-	if (!vector_) {
+	if (get() == nullptr) {
 		return;
 	}
-	vector_->deleteAtIndex(i, numToDelete, mayShortenMemoryAfter);
+	get()->deleteAtIndex(i, numToDelete, mayShortenMemoryAfter);
+	invalidateValue();
 	if (mayShortenMemoryAfter) {
 		freeIfEmpty();
 	}

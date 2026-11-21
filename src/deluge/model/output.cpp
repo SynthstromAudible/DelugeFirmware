@@ -75,6 +75,13 @@ bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeS
 		return true;
 	}
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+	// Clips are bound when loaded or when they change owner. A launch, which can run in the audio
+	// routine, only binds a clip which isn't bound yet to baselines which already exist, so it neither
+	// rescans nor allocates, even after an allocation failed.
+	if (auto* mod_controllable = toModControllable();
+	    mod_controllable != nullptr && !mod_controllable->isBoundToPresetValues(&newClip->paramManager)) {
+		mod_controllable->bindPresetValues(&newClip->paramManager);
+	}
 
 	bool clipChanged = (activeClip != newClip);
 	activeClip = newClip;

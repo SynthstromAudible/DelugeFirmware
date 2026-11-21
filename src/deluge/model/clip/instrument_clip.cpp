@@ -4097,6 +4097,17 @@ haveNoDrum:
 		}
 	}
 
+	if (auto* owner = output->toModControllable()) {
+		owner->bindPresetValues(&paramManager);
+	}
+	if (output->type == OutputType::KIT) {
+		for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+			auto* row = noteRows.getElement(i);
+			if ((row->drum != nullptr) && row->drum->type == DrumType::SOUND) {
+				static_cast<SoundDrum*>(row->drum)->bindPresetValues(&row->paramManager);
+			}
+		}
+	}
 	return Error::NONE;
 }
 

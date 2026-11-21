@@ -9,7 +9,7 @@ namespace {
 void addNode(LazyParamNodeVector& nodes, int32_t pos, int32_t value) {
 	int32_t i = nodes.insertAtKey(pos);
 	CHECK(i >= 0);
-	nodes.getElement(i)->value = value;
+	nodes.getElement(i)->offset = value;
 }
 } // namespace
 
@@ -79,10 +79,10 @@ TEST(LazyParamNodeVectorTest, cloneFromIsDeep) {
 	CHECK(clone.cloneFrom(&original));
 	CHECK(clone.get() != original.get());
 	CHECK_EQUAL(2, clone.getNumElements());
-	CHECK_EQUAL(9, clone.getElement(1)->value);
+	CHECK_EQUAL(9, clone.getElement(1)->offset);
 
-	clone.getElement(1)->value = 100;
-	CHECK_EQUAL(9, original.getElement(1)->value);
+	clone.getElement(1)->offset = 100;
+	CHECK_EQUAL(9, original.getElement(1)->offset);
 
 	LazyParamNodeVector empty;
 	LazyParamNodeVector cloneOfEmpty;
@@ -103,7 +103,7 @@ TEST(LazyParamNodeVectorTest, beenClonedAfterMemcpyMakesIndependentCopy) {
 	CHECK(copy->get() != nullptr);
 	CHECK(copy->get() != original.get());
 	CHECK_EQUAL(2, copy->getNumElements());
-	CHECK_EQUAL(7, copy->getElement(0)->value);
+	CHECK_EQUAL(7, copy->getElement(0)->offset);
 	CHECK_EQUAL(2, original.getNumElements());
 	copy->empty();
 }
@@ -117,4 +117,37 @@ TEST(LazyParamNodeVectorTest, swapStateWithSwapsOwnership) {
 	a.swapStateWith(&b);
 	POINTERS_EQUAL(nullptr, a.get());
 	POINTERS_EQUAL(aVector, b.get());
+}
+
+TEST(LazyParamNodeVectorTest, CurveSwapsAndDeletionDoNotMoveScalarBinding) {
+	LazyParamNodeVector bound;
+	LazyParamNodeVector unbound;
+	bound.setHasClipValue(true);
+	addNode(bound, 0, 10);
+	addNode(unbound, 16, 20);
+	bound.get()->renewedOverridingAtTime = 123;
+	unbound.get()->renewedOverridingAtTime = 456;
+	bound.swapStateWith(&unbound);
+	CHECK(bound.hasClipValue());
+	CHECK_FALSE(unbound.hasClipValue());
+	CHECK_EQUAL(20, bound.getFirst()->offset);
+	CHECK_EQUAL(456, bound.get()->renewedOverridingAtTime);
+	CHECK_EQUAL(10, unbound.getFirst()->offset);
+	bound.empty();
+	CHECK(bound.hasClipValue());
+	POINTERS_EQUAL(nullptr, bound.get());
+	CHECK_EQUAL(0, bound.getNumElements());
+}
+
+TEST(LazyParamNodeVectorTest, CloneOwnsPlaybackStateAsWellAsNodes) {
+	LazyParamNodeVector source;
+	LazyParamNodeVector copy;
+	addNode(source, 0, 10);
+	source.get()->valueIncrementPerHalfTick = 4294967295LL;
+	source.get()->renewedOverridingAtTime = 123;
+	CHECK(copy.cloneFrom(&source));
+	CHECK_EQUAL(4294967295LL, copy.get()->valueIncrementPerHalfTick);
+	CHECK_EQUAL(123, copy.get()->renewedOverridingAtTime);
+	copy.get()->renewedOverridingAtTime = 456;
+	CHECK_EQUAL(123, source.get()->renewedOverridingAtTime);
 }

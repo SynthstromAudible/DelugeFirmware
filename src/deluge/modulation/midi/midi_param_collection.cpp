@@ -66,11 +66,11 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 		bool use_float_interpolation =
 		    shouldInterpolateWithFloat(modelStack->addParamId(static_cast<int32_t>(midiParam->cc)));
 		if (param->hasInterpolationIncrement(use_float_interpolation)) {
-			int32_t oldValue = param->getCurrentValue();
-			bool should_notify = AutoParamPlayback(*param).tickTicks(numTicks, use_float_interpolation);
+			int32_t old_value = 0;
+			bool should_notify = AutoParamPlayback(*param).tickTicks(numTicks, use_float_interpolation, old_value);
 			if (should_notify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
-				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+				notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, false, true, true);
 			}
 		}
 	}

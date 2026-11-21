@@ -17,10 +17,23 @@
 
 #pragma once
 
+#include "util/fixedpoint.h"
 #include <algorithm>
 #include <bit>
 #include <cstdint>
 #include <limits>
+
+// Advanced whenever any clip value or preset baseline changes. A curve may reuse
+// its evaluated value while this is unchanged, without reading its baseline.
+// Code which writes baseline storage directly must call parameterBaselinesChanged().
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+inline uint32_t parameter_baseline_epoch = 1;
+inline void parameterBaselinesChanged() {
+	// Zero marks a curve value as unchecked, so skip it when wrapping.
+	if (++parameter_baseline_epoch == 0) {
+		parameter_baseline_epoch = 1;
+	}
+}
 
 // The full difference between two signed 32-bit parameter values needs 33 bits.
 // Represent the clip offset as the difference of two int32 endpoints. This retains
@@ -63,24 +76,29 @@ public:
 			valueAtEdit_ = std::bit_cast<int32_t>(static_cast<uint32_t>(bits));
 			presetAtEdit_ = std::bit_cast<int32_t>(static_cast<uint32_t>(bits >> 32));
 			presetAndOffset_ = (presetAndOffset_ & ~uintptr_t{3}) | 3;
+			parameterBaselinesChanged();
 			return;
 		}
 		valueAtEdit_ = offset >= 0 ? INT32_MAX : INT32_MIN;
 		presetAtEdit_ = static_cast<int32_t>(int64_t{valueAtEdit_} - offset);
 		presetAndOffset_ = (presetAndOffset_ & ~uintptr_t{3}) | uintptr_t{offset != 0};
+		parameterBaselinesChanged();
 	}
 	void setValue(int32_t value) {
 		valueAtEdit_ = value;
 		presetAtEdit_ = getPresetValue();
 		presetAndOffset_ = (presetAndOffset_ & ~uintptr_t{3}) | uintptr_t{value != presetAtEdit_};
+		parameterBaselinesChanged();
 	}
 	// Used when replacing a zero baseline slot with the permanent zero baseline.
 	// Both baselines are equal, so retain even offsets hidden by saturation.
 	void detachZeroPreset() {
 		if (getPresetValue() == 0) {
 			presetAndOffset_ &= uintptr_t{3};
+			parameterBaselinesChanged();
 		}
 	}
+	[[nodiscard]] bool isBoundTo(const int32_t* preset) const { return presetPointer() == preset; }
 	void bindPreset(const int32_t* preset) {
 		if (presetPointer() == preset) {
 			return;
@@ -89,11 +107,20 @@ public:
 		// The aligned int32 pointer leaves a low bit for the zero-offset fast path.
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
 		presetAndOffset_ = reinterpret_cast<uintptr_t>(preset);
+		// Both branches below record the change.
 		if (value == resolve(value)) {
 			setValue(static_cast<int32_t>(value));
 		}
 		else {
 			setUnclampedValue(value);
+		}
+	}
+
+	// Adjust the offset before the shared baseline changes, retaining even the
+	// portion of the scalar hidden by saturation. Other owners are untouched.
+	void preserveBeforePresetChange(const int32_t* preset, int32_t newValue) {
+		if (presetPointer() == preset) {
+			setUnclampedValue(getUnclampedValue() + int64_t{*preset} - newValue);
 		}
 	}
 
@@ -120,7 +147,28 @@ public:
 		}
 		return evaluatedValue_;
 	}
+	// Whether currentValue() is still valid: the curve was non-empty and evaluated
+	// against its bound baseline, and no baseline anywhere has changed since.
+	[[nodiscard]] bool isCurrent() const { return evaluatedEpoch_ == parameter_baseline_epoch; }
+	[[nodiscard]] int32_t currentValue() const { return evaluatedValue_; }
+	[[nodiscard]] int32_t currentBase() const { return evaluatedBase_; }
+	// Only owners which have just evaluated their bound baseline may mark it.
+	void markCurrent() const { evaluatedEpoch_ = parameter_baseline_epoch; }
+	void invalidate() const { evaluatedEpoch_ = 0; }
 	[[nodiscard]] int64_t getOffset() const { return offset_; }
+	// Advance a current evaluation by an integer step. While the evaluated value is
+	// not at a limit it equals base + offset exactly, so one saturating add gives
+	// the same result as evaluating again.
+	int32_t advanceCurrent(int32_t increment) {
+		offset_ += increment;
+		if (evaluatedValue_ != INT32_MIN && evaluatedValue_ != INT32_MAX) [[likely]] {
+			evaluatedValue_ = add_saturate(evaluatedValue_, increment);
+		}
+		else {
+			evaluate(evaluatedBase_);
+		}
+		return evaluatedValue_;
+	}
 	void setOffsetForBase(int64_t offset, int32_t base) {
 		offset_ = offset;
 		evaluate(base);
@@ -129,11 +177,15 @@ public:
 private:
 	int64_t offset_ = 0;
 	void evaluate(int32_t base) const {
+		if (base != evaluatedBase_) {
+			evaluatedEpoch_ = 0;
+		}
 		evaluatedBase_ = base;
 		evaluatedValue_ = ClipParamValue::resolve(int64_t{base} + offset_);
 	}
 	mutable int32_t evaluatedBase_ = 0;
 	mutable int32_t evaluatedValue_ = 0;
+	mutable uint32_t evaluatedEpoch_ = 0;
 };
 
 // Avoid overflowing distance * elapsed for full-width curves and long clips.
@@ -142,6 +194,9 @@ inline int64_t interpolateAutomationOffset(int64_t left, int64_t right, int32_t 
 	return left + ((distance / duration) * elapsed) + ((distance % duration) * elapsed / duration);
 }
 
+// Multiplies a per-half-tick increment by a number of half ticks, clamping rather than wrapping. A steep
+// increment (a short segment covering a big value change) times many skipped ticks easily overflows, and a
+// wrapped increment would send the value in the wrong direction entirely.
 // Rendering normally multiplies two signed 32-bit quantities. Keep that path a
 // single widening multiply instead of doing a 64-bit division for every sample block.
 inline int64_t saturatingAutomationIncrement(int64_t increment, int64_t halfTicks) {

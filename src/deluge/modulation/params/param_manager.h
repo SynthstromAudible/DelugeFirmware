@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection_summary.h"
+#include "modulation/params/param_render_values.h"
 #include <cstdint>
 
 class Song;
@@ -112,6 +113,15 @@ public:
 		}
 		return (PatchedParamSet*)summaries[1].paramCollection;
 	}
+
+	// Reuse a reader for multiple reads in a render operation. For isolated reads,
+	// the out-of-line accessors below keep call sites compact.
+	[[nodiscard]] ParamRenderValues patchedRenderValues() { return ParamRenderValues(*getPatchedParamSetSummary()); }
+	[[nodiscard]] ParamRenderValues unpatchedRenderValues() {
+		return ParamRenderValues(*getUnpatchedParamSetSummary());
+	}
+	int32_t getPatchedValueForRender(int32_t p);
+	int32_t getUnpatchedValueForRender(int32_t p);
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 		if (!summaries[1].paramCollection) {

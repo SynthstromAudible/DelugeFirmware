@@ -26,17 +26,24 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include <array>
 
 namespace deluge::gui::menu_item {
 
+int32_t UnpatchedParam::getControlValue() {
+	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
+	char* model_stack_memory = model_stack_memory_storage.data();
+	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+	auto* param_set = soundEditor.currentParamManager->getUnpatchedParamSet();
+	return param_set->getValueForControl(getP(), model_stack);
+}
+
 void UnpatchedParam::readCurrentValue() {
-	this->setValue(computeCurrentValueForStandardMenuItem(
-	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+	this->setValue(computeCurrentValueForStandardMenuItem(getControlValue()));
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
@@ -62,14 +69,13 @@ void UnpatchedParam::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
-				AutoParamLiveInput(*modelStackForSoundDrum->autoParam)
-				    .setValueForLiveInput(value, modelStackForSoundDrum);
+				modelStackForSoundDrum->paramCollection->setValueFromControl(value, modelStackForSoundDrum);
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
-		AutoParamLiveInput(*modelStackWithParam->autoParam).setValueForLiveInput(value, modelStackWithParam);
+		modelStackWithParam->paramCollection->setValueFromControl(value, modelStackWithParam);
 	}
 
 	// send midi follow feedback

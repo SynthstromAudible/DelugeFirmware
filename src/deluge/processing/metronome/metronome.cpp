@@ -41,11 +41,10 @@ void Metronome::render(std::span<StereoSample> buffer) {
 	}
 	int32_t volumePostFX;
 	if (currentSong) {
-		volumePostFX =
-		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       deluge::modulation::params::UNPATCHED_VOLUME)))
-		    >> 1;
+		volumePostFX = getFinalParameterValueVolume(
+		                   134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedValueForRender(
+		                                  deluge::modulation::params::UNPATCHED_VOLUME)))
+		               >> 1;
 	}
 	else {
 		volumePostFX = ONE_Q31;

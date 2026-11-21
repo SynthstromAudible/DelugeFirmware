@@ -648,6 +648,8 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
 	if (modelStackWithParam->autoParam) {
+		// Received input is a live value, like incoming expression, rather than an edit of the clip value or a
+		// linked baseline. A region being edited still takes it.
 		AutoParamLiveInput(*modelStackWithParam->autoParam)
 		    .setLiveValuePossiblyForRegion(
 		        newValue, modelStackWithParam, modPos, modLength,
