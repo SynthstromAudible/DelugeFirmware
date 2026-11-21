@@ -235,15 +235,15 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
-		std::vector<deluge::instrument::RangeState> ranges =
+		std::vector<deluge::synth::SourceRange> ranges =
 		    deluge::scenes::spec::first_ranges(slot);
-		ranges[0].end_pos = 100000;
+		ranges[0].zone.end = 100000;
 		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
-			       ranges[0].start_pos = (i % 2) != 0 ? 1000 : 2000;
+			       ranges[0].zone.start = (i % 2) != 0 ? 1000 : 2000;
 			       (void)menu::host_write_sink().write_ranges(slot, 0, ranges, marker);
 		       }));
-		expect(deluge::scenes::spec::first_ranges(slot)[0].end_pos).to_equal(uint64_t{100000});
+		expect(deluge::scenes::spec::first_ranges(slot)[0].zone.end).to_equal(uint64_t{100000});
 		deluge::scenes::spec::make_current(saved);
 	});
 

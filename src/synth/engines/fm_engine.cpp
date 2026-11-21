@@ -120,7 +120,7 @@ bool FMEngine::note_on(const EngineNote& note) {
 	for (int32_t u = 0; u < num_unison; u++) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 			const uint32_t retrigger_phase = note.config->engine.modulators[m].retrigger_phase;
-			if (retrigger_phase != kNoRetrigger) {
+			if (retrigger_phase != kFreeRunningPhase) {
 				// The retrigger phase's word is the phase it adds
 				modulator_phase_[u][m] = UQ<32>::from_raw(initial_phase + retrigger_phase);
 			}

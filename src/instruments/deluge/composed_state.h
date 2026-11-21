@@ -47,7 +47,7 @@ struct SlotMemory {
 	/// While FM plays: the slot's kind with its parts, as it plays again when FM goes (its pitch is the carrier's)
 	std::optional<synth::SlotState> parked;
 	synth::SamplePlayback playback;         ///< how a sample plays, while the slot is another kind
-	std::vector<synth::SampleRange> ranges; ///< the slot's ranges, while its kind plays none
+	std::vector<synth::SourceRange> ranges; ///< the slot's ranges, while its kind plays none
 	std::optional<synth::DxPatch> patch;    ///< a DX7 voice, while the slot is another kind
 	/// While a sample: the pitch the other kinds play (a sample oscillator has none of its own; its ranges carry
 	/// theirs)
@@ -75,10 +75,11 @@ struct Recall {
 /// @brief The oscillator type a slot's kind is.
 [[nodiscard]] OscType osc_type_of(const synth::SlotState& kind) noexcept;
 
-/// @brief The retrigger a file's 32-bit phase word means: none for 0xFFFFFFFF (free-running).
+/// @brief The retrigger a file's 32-bit phase word means; kFreeRunningPhase means none.
 [[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);
 
-/// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, 0xFFFFFFFF for free-running.
+/// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, or kFreeRunningPhase where the
+/// oscillator runs free.
 [[nodiscard]] uint32_t phase_word(const synth::Retrigger& retrigger) noexcept;
 
 } // namespace deluge::instrument

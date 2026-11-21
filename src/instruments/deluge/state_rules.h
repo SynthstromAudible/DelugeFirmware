@@ -39,8 +39,8 @@ namespace deluge::instrument {
 /// hold is kept for a switch back.
 /// @param held The ranges the slot plays now (the runtime holds them until it holds no ranges of its own).
 /// @param held_are_wavetable Whether those ranges are a wavetable's.
-[[nodiscard]] SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
-                                       bool held_are_wavetable);
+[[nodiscard]] SoundState switch_source(SoundState state, SourceId id, OscType type,
+                                       std::span<const synth::SourceRange> held, bool held_are_wavetable);
 
 /// @brief @p state with slot @p id's loop mode set: stretching to note length makes pitch and speed independent, and
 /// leaving it gives that up.

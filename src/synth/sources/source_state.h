@@ -41,6 +41,11 @@ struct Tuning {
 /// @brief Where an oscillator's phase starts a note: none for one that runs free.
 using Retrigger = std::optional<dsp::UQ<32>>;
 
+/// @brief A retrigger phase word that means free-running: the oscillator's phase carries on from note to note. The
+/// file writes it (as -1), and the render reads it as a phase too: the block controls add it where they add a
+/// retriggered oscillator's phase (its sync restart, the VA shapes' and the wavetable's offsets).
+inline constexpr uint32_t kFreeRunningPhase = 0xFFFFFFFF;
+
 /// @brief An oscillator's pitch: its tuning and where each note starts it.
 struct Pitch {
 	Tuning tuning;
@@ -58,20 +63,6 @@ struct VaState {
 	bool operator==(const VaState&) const = default;
 };
 
-/// @brief One wavetable range: the highest note it covers and its file.
-struct WavetableRange {
-	int16_t top_note{0};
-	std::string file_path;
-	bool operator==(const WavetableRange&) const = default;
-};
-
-/// @brief What a wavetable oscillator saves.
-struct WavetableState {
-	Pitch pitch;
-	std::vector<WavetableRange> ranges;
-	bool operator==(const WavetableState&) const = default;
-};
-
 /// @brief The part of a sample a range plays, in samples; a loop point of 0 is none.
 struct SampleZone {
 	uint64_t start{0};
@@ -81,13 +72,21 @@ struct SampleZone {
 	bool operator==(const SampleZone&) const = default;
 };
 
-/// @brief One sample range: the highest note it covers, its file, the zone it plays and its own tuning.
-struct SampleRange {
+/// @brief One key-split range of a source: the highest note it covers, its file, and for a sample the zone it plays
+/// and its own tuning (a wavetable's range has only the note and the file).
+struct SourceRange {
 	int16_t top_note{0};
 	std::string file_path;
 	SampleZone zone;
 	Tuning tuning;
-	bool operator==(const SampleRange&) const = default;
+	bool operator==(const SourceRange&) const = default;
+};
+
+/// @brief What a wavetable oscillator saves.
+struct WavetableState {
+	Pitch pitch;
+	std::vector<SourceRange> ranges;
+	bool operator==(const WavetableState&) const = default;
 };
 
 /// @brief How a sample oscillator plays its ranges.
@@ -104,7 +103,7 @@ struct SamplePlayback {
 /// pitch of its own.
 struct SampleState {
 	SamplePlayback playback;
-	std::vector<SampleRange> ranges;
+	std::vector<SourceRange> ranges;
 	bool operator==(const SampleState&) const = default;
 };
 

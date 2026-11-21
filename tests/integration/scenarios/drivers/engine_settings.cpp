@@ -525,7 +525,7 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 	if (!address || sound.getSynthMode() == SynthMode::FM || sound.oscType(0) != OscType::SAMPLE) {
 		return 0;
 	}
-	const std::vector<deluge::instrument::RangeState> ranges =
+	const std::vector<deluge::synth::SourceRange> ranges =
 	    deluge::instrument::source_ranges(sound.state(), deluge::instrument::SourceId::A);
 	const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 	deluge::edits::Context ctx{song, song.project};
@@ -549,11 +549,11 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 
 /// @p ranges with each range's tuning nudged and its zone's start moved on by one sample where the zone has room: an
 /// in-place change of every range.
-std::vector<deluge::instrument::RangeState> nudged(std::vector<deluge::instrument::RangeState> ranges) {
-	for (deluge::instrument::RangeState& range : ranges) {
-		range.transpose = static_cast<int16_t>(range.transpose == 0 ? 1 : 0);
-		if (range.start_pos + 1 < range.end_pos) {
-			range.start_pos++;
+std::vector<deluge::synth::SourceRange> nudged(std::vector<deluge::synth::SourceRange> ranges) {
+	for (deluge::synth::SourceRange& range : ranges) {
+		range.tuning.transpose = static_cast<int16_t>(range.tuning.transpose == 0 ? 1 : 0);
+		if (range.zone.start + 1 < range.zone.end) {
+			range.zone.start++;
 		}
 	}
 	return ranges;
@@ -572,7 +572,7 @@ int rangeLeg(Sound& sound, Song& song, const char* name) {
 		    || sound.sourceResources[s].ranges.empty()) {
 			continue;
 		}
-		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sourceResources[s]);
+		const std::vector<deluge::synth::SourceRange> old = deluge::bridge::rangesOf(sound.sourceResources[s]);
 		for (const auto& ranges : {nudged(old), old}) {
 			deluge::edits::SetSourceRanges edit{*address, static_cast<uint8_t>(s), ranges};
 			const std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE
@@ -593,7 +593,7 @@ int rangeLeg(Sound& sound, Song& song, const char* name) {
 int affectEntireRangeLeg(Kit& kit, Song& song) {
 	deluge::edits::Context ctx{song, song.project};
 	std::vector<SoundDrum*> nudgedDrums;
-	std::vector<std::vector<deluge::instrument::RangeState>> before;
+	std::vector<std::vector<deluge::synth::SourceRange>> before;
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		auto* soundDrum = drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 		const auto address = soundDrum != nullptr ? deluge::bridge::slotAddressOf(*soundDrum) : std::nullopt;
@@ -835,9 +835,9 @@ int liveRangeLeg(Song& song) {
 		if (sounding == 0) {
 			continue;
 		}
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sourceResources[s]);
+		std::vector<deluge::synth::SourceRange> ranges = deluge::bridge::rangesOf(synth->sourceResources[s]);
 		if (synth->oscType(s) == OscType::SAMPLE) {
-			ranges.back().transpose = static_cast<int16_t>(ranges.back().transpose == 0 ? 1 : 0);
+			ranges.back().tuning.transpose = static_cast<int16_t>(ranges.back().tuning.transpose == 0 ? 1 : 0);
 		}
 		else {
 			ranges.back().top_note = static_cast<int16_t>(ranges.back().top_note - 1);
@@ -1131,8 +1131,8 @@ int loadRulesLeg(Song& song) {
 	else if (deluge::instrument::source_tuning(*a, kFirst).transpose != 0
 	         || deluge::instrument::source_tuning(*a, kFirst).cents != 0
 	         || deluge::instrument::source_ranges(*a, kFirst).size() != 1
-	         || deluge::instrument::source_ranges(*a, kFirst)[0].transpose != 3
-	         || deluge::instrument::source_ranges(*a, kFirst)[0].cents != 5) {
+	         || deluge::instrument::source_ranges(*a, kFirst)[0].tuning.transpose != 3
+	         || deluge::instrument::source_ranges(*a, kFirst)[0].tuning.cents != 5) {
 		failed = "a sample oscillator's own tuning is not in its range";
 	}
 	else if (deluge::instrument::source_type(*b, kFirst) != OscType::WAVETABLE) {

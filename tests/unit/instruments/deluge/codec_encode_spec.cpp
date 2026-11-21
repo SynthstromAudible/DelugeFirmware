@@ -19,8 +19,8 @@ std::vector<std::string> keys(const Value& map) {
 	return out;
 }
 /// Adds @p range to slot @p id's ranges in @p s.
-void add_range(SoundState& s, SourceId id, RangeState range) {
-	std::vector<RangeState> ranges = source_ranges(s, id);
+void add_range(SoundState& s, SourceId id, deluge::synth::SourceRange range) {
+	std::vector<deluge::synth::SourceRange> ranges = source_ranges(s, id);
 	ranges.push_back(std::move(range));
 	s = with_ranges(std::move(s), id, std::move(ranges));
 }
@@ -72,7 +72,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		SoundState s;
 		s = deluge::test::with_kind(s, SourceId::A, OscType::SAMPLE);
 		deluge::test::set(s, "osc1/linearInterpolation", "0"); // smooth
-		add_range(s, SourceId::A, {.file_path = "SAMPLES/A.WAV", .start_pos = 0, .end_pos = 1000});
+		add_range(s, SourceId::A, {.file_path = "SAMPLES/A.WAV", .zone = {.start = 0, .end = 1000}});
 		const SoundPieces osc1Pieces = encode_pieces(s, {});
 		const Value& osc1 = *osc1Pieces.body.find("osc1");
 		expect(keys(osc1)).to_equal(std::vector<std::string>{"type", "loopMode", "reversed", "timeStretchEnable",
@@ -88,7 +88,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		expect(keys(none)).to_equal(std::vector<std::string>{"type", "loopMode", "reversed", "timeStretchEnable",
 		                                                     "timeStretchAmount"});
 		for (int16_t top : {40, 60, 127}) {
-			add_range(s, SourceId::A, {.top_note = top, .file_path = "SAMPLES/A.WAV", .transpose = 2});
+			add_range(s, SourceId::A, {.top_note = top, .file_path = "SAMPLES/A.WAV", .tuning = {.transpose = 2}});
 		}
 		const SoundPieces osc1Pieces = encode_pieces(s, {});
 		const Value& osc1 = *osc1Pieces.body.find("osc1");
@@ -103,11 +103,11 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	it("writes wavetable ranges by file alone", _ {
 		SoundState s;
 		s = deluge::test::with_kind(s, SourceId::B, OscType::WAVETABLE);
-		s = with_ranges(std::move(s), SourceId::B, {RangeState{.file_path = "SAMPLES/W.WAV"}});
+		s = with_ranges(std::move(s), SourceId::B, {deluge::synth::SourceRange{.file_path = "SAMPLES/W.WAV"}});
 		const SoundPieces onePieces = encode_pieces(s, {});
 		const Value& one = *onePieces.body.find("osc2");
 		expect(keys(one)).to_equal(std::vector<std::string>{"type", "transpose", "cents", "retrigPhase", "fileName"});
-		std::vector<RangeState> ranges = source_ranges(s, SourceId::B);
+		std::vector<deluge::synth::SourceRange> ranges = source_ranges(s, SourceId::B);
 		ranges.push_back({.top_note = 70, .file_path = "SAMPLES/X.WAV"});
 		ranges[0].top_note = 50;
 		s = with_ranges(std::move(s), SourceId::B, std::move(ranges));

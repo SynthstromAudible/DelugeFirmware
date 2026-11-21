@@ -31,6 +31,7 @@
 #include "serialization/value.h"
 #include "serialization/write_json.h"
 #include "support/printers/sound_record_printer.h"
+#include "support/sound_matrix.h"
 
 #include <array>
 #include <cstdint>
@@ -86,6 +87,14 @@ inline std::string text_of(const std::optional<serialization::Value>& value) {
 	return serialization::write_json(doc);
 }
 
+/// @brief A range's text in the reference: each field the file writes, side by side, as the recorded hashes pin it.
+inline std::string range_text(const synth::SourceRange& r) {
+	return std::format(
+	    "{{top_note {}, file \"{}\", start {}, end {}, loop_start {}, loop_end {}, transpose {}, cents {}}}",
+	    r.top_note, r.file_path, r.zone.start, r.zone.end, r.zone.loop_start, r.zone.loop_end, r.tuning.transpose,
+	    r.tuning.cents);
+}
+
 inline std::string readers_text(const in::SoundState& state) {
 	std::ostringstream os;
 	os << "mode " << std::to_underlying(in::synth_mode(state));
@@ -93,8 +102,13 @@ inline std::string readers_text(const in::SoundState& state) {
 		os << " | slot " << in::slot_index(id) << " type " << std::to_underlying(in::source_type(state, id))
 		   << " tuning " << in::source_tuning(state, id) << " playback " << in::sample_playback(state, id)
 		   << " ranges ";
-		const std::vector<in::RangeState> ranges = in::source_ranges(state, id);
-		test::printers::print_list(os, std::span{ranges}) << " patch ";
+		os << '[';
+		const char* separator = "";
+		for (const synth::SourceRange& r : in::source_ranges(state, id)) {
+			os << separator << range_text(r);
+			separator = " ";
+		}
+		os << "] patch ";
 		if (const in::DxPatchState* patch = in::dx_patch(state, id)) {
 			os << *patch;
 		}
@@ -159,16 +173,11 @@ inline std::string setting_text(const in::SoundState& state, const plugin::Setti
 }
 
 inline std::string encode_text(const in::SoundState& state, int32_t magnitude) {
-	constexpr std::array<std::string_view, 27> kKeys{
-	    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
-	    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
-	    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
-	    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
-	    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
-	    "stutter",        "notAKey"};
 	const plugin::CodecContext codec_context{.input_tick_magnitude = magnitude};
 	std::string text = serialization::write_json(in::encode(state, codec_context));
-	for (const std::string_view key : kKeys) {
+	std::vector keys(std::from_range, in::state_keys());
+	keys.emplace_back("notAKey"); // a key no sound element has
+	for (const std::string_view key : keys) {
 		for (const std::optional<int32_t> threshold : {std::optional<int32_t>{}, std::optional<int32_t>{12345}}) {
 			text += " | ";
 			text += key;
@@ -294,12 +303,9 @@ inline std::string change_to_text(const in::SoundState& state) {
 		answers.push_back(
 		    {std::format("switch_engine {}", std::to_underlying(mode)), text_of(in::switch_engine(sound, mode))});
 	}
-	const in::OscType kinds[] = {in::OscType::SINE,      in::OscType::SAW,     in::OscType::SUPERSAW,
-	                             in::OscType::WAVETABLE, in::OscType::SAMPLE,  in::OscType::DX7,
-	                             in::OscType::INPUT_L,   in::OscType::INPUT_R, in::OscType::INPUT_STEREO};
 	for (const in::SourceId id : {in::SourceId::A, in::SourceId::B}) {
-		const std::vector<in::RangeState> ranges = in::source_ranges(sound, id);
-		for (const in::OscType type : kinds) {
+		const std::vector<synth::SourceRange>& ranges = in::source_ranges(sound, id);
+		for (const in::OscType type : kMatrixKinds) {
 			for (const bool wavetable : {false, true}) {
 				answers.push_back({std::format("switch_source {} {} {}", in::slot_index(id), std::to_underlying(type),
 				                               int{wavetable}),

@@ -60,7 +60,7 @@ SoundState sampleSources(bool ranged) {
 	for (const SourceId id : {SourceId::A, SourceId::B}) {
 		state = deluge::test::with_kind(state, id, OscType::SAMPLE);
 		if (ranged) {
-			state = with_ranges(std::move(state), id, {RangeState{.file_path = "SAMPLES/x.wav"}});
+			state = with_ranges(std::move(state), id, {deluge::synth::SourceRange{.file_path = "SAMPLES/x.wav"}});
 		}
 	}
 	return state;

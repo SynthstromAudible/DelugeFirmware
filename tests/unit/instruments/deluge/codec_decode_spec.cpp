@@ -63,11 +63,11 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		    R"(endMilliseconds="80" startSamplePos="5" endSamplePos="900"/></osc1></sound>)");
 		SoundState state;
 		expect(decode(*doc->find("sound"), state, kNewSong)).to_have_value();
-		const std::vector<RangeState> ranges = source_ranges(state, SourceId::A);
+		const std::vector<deluge::synth::SourceRange> ranges = source_ranges(state, SourceId::A);
 		expect(ranges.size()).to_equal(size_t{1});
 		expect(ranges[0].file_path).to_equal(std::string("SAMPLES/B.WAV"));
-		expect(ranges[0].start_pos).to_equal(uint64_t{5});
-		expect(ranges[0].end_pos).to_equal(uint64_t{900});
+		expect(ranges[0].zone.start).to_equal(uint64_t{5});
+		expect(ranges[0].zone.end).to_equal(uint64_t{900});
 		expect(sample_playback(state, SourceId::A).reversed).to_be_false();
 	});
 	it("clamps unison to what a sound can play", _ {
@@ -92,17 +92,17 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		    R"(<sound><osc1 type="sample" cents="40"><sampleRanges><sampleRange rangeTopNote="127" cents="30"/></sampleRanges></osc1></sound>)");
 		SoundState state;
 		(void)decode(*doc->find("sound"), state, kNewSong);
-		const std::vector<RangeState> ranges = source_ranges(state, SourceId::A);
+		const std::vector<deluge::synth::SourceRange> ranges = source_ranges(state, SourceId::A);
 		expect(ranges.empty()).to_be_false();
-		expect(static_cast<int32_t>(ranges[0].cents)).to_equal(50);
+		expect(static_cast<int32_t>(ranges[0].tuning.cents)).to_equal(50);
 	});
 	it("reads back a wavetable split into ranges", _ {
 		SoundState written;
 		deluge::test::set(written, "modulator2/transpose", "0"); // a subtractive sound's file holds no modulators; a read starts them at 0
 		written = deluge::test::with_kind(written, SourceId::A, OscType::WAVETABLE);
 		written = with_ranges(std::move(written), SourceId::A,
-		                      {RangeState{.top_note = 48, .file_path = "WAVETABLES/A.WAV"},
-		                       RangeState{.top_note = 32767, .file_path = "WAVETABLES/B.WAV"}});
+		                      {deluge::synth::SourceRange{.top_note = 48, .file_path = "WAVETABLES/A.WAV"},
+		                       deluge::synth::SourceRange{.top_note = 32767, .file_path = "WAVETABLES/B.WAV"}});
 		SoundState read;
 		(void)decode(encode(written, kNewSong), read, kNewSong);
 		expect(deluge::serialization::first_difference(dump_state(read), dump_state(written))).to_equal(std::string{});

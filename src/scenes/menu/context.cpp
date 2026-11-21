@@ -72,14 +72,14 @@ namespace deluge::scenes::menu {
 namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
-std::vector<deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
+std::vector<synth::SourceRange> edited_ranges(const MenuContext& ctx) {
 	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
 		return {};
 	}
 	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
 	return state != nullptr
 	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
-	           : std::vector<deluge::instrument::RangeState>{};
+	           : std::vector<synth::SourceRange>{};
 }
 
 } // namespace
@@ -90,8 +90,8 @@ int32_t range_count(const MenuContext& ctx) {
 	return static_cast<int32_t>(edited_ranges(ctx).size());
 }
 
-std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
-	const std::vector<deluge::instrument::RangeState> ranges = edited_ranges(ctx);
+std::vector<synth::SourceRange> ranges_of(const MenuContext& ctx) {
+	const std::vector<synth::SourceRange> ranges = edited_ranges(ctx);
 	return {ranges.begin(), ranges.end()};
 }
 
@@ -109,8 +109,8 @@ bool ensure_first_range(MenuContext& ctx) {
 	if (range_count(ctx) == 0) {
 		// `SourceResources::getOrCreateFirstRange()`, as a request: the first range, which the app makes and the record
 		// holds. A refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
-		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
-		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
+		const std::array<synth::SourceRange, 1> first{synth::SourceRange{
+		    .top_note = deluge::instrument::kOpenTopNote, .zone = {.end = deluge::instrument::kUnsetEndPos}}};
 		if (ctx.sink == nullptr
 		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
 			return false;

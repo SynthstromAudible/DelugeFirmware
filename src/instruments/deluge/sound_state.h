@@ -18,7 +18,7 @@
 #pragma once
 
 #include "instruments/deluge/composed_state.h"
-#include "instruments/deluge/range_state.h"
+#include "instruments/deluge/source_constants.h"
 
 namespace deluge::instrument {
 

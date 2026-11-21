@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp" // SynthMode, VoicePriority, PolyphonyMode, kNumSources, kNumModulators, LFO_COUNT
 #include "dsp-next/fixed/pitch/fine_tune.h"
 #include "synth/modulation/lfo_state.h"
+#include "synth/sources/source_state.h" // kFreeRunningPhase
 #include "synth/voice/unison.h"
 
 #include <array>
@@ -49,7 +50,7 @@ struct ModulatorSettings {
 	int16_t transpose{0};        ///< semitones
 	int8_t cents{0};             ///< −50..50
 	dsp::fixed::FineTune tune;   ///< of @ref cents
-	uint32_t retrigger_phase{0}; ///< the phase a note starts at, a fraction of 2^32; 0xFFFFFFFF = free-running
+	uint32_t retrigger_phase{0}; ///< the phase a note starts at, a fraction of 2^32; kFreeRunningPhase = free-running
 	bool operator==(const ModulatorSettings&) const = default;
 };
 
@@ -57,8 +58,8 @@ struct ModulatorSettings {
 struct EngineSettings {
 	SynthMode mode{SynthMode::SUBTRACTIVE};
 	bool osc_sync{false};
-	/// Each oscillator's retrigger phase, a fraction of 2^32; 0xFFFFFFFF = free-running
-	std::array<uint32_t, kNumSources> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF};
+	/// Each oscillator's retrigger phase, a fraction of 2^32; kFreeRunningPhase = free-running
+	std::array<uint32_t, kNumSources> osc_retrigger_phase{kFreeRunningPhase, kFreeRunningPhase};
 	std::array<ModulatorSettings, kNumModulators> modulators{
 	    ModulatorSettings{}, ModulatorSettings{.transpose = -12, .cents = 0, .tune = {}, .retrigger_phase = 0}};
 	bool modulator1_to_modulator0{false}; ///< FM: modulator 1 modulates modulator 0 rather than the carriers

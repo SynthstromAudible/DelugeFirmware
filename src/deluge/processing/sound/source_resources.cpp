@@ -57,23 +57,23 @@ std::optional<deluge::instrument::DxPatchState> SourceResources::heldDxPatch() c
 	return p;
 }
 
-std::vector<deluge::instrument::RangeState> SourceResources::heldRanges() const {
-	std::vector<deluge::instrument::RangeState> held;
+std::vector<deluge::synth::SourceRange> SourceResources::heldRanges() const {
+	std::vector<deluge::synth::SourceRange> held;
 	int32_t numRanges = std::ssize(ranges);
 	held.reserve(numRanges);
 	for (int32_t e = 0; e < numRanges; e++) {
 		const auto* range = static_cast<const MultisampleRange*>(ranges.getElement(e));
-		deluge::instrument::RangeState dr;
+		deluge::synth::SourceRange dr;
 		dr.top_note = range->topNote;
 		dr.file_path =
 		    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
 		if (ranges.currentElementSize() == sizeof(MultisampleRange)) {
-			dr.start_pos = range->sampleHolder.startPos;
-			dr.end_pos = range->sampleHolder.endPos;
-			dr.loop_start_pos = range->sampleHolder.loopStartPos;
-			dr.loop_end_pos = range->sampleHolder.loopEndPos;
-			dr.transpose = range->sampleHolder.transpose;
-			dr.cents = range->sampleHolder.cents;
+			dr.zone.start = range->sampleHolder.startPos;
+			dr.zone.end = range->sampleHolder.endPos;
+			dr.zone.loop_start = range->sampleHolder.loopStartPos;
+			dr.zone.loop_end = range->sampleHolder.loopEndPos;
+			dr.tuning.transpose = range->sampleHolder.transpose;
+			dr.tuning.cents = range->sampleHolder.cents;
 		}
 		held.push_back(std::move(dr));
 	}

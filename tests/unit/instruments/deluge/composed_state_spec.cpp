@@ -3,6 +3,7 @@
 #include "instruments/deluge/flat_layout.h"
 #include "support/golden_update.h"
 #include "support/record_reference.h"
+#include "support/sound_matrix.h"
 
 #include <cppspec.hpp>
 #include <cstddef>
@@ -27,74 +28,14 @@ bool round_trips(const FlatSoundState& flat) {
 }
 
 /// A sound whose slots hold the given kinds, each with some settings of its own and some of the other kinds'.
-FlatSoundState sound_of(SynthMode mode, OscType a, OscType b) {
-	FlatSoundState s;
-	s.synth_mode = mode;
-	s.sources[0].osc_type = a;
-	s.sources[1].osc_type = b;
-	for (SourceState& src : s.sources) {
-		src.transpose = 5;
-		src.cents = -7;
-		src.repeat_mode = SampleRepeatMode::LOOP;
-		src.reversed = true;
-		src.ranges = {{.top_note = 40, .file_path = "SAMPLES/A.WAV", .start_pos = 10, .end_pos = 900},
-		              {.top_note = 127, .file_path = "SAMPLES/B.WAV", .end_pos = 400, .transpose = 2}};
-		src.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice, .engine_mode = 2, .random_detune = 3});
-		if (src.osc_type == OscType::WAVETABLE) {
-			// A range holds a zone and tuning only in a sample source (the codec's and the runtime's rule)
-			for (RangeState& range : src.ranges) {
-				range = RangeState{.top_note = range.top_note, .file_path = range.file_path};
-			}
-		}
-	}
-	s.osc_retrigger_phase = {0x40000000, 0xFFFFFFFF};
-	s.oscillator_sync = true;
-	s.modulator_transpose = {3, -12};
-	s.modulator_retrigger_phase = {0xFFFFFFFF, 7};
-	s.modulator1_to_modulator0 = true;
-	s.lfo_sync_level[1] = deluge::plugin::SyncLevel::EIGHTH;
-	return s;
-}
-
-/// The same sound with its slots set apart: the second holds its own tuning, no ranges and no DX7 patch, and starts
-/// each note at a phase of its own; the oscillators run unsynced.
-FlatSoundState varied_sound_of(SynthMode mode, OscType a, OscType b) {
-	FlatSoundState s = sound_of(mode, a, b);
-	SourceState& second = s.sources[1];
-	second.transpose = -4;
-	second.cents = 9;
-	second.repeat_mode = SampleRepeatMode::ONCE;
-	second.reversed = false;
-	second.ranges.clear();
-	second.dx_patch.reset();
-	s.osc_retrigger_phase = {0xFFFFFFFF, 0x20000000};
-	s.oscillator_sync = false;
-	s.modulator_cents = {-5, 11};
-	return s;
-}
-
-/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it, named.
+/// The recorded reference's sounds and their names: the matrix's engine and kind pairs, and the new sound.
 template <class Check>
-void for_each_named_sound(const Check& check) {
-	const OscType kinds[] = {OscType::SINE, OscType::SAW,     OscType::SUPERSAW, OscType::WAVETABLE,   OscType::SAMPLE,
-	                         OscType::DX7,  OscType::INPUT_L, OscType::INPUT_R,  OscType::INPUT_STEREO};
-	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-		for (const OscType a : kinds) {
-			for (const OscType b : kinds) {
-				const std::string name =
-				    std::format("{} {} {}", std::to_underlying(mode), std::to_underlying(a), std::to_underlying(b));
-				check(name + " plain", sound_of(mode, a, b));
-				check(name + " varied", varied_sound_of(mode, a, b));
-			}
+void for_each_reference_sound(const Check& check) {
+	deluge::test::for_each_named_sound([&](const std::string& name, const SoundState& sound) {
+		if (deluge::test::is_kind_row(name)) {
+			check(name, sound);
 		}
-	}
-	check(std::string{"default"}, FlatSoundState{});
-}
-
-/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it.
-template <class Check>
-void for_each_sound(const Check& check) {
-	for_each_named_sound([&](const std::string&, const FlatSoundState& sound) { check(sound); });
+	});
 }
 
 constexpr const char* kReferenceGolden = "instrument/record_reference.tsv";
@@ -103,8 +44,8 @@ constexpr const char* kReferenceGolden = "instrument/record_reference.tsv";
 std::string reference_table() {
 	std::string table;
 	bool header = true;
-	for_each_named_sound([&](const std::string& name, const FlatSoundState& sound) {
-		const std::vector<deluge::test::ReferenceAnswer> answers = deluge::test::reference_answers(to_record(sound));
+	for_each_reference_sound([&](const std::string& name, const SoundState& sound) {
+		const std::vector<deluge::test::ReferenceAnswer> answers = deluge::test::reference_answers(sound);
 		if (header) {
 			table += "sound";
 			for (const deluge::test::ReferenceAnswer& answer : answers) {
@@ -179,7 +120,7 @@ describe composed_state("a sound's flat record as the state it plays and what it
 	});
 
 	it("round-trips every engine with every pair of oscillator kinds, the other kinds' settings kept", _ {
-		for_each_sound([&](const FlatSoundState& sound) { expect(round_trips(sound)).to_equal(true); });
+		deluge::test::for_each_sound([&](const SoundState& sound) { expect(round_trips(to_flat(sound))).to_equal(true); });
 	});
 
 	it("answers every question about every engine with every pair of oscillator kinds as recorded", _ {
@@ -194,7 +135,9 @@ describe composed_state("a sound's flat record as the state it plays and what it
 	});
 
 	it("plays an FM sound's tuning and sync on its carriers, and keeps its oscillators' kinds to recall", _ {
-		const auto [state, recall] = compose(sound_of(SynthMode::FM, OscType::SAMPLE, OscType::DX7));
+		const SoundState sound = deluge::test::plain_sound(SynthMode::FM, OscType::SAMPLE, OscType::DX7);
+		const ComposedState& state = sound.plays;
+		const Recall& recall = sound.recall;
 		const auto& fm = std::get<deluge::synth::FmState>(state.engine);
 		expect(int{fm.carriers[0].tuning.transpose}).to_equal(5);
 		// The sample oscillator is parked whole, its ranges with it, until FM goes
@@ -206,13 +149,17 @@ describe composed_state("a sound's flat record as the state it plays and what it
 	});
 
 	it("keeps the sync for a switch back when the second oscillator is a sample, which the file writes it in", _ {
-		const auto [state, recall] = compose(sound_of(SynthMode::SUBTRACTIVE, OscType::SINE, OscType::SAMPLE));
+		const SoundState sound = deluge::test::plain_sound(SynthMode::SUBTRACTIVE, OscType::SINE, OscType::SAMPLE);
+		const ComposedState& state = sound.plays;
+		const Recall& recall = sound.recall;
 		expect(std::get<deluge::synth::SubtractiveState>(state.engine).oscillators.sync).to_equal(false);
 		expect(recall.sync).to_equal(true);
 	});
 
 	it("gives a sample oscillator its ranges' tuning and no pitch of its own", _ {
-		const auto [state, recall] = compose(sound_of(SynthMode::SUBTRACTIVE, OscType::SAMPLE, OscType::SINE));
+		const SoundState sound = deluge::test::plain_sound(SynthMode::SUBTRACTIVE, OscType::SAMPLE, OscType::SINE);
+		const ComposedState& state = sound.plays;
+		const Recall& recall = sound.recall;
 		const auto& slot = std::get<deluge::synth::SampleState>(
 		    std::get<deluge::synth::SubtractiveState>(state.engine).oscillators.slots[0]);
 		expect(slot.ranges.size()).to_equal(size_t{2});

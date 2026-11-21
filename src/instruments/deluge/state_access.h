@@ -75,17 +75,18 @@ using synth::SamplePlayback;
 /// @param id The slot.
 [[nodiscard]] SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept;
 
-/// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files.
+/// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files, and
+/// for any other kind the ones the slot keeps for a switch back to samples.
 /// @param state The sound's state.
 /// @param id The slot.
-/// @return The ranges; empty for a slot that plays none.
-[[nodiscard]] std::vector<RangeState> source_ranges(const SoundState& state, SourceId id);
+/// @return The ranges as the state holds them, valid until the state is next written.
+[[nodiscard]] const std::vector<synth::SourceRange>& source_ranges(const SoundState& state, SourceId id) noexcept;
 
 /// @brief Whether an oscillator slot's ranges are the same in @p a and @p b, without copying them.
 /// @param a One state.
 /// @param b The other.
 /// @param id The slot.
-[[nodiscard]] bool same_ranges(const SoundState& a, const SoundState& b, SourceId id);
+[[nodiscard]] bool same_ranges(const SoundState& a, const SoundState& b, SourceId id) noexcept;
 
 /// @brief An oscillator slot's DX7 patch.
 /// @param state The sound's state.
@@ -135,7 +136,7 @@ using synth::SamplePlayback;
 /// @param state The sound's state.
 /// @param id The slot.
 /// @param ranges Its new ranges, by top note.
-[[nodiscard]] SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges);
+[[nodiscard]] SoundState with_ranges(SoundState state, SourceId id, std::vector<synth::SourceRange> ranges);
 
 /// @brief @p state with one oscillator slot's DX7 patch replaced.
 /// @param state The sound's state.

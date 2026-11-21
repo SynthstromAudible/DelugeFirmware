@@ -34,6 +34,9 @@ for routing edges and summing buffers.
 | `LFOConfig` | `synth::LfoState` | done | an LFO's component state, from the record to the render |
 | `ModControllableSnapshot` | deleted | done | an effects binding's render copy is its own `renderEffects()` and `renderModFXParam()` |
 | `FlatSoundState` | the codec's parse form, inside the library | done | outside `src/instruments/deluge` only the composition spec names it |
+| `synth::SampleRange`, `synth::WavetableRange` | `synth::SourceRange` | done | a source's key-split range in the record, a sample's or a wavetable's (which has only its note and file); `source_ranges` returns them as the record holds them |
+| `instrument::RangeState` | the codec's flat range, in `flat_sound_state.h` | done | named only by the codec, the composition and the slot edit |
+| `synth::kNoRetrigger` | `synth::kFreeRunningPhase` | done | one free-running phase word for the file and the render |
 | a sound's sidechain send and MIDI output in its state | `project::SoundRouting` on the slot | done | the `SOUND_ROUTING` setting group |
 | `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
 | `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |

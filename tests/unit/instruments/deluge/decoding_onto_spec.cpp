@@ -7,7 +7,7 @@
 #include "serialization/tree.h"
 #include "support/printers/sound_record_printer.h"
 #include "support/record_state.h"
-#include "support/state_matrix.h"
+#include "support/sound_matrix.h"
 
 #include <algorithm>
 #include <array>
@@ -20,6 +20,7 @@
 
 using namespace deluge::instrument;
 using deluge::serialization::Value;
+using deluge::synth::SourceRange;
 
 namespace {
 
@@ -50,7 +51,7 @@ std::vector<std::string> with_setting_disagreements() {
 	std::vector<std::string> found;
 	for (const int32_t magnitude : {1, 3}) {
 		const deluge::plugin::CodecContext codec{.input_tick_magnitude = magnitude};
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			const Value whole = encode(state, codec);
 			for (const deluge::plugin::SettingInfo& row : kSettings) {
 				if (row.kind == deluge::plugin::SettingKind::STRUCTURED || reshapes(row.path)) {
@@ -116,7 +117,7 @@ std::vector<std::string> write_setting_disagreements() {
 	std::vector<std::string> found;
 	for (const int32_t magnitude : {1, 3}) {
 		const deluge::plugin::CodecContext codec{.input_tick_magnitude = magnitude};
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			for (const deluge::plugin::SettingInfo& row : kSettings) {
 				if (row.kind == deluge::plugin::SettingKind::STRUCTURED || reshapes(row.path)) {
 					continue;
@@ -174,13 +175,14 @@ SoundState sampled() {
 	state = deluge::test::with_kind(state, SourceId::A, OscType::SAMPLE);
 	state = with_loop_mode(std::move(state), SourceId::A, SampleRepeatMode::LOOP);
 	deluge::test::set(state, "osc1/reversed", "1");
-	state =
-	    with_ranges(std::move(state), SourceId::A,
-	                {RangeState{.top_note = 60, .file_path = "SAMPLES/LOW.WAV", .start_pos = 10, .end_pos = 900},
-	                 RangeState{.top_note = 32767, .file_path = "SAMPLES/HIGH.WAV", .start_pos = 0, .end_pos = 700}});
+	state = with_ranges(
+	    std::move(state), SourceId::A,
+	    {SourceRange{.top_note = 60, .file_path = "SAMPLES/LOW.WAV", .zone = {.start = 10, .end = 900}},
+	     SourceRange{.top_note = 32767, .file_path = "SAMPLES/HIGH.WAV", .zone = {.start = 0, .end = 700}}});
 	deluge::test::set(state, "osc1/retrigPhase", "12345");
 	state = deluge::test::with_kind(state, SourceId::B, OscType::SAW);
-	state = with_ranges(std::move(state), SourceId::B, {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV"}});
+	state =
+	    with_ranges(std::move(state), SourceId::B, {SourceRange{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV"}});
 	return state;
 }
 
@@ -266,7 +268,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("keeps the ranges a changed oscillator type carries over", _ {
 		SoundState state = sampled();
 		state = with_ranges(std::move(state), SourceId::B,
-		                    {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500}});
+		                    {SourceRange{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .zone = {.end = 500}}});
 		const SoundState written = deluge::test::with_kind(state, SourceId::B, OscType::SAMPLE);
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(source_ranges(*decoded, SourceId::B)).to_equal(source_ranges(state, SourceId::B));
@@ -275,16 +277,16 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("reads the ranges a changed oscillator type reshapes", _ {
 		SoundState state = sampled();
 		SoundState written = deluge::test::with_kind(state, SourceId::A, OscType::WAVETABLE);
-		written = with_ranges(std::move(written), SourceId::A, {RangeState{.top_note = 60}, RangeState{.top_note = 32767}});
+		written = with_ranges(std::move(written), SourceId::A, {SourceRange{.top_note = 60}, SourceRange{.top_note = 32767}});
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(source_ranges(*decoded, SourceId::A)).to_equal(source_ranges(written, SourceId::A));
 	});
 
 	it("carries no sample range's zone into a wavetable, even one with no file", _ {
 		SoundState state = sampled();
-		state = with_ranges(std::move(state), SourceId::A, {RangeState{.top_note = 32767, .end_pos = 9999999}});
+		state = with_ranges(std::move(state), SourceId::A, {SourceRange{.top_note = 32767, .zone = {.end = 9999999}}});
 		SoundState written = deluge::test::with_kind(state, SourceId::A, OscType::WAVETABLE);
-		written = with_ranges(std::move(written), SourceId::A, {RangeState{.top_note = 32767}});
+		written = with_ranges(std::move(written), SourceId::A, {SourceRange{.top_note = 32767}});
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(source_ranges(*decoded, SourceId::A)).to_equal(source_ranges(written, SourceId::A));
 	});
@@ -340,7 +342,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("names no entry between a state and itself", _ {
-		for (const auto& [name, state] : deluge::instrument::test::matrix()) {
+		for (const auto& [name, state] : deluge::test::corner_sounds()) {
 			expect(changed_entries(state, state)).to_equal(std::vector<std::string_view>{});
 		}
 	});

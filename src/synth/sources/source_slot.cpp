@@ -77,9 +77,9 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 // Building one class drops whichever the slot held: the sound's type may have changed since the voice's last note.
 void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t osc_retrigger_phase,
                                   bool reset_everything, dsp::fixed::Cong& noise) {
-	// The retrigger phase's word is the phase it adds; kNoRetrigger marks none
+	// The retrigger phase's word is the phase it adds; kFreeRunningPhase marks none
 	const auto seed_phase = dsp::UQ<32>::from_raw(va_shape::initial_phase_for_zero(osc_type) + osc_retrigger_phase);
-	const bool retrigger = osc_retrigger_phase != kNoRetrigger;
+	const bool retrigger = osc_retrigger_phase != kFreeRunningPhase;
 	if (engine_mode && va_shape::is_virtual_analog(osc_type)) {
 		const va_shape::Wave wave = va_shape::wave_for(osc_type);
 		if (retrigger) {

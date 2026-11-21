@@ -80,16 +80,16 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::source0_transpose, ctx, 250);
 		const deluge::instrument::SoundState* const state = state_of(ctx);
 		expect(state).not_().to_be_null();
-		const std::vector<deluge::instrument::RangeState> ranges =
+		const std::vector<deluge::synth::SourceRange> ranges =
 		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
-		                     : std::vector<deluge::instrument::RangeState>{};
+		                     : std::vector<deluge::synth::SourceRange>{};
 		if (state != nullptr) {
 			expect(ranges.size()).to_equal(1);
 		}
 		if (!ranges.empty()) {
 			// 250 cents up is legacy's 3 semitones less 50 cents (`computeFinalValuesForTranspose`).
-			expect(static_cast<int32_t>(ranges[0].transpose)).to_equal(3);
-			expect(static_cast<int32_t>(ranges[0].cents)).to_equal(-50);
+			expect(static_cast<int32_t>(ranges[0].tuning.transpose)).to_equal(3);
+			expect(static_cast<int32_t>(ranges[0].tuning.cents)).to_equal(-50);
 		}
 		expect(menu::bindings::read(nodes::source0_transpose, ctx)).to_equal(250);
 	});
@@ -111,11 +111,11 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::instrument::SoundState* const b = state_at(synth_slot);
 		expect(a).not_().to_be_null();
 		if (a != nullptr) {
-			const std::vector<deluge::instrument::RangeState> ranges =
+			const std::vector<deluge::synth::SourceRange> ranges =
 			    deluge::instrument::source_ranges(*a, deluge::instrument::SourceId::A);
 			expect(ranges.empty()).to_be_false();
 			if (!ranges.empty()) {
-				expect(ranges[0].transpose).to_equal(3);
+				expect(ranges[0].tuning.transpose).to_equal(3);
 			}
 		}
 		expect(b).not_().to_be_null();

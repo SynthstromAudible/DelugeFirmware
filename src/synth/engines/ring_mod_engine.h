@@ -39,7 +39,7 @@ public:
 		int32_t wave_index_last{};      ///< the wavetable morph index at block start
 		int32_t wave_index_increment{}; ///< its per-sample slope
 		OscType osc_type{};             ///< selects the per-wave amplitude compensation
-		uint32_t retrigger_phase{};     ///< the source's retrigger phase, kNoRetrigger when it runs free
+		uint32_t retrigger_phase{};     ///< the source's retrigger phase, kFreeRunningPhase when it runs free
 	};
 
 	/// Starts the note; a source that cannot sound fails it, as ring-mod needs both.

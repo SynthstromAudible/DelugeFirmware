@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <span>
 #include <string>
@@ -64,6 +65,19 @@ static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 /// The keys of kStateKeys whose entries are the host's, the sound's routing (`project::encode_routing` writes them; the
 /// instrument library does not depend on the model's): the instrument holds none of them, only their place in the file.
 constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
+
+/// Whether @p key is one of the host's (kHostKeys).
+constexpr bool is_host_key(std::string_view key) {
+	return std::ranges::contains(kHostKeys, key);
+}
+static_assert(std::ranges::count_if(kStateKeys, is_host_key) == std::ssize(kHostKeys), "every host key is a state key");
+
+/// The keys of kStateKeys the instrument writes, in file order: all but the host's.
+constexpr auto kInstrumentKeys = [] {
+	std::array<std::string_view, kStateKeys.size() - kHostKeys.size()> keys{};
+	std::ranges::copy_if(kStateKeys, keys.begin(), std::not_fn(is_host_key));
+	return keys;
+}();
 
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
 /// factory presets and official firmware write it.
@@ -105,7 +119,7 @@ void append(Value& to, const Value& from) {
 // The components' entries: each writes its own keys.
 
 /// A sample range's file, tuning and zone, into @p map.
-void sample_range_entry(Value& map, const synth::SampleRange& range) {
+void sample_range_entry(Value& map, const synth::SourceRange& range) {
 	map.set("fileName", text(range.file_path));
 	if (range.tuning.transpose != 0) {
 		map.set("transpose", number(range.tuning.transpose));
@@ -410,9 +424,12 @@ Value encode(const SoundState& state, const plugin::CodecContext& context) {
 	return map;
 }
 
+std::span<const std::string_view> state_keys() {
+	return kInstrumentKeys;
+}
+
 bool is_state_key(std::string_view key) {
-	return std::ranges::find(kStateKeys, key) != kStateKeys.end()
-	       && std::ranges::find(kHostKeys, key) == kHostKeys.end();
+	return std::ranges::contains(kInstrumentKeys, key);
 }
 
 serialization::Value with_state(const serialization::Value& element, const SoundState& state,

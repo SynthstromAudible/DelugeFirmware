@@ -105,7 +105,7 @@ synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& 
 		                          .ranges = {}};
 		kept_retrigger = pitch.retrigger;
 		for (const RangeState& r : src.ranges) {
-			sample.ranges.push_back(sample_range_of(r));
+			sample.ranges.push_back(source_range_of(r));
 		}
 		kept.ranges.clear();
 		const SourceState neutral;
@@ -151,7 +151,7 @@ SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, c
 			    src.osc_type = OscType::WAVETABLE;
 			    take_pitch(state.pitch);
 			    src.ranges.clear();
-			    for (const synth::WavetableRange& r : state.ranges) {
+			    for (const synth::SourceRange& r : state.ranges) {
 				    src.ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
 			    }
 		    }
@@ -164,7 +164,7 @@ SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, c
 			    src.pitch_and_speed_independent = state.playback.pitch_and_speed_independent;
 			    src.reversed = state.playback.reversed;
 			    src.ranges.clear();
-			    for (const synth::SampleRange& r : state.ranges) {
+			    for (const synth::SourceRange& r : state.ranges) {
 				    src.ranges.push_back(range_state_of(r));
 			    }
 		    }
@@ -254,7 +254,7 @@ SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger) 
 	    .sample_pitch = {.tuning = {.transpose = kept.transpose, .cents = kept.cents}, .retrigger = retrigger}};
 	memory.ranges.reserve(kept.ranges.size());
 	for (const RangeState& r : kept.ranges) {
-		memory.ranges.push_back(sample_range_of(r));
+		memory.ranges.push_back(source_range_of(r));
 	}
 	return memory;
 }
@@ -272,7 +272,7 @@ SourceState recall(const SlotMemory& memory, synth::Retrigger& retrigger) {
 	                 .dx_patch = memory.patch,
 	                 .ranges = {}};
 	kept.ranges.reserve(memory.ranges.size());
-	for (const synth::SampleRange& r : memory.ranges) {
+	for (const synth::SourceRange& r : memory.ranges) {
 		kept.ranges.push_back(range_state_of(r));
 	}
 	retrigger = memory.sample_pitch.retrigger;

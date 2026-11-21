@@ -67,8 +67,8 @@ constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
 
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
-/// A retrigger phase as a file writes it: the 32-bit phase (a fraction of 2^32) as a signed integer, −1 (0xFFFFFFFF)
-/// free-running. The menu's degrees are 11930464 apart.
+/// A retrigger phase as a file writes it: the 32-bit phase (a fraction of 2^32) as a signed integer, −1
+/// (kFreeRunningPhase) free-running. The menu's degrees are 11930464 apart.
 constexpr int32_t kPhaseMin = std::numeric_limits<int32_t>::min();
 constexpr int32_t kPhaseMax = std::numeric_limits<int32_t>::max();
 /// The voice limit the max-voices menu's "off" writes: 1–16 are limits, this one is none in practice.

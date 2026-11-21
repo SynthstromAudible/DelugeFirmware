@@ -20,12 +20,14 @@ SoundState fmState() {
 
 SoundState sampleState() {
 	SoundState state = deluge::test::with_kind(SoundState{}, SourceId::A, OscType::SAMPLE);
-	return with_ranges(std::move(state), SourceId::A, {RangeState{.top_note = 32767, .file_path = "SAMPLES/x.wav"}});
+	return with_ranges(std::move(state), SourceId::A,
+	                   {deluge::synth::SourceRange{.top_note = 32767, .file_path = "SAMPLES/x.wav"}});
 }
 
 SoundState wavetableState() {
 	SoundState state = deluge::test::with_kind(SoundState{}, SourceId::A, OscType::WAVETABLE);
-	return with_ranges(std::move(state), SourceId::A, {RangeState{.top_note = 32767, .file_path = "WAVETABLES/x.wav"}});
+	return with_ranges(std::move(state), SourceId::A,
+	                   {deluge::synth::SourceRange{.top_note = 32767, .file_path = "WAVETABLES/x.wav"}});
 }
 
 /// The first non-structured row whose answer for @p state is one check_setting refuses, or empty.
