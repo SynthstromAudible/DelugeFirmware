@@ -10,6 +10,7 @@
 /// "install exactly what the application installs" is the shape that lets the two drift.
 
 #include "board_controls.hpp"
+#include "scenes/menu/bind_host.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
@@ -17,6 +18,7 @@
 
 #include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/view.h"
+#include "model/song/song.h"
 #include "shell/shell.h"
 
 #include <functional>
@@ -61,9 +63,12 @@ struct RealServices {
 			learn.emplace(shell.stack());
 			knobs.emplace(overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls);
 			controls.emplace(shell.stack(), shell.lowering(), *learn);
-			learn->set_song(song);
-			knobs->set_song(song);
-			controls->set_song(song);
+			learn->set_ports(&menu::host_ports());
+			learn->set_model(song != nullptr ? &song->project : nullptr);
+			knobs->set_ports(&menu::host_ports());
+			knobs->set_model(song != nullptr ? &song->project : nullptr);
+			controls->set_ports(&menu::host_ports());
+			controls->set_model(song != nullptr ? &song->project : nullptr);
 			if (mod_target != nullptr && song != nullptr) {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.
 				view.setActiveModControllableTimelineCounter(mod_target, false);

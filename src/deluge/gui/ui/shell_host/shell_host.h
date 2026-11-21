@@ -54,6 +54,22 @@ namespace deluge::gui::shell_host {
 ///        controller's play cursor), each stored with the side effects its menu item has. Nothing is saved on a write.
 [[nodiscard]] scenes::bind::DeviceSettings& device_settings();
 
+/// @brief The host's DeviceActions: the device's own actions, each the legacy call it names.
+[[nodiscard]] scenes::bind::DeviceActions& device_actions();
+
+/// @brief The host's MidiFeedback: MIDI follow's feedback, read and sent through the `midiFollow` engine.
+[[nodiscard]] scenes::bind::MidiFeedback& midi_feedback();
+
+/// @brief The host's Transport: playback, the clocks, recording and the metronome from `playbackHandler`, what undo
+///        allows from `actionLogger`, and the current song's pending overdubs.
+[[nodiscard]] const scenes::bind::Transport& transport();
+
+/// @brief The host's TransportActions: each the call the legacy buttons make, popups included.
+[[nodiscard]] scenes::bind::TransportActions& transport_actions();
+
+/// @brief Give the overlays the app's ports they read. Idempotent; the boot and every guest open call it.
+void install_scene_ports();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///

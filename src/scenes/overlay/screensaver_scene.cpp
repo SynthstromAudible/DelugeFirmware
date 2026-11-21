@@ -3,22 +3,15 @@
 
 #include "scenes/overlay/screensaver_scene.h"
 
-#include "storage/flash_storage.h"
-
 namespace deluge::scenes::overlay {
 
+using deluge::project::ScreensaverMode;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
 
-bool ScreensaverScene::animated(::ScreensaverMode mode) {
+bool ScreensaverScene::animated(ScreensaverMode mode) {
 	// `isAnimated` (`hid/display/screensaver.cpp`), expression for expression.
-	return mode == ::ScreensaverMode::STARSCAPE || mode == ::ScreensaverMode::DELUGE;
-}
-
-::ScreensaverMode ScreensaverScene::mode() const {
-	// The one global legacy reads, read the same way legacy reads it -- live, per question
-	// (`Screensaver::timerEvent` and `Screensaver::render` in `hid/display/screensaver.cpp`). See the class doc.
-	return FlashStorage::screensaverMode;
+	return mode == ScreensaverMode::STARSCAPE || mode == ScreensaverMode::DELUGE;
 }
 
 bool ScreensaverScene::on_enter(const deluge::ui::shell::SceneId& id) {
@@ -29,12 +22,14 @@ bool ScreensaverScene::on_enter(const deluge::ui::shell::SceneId& id) {
 		rainfall_.reseed(id.arg);
 		starfield_.reseed(id.arg);
 	}
-	// `Screensaver::timerEvent`'s `if (!active_)` arm, `hid/display/screensaver.cpp`.
-	switch (mode()) {
-	case ::ScreensaverMode::STARSCAPE:
+	// `Screensaver::timerEvent`'s `if (!active_)` arm, `hid/display/screensaver.cpp`, which reads the mode as it
+	// activates.
+	mode_ = bind::read_device<ScreensaverMode>(device_, project::device_path::kScreensaverMode);
+	switch (mode_) {
+	case ScreensaverMode::STARSCAPE:
 		starfield_.scatter();
 		break;
-	case ::ScreensaverMode::DELUGE:
+	case ScreensaverMode::DELUGE:
 		rainfall_.scatter();
 		break;
 	default:
@@ -44,8 +39,9 @@ bool ScreensaverScene::on_enter(const deluge::ui::shell::SceneId& id) {
 }
 
 void ScreensaverScene::tick(uint32_t dt_ms) {
-	const ::ScreensaverMode m = mode();
-	if (!animated(m)) {
+	// `Screensaver::timerEvent` reads the mode on every frame; `render_oled` and `next_timer` answer from this read.
+	mode_ = bind::read_device<ScreensaverMode>(device_, project::device_path::kScreensaverMode);
+	if (!animated(mode_)) {
 		// `BLANK` while already showing: "nothing changed, this tick is only an inhibitor
 		// re-check" (`Screensaver::timerEvent` in `hid/display/screensaver.cpp`) -- and the inhibitor re-check has no
 		// port, so there is nothing left to do. `OFF` falls here too.
@@ -59,11 +55,11 @@ void ScreensaverScene::tick(uint32_t dt_ms) {
 	// from the moment the timer fired, so a tick that arrives late advances one frame, never several.
 	since_frame_ms_ = 0;
 	// `Screensaver::timerEvent`'s `else` arm, (`hid/display/screensaver.cpp`).
-	switch (m) {
-	case ::ScreensaverMode::STARSCAPE:
+	switch (mode_) {
+	case ScreensaverMode::STARSCAPE:
 		starfield_.advance();
 		break;
-	case ::ScreensaverMode::DELUGE:
+	case ScreensaverMode::DELUGE:
 		rainfall_.advance();
 		break;
 	default:
@@ -80,11 +76,11 @@ void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	// `Screensaver::render`, `hid/display/screensaver.cpp`. The `default` arm is legacy's
 	// own: "BLANK: a cleared canvas is the whole picture", and the shell has already
 	// cleared it (`Shell::render_oled`).
-	switch (mode()) {
-	case ::ScreensaverMode::STARSCAPE:
+	switch (mode_) {
+	case ScreensaverMode::STARSCAPE:
 		deluge::ui::oled::draw_starfield(frame, starfield_);
 		break;
-	case ::ScreensaverMode::DELUGE:
+	case ScreensaverMode::DELUGE:
 		deluge::ui::oled::draw_rainfall(frame, rainfall_);
 		break;
 	default:
@@ -98,7 +94,7 @@ Result ScreensaverScene::handle(const deluge::ui::shell::UiEvent& /*event*/,
 }
 
 std::optional<uint32_t> ScreensaverScene::next_timer() const {
-	if (!animated(mode())) {
+	if (!animated(mode_)) {
 		return std::nullopt;
 	}
 	// `kFrameIntervalMS`, less whatever this frame has already accumulated.

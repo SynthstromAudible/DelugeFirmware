@@ -34,10 +34,13 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/screensaver.h"
+#include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/overlay/screensaver_scene.h"
 
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 
@@ -274,9 +277,10 @@ describe boot_services("the three services, installed into the guest's own Shell
 		// Which is what makes the LEDs legacy's: -1 is the "no focus" answer that turns every mod LED off.
 		to_be_at_least(expect(knobs->mode()), 0);
 
-		// The other two take the song and nothing else this layer can check from outside.
-		expect(static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls)->song())
-		    .to_equal(f.song);
+		// The global controls take the app's ports and the song's record.
+		const auto* const controls = static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls);
+		expect(controls->ports()).to_equal(&deluge::scenes::menu::host_ports());
+		expect(controls->model()).to_equal(static_cast<const deluge::project::Song*>(&f.song->project));
 
 		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.
 		view.setActiveModControllableTimelineCounter(nullptr);
@@ -408,6 +412,39 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 });
 
+describe boot_overlays("the overlays' ports, installed with the services", $ {
+	it("gives the count-in the app's transport: a count-in the playback handler holds shows as its digit", _ {
+		auto& scene = deluge::scenes::overlay::count_in_scene();
+		const int32_t saved = playbackHandler.currentVisualCountForCountIn;
+		scene.set_transport(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		playbackHandler.currentVisualCountForCountIn = 3;
+		scene.tick(0);
+		expect(scene.showing()).to_be_true();
+		expect(std::string{scene.shown_text()}).to_equal("3");
+		// Back to idle: the count ends, and the scene files its removal.
+		playbackHandler.currentVisualCountForCountIn = 0;
+		scene.tick(0);
+		(void)scene.after_render();
+		expect(scene.showing()).to_be_false();
+		playbackHandler.currentVisualCountForCountIn = saved;
+	});
+
+	it("gives the screensaver the app's device settings: it shows the mode the flash storage holds", _ {
+		auto& scene = deluge::scenes::overlay::screensaver_scene();
+		const ScreensaverMode saved = FlashStorage::screensaverMode;
+		scene.set_device(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		// BLANK scatters no field, so the scene's animations stay as the other specs expect them; with no port it
+		// would read the row's default, DELUGE.
+		FlashStorage::screensaverMode = ScreensaverMode::BLANK;
+		expect(scene.on_enter(deluge::ui::shell::SceneId{deluge::scenes::overlay::kScreensaverSceneKind, 0}))
+		    .to_be_true();
+		expect(scene.mode()).to_equal(deluge::project::ScreensaverMode::BLANK);
+		FlashStorage::screensaverMode = saved;
+	});
+});
+
 describe boot_browser_host("the browser's host, installed with the services", $ {
 	it("gives the browser the application's host, not the one that performs nothing", _ {
 		deluge::scenes::browser::BrowserHost* const saved = deluge::scenes::browser::browser_scene().installed_host();
@@ -421,4 +458,5 @@ describe boot_browser_host("the browser's host, installed with the services", $ 
 });
 // clang-format on
 
-DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services, boot_browser_host)
+DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services, boot_overlays,
+            boot_browser_host)

@@ -129,6 +129,17 @@ void host_script_push_event(DelugeInputEventKind kind, uint8_t x, uint8_t y, int
 /// @param edges Signed edge count; saturated into the `int8_t` the accumulator holds.
 void host_script_add_encoder_edges(uint8_t index, int32_t edges);
 
+/// @brief Queue DIN MIDI input bytes, which the host's DIN read serves in order.
+/// @param bytes The message bytes.
+/// @param len   How many bytes \p bytes holds.
+void host_script_push_midi(const uint8_t* bytes, uint32_t len);
+
+/// @brief Take the DIN MIDI the app has sent since the last take (the host BSP's kept output).
+/// @param dst Where the bytes go.
+/// @param cap How many bytes \p dst holds.
+/// @return How many bytes were taken; 0 when none are left.
+uint32_t deluge_host_midi_out_take(uint8_t* dst, uint32_t cap);
+
 /// @brief Rewrite the board's panel set from a `WxH+top[,WxH+top…]` spec (a `board` step).
 /// @return 0 on success; -1 when the spec names no usable panel; -2 when `deluge_board()` has
 /// already been read, so the descriptor is latched.

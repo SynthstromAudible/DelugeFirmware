@@ -5,6 +5,9 @@
 
 #include "controls/sink.h"
 #include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
+#include "deluge-project/owner_plugin.h"
+#include "deluge-project/param_address.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
@@ -26,16 +29,22 @@ namespace deluge::scenes::bind::test {
 
 /// @brief AudioFacts a spec sets directly.
 struct FakeAudioFacts final : AudioFacts {
-	bool inputs{false};                                      ///< what `audio_inputs_present` answers
-	int32_t voices{0};                                       ///< what `live_voice_count` answers
-	bool line_in{false};                                     ///< what `line_in_plugged` answers
-	int32_t threshold{0};                                    ///< what `song_threshold_recording` answers
-	plugin::SyncType sidechain_type{plugin::SyncType::EVEN}; ///< what `reverb_sidechain_sync_type` answers
+	bool inputs{false};                                        ///< what `audio_inputs_present` answers
+	int32_t voices{0};                                         ///< what `live_voice_count` answers
+	bool line_in{false};                                       ///< what `line_in_plugged` answers
+	int32_t threshold{0};                                      ///< what `song_threshold_recording` answers
+	plugin::SyncType sidechain_type{plugin::SyncType::EVEN};   ///< what `reverb_sidechain_sync_type` answers
+	bool busy{false};                                          ///< what `audio_busy` answers
+	ForegroundRecording foreground{ForegroundRecording::NONE}; ///< what `foreground_recording` answers
+	bool resample{false};                                      ///< what `resampling` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
 	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
 	[[nodiscard]] int32_t song_threshold_recording() const override { return threshold; }
 	[[nodiscard]] plugin::SyncType reverb_sidechain_sync_type() const override { return sidechain_type; }
+	[[nodiscard]] bool audio_busy() const override { return busy; }
+	[[nodiscard]] ForegroundRecording foreground_recording() const override { return foreground; }
+	[[nodiscard]] bool resampling() const override { return resample; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -123,11 +132,12 @@ public:
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
+	bool alternative_delay{false}; ///< what `alt_delay` answers: the alternative delay knobs are on
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot,
 	                                     std::optional<project::ClipAddress> clip) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	[[nodiscard]] bool stutter_active() const override { return false; }
-	[[nodiscard]] bool alt_delay() const override { return false; }
+	[[nodiscard]] bool alt_delay() const override { return alternative_delay; }
 	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
 	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
 	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
@@ -273,19 +283,125 @@ struct FakeMidiDevices final : MidiDevices {
 	std::vector<std::pair<midi::DeviceId, MidiDeviceSettings>> writes;   ///< every write, in order, known or not
 	std::map<project::GlobalCommand, LearnedBinding> globals;            ///< what `global_command` answers
 	std::map<project::FollowInput, LearnedBinding> follows;              ///< what `follow_input` answers
+	/// What `reference` answers, by handle.
+	std::map<uint32_t, project::MidiDeviceRef> refs{{midi::kDin.value, {.port = project::MidiDeviceRef::Port::DIN}}};
 	[[nodiscard]] std::span<const midi::DeviceId> connected() const override { return list; }
 	[[nodiscard]] std::string_view name(midi::DeviceId device) const override;
 	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override;
+	[[nodiscard]] std::optional<project::MidiDeviceRef> reference(midi::DeviceId device) const override;
 	/// @brief Records the write, and keeps @p settings when @p device is in @ref kept.
 	/// @return Whether @p device is in @ref kept.
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 	[[nodiscard]] std::optional<LearnedBinding> global_command(project::GlobalCommand command) const override;
 	[[nodiscard]] std::optional<LearnedBinding> follow_input(project::FollowInput input) const override;
-	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, and kept
-	///        with default settings, so a learn from it is kept.
+	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, kept with
+	///        default settings, so a learn from it is kept, and referred to as a hosted device of that name.
 	/// @param device      The device that connects.
 	/// @param device_name What `name` answers for it.
 	void connect(midi::DeviceId device, std::string_view device_name);
+};
+
+/// @brief DeviceActions that records every action, in order.
+struct RecordingDeviceActions final : DeviceActions {
+	/// @brief Which action it was.
+	enum class Kind : uint8_t {
+		SAVE_SETTINGS,   ///< save_settings
+		DELETE_ALL_LOGS, ///< delete_all_logs
+	};
+	std::vector<Kind> calls; ///< every action taken, in order
+	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
+	void delete_all_logs() override { calls.push_back(Kind::DELETE_ALL_LOGS); }
+};
+
+/// @brief Transport a spec sets directly.
+struct FakeTransport final : Transport {
+	bool is_playing{false};                           ///< what `playing` answers
+	bool clocks{false};                               ///< what `clocks_active` answers
+	TransportRecording mode{TransportRecording::OFF}; ///< what `recording` answers
+	bool metronome{false};                            ///< what `metronome_on` answers
+	bool undo_ok{false};                              ///< what `undo_allowed` answers
+	bool overdubs{false};                             ///< what `overdubs_pending` answers
+	int32_t count_in{0};                              ///< what `count_in_visual` answers
+	[[nodiscard]] bool playing() const override { return is_playing; }
+	[[nodiscard]] bool clocks_active() const override { return clocks; }
+	[[nodiscard]] TransportRecording recording() const override { return mode; }
+	[[nodiscard]] bool metronome_on() const override { return metronome; }
+	[[nodiscard]] bool undo_allowed() const override { return undo_ok; }
+	[[nodiscard]] bool overdubs_pending() const override { return overdubs; }
+	[[nodiscard]] int32_t count_in_visual() const override { return count_in; }
+};
+
+/// @brief TransportActions that records every action, in order. When @ref transport is set, PLAY and the metronome
+///        toggle flip its state, as the buttons do, so a read after the action sees it.
+struct RecordingTransportActions final : TransportActions {
+	/// @brief One recorded action.
+	struct Call {
+		/// @brief Which action it was.
+		enum class Kind : uint8_t {
+			PLAY,                              ///< play
+			RECORD,                            ///< record
+			TAP_TEMPO,                         ///< tap_tempo
+			TOGGLE_METRONOME,                  ///< toggle_metronome
+			CLEAR_TEMPO_AUTOMATION,            ///< clear_tempo_automation
+			SHOW_SWING_INTERVAL,               ///< show_swing_interval
+			SHOW_TEMPO,                        ///< show_tempo
+			UNDO,                              ///< undo
+			BEGIN_OUTPUT_RECORDING,            ///< begin_output_recording
+			END_RECORDING_SOON,                ///< end_recording_soon
+			STOP_OUTPUT_RECORDING_AT_LOOP_END, ///< stop_output_recording_at_loop_end
+			FILL,                              ///< fill
+		};
+		Kind kind{Kind::PLAY}; ///< which action it was
+		bool flag{false};      ///< TAP_TEMPO's normal, UNDO's redo, FILL's on
+		bool operator==(const Call&) const = default;
+	};
+	std::vector<Call> calls;           ///< every action, in order
+	FakeTransport* transport{nullptr}; ///< the state PLAY and the metronome toggle flip; none flips nothing
+	void play() override;
+	void record() override { calls.push_back({.kind = Call::Kind::RECORD}); }
+	void tap_tempo(bool normal) override { calls.push_back({.kind = Call::Kind::TAP_TEMPO, .flag = normal}); }
+	void toggle_metronome() override;
+	void clear_tempo_automation() override { calls.push_back({.kind = Call::Kind::CLEAR_TEMPO_AUTOMATION}); }
+	void show_swing_interval() override { calls.push_back({.kind = Call::Kind::SHOW_SWING_INTERVAL}); }
+	void show_tempo() override { calls.push_back({.kind = Call::Kind::SHOW_TEMPO}); }
+	void undo(bool redo) override { calls.push_back({.kind = Call::Kind::UNDO, .flag = redo}); }
+	void begin_output_recording() override { calls.push_back({.kind = Call::Kind::BEGIN_OUTPUT_RECORDING}); }
+	void end_recording_soon() override { calls.push_back({.kind = Call::Kind::END_RECORDING_SOON}); }
+	void stop_output_recording_at_loop_end() override {
+		calls.push_back({.kind = Call::Kind::STOP_OUTPUT_RECORDING_AT_LOOP_END});
+	}
+	void fill(bool on) override { calls.push_back({.kind = Call::Kind::FILL, .flag = on}); }
+};
+
+/// @brief MidiFeedback a spec sets directly, and every send, in order.
+struct RecordingMidiFeedback final : MidiFeedback {
+	/// @brief One recorded send.
+	struct Call {
+		/// @brief Which send it was.
+		enum class Kind : uint8_t {
+			SEND,     ///< send
+			SEND_ALL, ///< send_all
+		};
+		Kind kind{Kind::SEND};  ///< which send it was
+		uint8_t cc{0};          ///< SEND's CC
+		int32_t knob_pos{0};    ///< SEND's knob position
+		bool automation{false}; ///< SEND_ALL's automation flag
+		bool operator==(const Call&) const = default;
+	};
+	bool on{false};             ///< what `enabled` answers
+	bool global_context{false}; ///< what `global_effectable_context` answers
+	/// The CCs `cc_of` answers, by owner plugin and param; any other answers none.
+	std::vector<std::tuple<project::OwnerPlugin, project::ParamTarget, uint8_t>> ccs;
+	std::vector<Call> calls; ///< every send, in order
+	[[nodiscard]] bool enabled() const override { return on; }
+	[[nodiscard]] bool global_effectable_context() const override { return global_context; }
+	[[nodiscard]] std::optional<uint8_t> cc_of(project::OwnerPlugin owner, project::ParamTarget target) const override;
+	void send(uint8_t cc, int32_t knob_pos) override {
+		calls.push_back({.kind = Call::Kind::SEND, .cc = cc, .knob_pos = knob_pos});
+	}
+	void send_all(bool automation) override {
+		calls.push_back({.kind = Call::Kind::SEND_ALL, .automation = automation});
+	}
 };
 
 /// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in
@@ -400,24 +516,29 @@ struct RecordingControlsSink final : controls::Sink {
 
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;                ///< the audio port's fake
-	FakeCardFacts card;                  ///< the card port's fake
-	FakeUiFacts ui;                      ///< the UI port's fake
-	FakeSoundFacts sound;                ///< the sound port's fake
-	FakeClipFacts clips;                 ///< the clip port's fake
-	FakeTrackFacts tracks;               ///< the track port's fake
-	FakeControlFacts controls;           ///< the knobs' port's fake
-	RecordingClipWrites clip_writes;     ///< the clip port's recorder
-	RecordingSoundWrites sound_writes;   ///< the sound port's recorder
-	RecordingLearnSink learn;            ///< the learn port's recorder
-	FakeMidiDevices midi;                ///< the MIDI devices port's fake
-	RecordingWrites writes;              ///< the menu writes' recorder
-	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
-	FakeDeviceSettings device;           ///< the device settings' fake
+	FakeAudioFacts audio;                        ///< the audio port's fake
+	FakeCardFacts card;                          ///< the card port's fake
+	FakeUiFacts ui;                              ///< the UI port's fake
+	FakeSoundFacts sound;                        ///< the sound port's fake
+	FakeClipFacts clips;                         ///< the clip port's fake
+	FakeTrackFacts tracks;                       ///< the track port's fake
+	FakeControlFacts controls;                   ///< the knobs' port's fake
+	RecordingClipWrites clip_writes;             ///< the clip port's recorder
+	RecordingSoundWrites sound_writes;           ///< the sound port's recorder
+	RecordingLearnSink learn;                    ///< the learn port's recorder
+	FakeMidiDevices midi;                        ///< the MIDI devices port's fake
+	RecordingWrites writes;                      ///< the menu writes' recorder
+	RecordingControlsSink controls_sink;         ///< the knobs' writes' recorder
+	FakeDeviceSettings device;                   ///< the device settings' fake
+	RecordingDeviceActions device_actions;       ///< the device actions' recorder
+	RecordingMidiFeedback midi_feedback;         ///< MIDI follow feedback's fake
+	FakeTransport transport;                     ///< the transport's fake
+	RecordingTransportActions transport_actions; ///< the transport actions' recorder
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
-	///        follow learns in the MIDI devices fake.
+	///        follow learns in the MIDI devices fake, and the transport actions flip the transport fake.
 	[[nodiscard]] Ports ports() {
 		learn.devices = &midi;
+		transport_actions.transport = &transport;
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,
@@ -431,7 +552,11 @@ struct FakeHost {
 		        .midi = &midi,
 		        .writes = &writes,
 		        .controls_sink = &controls_sink,
-		        .device = &device};
+		        .device = &device,
+		        .device_actions = &device_actions,
+		        .midi_feedback = &midi_feedback,
+		        .transport = &transport,
+		        .transport_actions = &transport_actions};
 	}
 };
 

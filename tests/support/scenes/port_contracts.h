@@ -6,6 +6,8 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/midi_command.h"
+#include "deluge-project/owner_plugin.h"
+#include "deluge-project/param_address.h"
 #include "plugin-api/types/display_mapping.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
@@ -164,6 +166,18 @@ namespace deluge::scenes::bind::contract {
 	return !midi.settings(midi::DeviceId{}).has_value();
 }
 
+/// @brief Every connected device has a reference, DIN's names the DIN port, and no device names none.
+[[nodiscard]] inline bool connected_devices_have_references(const MidiDevices& midi) {
+	for (const midi::DeviceId d : midi.connected()) {
+		if (!midi.reference(d).has_value()) {
+			return false;
+		}
+	}
+	const std::optional<project::MidiDeviceRef> din = midi.reference(midi::kDin);
+	return din.has_value() && din->port == project::MidiDeviceRef::Port::DIN
+	       && !midi.reference(midi::DeviceId{}).has_value();
+}
+
 /// @brief A write to no device is refused.
 [[nodiscard]] inline bool write_to_no_device_is_refused(MidiDevices& midi) {
 	return !midi.write(midi::DeviceId{}, MidiDeviceSettings{.send_clock = true});
@@ -218,6 +232,49 @@ namespace deluge::scenes::bind::contract {
 	const bool channel_kept = midi.follow_input(kInput) == with_channel;
 	learns.learn_follow(kInput, input_was);
 	return kept && channel_kept && midi.follow_input(kInput) == input_was;
+}
+
+/// @brief A param no CC can follow has no CC, under either owner.
+[[nodiscard]] inline bool unfollowable_param_has_no_cc(const MidiFeedback& feedback) {
+	constexpr project::ParamTarget kNowhere = project::engine_target(0xFFFF'FF00);
+	return !feedback.cc_of(project::OwnerPlugin::INSTRUMENT, kNowhere).has_value()
+	       && !feedback.cc_of(project::OwnerPlugin::GLOBAL_EFFECTABLE, kNowhere).has_value();
+}
+
+/// @brief The transport's recording is one of the three modes.
+[[nodiscard]] inline bool transport_recording_is_a_mode(const Transport& t) {
+	const TransportRecording r = t.recording();
+	return r == TransportRecording::OFF || r == TransportRecording::NORMAL || r == TransportRecording::ARRANGEMENT;
+}
+
+/// @brief The count-in shows no negative digit.
+[[nodiscard]] inline bool count_in_is_a_count(const Transport& t) {
+	return t.count_in_visual() >= 0;
+}
+
+/// @brief Each metronome toggle reads back through @p t, and two leave it as found. The host shows its popup twice.
+[[nodiscard]] inline bool metronome_toggles_read_back(TransportActions& actions, const Transport& t) {
+	const bool was = t.metronome_on();
+	actions.toggle_metronome();
+	const bool flipped = t.metronome_on() != was;
+	actions.toggle_metronome();
+	return flipped && t.metronome_on() == was;
+}
+
+/// @brief The foreground recorder's source is one of the four.
+[[nodiscard]] inline bool foreground_recording_is_a_source(const AudioFacts& audio) {
+	const ForegroundRecording f = audio.foreground_recording();
+	return f == ForegroundRecording::UNSET || f == ForegroundRecording::NONE || f == ForegroundRecording::EXTERNAL
+	       || f == ForegroundRecording::INTERNAL;
+}
+
+/// @brief Forgetting the undo history leaves the transport as it was.
+[[nodiscard]] inline bool forgetting_undo_keeps_the_transport(DeviceActions& actions, const Transport& t) {
+	const bool playing = t.playing();
+	const TransportRecording recording = t.recording();
+	const bool metronome = t.metronome_on();
+	actions.delete_all_logs();
+	return t.playing() == playing && t.recording() == recording && t.metronome_on() == metronome;
 }
 
 /// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with

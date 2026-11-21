@@ -20,10 +20,21 @@
 /// (`controls::resolve_press`, `controls::resolve_section`) into `services/knob_push`'s requests, sent to the sink. The
 /// service holds no engine object.
 ///
+/// @par Its ports
+///
+/// The host installs its port set (`set_ports`) and the song's record (`set_model`). The service reads the knobs'
+/// facts (`controls::Facts`), the owners' effects (`bind::TrackFacts`, `bind::SoundFacts`), whether either clock runs
+/// (`bind::Transport`) and the follow feedback's automation row (`bind::DeviceSettings`). It writes through
+/// `controls::Sink` and `bind::WriteSink`, and sends MIDI follow's feedback through `bind::MidiFeedback`. With no set
+/// installed the knobs are unbound: a turn, a push and a mod button do nothing, and nothing is sent. With a set that
+/// lacks a port, each read of it answers its default and each write or send through it is skipped.
+///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// `src/shell/**` may not include `model/**` (`shell-includes-outside`), and this class is about the song's
-/// records, so it implements the shell's interface from the scenes library, as `GlobalControls` and `MidiLearn` do.
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// (`scripts/check_layer_rules.py`'s `shell-includes-outside` row). The knobs read the song's record (`project::Song`)
+/// and act through the scenes' ports (`scenes/bind/`). So the shell's interface is implemented from inside the scenes
+/// library, which may see both, as `GlobalControls` and `MidiLearn` do.
 ///
 /// @par Who sends gestures here
 ///
@@ -70,7 +81,9 @@
 #include <functional>
 #include <optional>
 
-class Song;
+namespace deluge::scenes::bind {
+struct Ports;
+}
 
 namespace deluge::ui::shell {
 class InputLowering;
@@ -78,7 +91,8 @@ class InputLowering;
 
 namespace deluge::project {
 struct ParamAddress;
-}
+class Song;
+} // namespace deluge::project
 
 namespace deluge::scenes::services {
 
@@ -111,9 +125,16 @@ public:
 	/// @name What the knobs point at
 	/// @{
 
-	/// @brief The song whose records the knobs read, which `scenes-currentSong` forbids this layer to fetch.
-	/// @param song The current song, or null before one exists.
-	void set_song(Song* song) { song_ = song; }
+	/// @brief The port set the knobs read, write and send through: the knobs' facts and sink, the track and sound
+	///        facts, the write sink, the transport, the device's settings and MIDI follow's feedback. The set is not
+	///        owned and must outlive the service's use of it.
+	/// @param ports The set, or null for none: the knobs are unbound.
+	void set_ports(const deluge::scenes::bind::Ports* ports) { ports_ = ports; }
+	/// @brief The record of the song the knobs resolve against: what each knob moves, its mode and the push's table.
+	///        Not owned.
+	/// @warning A stale record makes every knob resolve against the wrong song; update it whenever the song changes.
+	/// @param model The song's record, or null before one exists: the knobs are unbound.
+	void set_model(const deluge::project::Song* model) { model_ = model; }
 
 	/// @brief Point the knobs at @p focus -- `View::setActiveModControllableTimelineCounter` and
 	///        `setActiveModControllableWithoutTimelineCounter`. The mod region is kept.
@@ -292,18 +313,21 @@ private:
 	void declare_indicators(deluge::ui::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
-	/// @brief The param a knob turn reports to MIDI follow: its kind and where it is.
+	/// @brief The param a knob turn reports to MIDI follow: its kind, where it is and the knob's new position.
 	struct TurnedParam {
 		deluge::plugin::ParamKind kind;               ///< The kind of the param the knob turned.
 		const deluge::project::ParamAddress& address; ///< The param the knob turned.
+		int32_t knob_pos;                             ///< The knob's new position, -64..64.
 	};
-	/// @brief `View::sendMidiFollowFeedback`.
+	/// @brief `View::sendMidiFollowFeedback`, through the installed `bind::MidiFeedback`.
 	/// @param param         The param the knob turned, or nullopt for the no-param form of the feedback.
-	/// @param knob_pos      The knob's new position.
 	/// @param is_automation Whether the feedback reports automation.
-	void send_midi_follow_feedback(const std::optional<TurnedParam>& param, int32_t knob_pos, bool is_automation);
-	/// @brief Whether the app's facts and sink act on the song the knobs read.
+	void send_midi_follow_feedback(const std::optional<TurnedParam>& param, bool is_automation);
+	/// @brief Whether the knobs have a song's record and a port set to act on.
 	bool bound() const;
+	/// @brief Whether MIDI follow sends back the values a followed param's automation plays: the device's
+	///        `midiFollow/feedback/automation` row is not DISABLED. With no device port, the row's default (DISABLED).
+	[[nodiscard]] bool feedback_automation_on() const;
 	/// @brief The focus's owner's effect settings: a sound's own, or its chain's; null for none.
 	const effects::EffectStates* owner_effects() const;
 	/// @brief A stutter-rate knob on the focus's owner is quantized.
@@ -314,8 +338,9 @@ private:
 
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
-	const deluge::controls::Board board_; ///< what the knobs and buttons are on
-	Song* song_ = nullptr;
+	const deluge::controls::Board board_;                ///< what the knobs and buttons are on
+	const deluge::scenes::bind::Ports* ports_ = nullptr; ///< the installed ports, or null for none
+	const deluge::project::Song* model_ = nullptr;       ///< the song's record, or null for none
 	/// The focus this service keeps when it is given no store.
 	bind::KnobFocus own_focus_{};
 	/// Where the focus is kept: @ref own_focus_, or the store @ref use_focus names.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-20 (the menu on the UI's ports, with the other scenes and the cut still to go; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-20). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-21 (the menu, the services and the overlays on the UI's ports, with the other scenes and the cut still to go; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -99,8 +99,9 @@ keeps the option open to put the UI behind a C ABI.
 
 **Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a
 scene's context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`,
-`CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts` and `controls::Facts`; the write ports are
-`ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; `MidiDevices` carries the per-device
+`CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport` and `controls::Facts`; the write ports are
+`ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; the call ports are `TransportActions`,
+`DeviceActions` and `MidiFeedback`; `MidiDevices` carries the per-device
 settings, and a device is a `midi::DeviceId` the host registry maps to its cable. The device's own settings are the
 DEVICE setting group (`deluge-project/device_settings.h`), read and written by row through the `DeviceSettings` port
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the
@@ -111,61 +112,68 @@ The value tables the menu reads (sync and swing, note lengths, filter and mod-FX
 reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names) are neutral. Layer rules
 keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
 
-**Gap (measured 2026-11-20 with `python3 scripts/check_layer_rules.py --list`).** The menu reads and writes through
-the ports: no file under `menu/` includes a legacy runtime header. 22 scene files outside `bind/` include 60
-(`scenes-reads-outside-bind`). By directory: the menu 0 files / 0 includes, `services/` 6 / 25, `browser/` 4 / 8,
-`audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `slicing/` 2 / 4, `overlay/` and `marker/` 2 / 2
-each, `rename/` and `timeline/` 1 / 1 each. Beyond those, 23 scene files outside `bind/` include
-`definitions_cxx.hpp` directly, 6 of them in the menu. `--list` prints the per-file counts. The 60 includes, by
-what they read (each header with the number of counted files that include it):
+**Gap (measured 2026-11-21 with `python3 scripts/check_layer_rules.py --list`).** The menu, the services and the
+overlays read and act through the ports (the services and overlays through a pointer the host installs): no file under
+`menu/` or `overlay/` includes a legacy runtime header, and `services/` includes one only for the waveform painter.
+17 scene files outside `bind/` include 37 (`scenes-reads-outside-bind`). By directory: `browser/` 4 files / 8
+includes, `audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `services/` 3 / 4 (the waveform files),
+`slicing/` 2 / 4, `marker/` 2 / 2, `rename/` and `timeline/` 1 / 1 each. Beyond those, 17 scene files outside `bind/`
+include `definitions_cxx.hpp` directly, 6 of them in the menu. `--list` prints the per-file counts. The 37 includes,
+by what they read (each header with the number of counted files that include it):
 
-- **The song and the model:** `model/song/song.h` 6, `model/action/action_logger.h` 3, `model/clip/clip.h` 2,
-  `model/output.h` 1, `model/project_bridge/midi_command.h` 1 (13).
-- **The flash settings and the community features:** `storage/flash_storage.h` 6,
-  `model/settings/runtime_feature_settings.h` 3 (9).
+- **The song and the model:** `model/song/song.h` 3, `model/action/action_logger.h` 2 (5).
+- **The flash settings and the community features:** `storage/flash_storage.h` 4,
+  `model/settings/runtime_feature_settings.h` 2 (6).
 - **Samples and waveforms:** `model/sample/waveform_scan.h` 4, `waveform_navigator.h` 4, `waveform_render_data.h` 3,
   `sample.h` 2, `sample_recorder.h` 1 (14).
-- **Playback:** `playback/playback_handler.h` 4, `playback/mode/arrangement.h` 1, `playback/mode/playback_mode.h` 1
-  (6).
-- **The audio engine and recording:** `processing/engines/audio_engine.h` 4,
-  `processing/recording/foreground_recording.h` 2 (6).
+- **Playback:** `playback/playback_handler.h` 1, `playback/mode/arrangement.h` 1 (2).
+- **The audio engine and recording:** `processing/engines/audio_engine.h` 2,
+  `processing/recording/foreground_recording.h` 1 (3).
 - **The card and its files:** `storage/file_catalogue.h` 2, `storage/storage_manager.h` 2, `storage/file_item.h` 1
   (5).
-- **MIDI:** `io/midi/midi_engine.h` 2, `io/midi/midi_follow.h` 2, `io/midi/midi_device_manager.h` 1,
-  `io/midi/device_registry.h` 1, `io/midi/learned_midi.h` 1 (7).
+- **MIDI:** `io/midi/midi_follow.h` 1, `io/midi/midi_device_manager.h` 1 (2).
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` layer rule (`scripts/check_layer_rules.py`), whose per-file baseline in `scripts/layer_rules_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b). Left: R2c, the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1). Left: R2c-2 and R2c-3, the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
-**R2c carries these from the menu:**
+**How an R2 stage shows it changes nothing.** Each task runs the parity scripts on the x86 host build's virtual clock,
+the stage's base binary against HEAD (`tools/x86_parity.py`), and the two must agree on every snapshot: the virtual
+clock is deterministic and code layout does not move it, so any difference is behaviour. Each merge adds one
+emulator sweep against upstream main (`tools/emu_parity.py`), which alone sees real timing, ARM code generation, the
+PIC and parity with main.
+
+**R2c-2 and R2c-3 carry these from the menu and the services:**
 
 - **The `menu::host_*` hooks** left in `scenes/menu/bind_host.h`, each retired with its callers:
-  - `host_binds`, the only declaration of the legacy `::Song` inside `menu/` (`services/mod_knobs.h`,
-    `midi_learn.h`, `global_controls.h`, `audio_clip/audio_clip_scene.h` and `timeline/timeline.h` declare it too),
-    for `services/` (`mod_knobs`, `midi_learn`, `global_controls`, including the settings root's `context_for`
-    caller) and `audio_clip_scene`;
+  - `host_binds`, for `audio_clip/audio_clip_scene.cpp` alone (R2c-2); `audio_clip_scene.h` and `timeline/timeline.h`
+    declare the legacy `::Song` too;
   - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
   - `host_end_audition`, for the menu's sample and name items, the browser and the recorder;
   - `host_waveforms`, for the menu's relevance, the audio clip view, the marker editor and the browser;
   - `host_clear_tick_squares`, for the recorder;
-  - `host_grab_tempo` (the audio clip view), and `host_last_sample_path`, `host_release_sample_file`,
-    `host_forget_undo` and `host_favourites` (the browser).
-- **`DeviceActions`**, with the context menu's reset items.
-- **`context_for`'s `host_ports().device` fallback** moves to its callers, so `menu/context.cpp` links without the
-  app. The case it serves is `services/global_controls.cpp`'s settings-root context, which passes no ports when
-  `host_binds` is false; that caller must then pass the device port itself.
+  - `host_grab_tempo` (the audio clip view; it becomes `TransportActions::grab_tempo`), and `host_last_sample_path`,
+    `host_release_sample_file`, `host_forget_undo` and `host_favourites` (the browser; `DeviceActions::delete_all_logs`
+    is ready for `host_forget_undo`).
+- **`DeviceActions`' reset and export items**, with the context menu's reset items.
+- **`Indicators`** (`clear_tick_squares`), whose only consumer is the recorder, and **the waveform files**
+  (`services/waveform_paint.{h,cpp}`, `services/waveforms.h`): R2c-2's waveform-types task.
+- **`ForegroundRecording`** (`AudioFacts::foreground_recording`) is ready for the recorder's and the browser's
+  comparisons: `<= NONE` and `!= NONE` become the four-value tests.
 - **`relevance::audio_clip_has_sample`'s waveform read** moves behind a port, with its relevance case on fakes.
-- **`services/midi_learn.cpp`'s direct `midiEngine` read** (the global MIDI commands), with its own ratchet row.
-- **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app. Ten
-  roots name an app symbol themselves; every other menu file outside the driver depends on one of them:
+- **The play-direction choice names have two homes.** The menu draws them from `sequence_direction_names` in
+  `scenes/menu/nodes/sound_actions.cpp`; `gui/l10n/setting_names.cpp`'s `kSequenceDirectionChoices` (behind
+  `kSequenceDirectionNames` and `kClipSequenceDirectionNames`) is a second list that no parity snapshot shows. R2c-2
+  finds its readers and gives the names one home.
+- **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app.
+  `context.cpp` links without it. Nine roots name an app symbol themselves; every other menu file outside the driver
+  depends on one of them:
 
   | Root | What it reaches |
   | --- | --- |
-  | `context.cpp` | `host_ports()`, the device fallback above |
   | `relevance.cpp` | `host_waveforms()` |
   | `nodes/sample.cpp` | `host_end_audition`, and the browser, marker editor and recorder scenes' opens |
   | `nodes/edit_name.cpp` | `host_end_audition`, and the rename scene's open |

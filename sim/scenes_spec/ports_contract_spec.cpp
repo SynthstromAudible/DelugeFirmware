@@ -12,8 +12,10 @@
 #include "instruments/deluge/cables.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
+#include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
@@ -26,6 +28,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/stem_export/stem_export.h"
 
 #include <version.h>
@@ -68,8 +71,42 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.writes).not_().to_be_null();
 		expect(p.controls_sink).not_().to_be_null();
 		expect(p.device).not_().to_be_null();
+		expect(p.device_actions).not_().to_be_null();
+		expect(p.midi_feedback).not_().to_be_null();
+		if (p.midi_feedback != nullptr) {
+			expect(bind::contract::unfollowable_param_has_no_cc(*p.midi_feedback)).to_be_true();
+			// The legacy sources themselves.
+			expect(p.midi_feedback->enabled()).to_equal(midiFollow.isFeedbackEnabled());
+			expect(p.midi_feedback->global_effectable_context()).to_equal(midiFollow.isGlobalEffectableContext());
+		}
+		expect(p.transport).not_().to_be_null();
+		expect(p.transport_actions).not_().to_be_null();
+		if (p.transport != nullptr) {
+			expect(bind::contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
+			expect(bind::contract::count_in_is_a_count(*p.transport)).to_be_true();
+			expect(p.transport->playing()).to_equal(playbackHandler.playbackState != 0);
+			expect(p.transport->clocks_active()).to_equal(playbackHandler.isEitherClockActive());
+			expect(static_cast<int>(std::to_underlying(p.transport->recording())))
+			    .to_equal(static_cast<int>(playbackHandler.recording));
+			expect(p.transport->undo_allowed()).to_equal(actionLogger.allowedToDoReversion());
+			expect(p.transport->overdubs_pending())
+			    .to_equal(currentSong != nullptr && currentSong->hasAnyPendingNextOverdubs());
+			expect(p.transport->metronome_on()).to_equal(playbackHandler.metronomeOn);
+			expect(p.transport->count_in_visual()).to_equal(playbackHandler.count_in_visual());
+			if (p.transport_actions != nullptr) {
+				// Two toggles, each with its popup, leave the metronome as the other specs found it.
+				expect(bind::contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
+			}
+			if (p.device_actions != nullptr) {
+				expect(bind::contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
+			}
+		}
 		if (p.audio != nullptr) {
+			expect(bind::contract::foreground_recording_is_a_source(*p.audio)).to_be_true();
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
+			// The spec process holds the audio routine still, so the engine reads busy here; the port answers as it does.
+			expect(p.audio->audio_busy()).to_equal(AudioEngine::audioBusy());
+			expect(p.audio->resampling()).to_equal(deluge::recording::isCurrentlyResampling());
 			expect(bind::contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 			expect(p.audio->line_in_plugged()).to_equal(AudioEngine::lineInPluggedIn);
 			if (p.writes != nullptr) {
@@ -128,6 +165,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			// DIN is always listed on the default card's rig.
 			expect(p.midi->connected().empty()).to_be_false();
 			expect(bind::contract::connected_devices_are_known(*p.midi)).to_be_true();
+			expect(bind::contract::connected_devices_have_references(*p.midi)).to_be_true();
 			expect(bind::contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
 			if (p.learn != nullptr && !p.midi->connected().empty()) {
 				expect(bind::contract::learns_read_back(*p.learn, *p.midi, p.midi->connected().front())).to_be_true();

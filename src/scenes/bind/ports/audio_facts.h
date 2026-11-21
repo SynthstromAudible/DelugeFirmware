@@ -9,6 +9,14 @@
 
 namespace deluge::scenes::bind {
 
+/// @brief What the foreground recorder records from.
+enum class ForegroundRecording : uint8_t {
+	UNSET = 0,    ///< no source chosen yet
+	NONE = 1,     ///< nothing
+	EXTERNAL = 2, ///< an input: the mic, line in, balanced or USB audio
+	INTERNAL = 3, ///< the device's own output: the mix, the output, one track's, or an offline stem
+};
+
 /// @brief The audio side's live facts, answered by the host.
 class AudioFacts {
 public:
@@ -26,6 +34,12 @@ public:
 	/// @brief The sync type of the reverb's sidechain. The engine holds it only at run time, with no saved record, so
 	/// the host owns it.
 	[[nodiscard]] virtual plugin::SyncType reverb_sidechain_sync_type() const = 0;
+	/// @brief Whether the audio routine is running now, when a flash write must wait.
+	[[nodiscard]] virtual bool audio_busy() const = 0;
+	/// @brief What the foreground recorder records from.
+	[[nodiscard]] virtual ForegroundRecording foreground_recording() const = 0;
+	/// @brief Whether the foreground recorder is resampling the device's output.
+	[[nodiscard]] virtual bool resampling() const = 0;
 };
 
 } // namespace deluge::scenes::bind

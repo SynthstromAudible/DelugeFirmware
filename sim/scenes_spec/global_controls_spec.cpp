@@ -61,7 +61,11 @@
 /// that matters is `TimelineView::buttonAction`'s final `else`
 /// (`gui/views/timeline_view.cpp`), which every root view inherits.
 
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
+#include "deluge-project/song.h"
 #include "gui/ui/menu_view_of.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/global_controls.h"
@@ -87,7 +91,9 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/recording/foreground_recording.h"
 
+#include "fakes.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
+#include "support/printers/transport_action_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -301,6 +307,7 @@ struct GcRig {
 	/// returned and inspected, never applied, because this rig drives `handle()` directly rather
 	/// than through a `Router`.
 	GcRig() {
+		gc.set_ports(&menu::host_ports());
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
@@ -451,7 +458,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// --- The port, from its own reset --------------------------------------------------
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Record, true, 1'000);
 		rig.press(ButtonId::Record, false, 1'010);
@@ -483,7 +490,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// --- The port ---------------------------------------------------------------------
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Record, true, 2'000);
 		rig.press(ButtonId::Play, true, 2'005);
@@ -516,7 +523,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Shift, true, 3'000);
 		rig.press(ButtonId::Record, true, 3'005);
@@ -547,7 +554,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(legacy_source).to_equal(AudioInputChannel::OUTPUT);
 
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Record, true, 4'000);
 		rig.press(ButtonId::Play, true, 4'005);
@@ -580,7 +587,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		expect(deluge::recording::beginOutputRecording()).to_be_true();
 		expect(deluge::recording::isCurrentlyResampling()).to_be_true();
@@ -611,7 +618,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Record, true, 3'000);
 		rig.press(ButtonId::Record, false, 3'000 + 2 * GlobalControls::kShortPressMs);
@@ -639,7 +646,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press_elsewhere(ButtonId::Record, true, 5'000);
 		rig.press(ButtonId::Record, false, 5'010);
@@ -654,7 +661,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		rig.press(ButtonId::Record, true, 6'000);
@@ -675,7 +682,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		rig.learn.on = true;
@@ -720,7 +727,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		expect(rig.stack.input_top().is_root()).to_be_true();
 
@@ -797,7 +804,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Shift, true, 7'000);
 		expect(rig.lowering.shift()).to_be_true();
@@ -824,7 +831,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		GlobalControls::ViewState vs;
@@ -855,7 +862,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		// Shift wins over everything (`Buttons::buttonAction`'s `TEMPO_ENC` arm in `hid/buttons.cpp`).
@@ -886,7 +893,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		expect(rig.gc.holding_save()).to_be_false();
@@ -905,7 +912,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		// Long press: the `kShortPressTime` window elapses, so the release just drops the LED.
@@ -937,7 +944,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		// The fixture's song has no pending overdubs, so the plain path opens.
@@ -953,7 +960,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		rig.press(ButtonId::Shift, true, 15'000);
@@ -993,7 +1000,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(legacy_fixture.song);
+		rig.gc.set_model(&legacy_fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		// Same refusal, same reason, port side.
 		expect(rig.press(ButtonId::SyncScaling, true, 17'000).handled).to_be_true();
@@ -1022,7 +1029,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
 		                           RuntimeFeatureStateSyncScalingAction::SyncScaling);
@@ -1061,7 +1068,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		rig.press(ButtonId::SyncScaling, true, 21'000);
 		expect(fixture.song->isFillModeActive()).to_be_true();
 		expect(fixture.song->isFillModeActive()).to_equal(legacy_result);
@@ -1110,7 +1117,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		const Result r = rig.press(ButtonId::Back, true, 22'000);
 		expect(r.handled).to_be_true();
 		expect(pending_global_midi_clusters()).to_equal(0);
@@ -1138,7 +1145,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 
 		// Without shift the arm's condition fails outright, and nothing in the tail
@@ -1167,7 +1174,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		GlobalControls::ViewState vs;
 		vs.root_greyout = menu::MenuContext::RootGreyout::InstrumentClip;
@@ -1186,7 +1193,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 
@@ -1205,7 +1212,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		fixture.song->setInputTickScaleClip(nullptr);
 
@@ -1228,7 +1235,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		fixture.song->setInputTickScaleClip(nullptr);
 
@@ -1302,7 +1309,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		expect(reset_transport(100'000)).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
 		                           RuntimeFeatureStateSyncScalingAction::SyncScaling);
@@ -1367,7 +1374,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		GcRig rig;
-		rig.gc.set_song(fixture.song);
+		rig.gc.set_model(&fixture.song->project);
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
@@ -1388,6 +1395,320 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		deluge::ui::LedFrame g;
 		rig.gc.leds(g);
 		expect(led_is(g, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_false();
+	});
+
+	// The service on a fake host: what each press asks the installed ports, in order, with no legacy state read.
+	it("on fakes: PLAY plays, starts an output recording with RECORD held, and ends one at the loop end", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		expect(rig.press(ButtonId::Play, true, 40'000).handled).to_be_true();
+		rig.press(ButtonId::Play, false, 40'010);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::PLAY}});
+
+		// RECORD held with no source: the press starts playback, which the fake's PLAY does, and the read after it
+		// sees playback running.
+		host.transport_actions.calls.clear();
+		host.transport.is_playing = false;
+		host.audio.foreground = bind::ForegroundRecording::NONE;
+		rig.press(ButtonId::Record, true, 40'100);
+		rig.press(ButtonId::Play, true, 40'110);
+		rig.press(ButtonId::Play, false, 40'120);
+		rig.press(ButtonId::Record, false, 40'130);
+		expect(host.transport_actions.calls)
+		    .to_equal(std::vector<Call>{{.kind = K::PLAY}, {.kind = K::BEGIN_OUTPUT_RECORDING}});
+
+		// An input recording with RECORD held and a clock running: PLAY ends it at the loop end.
+		host.transport_actions.calls.clear();
+		host.audio.foreground = bind::ForegroundRecording::EXTERNAL;
+		host.transport.clocks = true;
+		rig.press(ButtonId::Record, true, 40'200);
+		rig.press(ButtonId::Play, true, 40'210);
+		rig.press(ButtonId::Play, false, 40'220);
+		rig.press(ButtonId::Record, false, 40'230);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END}});
+	});
+
+	it("on fakes: a short RECORD press arms recording, or ends the recording while resampling", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		rig.press(ButtonId::Record, true, 41'000);
+		rig.press(ButtonId::Record, false, 41'050);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::RECORD}});
+
+		host.transport_actions.calls.clear();
+		host.audio.resample = true;
+		rig.press(ButtonId::Record, true, 41'100);
+		rig.press(ButtonId::Record, false, 41'150);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::END_RECORDING_SOON}});
+	});
+
+	it("on fakes: the tempo encoder clears tempo automation with shift, shows the swing with TAP TEMPO, else the tempo", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		rig.press(ButtonId::Shift, true, 42'000);
+		rig.press(ButtonId::TempoEnc, true, 42'005);
+		rig.press(ButtonId::TempoEnc, false, 42'006);
+		rig.press(ButtonId::Shift, false, 42'010);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::CLEAR_TEMPO_AUTOMATION}});
+
+		rig.press(ButtonId::TapTempo, true, 42'020);
+		host.transport_actions.calls.clear(); // the press itself taps the tempo
+		rig.press(ButtonId::TempoEnc, true, 42'025);
+		rig.press(ButtonId::TempoEnc, false, 42'026);
+		rig.press(ButtonId::TapTempo, false, 42'030);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::SHOW_SWING_INTERVAL}});
+
+		host.transport_actions.calls.clear();
+		rig.press(ButtonId::TempoEnc, true, 42'040);
+		rig.press(ButtonId::TempoEnc, false, 42'041);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::SHOW_TEMPO}});
+	});
+
+	it("on fakes: at the root, SHIFT+TAP TEMPO toggles the metronome, and TAP TEMPO taps as the feature row says", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		rig.press(ButtonId::Shift, true, 43'000);
+		rig.press(ButtonId::TapTempo, true, 43'005);
+		rig.press(ButtonId::TapTempo, false, 43'006);
+		rig.press(ButtonId::Shift, false, 43'010);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::TOGGLE_METRONOME}});
+		expect(host.transport.metronome).to_be_true();
+
+		host.transport_actions.calls.clear();
+		rig.press(ButtonId::TapTempo, true, 43'100);
+		rig.press(ButtonId::TapTempo, false, 43'101);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::TAP_TEMPO, .flag = true}});
+
+		host.transport_actions.calls.clear();
+		(void)host.device.write(
+		    deluge::project::device_path::feature(deluge::project::Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR), 1);
+		rig.press(ButtonId::TapTempo, true, 43'200);
+		rig.press(ButtonId::TapTempo, false, 43'201);
+		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::TAP_TEMPO, .flag = false}});
+	});
+
+	it("on fakes: BACK undoes, or redoes with shift, only when the transport allows it", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		expect(rig.press(ButtonId::Back, true, 44'000).handled).to_be_true();
+		rig.press(ButtonId::Back, false, 44'005);
+		expect(host.transport_actions.calls.empty()).to_be_true();
+
+		host.transport.undo_ok = true;
+		rig.press(ButtonId::Back, true, 44'100);
+		rig.press(ButtonId::Back, false, 44'105);
+		rig.press(ButtonId::Shift, true, 44'200);
+		rig.press(ButtonId::Back, true, 44'205);
+		rig.press(ButtonId::Back, false, 44'206);
+		rig.press(ButtonId::Shift, false, 44'210);
+		expect(host.transport_actions.calls)
+		    .to_equal(std::vector<Call>{{.kind = K::UNDO, .flag = false}, {.kind = K::UNDO, .flag = true}});
+	});
+
+	it("on fakes: SYNC_SCALING holds fill while pressed when the feature row says FILL", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		using Call = bind::test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+
+		(void)host.device.write(deluge::project::device_path::feature(deluge::project::Feature::SYNC_SCALING_ACTION),
+		                        static_cast<int32_t>(std::to_underlying(deluge::project::SyncScalingAction::FILL)));
+		rig.press(ButtonId::SyncScaling, true, 45'000);
+		rig.press(ButtonId::SyncScaling, false, 45'100);
+		expect(host.transport_actions.calls)
+		    .to_equal(std::vector<Call>{{.kind = K::FILL, .flag = true}, {.kind = K::FILL, .flag = false}});
+	});
+
+	it("on fakes: SYNC_SCALING sets and clears the clip through the installed writes and forgets undo; a refused clip does neither", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		GlobalControls::ViewState vs;
+		vs.current_ui_is_clip_minder = true;
+		rig.gc.set_view_state(vs);
+		constexpr uint32_t kClip = 7;
+		services::view_state().set_current_view(services::MenuView{.clip = deluge::project::ClipAddress{.clip_id = kClip}});
+		using DeviceKind = bind::test::RecordingDeviceActions::Kind;
+
+		// An arrangement-only clip, then one recording linearly: refused, with neither the write nor the forgetting.
+		host.clips.arrangement_only[kClip] = true;
+		const Result arrangement = rig.press(ButtonId::SyncScaling, true, 47'000);
+		rig.press(ButtonId::SyncScaling, false, 47'005);
+		expect(arrangement.actions.size()).to_equal(size_t{1});
+		host.clips.arrangement_only[kClip] = false;
+		host.clips.recording_linearly[kClip] = true;
+		const Result linear = rig.press(ButtonId::SyncScaling, true, 47'100);
+		rig.press(ButtonId::SyncScaling, false, 47'105);
+		expect(linear.actions.size()).to_equal(size_t{1});
+		expect(host.writes.requests.size()).to_equal(size_t{0});
+		expect(host.device_actions.calls.size()).to_equal(size_t{0});
+		host.clips.recording_linearly[kClip] = false;
+
+		// The set: the song's sync-scaling clip becomes this one, then undo cannot reach past it.
+		rig.press(ButtonId::SyncScaling, true, 47'200);
+		rig.press(ButtonId::SyncScaling, false, 47'205);
+		expect(host.writes.requests.size()).to_equal(size_t{1});
+		expect(host.device_actions.calls).to_equal(std::vector<DeviceKind>{DeviceKind::DELETE_ALL_LOGS});
+
+		// The clear, once the record holds the clip.
+		model.transport.sync_scaling_clip_id = kClip;
+		rig.press(ButtonId::SyncScaling, true, 47'300);
+		rig.press(ButtonId::SyncScaling, false, 47'305);
+		expect(host.writes.requests.size()).to_equal(size_t{2});
+		expect(host.device_actions.calls)
+		    .to_equal(std::vector<DeviceKind>{DeviceKind::DELETE_ALL_LOGS, DeviceKind::DELETE_ALL_LOGS});
+
+		const std::array<int32_t, 2> want{static_cast<int32_t>(kClip), -1};
+		for (size_t i = 0; i < host.writes.requests.size() && i < want.size(); ++i) {
+			const bind::WriteRequest& r = host.writes.requests[i];
+			expect(r.target.kind).to_equal(bind::Target::Kind::MODEL);
+			expect(r.target.path).to_equal(std::string_view{"syncScalingClip"});
+			expect(r.target.group).to_equal(deluge::project::SettingGroupId::SONG);
+			expect(r.menu_value).to_equal(want[i]);
+		}
+		services::view_state().set_current_view(services::MenuView{});
+	});
+
+	it("on fakes: SAVE refuses while overdubs are pending, with legacy's own popup string, and opens nothing", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+
+		host.transport.overdubs = true;
+		rig.press(ButtonId::Save, true, 48'000);
+		const Result refused = rig.press(ButtonId::Save, false, 48'010);
+		expect(refused.actions.size()).to_equal(size_t{1});
+		if (refused.actions.size() == 1) {
+			expect(refused.actions[0].kind).to_equal(ShellAction::Kind::Popup);
+			expect(refused.actions[0].popup_string)
+			    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
+		}
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{0});
+
+		// With none pending the same press opens the saver.
+		host.transport.overdubs = false;
+		rig.press(ButtonId::Save, true, 48'100);
+		const Result plain = rig.press(ButtonId::Save, false, 48'110);
+		expect(plain.actions.size()).to_equal(size_t{0});
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{1});
+	});
+
+	it("on fakes: the LEDs follow the transport's playback, recording and metronome", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+
+		const auto frame = [&rig] {
+			deluge::ui::LedFrame f;
+			rig.gc.leds(f);
+			return f;
+		};
+		deluge::ui::LedFrame f = frame();
+		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::Off)).to_be_true();
+
+		host.transport.is_playing = true;
+		host.transport.mode = bind::TransportRecording::NORMAL;
+		host.transport.metronome = true;
+		f = frame();
+		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::On)).to_be_true();
+
+		// An internal recording or the arrangement's own owns the RECORD LED, so the service declares none.
+		host.audio.foreground = bind::ForegroundRecording::INTERNAL;
+		expect(led_state(frame(), ButtonId::Record).has_value()).to_be_false();
+		host.audio.foreground = bind::ForegroundRecording::EXTERNAL;
+		expect(led_is(frame(), ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
+		host.transport.mode = bind::TransportRecording::ARRANGEMENT;
+		expect(led_state(frame(), ButtonId::Record).has_value()).to_be_false();
+	});
+
+	it("on fakes: with no set installed, every press is handled as before and nothing is asked", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		expect(reset_transport(100'000)).to_be_true();
+		rig.gc.set_ports(nullptr);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		const uint8_t playback_before = playbackHandler.playbackState;
+		const bool metronome_before = playbackHandler.metronomeOn;
+		const RecordingMode recording_before = playbackHandler.recording;
+
+		uint32_t t = 46'000;
+		for (const ButtonId b : {ButtonId::Play, ButtonId::Record, ButtonId::TapTempo, ButtonId::TempoEnc, ButtonId::Back,
+		                         ButtonId::SyncScaling}) {
+			expect(rig.press(b, true, t).handled).to_be_true();
+			rig.press(b, false, t + 50);
+			t += 100;
+		}
+		// Nothing reached the app's transport either: no action port means no call through any.
+		expect(playbackHandler.playbackState).to_equal(playback_before);
+		expect(playbackHandler.metronomeOn).to_equal(metronome_before);
+		expect(playbackHandler.recording).to_equal(recording_before);
+		deluge::ui::LedFrame f;
+		rig.gc.leds(f);
+		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::Off)).to_be_true();
 	});
 });
 // clang-format on

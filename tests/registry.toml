@@ -1888,6 +1888,13 @@ gates = "the cards a UI script's header names, as the UI script runners read the
 run = ["python3", "-m", "unittest", "test_ui_script_cards"]
 
 [[harness]]
+name = "x86-parity-tool"
+template = "unittest"
+path = "tools"
+gates = "x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on"
+run = ["python3", "-m", "unittest", "test_x86_parity"]
+
+[[harness]]
 name = "deluge-jlink"
 template = "unittest"
 path = "tools"
@@ -1909,6 +1916,23 @@ tier = "manual"
 alone = true
 job = "tooling"
 runtime_s = 1200
+
+[[harness]]
+name = "x86-parity"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on"
+build = []
+run = ["python3", "tools/x86_parity.py", "--ref", "build/cargo-harness/release/golden_vt_render", "--test", "build/cargo-harness/release/golden_vt_render", "--out", ".superpowers/x86-runs/self", "tests/ui-scripts/parity", "tests/ui-scripts/parity-card", "tests/ui-scripts/parity-songs"]
+builds = ["golden-vt-render"]
+requires = ["content-card", "mtools"]
+tier = "manual"
+alone = true
+job = "tooling"
+runtime_s = 60
 
 [[harness]]
 name = "ui-parity-card"

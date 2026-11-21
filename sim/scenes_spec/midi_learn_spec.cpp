@@ -41,7 +41,8 @@
 ///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`View::endMidiLearnPressSession`). Same shape:
 ///     counted, not called, and nothing in this layer's model reach could observe it anyway.
 ///   * **`FlashStorage::writeSettings()`** (`View::endMIDILearn`). Both sides guard it on
-///     `!AudioEngine::audioBusy()`, and `spec::QuietAudio` holds the audio tick for the whole
+///     `!AudioEngine::audioBusy()` (the port through `bind::AudioFacts::audio_busy`, before
+///     `bind::DeviceActions::save_settings`), and `spec::QuietAudio` holds the audio tick for the whole
 ///     process -- so on both sides the call is skipped and the `shouldSaveSettingsAfterMidiLearn`
 ///     decision is what the button examples assert, not the write. (Driving it would put a spec
 ///     process's settings on the fixture card.)
@@ -136,8 +137,8 @@ using deluge::scenes::services::LearnTarget;
 /// @brief `services::MidiLearn`, the class.
 ///
 /// Aliased rather than `using`-declared because the global `enum class MidiLearn`
-/// (`definitions_cxx.hpp`) is the SAME NAME, and the port deliberately reuses that enum for
-/// `LearnTarget::kind` rather than mirroring it. A `using` of the class into this file's scope is
+/// (`definitions_cxx.hpp`) is the SAME NAME, and this spec compares legacy's `View` against it while the port's
+/// `LearnTarget::kind` is `services::LearnKind`. A `using` of the class into this file's scope is
 /// silently resolved to the enum by GCC, which turns every `rig.ml.foo()` into "request for member
 /// in a non-class type". So: `LearnService` is the class, `::MidiLearn` is the enum, and neither
 /// spelling can be mistaken for the other.
@@ -309,9 +310,8 @@ StubDisplay& stub_display() {
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
 /// `View::endMIDILearn` writes the settings to flash unless `AudioEngine::audioBusy()`, which is a
-/// real card write; the port guards on the same check, so holding the tick keeps both sides on the
-/// same branch. It also keeps the audio routine still while the transport runs, as in
-/// `global_controls_spec.cpp`.
+/// real card write; the port guards on the same check through its audio port, so holding the tick keeps both sides on
+/// the same branch. It also keeps the audio routine still while the transport runs, as in `global_controls_spec.cpp`.
 spec::QuietAudio& quiet_audio() {
 	static spec::QuietAudio instance;
 	return instance;
@@ -417,6 +417,8 @@ struct LearnRig {
 	uint32_t now_ms = 0;
 
 	LearnRig() {
+		ml.set_ports(&menu::host_ports());
+		gc.set_ports(&menu::host_ports());
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
@@ -601,9 +603,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// --- The port, from its own sentinel ------------------------------------------------
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 2), true);
+		rig.ml.thing_pressed(LearnTarget::section(2), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 3, 64, 127);
 		const Learned port = Learned::of(slot);
 
@@ -628,7 +630,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 5, 70, 100);
@@ -659,7 +661,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 7, 41, 127);
@@ -691,7 +693,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		expect(rig.ml.pressed().mapping)
@@ -726,7 +728,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		expect(rig.ml.pressed().mapping)
@@ -761,7 +763,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// --- The port, through the real chain -----------------------------------------------
 		release_all_legacy_buttons();
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		expect(rig.ml.active()).to_be_false();
 		rig.press(ButtonId::Learn, true, 1'000);
 		const bool port_on = rig.ml.active();
@@ -805,8 +807,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// --- The port, through the real chain -----------------------------------------------
 		release_all_legacy_buttons();
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.gc.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -814,7 +816,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 2'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::Play, true, 2'020);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::PLAY_BUTTON);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::PLAY_BUTTON);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 1, 60, 127);
 
 		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
@@ -845,8 +847,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		release_all_legacy_buttons();
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.gc.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -854,7 +856,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 3'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::Record, true, 3'020);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::RECORD_BUTTON);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::RECORD_BUTTON);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 4, 62, 127);
 
 		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
@@ -887,8 +889,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		release_all_legacy_buttons();
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.gc.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
+		rig.gc.set_model(&fixture.song->project);
 		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
@@ -896,7 +898,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 4'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::TapTempo, true, 4'020);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::TAP_TEMPO_BUTTON);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::TAP_TEMPO_BUTTON);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 6, 48, 127);
 
 		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
@@ -935,18 +937,18 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// --- The port -----------------------------------------------------------------------
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), true);
+		rig.ml.thing_pressed(LearnTarget::section(1), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 3, 64, 127);
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), false);
+		rig.ml.thing_pressed(LearnTarget::section(1), false);
 		expect(slot.containsSomething()).to_be_true();
 		expect(Learned::of(slot).channel_or_zone).to_equal(3);
 
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), true);
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), false);
+		rig.ml.thing_pressed(LearnTarget::section(1), true);
+		rig.ml.thing_pressed(LearnTarget::section(1), false);
 		expect(slot.containsSomething()).to_be_false();
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::NONE);
 	});
 
 	it("delete on release: a release of a DIFFERENT kind of thing does nothing", _ {
@@ -966,11 +968,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 3), true);
+		rig.ml.thing_pressed(LearnTarget::section(3), true);
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::SECTION);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::SECTION);
 		// The held target is still section 3: its learn edits a scratch committed to that section's record.
 		expect(rig.ml.pressed().section_index).to_equal(section_slot.index);
 	});
@@ -1076,7 +1078,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// --- The port, from its own sentinel ------------------------------------------------
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin(); // phase ON, exactly as `startMIDILearn` -> `midiLearnFlash` leaves it
 		expect(rig.ml.flash_on()).to_be_true();
 		deluge::ui::LedFrame frame;
@@ -1092,7 +1094,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// Hold RECORD, and it starts following the phase without ever being learned (`View::midiLearnFlash`'s RECORD
 		// arm).
-		rig.ml.thing_pressed(LearnTarget::global_command(GlobalMIDICommand::RECORD), true);
+		rig.ml.thing_pressed(LearnTarget::global_command(deluge::project::GlobalCommand::RECORD), true);
 		deluge::ui::LedFrame held_frame;
 		rig.ml.leds(held_frame);
 		const auto [held_declared, held_on] = led_declared_on(held_frame, ButtonId::Record, 0);
@@ -1157,13 +1159,13 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		playbackHandler.playbackState = 0;
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.gc.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
+		rig.gc.set_model(&fixture.song->project);
 		expect(rig.ml.active()).to_be_false();
 		rig.press(ButtonId::Play, true, 5'000);
 
 		expect(playbackHandler.playbackState).not_().to_equal(0);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::NONE);
 		expect(rig.router.dropped_events()).to_equal(0);
 
 		playbackHandler.playbackState = 0;
@@ -1211,9 +1213,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 0), true);
+		rig.ml.thing_pressed(LearnTarget::section(0), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().a), 2, 74, 100);
 
 		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
@@ -1242,13 +1244,13 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 4), true);
+		rig.ml.thing_pressed(LearnTarget::section(4), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().a), 2, 74, 0);
 		expect(slot.containsSomething()).to_be_false();
 		// The release does not clear it either -- the same cancellation, port side.
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 4), false);
+		rig.ml.thing_pressed(LearnTarget::section(4), false);
 		expect(slot.containsSomething()).to_be_false();
 	});
 
@@ -1283,7 +1285,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		deluge::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(fixture.song->getCurrentClip()));
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().b), 8, 74, 100);
@@ -1335,9 +1337,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// --- The port, from `Router::route` ----------------------------------------------------
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 5), true);
+		rig.ml.thing_pressed(LearnTarget::section(5), true);
 		const uint32_t dropped_before = rig.router.dropped_events();
 		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
 
@@ -1379,9 +1381,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 6), true);
+		rig.ml.thing_pressed(LearnTarget::section(6), true);
 		const bool handled = rig.router.route(midi_cc(cables().a, 2, 74, 100), rig.ctx());
 
 		expect(handled).to_be_true();
@@ -1401,9 +1403,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		LearnRig rig;
 		rig.root.claim_midi = true;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 7), true);
+		rig.ml.thing_pressed(LearnTarget::section(7), true);
 		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
 
 		expect(handled).to_be_true();
@@ -1429,9 +1431,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(poison(slot)).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 8), true);
+		rig.ml.thing_pressed(LearnTarget::section(8), true);
 		const uint32_t dropped_before = rig.router.dropped_events();
 		const bool handled = rig.router.route(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .device = {}}, rig.ctx());
 
@@ -1462,12 +1464,12 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// which the guard's second disjunct is there for.
 		rig.ml.set_other_mode_active(false);
 		rig.ml.begin();
-		rig.ml.thing_pressed(LearnTarget::global_command(GlobalMIDICommand::PLAY), true);
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::PLAY_BUTTON);
+		rig.ml.thing_pressed(LearnTarget::global_command(deluge::project::GlobalCommand::PLAY), true);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::PLAY_BUTTON);
 		rig.ml.set_other_mode_active(true);
 		rig.ml.begin();
 		expect(rig.ml.active()).to_be_true();
-		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
+		expect(rig.ml.pressed().kind).to_equal(services::LearnKind::NONE);
 	});
 });
 
@@ -1538,7 +1540,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 5, 61, 127);
@@ -1570,7 +1572,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), false);
@@ -1597,7 +1599,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
@@ -1625,7 +1627,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		deluge::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(fixture.song->getCurrentClip()));
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false); // unlearned
@@ -1643,7 +1645,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 4, 48, 127);
@@ -1656,8 +1658,10 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		static spec::SongFixture fixture = spec::make_synth_song();
 		deluge::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.ml.set_sink(&recording);
+		rig.ml.set_model(&fixture.song->project);
+		bind::Ports ports = menu::host_ports();
+		ports.learn = &recording;
+		rig.ml.set_ports(&ports);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 4, 52, 127);
@@ -1676,14 +1680,17 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		}
 		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()}))
 		    .to_be_null(); // only the request: nothing else wrote
+		rig.ml.set_ports(&menu::host_ports());
 	});
 
 	it("a release that deletes hands the learn port an unlearn", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		deluge::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
-		rig.ml.set_sink(&recording);
+		rig.ml.set_model(&fixture.song->project);
+		bind::Ports ports = menu::host_ports();
+		ports.learn = &recording;
+		rig.ml.set_ports(&ports);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
@@ -1693,6 +1700,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(deluge::project::MappingTarget{deluge::project::ClipMuteTarget{fixture.clip->id()}});
 			expect(recording.calls[0].command.has_value()).to_be_false();
 		}
+		rig.ml.set_ports(&menu::host_ports());
 	});
 
 	it("an input learn on a synth records the velocity-to-level cable and the bend range", _ {
@@ -1704,7 +1712,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const uint32_t id = *fixture.instrument->id();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 5, 60, 127);
@@ -1730,7 +1738,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const CableDefaults defaults{cables().b, 2, 0x10000000, 5};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 2, 36, 127);
@@ -1761,7 +1769,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		actionLogger.deleteAllLogs();
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 4, 62, 127);
@@ -1871,7 +1879,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const CableDefaults defaults{cables().a, 3, 0, 7};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 3, 60, 127);
@@ -1912,7 +1920,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		*misread = 9;
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().a), 0, 74, 100);
@@ -1958,7 +1966,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const CableDefaults defaults{cables().a, 8, 0x14000000, 0};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*synth->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 8, 60, 127);
@@ -1997,7 +2005,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const CableDefaults defaults{cables().b, 6, 0, 9};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().b), 6, 40, 127);
@@ -2031,7 +2039,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const CableDefaults defaults{cables().a, 6, 0, 9};
 
 		LearnRig rig;
-		rig.ml.set_song(fixture.song);
+		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 6, 61, 127);

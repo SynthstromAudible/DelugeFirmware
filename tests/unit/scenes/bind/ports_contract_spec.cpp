@@ -5,6 +5,7 @@
 #include "support/printers/controls_printer.h"
 #include "support/printers/learn_input_printer.h"
 #include "support/printers/mapping_printer.h"
+#include "support/printers/transport_action_printer.h"
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
@@ -12,8 +13,12 @@
 
 #include <cppspec.hpp>
 
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 using namespace deluge::scenes::bind;
 using device_path = deluge::project::device_path;
@@ -306,6 +311,143 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		// A sink that keeps nothing fails the read-back case.
 		host.learn.devices = nullptr;
 		expect(contract::learns_read_back(host.learn, host.midi, deluge::midi::kDin)).to_be_false();
+	});
+	it("reads one port through an installed set or none, and holds the device actions', feedback's and references' contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(port_of(nullptr, &Ports::audio)).to_be_null();
+		expect(port_of(&p, &Ports::audio)).to_equal(p.audio);
+		expect(port_of(&p, &Ports::device_actions)).to_equal(p.device_actions);
+
+		expect(p.device_actions).not_().to_be_null();
+		p.device_actions->save_settings();
+		expect(host.device_actions.calls.size()).to_equal(size_t{1});
+		if (host.device_actions.calls.size() == 1) {
+			expect(host.device_actions.calls[0]).to_equal(test::RecordingDeviceActions::Kind::SAVE_SETTINGS);
+		}
+
+		expect(p.audio->audio_busy()).to_be_false();
+		host.audio.busy = true;
+		expect(p.audio->audio_busy()).to_be_true();
+
+		expect(p.midi_feedback).not_().to_be_null();
+		expect(contract::unfollowable_param_has_no_cc(*p.midi_feedback)).to_be_true();
+		const deluge::project::ParamTarget followed = deluge::project::engine_target(7);
+		host.midi_feedback.ccs.emplace_back(deluge::project::OwnerPlugin::INSTRUMENT, followed, uint8_t{74});
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, followed)).to_equal(std::optional<uint8_t>{74});
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE, followed).has_value()).to_be_false();
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, deluge::project::engine_target(8)).has_value())
+		    .to_be_false();
+		expect(contract::unfollowable_param_has_no_cc(*p.midi_feedback)).to_be_true();
+		host.midi_feedback.on = true;
+		host.midi_feedback.global_context = true;
+		expect(p.midi_feedback->enabled()).to_be_true();
+		expect(p.midi_feedback->global_effectable_context()).to_be_true();
+		p.midi_feedback->send(74, -64);
+		p.midi_feedback->send_all(true);
+		using FeedbackCall = test::RecordingMidiFeedback::Call;
+		expect(host.midi_feedback.calls.size()).to_equal(size_t{2});
+		if (host.midi_feedback.calls.size() == 2) {
+			expect(host.midi_feedback.calls[0].kind).to_equal(FeedbackCall::Kind::SEND);
+			expect(host.midi_feedback.calls[0].cc).to_equal(uint8_t{74});
+			expect(host.midi_feedback.calls[0].knob_pos).to_equal(-64);
+			expect(host.midi_feedback.calls[1].kind).to_equal(FeedbackCall::Kind::SEND_ALL);
+			expect(host.midi_feedback.calls[1].automation).to_be_true();
+		}
+
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_true();
+		host.midi.connect(deluge::midi::DeviceId{40}, "Hosted");
+		const std::optional<deluge::project::MidiDeviceRef> hosted = p.midi->reference(deluge::midi::DeviceId{40});
+		expect(hosted.has_value()).to_be_true();
+		if (hosted) {
+			expect(hosted->port).to_equal(deluge::project::MidiDeviceRef::Port::HOSTED);
+			expect(hosted->name).to_equal(std::string{"Hosted"});
+		}
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_true();
+		// A listed device with no reference fails the case.
+		host.midi.refs.erase(40);
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_false();
+	});
+	it("answers the transport as the spec set it, flips it on PLAY and the metronome toggle, and records every action", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.transport).not_().to_be_null();
+		expect(p.transport_actions).not_().to_be_null();
+		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
+		expect(contract::count_in_is_a_count(*p.transport)).to_be_true();
+		host.transport.count_in = 3;
+		expect(p.transport->count_in_visual()).to_equal(3);
+		expect(contract::count_in_is_a_count(*p.transport)).to_be_true();
+		host.transport.clocks = true;
+		host.transport.mode = TransportRecording::ARRANGEMENT;
+		host.transport.undo_ok = true;
+		host.transport.overdubs = true;
+		expect(p.transport->clocks_active()).to_be_true();
+		expect(p.transport->recording()).to_equal(TransportRecording::ARRANGEMENT);
+		expect(p.transport->undo_allowed()).to_be_true();
+		expect(p.transport->overdubs_pending()).to_be_true();
+		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
+
+		expect(contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
+		expect(p.transport->playing()).to_be_false();
+		p.transport_actions->play();
+		expect(host.transport.is_playing).to_be_true();
+		p.transport_actions->record();
+		p.transport_actions->tap_tempo(true);
+		p.transport_actions->clear_tempo_automation();
+		p.transport_actions->show_swing_interval();
+		p.transport_actions->show_tempo();
+		p.transport_actions->undo(true);
+		p.transport_actions->begin_output_recording();
+		p.transport_actions->end_recording_soon();
+		p.transport_actions->stop_output_recording_at_loop_end();
+		p.transport_actions->fill(true);
+		using Call = test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+		const std::vector<Call> expected{
+		    {.kind = K::TOGGLE_METRONOME},
+		    {.kind = K::TOGGLE_METRONOME},
+		    {.kind = K::PLAY},
+		    {.kind = K::RECORD},
+		    {.kind = K::TAP_TEMPO, .flag = true},
+		    {.kind = K::CLEAR_TEMPO_AUTOMATION},
+		    {.kind = K::SHOW_SWING_INTERVAL},
+		    {.kind = K::SHOW_TEMPO},
+		    {.kind = K::UNDO, .flag = true},
+		    {.kind = K::BEGIN_OUTPUT_RECORDING},
+		    {.kind = K::END_RECORDING_SOON},
+		    {.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END},
+		    {.kind = K::FILL, .flag = true},
+		};
+		expect(host.transport_actions.calls).to_equal(expected);
+
+		// A recorder with no transport flips nothing, so the read-back case fails on it.
+		test::FakeTransport still;
+		test::RecordingTransportActions unwired;
+		expect(contract::metronome_toggles_read_back(unwired, still)).to_be_false();
+		unwired.play();
+		expect(still.is_playing).to_be_false();
+	});
+	it("answers the foreground recorder's source and resampling as the spec set them, and records forgetting undo", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.audio->foreground_recording()).to_equal(ForegroundRecording::NONE);
+		expect(p.audio->resampling()).to_be_false();
+		for (const ForegroundRecording f : {ForegroundRecording::UNSET, ForegroundRecording::NONE,
+		                                    ForegroundRecording::EXTERNAL, ForegroundRecording::INTERNAL}) {
+			host.audio.foreground = f;
+			expect(p.audio->foreground_recording()).to_equal(f);
+			expect(contract::foreground_recording_is_a_source(*p.audio)).to_be_true();
+		}
+		host.audio.foreground = static_cast<ForegroundRecording>(4);
+		expect(contract::foreground_recording_is_a_source(*p.audio)).to_be_false();
+		host.audio.resample = true;
+		expect(p.audio->resampling()).to_be_true();
+
+		host.transport.is_playing = true;
+		expect(contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
+		expect(host.device_actions.calls).to_equal(
+		    std::vector<test::RecordingDeviceActions::Kind>{test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS});
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;

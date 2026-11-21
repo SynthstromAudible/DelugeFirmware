@@ -68,7 +68,11 @@ static_assert(std::to_underlying(MenuHighlighting::NO_INVERSION) == 2);
 static_assert(project::kDimmestPadLevel == kMinLedBrightness && project::kBrightestPadLevel == kMaxLedBrightness);
 static_assert(SessionLayoutTypeGrid == 1 && GridDefaultActiveModeBlue == 2 && KeyboardLayoutTypePiano == 2);
 static_assert(std::to_underlying(KeyboardLayout::QWERTZ) == 2);
-static_assert(std::to_underlying(ScreensaverMode::DELUGE) == 3);
+static_assert(std::to_underlying(project::ScreensaverMode::OFF) == std::to_underlying(::ScreensaverMode::OFF));
+static_assert(std::to_underlying(project::ScreensaverMode::BLANK) == std::to_underlying(::ScreensaverMode::BLANK));
+static_assert(std::to_underlying(project::ScreensaverMode::STARSCAPE)
+              == std::to_underlying(::ScreensaverMode::STARSCAPE));
+static_assert(std::to_underlying(project::ScreensaverMode::DELUGE) == std::to_underlying(::ScreensaverMode::DELUGE));
 static_assert(PREVIEW_OFF == 0 && PREVIEW_ONLY_WHILE_NOT_PLAYING == 1 && PREVIEW_ON == 2);
 static_assert(deluge::gui::RED == 0 && deluge::gui::PINK == 8 && deluge::gui::kNumPadColours == 9);
 static_assert(std::to_underlying(InputMonitoringMode::OFF) == 2 && kNumInputMonitoringModes == 3);

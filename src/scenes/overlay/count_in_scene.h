@@ -5,12 +5,18 @@
 ///        the beats remaining before recording starts.
 ///
 /// Ports the count-in half of `drain_notifications` (`gui/ui/notify_drain.cpp`). This is
-/// **not** a `View`/UI method at all -- the digit itself is `PlaybackHandler::count_in_visual()`
-/// (`PlaybackHandler::count_in_visual`), moved by the count-in entry of
-/// `PlaybackHandler::setupPlaybackUsingInternalClock` (resetting it to 0 and setting `UI_MODE_RECORD_COUNT_IN`) and
-/// by `PlaybackHandler::actionSwungTick`'s count-in branch, both when the count-in ends and recording starts
-/// (resetting the count to 0) and, otherwise, on every remaining beat. The popup lifecycle -- when it draws, and when
-/// it stops -- is `notify_drain.cpp`'s own edge-detected block, reproduced here in `tick()`.
+/// **not** a `View`/UI method at all -- the digit is the installed transport port's
+/// `bind::Transport::count_in_visual()`, which the host answers from `PlaybackHandler::count_in_visual`: the count-in
+/// entry of `PlaybackHandler::setupPlaybackUsingInternalClock` moves it (resetting it to 0 and setting
+/// `UI_MODE_RECORD_COUNT_IN`), and so does `PlaybackHandler::actionSwungTick`'s count-in branch, both when the count-in
+/// ends and recording starts (resetting the count to 0) and, otherwise, on every remaining beat. The popup lifecycle --
+/// when it draws, and when it stops -- is `notify_drain.cpp`'s own edge-detected block, reproduced here in `tick()`.
+///
+/// @par Who pushes it
+///
+/// Nothing in the app pushes this scene: the registry registers it, and the live count-in popup on the device is
+/// the legacy notification drain's. The host installs its transport port at boot (`set_transport`), so a scene pushed
+/// later reads the app's count; with no port installed it reads 0 and shows nothing.
 ///
 /// @par Four apparent facts of the count-in popup -- two of which are not facts on this codebase
 ///
@@ -64,27 +70,23 @@
 /// in task context" (`notify_drain.cpp`) -- run every drain pass, unconditionally, whether or
 /// not any input arrived. The only port-side hook that runs unconditionally on that shape is
 /// `Scene::tick()` armed by `next_timer()`, exactly as `RecorderScene`'s completion poll is
-/// (`recorder_scene.h`'s class doc, `kRecorderPollMs`) -- so `tick()` here reads
-/// `playbackHandler.count_in_visual()` itself (`playback/playback_handler.h` is on this layer's
-/// allowed list) rather than taking it as a parameter, and `next_timer()` asks for another tick at
+/// (`recorder_scene.h`'s class doc, `kRecorderPollMs`) -- so `tick()` here reads the transport port's
+/// `count_in_visual()` itself rather than taking it as a parameter, and `next_timer()` asks for another tick at
 /// `kCountInPollMs` **unconditionally**, forever -- not only while a count-in is showing, because
 /// this scene also has to notice one *starting*, and nothing else would wake it to look.
 ///
-/// (An earlier version of this scene took the count as a `show(int32_t)` parameter, driven by the
-/// spec the way `ParamPopupScene::show()` is. Its own spec caught the mistake: driving `show()`
-/// directly, with no repaint request of any kind between calls, left the shell's OLED gate
-/// unarmed after the first tick, so every call after the first rendered the *previous* digit's
-/// stale pixels -- `Shell::tick`'s step 5 renders a surface only when its gate reports
-/// `needs_frame()`, and nothing but a scene's own `next_timer()`/`render_oled` arm, or a real input
-/// event, ever asks for that. A caller-driven scene with no caller in the input pipeline needs the
-/// poll shape, not the caller shape.)
+/// A `show(int32_t)` driven the way `ParamPopupScene::show()` is would not work here: with no repaint request
+/// between calls, the shell's OLED gate stays unarmed after the first tick, so every call after the first renders the
+/// *previous* digit's pixels -- `Shell::tick`'s step 5 renders a surface only when its gate reports `needs_frame()`,
+/// and nothing but a scene's own `next_timer()`/`render_oled` arm, or a real input event, ever asks for that. A scene
+/// with no caller in the input pipeline needs the poll shape, not the caller shape.
 ///
 /// @par What this scene actually does
 ///
 ///   * `tick()` -- the edge-detector of `drain_notifications` (`notify_drain.cpp`) (`if (count_in != shown_count_in)`)
-///     against `playbackHandler.count_in_visual()`, plus its `if (count_in > 0)` arm: format the digit and (re)draw the
-///     box. Idempotent -- an unchanged count changes nothing, matching legacy's own guard exactly (legacy does not
-///     redraw either).
+///     against the transport port's `count_in_visual()`, plus its `if (count_in > 0)` arm: format the digit and
+///     (re)draw the box. Idempotent -- an unchanged count changes nothing, matching legacy's own guard exactly (legacy
+///     does not redraw either).
 ///   * The `else` arm: stop drawing (legacy's `cancelPopup()`); the masked mode clear
 ///     is the documented gap above.
 ///   * `after_render()` -- fires `Action::Kind::Remove` the tick this scene stops showing, so
@@ -94,6 +96,7 @@
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
 ///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
 
+#include "scenes/bind/ports/transport.h"
 #include "shell/scene.h"
 
 #include <cstddef>
@@ -106,7 +109,7 @@ namespace deluge::scenes::overlay {
 inline constexpr deluge::ui::shell::SceneKind kCountInSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 7);
 
-/// @brief How often `tick()` polls `playbackHandler.count_in_visual()` with no input at all.
+/// @brief How often `tick()` polls the transport port's `count_in_visual()` with no input at all.
 ///
 /// Matches `RecorderScene::kRecorderPollMs`'s shape (same reasoning: a fact only a poll can
 /// discover), not its value -- there is no requirement the two ever agree, and this scene's own
@@ -122,8 +125,8 @@ public:
 	/// @return Always `Result::unhandled()`.
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
-	/// @brief The poll: `drain_notifications` (`notify_drain.cpp`), reproduced against
-	///        `playbackHandler.count_in_visual()`. See the class doc's "poll, not a caller-driven
+	/// @brief The poll: `drain_notifications` (`notify_drain.cpp`), reproduced against the transport port's
+	///        `count_in_visual()`. See the class doc's "poll, not a caller-driven
 	///        popup" note for why this, and not a `show()` a caller invokes, is the entry point.
 	/// @param dt_ms Unused: nothing here counts down a duration, only compares the model's own
 	///              current value against what was last shown.
@@ -151,6 +154,10 @@ public:
 	/// @brief False: never takes input, so the scene beneath keeps its own input focus.
 	bool input_transparent() const override { return true; }
 
+	/// @brief Read the count-in from @p transport, or show nothing when it is null.
+	/// @param transport The transport port; not owned, it must outlive the scene's use of it.
+	void set_transport(const deluge::scenes::bind::Transport* transport) { transport_ = transport; }
+
 	/// @name Observable state
 	/// For specs.
 	/// @{
@@ -162,6 +169,7 @@ public:
 
 private:
 	static constexpr size_t kTextCap = 11; // `char buffer[12]` (`drain_notifications` in `notify_drain.cpp`).
+	const deluge::scenes::bind::Transport* transport_ = nullptr; ///< The installed port; null reads no count-in.
 	char digit_[kTextCap + 1] = {};
 	size_t digit_len_ = 0;
 

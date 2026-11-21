@@ -1,0 +1,14 @@
+# A `midi` step reaches the app through the DIN MIDI input: a note learned to RECORD (LEARN and RECORD held while it
+# arrives) toggles RECORD's LED when it comes again, as sm13-midi-selftest checks on the emulator.
+# card: tests/fixtures/card
+3000 button Learn down
+3040 button Record down
+3300 midi 903c64
+3400 midi 803c00
+3600 button Record up
+3640 button Learn up
+3900 snapshot learned
+4900 midi 903c64
+5000 midi 803c00
+5300 snapshot toggled
+5400 quit

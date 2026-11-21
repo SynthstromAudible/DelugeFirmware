@@ -198,6 +198,8 @@ inline const char* step_kind_name(StepKind kind) {
 		return "model";
 	case StepKind::Notice:
 		return "notice";
+	case StepKind::Midi:
+		return "midi";
 	case StepKind::Quit:
 		return "quit";
 	}
@@ -518,9 +520,9 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		result.error = detail::make_error(0, "tick_ms must be greater than zero");
 		return result;
 	}
-	deluge::harness::ScriptResult parsed = deluge::harness::parse_script(script_text);
-	if (parsed.error) {
-		result.error = *parsed.error;
+	const std::unique_ptr<deluge::harness::ScriptResult> parsed = deluge::harness::parse_script(script_text);
+	if (parsed->error) {
+		result.error = *parsed->error;
 		return result;
 	}
 
@@ -531,8 +533,8 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	// must outlive that call.
 	detail::BoardStorage board_storage;
 	const DelugeBoard* board = opts.board;
-	for (size_t i = 0; i < parsed.steps.size(); i++) {
-		const Step& s = parsed.steps[i];
+	for (size_t i = 0; i < parsed->steps.size(); i++) {
+		const Step& s = parsed->steps[i];
 		if (s.kind != StepKind::Board) {
 			continue;
 		}
@@ -606,7 +608,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	}
 
 	uint32_t last_ms = 0;
-	for (const Step& s : parsed.steps) {
+	for (const Step& s : parsed->steps) {
 		last_ms = std::max(last_ms, s.at_ms);
 	}
 
@@ -614,11 +616,14 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	bool quit = false;
 	for (uint32_t t = 0;; t += opts.tick_ms) {
 		std::vector<std::string> due_snapshots;
-		for (; next < parsed.steps.size() && parsed.steps[next].at_ms <= t; next++) {
-			const Step& s = parsed.steps[next];
+		for (; next < parsed->steps.size() && parsed->steps[next].at_ms <= t; next++) {
+			const Step& s = parsed->steps[next];
 			const uint16_t line = detail::line_of_step(script_text, next);
 			result.log += std::to_string(t) + " " + detail::step_kind_name(s.kind) + " " + s.name + "\n";
 			switch (s.kind) {
+			case StepKind::Midi:
+				result.error = detail::make_error(line, "midi is an app-level step: a level-2 run has no MIDI input");
+				return result;
 			case StepKind::Board:
 				break; // already applied, above
 			case StepKind::Snapshot:

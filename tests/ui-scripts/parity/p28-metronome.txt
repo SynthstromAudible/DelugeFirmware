@@ -1,0 +1,50 @@
+# The metronome and a recording's count-in: SHIFT+TAP TEMPO turns the metronome on (its LED), COUNT-IN is set to one
+# bar on the settings menu's RECORDING page, RECORD arms and PLAY starts the count-in's countdown before the take,
+# then PLAY stops and SHIFT+TAP TEMPO turns the metronome off. The settings walk is counted for a host that turns the
+# encoder by exactly its detents; delugemu drops the first detent of a turn after boot and after a reversal (sm00).
+# card: content/bare.img
+# card: content/card.img
+100   snapshot boot
+300   button Shift down
+400   button TapTempo down
+420   button TapTempo up
+500   button Shift up
+1200  snapshot metronome-on
+1500  button Shift down
+1600  button SelectEnc down
+1620  button SelectEnc up
+1700  button Shift up
+2400  snapshot settings
+2700  encoder Select +10
+3200  snapshot settings-recording
+3500  button SelectEnc down
+3520  button SelectEnc up
+4200  snapshot recording-page
+4500  button SelectEnc down
+4520  button SelectEnc up
+5200  snapshot count-in-page
+5500  encoder Select +1
+6000  snapshot count-in-1
+6300  button Back down
+6320  button Back up
+6800  button Back down
+6820  button Back up
+7300  button Back down
+7320  button Back up
+8000  snapshot menu-closed
+8300  button Record down
+8320  button Record up
+9000  snapshot armed
+9300  button Play down
+9320  button Play up
+9800  snapshot count-in-a
+10800 snapshot count-in-b
+13000 snapshot recording
+13300 button Play down
+13320 button Play up
+14000 snapshot stopped
+14300 button Shift down
+14400 button TapTempo down
+14420 button TapTempo up
+14500 button Shift up
+15200 snapshot metronome-off

@@ -9,7 +9,8 @@ endif()
 set(_menu ${DELUGE_REPO_ROOT}/src/scenes/menu)
 set(_l10n ${DELUGE_REPO_ROOT}/src/deluge/gui/l10n)
 deluge_specs_driver(menu_fakes_specs TREES host
-  SOURCES ${_menu}/note_bridge.cpp
+  SOURCES ${_menu}/context.cpp
+          ${_menu}/note_bridge.cpp
           ${_menu}/nodes/actions.cpp
           ${_menu}/nodes/dx_algorithms.cpp
           ${_menu}/nodes/dx_tables.cpp
