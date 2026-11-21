@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import x86_parity as xp
 from emu_parity import midi_bytes
@@ -116,6 +117,26 @@ class CardCacheTest(TempTest):
         self.assertNotEqual(first, second)
         self.assertEqual(first.parent, cache)
         self.assertTrue(first.name.startswith("bare@"))
+
+    def test_a_card_manifest_is_built_here_not_left_to_the_binary(self):
+        built = self.tmp()
+        with mock.patch.object(
+            xp.ui_script_cards, "tree", return_value=built / "x"
+        ) as tree:
+            got = xp.card_tree(
+                "tests/fixtures/card-midi-definition.card", self.tmp(), built
+            )
+        tree.assert_called_once_with(
+            xp.REPO / "tests/fixtures/card-midi-definition.card",
+            built / "card-midi-definition",
+        )
+        self.assertEqual(got, built / "x")
+
+    def test_a_directory_card_is_used_as_it_stands(self):
+        self.assertEqual(
+            xp.card_tree("tests/fixtures/card", self.tmp(), self.tmp()),
+            xp.REPO / "tests/fixtures/card",
+        )
 
 
 class CompareTest(TempTest):

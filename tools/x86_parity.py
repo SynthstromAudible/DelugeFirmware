@@ -20,7 +20,9 @@ Each script is first checked as emu_parity checks it (`check_steps`: no unknown 
 script that fails the check or cannot be translated, a card that cannot be extracted and a script that names no card
 are reported before anything runs, and each of their legs counts as failed on both sides.
 Each script runs once per card its `# card:` header names. A FAT image (`*.img`) is extracted once with mtools into
-the store's card cache, keyed by the image's mtime; a directory card is used as it stands.
+the store's card cache, keyed by the image's mtime; a card manifest (`*.card`) is built into DIR/cards/ from this
+checkout, so a kept base binary, whose own source tree may be gone, takes the same card; a directory card is used as it
+stands.
 
 Results: DIR/ref/got/<leg>/ and DIR/test/got/<leg>/ hold each side's snapshots (`<snap>.oled<n>.pbm`, `.state`, and
 `.midi`, the DIN MIDI the app sent since the previous snapshot), DIR/<side>/scripts/ the translated scripts,
@@ -170,9 +172,13 @@ def cache_dir_for(image: Path, cache: Path) -> Path:
     return cache / f"{image.stem}@{image.stat().st_mtime_ns}"
 
 
-def card_tree(card: str, cache: Path) -> Path:
-    """The directory tree the host app takes for @card: a directory card as it is, a FAT image extracted once."""
+def card_tree(card: str, cache: Path, built: Path) -> Path:
+    """The directory tree the host app takes for @card: a directory card as it is, a card manifest built into @built
+    from this checkout, a FAT image extracted once into @cache. A binary resolves a manifest against the tree it was
+    built in, which a kept base binary no longer has, so both sides are handed the one tree built here."""
     path = ui_script_cards.resolve(card, REPO)
+    if path.suffix == ".card":
+        return ui_script_cards.tree(path, built / ui_script_cards.label(card))
     if path.suffix != ".img":
         return path
     dest = cache_dir_for(path, cache)
@@ -227,7 +233,7 @@ def why(e: BaseException) -> str:
     return f"{type(e).__name__}: {e}"
 
 
-def prepare(scripts: list[Path], cache: Path) -> list[Leg]:
+def prepare(scripts: list[Path], cache: Path, built: Path) -> list[Leg]:
     """Every script's legs, each translated and given its card's tree once, before anything runs. A failure is the
     leg's error, printed now, so one bad script or card fails its own legs and not the run."""
     trees: dict[str, Path | str] = {}
@@ -253,7 +259,7 @@ def prepare(scripts: list[Path], cache: Path) -> list[Leg]:
         for card in cards:
             if card not in trees:
                 try:
-                    trees[card] = card_tree(card, cache)
+                    trees[card] = card_tree(card, cache, built)
                 except Exception as e:  # noqa: BLE001 - a card that cannot be extracted fails the legs on it
                     trees[card] = why(e)
                     print(f"X86-PARITY-ERROR card {card}: {trees[card]}", flush=True)
@@ -464,9 +470,9 @@ def main() -> int:
         scripts += sorted(s.glob("*.txt")) if s.is_dir() else [s]
     cache = store / "x86-cards"
     cache.mkdir(parents=True, exist_ok=True)
-    legs = prepare(scripts, cache)
-
     out = a.out.resolve()
+    legs = prepare(scripts, cache, out / "cards")
+
     ref = run_side(a.ref.resolve(), legs, out / "ref", a.j)
     test = run_side(a.test.resolve(), legs, out / "test", a.j)
     (out / "ref" / "got").mkdir(parents=True, exist_ok=True)
