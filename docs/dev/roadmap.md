@@ -100,8 +100,8 @@ keeps the option open to put the UI behind a C ABI.
 **Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a
 scene's context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`,
 `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport` and `controls::Facts`; the write ports are
-`ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; `Transport` reads the transport and
-`TransportActions`, `DeviceActions` and `MidiFeedback` are the call ports; `MidiDevices` carries the per-device
+`ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; the call ports are `TransportActions`,
+`DeviceActions` and `MidiFeedback`; `MidiDevices` carries the per-device
 settings, and a device is a `midi::DeviceId` the host registry maps to its cable. The device's own settings are the
 DEVICE setting group (`deluge-project/device_settings.h`), read and written by row through the `DeviceSettings` port
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the
@@ -117,9 +117,9 @@ overlays read and act through the ports (the services and overlays through a poi
 `menu/` or `overlay/` includes a legacy runtime header, and `services/` includes one only for the waveform painter.
 17 scene files outside `bind/` include 37 (`scenes-reads-outside-bind`). By directory: `browser/` 4 files / 8
 includes, `audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `services/` 3 / 4 (the waveform files),
-`slicing/` 2 / 4, `marker/` 2 / 2, `rename/` and `timeline/` 1 / 1 each. Beyond those, 25 scene files outside `bind/`
-include `definitions_cxx.hpp` directly, 8 of them in the menu. `--list` prints the per-file counts. The 37 includes, by what they read (each header with the number of counted files
-that include it):
+`slicing/` 2 / 4, `marker/` 2 / 2, `rename/` and `timeline/` 1 / 1 each. Beyond those, 17 scene files outside `bind/`
+include `definitions_cxx.hpp` directly, 6 of them in the menu. `--list` prints the per-file counts. The 37 includes,
+by what they read (each header with the number of counted files that include it):
 
 - **The song and the model:** `model/song/song.h` 3, `model/action/action_logger.h` 2 (5).
 - **The flash settings and the community features:** `storage/flash_storage.h` 4,

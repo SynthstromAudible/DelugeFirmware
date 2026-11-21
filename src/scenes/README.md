@@ -711,8 +711,10 @@ for live param values. Their vocabulary is `project::` addresses, `plugin::` ids
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
 * **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
   `scenes-reads-outside-bind` rule counts none there). What the menu asks the app for directly is the set of
-  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes share. The services and the overlays count none
-  either; `host_binds` is left for the audio clip scene alone.
+  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes share. The four services (`global_controls`,
+  `midi_learn`, `mod_knobs` and `knob_push`) and the two overlays count none either; `host_binds` is left for the
+  audio clip scene alone. The waveform files under `services/` (`waveform_paint.{h,cpp}` and `waveforms.h`)
+  count 4 includes, which go with the remaining scenes' reads.
 
 ### The DEVICE setting group
 
