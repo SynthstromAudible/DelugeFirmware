@@ -48,7 +48,7 @@ struct MinimalHost {
 	VoiceClock clock() { return VoiceClock{&next}; }
 };
 
-/// A kernel that cannot release on demand.
+/// A kernel without speed_up_release, so no kernel: a host's force-release could not ask it.
 struct NoSpeedUp {
 	[[nodiscard]] uint32_t priority_rating(deluge::plugin::VoicePriority /*priority*/, size_t /*count*/) const {
 		return 0;

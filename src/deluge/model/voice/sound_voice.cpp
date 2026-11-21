@@ -34,15 +34,9 @@ using deluge::synth::SourceSlot;
 
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
-using deluge::synth::VoiceClock;
 
 namespace {
 uint32_t lastSoundOrder = 0;
-
-/// The clock every voice's envelope stamps are taken from.
-VoiceClock engineClock() {
-	return VoiceClock{&AudioEngine::nextVoiceState};
-}
 } // namespace
 
 SoundVoice::SoundVoice(Sound& sound) : sound{sound} {
@@ -80,8 +74,8 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 		}
 	}
 
-	const bool started =
-	    kernel.note_on(setup, sound.config(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
+	const bool started = kernel.note_on(setup, sound.config(), event, AudioEngine::voiceClock(),
+	                                    sound.numActiveVoices(), deluge::synth_noise);
 	deluge::param_dump::note_on(&sound, this);
 	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
 	return started;
@@ -105,7 +99,8 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 		guides[s].noteOffReceived = true;
 	}
 
-	kernel.note_off(release_info_for(sound, paramManager, note_tails_allowed), allow_release_stage, engineClock());
+	kernel.note_off(release_info_for(sound, paramManager, note_tails_allowed), allow_release_stage,
+	                AudioEngine::voiceClock());
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		SourceResources* source = &sound.sourceResources[s];
@@ -165,7 +160,7 @@ void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_
 }
 
 deluge::synth::VoiceBlock SoundVoice::block() const {
-	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = engineClock()};
+	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = AudioEngine::voiceClock()};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		AudioFileHolder* holder = guides[s].audioFileHolder;
 		const OscType oscType = sound.oscType(s);
@@ -184,15 +179,15 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 }
 
 bool SoundVoice::do_fast_release(uint32_t release_increment) {
-	return kernel.do_fast_release(release_increment, engineClock());
+	return kernel.do_fast_release(release_increment, AudioEngine::voiceClock());
 }
 
 bool SoundVoice::speed_up_release() {
-	return kernel.speed_up_release(engineClock());
+	return kernel.speed_up_release(AudioEngine::voiceClock());
 }
 
 bool SoundVoice::do_immediate_release() {
-	return kernel.do_immediate_release(engineClock());
+	return kernel.do_immediate_release(AudioEngine::voiceClock());
 }
 
 // Unusually, flags may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.

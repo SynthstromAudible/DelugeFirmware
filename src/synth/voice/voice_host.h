@@ -45,7 +45,7 @@ struct NoteFacts {
 	bool note_tails_allowed{};               ///< Some active source sustains, so a released note keeps sounding
 	std::array<bool, 2> source_active_now{}; ///< Each source sounds at the current settings
 	bool fm{};                               ///< The sound's engine is FM
-	bool operator==(const NoteFacts&) const = default;
+	bool operator==(const NoteFacts&) const = default; ///< Field by field
 };
 
 /// @brief What a voice's kernel does for the pool: rate itself for the cull, report a cull fade, release on demand.
@@ -66,7 +66,6 @@ concept voice_kernel = requires(K& kernel, const K& rated, plugin::VoicePriority
 /// the instrument takes it inside its own, and is free on the audio tier.
 template <class H>
 concept voice_host = requires(H& host, H::Slot& slot, uint32_t cost) {
-	typename H::Slot;
 	typename H::List;
 	typename H::Exclusion;
 	{ host.acquire() } -> std::same_as<typename H::Slot*>; ///< null when there is no memory

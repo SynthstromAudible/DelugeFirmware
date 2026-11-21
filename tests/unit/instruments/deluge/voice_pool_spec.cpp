@@ -32,7 +32,8 @@ describe voice_pool("a sound's voices", ${
 	it("frees a voice's resources while it is still listed, then its slot", _{
 		Rig rig({5, 6, 7});
 		const auto second = rig.pool.read([](const FakeHost::List& voices) { return voices.begin() + 1; });
-		(void)rig.pool.erase(second);
+		const auto next = rig.pool.erase(second);
+		expect((*next)->part).to_equal(2);
 		expect(rig.host.log).to_equal(
 		    std::vector<std::string>{"unassign 1 listed 3", "edit depth 1", "release 1 listed 2"});
 		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 2});
@@ -59,7 +60,7 @@ describe voice_pool("a sound's voices", ${
 
 	it("names the first voice of the highest rating, by a strict comparison", _{
 		Rig rig({5, 9, 9, 3});
-		expect(rig.pool.lowest_rating(kPriority, true)).to_equal(std::optional<uint32_t>{9});
+		expect(rig.pool.cull_rating(kPriority, true)).to_equal(std::optional<uint32_t>{9});
 		rig.pool.cull(kPriority, CullKind::IMMEDIATE, 0);
 		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 2, 3});
 	});
@@ -71,7 +72,7 @@ describe voice_pool("a sound's voices", ${
 		expect(kill.ids()).to_equal(std::vector<int32_t>{0, 2});
 
 		Rig terminate({5, 10, 7}, fading);
-		expect(terminate.pool.lowest_rating(kPriority, true)).to_equal(std::optional<uint32_t>{7});
+		expect(terminate.pool.cull_rating(kPriority, true)).to_equal(std::optional<uint32_t>{7});
 		terminate.pool.cull(kPriority, CullKind::FAST_RELEASE, 512);
 		expect(terminate.ids()).to_equal(std::vector<int32_t>{0, 1});
 
@@ -98,13 +99,13 @@ describe voice_pool("a sound's voices", ${
 
 	it("answers none with no voices, and with only cull-fading ones when passing over them", _{
 		Rig none;
-		expect(none.pool.lowest_rating(kPriority, false)).to_equal(std::optional<uint32_t>{});
+		expect(none.pool.cull_rating(kPriority, false)).to_equal(std::optional<uint32_t>{});
 		none.pool.cull(kPriority, CullKind::IMMEDIATE, 0);
 		expect(none.host.log).to_equal(std::vector<std::string>{});
 
 		Rig fading({4, 8}, {true, true});
-		expect(fading.pool.lowest_rating(kPriority, true)).to_equal(std::optional<uint32_t>{});
-		expect(fading.pool.lowest_rating(kPriority, false)).to_equal(std::optional<uint32_t>{8});
+		expect(fading.pool.cull_rating(kPriority, true)).to_equal(std::optional<uint32_t>{});
+		expect(fading.pool.cull_rating(kPriority, false)).to_equal(std::optional<uint32_t>{8});
 	});
 
 	it("reads and changes voices in place with the render excluded", _{

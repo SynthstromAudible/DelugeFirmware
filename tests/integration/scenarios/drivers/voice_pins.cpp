@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Which voice each cull, steal and admit takes, run as the voice_pins scenario. Five new synths in a song of the
-// driver's own play fixed note scripts; after each step the driver lists every sounding voice (sound, place in its
-// list, note, envelope stage, cull rating), and compares the whole listing with voice_pins_records.h. The cases: the
-// backstop's kill, terminate and force-release across sounds; the budget's admit; a sound's voice limit; MONO and
+// Which voice each cull, steal and admit takes, run as the voice_pins scenario. The driver builds a song of five new
+// synths and plays fixed note scripts on them; after each step the driver lists every sounding voice (sound, place in
+// its list, note, envelope stage, cull rating), and compares the whole listing with voice_pins_records.h. The cases:
+// the backstop's kill, terminate and force-release across sounds; the budget's admit; a sound's voice limit; MONO and
 // LEGATO reuse; the steal when no voice can be allocated; the newest voice, as the play-position readers pick it.
 //
 // Gate voice-pins:
@@ -45,6 +45,7 @@
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
 #include "support/golden_update.h"
+#include "synth/voice/voice_host.h"
 
 #include <algorithm>
 #include <array>
@@ -63,6 +64,7 @@ namespace {
 
 using deluge::scenarios::driver::Io;
 using deluge::serialization::Value;
+using deluge::synth::NoteFacts;
 namespace golden = deluge::test::golden;
 
 constexpr std::string_view kHeader = "tests/integration/scenarios/drivers/voice_pins_records.h";
@@ -89,27 +91,32 @@ Song* freshSong() {
 	return song;
 }
 
+/// The model stack a note on @p sound through @p clip gets, as an audition builds it: no note row.
+ModelStackWithThreeMainThings* stackFor(char* memory, Sound& sound, InstrumentClip& clip) {
+	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &sound, &clip, &clip.paramManager);
+}
+
+void noteOn(Sound& sound, InstrumentClip& clip, ArpeggiatorBase& arpeggiator, int32_t note) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	sound.Sound::noteOn(stackFor(memory, sound, clip), &arpeggiator, note, zeroMPEValues);
+}
+
 void noteOn(size_t s, int32_t note) {
 	Synth& synth = g_synths[s];
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
-	    memory, currentSong, synth.sound, synth.clip, &synth.clip->paramManager);
-	synth.sound->Sound::noteOn(ms, &synth.sound->arpeggiator, note, zeroMPEValues);
+	noteOn(*synth.sound, *synth.clip, synth.sound->arpeggiator, note);
 }
 
 void noteOff(size_t s, int32_t note) {
 	Synth& synth = g_synths[s];
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
-	    memory, currentSong, synth.sound, synth.clip, &synth.clip->paramManager);
-	synth.sound->Sound::noteOff(ms, &synth.sound->arpeggiator, note);
+	synth.sound->Sound::noteOff(stackFor(memory, *synth.sound, *synth.clip), &synth.sound->arpeggiator, note);
 }
 
 void renderBlocks(int32_t count) {
-	static DelugeStereoSample silence[kBlockFrames]{};
-	static DelugeStereoSample output[kBlockFrames]{};
+	static std::array<DelugeStereoSample, kBlockFrames> silence{};
+	static std::array<DelugeStereoSample, kBlockFrames> output{};
 	for (int32_t block = 0; block < count; block++) {
-		deluge_app_render(silence, output, kBlockFrames);
+		deluge_app_render(silence.data(), output.data(), kBlockFrames);
 	}
 }
 
@@ -220,7 +227,7 @@ void polyLimitCase() {
 void reuseCase(std::string_view kase, PolyphonyMode mode) {
 	silenceAll();
 	setting(1, "polyphonic", deluge::instrument::to_string(mode));
-	const int32_t notes[] = {60, 64, 67};
+	constexpr std::array<int32_t, 3> notes{60, 64, 67};
 	int32_t step = 0;
 	for (const int32_t note : notes) {
 		noteOn(1, note);
@@ -283,21 +290,13 @@ void readersCase() {
 	}
 }
 
-/// What a note-on reads of its sound beside its voices: whether note tails are allowed, and each source's activity.
-struct NoteFacts {
-	bool note_tails{};
-	std::array<bool, kNumSources> active{};
-	bool operator==(const NoteFacts&) const = default;
-};
-
-/// The facts as @p sound answers them now, through the model stack a note-on gets.
+/// The facts a note-on reads of @p sound beside its voices, as it answers them now through a note-on's model stack.
 NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* ms =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &sound, &clip, &clip.paramManager);
-	NoteFacts facts{.note_tails = sound.allowNoteTails(ms->addSoundFlags(), true)};
+	NoteFacts facts{.note_tails_allowed = sound.allowNoteTails(stackFor(memory, sound, clip)->addSoundFlags(), true),
+	                .fm = sound.getSynthMode() == SynthMode::FM};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		facts.active[s] = sound.isSourceActiveCurrently(s, &clip.paramManager);
+		facts.source_active_now[s] = sound.isSourceActiveCurrently(s, &clip.paramManager);
 	}
 	return facts;
 }
@@ -313,11 +312,10 @@ std::string voicesOf(const Sound& sound) {
 	return text;
 }
 
-/// A note-on reads its facts inside its voice walk, between the walk's edits; read once before the walk instead, they
-/// must answer the same. So, for each render preset in each polyphony mode, across two note-ons: reading them twice
-/// gives the same answer and changes neither the record nor any voice, and the note-on's own voice edits leave them as
-/// they were. Each preset is loaded once, for all three modes. Returns the presets checked, or -1 after printing the
-/// first that breaks this.
+/// A note-on reads its facts between its voice walk's edits, and reading them before the walk must answer the same.
+/// So, for each render preset in each polyphony mode, across two note-ons: reading them twice gives the same answer
+/// and changes neither the record nor any voice, and the note-on's own voice edits leave them as they were. Each preset
+/// is loaded once, for all three modes. Returns the presets checked, or -1 after printing the first that breaks this.
 int32_t factsCase(Io io) {
 	namespace fs = std::filesystem;
 	const fs::path root = "tests/golden/render/presets";
@@ -337,8 +335,8 @@ int32_t factsCase(Io io) {
 	for (const fs::path& path : paths) {
 		std::ifstream file(path, std::ios::binary);
 		const std::string bytes{std::istreambuf_iterator<char>(file), {}};
-		char const* firstTag = nullptr;
-		char const* altTag = nullptr;
+		const char* firstTag = nullptr;
+		const char* altTag = nullptr;
 		StorageManager::instrumentDocumentTags(OutputType::SYNTH, &firstTag, &altTag);
 		deluge::storage::TreeDocument document;
 		if (document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()},
@@ -371,10 +369,7 @@ int32_t factsCase(Io io) {
 				const NoteFacts before = factsOf(sound, *clip);
 				const NoteFacts again = factsOf(sound, *clip);
 				const bool unchanged = record == sound.state() && voices == voicesOf(sound);
-				alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
-				    memory, currentSong, &sound, clip, &clip->paramManager);
-				sound.Sound::noteOn(ms, &sound.arpeggiator, note, zeroMPEValues);
+				noteOn(sound, *clip, sound.arpeggiator, note);
 				const NoteFacts after = factsOf(sound, *clip);
 				if (before != again || !unchanged || before != after) {
 					std::fprintf(io.err, "voice_pins: %s, %s, note %d: facts %s\n", path.c_str(),
@@ -386,13 +381,12 @@ int32_t factsCase(Io io) {
 				}
 			}
 		}
-		// Freed as the app frees them, so the presets fit the heap: the clip took the preset's param manager out of
-		// the song's backup, so its collections go with the clip; the instrument's deletion is retired later
+		// The preset's param collections went to its clip, out of the song's backup, so they are freed here, or the
+		// presets would not fit the heap; the song frees the instrument at a later block, and the clip, which the
+		// instrument still names as its active clip until then, stays allocated
 		sound.killAllVoices();
 		clip->paramManager.destructAndForgetParamCollections();
 		currentSong->deleteOutput(instrument);
-		clip->~InstrumentClip();
-		deluge::memory::dealloc(clip);
 		checked++;
 	}
 	return checked;

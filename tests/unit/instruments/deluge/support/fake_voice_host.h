@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 /// @file
@@ -58,7 +60,7 @@ private:
 
 /// @brief A host that allocates slots from the heap and logs each call, with the voices it saw listed.
 struct FakeHost {
-	using Slot = VoiceSlot<int, FakeKernel>; ///< the part is the voice's id
+	using Slot = VoiceSlot<int, FakeKernel>; ///< The part is the voice's id
 	using List = std::vector<Slot*>;
 
 	/// Counts exclusions taken and how deep they nest.
@@ -75,7 +77,7 @@ struct FakeHost {
 	};
 
 	std::vector<std::string> log;
-	std::function<size_t()> listed; ///< how many voices the pool lists, logged with each call
+	std::function<size_t()> listed; ///< How many voices the pool lists, logged with each call
 	uint32_t next_tick{};
 	int32_t next_id{};
 
@@ -96,7 +98,7 @@ struct FakeHost {
 	synth::VoiceClock clock() { return synth::VoiceClock{&next_tick}; }
 
 private:
-	std::string seen(const char* what, const Slot& slot) const {
+	std::string seen(std::string_view what, const Slot& slot) const {
 		return std::string(what) + " " + std::to_string(slot.part) + " listed " + std::to_string(listed ? listed() : 0);
 	}
 };

@@ -19,6 +19,9 @@
 
 #include <cstdint>
 
+/// @file
+/// @brief The tick counter every voice stamps its envelope-stage entries from, shared across every sound.
+
 namespace deluge::synth {
 
 /// @brief The voice-state clock the cull order reads: each envelope stage a voice enters takes the next tick, so of two

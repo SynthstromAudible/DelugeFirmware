@@ -160,7 +160,7 @@ builds only `golden-vt-render`.
 | edit-cost | integration | scenario | benchmark | investigative | nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch | manual | model | ~5s |
 | source-memory | integration | scenario | benchmark | investigative | nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back | manual | model | ~5s |
 | edit-substrate | integration | scenario | unit | gate | the Edit substrate on its own | pr | model | ~1s |
-| voice-pins | integration | scenario | unit | gate | which voice each cull, steal and admit takes across sounds, and what each note-on reuses, against the record | pr | model | ~1s |
+| voice-pins | integration | scenario | unit | gate | which voice each cull, steal and admit takes across sounds, against the record | pr | model | ~1s |
 | mapping-dispatch | integration | scenario | property | gate | the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do | pr | app | ~5s |
 | xml-replay-diff | integration | scenario | differential | gate | ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does | pr | model | ~1s |
 | song-roundtrip | integration | corpus | regression | gate | what a song saves as must not change unexplained | nightly | model | ~10s |

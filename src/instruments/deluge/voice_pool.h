@@ -49,13 +49,15 @@ class VoicePool {
 public:
 	using Slot = H::Slot;
 	using List = H::List;
+	using Exclusion = H::Exclusion;
 
+	/// @brief A pool with no voices, over @p host.
 	/// @param host The host the pool's slots come from and go back to; it outlives the pool.
 	explicit VoicePool(H& host) : host_{&host} {}
 
 	/// @brief Adds @p slot, a voice whose note has started, to the voices the render plays.
 	void publish(Slot* slot) {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		host_->note_edit();
 		voices_.push_back(slot);
 	}
@@ -63,7 +65,7 @@ public:
 	/// @brief Frees the voice at @p it: its resources while it is still listed, then its slot.
 	/// @return The voice after it.
 	List::iterator erase(List::const_iterator it) {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		Slot* slot = *it;
 		host_->unassign(*slot);
 		host_->note_edit();
@@ -74,7 +76,7 @@ public:
 
 	/// @brief Frees every voice: each one's resources while all are still listed, then the slots.
 	void kill_all() {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		for (Slot* slot : voices_) {
 			host_->unassign(*slot);
 		}
@@ -87,47 +89,54 @@ public:
 
 	/// @brief Fast-releases every voice at @p increment, freeing those it stops.
 	void fast_release_all(uint32_t increment) {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			it = (*it)->kernel.do_fast_release(increment, host_->clock()) ? it + 1 : erase(it);
 		}
 	}
 
+	/// @brief The number of voices listed.
 	[[nodiscard]] size_t size() const { return voices_.size(); }
+	/// @brief Whether no voice is listed.
 	[[nodiscard]] bool empty() const { return voices_.empty(); }
 
 	/// @brief Calls @p fn with a const view of the voices, the render excluded.
+	/// @param fn Called once with the list; it reads the voices and may not keep the view.
 	/// @return What @p fn returns.
 	template <class Fn>
 	decltype(auto) read(Fn&& fn) const {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		return std::forward<Fn>(fn)(std::as_const(voices_));
 	}
 
 	/// @brief Calls @p fn with each voice, to change it in place (not the list), the render excluded.
+	/// @param fn Called with each slot in list order; it may change the voice but not add or remove one.
 	template <class Fn>
 	void for_each(Fn fn) {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		for (Slot* slot : voices_) {
 			fn(*slot);
 		}
 	}
 
-	/// @brief The highest cull rating among the voices, or none.
+	/// @brief The rating of the voice the cull would take (the highest, the first of equals), or none. A host comparing
+	///        sounds holds its own exclusion across this and the cull() that follows, so the pick cannot change
+	///        between.
 	/// @param priority The sound's voice priority, which the rating's top bits weigh.
 	/// @param skip_cull_fading Leaves out voices already fading at the cull rate (terminate and force-release do; kill
 	///        does not).
-	[[nodiscard]] std::optional<uint32_t> lowest_rating(plugin::VoicePriority priority, bool skip_cull_fading) const {
+	[[nodiscard]] std::optional<uint32_t> cull_rating(plugin::VoicePriority priority, bool skip_cull_fading) const {
+		const Exclusion excluded;
 		const Slot* best = highest(priority, skip_cull_fading);
 		return best != nullptr ? std::optional{best->kernel.priority_rating(priority, voices_.size())} : std::nullopt;
 	}
 
-	/// @brief Culls the voice lowest_rating() names, freeing it when the cull stops it.
+	/// @brief Culls the voice cull_rating() names, freeing it when the cull stops it.
 	/// @param priority The sound's voice priority.
 	/// @param kind How it is culled; every kind but IMMEDIATE passes over voices already cull-fading.
 	/// @param increment The release increment, for FAST_RELEASE.
 	void cull(plugin::VoicePriority priority, synth::CullKind kind, uint32_t increment) {
-		const typename H::Exclusion excluded;
+		const Exclusion excluded;
 		const bool skip = kind != synth::CullKind::IMMEDIATE;
 		auto it = std::ranges::find(voices_, highest(priority, skip));
 		if (it == voices_.end()) {

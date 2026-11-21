@@ -26,6 +26,7 @@
 #include "processing/engines/input_monitor.h"
 #include "processing/engines/voice_budget.h"
 #include "runtime/app_loop.h"
+#include "synth/voice/voice_clock.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
 #include <atomic>
@@ -337,7 +338,12 @@ void setReverbModel(deluge::effects::ReverbModel model);
 /// @brief Publishes the song's reverb knobs (project.reverb), which the render takes up at its next block. From the
 /// interaction tier, or from the render itself in a song swap at a launch.
 void publishReverbSettings(const deluge::project::ReverbSettings& knobs);
+/// The next tick of the clock every voice's envelope stamps are taken from.
 extern uint32_t nextVoiceState;
+/// @brief The clock every voice's envelope stamps are taken from, shared by every sound.
+inline deluge::synth::VoiceClock voiceClock() {
+	return deluge::synth::VoiceClock{&nextVoiceState};
+}
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbSidechainVolume;
 extern int32_t reverbSidechainShape;
