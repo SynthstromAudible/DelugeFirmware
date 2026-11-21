@@ -26,7 +26,7 @@
 ///
 /// `util/menu_entry.h`'s reason, for two of the same kind of caller:
 /// `model/action/action_logger.cpp` and `model/note/note_row.cpp` ask this question, and both are
-/// inside `check_layer_rules.py`'s `NON_UI` glob, each already at its `model-includes-ui` baseline.
+/// inside the `model-includes-ui` rule's glob (`scripts/layers.toml`), each already at its baseline.
 /// A `gui/ui/` header there would raise a ratchet that may only shrink. This header includes nothing,
 /// so it passes that rule on its own terms, and the definitions -- which read the menu -- are
 /// `activeNoteMode()`'s neighbours in `gui/ui/shell_note_mode.cpp`.

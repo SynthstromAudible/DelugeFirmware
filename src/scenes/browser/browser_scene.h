@@ -213,7 +213,7 @@ struct Descriptor {
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
 	///       (`gui/ui/load/instrument_load.h`). Both are `gui/` symbols this layer may not name
-	///       (`scripts/check_layer_rules.py`, `scenes-includes-outside`). That is the same wall
+	///       (`scripts/layers.toml`, `scenes-includes-outside`). That is the same wall
 	///       `scenes/menu/action.h` was built for, and the same answer: the scene hands the chosen
 	///       path to its `BrowserHost`, and the application's host performs the load.
 	///

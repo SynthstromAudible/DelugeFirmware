@@ -66,7 +66,7 @@ constexpr uint16_t sid(String s) {
 constexpr int32_t kInvalidColumn = -2147483648;
 
 /// `divide_round_negative` (`util/functions.cpp`), inlined: `src/scenes` may not include `util/`
-/// (`check_layer_rules.py`, `scenes-includes-outside`) and this is the only thing it was wanted
+/// (`scripts/layers.toml`, `scenes-includes-outside`) and this is the only thing it was wanted
 /// for. Floors toward minus infinity, which is what makes a marker one sample left of the view
 /// report column -1 rather than 0.
 int32_t divide_round_negative(int32_t dividend, int32_t divisor) {

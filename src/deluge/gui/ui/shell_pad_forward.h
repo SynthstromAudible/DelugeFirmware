@@ -46,7 +46,7 @@
 /// The same two reasons `browser_host.h` and `shell_action_dispatch.h` give for the same
 /// shape. **In `gui/ui/`** because deciding an arm is exactly the half that gets to name
 /// `keyboardScreen`, `instrumentClipView` and `performanceView` -- the symbols `src/scenes` may not
-/// include (`scenes-includes-outside`, `scripts/check_layer_rules.py`). **Its own translation unit**
+/// include (`scenes-includes-outside`, `scripts/layers.toml`). **Its own translation unit**
 /// for the same `deluge_scenes` closure reason `shell_action_dispatch.h` gives.
 
 #include "definitions_cxx.hpp" // kDisplayWidth, kSideBarWidth

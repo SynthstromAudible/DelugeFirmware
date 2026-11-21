@@ -34,7 +34,7 @@
 /// The same two reasons `gui/ui/shell_guest_services.h` gives for the same shape. **In `gui/ui/`**
 /// because performing these actions is exactly the half that gets to name `performanceView`,
 /// `audioClipView`, `stemExport` and the two `gui/context_menu/` singletons -- the symbols
-/// `src/scenes` may not include (`scenes-includes-outside`, `scripts/check_layer_rules.py`), which
+/// `src/scenes` may not include (`scenes-includes-outside`, `scripts/layers.toml`), which
 /// is the whole reason the seam exists. **Its own translation unit** because it also names
 /// `deluge::scenes::menu_scene()`, and so belongs to the `deluge_scenes` closure the host spec
 /// suite deliberately never builds (`tests/trees/host/CMakeLists.txt`): naming it inside

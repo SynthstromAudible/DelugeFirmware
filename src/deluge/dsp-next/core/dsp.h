@@ -27,7 +27,7 @@
 // Layout:
 //   core/   numeric-agnostic interfaces, std::span block types, strong numeric
 //           aliases, the fixed-point formats and their float conversions. Header-only. No globals, no upward
-//           includes (enforced by scripts/check_dsp_boundary.py — no allowlist).
+//           includes (enforced by scripts/check_layers.py's dsp-next-boundary rule — no baseline).
 //   fixed/  q31 backend   -> libdeluge-dsp-fixed   (namespace deluge::dsp::fixed)
 //   float/  f32 backend   -> libdeluge-dsp-float   (namespace deluge::dsp::fp;
 //                                                    `float` is a C++ keyword)

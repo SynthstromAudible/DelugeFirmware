@@ -6,13 +6,10 @@ Run directly with:
     python3 scripts/tasks/test_check_layer_rules.py
 """
 
-import contextlib
-import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -33,19 +30,6 @@ class ScenesRows(unittest.TestCase):
                 return clr.count_file(path)
             finally:
                 clr.REPO = saved
-
-    def test_a_scene_including_an_edit_is_counted(self):
-        counts = self.counts(
-            "src/scenes/menu/nodes/planted.cpp",
-            '#include "model/edits/setting_edit.h"\n',
-        )
-        self.assertEqual(counts.get("scenes-no-edits"), 1)
-
-    def test_another_edit_in_the_context_is_counted(self):
-        counts = self.counts(
-            "src/scenes/menu/context.cpp", '#include "model/edits/setting_edit.h"\n'
-        )
-        self.assertEqual(counts.get("scenes-no-edits"), 1)
 
     def test_a_scene_naming_an_engine_object_is_counted(self):
         for line in (
@@ -68,12 +52,9 @@ class ScenesRows(unittest.TestCase):
         )
         self.assertNotIn("scenes-no-engine-pointers", comment)
 
-    def test_no_scene_file_is_allowed_an_engine_pointer_a_model_stack_or_an_edit(self):
+    def test_no_scene_file_is_allowed_an_engine_pointer(self):
         plants = {
             "scenes-no-engine-pointers": "void f() {\n\tSound* sound = nullptr;\n}\n",
-            "scenes-model-stack": '#include "modulation/automation/auto_param.h"\n',
-            "scenes-model-stack-outside-context": '#include "model/model_stack.h"\n',
-            "scenes-no-edits": '#include "model/edits/param_address_for.h"\n',
         }
         for rel in (
             "src/scenes/menu/context.cpp",
@@ -93,13 +74,7 @@ class ScenesRows(unittest.TestCase):
         found = {
             key: n
             for key, n in clr.current().items()
-            if key[1]
-            in (
-                "scenes-no-edits",
-                "scenes-no-engine-pointers",
-                "scenes-model-stack",
-                "scenes-model-stack-outside-context",
-            )
+            if key[1] in ("scenes-no-engine-pointers",)
         }
         self.assertEqual(found, {})
 
@@ -219,96 +194,6 @@ class ViewKnobRows(unittest.TestCase):
             if key[1] == "views-no-knob-stack"
         }
         self.assertEqual(found, {})
-
-
-class ScenesReadsOutsideBind(unittest.TestCase):
-    counts = ScenesRows.counts
-
-    def test_each_family_is_counted_outside_bind(self):
-        for header in (
-            "model/song/song.h",
-            "modulation/params/param.h",
-            "io/midi/midi_device.h",
-            "processing/engines/audio_engine.h",
-            "storage/flash_storage.h",
-            "playback/playback_handler.h",
-        ):
-            for spelling in (f'#include "{header}"\n', f"#include <{header}>\n"):
-                with self.subTest(spelling=spelling):
-                    counts = self.counts("src/scenes/menu/nodes/planted.cpp", spelling)
-                    self.assertEqual(counts.get("scenes-reads-outside-bind"), 1)
-
-    def test_every_include_counts(self):
-        counts = self.counts(
-            "src/scenes/services/planted.h",
-            '#include "model/song/song.h"\n'
-            '#include "modulation/sync.h"\n'
-            '#include "processing/dx7/dx_patch.h"\n',
-        )
-        self.assertEqual(counts.get("scenes-reads-outside-bind"), 3)
-
-    def test_bind_is_not_counted(self):
-        counts = self.counts(
-            "src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
-        )
-        self.assertNotIn("scenes-reads-outside-bind", counts)
-
-    def test_other_families_are_not_counted(self):
-        counts = self.counts(
-            "src/scenes/menu/planted.cpp",
-            '#include "scenes/bind/settings.h"\n'
-            '#include "gui/l10n/strings.h"\n'
-            '#include "deluge-project/project.h"\n'
-            '#include "ui/oled/columns.h"\n',
-        )
-        self.assertNotIn("scenes-reads-outside-bind", counts)
-
-    def run_main(self, root: Path, *args: str) -> int:
-        """`check_layer_rules.main` with @p args over the tree at @p root and its baseline."""
-        saved = clr.REPO, clr.BASELINE
-        clr.REPO, clr.BASELINE = root, root / "baseline.txt"
-        try:
-            with (
-                mock.patch.object(sys, "argv", ["check_layer_rules.py", *args]),
-                contextlib.redirect_stdout(io.StringIO()),
-                contextlib.redirect_stderr(io.StringIO()),
-            ):
-                return clr.main()
-        finally:
-            clr.REPO, clr.BASELINE = saved
-
-    def plant(self, root: Path, includes: int, baseline: int) -> None:
-        scene = root / "src/scenes/menu/planted.cpp"
-        scene.parent.mkdir(parents=True)
-        scene.write_text('#include "model/song/song.h"\n' * includes)
-        (root / "baseline.txt").write_text(
-            "# header\n"
-            f"src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
-        )
-
-    def test_a_count_above_the_baseline_fails_the_check(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.plant(root, includes=2, baseline=1)
-            self.assertEqual(self.run_main(root), 1)
-
-    def test_update_refuses_to_raise_a_count(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.plant(root, includes=2, baseline=1)
-            before = (root / "baseline.txt").read_text()
-            self.assertEqual(self.run_main(root, "--update"), 1)
-            self.assertEqual((root / "baseline.txt").read_text(), before)
-
-    def test_update_lowers_a_count(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.plant(root, includes=1, baseline=2)
-            self.assertEqual(self.run_main(root, "--update"), 0)
-            self.assertIn(
-                "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
-                (root / "baseline.txt").read_text(),
-            )
 
 
 class LegacyPortSeams(unittest.TestCase):

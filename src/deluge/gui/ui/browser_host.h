@@ -25,7 +25,7 @@
 /// `wireShellBrowserHost` installs this file's host there. `SampleBrowser::enterKeyPress`'s file arm requests a claim
 /// from `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
 /// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`: `gui/` and `hid/` symbols the scenes layer may not name
-/// (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
+/// (`scenes-includes-outside`, `scripts/layers.toml`).
 ///
 /// **How answers reach the browser.** An answer produced before the request returns would reach the scene that asked
 /// from inside its own hook, so it is held. `pollShellBrowserHost` delivers held answers after the shell's tick, and

@@ -56,13 +56,6 @@ repos:
         types: [rust]
         files: ^(tests/component/differential/|src/bsp/rust/harness/).*\.rs$
         pass_filenames: false
-      - id: libdeluge-boundary
-        name: libdeluge platform boundary
-        description: src/deluge must include <libdeluge/...>, not HAL headers directly
-        entry: python3 scripts/check_platform_boundary.py
-        language: system
-        pass_filenames: false
-        files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
       - id: check-abi-surface
         name: every declared libdeluge function has a definition, a signature pin, a context tag and DELUGE_NOEXCEPT
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
@@ -75,13 +68,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^(tests/registry\.toml|tests/README\.md|scripts/tasks/(harness_registry|task-test)\.py)$
-      - id: dsp-next-boundary
-        name: dsp-next L0 boundary
-        description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP
-        entry: python3 scripts/check_dsp_boundary.py
-        language: system
-        pass_filenames: false
-        files: ^(src/deluge/dsp-next/|scripts/check_dsp_boundary\.py)
       - id: fixed-point-raw
         name: fixed-point raw-arithmetic ratchet
         description: raw Q31 helper calls, DSP-instruction asm and from_raw()/.raw() outside fixed_point.h may only shrink
@@ -89,20 +75,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/.*\.(c|cc|cpp|cxx|h|hh|hpp|inc)$|scripts/(check_fixed_point_raw\.py|fixed_point_raw_allowlist\.txt))
-      - id: synth-boundary
-        name: synth core boundary
-        description: src/synth must not include app layers (model/processing/gui/storage/...), the legacy dsp/, or the HAL/BSP
-        entry: python3 scripts/check_synth_boundary.py
+      - id: layers
+        name: every include is where scripts/layers.toml allows it
+        description: libraries include only what they declare, rule counts only fall, no new src/ directory, no shadowed include path, the legacy tree only shrinks
+        entry: python3 scripts/check_layers.py
         language: system
         pass_filenames: false
-        files: ^(src/synth/|scripts/(check_synth_boundary\.py|synth_boundary_allowlist\.txt))
-      - id: library-boundary
-        name: library boundaries
-        description: each standalone library may include only the standard library, itself and its declared dependencies
-        entry: python3 scripts/check_library_boundary.py
-        language: system
-        pass_filenames: false
-        files: ^(src/(plugin-api|instruments|effects|serialization|music-theory|deluge-project|controls)/|scripts/(check|test_check)_library_boundary\.py)
+        files: ^(src/|sim/|tests/|include/|scripts/(check_layers\.py|layers\.toml|layers_baseline\.txt|test_check_layers\.py))
       - id: clang-tidy
         name: clang-tidy on the changed lines of the libraries
         description: dsp-next, synth, effects, the instrument, plugin-api, serialization and controls meet .clang-tidy on every line a commit changes
@@ -147,10 +126,8 @@ repos:
         entry: python3 scripts/check_layer_rules.py
         language: system
         pass_filenames: false
-        # src/scenes/ is in this list because five of the rules are scoped to `src/scenes/**`
-        # (scenes-includes-gui, scenes-includes-outside, scenes-no-frame-primitives,
-        # scenes-no-root-ui, scenes-no-display) and without it a scenes-only commit never ran them.
-        files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|src/scenes/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        # Its rows cover the legacy tree, the toolkit, the shell, the scenes, and (two of them) sim/ and tests/.
+        files: ^(src/deluge/|src/ui/|src/shell/|src/scenes/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
         description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
