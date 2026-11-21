@@ -234,22 +234,17 @@ namespace deluge::scenes::bind::contract {
 	return kept && channel_kept && midi.follow_input(kInput) == input_was;
 }
 
-/// @brief The feedback's facts are stable across two calls, and a param no CC can follow has no CC.
-[[nodiscard]] inline bool feedback_facts_are_stable(const MidiFeedback& feedback) {
+/// @brief A param no CC can follow has no CC, under either owner.
+[[nodiscard]] inline bool unfollowable_param_has_no_cc(const MidiFeedback& feedback) {
 	constexpr project::ParamTarget kNowhere = project::engine_target(0xFFFF'FF00);
-	return feedback.enabled() == feedback.enabled()
-	       && feedback.global_effectable_context() == feedback.global_effectable_context()
-	       && !feedback.cc_of(project::OwnerPlugin::INSTRUMENT, kNowhere).has_value()
+	return !feedback.cc_of(project::OwnerPlugin::INSTRUMENT, kNowhere).has_value()
 	       && !feedback.cc_of(project::OwnerPlugin::GLOBAL_EFFECTABLE, kNowhere).has_value();
 }
 
-/// @brief The transport's facts are stable across two calls, and its recording is one of the three modes.
-[[nodiscard]] inline bool transport_facts_are_stable(const Transport& t) {
+/// @brief The transport's recording is one of the three modes.
+[[nodiscard]] inline bool transport_recording_is_a_mode(const Transport& t) {
 	const TransportRecording r = t.recording();
-	return t.playing() == t.playing() && t.clocks_active() == t.clocks_active() && r == t.recording()
-	       && t.metronome_on() == t.metronome_on() && t.undo_allowed() == t.undo_allowed()
-	       && t.overdubs_pending() == t.overdubs_pending()
-	       && (r == TransportRecording::OFF || r == TransportRecording::NORMAL || r == TransportRecording::ARRANGEMENT);
+	return r == TransportRecording::OFF || r == TransportRecording::NORMAL || r == TransportRecording::ARRANGEMENT;
 }
 
 /// @brief The count-in shows no negative digit.

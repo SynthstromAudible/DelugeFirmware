@@ -1434,7 +1434,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Play, false, 40'220);
 		rig.press(ButtonId::Record, false, 40'230);
 		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: a short RECORD press arms recording, or ends the recording while resampling", _ {
@@ -1457,7 +1456,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, true, 41'100);
 		rig.press(ButtonId::Record, false, 41'150);
 		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::END_RECORDING_SOON}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: the tempo encoder clears tempo automation with shift, shows the swing with TAP TEMPO, else the tempo", _ {
@@ -1488,7 +1486,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::TempoEnc, true, 42'040);
 		rig.press(ButtonId::TempoEnc, false, 42'041);
 		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::SHOW_TEMPO}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: at the root, SHIFT+TAP TEMPO toggles the metronome, and TAP TEMPO taps as the feature row says", _ {
@@ -1520,7 +1517,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::TapTempo, true, 43'200);
 		rig.press(ButtonId::TapTempo, false, 43'201);
 		expect(host.transport_actions.calls).to_equal(std::vector<Call>{{.kind = K::TAP_TEMPO, .flag = false}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: BACK undoes, or redoes with shift, only when the transport allows it", _ {
@@ -1547,7 +1543,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, false, 44'210);
 		expect(host.transport_actions.calls)
 		    .to_equal(std::vector<Call>{{.kind = K::UNDO, .flag = false}, {.kind = K::UNDO, .flag = true}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: SYNC_SCALING holds fill while pressed when the feature row says FILL", _ {
@@ -1567,7 +1562,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::SyncScaling, false, 45'100);
 		expect(host.transport_actions.calls)
 		    .to_equal(std::vector<Call>{{.kind = K::FILL, .flag = true}, {.kind = K::FILL, .flag = false}});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: SYNC_SCALING sets and clears the clip through the installed writes and forgets undo; a refused clip does neither", _ {
@@ -1622,7 +1616,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 			expect(r.menu_value).to_equal(want[i]);
 		}
 		services::view_state().set_current_view(services::MenuView{});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: SAVE refuses while overdubs are pending, with legacy's own popup string, and opens nothing", _ {
@@ -1651,7 +1644,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		const Result plain = rig.press(ButtonId::Save, false, 48'110);
 		expect(plain.actions.size()).to_equal(size_t{0});
 		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{1});
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: the LEDs follow the transport's playback, recording and metronome", _ {
@@ -1688,7 +1680,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(led_is(frame(), ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
 		host.transport.mode = bind::TransportRecording::ARRANGEMENT;
 		expect(led_state(frame(), ButtonId::Record).has_value()).to_be_false();
-		rig.gc.set_ports(&menu::host_ports());
 	});
 
 	it("on fakes: with no set installed, every press is handled as before and nothing is asked", _ {
@@ -1718,7 +1709,6 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
 		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::Off)).to_be_true();
 		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::Off)).to_be_true();
-		rig.gc.set_ports(&menu::host_ports());
 	});
 });
 // clang-format on

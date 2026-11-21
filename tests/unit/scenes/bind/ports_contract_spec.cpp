@@ -331,14 +331,14 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.audio->audio_busy()).to_be_true();
 
 		expect(p.midi_feedback).not_().to_be_null();
-		expect(contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
+		expect(contract::unfollowable_param_has_no_cc(*p.midi_feedback)).to_be_true();
 		const deluge::project::ParamTarget followed = deluge::project::engine_target(7);
 		host.midi_feedback.ccs.emplace_back(deluge::project::OwnerPlugin::INSTRUMENT, followed, uint8_t{74});
 		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, followed)).to_equal(std::optional<uint8_t>{74});
 		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE, followed).has_value()).to_be_false();
 		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, deluge::project::engine_target(8)).has_value())
 		    .to_be_false();
-		expect(contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
+		expect(contract::unfollowable_param_has_no_cc(*p.midi_feedback)).to_be_true();
 		host.midi_feedback.on = true;
 		host.midi_feedback.global_context = true;
 		expect(p.midi_feedback->enabled()).to_be_true();
@@ -373,7 +373,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		const Ports p = host.ports();
 		expect(p.transport).not_().to_be_null();
 		expect(p.transport_actions).not_().to_be_null();
-		expect(contract::transport_facts_are_stable(*p.transport)).to_be_true();
+		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
 		expect(contract::count_in_is_a_count(*p.transport)).to_be_true();
 		host.transport.count_in = 3;
 		expect(p.transport->count_in_visual()).to_equal(3);
@@ -386,7 +386,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.transport->recording()).to_equal(TransportRecording::ARRANGEMENT);
 		expect(p.transport->undo_allowed()).to_be_true();
 		expect(p.transport->overdubs_pending()).to_be_true();
-		expect(contract::transport_facts_are_stable(*p.transport)).to_be_true();
+		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
 
 		expect(contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
 		expect(p.transport->playing()).to_be_false();
