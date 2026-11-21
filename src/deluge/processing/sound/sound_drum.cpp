@@ -49,11 +49,9 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 }
 
 void SoundDrum::resetTimeEnteredState() {
-	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
-	for (SoundVoice* voice : this->voices()) {
-		voice->kernel.reset_envelope0_time_entered(AudioEngine::voiceClock());
-	}
+	editableVoicePool().for_each(
+	    [](SoundVoice& voice) { voice.kernel.reset_envelope0_time_entered(AudioEngine::voiceClock()); });
 }
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
@@ -75,18 +73,18 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
-	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
+	AudioExcludedSection section; // the voices' and the arpeggiator's values change together
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
-	for (SoundVoice* voice : this->voices()) {
+	editableVoicePool().for_each([&](SoundVoice& voice) {
 		if (expressionValueChangesMustBeDoneSmoothly) {
-			voice->kernel.expression_event_smooth(newValue, s);
+			voice.kernel.expression_event_smooth(newValue, s);
 		}
 		else {
-			voice->expression_event_immediate(newValue, s);
+			voice.expression_event_immediate(newValue, s);
 		}
-	}
+	});
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
 	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE

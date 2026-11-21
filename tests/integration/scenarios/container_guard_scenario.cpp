@@ -1336,13 +1336,13 @@ void editLeg() {
 		// The failed note-on's voice goes back to the pool and was never in voices_.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		const size_t freeBefore = AudioEngine::VoicePool::get().size();
-		const size_t voicesBefore = synth->voices().size();
+		const size_t voicesBefore = synth->numActiveVoices();
 		auditionSynth(kRowNote);
 		// voicesDelta=0: the voice was never published, so its note-on failed. lastNoteSet=1: the note-on still ran to
 		// its end (portamento's last note, MIDI out), as it did before a failed voice returned early.
 		printf("CG-VOICEFAIL poolFreeDelta=%d voicesDelta=%d lastNoteSet=%d\n",
 		       static_cast<int>(AudioEngine::VoicePool::get().size()) - static_cast<int>(freeBefore),
-		       static_cast<int>(synth->voices().size()) - static_cast<int>(voicesBefore),
+		       static_cast<int>(synth->numActiveVoices()) - static_cast<int>(voicesBefore),
 		       synth->lastNoteCode == kRowNote ? 1 : 0);
 		fflush(stdout);
 		break;

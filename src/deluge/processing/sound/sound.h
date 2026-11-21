@@ -471,12 +471,13 @@ public:
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
-		AudioExcludedSection section; // the render adds and removes voices
-		return !voices_.empty();
+		return voices_.read([](const SoundVoiceHost::List& voices) { return !voices.empty(); });
 	}
 
 	/// @brief Get the number of active voices
-	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
+	[[nodiscard]] size_t numActiveVoices() const {
+		return voices_.read([](const SoundVoiceHost::List& voices) { return voices.size(); });
+	}
 
 	/// @brief Immediately ends all active voices
 	void killAllVoices() override;
@@ -487,6 +488,8 @@ public:
 
 	/// @brief Get the voices for this sound
 	[[nodiscard]] const SoundVoiceHost::List& voices() const { return voices_.list(); }
+	/// @brief The sound's voices, to read through the pool with the render excluded.
+	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return voices_; }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
@@ -507,6 +510,10 @@ public:
 	                           ArpReturnInstruction instruction);
 
 	virtual const char* getName() { return nullptr; }
+
+protected:
+	/// @brief The sound's voices, for its kinds to change in place through the pool.
+	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return voices_; }
 
 private:
 	friend struct SoundVoiceHost;

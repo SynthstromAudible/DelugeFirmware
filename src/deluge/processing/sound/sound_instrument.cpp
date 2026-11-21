@@ -336,18 +336,18 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expres
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
-	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
+	AudioExcludedSection section; // the voices' and the arpeggiator's values change together
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
-	for (const auto& voice : this->voices()) {
-		if (voice->kernel.input_characteristic(whichCharacteristic) == channelOrNoteNumber) {
+	editableVoicePool().for_each([&](SoundVoice& voice) {
+		if (voice.kernel.input_characteristic(whichCharacteristic) == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
-				voice->kernel.expression_event_smooth(newValue, s);
+				voice.kernel.expression_event_smooth(newValue, s);
 			}
 			else {
-				voice->expression_event_immediate(newValue, s);
+				voice.expression_event_immediate(newValue, s);
 			}
 		}
-	}
+	});
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
 	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
@@ -479,18 +479,17 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 
-	if (!hasActiveVoices()) {
-		return false;
-	}
-
-	for (const auto& voice : this->voices()) {
-		if ((voice->kernel.note_code() == noteCode)
-		    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
-			if (resetTimeEntered) {
-				voice->kernel.reset_envelope0_time_entered(AudioEngine::voiceClock());
+	// The first voice sounding the note, not releasing (is ignoring releasing notes right?); its envelope's entry time
+	// is reset under the same exclusion it was found in.
+	return voicePool().read([&](const SoundVoiceHost::List& voices) {
+		for (SoundVoice* voice : voices) {
+			if (voice->kernel.note_code() == noteCode && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE) {
+				if (resetTimeEntered) {
+					voice->kernel.reset_envelope0_time_entered(AudioEngine::voiceClock());
+				}
+				return true;
 			}
-			return true;
 		}
-	}
-	return false;
+		return false;
+	});
 }

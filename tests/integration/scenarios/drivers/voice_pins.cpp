@@ -133,13 +133,14 @@ void silenceAll() {
 /// Every sounding voice after step @p step of case @p kase, one line each.
 void listVoices(std::string_view kase, int32_t step) {
 	for (const Synth& synth : g_synths) {
-		const auto& voices = synth.sound->voices();
-		for (size_t i = 0; i < voices.size(); i++) {
-			const SoundVoice& voice = *voices[i];
-			g_lines.push_back(
-			    std::format("{} {} {} {} {} {} {:08x}", kase, step, synth.name, i, voice.kernel.note_code(),
-			                std::to_underlying(voice.kernel.envelope(0).stage()), voice.priority_rating()));
-		}
+		synth.sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
+			for (size_t i = 0; i < voices.size(); i++) {
+				const SoundVoice& voice = *voices[i];
+				g_lines.push_back(
+				    std::format("{} {} {} {} {} {} {:08x}", kase, step, synth.name, i, voice.kernel.note_code(),
+				                std::to_underlying(voice.kernel.envelope(0).stage()), voice.priority_rating()));
+			}
+		});
 	}
 }
 
@@ -277,12 +278,14 @@ void readersCase() {
 		const Synth* newestSynth = nullptr;
 		const SoundVoice* newest = nullptr;
 		for (const Synth& synth : g_synths) {
-			for (const auto& voice : synth.sound->voices()) {
-				if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
-					newest = voice;
-					newestSynth = &synth;
+			synth.sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
+				for (const SoundVoice* voice : voices) {
+					if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
+						newest = voice;
+						newestSynth = &synth;
+					}
 				}
-			}
+			});
 		}
 		g_lines.push_back(newest == nullptr
 		                      ? std::format("readers {} none", step)
@@ -303,13 +306,15 @@ NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 
 /// Every voice of @p sound as the record lists it, for comparing before and after a read.
 std::string voicesOf(const Sound& sound) {
-	std::string text;
-	for (const auto& voice : sound.voices()) {
-		text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
-		                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
-		                    int{voice->just_created});
-	}
-	return text;
+	return sound.voicePool().read([](const SoundVoiceHost::List& voices) {
+		std::string text;
+		for (const SoundVoice* voice : voices) {
+			text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
+			                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
+			                    int{voice->just_created});
+		}
+		return text;
+	});
 }
 
 /// A note-on reads its facts between its voice walk's edits, and reading them before the walk must answer the same.

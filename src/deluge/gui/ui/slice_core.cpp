@@ -220,12 +220,15 @@ std::optional<int32_t> SliceCore::play_position() {
 	if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
 		range = (MultisampleRange*)drum->getOrCreateFirstRange(0);
 
-		auto valid_voices_view = drum->voices() | std::views::filter([&](const SoundVoice* voice) {
-			                         // Ensure correct MultisampleRange.
-			                         return voice->guides[0].audioFileHolder == range->getAudioFileHolder();
-		                         });
-
-		if (!valid_voices_view.empty()) {
+		// The newest voice playing the range, read with the render excluded.
+		drum->voicePool().read([&](const SoundVoiceHost::List& voices) {
+			auto valid_voices_view = voices | std::views::filter([&](const SoundVoice* voice) {
+				                         // Ensure correct MultisampleRange.
+				                         return voice->guides[0].audioFileHolder == range->getAudioFileHolder();
+			                         });
+			if (valid_voices_view.empty()) {
+				return;
+			}
 			SoundVoice* voice = *std::ranges::max_element(valid_voices_view, {}, &SoundVoice::order_sounded);
 
 			const int32_t u = drum->config().voicing.unison.count >> 1;
@@ -234,7 +237,7 @@ std::optional<int32_t> SliceCore::play_position() {
 				voiceSample = voice->ports(u, 0).sample.voiceSample();
 				guide = &voice->guides[target_.sourceIndex];
 			}
-		}
+		});
 	}
 
 	if (voiceSample == nullptr) {

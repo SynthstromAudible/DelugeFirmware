@@ -74,22 +74,22 @@ public:
 			}
 			auto* range =
 			    static_cast<MultisampleRange*>(sound->sourceResources[address.source].ranges.getElement(address.range));
-			SoundVoice* newest = nullptr;
-			for (SoundVoice* voice : sound->voices()) {
-				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
-				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
-					newest = voice;
+			// The newest voice playing the range, read with the render excluded.
+			sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
+				SoundVoice* newest = nullptr;
+				for (SoundVoice* voice : voices) {
+					if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
+					    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
+						newest = voice;
+					}
 				}
-			}
-			if (newest == nullptr) {
-				return std::nullopt;
-			}
-			const int32_t u = sound->config().voicing.unison.count >> 1;
-			if (!newest->kernel.unison_parts[u].slots[address.source].active) {
-				return std::nullopt;
-			}
-			voice_sample = newest->ports(u, address.source).sample.voiceSample();
-			guide = &newest->guides[address.source];
+				const int32_t u = sound->config().voicing.unison.count >> 1;
+				if (newest == nullptr || !newest->kernel.unison_parts[u].slots[address.source].active) {
+					return;
+				}
+				voice_sample = newest->ports(u, address.source).sample.voiceSample();
+				guide = &newest->guides[address.source];
+			});
 		}
 		if (voice_sample == nullptr) {
 			return std::nullopt;
