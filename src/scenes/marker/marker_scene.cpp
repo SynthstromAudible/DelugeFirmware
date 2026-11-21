@@ -73,8 +73,8 @@ constexpr uint16_t sid(String s) {
 ///        files store loop points as 32-bit unsigned.
 constexpr int64_t kLastLoopPoint = std::numeric_limits<uint32_t>::max();
 
-/// @brief The last frame an audio clip's start or end can name: the song file stores them as 32-bit signed, and so do
-///        its rows' range.
+/// @brief The last frame an audio clip's start or end can name: the song file and the clip's rows store them as 32-bit
+///        signed.
 constexpr int64_t kLastAudioClipMarker = std::numeric_limits<int32_t>::max();
 
 int32_t idx(MarkerType t) {
@@ -200,6 +200,12 @@ services::SampleView MarkerScene::view() const {
 }
 
 void MarkerScene::follow_waveform(const bind::WaveformInfo& info) {
+	if (info.identity != identity_) {
+		identity_ = info.identity;
+		view_ = sample_view::WaveformView::open(info.length_samples, view_.window());
+		retry_.restart();
+		return;
+	}
 	view_ = view_.with_length(info.length_samples);
 }
 
@@ -269,6 +275,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	    info->length_samples,
 	    remembered.zoom != 0 ? std::optional{sample_view::Window{.scroll = remembered.scroll, .zoom = remembered.zoom}}
 	                         : std::nullopt);
+	identity_ = info->identity;
 	retry_.restart();
 
 	blink_phase_ = 0;
@@ -828,7 +835,7 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		success = zoomed.has_value();
 		if (success) {
 			view_ = *zoomed;
-			// A file the card holds is under 2^32 frames, so its zoom is at most 2^28 + 1 and fits.
+			// A file the card holds is under 2^32 frames, so its zoom is at most 2^28 and fits.
 			const auto slide_zoom = [](int64_t zoom) {
 				return static_cast<int32_t>(std::clamp<int64_t>(zoom, 1, std::numeric_limits<int32_t>::max()));
 			};

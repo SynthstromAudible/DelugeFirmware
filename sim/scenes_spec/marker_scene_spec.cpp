@@ -513,6 +513,23 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 				    .to_equal(bind::test::FakeWaveforms::Read{.at = FakeMarkerRig::kRange, .in = window});
 			}
 		});
+
+		it("Q13: reopens its view clamped into a shorter file swapped in under the range", _ {
+			FakeMarkerRig r;
+			r.open(r.range_context(), MarkerType::START);
+			r.tick(0);
+			expect(marker_scene().x_zoom()).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			bind::WaveformInfo& info = r.fakes.host.waveforms.waveforms[0].info;
+			info.length_samples = 160;
+			info.identity = 7; // another file
+			r.tick(200);
+			expect(marker_scene().x_zoom()).to_equal(int64_t{10});
+			expect(marker_scene().x_scroll()).to_equal(int64_t{0});
+			// The same file growing keeps the view where it is.
+			info.length_samples = 320;
+			r.tick(400);
+			expect(marker_scene().x_zoom()).to_equal(int64_t{10});
+		});
 	});
 
 	// --- composition --------------------------------------------------------------------------

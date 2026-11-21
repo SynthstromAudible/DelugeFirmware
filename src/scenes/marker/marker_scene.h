@@ -291,7 +291,8 @@ private:
 	std::optional<services::ViewKey> view_key_of() const;
 	/// @brief The view the store remembers for the waveform's range or clip, or an empty one.
 	services::SampleView view() const;
-	/// @brief Follow the waveform @p info describes: the view takes its length.
+	/// @brief Follow the waveform @p info describes: the view takes a growing take's length, and another file reopens
+	///        it at its window, clamped into the new file's zooms and scrolls as an open clamps a remembered view.
 	void follow_waveform(const bind::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};
@@ -302,6 +303,8 @@ private:
 	std::optional<services::ViewKey> view_key_{};
 	/// The view over the waveform: which frames the main columns show.
 	sample_view::WaveformView view_{};
+	/// Which waveform `view_` is over (`bind::WaveformInfo::identity`).
+	uint64_t identity_{0};
 	/// The redraws of a frame whose read left columns pending.
 	services::PeakRetry retry_{};
 
