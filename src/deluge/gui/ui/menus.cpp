@@ -219,6 +219,7 @@
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
+#include "gui/menu_item/track_link.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
@@ -892,6 +893,7 @@ PLACE_SDRAM_BSS Submenu editNameMenu{
     },
 };
 
+PLACE_SDRAM_BSS menu_item::TrackLink track_link_menu{STRING_FOR_TRACK_LINK};
 PLACE_SDRAM_BSS menu_item::ResetParamValues reset_param_values_menu{STRING_FOR_RESET_PARAM_VALUES};
 
 PLACE_SDRAM_BSS Submenu audioClipActionsMenu{
@@ -899,6 +901,7 @@ PLACE_SDRAM_BSS Submenu audioClipActionsMenu{
     {
         &editNameMenu,
         &reset_param_values_menu,
+        &track_link_menu,
         &setClipLengthMenu,
     },
 };
@@ -1524,12 +1527,12 @@ PLACE_SDRAM_BSS Submenu soundFXMenu{
 
 PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenu{
     STRING_FOR_ACTIONS,
-    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu},
+    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu, &track_link_menu},
 };
 
 PLACE_SDRAM_BSS Submenu soundEditorRootDrumActionsMenu{
     STRING_FOR_ACTIONS,
-    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu},
+    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu, &track_link_menu},
 };
 
 PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
@@ -1708,6 +1711,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenuMIDIOrCV{
     {
         &editNameMenu,
         &reset_param_values_menu,
+        &track_link_menu,
     },
 };
 
@@ -1867,6 +1871,7 @@ PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXActionsMenu{
     {
         &editNameMenu,
         &reset_param_values_menu,
+        &track_link_menu,
         &kitGlobalFXStemExportMenu,
     },
 };

@@ -1316,7 +1316,8 @@ ClipParamValue* PatchCableSet::getClipValueStorage(int32_t paramId) {
 
 int32_t PatchCableSet::getValueForControl(int32_t paramId, ModelStackWithThreeMainThings const* modelStack) {
 	using namespace deluge::modulation::params;
-	auto layer = controlLayer(Kind::PATCH_CABLE, true, controlsEditClipValue(modelStack), false);
+	auto layer = controlLayer(Kind::PATCH_CABLE, true, controlsEditClipValue(modelStack),
+	                          getLinkedOutput(modelStack) != nullptr);
 	int32_t baseline = presetValues_ != nullptr ? *presetValues_->find(paramId) : 0;
 	auto* automation = layer == ControlLayer::LIVE ? getParam(paramId) : nullptr;
 	return readControlValue(layer, getClipValueStorage(paramId), automation != nullptr ? &automation->data() : nullptr,

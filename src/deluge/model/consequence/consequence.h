@@ -31,6 +31,7 @@ public:
 		CLIP_BEGIN_LINEAR_RECORD = 2,
 		PARAM_CHANGE = 3,
 		NOTE_ARRAY_CHANGE = 4,
+		PRESET_PARAM_CHANGE = 5,
 	};
 
 	Consequence();

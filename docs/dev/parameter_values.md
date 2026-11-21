@@ -23,7 +23,9 @@ Routes absent from the preset have a zero baseline. Both collections expose
 Offsets use signed 64-bit arithmetic because the difference between INT32_MIN
 and INT32_MAX needs 33 signed bits. Consumers receive a clamped int32 value.
 Baselines are established on load or first binding. Ordinary clip edits,
-playback, clip-value undo, and clip deletion leave them unchanged. A kit captures separate baselines for its global
+playback, clip-value undo, and clip deletion leave them unchanged. With Track
+Link enabled, normal edits change the shared baseline, and linked-edit undo
+restores its previous value. A kit captures separate baselines for its global
 effects and for each sound drum.
 
 ## Lifecycle
@@ -35,9 +37,10 @@ recalculates its offset against the new owner's baseline. Parameter-set cloning
 rebinds automation to the destination scalar array after the existing memcpy.
 Clones without automation retain the source's effective value as their clip value.
 
-Normal front-panel gold-knob and parameter-menu edits change
+With Track Link off, normal front-panel gold-knob and parameter-menu edits change
 the clip value outside live automation recording, even when the parameter already
-has a curve. Live automation recording remains clip-local.
+has a curve. With Track Link on, these controls instead read and edit the shared
+output baseline. Live automation recording remains clip-local in either mode.
 When editing a fixed parameter's clip scalar, the menu uses `ParamSet::getClipValue()`;
 turning a knob starts from that value rather than the momentary automated value.
 `ParamCollection` owns the layer decision. Scalar reads do not inspect automation
@@ -46,7 +49,8 @@ playback follows the shifted curve.
 During live recording the same controls write automation. Explicit pad/region
 edits modify automation. With no pad held or selected, automation-editor encoders
 use the same scalar/recording routing as normal controls.
-MIDI/expression and performance automation APIs retain their existing behavior.
+Learned MIDI controls and MIDI Follow use the same scalar/recording/region routing as panel controls.
+Incoming expression and performance pads retain their live-override behavior.
 Removing automation from an inactive MIDI clip updates its parameter state
 without sending its scalar to the active output.
 Deleting automation clears its offset and reveals the underlying clip value.
@@ -141,8 +145,6 @@ Preset arrays and additional firmware code still consume memory; emulator A/B
 measurements must include those costs as well as heap allocations. Hardware
 rendering performance needs separate verification before release.
 
-
-
 ## Resetting values and song baselines
 
 Sound Actions and Song Actions offer **Reset Param Values**, with the same
@@ -176,6 +178,48 @@ curves. Reset and leaving arrangement playback force a clock refresh.
 Removing tempo automation also refreshes the clock when playback is stopped.
 
 
+## Track Link
+
+Sound Actions includes a per-output **Track Link** toggle (off by default).
+While enabled, normal parameter controls display and edit the output baseline.
+All clips using that output retain their own scalar offsets and relative
+curves, so their evaluated values move with the shared baseline. This includes
+MIDI CCs, patch strengths, audio/kit global parameters and the corresponding
+sound drum across kit clips. Song and expression parameters are unaffected.
+
+Live automation recording and explicit automation-region editing remain
+clip-local. Turning the toggle on or off does not change any parameter values.
+The toggle and edited baseline are saved with the output in the song. Linked
+edits have a shared-baseline undo consequence, independent of automation-node
+snapshots. Linked sound-menu edits participate in undo; during normal recording,
+linked edits share the recording transaction. Reset Param Values still resets the current clip's offsets to the
+now-current shared baseline.
+
+Linked edits update the active clip even when made from a different clip, and
+materialize missing MIDI parameters or patch routes in other clips. A missing
+dynamic parameter inherits the baseline with zero local offset. Patch-route
+capacity and allocation failures are reported before changing the shared value.
+Zero-strength routes with a local offset are retained through save/load, since
+later shared edits can make them audible again.
+
+Mod-encoder indicators use the same scalar layer as normal controls while
+playback is stopped: the clip scalar with Track Link off, or the shared baseline
+with it on. Linked indicators continue to show the shared baseline during
+ordinary playback, rather than following each clip's different automation.
+Recording and explicit automation-region editing retain their automation
+indication. Unlinked playback retains its existing automation display.
+
+In the automation parameter editor, either mod encoder edits the scalar layer
+when no pad is held or selected. This uses the same control routing as regular
+clip view: clip value normally, shared baseline with Track Link enabled, and
+clip-local automation during recording. Holding/selecting a pad still edits its
+automation region. The graph retains the relative curve and moves with scalar
+edits; stopped readouts and LEDs show the scalar being edited.
+
+MIDI Follow feedback uses the linked preset layer outside recording and explicit
+step editing. Expression controls and incoming expression remain live overrides,
+even with Track Link enabled.
+Non-automatable controls retain their automation restriction during region edits.
 
 ## Control access boundary
 
@@ -183,13 +227,14 @@ Normal parameter controls call `ParamCollection::getValueForControl(id, context)
 and `setValueFromControl(value, parameterContext, position, length)`. The context
 requires a parameter ID and collection, not an AutoParam pointer. A nonzero
 region length with a timeline selects an explicit automation edit; otherwise
-ordinary edits select the clip scalar,
-and recording/expression select live automation input. Unchanged clip scalars return before the dispatcher resolves AutoParam. Changed scalar
+Track Link selects the shared preset, ordinary edits select the clip scalar,
+and recording/expression select live automation input. Preset edits and unchanged
+clip scalars return before the dispatcher resolves AutoParam. Changed scalar
 edits still access automation for undo and effective-value notifications.
 
 Automation drawing in the editor calls `automation().setValueForRegion` explicitly.
 Empty regions are skipped, including endpoint remainders at the smallest zoom,
-so drawing cannot fall through to clip-scalar editing.
+so drawing cannot fall through to clip or shared-preset editing.
 
 Fixed, MIDI and cable reads share the production `readControlValue` operation.
 Preset/clip reads do not dereference AutoParam. MIDI reads do not create missing

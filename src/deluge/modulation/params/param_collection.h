@@ -44,6 +44,7 @@ public:
 	virtual ~ParamCollection();
 
 	virtual ClipParamValue* getClipValueStorage(int32_t /*paramId*/) { return nullptr; }
+	static Output* getLinkedOutput(ModelStackWithThreeMainThings const* modelStack);
 	static bool controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack);
 	// Collections choose which value layer their normal panel controls edit.
 	int32_t getValueForControl(ModelStackWithParamId const* modelStack);

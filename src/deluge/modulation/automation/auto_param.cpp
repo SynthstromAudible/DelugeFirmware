@@ -33,6 +33,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_node.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"

@@ -53,6 +53,15 @@ bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const*
 	return !recording_automation;
 }
 
+Output* ParamCollection::getLinkedOutput(ModelStackWithThreeMainThings const* modelStack) {
+	auto* timeline = modelStack->getTimelineCounterAllowNull();
+	if ((timeline == nullptr) || timeline == modelStack->song || !controlsEditClipValue(modelStack)) {
+		return nullptr;
+	}
+	auto* output = static_cast<Clip*>(timeline)->output;
+	return (output != nullptr) && output->trackLink ? output : nullptr;
+}
+
 int32_t ParamCollection::getValueForControl(ModelStackWithParamId const* modelStack) {
 	return getValueForControl(modelStack->paramId, modelStack);
 }
@@ -61,8 +70,17 @@ void ParamCollection::setValueFromControl(int32_t value, ModelStackWithParamId c
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
 	using namespace deluge::modulation::params;
 	auto* clip = getClipValueStorage(modelStack->paramId);
-	auto layer = controlLayer(getParamKind(), true, controlsEditClipValue(modelStack), false,
+	auto* output = getLinkedOutput(modelStack);
+	auto layer = controlLayer(getParamKind(), true, controlsEditClipValue(modelStack), output != nullptr,
 	                          length != 0 && modelStack->timelineCounterIsSet());
+	if (layer == ControlLayer::PRESET) {
+		Error error = output->setPresetParameter(modelStack->song, modelStack->modControllable, getParamKind(),
+		                                         modelStack->paramId, value);
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		return;
+	}
 	// Avoid even resolving AutoParam for a scalar edit which changes nothing.
 	if (layer == ControlLayer::CLIP && clip != nullptr && value == clip->getValue()) {
 		return;

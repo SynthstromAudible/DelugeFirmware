@@ -1345,7 +1345,10 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}
 					else {
-						currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+						currentValue =
+						    (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr)
+						        ? modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam)
+						        : modelStackWithParam->autoParam->getCurrentValue();
 					}
 
 					// convert current value to a knob position
