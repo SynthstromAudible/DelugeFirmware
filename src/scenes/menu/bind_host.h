@@ -30,8 +30,8 @@ void host_grab_tempo(deluge::project::ClipAddress clip);
 ///        settings main reads live.
 void host_settings_reset();
 
-/// @brief The app's waveforms port (`gui::shell_host::waveforms`). For the sample browser's reads alone, until the
-///        browser takes its ports.
+/// @brief The app's waveforms port (`gui::shell_host::waveforms`), for the sample browser's and the slicer's reads:
+///        neither reads its ports for its waveform.
 const deluge::scenes::bind::Waveforms& host_waveforms();
 /// @brief The file the sample browser last started to preview or load (`deluge::model::lastFilePathLoaded`),
 ///        which a sample browser opens beside when its holder names no file in SAMPLES/.

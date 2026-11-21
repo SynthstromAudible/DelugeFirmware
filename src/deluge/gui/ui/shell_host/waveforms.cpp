@@ -168,7 +168,8 @@ private:
 } // namespace
 
 const scenes::bind::Waveforms& waveforms() {
-	static const HostWaveforms host;
+	// Constant-initialised, so it links as `.data` into SDRAM with the host's other port objects (`sdram_sections.x`).
+	static constinit const HostWaveforms host;
 	return host;
 }
 

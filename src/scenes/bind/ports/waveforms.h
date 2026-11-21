@@ -34,9 +34,9 @@ struct WaveformInfo {
 	uint64_t length_samples{0};    ///< frames
 	uint32_t sample_rate{0};       ///< frames per second
 	uint8_t channels{0};           ///< 1 or 2
-	int32_t max_peak_from_zero{0}; ///< the largest magnitude found so far
-	int32_t centre{0};             ///< the value the bars are centred on
-	int32_t span{0};               ///< the value range one pad shows
+	int32_t max_peak_from_zero{0}; ///< the largest magnitude found so far, a Q1.31 sample value
+	int32_t centre{0};             ///< the value the bars are centred on, a Q1.31 sample value
+	int32_t span{0};               ///< the value range one pad shows, in Q1.31 sample values
 	bool recording{false};         ///< an audio clip's take being written, not its file
 	uint64_t identity{0};          ///< which waveform this is: another file, or a take, has another
 	bool operator==(const WaveformInfo&) const = default;
