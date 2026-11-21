@@ -52,11 +52,9 @@ struct ClearBandsUnlessBuilt {
 /// @brief Sizes @p bands by @p geometry and allocates each one's samples: one band per octave, or band 0 alone without
 ///        its transform, less any band whose inverse transform cannot be built. Every band but a power-of-two source's
 ///        band 0 is rendered through one; dropping one leaves the bands either side of it unaffected.
-Error layOutBands(deluge::fast_vector<WaveTableBand>& bands, const BandGeometry& geometry, bool band0HasTransform,
+Error layOutBands(deluge::try_fast_vector<WaveTableBand>& bands, const BandGeometry& geometry, bool band0HasTransform,
                   int32_t numCycles) {
-	try {
-		bands.resize(geometry.num_bands(band0HasTransform));
-	} catch (deluge::exception&) {
+	if (!bands.try_resize(geometry.num_bands(band0HasTransform))) {
 		return Error::INSUFFICIENT_RAM;
 	}
 	for (int32_t b = 0; b < static_cast<int32_t>(bands.size()); b++) {

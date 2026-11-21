@@ -57,7 +57,7 @@ PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CO
 
 namespace MIDIDeviceManager {
 
-deluge::fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
+deluge::try_fast_vector<MIDICableUSBHosted*> hostedMIDIDevices;
 
 /// Comparator maintaining hostedMIDIDevices' case-insensitive sort by name
 static bool cableNameLess(MIDICableUSBHosted* cable, char const* name) {
@@ -181,8 +181,9 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
 			if (gotAName && !(candidate->name == *name)) {
-				std::erase(hostedMIDIDevices, candidate);
-				candidate->name = *name; // Can't fail
+				deluge::erase(hostedMIDIDevices, candidate);
+				candidate->name = *name;
+				// Into the slot the erase just freed: cannot allocate
 				hostedMIDIDevices.insert(std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(),
 				                                          candidate->name.c_str(), cableNameLess),
 				                         candidate);
@@ -192,9 +193,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 		}
 	}
 
-	try {
-		hostedMIDIDevices.reserve(hostedMIDIDevices.size() + 1);
-	} catch (deluge::exception&) {
+	if (!hostedMIDIDevices.try_reserve(hostedMIDIDevices.size() + 1)) {
 		return nullptr;
 	}
 
@@ -226,7 +225,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(std::string* name, ui
 	device->vendorId = vendorId;
 	device->productId = productId;
 
-	// Store record of this device. We reserved space above, so this can't throw.
+	// Store record of this device. We reserved space above, so this cannot allocate.
 	hostedMIDIDevices.insert(
 	    std::lower_bound(hostedMIDIDevices.begin(), hostedMIDIDevices.end(), device->name.c_str(), cableNameLess),
 	    device);

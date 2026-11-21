@@ -115,6 +115,25 @@ describe try_vector("deluge::TryVector", $ {
 		}
 		expect(deluge::erase_if(v, [](int x) { return x % 3 == 0; })).to_equal(3u);
 		expect(contents(v)).to_equal(std::vector<int>{1, 2, 4, 5});
+		expect(deluge::erase(v, 4)).to_equal(1u);
+		expect(contents(v)).to_equal(std::vector<int>{1, 2, 5});
+	});
+
+	it("shrink_to_fit gives back the room, and keeps it when there is no memory to move into", _ {
+		Ints v;
+		(void)v.try_reserve(8);
+		v.push_back(1);
+		v.push_back(2);
+		FailingAllocator<int>::fail_after(0);
+		v.shrink_to_fit();
+		expect(v.capacity()).to_equal(8u);
+		FailingAllocator<int>::never_fail();
+		v.shrink_to_fit();
+		expect(v.capacity()).to_equal(2u);
+		expect(contents(v)).to_equal(std::vector<int>{1, 2});
+		v.clear();
+		v.shrink_to_fit();
+		expect(v.capacity()).to_equal(0u);
 	});
 
 	it("erases an empty range without touching the elements", _ {

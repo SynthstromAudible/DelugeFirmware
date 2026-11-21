@@ -26,7 +26,7 @@ class AudioFile;
 /// Pointers to all loaded AudioFiles, sorted case-insensitively by filePath. A Sample and a WaveTable may share
 /// the same path, so equal keys can appear as neighbours. Lives on the external (non-stealable) region so that
 /// growing it can never steal an AudioFile, which would erase from this same vector mid-insertion.
-class AudioFileVector final : public deluge::vector<AudioFile*> {
+class AudioFileVector final : public deluge::try_vector<AudioFile*> {
 public:
 	/// Mirrors NamedThingVector::search(..., GREATER_OR_EQUAL): returns the index of a name match, or the
 	/// insertion point if there is none.

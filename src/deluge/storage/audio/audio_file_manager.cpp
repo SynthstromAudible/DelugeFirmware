@@ -515,12 +515,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
-	try {
-		audioFiles.reserve(audioFiles.size() + 1);
-		return true;
-	} catch (deluge::exception&) {
-		return false;
-	}
+	return audioFiles.try_reserve(audioFiles.size() + 1).has_value();
 }
 
 Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength,

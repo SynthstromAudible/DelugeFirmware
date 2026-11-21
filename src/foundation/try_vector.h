@@ -88,6 +88,23 @@ public:
 		size_ = static_cast<size_type>(newEnd - data_);
 		return f;
 	}
+	/// @brief Give back the room past size(): a request, as std::vector's is. With no memory for a smaller buffer the
+	///        room is kept.
+	void shrink_to_fit() noexcept {
+		if (size_ == capacity_) {
+			return;
+		}
+		if (size_ == 0) {
+			release();
+			return;
+		}
+		T* fresh = alloc_.try_allocate(size_);
+		if (fresh == nullptr) {
+			return;
+		}
+		relocate_around(fresh, size_, 0);
+		adopt(fresh, size_, size_);
+	}
 	void swap(TryVector& other) noexcept {
 		std::swap(data_, other.data_);
 		std::swap(size_, other.size_);
@@ -312,6 +329,13 @@ typename TryVector<T, Alloc>::size_type erase_if(TryVector<T, Alloc>& v, Pred pr
 	const auto erased = static_cast<typename TryVector<T, Alloc>::size_type>(v.end() - kept);
 	v.erase(kept, v.end());
 	return erased;
+}
+
+/// @brief Erase every element equal to @p value, keeping the rest in order (C++20's uniform container erasure).
+/// @return The number erased.
+template <class T, class Alloc, class U>
+typename TryVector<T, Alloc>::size_type erase(TryVector<T, Alloc>& v, const U& value) {
+	return erase_if(v, [&](const T& element) { return element == value; });
 }
 
 } // namespace deluge

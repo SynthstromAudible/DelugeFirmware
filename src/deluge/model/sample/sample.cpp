@@ -85,7 +85,8 @@ constexpr int32_t LESS = -1;
 
 // Mirrors OrderedResizeableArray::search(): returns the index of the first zone whose startPos >= key,
 // plus `comparison` (GREATER_OR_EQUAL = 0 or LESS = -1).
-static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& zones, int32_t key, int32_t comparison) {
+static int32_t searchPercCacheZones(deluge::try_vector<SamplePercCacheZone> const& zones, int32_t key,
+                                    int32_t comparison) {
 	auto it = std::lower_bound(zones.begin(), zones.end(), key,
 	                           [](SamplePercCacheZone const& zone, int32_t k) { return zone.startPos < k; });
 	return static_cast<int32_t>(it - zones.begin()) + comparison;
@@ -309,12 +310,10 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	auto* samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
 	                                                       timeStretchRatio, skipSamplesAtStart, reversed);
 
-	try {
-		// Re-search: the cache-memory allocation above may have run other code, so don't trust the old iterator.
-		it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
-		caches.insert(it, SampleCacheElement{phaseIncrement, timeStretchRatio, skipSamplesAtStart,
-		                                     static_cast<bool>(reversed), samplePitchAdjustment});
-	} catch (deluge::exception&) {
+	// Re-search: the cache-memory allocation above may have run other code, so don't trust the old iterator.
+	it = std::lower_bound(caches.begin(), caches.end(), keyWords, cacheKeyLess);
+	if (!caches.try_insert(it, SampleCacheElement{phaseIncrement, timeStretchRatio, skipSamplesAtStart,
+	                                              static_cast<bool>(reversed), samplePitchAdjustment})) {
 		samplePitchAdjustment->~SampleCache();
 		delugeDealloc(memory);
 		return nullptr;
@@ -563,9 +562,8 @@ doReturnNoError:
 	// The zone arrays live on the external (non-stealable) region, so this growth can never steal this
 	// Sample's own perc cache Clusters and re-enter the array. There's also still a lock to alert if
 	// reentrant modification somehow happens anyway.
-	try {
-		percCacheZones[reversed].insert(percCacheZones[reversed].begin() + i, SamplePercCacheZone(startPosSamples));
-	} catch (deluge::exception&) {
+	if (!percCacheZones[reversed].try_insert(percCacheZones[reversed].begin() + i,
+	                                         SamplePercCacheZone(startPosSamples))) {
 		LOCK_EXIT
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -1099,9 +1097,7 @@ void Sample::percCacheClusterStolen(ComputedChunk* cluster) {
 				SamplePercCacheZone newZone(oldStartPos);
 				newZone.samplesAtStartWhichShouldBeReplaced = oldSamplesAtStartWhichShouldBeReplaced;
 				newZone.endPos = earlierBorder;
-				try {
-					percCacheZones[reversed].insert(percCacheZones[reversed].begin() + iNew, newZone);
-				} catch (deluge::exception&) {
+				if (!percCacheZones[reversed].try_insert(percCacheZones[reversed].begin() + iNew, newZone)) {
 					D_PRINTLN("insert fail");
 				}
 				LOCK_EXIT

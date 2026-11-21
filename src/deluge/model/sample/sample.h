@@ -202,13 +202,13 @@ public:
 	// audio cluster by advanceOverviewScan / resetOverviewScan (clusters aren't known at construction).
 	int32_t overviewScanNextCluster{0};
 
-	deluge::fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
+	deluge::try_fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
 
 	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	// One for each play-direction: 0=forwards; 1=reversed. Sorted ascending by startPos. On the external
 	// (non-stealable) region so that growing a zone list can never steal this sample's own perc-cache clusters,
 	// which would re-enter these arrays mid-modification.
-	deluge::vector<SamplePercCacheZone> percCacheZones[2]{};
+	deluge::try_vector<SamplePercCacheZone> percCacheZones[2]{};
 
 	ComputedChunk** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};

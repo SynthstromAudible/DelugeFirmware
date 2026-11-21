@@ -143,7 +143,7 @@ public:
 		item.filename = filename;
 		item.isFolder = false;
 		item.filenameIncludesExtension = true;
-		deluge::vector<FileItem> items;
+		deluge::try_vector<FileItem> items;
 		items.push_back(item);
 		Browser::listing.adopt(dir, std::move(items));
 		// Protected in `Browser`; reachable here because this class is a friend of `LoadSongUI`, which

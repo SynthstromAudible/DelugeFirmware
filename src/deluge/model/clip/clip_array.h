@@ -38,9 +38,7 @@ public:
 	std::expected<void, Error> insertClipAt(Clip* clip, int32_t index) {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
-		try {
-			clips_.insert(clips_.begin() + index, clip);
-		} catch (deluge::exception&) {
+		if (!clips_.try_insert(clips_.begin() + index, clip)) {
 			return std::unexpected(Error::INSUFFICIENT_RAM);
 		}
 		return {};
@@ -49,20 +47,18 @@ public:
 	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
-		try {
-			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
-		} catch (deluge::exception&) {
+		if (!clips_.try_reserve(clips_.size() + numAdditionalElementsNeeded)) {
 			return std::unexpected(Error::INSUFFICIENT_RAM);
 		}
 		return {};
 	}
 
-	auto erase(deluge::fast_vector<Clip*>::iterator first, deluge::fast_vector<Clip*>::iterator last) {
+	auto erase(deluge::try_fast_vector<Clip*>::iterator first, deluge::try_fast_vector<Clip*>::iterator last) {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		return clips_.erase(first, last);
 	}
-	auto erase(deluge::fast_vector<Clip*>::iterator at) {
+	auto erase(deluge::try_fast_vector<Clip*>::iterator at) {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		return clips_.erase(at);
@@ -105,5 +101,5 @@ private:
 	/// Another song's (one a load is building) is indexed once it is made current, which marks the index itself.
 	void noteEdit() const;
 
-	deluge::fast_vector<Clip*> clips_{};
+	deluge::try_fast_vector<Clip*> clips_{};
 };
