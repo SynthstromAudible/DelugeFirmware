@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           cache-name: clang-tidy
-          packages: clang-19 clang-tidy-19
+          packages: clang-19 clang-tidy-19 gcc-14 gcc-14-multilib g++-14-multilib
 
   clang-tidy-review:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           cache-name: clang-tidy
-          packages: clang-19 clang-tidy-19
+          packages: clang-19 clang-tidy-19 gcc-14 gcc-14-multilib g++-14-multilib
 
       - name: Select clang-tidy 19
         run: |
@@ -58,41 +58,16 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE" || exit 1
           ./dbt configure
-          # Supply native C commands for the handshake tests and their headers.
-          cmake -S tests/oled_handshake -B build/tidy-handshake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          jq -s 'add' build/compile_commands.json build/tidy-handshake/compile_commands.json > build/compile_commands.merged.json
-          mv build/compile_commands.merged.json build/compile_commands.json
-          sed -i 's/-mthumb-interwork//g' build/compile_commands.json
-          sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
-          sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
-          # The firmware database has no host tests. Without their own entries,
-          # clang-tidy guesses C++/firmware flags for the C hardware test harness.
-          cmake -S tests/hardware -B build/tidy-hardware -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          jq -s 'add' build/compile_commands.json build/tidy-hardware/compile_commands.json > build/compile_commands.merged.json
-          mv build/compile_commands.merged.json build/compile_commands.json
-
-      - name: Extract system includes from GCC
-        id: extract_system_includes
-        run: |
-          "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
-            | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
-            | tail -n +2 \
-            | head -n -1 \
-            | sed 's/^\s*//g' \
-            | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
-            | tr '\n' ' ' > system_includes.txt
-          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
-          echo "Extracted system includes:"
-          cat system_includes.txt
+          # Include the real CppUTest compile commands, as well as the other
+          # host test targets. Do not infer ARM commands for native tests.
+          CC=gcc-14 CXX=g++-14 cmake -S tests -B build/tidy-tests -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          python3 scripts/prepare_clang_tidy.py \
+            --firmware-db build/compile_commands.json \
+            --host-db build/tidy-tests/compile_commands.json \
+            --output build/compile_commands.json --clang clang-19
 
       - name: Check clang-tidy version
         run: clang-tidy --version
-
-      - name: Add native CV gate compilation commands
-        run: |
-          cmake -S tests/cv_gate -B build/tidy-cv-gate -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          jq -s 'add' build/compile_commands.json build/tidy-cv-gate/compile_commands.json > build/compile_commands.merged.json
-          mv build/compile_commands.merged.json build/compile_commands.json
 
       - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
@@ -101,6 +76,5 @@ jobs:
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
           fail_on_problems: false
-          clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 

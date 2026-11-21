@@ -346,7 +346,8 @@ public:
 	void resumeClipsClonedForArrangementRecording();
 	void setParamsInAutomationMode(bool newState);
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = nullptr);
-	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip = nullptr);
+	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip = nullptr,
+	                                            bool fromArranger = false);
 	void instrumentSwapped(Instrument* newInstrument);
 	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
 	AudioOutput* getFirstAudioOutput();

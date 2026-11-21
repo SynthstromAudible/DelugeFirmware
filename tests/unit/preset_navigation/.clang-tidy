@@ -1,0 +1,8 @@
+---
+InheritParentConfig: true
+# TEST generates static registration objects and factory methods whose ownership
+# belongs to CppUTest. These checks diagnose the framework expansion at every
+# TEST invocation, rather than code in the test body.
+Checks: '-bugprone-throwing-static-initialization,-cppcoreguidelines-owning-memory'
+CheckOptions:
+  readability-function-cognitive-complexity.IgnoreMacros: true

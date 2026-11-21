@@ -372,6 +372,9 @@ extern FileDeserializer* activeDeserializer;
 
 namespace StorageManager {
 
+// Includes the parsing interval between SD reads, when sdRoutineLock is false.
+[[nodiscard]] bool isDeserializerOpen();
+
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,

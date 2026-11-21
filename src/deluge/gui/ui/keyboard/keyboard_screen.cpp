@@ -754,12 +754,16 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
-		// Ensure scroll values are calculated in bounds
-		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
-		    0, false, pressedPads, xEncoderActive);
-		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
-		requestRendering();
+		presetChanged();
 	}
+}
+
+void KeyboardScreen::presetChanged() {
+	// Recalculate against the installed instrument, including a kit's drum count.
+	layout_list.at(getCurrentInstrumentClip()->keyboardState.currentLayout)
+	    ->handleHorizontalEncoder(0, false, pressedPads, xEncoderActive);
+	layout_list.at(getCurrentInstrumentClip()->keyboardState.currentLayout)->precalculate();
+	requestRendering();
 }
 
 void KeyboardScreen::exitAuditionMode() {

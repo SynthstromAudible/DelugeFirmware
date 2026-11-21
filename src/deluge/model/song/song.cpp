@@ -135,6 +135,76 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
+namespace {
+bool selectCVChannel(NonAudioInstrument& instrument, int32_t offset, int32_t& new_channel) {
+	const int32_t old_channel = instrument.getChannel();
+	Instrument* occupied = nullptr;
+	do {
+		new_channel = CVInstrument::navigateChannels(new_channel, offset);
+		if (new_channel == old_channel) {
+			return false;
+		}
+		// Switching to both channels only needs to check the other channel.
+		int32_t channel_to_search = new_channel;
+		if (new_channel == CVInstrumentMode::both) {
+			channel_to_search = old_channel == 0 ? 1 : 0;
+		}
+		occupied =
+		    currentSong->getInstrumentFromPresetSlot(OutputType::CV, channel_to_search, -1, nullptr, nullptr, false);
+	} while (occupied != nullptr && occupied != &instrument);
+	return true;
+}
+
+bool selectMidiChannel(MIDIInstrument& instrument, int32_t offset, int32_t& new_channel, int32_t& new_suffix) {
+	const int32_t old_channel = instrument.getChannel();
+	const int32_t old_suffix = instrument.channelSuffix;
+	new_suffix = old_suffix;
+	instrument.setChannel(-1); // Exclude this instrument from the occupied-slot search.
+	do {
+		const int32_t step = offset > 0 ? 1 : -1;
+		new_suffix += step;
+		if (offset < 0 && new_suffix < -1) {
+			new_channel = (new_channel + step) & 15;
+			new_suffix = currentSong->getMaxMIDIChannelSuffix(new_channel);
+		}
+		else if (offset >= 0 && (new_suffix >= 26 || new_suffix > currentSong->getMaxMIDIChannelSuffix(new_channel))) {
+			new_channel = (new_channel + step) & 15;
+			new_suffix = -1;
+		}
+		if (new_channel == old_channel && new_suffix == old_suffix) {
+			instrument.setChannel(old_channel);
+			return false;
+		}
+	} while (
+	    currentSong->getInstrumentFromPresetSlot(OutputType::MIDI_OUT, new_channel, new_suffix, nullptr, nullptr, false)
+	    != nullptr);
+	instrument.setChannel(old_channel); // Restore it before switching notes off.
+	return true;
+}
+
+bool navigateNonAudioPreset(NonAudioInstrument& instrument, int32_t offset, Clip* display_clip) {
+	int32_t new_channel = instrument.getChannel();
+	int32_t new_suffix = -1;
+	const bool is_midi = instrument.type == OutputType::MIDI_OUT;
+	const bool found =
+	    is_midi ? selectMidiChannel(static_cast<MIDIInstrument&>(instrument), offset, new_channel, new_suffix)
+	            : selectCVChannel(instrument, offset, new_channel);
+	if (!found) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+		return false;
+	}
+	if (instrument.getActiveClip() != nullptr && playbackHandler.isEitherClockActive()) {
+		instrument.getActiveClip()->expectNoFurtherTicks(currentSong);
+	}
+	instrument.setChannel(new_channel);
+	if (is_midi) {
+		static_cast<MIDIInstrument&>(instrument).channelSuffix = new_suffix;
+	}
+	view.displayOutputName(&instrument, true, display_clip);
+	return true;
+}
+} // namespace
+
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
@@ -4806,8 +4876,8 @@ void Song::setParamsInAutomationMode(bool newState) {
 bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a
 	// different Output If in session view, change the whole instrument
-	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
-		if (availabilityRequirement) {
+	if (clip == nullptr || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
+		if (availabilityRequirement != nullptr) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
 		return true;
@@ -4815,7 +4885,7 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 
 	else {
 
-		if (availabilityRequirement) {
+		if (availabilityRequirement != nullptr) {
 			// If Clip is "active", just make sure we pick an Output that doesn't have a Clip "active" in session
 			if (isClipActive(clip)) {
 				*availabilityRequirement = Availability::INSTRUMENT_AVAILABLE_IN_SESSION;
@@ -4832,142 +4902,52 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
+// Preserve the existing Song API and its explicit use of the active global song.
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip,
+                                                  bool fromArranger) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
-
 	actionLogger.deleteAllLogs();
-
-	Instrument* oldInstrument = (Instrument*)output;
-
-	OutputType outputType = oldInstrument->type;
-
+	auto* instrument = static_cast<Instrument*>(output);
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
 
-	// If we're in MIDI or CV mode, easy - just change the channel
-	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
-
-		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
-
-		int32_t oldChannel = oldNonAudioInstrument->getChannel();
-		int32_t newChannel = oldNonAudioInstrument->getChannel();
-
-		int32_t oldChannelSuffix, newChannelSuffix;
-		if (outputType == OutputType::MIDI_OUT) {
-			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
-			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+	if (instrument->type == OutputType::MIDI_OUT || instrument->type == OutputType::CV) {
+		if (!navigateNonAudioPreset(*static_cast<NonAudioInstrument*>(instrument), offset, displayClip)) {
+			return output;
 		}
-
-		// CV
-		if (outputType == OutputType::CV) {
-			int channelToSearch = 0;
-			Instrument* instrument = nullptr;
-			do {
-				newChannel = CVInstrument::navigateChannels(newChannel, offset);
-
-				if (newChannel == oldChannel) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
-					return output;
-				}
-				if (newChannel == CVInstrumentMode::both) {
-					// in this case we just need to make sure the one were not about to give up is free
-					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
-					// change and this doesn't matter much
-					channelToSearch = oldChannel == 0 ? 1 : 0;
-				}
-				else {
-					channelToSearch = newChannel;
-				}
-				instrument =
-				    currentSong->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr, nullptr, false);
-			} while (instrument != nullptr && instrument != oldInstrument);
-		}
-
-		// Or MIDI
-		else {
-
-			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
-
-			do {
-				// Use +/-1 step regardless of encoder so channel-wrap logic stays correct.
-				int32_t step = (offset > 0) ? 1 : -1;
-				newChannelSuffix += step;
-
-				// Turned left
-				if (offset < 0) {
-					if (newChannelSuffix < -1) {
-						newChannel = (newChannel + step) & 15;
-						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
-					}
-				}
-
-				// Turned right
-				else {
-					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
-						newChannel = (newChannel + step) & 15;
-						newChannelSuffix = -1;
-					}
-				}
-
-				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
-					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
-					return output;
-				}
-
-			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
-			                                                  nullptr, false));
-
-			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
-		}
-
-		if (oldNonAudioInstrument->getActiveClip() && playbackHandler.isEitherClockActive()) {
-			oldNonAudioInstrument->getActiveClip()->expectNoFurtherTicks(currentSong);
-		}
-
-		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
-		// the existing Instrument object!
-		oldNonAudioInstrument->setChannel(newChannel);
-		if (outputType == OutputType::MIDI_OUT) {
-			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
-		}
-
-		view.displayOutputName(oldNonAudioInstrument, true, displayClip);
 	}
-
-	// Or if we're on a Kit or Synth...
 	else {
 		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
-		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
-removeWorkingAnimationAndGetOut:
+		    offset, instrument, Availability::INSTRUMENT_UNUSED, true, displayClip, fromArranger, true);
+		if (results.pending) {
+			return output;
+		}
+		if (results.error != Error::NONE) {
+			if (results.error != Error::NO_ERROR_BUT_GET_OUT) {
+				view.displayOutputName(instrument, true, displayClip);
+				display->displayError(results.error);
+			}
 			if (display->haveOLED()) {
-				auto oled = static_cast<deluge::hid::display::OLED*>(display);
+				auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 				oled->consoleTimerEvent();
 				oled->removeWorkingAnimation();
 			}
 			return output;
 		}
-		else if (results.error != Error::NONE) {
-			display->displayError(results.error);
-			goto removeWorkingAnimationAndGetOut;
-		}
-
-		Instrument* newInstrument = results.fileItem->instrument;
+		Instrument* new_instrument = results.fileItem->instrument;
 		Browser::emptyFileItems();
-
-		currentSong->replaceInstrument(oldInstrument, newInstrument);
-
-		oldInstrument = newInstrument;
+		if (fromArranger && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+			arrangerView.endAudition(instrument);
+		}
+		currentSong->replaceInstrument(instrument, new_instrument);
+		instrument = new_instrument;
 		display->removeLoadingAnimation();
 	}
-
-	currentSong->instrumentSwapped(oldInstrument);
-
+	currentSong->instrumentSwapped(instrument);
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
-
-	return oldInstrument;
+	return instrument;
 }
 
 void Song::instrumentSwapped(Instrument* newInstrument) {

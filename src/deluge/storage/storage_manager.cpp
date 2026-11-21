@@ -68,6 +68,10 @@ PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 
+bool StorageManager::isDeserializerOpen() {
+	return smDeserializer.readFIL.obj.fs != nullptr || smJsonDeserializer.readFIL.obj.fs != nullptr;
+}
+
 const bool writeJsonFlag = false;
 
 Serializer& GetSerializer() {

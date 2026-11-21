@@ -277,6 +277,11 @@ Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t re
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
+					// Stop between sounds when the browser has newer navigation waiting.
+					// The caller disposes of the partial kit and its backed-up parameters.
+					if (shouldAbortLoading()) {
+						return Error::ABORTED_BY_USER;
+					}
 					reader.match('{');
 					Error error = readDrumFromFile(reader, song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
