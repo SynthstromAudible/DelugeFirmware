@@ -18,6 +18,7 @@
 #include "hid/buttons.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -32,6 +33,7 @@
 #include "storage/flash_storage.h"
 #include <map>
 #include <string>
+#include <utility>
 
 #include "io/debug/log.h"
 
@@ -92,6 +94,23 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		// If the user presses a different button while holding cross screen, don't consider the cross screen press for
 		// for the purposes of toggling cross screen mode
 		considerCrossScreenReleaseForCrossScreenMode = false;
+	}
+
+	// Resolve before UI dispatch: clip-specific LEARN copy/paste bypasses View.
+	bool edits_preset = b == MOD_ENCODER_0 || b == MOD_ENCODER_1;
+	for (int32_t i = 0; i < kNumModButtons; ++i) {
+		edits_preset |= std::cmp_equal(xy.x, modButtonX[i]) && std::cmp_equal(xy.y, modButtonY[i]);
+	}
+	const auto preset_action = deluge::gui::presetInputAction(
+	    loadInstrumentPresetUI.hasPendingPresetLoad(), on && edits_preset, inCardRoutine,
+	    StorageManager::isDeserializerOpen(),
+	    edits_preset && currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED);
+	if (preset_action == deluge::gui::PresetInputAction::DEFER) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	if (on && edits_preset && !loadInstrumentPresetUI.prepareForParameterEdit()) {
+		return loadInstrumentPresetUI.hasPendingPresetLoad() ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+		                                                     : ActionResult::DEALT_WITH;
 	}
 
 	ActionResult result;

@@ -22,10 +22,12 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -79,6 +81,23 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 	auto ui = getCurrentUI();
 	if (ui == nullptr) {
 		return ActionResult::DEALT_WITH; // only happens when booting
+	}
+	if (ui == &instrumentClipView || ui == &keyboardScreen || ui == &automationView) {
+		// A release received while a forced load is parsing must follow its press.
+		if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		const auto preset_action =
+		    deluge::gui::presetInputAction(loadInstrumentPresetUI.hasPendingPresetLoad(), velocity != 0, sdRoutineLock,
+		                                   StorageManager::isDeserializerOpen());
+		if (preset_action == deluge::gui::PresetInputAction::DEFER) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		if (preset_action == deluge::gui::PresetInputAction::RESOLVE
+		    && !loadInstrumentPresetUI.prepareForParameterEdit()) {
+			return loadInstrumentPresetUI.hasPendingPresetLoad() ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+			                                                     : ActionResult::DEALT_WITH;
+		}
 	}
 	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {

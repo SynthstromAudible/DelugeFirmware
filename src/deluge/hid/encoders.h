@@ -124,6 +124,7 @@ extern DetentedEncoder scrollY;
 extern DetentedEncoder scrollX;
 extern DetentedEncoder tempo;
 extern DetentedEncoder select;
+[[nodiscard]] bool selectNavigationPending();
 extern ContinuousEncoder mod0; ///< lower gold encoder
 extern ContinuousEncoder mod1; ///< upper gold encoder
 

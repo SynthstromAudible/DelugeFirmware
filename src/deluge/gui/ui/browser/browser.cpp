@@ -22,6 +22,7 @@
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/default_name.h"
+#include "gui/ui/browser/preset_navigation.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -39,9 +40,55 @@
 #include "util/functions.h"
 #include "util/try.h"
 #include <cstring>
+#include <memory>
 #include <new>
 
 using namespace deluge;
+
+namespace {
+enum class DuplicateItemAction { KEEP, REMOVE_CURRENT, REMOVE_NEXT };
+
+void copyMissingFilePointer(FileItem& instrument, const FileItem& file) {
+	if (instrument.maybeExistsOnCard && instrument.filePointer.sclust == 0) {
+		instrument.filePointer = file.filePointer;
+	}
+}
+
+DuplicateItemAction mergeDuplicateItems(FileItem& current, FileItem& next) {
+	if (current.isFolder) {
+		const auto name_length = current.filename.getLength();
+		const char* next_name = next.filename.get();
+		const bool matching_file =
+		    !next.isFolder && next.filename.getLength() > name_length
+		    && memcasecmp(current.filename.get(), next_name, static_cast<int32_t>(name_length)) == 0
+		    && next_name[name_length] == '.' && strchr(next_name + name_length + 1, '.') == nullptr;
+		return matching_file ? DuplicateItemAction::REMOVE_CURRENT : DuplicateItemAction::KEEP;
+	}
+	if (next.isFolder || strcasecmp(current.displayName, next.displayName) != 0) {
+		return DuplicateItemAction::KEEP;
+	}
+	if (current.instrument != nullptr && next.instrument == nullptr) {
+		copyMissingFilePointer(current, next);
+		return DuplicateItemAction::REMOVE_NEXT;
+	}
+	if (current.instrument == nullptr && next.instrument != nullptr) {
+		copyMissingFilePointer(next, current);
+		return DuplicateItemAction::REMOVE_CURRENT;
+	}
+	return DuplicateItemAction::KEEP;
+}
+
+bool isPresetItemAvailable(const FileItem& item, Availability requirement, Instrument* exempt) {
+	if (item.instrument == nullptr) {
+		return true;
+	}
+	const bool active_in_session = item.instrumentAlreadyInSong && item.instrument != exempt
+	                               && requirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+	                               && currentSong->doesOutputHaveActiveClipInSession(item.instrument);
+	return deluge::gui::presetInstrumentAvailable(requirement, item.instrumentAlreadyInSong, active_in_session,
+	                                              item.instrument, exempt);
+}
+} // namespace
 
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
@@ -338,7 +385,10 @@ extensionNotSupported:
 		// broke default naming on 7SEG (#1069).
 		thisItem->displayName = thisItem->filename.get();
 	}
-	staticDIR.close();
+	const auto close_result = staticDIR.close();
+	if (!close_result && error == Error::NONE) {
+		error = fatfsErrorToDelugeError(close_result.error());
+	}
 
 	if (error != Error::NONE) {
 		emptyFileItems();
@@ -347,96 +397,60 @@ extensionNotSupported:
 	return error;
 }
 
-void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
-	int32_t writeI = 0;
-	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
-
-	for (int32_t readI = 0; readI < fileItems.getNumElements(); readI++) {
-		FileItem* readItem = nextItem;
-
-		// If there's a next item after "this" item, to compare it to...
-		if (readI < fileItems.getNumElements() - 1) {
-			nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
-
-			// If we're a folder, and the next item is a file of the same name, delete this item.
-			if (readItem->isFolder) {
-				if (!nextItem->isFolder) {
-					int32_t nameLength = readItem->filename.getLength();
-					char const* nextItemFilename = nextItem->filename.get();
-					if (!memcasecmp(readItem->filename.get(), nextItemFilename, nameLength)) {
-						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
-							goto deleteThisItem;
-						}
-					}
-				}
-			}
-
-			// Or if we have an Instrument, and the next item is a file of the same name, delete the next item.
-			else if (readItem->instrument) {
-				if (!nextItem->instrument && !nextItem->isFolder) {
-					if (!strcasecmp(readItem->displayName, nextItem->displayName)) {
-						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
-						if (readItem->maybeExistsOnCard && readItem->filePointer.sclust == 0) {
-							readItem->filePointer = nextItem->filePointer;
-						}
-						nextItem->~FileItem();
-						readI++;
-						nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
-						// That may set it to an invalid address, but in that case, it won't get read.
-					}
-				}
-
-checkAvailabilityRequirement:
-				// Check Instrument's availabilityRequirement
-				if (readItem->instrumentAlreadyInSong) {
-					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-deleteThisItem:
-						readItem->~FileItem();
-						continue;
-					}
-					else if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
-							goto deleteThisItem;
-						}
-					}
-				}
-			}
-
-			// Or if next item has an Instrument, and we're just a file...
-			else if (nextItem->instrument) {
-				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
-					if (nextItem->maybeExistsOnCard && nextItem->filePointer.sclust == 0) {
-						nextItem->filePointer = readItem->filePointer;
-					}
-					goto deleteThisItem;
-				}
-			}
-		}
-		else {
-			if (readItem->instrument) {
-				goto checkAvailabilityRequirement;
-			}
-		}
-
-		void* writeAddress = fileItems.getElementAddress(writeI);
-		if (writeAddress != readItem) {
-			memcpy(writeAddress, readItem, sizeof(FileItem));
-		}
-		writeI++;
-	}
-
-	int32_t numToDelete = fileItems.getNumElements() - writeI;
-	if (numToDelete > 0) {
-		fileItems.deleteAtIndex(writeI, numToDelete);
-	}
-
-	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
-	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
+void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement,
+                                            Instrument* availabilityExemptInstrument) {
+	// Remove incomplete edge groups before availability filtering can remove their
+	// entries. Otherwise deleting an endpoint afterward drops a different preset
+	// (or indexes an empty catalog). Navigation revisits these keys inclusively.
 	if (!firstFileItemRemaining.isEmpty()) {
-		fileItems.deleteAtIndex(0);
+		int32_t end = 0;
+		while (end < fileItems.getNumElements()
+		       && strcmpspecial(static_cast<FileItem*>(fileItems.getElementAddress(end))->displayName,
+		                        firstFileItemRemaining.get())
+		              <= 0) {
+			++end;
+		}
+		deleteSomeFileItems(0, end);
 	}
 	if (!lastFileItemRemaining.isEmpty()) {
-		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
+		int32_t start = fileItems.getNumElements();
+		while (start > 0
+		       && strcmpspecial(static_cast<FileItem*>(fileItems.getElementAddress(start - 1))->displayName,
+		                        lastFileItemRemaining.get())
+		              >= 0) {
+			--start;
+		}
+		deleteSomeFileItems(start, fileItems.getNumElements());
+	}
+	int32_t write_index = 0;
+	for (int32_t read_index = 0; read_index < fileItems.getNumElements(); ++read_index) {
+		auto* item = static_cast<FileItem*>(fileItems.getElementAddress(read_index));
+		if (read_index + 1 < fileItems.getNumElements()) {
+			auto* next = static_cast<FileItem*>(fileItems.getElementAddress(read_index + 1));
+			const auto action = mergeDuplicateItems(*item, *next);
+			if (action == DuplicateItemAction::REMOVE_CURRENT) {
+				item->~FileItem();
+				continue;
+			}
+			if (action == DuplicateItemAction::REMOVE_NEXT) {
+				next->~FileItem();
+				++read_index;
+			}
+		}
+		if (!isPresetItemAvailable(*item, instrumentAvailabilityRequirement, availabilityExemptInstrument)) {
+			item->~FileItem();
+			continue;
+		}
+		void* write_address = fileItems.getElementAddress(write_index);
+		if (write_address != item) {
+			std::construct_at(static_cast<FileItem*>(write_address), *item);
+			std::destroy_at(item);
+		}
+		++write_index;
+	}
+	const int32_t num_to_delete = fileItems.getNumElements() - write_index;
+	if (num_to_delete > 0) {
+		fileItems.deleteAtIndex(write_index, num_to_delete);
 	}
 }
 

@@ -11,6 +11,11 @@ DetentedEncoder select;
 ContinuousEncoder mod0;
 ContinuousEncoder mod1;
 
+bool selectNavigationPending() {
+	// These container/memory tests have no front-panel modifier buttons.
+	return select.pending();
+}
+
 DetentedEncoder& functionEncoderAt(size_t i) {
 	static DetentedEncoder* const table[] = {&scrollY, &scrollX, &tempo, &select};
 	return *table[i];

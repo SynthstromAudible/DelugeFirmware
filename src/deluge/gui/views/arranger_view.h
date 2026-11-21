@@ -65,6 +65,7 @@ public:
 	void graphicsRoutine() override;
 	[[nodiscard]] int32_t getNavSysId() const override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
+	void endAudition(Output* output, bool evenIfPlaying = false);
 	void notifyActiveClipChangedOnOutput(Output* output);
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
@@ -133,7 +134,6 @@ private:
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
 	void beginAudition(Output* output);
-	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
 	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);

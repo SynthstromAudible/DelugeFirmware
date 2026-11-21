@@ -68,6 +68,10 @@ PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 
+bool StorageManager::isDeserializerOpen() {
+	return smDeserializer.isParsing() || smJsonDeserializer.isParsing();
+}
+
 const bool writeJsonFlag = false;
 
 Serializer& GetSerializer() {
@@ -709,6 +713,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
                                   char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
+	reader.beginParsing();
 	reader.reset();
 	// Prep to read first Cluster shortly
 	openFilePointer(filePointer, reader);
@@ -725,6 +730,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
                                    char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openJsonFile");
+	reader.beginParsing();
 	reader.reset();
 	// Prep to read first Cluster shortly
 	openFilePointer(filePointer, reader);
@@ -918,10 +924,9 @@ void FileReader::readDone() {
 }
 
 FRESULT FileReader::closeWriter() {
-	if (!memoryBased)
-		return f_close(&readFIL);
-	else
-		return FRESULT::FR_OK;
+	const FRESULT result = memoryBased ? FRESULT::FR_OK : f_close(&readFIL);
+	parsing_ = false;
+	return result;
 }
 
 FileWriter::FileWriter() {

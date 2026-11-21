@@ -64,11 +64,16 @@ public:
 	int32_t fileReadBufferCurrentPos;
 
 	FRESULT closeWriter();
+	void beginParsing() { parsing_ = true; }
+	[[nodiscard]] bool isParsing() const { return parsing_; }
 
 	bool peekChar(char* thisChar);
 	bool readChar(char* thisChar);
 	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
 	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
+
+private:
+	bool parsing_ = false;
 
 protected:
 	bool callRoutines = true;
@@ -371,6 +376,9 @@ extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
 
 namespace StorageManager {
+
+// Includes the parsing interval between SD reads, when sdRoutineLock is false.
+[[nodiscard]] bool isDeserializerOpen();
 
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);

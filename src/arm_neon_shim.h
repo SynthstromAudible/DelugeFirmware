@@ -28,6 +28,9 @@
 #include "arm_neon.h" // IWYU pragma: export
 #else
 
+// Do not redeclare types already supplied by Clang's native arm_neon.h.
+#ifndef __ARM_NEON_H
+
 #include <stdint.h>
 typedef float float32_t;
 typedef __fp16 float16_t;
@@ -338,5 +341,6 @@ typedef struct poly64x2x4_t {
 	poly64x2_t val[4];
 } poly64x2x4_t;
 #endif
+#endif // __ARM_NEON_H
 #endif // ndef clang
 #endif // ARM_NEON_SHIM_H
