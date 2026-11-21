@@ -25,7 +25,7 @@ int32_t read_device_value(const DeviceSettings* port, project::DevicePath path) 
 	if (port == nullptr) {
 		return row->default_value;
 	}
-	return port->read(path.text()).value_or(row->default_value);
+	return port->read(*row);
 }
 
 bool read_device_flag(const DeviceSettings* port, project::DevicePath path) {

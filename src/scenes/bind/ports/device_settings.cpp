@@ -38,22 +38,26 @@ std::optional<int32_t> DeviceSettings::read(std::string_view path) const {
 	if (row == nullptr) {
 		return std::nullopt;
 	}
-	const serialization::Value value = load(*row);
+	return read(*row);
+}
+
+int32_t DeviceSettings::read(const plugin::SettingInfo& row) const {
+	const serialization::Value value = load(row);
 	const std::string* text = serialization::text_of(&value);
 	if (text == nullptr) {
-		return row->default_value;
+		return row.default_value;
 	}
-	if (const std::optional<int32_t> stored = plugin::stored_value(*row, *text)) {
-		return stored;
+	if (const std::optional<int32_t> stored = plugin::stored_value(row, *text)) {
+		return *stored;
 	}
 	// A CHOICE index past the row's choices (a byte the flash held that no menu offers) is clamped into them, as a
 	// choice item's widget shows one (`enum_value` in `ui/oled/values.cpp`).
 	if (const std::optional<int64_t> index = plugin::whole_number(*text);
-	    index && row->kind == plugin::SettingKind::CHOICE && !row->choices.empty()) {
-		return static_cast<int32_t>(std::clamp<int64_t>(*index, 0, static_cast<int64_t>(row->choices.size()) - 1));
+	    index && row.kind == plugin::SettingKind::CHOICE && !row.choices.empty()) {
+		return static_cast<int32_t>(std::clamp<int64_t>(*index, 0, static_cast<int64_t>(row.choices.size()) - 1));
 	}
 	// Anything else the row cannot name reads as its default, so a row the device holds never reads as nothing.
-	return row->default_value;
+	return row.default_value;
 }
 
 plugin::SettingReader DeviceSettings::reader() const {

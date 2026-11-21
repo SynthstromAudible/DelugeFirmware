@@ -10,6 +10,10 @@
 #include <optional>
 #include <string_view>
 
+namespace deluge::project {
+class DevicePath;
+} // namespace deluge::project
+
 namespace deluge::scenes::bind {
 
 /// @brief What a write of a device setting did.
@@ -46,6 +50,12 @@ public:
 	[[nodiscard]] DeviceWrite write(std::string_view path, int32_t menu_value);
 
 private:
+	/// The typed reads find their row once, from a path the table is checked to hold, and read it here.
+	friend int32_t read_device_value(const DeviceSettings* port, project::DevicePath path);
+
+	/// @brief The stored value of @p row, which is a DEVICE row, as `read(path)` answers it.
+	[[nodiscard]] int32_t read(const plugin::SettingInfo& row) const;
+
 	/// @brief The file-form value the device holds for @p row, which is a DEVICE row: a CHOICE row's word, or for an
 	///        index the row has no choice at, that index as a number (which `read` clamps).
 	[[nodiscard]] virtual serialization::Value load(const plugin::SettingInfo& row) const = 0;
