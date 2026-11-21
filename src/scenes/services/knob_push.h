@@ -77,9 +77,9 @@ struct KnobPush {
 /// @param focus  What the knobs point at.
 /// @param knob   0 the lower, 1 the upper.
 /// @param on     Press (true) or release.
-/// @param gesture The gesture's context. The owner's effects come from the ports in @p gesture (its track and sound
-/// ports), and the device facts from its controls port; with none, a new chain's effects and the turn's sources (the
-/// alternative delay knobs off).
+/// @param gesture The gesture's context. The owner's effects come from the track and sound ports in @p gesture: with
+///                no track or sound port the push reads a new chain's effects. The device facts come from its
+///                controls port: with none the push reads the turn's sources (the alternative delay knobs off).
 [[nodiscard]] KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
                                  const PushInputs& gesture);
 
@@ -87,8 +87,9 @@ struct KnobPush {
 /// @param song    The song's records.
 /// @param focus   What the knobs point at.
 /// @param button  The mod button.
-/// @param gesture The gesture's context. The owner's effects and the device facts come from the ports in @p gesture,
-///                as for knob_push.
+/// @param gesture The gesture's context. The owner's effects come from the track and sound ports in @p gesture: with
+///                no track or sound port the popup reads a new chain's effects. The device facts come from its
+///                controls port: with none the popup reads the turn's sources (the alternative delay knobs off).
 /// @return The popup's text; empty for none.
 [[nodiscard]] std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button,
                                            const PushInputs& gesture);
