@@ -31,6 +31,12 @@ describe ui_script("harness::ui_script", $ {
 		expect(r->steps[0].kind).to_equal(StepKind::Midi);
 		expect(std::string_view{r->steps[0].text}).to_equal(std::string_view{"903c7f"});
 	});
+	it("joins a midi step's bytes written apart", _ {
+		const auto r = parse_script("0 midi 90 3c 64\n");
+		expect(r->error.has_value()).to_be_false();
+		expect(std::string_view{r->steps[0].text}).to_equal(std::string_view{"903c64"});
+		expect(parse_script("0 midi 90 3\n")->error.has_value()).to_be_true();
+	});
 	it("refuses a midi step that is not whole hex bytes", _ {
 		expect(parse_script("0 midi 9\n")->error.has_value()).to_be_true();
 		expect(parse_script("0 midi 9g\n")->error.has_value()).to_be_true();

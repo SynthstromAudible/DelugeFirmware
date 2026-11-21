@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace deluge::harness {
@@ -225,16 +226,20 @@ std::unique_ptr<ScriptResult> parse_script(std::string_view text) {
 				parse_i32(tok[3], step.a); // stored numerically too, when the arg is numeric
 			}
 			else if (cmd == "midi") {
-				// `midi HEX`: the DIN MIDI input bytes as one hex string with no spaces, at most sizeof(step.text) - 1
-				// digits.
-				if (tok.size() < 3 || tok[2].size() % 2 != 0 || tok[2].size() >= sizeof(step.text)
-				    || !std::ranges::all_of(tok[2],
+				// `midi HEX...`: the DIN MIDI input bytes in hex, as one string or spread over several (`903c64` or
+				// `90 3c 64`, as emu_parity reads them), joined into at most sizeof(step.text) - 1 digits.
+				std::string hex;
+				for (size_t i = 2; i < tok.size(); i++) {
+					hex += tok[i];
+				}
+				if (hex.empty() || hex.size() % 2 != 0 || hex.size() >= sizeof(step.text)
+				    || !std::ranges::all_of(hex,
 				                            [](char c) { return std::isxdigit(static_cast<unsigned char>(c)) != 0; })) {
 					set_error(*result, line_no, "midi needs whole hex bytes");
 					return result;
 				}
 				step.kind = StepKind::Midi;
-				copy_field(step.text, sizeof(step.text), tok[2]);
+				copy_field(step.text, sizeof(step.text), hex);
 			}
 			else if (cmd == "quit") {
 				step.kind = StepKind::Quit;

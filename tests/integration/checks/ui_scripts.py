@@ -3,8 +3,8 @@
 Every app script in tests/ui-scripts/app runs on each card its `# card:` header names (tools/ui_script_cards.py). On
 the first, each of its snapshots must match its golden in tests/golden/ui/app; on every further card it must
 reproduce the first card's snapshots. The runner's own self-tests (tests/ui-scripts/selftest) pin what it does with a
-press due in a snapshot's millisecond, a snapshot before the first frame and a script that never quits. A script with
-a `board` step needs more panels than the Deluge has and is skipped, named. Under `./dbt test --update ui-scripts`
+press due in a snapshot's millisecond, a snapshot before the first frame, a script that never quits and a `midi`
+step's input reaching the app. A script with a `board` step needs more panels than the Deluge has and is skipped, named. Under `./dbt test --update ui-scripts`
 each app script's snapshots on its first card are recorded as its golden instead.
 
 Gate ui-scripts:
@@ -13,8 +13,9 @@ Gate ui-scripts:
     .pbm; the LEDs, pads and knob rings as .state) must match its golden in tests/golden/ui/app; on every further card
     it must reproduce the first card's snapshots. A script without a card header fails. The runner's self-tests pin a
     press due in a snapshot's own millisecond (shown in the next snapshot, not that one), a snapshot before the first
-    frame (exit 2) and a script that never reaches its quit (exit 2 at its last step plus five seconds). A script with a
-    board step needs more than one panel and is skipped by name.
+    frame (exit 2), a script that never reaches its quit (exit 2 at its last step plus five seconds) and a `midi` step
+    reaching the app (a note learned to RECORD toggles its LED). A script with a board step needs more than one panel
+    and is skipped by name.
 """
 
 import re
@@ -118,6 +119,18 @@ def _self_tests(gate) -> None:
                 )
             if "led Play on" not in later:
                 gate.fail(f"{script.name}: the Play press never reached the app")
+
+    script = selftest / "t04-midi-input.txt"
+    if (path := card(script)) is not None:
+        got = gate.tmp / "got" / "selftest-midi"
+        run = _run(gate, script, got, path)
+        if gate.require_standard(run):
+            if "led Record on" in (got / "learned.state").read_text():
+                gate.fail(
+                    f"{script.name}: RECORD was on before its learned note came again"
+                )
+            if "led Record on" not in (got / "toggled.state").read_text():
+                gate.fail(f"{script.name}: the learned note never reached the app")
 
     for name, expect in (
         ("t02-early-snapshot.txt", "has never blitted"),

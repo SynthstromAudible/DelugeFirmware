@@ -89,7 +89,8 @@ python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/a02-menu
 
 A snapshot writes `<name>.oled0.pbm` and `<name>.state`; it shows the surface as the app last drew it, so a press due
 in the snapshot's own millisecond shows in the next one. A detent is 4 quadrature edges. Only the Deluge's one panel
-exists here: a script with a `board` step is skipped. With `UI_SNAPSHOT_MIDI` set, a snapshot also writes
+exists here: a script with a `board` step is skipped. A `midi HEX` step (`2000 midi 903c64`) queues those bytes on
+the DIN MIDI input, which the app reads as it reads a cable's. With `UI_SNAPSHOT_MIDI` set, a snapshot also writes
 `<name>.midi`, the DIN MIDI the app sent since the previous snapshot; `GOLDEN_SCENARIO_DEADLINE_S` (default 600) is
 the wall-clock seconds a run may take.
 
