@@ -4855,8 +4855,8 @@ void Song::setParamsInAutomationMode(bool newState) {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	// Song scalars live independently of automation. Leaving arrangement
-	// playback reveals the current song value, including edits made during
-	// playback, rather than restoring a stale snapshot.
+	// playback reveals the current song value, including edits or a reset made
+	// during playback, rather than restoring a stale snapshot.
 	if (!newState) {
 		std::array<char, MODEL_STACK_MAX_SIZE> memory{};
 		auto* stack = setupModelStackWithSongAsTimelineCounter(memory.data());

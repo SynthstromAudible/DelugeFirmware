@@ -56,6 +56,13 @@ public:
 	Error setupWithPatching();
 	Error setupUnpatched();
 	Error setupMIDI();
+	// Restore clip scalars to their baselines, keeping automation nodes, the current automation offset
+	// and interpolation state. Unautomated zero-strength routes absent from the preset are removed, and
+	// missing preset routes recreated where possible.
+	// Each changed parameter is snapshotted into action first, so the reset can be undone.
+	// With apply false, only snapshots into action the values a reset would change, so a failure changes
+	// nothing. Then call it with apply true to reset them.
+	Error resetValuesToPreset(ModelStackWithThreeMainThings* modelStack, Action& action, bool apply);
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,

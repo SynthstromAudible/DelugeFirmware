@@ -1,6 +1,8 @@
 #include "CppUTest/TestHarness.h"
 #include "modulation/params/param_control.h"
 
+#include "model/action/parameter_action.h"
+
 using namespace deluge::modulation::params;
 TEST_GROUP(ParameterControlTests){};
 
@@ -29,4 +31,13 @@ TEST(ParameterControlTests, TempoRemovalRefreshesClockForSongOnly) {
 	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(false, Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO)));
 	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(true, Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN)));
 	CHECK_FALSE((AutomationTransition{true, false}.refreshTempo(true, Kind::MIDI, UNPATCHED_TEMPO)));
+}
+
+TEST(ParameterControlTests, ResetParamValuesCreatesItsActionFromItsConfirmationMenu) {
+	CHECK(actionAllowedFromUI(false, false, false, false, ActionOrigin::RESET_PARAM_VALUES));
+	CHECK_FALSE(actionAllowedFromUI(false, false, false, false, ActionOrigin::DEFAULT));
+	CHECK_FALSE(actionAllowedFromUI(false, true, false, false, ActionOrigin::DEFAULT));
+	CHECK(actionAllowedFromUI(true, false, false, false, ActionOrigin::DEFAULT));
+	CHECK(actionAllowedFromUI(false, true, true, false, ActionOrigin::DEFAULT));
+	CHECK(actionAllowedFromUI(false, false, false, true, ActionOrigin::DEFAULT));
 }

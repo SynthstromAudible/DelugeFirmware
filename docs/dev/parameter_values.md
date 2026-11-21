@@ -214,7 +214,26 @@ rendering performance needs separate verification before release.
 
 
 
-## Song baselines
+## Resetting values and song baselines
+
+The Actions menus of sounds, kits, audio clips, MIDI/CV instruments and the song
+offer **Reset Param Values**, with the same confirmation UI as Reset Settings. Cancel leaves all values untouched. Confirm
+restores the scalar layer to its baseline without changing relative automation
+nodes, the current automation offset, or interpolation state. Outside the song
+menu, this applies to the parameter manager being edited (the current clip, or the
+selected drum); it does not reset other clips sharing the output. Song Actions applies only to song
+parameters. This is a parameter-value reset, not a reload of sample files,
+oscillator types, or other preset configuration.
+
+Reset includes MIDI CCs and patch strengths. It removes new unautomated routes
+whose preset strength is zero and recreates missing preset routes when capacity
+permits. Automated routes retain their curves, even with a zero scalar. Expression
+parameters have no preset baseline and are excluded. A reset is one undoable
+action; undoing a song reset also restores the tempo clock. Every value it changes is
+snapshotted first, and a reset which couldn't be undone, for lack of memory or while
+recording the arrangement, is refused before any value changes. A snapshot must hold
+every automation node. Undo deletes a route or CC the reset recreated, and restores
+the polarity of a route it deleted.
 
 The song's `GlobalEffectableForSong` owns its baseline. New songs capture their
 initialized values; loaded songs capture their saved, resolved song scalars after
@@ -225,13 +244,15 @@ Song files retain evaluated parameter values and absolute automation values for
 released firmware, plus full-width relative metadata; historical song baselines
 are not saved. Leaving
 arrangement playback clears the current automation offset and reveals the
-song scalar, including edits made during playback. Tempo encoder
+song scalar, including edits or resets made during playback. Tempo encoder
 edits apply the effective BPM delta to the scalar, retaining relative automation.
 Tap tempo and tempo taken from an audio clip set the clock exactly; the scalar
 follows as for an encoder edit.
 Tempo undo/redo restores the scalar together with the timer period. Clock-facing
 reads clamp nonpositive automation results to 0.01 BPM without altering stored
-curves. Leaving arrangement playback refreshes the clock unless it already plays the
+curves. A reset which changes the tempo scalar forces a clock refresh; otherwise an exact
+tapped clock is kept.
+Leaving arrangement playback refreshes the clock unless it already plays the
 song tempo, so an exact tapped clock is kept.
 Removing song tempo automation refreshes the clock immediately, so the scalar
 tempo applies even while playback is stopped.

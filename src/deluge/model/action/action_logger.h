@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/performance_view.h"
 #include "model/action/action.h"
+#include "model/action/parameter_action.h"
 #include <cstdint>
 
 class ParamCollection;
@@ -37,8 +38,8 @@ public:
 	ActionLogger();
 
 	// warning - super not thread safe
-	Action* getNewAction(ActionType newActionType,
-	                     ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
+	Action* getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED,
+	                     ActionOrigin origin = ActionOrigin::DEFAULT);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
@@ -48,6 +49,8 @@ public:
 	void closeAction(ActionType actionType);
 	void closeActionUnlessCreatedJustNow(ActionType actionType);
 	void deleteAllLogs();
+	// Delete the newest action without reverting it, for a change abandoned before it altered anything.
+	void discardNewestAction() { deleteLastAction(); }
 	/// Makes sure nothing logged so far can be undone or redone any more, without freeing anything now: the Actions
 	/// are only marked, and deleted when an undo or redo reaches them. Unlike deleteAllLogs(), this is safe to call
 	/// from playback (e.g. a sequenced transpose), which may be running in the middle of UI code that holds an Action.

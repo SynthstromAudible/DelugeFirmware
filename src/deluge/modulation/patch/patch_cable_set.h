@@ -57,6 +57,8 @@ public:
 	                           ModelStackWithParamCollection const* modelStack = nullptr,
 	                           bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
+	// Delete a route and recalculate patching to its destination, for undoing the route's creation.
+	void deleteRoute(ModelStackWithParamCollection const* modelStack, int32_t paramId);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
 	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);
 	// The strength rendering uses: one load while no value has changed outside playback.

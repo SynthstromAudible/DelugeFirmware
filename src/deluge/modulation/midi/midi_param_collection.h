@@ -74,6 +74,8 @@ public:
 	ClipParamValue* getClipValueStorage(int32_t cc) override;
 	using ParamCollection::getValueForControl;
 	int32_t getValueForControl(int32_t cc, ModelStackWithThreeMainThings const* modelStack) override;
+	// Delete a CC's entry and any automation, for undoing the entry's creation.
+	void deleteParam(int32_t cc);
 	MIDIParamVector params;
 
 private:

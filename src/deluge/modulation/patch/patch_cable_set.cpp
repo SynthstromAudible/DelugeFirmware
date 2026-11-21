@@ -497,6 +497,25 @@ claimPatchCable:
 	return 255;
 }
 
+PLACE_SDRAM_TEXT void PatchCableSet::deleteRoute(ModelStackWithParamCollection const* modelStack, int32_t paramId) {
+	PatchSource source = PatchSource::NOT_AVAILABLE;
+	ParamDescriptor destination;
+	dissectParamId(paramId, &destination, &source);
+	uint8_t c = getPatchCableIndex(source, destination);
+	if (c == 255) {
+		return;
+	}
+	// Patching may write further fields onto the stack it's given while reordering cables.
+	auto local_stack = *modelStack;
+	deletePatchCable(&local_stack, c);
+	if (!modelStack->timelineCounterIsSet()
+	    || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput()) {
+		static_cast<Sound*>(modelStack->modControllable)
+		    ->recalculatePatchingToParam(destination.getJustTheParam(),
+		                                 static_cast<ParamManagerForTimeline*>(modelStack->paramManager));
+	}
+}
+
 void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c) {
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
@@ -1174,36 +1193,35 @@ void PatchCableSet::notifyParamValueModified(ModelStackWithAutoParam const* mode
 
 	bool haveRedoneSetup = false;
 
-	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		bool current_value_changed = (oldValue != newValue);
+	bool current_value_changed = (oldValue != newValue);
 
-		PatchSource s;
-		ParamDescriptor destinationParamDescriptor;
-		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
+	PatchSource s = PatchSource::NOT_AVAILABLE;
+	ParamDescriptor destination;
+	dissectParamId(modelStack->paramId, &destination, &s);
 
-		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
-		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0) && (getClipValueStorage(modelStack->paramId)->getOffset() == 0)
-		    && (getClipValueStorage(modelStack->paramId)->getPresetValue() == 0)) {
-			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-			if (c != 255) {
+	// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
+	// delete the AutoParam that called us!
+	if (!modelStack->autoParam->containsSomething(0) && (getClipValueStorage(modelStack->paramId)->getOffset() == 0)
+	    && (getClipValueStorage(modelStack->paramId)->getPresetValue() == 0)) {
+		int32_t c = getPatchCableIndex(s, destination);
+		if (c != 255) {
 
-				// Patching may write further fields, such as the param ID, onto the stack it's given while reordering
-				// cables. Work on a local copy so the caller's stack stays intact.
-				auto local_stack = *modelStack;
-				deletePatchCable(&local_stack, c);
-				haveRedoneSetup = true;
-			}
+			// Patching may write further fields, such as the param ID, onto the stack it's given while reordering
+			// cables. Work on a local copy so the caller's stack stays intact.
+			auto local_stack = *modelStack;
+			deletePatchCable(&local_stack, c);
+			haveRedoneSetup = true;
 		}
+	}
 
-		if (current_value_changed) {
-			int32_t p =
-			    destinationParamDescriptor
-			        .getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
-			                            // would the call below actually cause all of that to get recalculated?
-			((Sound*)modelStack->modControllable)
-			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
-		}
+	if (current_value_changed
+	    && (!modelStack->timelineCounterIsSet()
+	        || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput())) {
+		int32_t p =
+		    destination.getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
+		                                   // would the call below actually cause all of that to get recalculated?
+		static_cast<Sound*>(modelStack->modControllable)
+		    ->recalculatePatchingToParam(p, static_cast<ParamManagerForTimeline*>(modelStack->paramManager));
 	}
 
 	if (!haveRedoneSetup && automatedBefore != automatedNow) {

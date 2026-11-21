@@ -83,7 +83,8 @@ void ActionLogger::deleteLastAction() {
 	delugeDealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible,
+                                   ActionOrigin origin) {
 
 	if (!currentSong) {
 		return nullptr;
@@ -94,9 +95,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for sound editor note editor UI which can edit notes on the grid
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
 	// Exception for loadPatternUI which does edit note rows on the grid
-	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
-	    && (getCurrentUI() != &loadPatternUI)) {
+	if (!actionAllowedFromUI(getCurrentUI() == getRootUI(), getCurrentUI() == &soundEditor,
+	                         soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor(),
+	                         getCurrentUI() == &loadPatternUI, origin)) {
 		return nullptr;
 	}
 

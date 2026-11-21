@@ -44,6 +44,15 @@ MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
 }
 
+PLACE_SDRAM_TEXT void MIDIParamCollection::deleteParam(int32_t cc) {
+	MIDIParam* entry = params.getParamFromCC(cc);
+	if (entry == nullptr) {
+		return;
+	}
+	AutoParamOwnership(entry->param).deleteAutomationBasicForSetup();
+	params.deleteAtKey(cc);
+}
+
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);

@@ -19,15 +19,21 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence.h"
+#include "model/consequence/consequence_param_change.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/tick_interpolation.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include <array>
 #include <cstddef>
 #include <new>
 
@@ -686,3 +692,231 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
+
+namespace {
+// Announce a value the reset changed. An inactive MIDI clip bypasses MIDIParamCollection's notification, which
+// would send its value to the output.
+PLACE_SDRAM_TEXT void notifyResetValue(ParamCollection* collection, ModelStackWithAutoParam* stack, int32_t old_value,
+                                       bool automated) {
+	if (collection->getParamKind() == deluge::modulation::params::Kind::MIDI && stack->timelineCounterIsSet()
+	    && !static_cast<Clip*>(stack->getTimelineCounter())->isActiveOnOutput()) {
+		collection->ParamCollection::notifyParamValueModified(stack, old_value, stack->autoParam->getCurrentValue(),
+		                                                      false, automated, automated);
+	}
+	else {
+		collection->notifyParamModifiedInSomeWay(stack, old_value, false, automated, automated);
+	}
+}
+
+// What a parameter's own snapshot can't restore: whether the reset created a patch route or MIDI CC, so undo
+// deletes it again and redo creates it, or the polarity of a route the reset deleted. Undo recreates a deleted
+// route with its default polarity from the snapshot, which is newer and so undone first.
+class ConsequenceResetEntry final : public Consequence {
+public:
+	ConsequenceResetEntry(ModelStackWithParamId const* model_stack, bool created, Polarity polarity)
+	    : created_(created), polarity_(polarity) {
+		type = RESET_PARAM_ENTRY;
+		memcpy(model_stack_memory_.data(), model_stack, sizeof(ModelStackWithParamId));
+	}
+	Error revert(TimeType time, ModelStack* /*modelStack*/) override {
+		// The copied stack is used as ConsequenceParamChange uses its own.
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+		auto* stack = reinterpret_cast<ModelStackWithParamId*>(model_stack_memory_.data());
+		auto* collection = stack->paramCollection;
+		bool cable = collection->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE;
+		if (!created_) {
+			if (time == BEFORE && cable) {
+				auto* cables = static_cast<PatchCableSet*>(collection);
+				PatchSource source = PatchSource::NOT_AVAILABLE;
+				ParamDescriptor destination;
+				PatchCableSet::dissectParamId(stack->paramId, &destination, &source);
+				uint8_t c = cables->getPatchCableIndex(source, destination);
+				if (c != 255) {
+					// Rendering reads the polarity directly, so no patching setup is needed.
+					cables->patchCables[c].polarity = polarity_;
+				}
+			}
+			return Error::NONE;
+		}
+		if (time == BEFORE) {
+			if (cable) {
+				static_cast<PatchCableSet*>(collection)->deleteRoute(stack, stack->paramId);
+			}
+			else {
+				static_cast<MIDIParamCollection*>(collection)->deleteParam(stack->paramId);
+			}
+			return Error::NONE;
+		}
+		auto* param_stack = collection->getAutoParamFromId(stack, true);
+		if (param_stack->autoParam == nullptr) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		notifyResetValue(collection, param_stack, 0, false);
+		return Error::NONE;
+	}
+
+private:
+	alignas(ModelStackWithParamId) std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_{};
+	bool created_;
+	Polarity polarity_;
+};
+
+PLACE_SDRAM_TEXT Error recordResetEntry(Action& action, ModelStackWithParamId const* stack, bool created,
+                                        Polarity polarity) {
+	void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceResetEntry));
+	if (memory == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	// Ownership passes to the action, which destroys and deallocates the consequence.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	action.addConsequence(new (memory) ConsequenceResetEntry(stack, created, polarity));
+	return Error::NONE;
+}
+
+// Snapshot a parameter before the reset changes it. The snapshot must hold every automation node, or undo
+// would delete the curve.
+PLACE_SDRAM_TEXT Error snapshotResetValue(Action& action, ModelStackWithAutoParam* stack) {
+	action.recordParamChangeIfNotAlreadySnapshotted(stack, false);
+	for (auto* cons = action.firstConsequence; cons != nullptr; cons = cons->next) {
+		if (cons->type != Consequence::PARAM_CHANGE) {
+			continue;
+		}
+		auto* change = static_cast<ConsequenceParamChange*>(cons);
+		// Only compare the recorded collection; never dereference it.
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		const auto& recorded = change->modelStack;
+		if (recorded.paramCollection == stack->paramCollection && recorded.paramId == stack->paramId) {
+			return change->state.nodes.getNumElements() == stack->autoParam->nodeCount() ? Error::NONE
+			                                                                             : Error::INSUFFICIENT_RAM;
+		}
+	}
+	return Error::INSUFFICIENT_RAM;
+}
+
+PLACE_SDRAM_TEXT Error resetParameterValue(ParamCollection* collection, ParamCollectionSummary* summary,
+                                           ModelStackWithThreeMainThings* model_stack, int32_t id, bool create,
+                                           Action& action, bool apply) {
+	auto* scalar = collection->getClipValueStorage(id);
+	bool existed = scalar != nullptr;
+	if ((scalar != nullptr && scalar->getOffset() == 0
+	     && collection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE)
+	    || (scalar == nullptr && !create)) {
+		return Error::NONE;
+	}
+	if (!apply) {
+		// Record everything undo needs before anything changes, so a reset which couldn't be undone is refused.
+		auto* id_stack = model_stack->addParamCollectionAndId(collection, summary, id);
+		if (!existed) {
+			// A recreated parameter starts at its reset value, so only its creation needs undoing.
+			return recordResetEntry(action, id_stack, true, Polarity::BIPOLAR);
+		}
+		auto* stack = collection->getAutoParamFromId(id_stack, false);
+		if (stack->autoParam == nullptr) {
+			return Error::NONE;
+		}
+		// An unautomated route with a zero baseline is deleted, and undo recreates it with its default polarity.
+		if (collection->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+		    && !stack->autoParam->isAutomated() && scalar->getPresetValue() == 0) {
+			auto* cables = static_cast<PatchCableSet*>(collection);
+			PatchSource source = PatchSource::NOT_AVAILABLE;
+			ParamDescriptor destination;
+			PatchCableSet::dissectParamId(id, &destination, &source);
+			const PatchCable& cable = cables->patchCables[cables->getPatchCableIndex(source, destination)];
+			if (cable.polarity != PatchCable::getDefaultPolarity(cable.from)) {
+				Error error = recordResetEntry(action, stack, false, cable.polarity);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+		}
+		return snapshotResetValue(action, stack);
+	}
+	auto* stack = collection->getAutoParamFromId(model_stack->addParamCollectionAndId(collection, summary, id), create);
+	if (stack->autoParam == nullptr) {
+		return create ? Error::INSUFFICIENT_RAM : Error::NONE;
+	}
+	scalar = collection->getClipValueStorage(id);
+	if (scalar == nullptr) {
+		return Error::NONE;
+	}
+	int32_t old_value = existed ? stack->autoParam->getCurrentValue() : 0;
+	bool automated = stack->autoParam->isAutomated();
+	// Restore the clip scalar directly rather than through the recording-sensitive control setter,
+	// so reset applies even while recording or playing.
+	scalar->setValue(scalar->getPresetValue());
+	notifyResetValue(collection, stack, old_value, automated);
+	return Error::NONE;
+}
+template <typename Reset>
+PLACE_SDRAM_TEXT Error resetPatchCableValues(PatchCableSet* cables, const PatchCablePresetValues& preset,
+                                             const Reset& reset) {
+	// Reset can delete zero-strength routes and reorder storage. Use stable
+	// route IDs, including routes removed since the preset was loaded.
+	std::array<int32_t, kMaxNumPatchCables * 2> ids_storage{};
+	int32_t* ids = ids_storage.data();
+	int32_t count = 0;
+	for (int32_t c = 0; c < cables->numPatchCables; ++c) {
+		auto& cable = cables->patchCables[c];
+		ids[count++] = PatchCableSet::getParamId(cable.destinationParamDescriptor, cable.from);
+	}
+	for (int32_t c = 0; c < preset.count; ++c) {
+		bool found = false;
+		for (int32_t i = 0; i < count; ++i) {
+			found |= static_cast<uint32_t>(ids[i]) == preset.entries[c].id;
+		}
+		if (!found && (preset.entries[c].value != 0)) {
+			ids[count++] = static_cast<int32_t>(preset.entries[c].id);
+		}
+	}
+	for (int32_t i = 0; i < count; ++i) {
+		Error error = reset(ids[i], *preset.find(ids[i]) != 0);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	return Error::NONE;
+}
+} // namespace
+
+PLACE_SDRAM_TEXT Error ParamManager::resetValuesToPreset(ModelStackWithThreeMainThings* modelStack, Action& action,
+                                                         bool apply) {
+	if (modelStack->modControllable == nullptr) {
+		return Error::NONE;
+	}
+	using deluge::modulation::params::Kind;
+	modelStack->modControllable->bindPresetValues(this);
+	for (auto* summary = summaries; summary->paramCollection != nullptr; ++summary) {
+		auto* collection = summary->paramCollection;
+		auto kind = collection->getParamKind();
+		// Expression is not a preset parameter collection.
+		if (kind != Kind::PATCHED && kind != Kind::UNPATCHED_SOUND && kind != Kind::UNPATCHED_GLOBAL
+		    && kind != Kind::MIDI && kind != Kind::PATCH_CABLE) {
+			continue;
+		}
+		auto reset = [&](int32_t id, bool create) {
+			return resetParameterValue(collection, summary, modelStack, id, create, action, apply);
+		};
+		Error error = Error::NONE;
+		if (kind == Kind::PATCH_CABLE) {
+			const auto& preset =
+			    static_cast<ModControllableAudio*>(modelStack->modControllable)->getPresetPatchCableValues();
+			error = resetPatchCableValues(static_cast<PatchCableSet*>(collection), preset, reset);
+		}
+		else if (kind == Kind::MIDI) {
+			auto* instrument = static_cast<MIDIInstrument*>(modelStack->modControllable);
+			for (int32_t cc = 0; cc < kNumCCNumbersIncludingFake && error == Error::NONE; ++cc) {
+				error = reset(cc, instrument->getPresetMidiValue(cc) != 0);
+			}
+		}
+		else {
+			auto* set = static_cast<ParamSet*>(collection);
+			for (int32_t id = 0; id < set->getNumParams() && error == Error::NONE; ++id) {
+				error = reset(id, false);
+			}
+		}
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	return Error::NONE;
+}
