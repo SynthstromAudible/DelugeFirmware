@@ -33,7 +33,7 @@
 /// `delayHorizontalZoomUntil` arm), which is otherwise unobservable because the mode gate would refuse first.
 ///
 /// No claim is made here about **why** the marker editor shows the opposite. `WaveformBasicNavigator::zoom`'s tail
-/// (`gui/waveform/waveform_basic_navigator.cpp`) is the same three statements
+/// (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`) is the same three statements
 /// `TimelineView::initiateXZoom` ends in and contains no wait of its own; the only structural
 /// difference is the `waveformRenderer.renderFullScreen` call, which `initiateXZoom` has no
 /// analogue for. A blocking transition is not the cause -- the conclusion stands on the scroll

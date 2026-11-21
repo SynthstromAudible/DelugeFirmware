@@ -62,7 +62,7 @@
 /// `sim/scenes_spec/timeline_spec.cpp`: the scroll example takes a second detent and lands on page
 /// two, and the zoom examples take a second detent and are then stopped by the max-zoom *delay*
 /// rather than by the mode. `WaveformBasicNavigator::zoom`'s tail
-/// (`gui/waveform/waveform_basic_navigator.cpp`) is the same three steps that end the animation arm of
+/// (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`) is the same three steps that end the animation arm of
 /// `TimelineView::initiateXZoom` (setting `UI_MODE_HORIZONTAL_ZOOM`, `PadLEDs::recordTransitionBegin`,
 /// `PadLEDs::renderZoom`), and contains no wait of its own.
 ///

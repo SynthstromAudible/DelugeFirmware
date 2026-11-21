@@ -22,7 +22,6 @@
 #include "deluge-project/setting_group.h"
 #include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_engine_setting.h"
@@ -113,6 +112,7 @@ FakeParamCollection* g_paramCollection = nullptr;
 
 namespace deluge::test {
 
+Sample* g_preview_sample = nullptr;
 LoadAnswer loadAnswer = LoadAnswer::Loaded;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
@@ -154,7 +154,7 @@ void resetSlicerEnv() {
 	// getPatchedParamSetSummary() hands back summaries[1]; the audition asks it for an AutoParam.
 	g_paramManager.get()->summaries[1].paramCollection = g_paramCollection;
 
-	waveformBasicNavigator.sample = g_sample.get();
+	g_preview_sample = g_sample.get();
 }
 
 } // namespace deluge::test
@@ -293,7 +293,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 
 /// Zeroed storage under an explicit mangled name, for a vtable or a global whose type is never
 /// touched here. Over-aligned rather than left at `unsigned char[]`'s natural alignment of 1: some
-/// of these ARE accessed through their real type (`waveformBasicNavigator`), which UBSan reports as
+/// of these ARE accessed through their real type, which UBSan reports as
 /// a misaligned access at alignment 1 even where x86 tolerates it.
 #define DELUGE_STUB_DATA(id, mangled, bytes) alignas(std::max_align_t) unsigned char id[bytes] asm(mangled) = {};
 
@@ -370,9 +370,7 @@ DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN15SourceResources10setOscTypeEN6deluge
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN15SourceResourcesD1Ev")
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
-// Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
-// merely addressed.
-DELUGE_STUB_DATA(stub_waveformBasicNavigator, "waveformBasicNavigator", sizeof(WaveformBasicNavigator))
+// Globals, merely addressed.
 // `SliceCore::begin_slice`'s Keep arm reads it; the legacy slicer these specs drive takes the Release arm.
 DELUGE_STUB_DATA(stub_sampleForPreview, "_ZN11AudioEngine16sampleForPreviewE", sizeof(void*))
 DELUGE_STUB_DATA(stub_instrumentClipView, "instrumentClipView", 8192)

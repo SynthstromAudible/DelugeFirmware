@@ -1,9 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief A test-only transcription of the legacy waveform arithmetic, statement for statement, with its types,
-///        truncations, sentinels and control flow kept. It is a record to compare the sample-view types with, not
-///        product code: `sim/scenes_spec/sample_view_oracle_spec.cpp` proves it equal to the live legacy code.
+/// @brief A test-only transcription of the legacy waveform arithmetic as this tree held it at `ba0d31ef8`, statement
+///        for statement, with its types, truncations, sentinels and control flow kept. It is a record to compare the
+///        sample-view types with, not product code; a sim spec proved it equal to that code while the code was live.
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@ inline constexpr uint8_t kNotInvestigated = 0;
 inline constexpr uint8_t kInvestigated = 1;
 inline constexpr uint8_t kBeyond = 2;
 
-/// `WaveformRenderData` (`src/deluge/model/sample/waveform_render_data.h`).
+/// `WaveformRenderData` (`ba0d31ef8:src/deluge/model/sample/waveform_render_data.h`).
 struct RenderData {
 	int64_t xScroll{};
 	int64_t xZoom{};
@@ -34,7 +34,7 @@ struct RenderData {
 	std::array<uint8_t, 16> colStatus{};
 };
 
-/// `shiftRenderCache` (`src/deluge/model/sample/waveform_scan.cpp`).
+/// `shiftRenderCache` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`).
 inline void shift_render_cache(RenderData& data, int32_t shift) {
 	if (shift == 0) {
 		return;
@@ -64,7 +64,7 @@ inline void shift_render_cache(RenderData& data, int32_t shift) {
 	}
 }
 
-/// The prelude of `deluge::sample::find_peaks_per_col` (`src/deluge/model/sample/waveform_scan.cpp`), from
+/// The prelude of `deluge::sample::find_peaks_per_col` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`), from
 /// `lengthChanged` to the three stores.
 inline void prelude(RenderData& data, int64_t xScrollSamples, uint64_t xZoomSamples, uint64_t numValidSamples,
                     bool recording) {
@@ -93,7 +93,7 @@ inline void prelude(RenderData& data, int64_t xScrollSamples, uint64_t xZoomSamp
 	data.validLengthSamples = static_cast<int64_t>(numValidSamples);
 }
 
-/// `deluge::sample::col_bar_positions` (`src/deluge/model/sample/waveform_scan.cpp`).
+/// `deluge::sample::col_bar_positions` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`).
 inline void col_bar_positions(int32_t xDisplay, const RenderData& data, int32_t& min24, int32_t& max24,
                               int32_t valueCentrePoint, int32_t valueSpan) {
 	min24 = ((int64_t)(data.minPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
@@ -106,7 +106,7 @@ inline void col_bar_positions(int32_t xDisplay, const RenderData& data, int32_t&
 	}
 }
 
-/// `deluge::sample::col_brightness_for_single_row` (`src/deluge/model/sample/waveform_scan.cpp`).
+/// `deluge::sample::col_brightness_for_single_row` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`).
 inline int32_t col_brightness_for_single_row(int32_t xDisplay, int32_t maxPeakFromZero, const RenderData& data) {
 	int32_t peak1 = std::abs(data.minPerCol[xDisplay]);
 	int32_t peak2 = std::abs(data.maxPerCol[xDisplay]);
@@ -118,7 +118,7 @@ inline int32_t col_brightness_for_single_row(int32_t xDisplay, int32_t maxPeakFr
 	return std::min<int32_t>(peak16 >> 8, 256);
 }
 
-/// `MarkerColumn` (`src/deluge/model/sample/waveform_navigator.h`).
+/// `MarkerColumn` (`ba0d31ef8:src/deluge/model/sample/waveform_navigator.h`).
 struct MarkerColumn {
 	int32_t pos;
 	int32_t colOnScreen;
@@ -133,8 +133,8 @@ inline constexpr int32_t kMarkerLoopEnd = 2;
 inline constexpr int32_t kMarkerEnd = 3;
 inline constexpr int32_t kNumMarkerTypes = 4;
 
-/// `deluge::sample::WaveformNav` (`src/deluge/model/sample/waveform_navigator.cpp`), over a length rather than a
-/// sample. `opened` leaves out the render data's invalidation, which is the cache's.
+/// `deluge::sample::WaveformNav` (`ba0d31ef8:src/deluge/model/sample/waveform_navigator.cpp`), over a length rather
+/// than a sample. `opened` leaves out the render data's invalidation, which is the cache's.
 struct Nav {
 	uint64_t length{};
 	int64_t xZoom{};
