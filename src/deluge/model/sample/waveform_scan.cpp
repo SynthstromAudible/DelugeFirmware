@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Moved out of gui/waveform/waveform_renderer.cpp unchanged -- see waveform_scan.h for why.
-
 #include "model/sample/waveform_scan.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"

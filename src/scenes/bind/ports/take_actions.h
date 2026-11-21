@@ -27,7 +27,7 @@ public:
 	virtual ~TakeActions() = default;
 	/// @brief Begin a take into the RECORD folder and publish it as the foreground recording, so input monitoring
 	///        follows it (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`, `AudioRecorder::setupRecordingToFile`).
-	///        Called with no take held; the recorder's own `armed_` guarantees it.
+	///        Called with no take held: the recorder screen begins one take at a time, and the host refuses a second.
 	/// @param channels How many channels the take records.
 	/// @return False when no take could be made (no memory), or a take is already held.
 	[[nodiscard]] virtual bool begin(TakeChannels channels) = 0;

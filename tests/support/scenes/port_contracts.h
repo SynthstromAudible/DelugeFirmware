@@ -446,8 +446,8 @@ namespace deluge::scenes::bind::contract {
 	return w.peaks(at, {.scroll = 0, .zoom = 0}) == sample_view::PeakRead::all_past_end();
 }
 
-/// @brief Over a finished file, a column from the length on is past the end, and a column inside the file is not:
-///        pending means "ask again", never "nothing there".
+/// @brief Over a finished file, a column from the length on is past the end, and a column wholly inside a file of
+///        whole clusters is not: pending means "ask again", never "nothing there".
 [[nodiscard]] inline bool waveforms_columns_follow_the_length(const Waveforms& w, const WaveformAddress& at) {
 	const std::optional<WaveformInfo> info = w.info(at);
 	if (!info || info->recording || info->length_samples == 0) {

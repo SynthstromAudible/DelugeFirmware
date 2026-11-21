@@ -41,7 +41,7 @@ struct Peak {
 enum class ColumnState : uint8_t {
 	PEAK,     ///< the column's peak is known
 	PENDING,  ///< not known yet: a cluster under it could not be read now, so a later frame asks again
-	PAST_END, ///< nothing to draw: the column lies outside the frames the waveform holds now
+	PAST_END, ///< nothing to draw: outside the frames the waveform holds now, or no whole frame under it
 };
 
 /// @brief One column's answer: a peak, pending, or past the end.

@@ -51,9 +51,10 @@ public:
 	/// @brief What the waveform at @p address is.
 	/// @return The info; none where no file is loaded there.
 	[[nodiscard]] virtual std::optional<WaveformInfo> info(const WaveformAddress& address) const = 0;
-	/// @brief The columns of the waveform at @p address at @p at, every one a peak, pending or past the end. It can
-	///        read the card. The waveform's running range, which `info`'s centre and span come from, takes in the
-	///        peaks read, so a caller that paints reads `info` after this.
+	/// @brief The columns of the waveform at @p address at @p at, every one a peak, pending or past the end (nothing to
+	///        draw: outside the frames the waveform holds now, or no whole frame under it). It can read the card. The
+	///        waveform's running range, which `info`'s centre and span come from, takes in the peaks read, so a caller
+	///        that paints reads `info` after this.
 	/// @return The columns; every column past the end where nothing is loaded at @p address, or where @p at's zoom is
 	///         below 1.
 	[[nodiscard]] virtual sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const = 0;
