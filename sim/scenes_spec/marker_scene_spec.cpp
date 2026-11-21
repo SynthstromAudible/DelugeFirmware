@@ -2075,6 +2075,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(pin_of(MarkerType::LOOP_END).column).to_equal(std::optional<int64_t>{2});
 		r.turn_select(1, 10); // to 2^32 - 76, whose locked end would be 2^32 + 14
 		r.tick(10);
+		expect(recording.calls.size()).to_equal(size_t{1});
 		for (const bind::test::RecordingSoundWrites::Call& call : recording.calls) {
 			if (!call.ranges.empty()) {
 				expect(call.ranges[0].loop_start_pos).to_equal(kLoopStart);

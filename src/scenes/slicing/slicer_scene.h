@@ -354,7 +354,8 @@ public:
 	bool committing() const { return committing_; }
 	/// @return Whether `open` handed the scene a sample to slice.
 	bool has_sample() const { return sample_ != nullptr; }
-	/// @return The sample the scene slices, which the waveforms port's SLICE address resolves to; null before an open.
+	/// @return The sample the slicer was last opened on, which the waveforms port's SLICE address resolves to; null
+	///         before the first open. A close does not clear it.
 	[[nodiscard]] Sample* sliced_sample() const { return sample_; }
 	/// @}
 

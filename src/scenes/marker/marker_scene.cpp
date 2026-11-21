@@ -827,12 +827,13 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		// `UI_MODE_HORIZONTAL_ZOOM` is in neither of `zoomUIModes`' ranges: a turn while a zoom slides is dropped.
 	}
 	else if (zooming) {
-		// `WaveformBasicNavigator::zoom`: the arithmetic, then the slide from the old view to the new one,
-		// pinned at the square whose position both views share.
+		// The arithmetic, then the slide from the old view to the new one, pinned at the square whose position both
+		// views share (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`,
+		// `WaveformBasicNavigator::zoom`). With no marker selected, `preferred` is none and no pin is weighed.
 		const int64_t old_scroll = view_.scroll();
 		const int64_t old_zoom = view_.zoom();
 		const std::optional<sample_view::WaveformView> zoomed =
-		    view_.zoomed(offset, cols, preferred, allow_extra_scroll_right()); // no preferred pin, no pins weighed
+		    view_.zoomed(offset, cols, preferred, allow_extra_scroll_right());
 		success = zoomed.has_value();
 		if (success) {
 			view_ = *zoomed;

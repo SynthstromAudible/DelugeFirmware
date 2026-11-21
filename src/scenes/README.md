@@ -523,8 +523,9 @@ The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tie
 `marker::MarkerScene` ports `SampleMarkerEditor`, opened by the four loop-point items and the audio
 clip's waveform item with the `MarkerType` as `SceneId::arg`. Legacy draws **no waveform on the
 OLED** — a title, a lock badge, a duration and a sample count — so the OLED half is
-`ui::oled::sample_position` and the pad half `ui::grid::markers` over the waveforms port's columns and
-`sample_view::WaveformView`'s navigation (arithmetic in `src/sample-view/`, drawing in the toolkit). One legacy render bug is fixed in the port: `renderOLED` draws the h/m unit letters at a
+`ui::oled::sample_position` and the pad half `ui::grid::markers` over the waveforms port's columns
+and `sample_view::WaveformView`'s navigation (arithmetic in `src/sample-view/`, drawing in the
+toolkit). One legacy render bug is fixed in the port: `renderOLED` draws the h/m unit letters at a
 fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws them at the
 cursor.
 
@@ -583,10 +584,10 @@ length edit does not. The `PadLEDs` scroll and zoom animations are not carried.
 
 `slicing::SlicerScene` ports `Slicer`, the page that cuts a kit into equal regions or hand-placed
 slices. It is not a root (`Slicer` is a plain `UI` opened over the browser) and does not use
-`TimelineState`: it navigates a sample through its own `sample_view::WaveformView`, and reads its columns from the
-waveforms port at the SLICE address. `occludes_grid()` is false,
-because `Slicer` overrides `renderMainPads` only and the sidebar beneath keeps painting. The
-directory is `slicing/` because `scenes-no-root-ui` forbids the whole word `slicer`.
+`TimelineState`: it navigates a sample through its own `sample_view::WaveformView`, and reads its
+columns from the waveforms port at the SLICE address. `occludes_grid()` is false, because `Slicer`
+overrides `renderMainPads` only and the sidebar beneath keeps painting. The directory is `slicing/`
+because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 * **Everything it does to the audio, the model and the card goes through `SliceOps`**: preview,
   voices, the playhead walk, restoring the range, and `begin_commit`. The host

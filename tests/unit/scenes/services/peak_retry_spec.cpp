@@ -55,7 +55,7 @@ describe scenes_peak_retry("a view's redraws of a pending waveform", ${
 		expect(retry.after(answering(3), 100 + kPeakRetryGiveUpMs + 10)).to_equal(PeakRetry::Next::WAIT);
 		expect(retry.after(answering(2), 100 + kPeakRetryGiveUpMs + 20)).to_equal(PeakRetry::Next::WAIT);
 	});
-	it("asks again once a read answers one more column after waiting, from a fresh clock", _ {
+	it("asks again once a read answers one more column after waiting, from a fresh clock, and gives up once a stall", _ {
 		PeakRetry retry;
 		(void)retry.after(answering(3), 100);
 		(void)retry.after(answering(3), 100 + kPeakRetryGiveUpMs);
@@ -63,6 +63,9 @@ describe scenes_peak_retry("a view's redraws of a pending waveform", ${
 		const uint32_t later = 100 + kPeakRetryGiveUpMs + 500;
 		expect(retry.after(answering(4), later)).to_equal(PeakRetry::Next::ASK_AGAIN);
 		expect(retry.after(answering(4), later + kPeakRetryGiveUpMs - 1)).to_equal(PeakRetry::Next::ASK_AGAIN);
+		// A second stall past the new progress stops the redraws without a second give-up.
+		expect(retry.after(answering(4), later + kPeakRetryGiveUpMs)).to_equal(PeakRetry::Next::WAIT);
+		expect(retry.gave_up()).to_be_true();
 	});
 	it("forgets everything on a restart", _ {
 		PeakRetry retry;
