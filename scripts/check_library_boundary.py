@@ -236,6 +236,7 @@ LIBRARIES: dict[str, Library] = {
             "foundation/panic.h",
         ),
     ),
+    "sample-view": Library(REPO / "src" / "sample-view", "sample-view/"),
     "model": Library(
         REPO / "src" / "deluge-project",
         "deluge-project/",

@@ -234,6 +234,7 @@ add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_
 add_subdirectory(${REPO_ROOT}/src/instruments/deluge ${CMAKE_BINARY_DIR}/instruments-deluge) # deluge_instrument
 add_subdirectory(${REPO_ROOT}/src/effects/host_chain ${CMAKE_BINARY_DIR}/host-chain) # deluge_host_chain
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
+add_subdirectory(${REPO_ROOT}/src/sample-view ${CMAKE_BINARY_DIR}/sample-view) # deluge_sample_view
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/controls ${CMAKE_BINARY_DIR}/controls) # deluge_controls
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi

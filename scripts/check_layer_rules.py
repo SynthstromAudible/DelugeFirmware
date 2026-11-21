@@ -509,7 +509,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
@@ -550,6 +550,15 @@ RULES = [
         "include",
         r"^model/edits/",
         "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
+        # The scenes keep no peak cache: a scene asks the waveforms port for a window's columns and draws the answer.
+        # The column cache is the host's and the legacy views'.
+        "scenes-no-peak-cache",
+        "src/scenes/**",
+        "include",
+        r"^sample-view/peak_cache\.h$",
+        "docs/dev/roadmap.md (UI read interface)",
     ),
     (
         # A scene reads the model and the runtime through `scenes/bind`'s readers. Every include from these six

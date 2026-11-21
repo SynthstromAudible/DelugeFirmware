@@ -8,6 +8,7 @@ add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
 add_subdirectory(instruments/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
 add_subdirectory(effects/host_chain) # deluge_host_chain: the host chain's param table and pages
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
+add_subdirectory(sample-view) # deluge_sample_view: a waveform view's columns, peaks and navigation
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
