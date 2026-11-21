@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 
 /// @brief Where the model's memory comes from, supplied by the host at link time: the device gives the model the
 /// general heap its containers draw on, a host tool the ordinary heap.
@@ -45,6 +46,16 @@ struct ModelAllocator {
 	constexpr ModelAllocator() noexcept = default;
 	template <class U>
 	constexpr ModelAllocator(const ModelAllocator<U>& /*other*/) noexcept {}
+
+	/// @brief The host's memory for @p n objects, or null when it has none.
+	/// @param n Element count; must be > 0.
+	/// @return The memory, or nullptr.
+	[[nodiscard]] T* try_allocate(std::size_t n) noexcept {
+		if (n > std::numeric_limits<std::size_t>::max() / sizeof(T)) {
+			return nullptr;
+		}
+		return static_cast<T*>(deluge_model_alloc(n * sizeof(T), alignof(T)));
+	}
 
 	[[nodiscard]] T* allocate(std::size_t n) {
 		if (n == 0) {

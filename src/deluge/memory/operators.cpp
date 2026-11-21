@@ -46,6 +46,36 @@ void operator delete(void* p) noexcept {
 void operator delete(void* p, std::size_t) noexcept {
 	host_operator_delete(p);
 }
+
+// The nothrow forms: what deluge::nothrow_new_allocator and try_new reach, null on failure.
+void* operator new(std::size_t n, const std::nothrow_t&) noexcept {
+	void* address = std::malloc(n != 0 ? n : 1);
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (address != nullptr) {
+		std::memset(address, 0, n);
+	}
+#endif
+	return address;
+}
+void* operator new(std::size_t n, std::align_val_t align, const std::nothrow_t&) noexcept {
+	const auto a = static_cast<std::size_t>(align);
+	void* address = std::aligned_alloc(a, ((n != 0 ? n : 1) + a - 1) / a * a); // size must be a multiple of align
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (address != nullptr) {
+		std::memset(address, 0, n);
+	}
+#endif
+	return address;
+}
+void operator delete(void* p, const std::nothrow_t&) noexcept {
+	host_operator_delete(p);
+}
+void operator delete(void* p, std::align_val_t) noexcept {
+	host_operator_delete(p);
+}
+void operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept {
+	host_operator_delete(p);
+}
 #else
 void* operator new(std::size_t n) noexcept(false) {
 	// allocate on external RAM (the unified SDRAM heap)
@@ -100,6 +130,36 @@ void operator delete(void* p, std::align_val_t) noexcept {
 }
 
 void operator delete(void* p, std::size_t, std::align_val_t) noexcept {
+	deluge::memory::dealloc(p);
+}
+
+// The nothrow forms: what deluge::nothrow_new_allocator and try_new reach, null on failure. Defining them also keeps
+// libsupc++'s, which call the throwing form inside a try, out of the image.
+void* operator new(std::size_t n, const std::nothrow_t&) noexcept {
+	void* address = deluge::memory::alloc_external(n, 16);
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (address != nullptr) {
+		memset(address, 0, n);
+	}
+#endif
+	return address;
+}
+
+void* operator new(std::size_t n, std::align_val_t align, const std::nothrow_t&) noexcept {
+	void* address = deluge::memory::alloc_external(n, static_cast<std::size_t>(align));
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	if (address != nullptr) {
+		memset(address, 0, n);
+	}
+#endif
+	return address;
+}
+
+void operator delete(void* p, const std::nothrow_t&) noexcept {
+	deluge::memory::dealloc(p);
+}
+
+void operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept {
 	deluge::memory::dealloc(p);
 }
 #endif // defined(__APPLE__)
