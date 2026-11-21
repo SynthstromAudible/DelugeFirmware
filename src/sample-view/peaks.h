@@ -37,10 +37,11 @@ struct Peak {
 	bool operator==(const Peak&) const = default;
 };
 
-/// @brief What one column's answer is.
+/// @brief What one column's answer is. PENDING is 0, so a default `ColumnRead` is all zero bits and a `PeakRead` with
+///        static storage is zero-initialised.
 enum class ColumnState : uint8_t {
-	PEAK,     ///< the column's peak is known
 	PENDING,  ///< not known yet: a cluster under it could not be read now, so a later frame asks again
+	PEAK,     ///< the column's peak is known
 	PAST_END, ///< nothing to draw: outside the frames the waveform holds now, or no whole frame under it
 };
 

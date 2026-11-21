@@ -16,6 +16,7 @@
  */
 
 #include "hid/led/pad_leds.h"
+#include "board_config.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
@@ -104,7 +105,9 @@ int32_t explodeAnimationXWidthBig;
 int32_t sampleValueCentrePoint;
 int32_t sampleValueSpan;
 int32_t sampleMaxPeakFromZero;
-deluge::sample_view::PeakRead waveformColumns;
+// UI-transition state only, never read by the audio tier: SDRAM's zeroed bss holds it (an empty PeakRead is all zero
+// bits, every column PENDING).
+PLACE_SDRAM_BSS deluge::sample_view::PeakRead waveformColumns;
 RGB audioClipColour;
 bool sampleReversed;
 
