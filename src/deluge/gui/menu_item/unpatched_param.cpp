@@ -26,6 +26,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -61,13 +62,14 @@ void UnpatchedParam::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
-				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
+				AutoParamLiveInput(*modelStackForSoundDrum->autoParam)
+				    .setValueForLiveInput(value, modelStackForSoundDrum);
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
-		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+		AutoParamLiveInput(*modelStackWithParam->autoParam).setValueForLiveInput(value, modelStackWithParam);
 	}
 
 	// send midi follow feedback

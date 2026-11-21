@@ -18,6 +18,7 @@
 #include "model/consequence/consequence_param_change.h"
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
 #include "util/functions.h"
@@ -27,17 +28,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
-	state.value = modelStack->autoParam->currentValue;
-
-	// Either steal the data...
-	if (stealData) {
-		state.nodes.swapStateWith(&modelStack->autoParam->nodes);
-	}
-
-	// Or clone it...
-	else {
-		state.nodes.cloneFrom(&modelStack->autoParam->nodes);
-	}
+	AutoParamOwnership(*modelStack->autoParam).captureState(state, stealData);
 }
 
 Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {

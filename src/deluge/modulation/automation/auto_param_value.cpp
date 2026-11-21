@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_data.h"
 #include "modulation/params/param_node.h"
 
-AutoParam::AutoParam()
+AutoParamData::AutoParamData()
     : currentValue(0), valueIncrementPerHalfTick(0), interpolation_increment_remainder_float(0.0f),
       renewedOverridingAtTime(0) {
 	init();
 }
 
-void AutoParam::init() {
+void AutoParamData::init() {
 	nodes.init();
 }
 
-void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
+void AutoParamData::cloneFrom(AutoParamData* otherParam, bool copyAutomation) {
 	if (copyAutomation) {
 		nodes.cloneFrom(&otherParam->nodes);
 	}
@@ -42,7 +42,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
-void AutoParam::deleteAutomationBasicForSetup() {
+void AutoParamData::deleteAutomationBasicForSetup() {
 	nodes.empty();
 
 	resetInterpolationIncrement();
@@ -51,14 +51,14 @@ void AutoParam::deleteAutomationBasicForSetup() {
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
-void AutoParam::resetInterpolationIncrement() {
+void AutoParamData::resetInterpolationIncrement() {
 	// Reset initializes the integer member; the interpolation mode selects subsequent accesses.
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
 	valueIncrementPerHalfTick = 0;
 	interpolation_increment_remainder_float = 0.0f;
 }
 
-int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
+int32_t AutoParamData::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
 	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
 	ParamNode* our_node = nullptr;
 
@@ -79,7 +79,7 @@ int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpola
 	return i;
 }
 
-int32_t AutoParam::getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed) {
+int32_t AutoParamData::getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed) {
 
 	if (nodes.getNumElements() == 0) {
 		return currentValue;
@@ -129,7 +129,7 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed
 }
 
 // Returns whether a change was made to the current value.
-bool AutoParam::grabValueFromPos(uint32_t pos, int32_t loopLength) {
+bool AutoParamData::grabValueFromPos(uint32_t pos, int32_t loopLength) {
 	if (nodes.getNumElements() == 0) {
 		return false;
 	}
@@ -137,4 +137,14 @@ bool AutoParam::grabValueFromPos(uint32_t pos, int32_t loopLength) {
 	int32_t old_value = currentValue;
 	currentValue = getValueAtPos(pos, loopLength);
 	return (currentValue != old_value);
+}
+
+void AutoParamData::captureState(AutoParamState& state, bool stealNodes) {
+	state.value = currentValue;
+	if (stealNodes) {
+		state.nodes.swapStateWith(&nodes);
+	}
+	else {
+		state.nodes.cloneFrom(&nodes);
+	}
 }

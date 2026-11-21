@@ -36,6 +36,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -107,38 +108,52 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_BASS]).setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_TREBLE]).setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_BASS_FREQ]).setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ]).setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_GATE]).setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY])
+	    .setCurrentValueBasicForSetup(2147483647);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM]).setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE])
+	    .setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE])
+	    .setCurrentValueBasicForSetup(-2147483648);
 
 	Stutterer::initParams(paramManager);
 
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET]).setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK]).setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION])
+	    .setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_BITCRUSHING]).setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE]).setCurrentValueBasicForSetup(-601295438);
+	AutoParamSetup(unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD]).setCurrentValueBasicForSetup(0);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
@@ -1189,8 +1204,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				AutoParamLiveInput(*modelStackWithParam->autoParam)
+				    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -1279,8 +1294,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				AutoParamLiveInput(*modelStackWithParam->autoParam)
+				    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
 
 				// check if you're currently editing the same learned param in automation view or
 				// performance view if so, you will need to refresh the automation editor grid or the
@@ -1349,8 +1364,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 				int32_t newValue = (value14 << 18) - 2147483648;
 
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				AutoParamLiveInput(*modelStackWithParam->autoParam)
+				    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
 				return true;
 			}
 		}

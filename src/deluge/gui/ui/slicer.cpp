@@ -37,6 +37,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -475,13 +476,15 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+		AutoParamSetup(*modelStackWithAutoParam->autoParam)
+		    .setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                               getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+		AutoParamSetup(*modelStackWithAutoParam->autoParam)
+		    .setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                               getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
 	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
@@ -609,7 +612,8 @@ getOut:
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
-			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
+			AutoParamSetup(*modelStackWithParam->autoParam)
+			    .setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
 			// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
 			// getCurrentClip(), false);
@@ -655,8 +659,9 @@ getOut:
 			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+			AutoParamSetup(*modelStackWithAutoParam->autoParam)
+			    .setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+			                                               getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		}
 
 		// Do the rest of the Drums
@@ -704,11 +709,11 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+				AutoParamSetup(paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK])
+				    .setCurrentValueBasicForSetup(getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+					AutoParamSetup(paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE])
+					    .setCurrentValueBasicForSetup(getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 				}
 			}
 

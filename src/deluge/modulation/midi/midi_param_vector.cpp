@@ -16,6 +16,7 @@
  */
 
 #include "modulation/midi/midi_param_vector.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
 #include <new>
 
@@ -45,7 +46,7 @@ doesntExistYet:
 			return NULL;
 		}
 		param->cc = cc;
-		param->param.setCurrentValueBasicForSetup(defaultValue);
+		AutoParamSetup(param->param).setCurrentValueBasicForSetup(defaultValue);
 	}
 	else {
 		param = getElement(i);

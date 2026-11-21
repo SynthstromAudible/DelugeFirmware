@@ -20,6 +20,7 @@
 #include "hid/button.h"
 #include "model/global_effectable/output_stage_gain.h"
 #include "model/sample/sample.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "util/try.h"
 #include "util/volume_param_gain.h"
@@ -1217,7 +1218,8 @@ void SampleBrowser::audioFileIsNowSet() {
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
 	if (!modelStackWithParam->autoParam->containsSomething(-2147483648)) {
-		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
+		AutoParamSetup(*modelStackWithParam->autoParam)
+		    .setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
 		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
@@ -2033,8 +2035,8 @@ getOut:
 
 				// Reset osc volume, if it's not automated
 				if (!modelStackWithParam->autoParam->isAutomated()) {
-					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
-					                                                                          2147483647);
+					AutoParamSetup(*modelStackWithParam->autoParam)
+					    .setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME
 					//+ soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong,
 					// getCurrentClip(), false);

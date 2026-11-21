@@ -35,6 +35,7 @@
 #include "model/note/note.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
@@ -197,7 +198,7 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 		// Except, if we were planning to steal the data, well we'd better pretend we've just done that by deleting it
 		// instead.
 		if (stealData) {
-			modelStack->autoParam->nodes.empty();
+			AutoParamOwnership(*modelStack->autoParam).releaseNodes();
 		}
 		return;
 	}

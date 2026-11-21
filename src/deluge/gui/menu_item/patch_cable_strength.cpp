@@ -29,6 +29,7 @@
 #include "horizontal_menu.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
@@ -240,7 +241,7 @@ void PatchCableStrength::writeCurrentValue() {
 	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+	AutoParamLiveInput(*modelStackWithParam->autoParam).setValueForLiveInput(finalValue, modelStackWithParam);
 
 	if (getRootUI() == &automationView) {
 		int32_t p = modelStackWithParam->paramId;

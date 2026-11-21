@@ -51,6 +51,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -2178,8 +2179,8 @@ loadOutput:
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
-					                                                                                    + (1 << 28));
+					AutoParamSetup(thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE])
+					    .shiftValues((1 << 30) + (1 << 28));
 				}
 			}
 		}
@@ -3150,7 +3151,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		                           arrangerView.getMaxLength());
 	}
 
-	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos, length);
+	AutoParamLiveInput(*tempoParam->autoParam).setLiveValuePossiblyForRegion(intTempo, tempoParam, pos, length);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3161,7 +3162,7 @@ void Song::clearTempoAutomation() {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
-	tempoParam->autoParam->deleteAutomation(action, tempoParam);
+	tempoParam->autoParam->automation().erase(action, tempoParam);
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 }
 
@@ -4791,7 +4792,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated()) {
-				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
+				AutoParamSetup(unpatchedParams->params[p]).setCurrentValueBasicForSetup(unautomatedParamValues[p]);
 			}
 		}
 	}

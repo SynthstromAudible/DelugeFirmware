@@ -17,6 +17,7 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
+#include "modulation/automation/auto_param_access.h"
 #include "util/fixedpoint.h"
 
 #include <storage/flash_storage.h>
@@ -87,8 +88,8 @@ bool PatchCable::isActive() {
 }
 
 void PatchCable::initAmount(int32_t value) {
-	param.nodes.empty();
-	param.currentValue = value;
+	AutoParamOwnership(param).releaseNodes();
+	AutoParamSetup(param).setCurrentValueBasicForSetup(value);
 }
 
 void PatchCable::makeUnusable() {

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_descriptor.h"
 #include "util/fixedpoint.h"
 #include <cstdint>
