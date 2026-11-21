@@ -424,7 +424,9 @@ describe voice_pool("a sound's voices", ${
 			slot.kernel.ignored_note_off = slot.part == 0;
 		});
 		rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{}, FakeArgs{}, kContext);
-		expect(rig.host.log.front()).to_equal(std::string{"sources 0"});
+		expect(rig.host.log).to_equal(Log{"sources 0", "timed_voice 1", "voice_block 0", "render sources 0",
+		                                  "rendered 0", "sources 1", "timed_voice 1", "voice_block 1",
+		                                  "render sources 1", "rendered 1", "edit depth 1"});
 		rig.host.log.clear();
 		rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{.note_tails_allowed = true}, FakeArgs{},
 		                kContext);
@@ -432,6 +434,14 @@ describe voice_pool("a sound's voices", ${
 		                                  "timed_voice 1", "voice_block 0", "render sources 2", "rendered 0",
 		                                  "sources 3", "timed_voice 1", "voice_block 1", "render sources 3",
 		                                  "rendered 1", "edit depth 1"});
+	});
+
+	it("leaves an ignored note-off to a voice's first call, which only marks it created", _{
+		Rig rig({5});
+		rig.pool.for_each([](FakeHost::Slot& slot) { slot.kernel.ignored_note_off = true; });
+		rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{.note_tails_allowed = true}, FakeArgs{},
+		                kContext);
+		expect(rig.host.log).to_equal(Log{"sources 0", "timed_voice 0", "edit depth 1"});
 	});
 
 	it("unassigns a voice that ends while it is listed, and sweeps it after every voice has rendered", _{

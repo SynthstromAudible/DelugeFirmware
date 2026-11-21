@@ -194,14 +194,24 @@ struct SoundVoiceHost {
 	void last_note(int32_t note) const;
 	// --- The render (synth::render_host)
 	/// @brief What differs between the sound's voices for @p voice's render.
+	/// @param voice The voice about to render.
+	/// @return Its wavetables, auto-release and stereo flags, the voice count and the clock.
 	[[nodiscard]] deluge::synth::VoiceBlock voice_block(SoundVoice& voice) const;
 	/// @brief The patch sources whose values changed since the last block, read once per voice.
+	/// @return A bit per source.
 	[[nodiscard]] uint32_t sources_changed() const;
 	/// @brief After @p voice's render: the parameter dump's plane and sources.
+	/// @param voice The voice that rendered.
+	/// @param controlBlock The sound's matrix block for the block.
+	/// @param config The sound's config.
+	/// @param values The block's values.
 	void voice_rendered(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
 	                    const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& values) const;
 	/// @brief Runs @p fn, one voice's render answering whether the voice goes on, inside the stream bench's voice
 	/// counters; a voice that @p renders (past its first call) checks the stack first.
+	/// @param fn The voice's render.
+	/// @param renders Whether the voice renders this call (its first call only marks it created).
+	/// @return What @p fn returns: whether the voice goes on.
 	template <class Fn>
 	bool timed_voice(Fn&& fn, bool renders) const {
 #if defined(DELUGE_STREAM_BENCH)
@@ -219,6 +229,8 @@ struct SoundVoiceHost {
 #if defined(DELUGE_STREAM_BENCH)
 	uint32_t benchFrames{}; ///< The block's frames, for the bench's per-kind frame count
 	/// @brief Adds one voice's render, of @p cycles, to the stream bench's totals.
+	/// @param cycles The render's cycles.
+	/// @param renders Whether it rendered frames (past its first call).
 	void countVoice(uint32_t cycles, bool renders) const;
 #endif
 

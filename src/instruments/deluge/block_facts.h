@@ -30,20 +30,20 @@ namespace deluge::instrument {
 struct SoundBlockFacts {
 	using Values = synth::BlockValues;
 
-	bool has_filters{}; ///< Either filter is set to run
-	effects::FilterMode lpf_mode{effects::FilterMode::OFF};
-	effects::FilterMode hpf_mode{effects::FilterMode::OFF};
-	effects::FilterRoute filter_route{};
-	int32_t lpf_morph{};                         ///< The smoothed low-pass morph
-	int32_t lpf_freq{};                          ///< The smoothed low-pass frequency
-	int32_t hpf_morph{};                         ///< The smoothed high-pass morph
-	int32_t hpf_freq{};                          ///< The smoothed high-pass frequency
-	bool lpf_modulated{};                        ///< A cable reaches the low-pass frequency
-	bool hpf_modulated{};                        ///< A cable reaches the high-pass frequency
-	bool noise_can_sound{};                      ///< The noise volume can rise above silence
-	uint32_t local_wired{};                      ///< A bit per local patch source wired to anything
-	decltype(Values::bend_ranges) bend_ranges{}; ///< The MPE bend ranges, in semitones
-	int32_t portamento{};                        ///< The portamento param as set
+	bool has_filters{};                                     ///< Either filter is set to run
+	effects::FilterMode lpf_mode{effects::FilterMode::OFF}; ///< The low-pass's mode as set
+	effects::FilterMode hpf_mode{effects::FilterMode::OFF}; ///< The high-pass's mode as set
+	effects::FilterRoute filter_route{};                    ///< How the two filters join
+	int32_t lpf_morph{};                                    ///< The smoothed low-pass morph
+	int32_t lpf_freq{};                                     ///< The smoothed low-pass frequency
+	int32_t hpf_morph{};                                    ///< The smoothed high-pass morph
+	int32_t hpf_freq{};                                     ///< The smoothed high-pass frequency
+	bool lpf_modulated{};                                   ///< A cable reaches the low-pass frequency
+	bool hpf_modulated{};                                   ///< A cable reaches the high-pass frequency
+	bool noise_can_sound{};                                 ///< The noise volume can rise above silence
+	uint32_t local_wired{};                                 ///< A bit per local patch source wired to anything
+	decltype(Values::bend_ranges) bend_ranges{};            ///< The MPE bend ranges, in semitones
+	int32_t portamento{};                                   ///< The portamento param as set
 	/// Each local LFO's phase increment when synced to the transport (0, unused, when it runs free).
 	decltype(Values::lfo2_synced_phase_increment) lfo2_synced_phase_increment{};
 	decltype(Values::lfo4_synced_phase_increment) lfo4_synced_phase_increment{};

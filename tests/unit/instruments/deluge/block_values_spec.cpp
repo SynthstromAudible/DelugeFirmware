@@ -62,6 +62,15 @@ describe block_values("a block's values", ${
 		expect(lowRuns(morphed)).to_equal(true);
 	});
 
+	it("keeps the low-pass off at its top and the high-pass off at its bottom", _{
+		SoundBlockFacts top = quiet();
+		top.lpf_freq = 0x7FFFFFD2;
+		expect(lowRuns(top)).to_equal(false);
+		SoundBlockFacts bottom = quiet();
+		bottom.hpf_freq = kMin;
+		expect(highRuns(bottom)).to_equal(false);
+	});
+
 	it("runs the high-pass when modulated, above its bottom or morphed", _{
 		expect(highRuns(with([](SoundBlockFacts& f) { f.hpf_modulated = true; }))).to_equal(true);
 		SoundBlockFacts higher = quiet();
@@ -94,6 +103,12 @@ describe block_values("a block's values", ${
 		facts.local_wired = 0b101;
 		facts.bend_ranges = {2, 48};
 		facts.portamento = 77;
+		facts.filter_route = deluge::effects::FilterRoute::PARALLEL;
+		facts.lfo2_synced_phase_increment = deluge::dsp::UQ<32>::from_raw(11);
+		facts.lfo4_synced_phase_increment = deluge::dsp::UQ<32>::from_raw(13);
+		facts.expression_sources_changed.set(1);
+		facts.monophonic_expression_values = {5, 6, 7};
+		facts.global_source_values[2] = 99;
 		const deluge::synth::BlockValues values =
 		    DelugeSynth::begin_block({.cpu_direness = 4, .engine_in_stereo = true}, facts);
 		expect(values.cpu_direness).to_equal(4);
@@ -109,6 +124,12 @@ describe block_values("a block's values", ${
 		expect(values.local_sources_patched_to_anything).to_equal(uint32_t{0b101});
 		expect(values.bend_ranges).to_equal(std::array<uint8_t, 2>{2, 48});
 		expect(values.portamento).to_equal(77);
+		expect(values.filter_route).to_equal(deluge::effects::filter_route(deluge::effects::FilterRoute::PARALLEL));
+		expect(values.lfo2_synced_phase_increment.raw()).to_equal(11U);
+		expect(values.lfo4_synced_phase_increment.raw()).to_equal(13U);
+		expect(values.expression_sources_changed_at_synth_level.test(1)).to_equal(true);
+		expect(values.monophonic_expression_values).to_equal(std::array<int32_t, 3>{5, 6, 7});
+		expect(values.global_source_values[2]).to_equal(99);
 	});
 });
 // clang-format on
