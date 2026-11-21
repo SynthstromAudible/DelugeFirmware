@@ -659,8 +659,8 @@ void terminateOneVoice(size_t numSamples) {
 	logAction("terminate");
 	sounds.walk([&](const auto& all) {
 		AudioExcludedSection section; // the pick and the cull see the same voices
-		// Voices already fading at the cull rate are passed over, the first one too (issue #4721): otherwise an
-		// already-fast-releasing voice absorbs every cull in the window.
+		// Voices already fading at the cull rate are passed over, so one already fast-releasing does not absorb every
+		// cull in the window.
 		Sound* sound = soundToCull(all, true);
 		if (sound == nullptr) {
 			return;
@@ -679,7 +679,8 @@ void forceReleaseOneVoice(size_t num_samples) {
 		AudioExcludedSection section; // the pick and the cull see the same voices
 		// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has
 		// a high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
-		// musical-release tails keep stacking up.
+		// musical-release tails keep stacking up. A voice fading more slowly than the cull rate stays eligible: its
+		// release is sped up toward that rate, so a slow fade does not linger under load.
 		Sound* sound = soundToCull(all, true);
 		if (sound == nullptr) {
 			return;
@@ -2110,19 +2111,9 @@ void soundPreview(PreviewVolume const& volume) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-	// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
-	// may have gone a while without an audio routine call, so the first render after this sees a huge
-	// apparent load and culls.
-	//
-	// The ordering matters for a second reason: this runs off the audio tier, and the audio render preempts it on
-	// the InterruptExecutor. With the assignment after the call, the preview voice was cull-eligible for the
-	// whole duration of its own note-on -- and cullVoices -> terminateOneVoice -> the sound's cull erases it
-	// from Sound::voices_ while Sound::noteOn still holds a reference to that element, which is what made the
-	// E199 assertion fire on a voice something else had removed.
-	//
-	// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
-	// is cleared every render, and the race is reachable from any note-on, not just this one); see the
-	// containment note in Sound::Sound().
+	// Set before the note-on: the browser may have gone a while without an audio routine call, so the first render
+	// after this sees a huge apparent load and culls; and the render, which preempts this caller, would otherwise find
+	// the preview's voice cull-eligible as soon as it is published. bypassCulling holds for one render only.
 	bypassCulling = true;
 	sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 }

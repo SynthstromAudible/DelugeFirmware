@@ -4,9 +4,8 @@ Deletes a sounding synth and a sounding kit through each real deletion path, and
 while it still has live voices (Sound::soundsDestroyedWithLiveVoices()), and that everything the deletions retired is
 freed once the render has run past it.
 
-A Sound destroyed while it still has live voices crashes itself, with no render involved: after ~Sound's body, its own
-voices_ member destructor recycles each voice, and ~SoundVoice -> SoundVoice::set_as_unassigned
-(model/voice/sound_voice.cpp) -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure
+A Sound destroyed while it still has live voices crashes itself, with no render involved: ~Sound's last step kills
+them through its pool, and each one's SoundVoice::set_as_unassigned (model/voice/sound_voice.cpp) -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure
 virtual in Sound by then. Reading the deletion paths guesses which of them can do that; this measures it. Every deletion
 path must end a Sound's voices before any part of it is destroyed.
 
@@ -39,8 +38,8 @@ prints its count first, marked aborted=1 with the step it died in, and the run's
 
 Gate sound-lifetime:
     Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices
-    crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice,
-    and ~SoundVoice -> SoundVoice::set_as_unassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls
+    crashes itself, with no render involved: ~Sound's last step kills them through its pool,
+    and each one's SoundVoice::set_as_unassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls
     getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum,
     renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song,
     Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list,

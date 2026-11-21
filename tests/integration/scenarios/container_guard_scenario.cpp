@@ -1333,7 +1333,7 @@ void editLeg() {
 	}
 	case Leg::VoiceFail: {
 		g_step = "noteOn";
-		// The failed note-on's voice goes back to the pool and was never in voices_.
+		// The failed note-on's voice goes back to the pool and was never in its sound's pool.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		const size_t freeBefore = AudioEngine::VoicePool::get().size();
 		const size_t voicesBefore = synth->numActiveVoices();

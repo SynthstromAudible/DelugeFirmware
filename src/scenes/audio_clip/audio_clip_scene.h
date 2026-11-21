@@ -79,8 +79,8 @@
 /// @par The playhead IS ported
 ///
 /// `AudioClipView::graphicsRoutine` does not walk voices over a live `AudioEngine` to draw the
-/// playhead. The voice walk is `Slicer::graphicsRoutine`'s
-/// (`origin/main:src/deluge/gui/ui/slicer.cpp`, which reads `drum->voices()`); `AudioClipView::graphicsRoutine`
+/// playhead. The voice walk is the legacy `Slicer::graphicsRoutine`'s, which reads the drum's voices;
+/// `AudioClipView::graphicsRoutine`
 /// (`audio_clip_view.cpp`) reads `playbackHandler.playbackState`,
 /// `currentSong->isClipActive`, `playbackHandler.ticksLeftInCountIn`,
 /// `playbackHandler.isEitherClockActive()`, `Clip::getCurrentlyRecordingLinearly()` and
