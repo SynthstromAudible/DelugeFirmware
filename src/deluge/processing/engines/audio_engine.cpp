@@ -637,7 +637,7 @@ void killOneVoice(size_t num_samples) {
 			return;
 		}
 
-		const Sound::ActiveVoice& voice = *it;
+		SoundVoice* voice = *it;
 
 		bool still_rendering = voice->do_immediate_release();
 		if (!still_rendering) {
@@ -661,13 +661,13 @@ void terminateOneVoice(size_t numSamples) {
 
 		// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
 		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
-		const Sound::ActiveVoice* best = nullptr;
-		for (const auto& voice : all_voices) {
+		SoundVoice* best = nullptr;
+		for (SoundVoice* voice : all_voices) {
 			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
-				best = &voice;
+			if (best == nullptr || best->priority_rating() < voice->priority_rating()) {
+				best = voice;
 			}
 		}
 
@@ -675,7 +675,7 @@ void terminateOneVoice(size_t numSamples) {
 			return;
 		}
 
-		const Sound::ActiveVoice& voice = *best;
+		SoundVoice* voice = best;
 		bool still_rendering = voice->do_fast_release(2 * kSoftCullIncrement);
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
@@ -698,13 +698,13 @@ void forceReleaseOneVoice(size_t num_samples) {
 		// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has
 		// a high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
 		// musical-release tails keep stacking up.
-		const Sound::ActiveVoice* best = nullptr;
-		for (const auto& voice : all_voices) {
+		SoundVoice* best = nullptr;
+		for (SoundVoice* voice : all_voices) {
 			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
-				best = &voice;
+			if (best == nullptr || best->priority_rating() < voice->priority_rating()) {
+				best = voice;
 			}
 		}
 
@@ -712,7 +712,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 			return;
 		}
 
-		const Sound::ActiveVoice& voice = *best;
+		SoundVoice* voice = best;
 
 		auto stage = voice->kernel.envelope(0).stage();
 		if (stage < Envelope::Stage::FAST_RELEASE) {

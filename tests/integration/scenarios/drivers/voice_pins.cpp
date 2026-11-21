@@ -279,7 +279,7 @@ void readersCase() {
 		for (const Synth& synth : g_synths) {
 			for (const auto& voice : synth.sound->voices()) {
 				if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
-					newest = voice.get();
+					newest = voice;
 					newestSynth = &synth;
 				}
 			}

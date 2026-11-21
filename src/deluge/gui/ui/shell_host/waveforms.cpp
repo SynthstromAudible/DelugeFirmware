@@ -75,10 +75,10 @@ public:
 			auto* range =
 			    static_cast<MultisampleRange*>(sound->sourceResources[address.source].ranges.getElement(address.range));
 			SoundVoice* newest = nullptr;
-			for (const Sound::ActiveVoice& voice : sound->voices()) {
+			for (SoundVoice* voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
 				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
-					newest = &*voice;
+					newest = voice;
 				}
 			}
 			if (newest == nullptr) {
