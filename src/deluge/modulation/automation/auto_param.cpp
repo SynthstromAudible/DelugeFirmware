@@ -1573,10 +1573,11 @@ void AutoParam::generateRepeats(deluge::project::DocAutoParam& doc, uint32_t old
 	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // forwards to the DOM kernel
 }
 
-void AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
-                            int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+Error AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
+                             int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 	// Forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
-	deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	return deluge::error_of(
+	    deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally));
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {

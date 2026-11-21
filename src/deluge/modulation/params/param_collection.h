@@ -163,9 +163,11 @@ public:
 	/// @brief [interaction] Call @p visit with each of this collection's lanes as a repeat of @p other appended at
 	///        @p oldLength would leave them, changing none: a lane the repeat changes as a copy with the repeat
 	///        appended, the rest as they are, each with nodes, by the key forEachLane() gives it.
-	void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
-	                         int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-	                         deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
+	/// @return false when there is no memory for a copy: @p visit may then have seen only some of the lanes.
+	[[nodiscard]] bool
+	forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+	                    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+	                    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
 
 	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
 	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty

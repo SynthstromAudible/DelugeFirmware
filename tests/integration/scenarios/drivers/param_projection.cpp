@@ -1922,8 +1922,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 							deluge::project::setNodeAtPos(otherDoc, n.pos, n.value, n.interpolated);
 						}
 
-						ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong);
-						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
+						check(ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong) == Error::NONE,
+						      "appendParam: the engine's append succeeds");
+						check(deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong).has_value(),
+						      "appendParam: the model's append succeeds");
 
 						check(ap.played() == doc.current_value,
 						      "appendParam: current_value untouched, matches engine oracle");

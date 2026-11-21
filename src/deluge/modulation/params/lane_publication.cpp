@@ -344,7 +344,9 @@ bool LanePublication::matches(ParamCollection& collection) {
 
 LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 	uint32_t count = 0;
-	lanes([&](int32_t, const project::DocAutoParam&) { count++; });
+	if (!lanes([&](int32_t, const project::DocAutoParam&) { count++; })) {
+		return nullptr;
+	}
 	LaneSnapshot* next = LaneSnapshot::make(count);
 	if (next == nullptr) {
 		return nullptr;
@@ -353,7 +355,7 @@ LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 	std::span<LaneSnapshot::Entry> entries = next->entriesToFill();
 	uint32_t filled = 0;
 	bool outOfMemory = false;
-	lanes([&](int32_t key, const project::DocAutoParam& lane) {
+	const bool visitedAll = lanes([&](int32_t key, const project::DocAutoParam& lane) {
 		if (outOfMemory || filled == entries.size()) {
 			return;
 		}
@@ -365,7 +367,7 @@ LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
 		}
 		entries[filled++] = {.key = key, .lane = published};
 	});
-	if (outOfMemory) {
+	if (outOfMemory || !visitedAll) {
 		discard(entries.first(filled), next, old);
 		return nullptr;
 	}
@@ -394,7 +396,12 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		return true;
 	}
 	const LaneSnapshot* old = collection.published();
-	LaneSnapshot* next = buildSnapshot([&](LaneVisit visit) { collection.forEachLane(visit); }, old);
+	LaneSnapshot* next = buildSnapshot(
+	    [&](LaneVisit visit) {
+		    collection.forEachLane(visit);
+		    return true;
+	    },
+	    old);
 	if (next == nullptr) {
 		return false;
 	}

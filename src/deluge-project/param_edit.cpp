@@ -878,20 +878,25 @@ void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {
 	}
 }
 
-void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-                 bool pingpongingGenerally) {
-	appendParam(dest, LaneView::of(src), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+std::expected<void, AllocError> appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength,
+                                            int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	return appendParam(dest, LaneView::of(src), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
-void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-                 bool pingpongingGenerally) {
+std::expected<void, AllocError> appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength,
+                                            int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& destNodes = dest.nodes;
 	const auto& srcNodes = src.nodes;
 
 	int32_t numToInsert = static_cast<int32_t>(srcNodes.size());
 	if (!numToInsert) {
-		return;
+		return {};
+	}
+	// All the room first, before dest changes: the inserts below then cannot fail (a caller that reserved
+	// appendParamRoom() already, as the render's does, allocates nothing here).
+	if (auto room = destNodes.reserveExtra(static_cast<int32_t>(appendParamRoom(srcNodes.size()))); !room) {
+		return room;
 	}
 
 	// When recording session to arranger, dest may occasionally end up with nodes beyond the Clip's length.
@@ -917,7 +922,7 @@ void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t re
 		    static_cast<int32_t>(nodeBeforeWrap.value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes));
 
 		int32_t newZeroNodeI = static_cast<int32_t>(destNodes.size());
-		(void)destNodes.insertAt(newZeroNodeI);
+		(void)destNodes.insertAt(newZeroNodeI); // within the room reserved above
 
 		ParamNode& zeroNode = destNodes[newZeroNodeI];
 		zeroNode.pos = oldLength;
@@ -929,7 +934,7 @@ void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t re
 	}
 
 	int32_t oldNumNodes = static_cast<int32_t>(destNodes.size());
-	(void)destNodes.insertAt(oldNumNodes, numToInsert);
+	(void)destNodes.insertAt(oldNumNodes, numToInsert); // within the room reserved above
 
 	if (reverseThisRepeatWithLength) {
 
@@ -987,6 +992,7 @@ void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t re
 			newNode.value = oldNode.value;
 		}
 	}
+	return {};
 }
 
 void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offset, int32_t lengthBeforeLoop) {

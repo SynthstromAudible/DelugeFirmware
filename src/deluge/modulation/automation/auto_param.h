@@ -146,8 +146,9 @@ public:
 	void transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc);
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
 	void insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert);
-	void appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc, int32_t oldLength,
-	                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
+	/// @return Error::INSUFFICIENT_RAM when there is no room for the nodes (@p doc is then unchanged).
+	[[nodiscard]] Error appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
+	                                int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
 	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
