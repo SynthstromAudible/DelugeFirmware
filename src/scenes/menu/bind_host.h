@@ -49,8 +49,6 @@ enum class AuditionEnd : uint8_t {
 /// @brief End a held audition the way @p how names, before a scene opens over it: the scene claims every pad, so the
 ///        held pad's release never reaches the view that started the note.
 void host_end_audition(AuditionEnd how);
-/// @brief Clear the slow flash's tick squares: what main's recorder does as it opens.
-void host_clear_tick_squares();
 /// @brief Forget the undo history: what main's sample browser does as it opens.
 void host_forget_undo();
 /// @brief The favourites bank the app's browsers share.

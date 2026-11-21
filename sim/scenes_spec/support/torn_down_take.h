@@ -4,9 +4,9 @@
 /// @brief Finish the input take a torn-down recorder screen left running, as the card routine and the foreground
 ///        recording's slow routine would.
 ///
-/// `RecorderScene::on_exit` ends a take whose screen goes under it and leaves it published
-/// (`deluge::recording::orphanInputTake`) until its recorder has settled; a spec process runs no card routine, so
-/// nothing would ever settle it, and the next example's recorder would be refused as "already recording".
+/// `RecorderScene::on_exit` ends a take whose screen goes under it and leaves it published (`TakeActions::orphan`,
+/// `deluge::recording::orphanInputTake` on the host) until its recorder has settled; a spec process runs no card
+/// routine, so nothing would ever settle it, and the next example's recorder would be refused as "already recording".
 
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"

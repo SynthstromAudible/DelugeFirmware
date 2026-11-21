@@ -110,6 +110,7 @@
 /// services).
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -1359,7 +1360,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// is memory only.
 		uitest::RunOptions opts = opts_for(nodes::sound_root);
 		opts.before_tick = [](uint32_t) {
-			SampleRecorder* rec = recorder::recorder_scene().recorder();
+			SampleRecorder* rec = deluge::gui::shell_host::input_take();
 			if (rec != nullptr && rec->status == RecorderStatus::ABORTED) {
 				(void)rec->cardRoutine();
 			}

@@ -3,7 +3,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"
@@ -89,10 +88,6 @@ bool host_release_sample_file(std::string_view path) {
 
 void host_forget_undo() {
 	actionLogger.deleteAllLogs();
-}
-
-void host_clear_tick_squares() {
-	PadLEDs::clearTickSquares(true);
 }
 
 void host_end_audition(AuditionEnd how) {

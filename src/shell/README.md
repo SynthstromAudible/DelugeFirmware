@@ -280,7 +280,7 @@ It reaches the host one of three ways:
 
 1. **A synchronous call**, when the host acts before the scene goes on: a setting's side effect is
    the device port's store (`Ports::device`), made at the write, and the recorder's opening clear of
-   the slow flash's tick squares is `host_clear_tick_squares` (`scenes/menu/bind_host.h`).
+   the slow flash's tick squares is the indicators port's (`Ports::indicators`).
 2. **A service**, when the work ends later: the browser hands its claims, imports, slices, deletes,
    loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
    `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced
