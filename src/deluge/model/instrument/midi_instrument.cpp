@@ -29,6 +29,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
@@ -681,7 +682,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = midiParam->readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -798,7 +799,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	}
 
 	AutoParamState state;
-	oldParam->swapState(&state, modelStackWithAutoParam);
+	AutoParamOwnership(*oldParam).swapState(&state, modelStackWithAutoParam);
 
 	// Delete or clear old parameter
 	MIDIParamCollection* midiParamCollection = modelStackWithAutoParam->paramManager->getMIDIParamCollection();
@@ -822,8 +823,8 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		}
 	}
 	else {
-		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->params[modelStackWithAutoParam->paramId]
+		AutoParamSetup((static_cast<ExpressionParamSet*>(modelStackWithAutoParam->paramCollection))
+		                   ->params[modelStackWithAutoParam->paramId])
 		    .setCurrentValueBasicForSetup(0);
 	}
 
@@ -833,7 +834,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	newParam->swapState(&state, modelStackWithAutoParam);
+	AutoParamOwnership(*newParam).swapState(&state, modelStackWithAutoParam);
 
 	return Error::NONE;
 }

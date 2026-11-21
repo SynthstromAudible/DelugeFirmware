@@ -25,6 +25,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
@@ -39,7 +40,7 @@ void Integer::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
-	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+	AutoParamLiveInput(*modelStack->autoParam).setValueForLiveInput(value, modelStack);
 
 	// If affect-entire button held, do whole kit
 	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -54,13 +55,14 @@ void Integer::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
-				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
+				AutoParamLiveInput(*modelStackForSoundDrum->autoParam)
+				    .setValueForLiveInput(value, modelStackForSoundDrum);
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
-		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+		AutoParamLiveInput(*modelStack->autoParam).setValueForLiveInput(value, modelStack);
 	}
 
 	// send midi follow feedback

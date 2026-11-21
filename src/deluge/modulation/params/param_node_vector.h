@@ -55,10 +55,12 @@ public:
 	void swapStateWith(LazyParamNodeVector* other) { std::swap(vector_, other->vector_); }
 
 	/// The underlying vector, or nullptr if there are no nodes.
-	ParamNodeVector* get() { return vector_; }
+	[[nodiscard]] ParamNodeVector* get() const { return vector_; }
 
 	int32_t getNumElements() const { return vector_ ? vector_->getNumElements() : 0; }
-	ParamNode* getElement(int32_t index) { return vector_ ? vector_->getElement(index) : nullptr; }
+	[[nodiscard]] ParamNode* getElement(int32_t index) const {
+		return (vector_ != nullptr) ? vector_->getElement(index) : nullptr;
+	}
 	ParamNode* getFirst() { return vector_ ? vector_->getFirst() : nullptr; }
 	ParamNode* getLast() { return vector_ ? vector_->getLast() : nullptr; }
 	void* getElementAddress(int32_t index) { return vector_->getElementAddress(index); }

@@ -28,6 +28,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/auto_param_access.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include <cstdint>
@@ -647,9 +648,10 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
 	if (modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->setValuePossiblyForRegion(
-		    newValue, modelStackWithParam, modPos, modLength,
-		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
+		AutoParamLiveInput(*modelStackWithParam->autoParam)
+		    .setLiveValuePossiblyForRegion(
+		        newValue, modelStackWithParam, modPos, modLength,
+		        false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
 	}
 }
 

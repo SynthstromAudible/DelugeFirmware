@@ -35,6 +35,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
@@ -1126,8 +1127,8 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 				instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 			}
 			else {
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				AutoParamLiveInput(*modelStackWithParam->autoParam)
+				    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
 			}
 
 			// check if you're currently editing the same learned param in automation view or

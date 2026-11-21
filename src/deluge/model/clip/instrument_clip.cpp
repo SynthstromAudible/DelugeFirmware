@@ -47,6 +47,7 @@
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -3033,7 +3034,7 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(reader, readAutomationUpToPos);
+						Error error = AutoParamSetup(*param).readFromFile(reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -3049,13 +3050,13 @@ expressionParam:
 							// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2
 							// firmware
 							if (paramId) {
-								param->transposeCCValuesToChannelPressureValues();
+								AutoParamSetup(*param).transposeCCValuesToChannelPressureValues();
 							}
 
 							// Or if pitch bend, it'll no longer interpolate, so go place some new nodes. Actually even
 							// without this step, you can only just tell there's any problem.
 							else {
-								param->makeInterpolationGoodAgain(
+								AutoParamSetup(*param).makeInterpolationGoodAgain(
 								    loopLength,
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
@@ -4086,7 +4087,8 @@ haveNoDrum:
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
 						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						AutoParamSetup(patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s])
+						    .setCurrentValueBasicForSetup(0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
 						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
 					}
@@ -4564,33 +4566,27 @@ doNormal: // Wrap it back to the start.
 		// Special case for MPE - in this case where we're setting the value for the whole length, we still do want to
 		// place one - just one - node at pos. It'll be for the start of a note.
 		if (effectiveLength == distanceToNextNote) {
-			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
+			param->automation().erase(nullptr, modelStackWithAutoParam, false);
 
-			Error error = param->nodes.insertAtIndex(0);
-			if (error == Error::NONE) {
-				ParamNode* firstNode = param->nodes.getElement(0);
-				firstNode->pos = quantizedPos;
-				firstNode->value = value;
-				firstNode->interpolated = reversed;
-			}
+			param->automation().setNodeAtPos(quantizedPos, value, reversed);
 		}
 
 		else if (reversed) {
 doHomogenize:
 #if ENABLE_SEQUENTIALITY_TESTS
-			param->nodes.testSequentiality("E442"); // drbourbon got, when check was inside homogenizeRegion(). Now
-			                                        // trying to work out where that came from. March 2022.
+			param->automation().testSequentiality("E442"); // drbourbon got, when check was inside homogenizeRegion().
+			                                               // Now trying to work out where that came from. March 2022.
 #endif
 
-			param->homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value, reversed,
-			                        reversed, effectiveLength, reversed, posAtWhichClipWillCut);
+			param->automation().homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value,
+			                                     reversed, reversed, effectiveLength, reversed, posAtWhichClipWillCut);
 		}
 
 		else {
 
 			// Special case for if linear recording, quantized later, right to end of effectiveLength.
 			if (quantizedPos >= effectiveLength) {
-				param->setNodeAtPos(quantizedPos, value, false);
+				param->automation().setNodeAtPos(quantizedPos, value, false);
 			}
 
 			// Or, normal case
@@ -4603,8 +4599,8 @@ doHomogenize:
 
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
-		param->currentValue = value;
-		param->resetInterpolationIncrement();
+		AutoParamSetup(*param).setCurrentValueBasicForSetup(value);
+		AutoParamPlayback(*param).resetInterpolationIncrement();
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.
 	}

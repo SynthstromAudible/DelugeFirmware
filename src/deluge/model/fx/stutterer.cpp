@@ -17,6 +17,7 @@
 
 #include "model/fx/stutterer.h"
 #include "dsp/stereo_sample.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 
@@ -25,7 +26,8 @@ namespace params = deluge::modulation::params;
 Stutterer stutterer{};
 
 void Stutterer::initParams(ParamManager* paramManager) {
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	AutoParamSetup(paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_STUTTER_RATE])
+	    .setCurrentValueBasicForSetup(0);
 }
 
 int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse) {
@@ -93,7 +95,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
 		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
 		// (real) value
-		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE]).setCurrentValueBasicForSetup(0);
 	}
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
@@ -205,13 +207,14 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 		if (stutterConfig.quantized) {
 			// Sset back the value it had just before stuttering so orange LEDs are redrawn.
-			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(valueBeforeStuttering);
+			AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE])
+			    .setCurrentValueBasicForSetup(valueBeforeStuttering);
 		}
 		else {
 			// Regular Stutter FX (if below middle value, reset it back to middle)
 			// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
 			if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
-				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+				AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE]).setCurrentValueBasicForSetup(0);
 			}
 		}
 	}

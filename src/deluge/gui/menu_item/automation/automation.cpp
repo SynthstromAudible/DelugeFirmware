@@ -30,6 +30,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_set.h"
 
 namespace deluge::gui::menu_item {
@@ -42,7 +43,7 @@ MenuItem* Automation::selectButtonPress() {
 		if (modelStack && modelStack->autoParam) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
-			modelStack->autoParam->deleteAutomation(action, modelStack);
+			modelStack->autoParam->automation().erase(action, modelStack);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
