@@ -75,11 +75,11 @@ struct Recall {
 /// @brief The oscillator type a slot's kind is.
 [[nodiscard]] OscType osc_type_of(const synth::SlotState& kind) noexcept;
 
-/// @brief The retrigger a file's 32-bit phase word means: none for kFreeRunningPhase.
+/// @brief The retrigger a file's 32-bit phase word means; kFreeRunningPhase means none.
 [[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);
 
-/// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, kFreeRunningPhase for
-/// free-running.
+/// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, or kFreeRunningPhase where the
+/// oscillator runs free.
 [[nodiscard]] uint32_t phase_word(const synth::Retrigger& retrigger) noexcept;
 
 } // namespace deluge::instrument

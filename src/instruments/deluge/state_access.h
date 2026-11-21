@@ -75,8 +75,8 @@ using synth::SamplePlayback;
 /// @param id The slot.
 [[nodiscard]] SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept;
 
-/// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files, any
-/// other kind's the ones the slot keeps for a sample.
+/// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files, and
+/// for any other kind the ones the slot keeps for a switch back to samples.
 /// @param state The sound's state.
 /// @param id The slot.
 /// @return The ranges as the state holds them, valid until the state is next written.

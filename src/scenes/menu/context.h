@@ -286,7 +286,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 
 /// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
 ///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
-std::vector<deluge::synth::SourceRange> ranges_of(const MenuContext& ctx);
+std::vector<synth::SourceRange> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the choice is
 ///        unambiguous -- `Source::getOrCreateFirstRange()` in `main`'s

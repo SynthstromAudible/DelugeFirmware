@@ -85,6 +85,7 @@ using deluge::test::matchers::address_of;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
 
+using deluge::synth::SourceRange;
 using t1::Fixture;
 using t1::fixture;
 using t1::RangeFixture;
@@ -111,16 +112,16 @@ std::string frozen(const std::string& path, const std::string& column) {
 }
 
 /// @brief The top notes of @p ranges.
-std::vector<int32_t> tops_of(const std::vector<deluge::synth::SourceRange>& ranges) {
+std::vector<int32_t> tops_of(const std::vector<SourceRange>& ranges) {
 	std::vector<int32_t> tops;
-	for (const deluge::synth::SourceRange& r : ranges) {
+	for (const SourceRange& r : ranges) {
 		tops.push_back(r.top_note);
 	}
 	return tops;
 }
 
 /// @brief The ranges as the picker rows record them.
-std::string spans(const std::vector<deluge::synth::SourceRange>& ranges) {
+std::string spans(const std::vector<SourceRange>& ranges) {
 	return joined(t1::spans_of(tops_of(ranges)));
 }
 
@@ -666,7 +667,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 						continue;
 					}
 					f.set_tops(tops);
-					std::vector<deluge::synth::SourceRange> ported = menu::ranges_of(f.ctx);
+					std::vector<SourceRange> ported = menu::ranges_of(f.ctx);
 					for (int32_t k = 0; k < 130; k++) {
 						nodes::step_range_edge(ported, index, edge, offset);
 					}
@@ -709,7 +710,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 				f.set_tops(tops);
 				const std::string path = "picker/insert/" + std::to_string(index) + "/" + std::to_string(offset);
 				const bool refused = table().value(path, "ranges") == "refused";
-				std::vector<deluge::synth::SourceRange> ported = menu::ranges_of(f.ctx);
+				std::vector<SourceRange> ported = menu::ranges_of(f.ctx);
 				const std::optional<nodes::RangeInsert> plan = nodes::plan_range_insert(ported, index, offset);
 
 				menu::MenuState picker{};
@@ -722,7 +723,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 					nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
 				}
 				display->cancelPopup();
-				const std::vector<deluge::synth::SourceRange> driven = menu::ranges_of(f.ctx);
+				const std::vector<SourceRange> driven = menu::ranges_of(f.ctx);
 
 				expect(path + (plan ? " inserts" : " refuses")).to_equal(path + (refused ? " refuses" : " inserts"));
 				if (!plan) {
@@ -731,7 +732,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 					continue;
 				}
 				inserts++;
-				ported.insert(ported.begin() + plan->at, deluge::synth::SourceRange{.top_note = plan->top_note});
+				ported.insert(ported.begin() + plan->at, SourceRange{.top_note = plan->top_note});
 				if (plan->previous_top) {
 					ported[static_cast<size_t>(plan->at - 1)].top_note = *plan->previous_top;
 				}
@@ -752,7 +753,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 			RangeFixture f{4};
 			f.set_tops(tops);
 			const std::string path = "picker/delete/4/" + std::to_string(index);
-			std::vector<deluge::synth::SourceRange> ported = menu::ranges_of(f.ctx);
+			std::vector<SourceRange> ported = menu::ranges_of(f.ctx);
 			const std::optional<nodes::RangeDelete> plan = nodes::plan_range_delete(ported, index);
 			expect(path + (plan ? " deletes" : " refuses")).to_equal(path + " deletes");
 			expect(table().value(path, "ranges")).not_().to_equal("refused");

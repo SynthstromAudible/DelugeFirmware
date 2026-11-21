@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "instruments/deluge/range_state.h"
 #include "instruments/deluge/sound_state.h"
 #include "support/printers/effect_states_printer.h"
 #include "support/printers/fixed_point_printer.h"
@@ -79,7 +78,7 @@ inline std::ostream& operator<<(std::ostream& os, const SourceRange& r) {
 /// @brief Prints a wavetable oscillator's state.
 inline std::ostream& operator<<(std::ostream& os, const WavetableState& s) {
 	os << "{wavetable, pitch " << s.pitch << ", ranges [";
-	// A wavetable's range is its note and its file
+	// A wavetable's range holds only its note and its file (the record clears the rest), so only those print
 	for (size_t i = 0; i < s.ranges.size(); i++) {
 		os << (i == 0 ? "" : " ")
 		   << std::format("{{top_note {}, file \"{}\"}}", s.ranges[i].top_note, s.ranges[i].file_path);

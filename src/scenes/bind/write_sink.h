@@ -91,8 +91,8 @@ public:
 	virtual bool write_text(const Target& target, const Addresses& where, std::string_view text) = 0;
 	/// @brief Write source @p source's ranges of the sound at @p slot.
 	/// @return Whether it was taken.
-	virtual bool write_ranges(project::SlotAddress slot, uint8_t source,
-	                          std::span<const deluge::synth::SourceRange> ranges, RangesCause cause = {}) = 0;
+	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const synth::SourceRange> ranges,
+	                          RangesCause cause = {}) = 0;
 	/// @brief Move @p clip's colour by @p offset. Not undoable, as legacy's recolour is not.
 	/// @return Whether it was taken.
 	virtual bool recolour_clip(project::ClipAddress clip, int32_t offset) = 0;
@@ -213,7 +213,7 @@ struct GestureRequest {
 	project::SlotAddress slot{};
 	uint8_t source{0};
 	std::optional<uint16_t> range; ///< the range an ATTACH or TRANSPOSE names; none for a source's own transpose
-	std::vector<deluge::synth::SourceRange> ranges;
+	std::vector<synth::SourceRange> ranges;
 	RangesCause cause{};
 	project::ClipAddress clip{};
 	int64_t value{0};
@@ -261,7 +261,7 @@ public:
 	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
-	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const deluge::synth::SourceRange> ranges,
+	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const synth::SourceRange> ranges,
 	                  RangesCause cause = {}) override;
 	bool recolour_clip(project::ClipAddress clip, int32_t offset) override;
 	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;

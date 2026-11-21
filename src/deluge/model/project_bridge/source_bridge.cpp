@@ -28,7 +28,7 @@
 
 namespace deluge::bridge {
 
-std::vector<deluge::synth::SourceRange> rangesOf(const ::SourceResources& source) {
+std::vector<synth::SourceRange> rangesOf(const ::SourceResources& source) {
 	return source.heldRanges();
 }
 
@@ -38,17 +38,16 @@ namespace {
 /// there is no such range. With @p fileless, only a range holding no file counts (a new range has none). Ranges alike
 /// in file and zone (empty new ones) are told apart by their top notes, of which only the extra one's lower neighbour
 /// may have moved; failing that, by file and zone alone.
-std::optional<size_t> extraAt(const std::vector<deluge::synth::SourceRange>& shorter,
-                              const std::vector<deluge::synth::SourceRange>& longer, bool fileless) {
-	const auto same = [](const deluge::synth::SourceRange& a, const deluge::synth::SourceRange& b) {
-		return a.file_path == b.file_path && a.zone.start == b.zone.start && a.zone.end == b.zone.end
-		       && a.zone.loop_start == b.zone.loop_start && a.zone.loop_end == b.zone.loop_end;
+std::optional<size_t> extraAt(const std::vector<synth::SourceRange>& shorter,
+                              const std::vector<synth::SourceRange>& longer, bool fileless) {
+	const auto same = [](const synth::SourceRange& a, const synth::SourceRange& b) {
+		return a.file_path == b.file_path && a.zone == b.zone;
 	};
 	const auto find = [&](bool by_top) -> std::optional<size_t> {
 		for (size_t at = 0; at < longer.size(); at++) {
 			bool rest = !fileless || longer[at].file_path.empty();
 			for (size_t i = 0; rest && i < shorter.size(); i++) {
-				const deluge::synth::SourceRange& other = longer[i < at ? i : i + 1];
+				const synth::SourceRange& other = longer[i < at ? i : i + 1];
 				rest = same(shorter[i], other) && (!by_top || i + 1 == at || shorter[i].top_note == other.top_note);
 			}
 			if (rest) {
@@ -65,7 +64,7 @@ std::optional<size_t> extraAt(const std::vector<deluge::synth::SourceRange>& sho
 
 /// Whether @p ranges can replace @p now in place: the same length, each range keeping its file, and the top notes in
 /// order wherever one moves or is @p added (two ranges a malformed file left on one top note stand).
-bool takes(const std::vector<deluge::synth::SourceRange>& now, const std::vector<deluge::synth::SourceRange>& ranges,
+bool takes(const std::vector<synth::SourceRange>& now, const std::vector<synth::SourceRange>& ranges,
            std::optional<size_t> added = std::nullopt) {
 	if (now.size() != ranges.size()) {
 		return false;
@@ -86,9 +85,9 @@ bool takes(const std::vector<deluge::synth::SourceRange>& now, const std::vector
 
 } // namespace
 
-Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::synth::SourceRange>& ranges) {
+Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRange>& ranges) {
 	::SourceResources& source = sound.sourceResources[s];
-	const std::vector<deluge::synth::SourceRange> now = rangesOf(source);
+	const std::vector<synth::SourceRange> now = rangesOf(source);
 	if (now == ranges) {
 		sound.recordHeldRanges(s); // a gesture changed the runtime itself and records the result
 		return Error::NONE;
@@ -105,7 +104,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::synth::So
 	if (ranges.size() == now.size() + 1) {
 		if (const std::optional<size_t> at = extraAt(now, ranges, true)) {
 			// Judged before anything changes: the list as it will be once the range is in
-			std::vector<deluge::synth::SourceRange> next = now;
+			std::vector<synth::SourceRange> next = now;
 			next.insert(next.begin() + static_cast<std::ptrdiff_t>(*at), ranges[*at]);
 			if (!takes(next, ranges, *at)) {
 				return Error::UNSPECIFIED;
@@ -125,7 +124,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::synth::So
 	}
 	if (ranges.size() + 1 == now.size()) {
 		if (const std::optional<size_t> gone = extraAt(ranges, now, false)) {
-			std::vector<deluge::synth::SourceRange> next = now;
+			std::vector<synth::SourceRange> next = now;
 			next.erase(next.begin() + static_cast<std::ptrdiff_t>(*gone));
 			if (!takes(next, ranges)) {
 				return Error::UNSPECIFIED;

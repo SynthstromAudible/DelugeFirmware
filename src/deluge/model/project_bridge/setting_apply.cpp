@@ -291,7 +291,9 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			error = applyDxPatch(sound, s, *wantedPatch);
 		}
 		if (error == Error::NONE && rangesDiffer) {
-			error = applyRanges(sound, s, deluge::instrument::source_ranges(after, id));
+			// A copy: applying them writes the sound's record, which `after` may be
+			const std::vector<synth::SourceRange> wanted = deluge::instrument::source_ranges(after, id);
+			error = applyRanges(sound, s, wanted);
 		}
 		if (error != Error::NONE) {
 			deluge::instrument::SoundState& record = sound.record();
@@ -350,7 +352,7 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 		return instrument::with_loop_mode(sound.state(), id, mode);
 	}
 	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
-	const std::vector<deluge::synth::SourceRange> held = sound.sourceResources[s].heldRanges();
+	const std::vector<synth::SourceRange> held = sound.sourceResources[s].heldRanges();
 	const bool heldAreWavetable = sound.sourceResources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
 	return instrument::switch_source(sound.state(), id, instrument::parse_osc_type(value.str()), held,
 	                                 heldAreWavetable);

@@ -95,7 +95,7 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 	}
 	const auto id = static_cast<deluge::instrument::SourceId>(index);
 	if (transposes_in_range(*state, id)) {
-		const std::vector<deluge::synth::SourceRange> ranges = deluge::instrument::source_ranges(*state, id);
+		const std::vector<synth::SourceRange> ranges = deluge::instrument::source_ranges(*state, id);
 		// The selected range when the menu is on this very source, else range 0.
 		const size_t r =
 		    ctx.source_index == index && ctx.range_index >= 0 && static_cast<size_t>(ctx.range_index) < ranges.size()

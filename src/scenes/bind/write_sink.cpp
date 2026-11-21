@@ -42,8 +42,8 @@ bool RecordingSink::write_text(const Target& target, const Addresses& where, std
 	return true;
 }
 
-bool RecordingSink::write_ranges(project::SlotAddress slot, uint8_t source,
-                                 std::span<const deluge::synth::SourceRange> ranges, RangesCause cause) {
+bool RecordingSink::write_ranges(project::SlotAddress slot, uint8_t source, std::span<const synth::SourceRange> ranges,
+                                 RangesCause cause) {
 	gestures.push_back({.kind = GestureRequest::Kind::RANGES,
 	                    .slot = slot,
 	                    .source = source,

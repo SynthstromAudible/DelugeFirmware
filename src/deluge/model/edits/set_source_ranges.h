@@ -15,7 +15,7 @@ namespace deluge::edits {
 /// place (bridge::applyRanges), then makes the slot hold the sound's state again. Records no undo.
 class SetSourceRanges final : public Edit {
 public:
-	SetSourceRanges(deluge::project::SlotAddress slot, uint8_t source, std::vector<deluge::synth::SourceRange> ranges)
+	SetSourceRanges(deluge::project::SlotAddress slot, uint8_t source, std::vector<synth::SourceRange> ranges)
 	    : slot_(slot), source_(source), ranges_(std::move(ranges)) {}
 
 	Error apply(Context& ctx) override;
@@ -23,7 +23,7 @@ public:
 private:
 	deluge::project::SlotAddress slot_;
 	uint8_t source_;
-	std::vector<deluge::synth::SourceRange> ranges_;
+	std::vector<synth::SourceRange> ranges_;
 };
 
 } // namespace deluge::edits

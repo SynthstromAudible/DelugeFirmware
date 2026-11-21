@@ -15,12 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file
+/// @brief The source values the record and the file share: a range's open top note and unset end, the free-running
+/// phase word, and the DX7 patch as the record names it.
+
 #pragma once
 
 #include "synth/sources/source_state.h"
 
 #include <cstdint>
-#include <string>
 
 namespace deluge::instrument {
 
@@ -28,6 +31,7 @@ namespace deluge::instrument {
 /// it.
 inline constexpr int16_t kOpenTopNote = 32767;
 
+/// @brief The phase word of an oscillator that runs free: the file writes it and the render adds it.
 using synth::kFreeRunningPhase;
 
 /// @brief The end a range's zone has before a file sets it: a file loaded into it plays to its own end.

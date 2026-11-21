@@ -204,8 +204,7 @@ public:
 	bool delete_automation(const deluge::project::ParamAddress& address) override;
 	bool write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
 	                std::string_view text) override;
-	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source,
-	                  std::span<const deluge::synth::SourceRange> ranges,
+	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source, std::span<const synth::SourceRange> ranges,
 	                  deluge::scenes::bind::RangesCause cause = {}) override;
 	bool recolour_clip(deluge::project::ClipAddress clip, int32_t offset) override;
 	bool clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
@@ -770,8 +769,7 @@ bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const
 }
 
 bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t source,
-                                 std::span<const deluge::synth::SourceRange> ranges,
-                                 deluge::scenes::bind::RangesCause cause) {
+                                 std::span<const synth::SourceRange> ranges, deluge::scenes::bind::RangesCause cause) {
 	if (currentSong == nullptr) {
 		return false;
 	}
@@ -824,16 +822,16 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a
 	// range with no file at @p at, the one below it narrowed
 	const auto id = static_cast<deluge::instrument::SourceId>(source);
-	std::vector<deluge::synth::SourceRange> ranges = deluge::instrument::source_ranges(sound->state(), id);
+	std::vector<synth::SourceRange> ranges = deluge::instrument::source_ranges(sound->state(), id);
 	if (at > ranges.size()) {
 		return false;
 	}
 	// A new sample range's end is unset until a file gives it one, as a runtime range starts; a wavetable range has
 	// no zone
 	const bool sample = deluge::instrument::source_type(sound->state(), id) == OscType::SAMPLE;
-	ranges.insert(ranges.begin() + at,
-	              deluge::synth::SourceRange{.top_note = top_note,
-	                                         .zone = {.end = sample ? deluge::instrument::kUnsetEndPos : 0}});
+	ranges.insert(
+	    ranges.begin() + at,
+	    synth::SourceRange{.top_note = top_note, .zone = {.end = sample ? deluge::instrument::kUnsetEndPos : 0}});
 	if (previous_top && at > 0) {
 		ranges[at - 1].top_note = *previous_top;
 	}
@@ -852,7 +850,7 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	}
 	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the range goes, the one below
 	// it widened
-	std::vector<deluge::synth::SourceRange> ranges =
+	std::vector<synth::SourceRange> ranges =
 	    deluge::instrument::source_ranges(sound->state(), static_cast<deluge::instrument::SourceId>(source));
 	if (index >= ranges.size()) {
 		return false;
@@ -985,10 +983,10 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		namespace instrument = deluge::instrument;
 		const instrument::SoundState& state = sound->state();
 		const auto id = static_cast<instrument::SourceId>(source);
-		const std::vector<deluge::synth::SourceRange> held = instrument::source_ranges(state, id);
+		const std::vector<synth::SourceRange> held = instrument::source_ranges(state, id);
 		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
 		    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
-			std::vector<deluge::synth::SourceRange> ranges{held.begin(), held.end()};
+			std::vector<synth::SourceRange> ranges{held.begin(), held.end()};
 			const size_t r = in_range && *in_range < ranges.size() ? *in_range : 0;
 			ranges[r].tuning.transpose = static_cast<int16_t>(transpose);
 			ranges[r].tuning.cents = static_cast<int8_t>(cents);

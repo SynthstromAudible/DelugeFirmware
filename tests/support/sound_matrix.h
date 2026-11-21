@@ -26,14 +26,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 /// @file
 /// @brief The sounds the synth state's specs run over, built through the record: every engine with every pair of
 /// oscillator kinds, each plain and varied (the recorded reference's rows), then sounds made for the codec's corners,
 /// then a new sound.
+///
+/// The engine and kind pairs are written as a file places its rows (no menu rule runs), so each pair holds every field
+/// whatever its kinds use; the corner sounds are written as the menus write them, rules and all.
 namespace deluge::test {
 
 namespace detail {
@@ -57,8 +62,18 @@ inline std::string osc(size_t s, std::string_view key) {
 
 } // namespace detail
 
+/// @brief The oscillator kinds the matrix pairs.
+inline constexpr instrument::OscType kMatrixKinds[] = {
+    instrument::OscType::SINE,      instrument::OscType::SAW,     instrument::OscType::SUPERSAW,
+    instrument::OscType::WAVETABLE, instrument::OscType::SAMPLE,  instrument::OscType::DX7,
+    instrument::OscType::INPUT_L,   instrument::OscType::INPUT_R, instrument::OscType::INPUT_STEREO};
+
 /// @brief A sound with engine @p mode and kinds @p a and @p b, every oscillator field set to a value its default is
 /// not, whatever its kind holds.
+/// @param mode The engine.
+/// @param a The first oscillator's kind.
+/// @param b The second oscillator's kind.
+/// @return The sound's record.
 inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument::OscType a, instrument::OscType b) {
 	using namespace instrument;
 	SoundState s;
@@ -70,7 +85,7 @@ inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument
 		detail::put(s, detail::osc(i, "cents"), "-7");
 		detail::put(s, detail::osc(i, "loopMode"), std::to_string(std::to_underlying(SampleRepeatMode::LOOP)));
 		detail::put(s, detail::osc(i, "reversed"), "1");
-		std::vector<deluge::synth::SourceRange> ranges{
+		std::vector<synth::SourceRange> ranges{
 		    {.top_note = 40, .file_path = "SAMPLES/A.WAV", .zone = {.start = 10, .end = 900}},
 		    {.top_note = 127, .file_path = "SAMPLES/B.WAV", .zone = {.end = 400}, .tuning = {.transpose = 2}}};
 		s = with_ranges(std::move(s), id, std::move(ranges));
@@ -91,6 +106,10 @@ inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument
 }
 
 /// @brief plain_sound() with its second oscillator and the retriggers changed and its ranges and patch gone.
+/// @param mode The engine.
+/// @param a The first oscillator's kind.
+/// @param b The second oscillator's kind.
+/// @return The sound's record.
 inline instrument::SoundState varied_sound(instrument::SynthMode mode, instrument::OscType a, instrument::OscType b) {
 	using namespace instrument;
 	SoundState s = plain_sound(mode, a, b);
@@ -109,7 +128,9 @@ inline instrument::SoundState varied_sound(instrument::SynthMode mode, instrumen
 }
 
 /// @brief Sounds made for the codec's corners, by name: a new sound, FM, ring mod, a ranged sample, a DX7, a
-/// wavetable, synced LFO and effects, non-zero settings.
+/// wavetable, synced LFO and effects, non-zero settings. "new" is the codec specs' new sound; the reference's own new
+/// sound is for_each_named_sound()'s "default".
+/// @return Each sound's name and record, in that order.
 inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds() {
 	using namespace instrument;
 	std::vector<std::pair<std::string, SoundState>> states;
@@ -129,10 +150,10 @@ inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds
 
 	SoundState sample = with_kind(SoundState{}, SourceId::A, OscType::SAMPLE);
 	set(sample, "osc1/loopMode", "1"); // ONCE
-	sample = with_ranges(
-	    std::move(sample), SourceId::A,
-	    {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/a.wav", .zone = {.end = 100}},
-	     deluge::synth::SourceRange{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .zone = {.end = 200}}});
+	sample =
+	    with_ranges(std::move(sample), SourceId::A,
+	                {synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/a.wav", .zone = {.end = 100}},
+	                 synth::SourceRange{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .zone = {.end = 200}}});
 	states.emplace_back("ranged sample", sample);
 
 	DxPatchState patch{.engine_mode = 2, .random_detune = 5};
@@ -142,14 +163,14 @@ inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds
 
 	SoundState wavetable = with_kind(SoundState{}, SourceId::A, OscType::WAVETABLE);
 	wavetable = with_ranges(std::move(wavetable), SourceId::A,
-	                        {deluge::synth::SourceRange{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}});
+	                        {synth::SourceRange{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}});
 	set(wavetable, "osc2/oscillatorSync", "1");
 	states.emplace_back("wavetable", wavetable);
 
 	SoundState synced =
-	    with(SoundState{}, "lfo2/syncLevel", std::to_string(std::to_underlying(deluge::plugin::SyncLevel::EIGHTH)));
-	sound_effects(synced).delay.sync_level = deluge::plugin::SyncLevel::QUARTER;
-	sound_effects(synced).sidechain.sync_level = deluge::plugin::SyncLevel::SIXTEENTH;
+	    with(SoundState{}, "lfo2/syncLevel", std::to_string(std::to_underlying(plugin::SyncLevel::EIGHTH)));
+	sound_effects(synced).delay.sync_level = plugin::SyncLevel::QUARTER;
+	sound_effects(synced).sidechain.sync_level = plugin::SyncLevel::SIXTEENTH;
 	states.emplace_back("synced", synced);
 
 	SoundState nonzero = SoundState{};
@@ -158,18 +179,12 @@ inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds
 	effects::EffectStates& fx = sound_effects(nonzero);
 	fx.saturation.clipping_amount = 4;
 	fx.stutter.use_song_stutter = false;
-	fx.filter.lpf_mode = deluge::effects::FilterMode::OFF;
-	fx.mod_fx.type = deluge::effects::ModFXType::CHORUS;
+	fx.filter.lpf_mode = effects::FilterMode::OFF;
+	fx.mod_fx.type = effects::ModFXType::CHORUS;
 	fx.compressor.ratio = 7 << 24;
 	states.emplace_back("non-zero", nonzero);
 	return states;
 }
-
-/// @brief The oscillator kinds the matrix pairs.
-inline constexpr instrument::OscType kMatrixKinds[] = {
-    instrument::OscType::SINE,      instrument::OscType::SAW,     instrument::OscType::SUPERSAW,
-    instrument::OscType::WAVETABLE, instrument::OscType::SAMPLE,  instrument::OscType::DX7,
-    instrument::OscType::INPUT_L,   instrument::OscType::INPUT_R, instrument::OscType::INPUT_STEREO};
 
 /// @brief Whether @p name is one of the recorded reference's rows: an engine and kind pair, or the new sound.
 inline bool is_kind_row(std::string_view name) {

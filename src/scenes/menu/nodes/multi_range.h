@@ -143,7 +143,7 @@ deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t inde
 /// @param index  The picker's range.
 /// @param edge   The edge edited; `Off` changes nothing.
 /// @param offset The turn; only its sign counts (raising for 0 too, as legacy's `offset >= 0`).
-void step_range_edge(std::vector<deluge::synth::SourceRange>& ranges, int32_t index, deluge::ui::oled::RangeEdge edge,
+void step_range_edge(std::vector<synth::SourceRange>& ranges, int32_t index, deluge::ui::oled::RangeEdge edge,
                      int32_t offset);
 
 /// @brief Where a range insert puts the new range: `MultiRange::selectEncoderAction`'s Shift arm.
@@ -162,8 +162,7 @@ struct RangeInsert {
 /// @param index  The picker's range.
 /// @param offset The turn; only its sign counts.
 /// @return The insert, or nullopt for "RANGE CONTAINS ONE NOTE".
-std::optional<RangeInsert> plan_range_insert(std::span<const deluge::synth::SourceRange> ranges, int32_t index,
-                                             int32_t offset);
+std::optional<RangeInsert> plan_range_insert(std::span<const synth::SourceRange> ranges, int32_t index, int32_t offset);
 
 /// @brief What a range delete leaves: `MultiRange::deletePress`.
 struct RangeDelete {
@@ -175,7 +174,7 @@ struct RangeDelete {
 /// @brief `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): what deleting @p index's
 /// range does to the one below.
 /// @return The delete, or nullopt for "LAST RANGE CAN'T DELETE".
-std::optional<RangeDelete> plan_range_delete(std::span<const deluge::synth::SourceRange> ranges, int32_t index);
+std::optional<RangeDelete> plan_range_delete(std::span<const synth::SourceRange> ranges, int32_t index);
 
 /// @brief `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) on the picker: nothing
 ///        while an edge is edited or a popup is up; "LAST RANGE CAN'T DELETE" for the last; else the range is deleted,
@@ -186,7 +185,7 @@ void range_delete_press(const MenuContext& ctx, MenuState& state);
 
 /// @brief The range @p note falls in: `SourceResources::getRangeIndex`, the first whose top note is at or above it,
 /// else the last.
-int32_t range_for_note(std::span<const deluge::synth::SourceRange> ranges, int32_t note);
+int32_t range_for_note(std::span<const synth::SourceRange> ranges, int32_t note);
 
 /// @brief `MultiRange::noteOnToChangeRange` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) on the picker:
 ///        with no edge edited, the cursor moves to the range @p note falls in, and the range is selected.

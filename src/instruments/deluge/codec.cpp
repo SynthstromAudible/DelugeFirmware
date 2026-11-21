@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <span>
 #include <string>
@@ -65,15 +66,16 @@ static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 /// instrument library does not depend on the model's): the instrument holds none of them, only their place in the file.
 constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
 
+/// Whether @p key is one of the host's (kHostKeys).
+constexpr bool is_host_key(std::string_view key) {
+	return std::ranges::contains(kHostKeys, key);
+}
+static_assert(std::ranges::count_if(kStateKeys, is_host_key) == std::ssize(kHostKeys), "every host key is a state key");
+
 /// The keys of kStateKeys the instrument writes, in file order: all but the host's.
 constexpr auto kInstrumentKeys = [] {
 	std::array<std::string_view, kStateKeys.size() - kHostKeys.size()> keys{};
-	size_t n = 0;
-	for (const std::string_view key : kStateKeys) {
-		if (std::ranges::find(kHostKeys, key) == kHostKeys.end()) {
-			keys[n++] = key;
-		}
-	}
+	std::ranges::copy_if(kStateKeys, keys.begin(), std::not_fn(is_host_key));
 	return keys;
 }();
 
@@ -427,8 +429,7 @@ std::span<const std::string_view> state_keys() {
 }
 
 bool is_state_key(std::string_view key) {
-	return std::ranges::find(kStateKeys, key) != kStateKeys.end()
-	       && std::ranges::find(kHostKeys, key) == kHostKeys.end();
+	return std::ranges::contains(kInstrumentKeys, key);
 }
 
 serialization::Value with_state(const serialization::Value& element, const SoundState& state,

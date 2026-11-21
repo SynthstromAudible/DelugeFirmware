@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/range_state.h"
+#include "instruments/deluge/source_constants.h"
 
 #include "effects/state.h"
 #include "instruments/deluge/words.h"

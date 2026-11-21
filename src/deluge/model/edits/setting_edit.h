@@ -101,7 +101,7 @@ inline void effectSettingFor(ModControllable& owner, std::string_view path, delu
 /// @param s      Source (oscillator) index.
 /// @param ranges The source's new ranges.
 /// @return Error::NONE when the ranges landed, else why not (INSUFFICIENT_RAM for a range that could not be made).
-inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::synth::SourceRange> ranges) {
+inline Error rangesFor(::Sound& sound, int32_t s, std::vector<synth::SourceRange> ranges) {
 	Error error = Error::NONE;
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -122,7 +122,7 @@ inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::synth::Sou
 /// @return Error::NONE when it landed; UNSPECIFIED when the source has no range @p i.
 template <class Change>
 Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
-	std::vector<deluge::synth::SourceRange> ranges =
+	std::vector<synth::SourceRange> ranges =
 	    deluge::instrument::source_ranges(sound.state(), static_cast<deluge::instrument::SourceId>(s));
 	if (i >= ranges.size()) {
 		return Error::UNSPECIFIED;

@@ -40,8 +40,8 @@ public:
 	/// @brief The DX7 patch it holds: the 156 params, engine mode and random detune; none when it holds none.
 	[[nodiscard]] std::optional<deluge::instrument::DxPatchState> heldDxPatch() const;
 
-	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the type
-	/// now) their zones and tuning, which a type change and back keeps.
+	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the current
+	/// type) their zones and tuning, which a type change and back keeps.
 	[[nodiscard]] std::vector<deluge::synth::SourceRange> heldRanges() const;
 
 	/// @brief Whether the note last set up on this sample source plays against the record's direction (the

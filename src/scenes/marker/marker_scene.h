@@ -276,8 +276,8 @@ private:
 	const deluge::instrument::SoundState* sound_state() const;
 	/// @brief The edited source's slot; meaningful where sound_state() is not null.
 	deluge::instrument::SourceId source_id() const;
-	/// @brief The edited range's record, or null.
-	std::optional<deluge::synth::SourceRange> range_state() const;
+	/// @brief The edited range as the record holds it, or none.
+	std::optional<synth::SourceRange> edited_range() const;
 	/// @brief An integer row of the audio clip's record, or 0 where it has none.
 	/// @param path The row's path.
 	int64_t audio_clip_row(std::string_view path) const;

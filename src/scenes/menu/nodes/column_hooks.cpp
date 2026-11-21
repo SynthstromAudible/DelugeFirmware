@@ -533,9 +533,9 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 	if (sound == nullptr) {
 		return ValueText{};
 	}
-	const std::vector<deluge::synth::SourceRange> ranges =
+	const std::vector<synth::SourceRange> ranges =
 	    instrument::source_ranges(*sound, static_cast<instrument::SourceId>(source));
-	if (std::ranges::none_of(ranges, [](const deluge::synth::SourceRange& r) { return !r.file_path.empty(); })) {
+	if (std::ranges::none_of(ranges, [](const synth::SourceRange& r) { return !r.file_path.empty(); })) {
 		return kValueTextFallback;
 	}
 	if (ranges.size() > 1) {

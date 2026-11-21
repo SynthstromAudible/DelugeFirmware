@@ -43,7 +43,7 @@ using Retrigger = std::optional<dsp::UQ<32>>;
 
 /// @brief A retrigger phase word that means free-running: the oscillator's phase carries on from note to note. The
 /// file writes it (as -1), and the render reads it as a phase too: the block controls add it where they add a
-/// retriggered oscillator's phase (its sync restart, the VA shapes' and the wavetable's offsets), as main does.
+/// retriggered oscillator's phase (its sync restart, the VA shapes' and the wavetable's offsets).
 inline constexpr uint32_t kFreeRunningPhase = 0xFFFFFFFF;
 
 /// @brief An oscillator's pitch: its tuning and where each note starts it.
