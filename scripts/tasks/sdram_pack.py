@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
 """Compresses the image's SDRAM content into its load copy, after the link.
 
-`.sdram_init` (src/bsp/rust/linker/sdram_sections.x) is linked at its SDRAM address only, so the ELF carries its bytes
-but the image does not. `.sdram_init_pack`, in the image's SRAM tail, is reserved zero-filled at link time; this
+`.sdram_init` and `.sdram_exidx`, which follows it (src/bsp/rust/linker/sdram_sections.x), are linked at their SDRAM
+addresses only, so the ELF carries their bytes but the image does not. They are packed as one span, the gap between them
+zero-filled. `.sdram_init_pack`, in the image's SRAM tail, is reserved zero-filled at link time; this
 module writes the deflated content into it, and the boot (src/bsp/rust/src/sdram_pack.rs) inflates it back.
 
 The pack is `[u32 LE raw length][u32 LE zlib length][zlib stream][zero padding]`, padded to the reserved size.
@@ -55,25 +56,37 @@ class PackResult:
     reserve: int
 
 
-def _section(objcopy: Path, elf: Path, name: str, out: Path) -> bytes:
+# The SDRAM content, in address order: the span from the first's start to the last's end is what the boot inflates.
+SDRAM_SECTIONS = (".sdram_init", ".sdram_exidx")
+
+
+def _section(objcopy: Path, elf: Path, names: tuple[str, ...], out: Path) -> bytes:
+    """The bytes from the lowest of `names`' starts to the highest of their ends, gaps zero-filled."""
     subprocess.run(
-        [str(objcopy), "-O", "binary", f"--only-section={name}", str(elf), str(out)],
+        [
+            str(objcopy),
+            "-O",
+            "binary",
+            *(f"--only-section={n}" for n in names),
+            str(elf),
+            str(out),
+        ],
         check=True,
     )
     return out.read_bytes()
 
 
 def pack_elf(elf: Path, objcopy: Path) -> PackResult:
-    """Packs `elf`'s `.sdram_init` into its `.sdram_init_pack`, in place, and makes `.sdram_init` no-load.
+    """Packs `elf`'s SDRAM content (`SDRAM_SECTIONS`) into its `.sdram_init_pack`, in place, and makes it no-load.
 
     No-load, so that neither the image (objcopy -O binary) nor a debugger's load writes SDRAM, which is not up until
     the boot has started it. The written pack is read back and inflated as a check.
     """
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        raw = _section(objcopy, elf, ".sdram_init", tmp_dir / "raw.bin")
+        raw = _section(objcopy, elf, SDRAM_SECTIONS, tmp_dir / "raw.bin")
         reserve = len(
-            _section(objcopy, elf, ".sdram_init_pack", tmp_dir / "reserve.bin")
+            _section(objcopy, elf, (".sdram_init_pack",), tmp_dir / "reserve.bin")
         )
         packed = pack(raw, reserve)
         (tmp_dir / "pack.bin").write_bytes(packed)
@@ -81,17 +94,17 @@ def pack_elf(elf: Path, objcopy: Path) -> PackResult:
             [
                 str(objcopy),
                 f"--update-section=.sdram_init_pack={tmp_dir / 'pack.bin'}",
-                "--set-section-flags=.sdram_init=noload",
+                *(f"--set-section-flags={n}=noload" for n in SDRAM_SECTIONS),
                 str(elf),
             ],
             check=True,
         )
         if (
-            unpack(_section(objcopy, elf, ".sdram_init_pack", tmp_dir / "check.bin"))
+            unpack(_section(objcopy, elf, (".sdram_init_pack",), tmp_dir / "check.bin"))
             != raw
         ):
             raise ValueError(
-                "sdram_pack: the pack written into the ELF does not inflate to .sdram_init"
+                "sdram_pack: the pack written into the ELF does not inflate to the SDRAM content"
             )
     _, stream_len = HEADER.unpack_from(packed)
     return PackResult(raw=len(raw), packed=HEADER.size + stream_len, reserve=reserve)

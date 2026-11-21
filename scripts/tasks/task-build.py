@@ -251,7 +251,7 @@ def stage_artifacts(root: Path, config: str) -> int:
     packed = sdram_pack.pack_elf(staging, objcopy)
     staging.replace(elf)
     print(
-        f"Packed .sdram_init: {packed.raw} B -> {packed.packed} B "
+        f"Packed the SDRAM content: {packed.raw} B -> {packed.packed} B "
         f"(of {packed.reserve} B reserved)"
     )
 
