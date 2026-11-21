@@ -552,5 +552,196 @@ class LegacyRatchet(unittest.TestCase):
         self.assertIn("src/deluge\tlegacy-shrinks\t2\n", self.baseline.read_text())
 
 
+REAL_TABLE = Path(__file__).resolve().parent / "layers.toml"
+
+
+class RealTable(unittest.TestCase):
+    """The real table's libraries and rules, planted into a throwaway tree."""
+
+    def setUp(self):
+        self.repo = Repo(REAL_TABLE.read_text())
+
+    def tearDown(self):
+        self.repo.close()
+
+    def library_found(
+        self, library: str, text: str, name: str = "probe.h"
+    ) -> list[str]:
+        config = self.repo.config()
+        root = next(entry.root for entry in config.libraries if entry.name == library)
+        self.repo.plant(f"{root}/{name}", text)
+        return [
+            v
+            for v in cl.library_violations(config, self.repo.root)
+            if f" {root}/{name}:" in v
+        ]
+
+    def counts(self, rel: str, text: str) -> dict[str, int]:
+        self.repo.plant(rel, text)
+        return {
+            rule: n
+            for (file, rule), n in cl.rule_counts(
+                self.repo.config(), self.repo.root
+            ).items()
+            if file == rel
+        }
+
+    def test_the_effects_library_may_use_the_l0_dsp_library(self):
+        accepted = '#include "dsp-next/core/stereo_sample.h"\n#include "dsp-next/core/detail/raw_ops.h"\n'
+        self.assertEqual(self.library_found("effects", accepted), [])
+        self.assertEqual(
+            len(self.library_found("effects", '#include "util/functions.h"\n')), 1
+        )
+        self.assertEqual(
+            len(self.library_found("effects", '#include "dsp/stereo_sample.h"\n')), 1
+        )
+
+    def test_the_plugin_api_may_use_the_document_tree_but_not_the_model(self):
+        self.assertEqual(
+            self.library_found("plugin-api", '#include "serialization/value.h"\n'), []
+        )
+        self.assertEqual(
+            len(self.library_found("plugin-api", '#include "deluge-project/song.h"\n')),
+            1,
+        )
+
+    def test_controls_may_use_the_model_and_plugin_api_but_not_instruments(self):
+        self.assertEqual(
+            self.library_found("controls", '#include "deluge-project/song.h"\n'), []
+        )
+        self.assertEqual(
+            self.library_found("controls", '#include "plugin-api/plugin.h"\n'), []
+        )
+        self.assertEqual(
+            len(
+                self.library_found(
+                    "controls", '#include "instruments/deluge/words.h"\n'
+                )
+            ),
+            1,
+        )
+
+    def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
+        self.assertEqual(
+            self.library_found("instrument", '#include "plugin-api/plugin.h"\n'), []
+        )
+        self.assertEqual(
+            len(
+                self.library_found(
+                    "instrument", '#include "processing/sound/sound.h"\n'
+                )
+            ),
+            1,
+        )
+
+    def test_the_host_chain_table_may_use_only_the_plugin_types(self):
+        self.assertEqual(
+            self.library_found("host-chain", '#include "plugin-api/types/param.h"\n'),
+            [],
+        )
+        self.assertEqual(
+            len(self.library_found("host-chain", '#include "plugin-api/plugin.h"\n')), 1
+        )
+        self.assertEqual(
+            len(
+                self.library_found(
+                    "host-chain", '#include "instruments/deluge/params.h"\n'
+                )
+            ),
+            1,
+        )
+
+    def test_gfx_oled_and_grid_never_include_each_other(self):
+        self.assertEqual(
+            len(self.library_found("gfx-oled", '#include "gfx/grid/rgb.h"\n')), 1
+        )
+        self.assertEqual(
+            len(self.library_found("gfx-grid", '#include "gfx/oled/canvas.h"\n')), 1
+        )
+        self.assertEqual(
+            self.library_found("gfx-grid", '#include "gfx/contract.h"\n'), []
+        )
+
+    def test_a_scene_including_an_edit_is_counted(self):
+        for rel in ("src/scenes/menu/nodes/planted.cpp", "src/scenes/menu/context.cpp"):
+            with self.subTest(rel=rel):
+                self.assertEqual(
+                    self.counts(rel, '#include "model/edits/setting_edit.h"\n').get(
+                        "scenes-no-edits"
+                    ),
+                    1,
+                )
+
+    def test_no_scene_file_is_allowed_a_model_stack_or_an_edit(self):
+        plants = {
+            "scenes-model-stack": '#include "modulation/automation/auto_param.h"\n',
+            "scenes-model-stack-outside-context": '#include "model/model_stack.h"\n',
+            "scenes-no-edits": '#include "model/edits/param_address_for.h"\n',
+        }
+        for rel in (
+            "src/scenes/menu/context.cpp",
+            "src/scenes/menu/context.h",
+            "src/scenes/menu/bindings.cpp",
+            "src/scenes/overlay/param_popup_scene.h",
+            "src/scenes/overlay/param_popup_scene.cpp",
+            "src/scenes/services/mod_knobs.cpp",
+            "src/scenes/services/mod_knobs.h",
+            "src/scenes/services/mod_target.h",
+        ):
+            for rule, text in plants.items():
+                with self.subTest(rel=rel, rule=rule):
+                    self.assertEqual(self.counts(rel, text).get(rule), 1)
+
+    def test_each_family_is_counted_outside_bind(self):
+        for header in (
+            "model/song/song.h",
+            "modulation/params/param.h",
+            "io/midi/midi_device.h",
+            "processing/engines/audio_engine.h",
+            "storage/flash_storage.h",
+            "playback/playback_handler.h",
+        ):
+            for spelling in (f'#include "{header}"\n', f"#include <{header}>\n"):
+                with self.subTest(spelling=spelling):
+                    counts = self.counts("src/scenes/menu/nodes/planted.cpp", spelling)
+                    self.assertEqual(counts.get("scenes-reads-outside-bind"), 1)
+
+    def test_bind_reads_are_not_counted(self):
+        self.assertNotIn(
+            "scenes-reads-outside-bind",
+            self.counts(
+                "src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
+            ),
+        )
+
+
+class TheTree(unittest.TestCase):
+    """The repository as it stands passes its own table."""
+
+    def test_the_scenes_hold_no_model_stack_and_no_edit(self):
+        counts = cl.rule_counts(cl.load_config(REAL_TABLE), cl.REPO)
+        held = {
+            key: n
+            for key, n in counts.items()
+            if key[1]
+            in (
+                "scenes-no-edits",
+                "scenes-model-stack",
+                "scenes-model-stack-outside-context",
+            )
+        }
+        self.assertEqual(held, {})
+
+    def test_the_tree_passes(self):
+        import contextlib
+        import io
+
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(cl.main([]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
