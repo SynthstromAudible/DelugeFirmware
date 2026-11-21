@@ -420,8 +420,8 @@ namespace deluge::scenes::bind::contract {
 	return w.peaks(at, {.scroll = 0, .zoom = 0}) == sample_view::PeakRead::all_past_end();
 }
 
-/// @brief Over a finished file, a column from the length on is past the end, and a pending column lies inside the
-///        file: pending means "ask again", never "nothing there".
+/// @brief Over a finished file, a column from the length on is past the end, and a column inside the file is not:
+///        pending means "ask again", never "nothing there".
 [[nodiscard]] inline bool waveforms_columns_follow_the_length(const Waveforms& w, const WaveformAddress& at) {
 	const std::optional<WaveformInfo> info = w.info(at);
 	if (!info || info->recording || info->length_samples == 0) {
@@ -432,15 +432,17 @@ namespace deluge::scenes::bind::contract {
 	const int64_t zoom = std::max<int64_t>(1, sample_view::ceil_div(length, sample_view::kColumns) << 1);
 	const sample_view::PeakRead read = w.peaks(at, {.scroll = 0, .zoom = zoom});
 	for (int32_t c = 0; c < sample_view::kColumns; c++) {
-		// Outside the file, a column is past the end, so a pending one is always inside it.
-		if (int64_t{c} * zoom >= length && read.column(c).state() != sample_view::ColumnState::PAST_END) {
+		// Past the end exactly where the column starts at or past the length.
+		const bool past_end = read.column(c).state() == sample_view::ColumnState::PAST_END;
+		if ((int64_t{c} * zoom >= length) != past_end) {
 			return false;
 		}
 	}
 	return true;
 }
 
-/// @brief Over a finished file, a column once answered with a peak answers the same peak on the next read.
+/// @brief Over a finished file, a column once answered with a peak answers the same peak on the next read, and the
+///        second read has a peak to draw.
 [[nodiscard]] inline bool waveforms_peaks_are_stable(const Waveforms& w, const WaveformAddress& at) {
 	const std::optional<WaveformInfo> info = w.info(at);
 	if (!info || info->recording) {
@@ -452,12 +454,14 @@ namespace deluge::scenes::bind::contract {
 	        1, sample_view::ceil_div(static_cast<int64_t>(info->length_samples), sample_view::kColumns))};
 	const sample_view::PeakRead first = w.peaks(at, window);
 	const sample_view::PeakRead second = w.peaks(at, window);
+	bool drawn = false;
 	for (int32_t c = 0; c < sample_view::kColumns; c++) {
 		if (first.column(c).peak() && first.column(c) != second.column(c)) {
 			return false;
 		}
+		drawn = drawn || second.column(c).peak().has_value();
 	}
-	return true;
+	return drawn;
 }
 
 /// @brief Two infos of one waveform agree, and a loaded file's facts are consistent.

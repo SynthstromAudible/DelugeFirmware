@@ -271,7 +271,8 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 }
 
 /// @brief A fake holding the host's waveform at @p at: its info, and its peaks over the whole-waveform window, which is
-///        the window the editor opens on with no view remembered.
+///        the window the editor opens on with no view remembered. The fake answers those peaks by column at any window
+///        inside its length, so under a remembered view it stands in for the host's info alone.
 /// @param length The length the fake answers in place of the host's, when given.
 bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::optional<uint64_t> length = std::nullopt) {
 	const bind::Waveforms& host = *menu::host_ports().waveforms;
@@ -360,7 +361,9 @@ struct FakeMarkerRig {
 		                                    .end_pos = 1000}}));
 		fakes.model.getOrCreateDocAudioClip(spec::FakeHostRig::kSynthClip).end_pos = 1000;
 		fakes.host.waveforms.waveforms.push_back({.at = kRange, .info = kInfo});
-		fakes.host.waveforms.waveforms.push_back({.at = kClip, .info = kInfo});
+		bind::WaveformInfo clip = kInfo;
+		clip.identity = 2; // another file than the range's
+		fakes.host.waveforms.waveforms.push_back({.at = kClip, .info = clip});
 	}
 	~FakeMarkerRig() {
 		while (shell.stack().depth() > 0) {
@@ -501,6 +504,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(r.fakes.host.waveforms.reads.size()).to_equal(size_t{1});
 			if (!r.fakes.host.waveforms.reads.empty()) {
 				expect(r.fakes.host.waveforms.reads[0])
+				    .to_equal(bind::test::FakeWaveforms::Read{.at = FakeMarkerRig::kRange, .in = window});
+			}
+			r.tick(200); // the blink's next phase draws again
+			expect(r.fakes.host.waveforms.reads.size()).to_equal(size_t{2});
+			if (r.fakes.host.waveforms.reads.size() == 2) {
+				expect(r.fakes.host.waveforms.reads[1])
 				    .to_equal(bind::test::FakeWaveforms::Read{.at = FakeMarkerRig::kRange, .in = window});
 			}
 		});

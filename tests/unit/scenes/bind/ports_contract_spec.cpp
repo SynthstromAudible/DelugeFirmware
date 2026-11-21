@@ -50,6 +50,9 @@ class EagerWaveforms final : public Waveforms {
 			if (at.scroll + int64_t{c} * at.zoom < static_cast<int64_t>(kThousandFrames.length_samples)) {
 				read.set(c, deluge::sample_view::ColumnRead::of({.min = -1, .max = 1}));
 			}
+			else {
+				read.set(c, deluge::sample_view::ColumnRead::pending());
+			}
 		}
 		return read;
 	}
@@ -70,6 +73,30 @@ class FlakyWaveforms final : public Waveforms {
 	}
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
 	mutable int32_t reads_{0};
+};
+
+/// @brief A broken waveforms port: its info names no waveform (identity 0), so two files could not be told apart.
+class UnnamedWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override {
+		WaveformInfo unnamed = kThousandFrames;
+		unnamed.identity = 0;
+		return unnamed;
+	}
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		return deluge::sample_view::PeakRead::all_past_end();
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+};
+
+/// @brief A broken waveforms port: it answers every column past the end over a loaded file.
+class BlankWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		return deluge::sample_view::PeakRead::all_past_end();
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
 };
 
 } // namespace
@@ -604,11 +631,33 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::waveforms_columns_follow_the_length(host.waveforms, range)).to_be_true();
 		expect(contract::waveforms_peaks_are_stable(host.waveforms, range)).to_be_true();
 		expect(contract::waveforms_info_is_consistent(host.waveforms, range)).to_be_true();
+
+		// A take: columns that do not end by the captured frames are past the end, the straddling one too.
+		const WaveformAddress take{.kind = WaveformAddress::Kind::AUDIO_CLIP, .clip = {35}};
+		WaveformInfo recording = kThousandFrames;
+		recording.recording = true;
+		host.waveforms.waveforms.push_back({.at = take, .info = recording, .captured = 550});
+		const PeakRead taken = host.waveforms.peaks(take, {.scroll = 0, .zoom = 100});
+		expect(taken.column(4).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		expect(taken.column(5)).to_equal(ColumnRead::past_end());
+		expect(taken.column(9)).to_equal(ColumnRead::past_end());
 	});
-	it("fails the waveforms cases on a port that waits past the end or answers another peak", _ {
+	it("fails each waveforms case on a port that breaks it", _ {
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE};
+		// Eager answers info everywhere, a peak at zoom 0, and PENDING past the end.
+		expect(contract::waveforms_unknown_address_reads_nothing(EagerWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_empty_window_reads_past_end(EagerWaveforms{}, range)).to_be_false();
 		expect(contract::waveforms_columns_follow_the_length(EagerWaveforms{}, range)).to_be_false();
 		expect(contract::waveforms_peaks_are_stable(FlakyWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_info_is_consistent(UnnamedWaveforms{}, range)).to_be_false();
+		// Nothing drawn inside a loaded file.
+		expect(contract::waveforms_columns_follow_the_length(BlankWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_peaks_are_stable(BlankWaveforms{}, range)).to_be_false();
+		// Each broken fake keeps the cases it does not break.
+		expect(contract::waveforms_info_is_consistent(EagerWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_peaks_are_stable(EagerWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_empty_window_reads_past_end(BlankWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_info_is_consistent(BlankWaveforms{}, range)).to_be_true();
 	});
 });
 

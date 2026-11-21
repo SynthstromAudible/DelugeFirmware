@@ -467,10 +467,13 @@ sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sampl
 		entry->pending_reads--;
 	}
 	const auto length = static_cast<int64_t>(entry->info.length_samples);
+	// A take's columns end by its captured frames; a finished file's start before its length.
+	const auto captured = static_cast<int64_t>(entry->captured.value_or(entry->info.length_samples));
 	sample_view::PeakRead read;
 	for (int32_t c = 0; c < sample_view::kColumns; c++) {
 		const int64_t start = at.scroll + int64_t{c} * at.zoom;
-		if (at.zoom < 1 || start >= length || start + at.zoom <= 0) {
+		const bool past = entry->info.recording ? start + at.zoom > captured : start >= length;
+		if (at.zoom < 1 || past || start + at.zoom <= 0) {
 			read.set(c, sample_view::ColumnRead::past_end());
 		}
 		else if (pending_now && entry->pending.test(static_cast<size_t>(c))) {

@@ -526,6 +526,9 @@ struct FakeWaveforms final : Waveforms {
 		sample_view::ColumnMask pending{};                            ///< columns answered PENDING while reads remain
 		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
 		std::optional<int64_t> position;                              ///< what `play_position` answers
+		/// While `info.recording`, the frames the take has written: as on the host, a column that does not end by
+		/// then is past the end, the one straddling it too. None reads as `info.length_samples`.
+		std::optional<uint64_t> captured;
 	};
 	mutable std::vector<Entry> waveforms; ///< looked up by address; a read counts its entry's pending reads down
 	/// @brief One recorded `peaks` call.
