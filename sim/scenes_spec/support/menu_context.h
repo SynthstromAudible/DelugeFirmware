@@ -14,8 +14,8 @@
 
 namespace deluge::scenes::spec {
 
-/// @brief `menu::context_for` over @p song's record, with the app's ports when the app plays @p song and none
-///        otherwise -- the binding the app's own callers make.
+/// @brief `menu::context_for` over @p song's record, with the app's ports when the app plays @p song and the app's
+///        device port alone otherwise -- the binding the app's own callers make.
 /// @param song                     The spec's song, whose record the context names.
 /// @param view                     What the menu opens over (`context_for`'s @p view).
 /// @param source_index             `context_for`'s @p source_index.
@@ -28,7 +28,9 @@ namespace deluge::scenes::spec {
 [[nodiscard]] inline menu::MenuContext ctx_of(const ::Song& song, const services::MenuView& view, int8_t source_index,
                                               bool performance_view, bool session_or_arranger_root,
                                               bool session_view_root, bool kit_global_fx) {
-	const bind::Ports* ports = menu::host_binds(song) ? &menu::host_ports() : nullptr;
+	// The device's settings act on no song, so a song the app does not play still binds the app's device port.
+	static const bind::Ports kDeviceOnly{.device = menu::host_ports().device};
+	const bind::Ports* ports = menu::host_binds(song) ? &menu::host_ports() : &kDeviceOnly;
 	return menu::context_for(song.project, ports, view, source_index, performance_view, session_or_arranger_root,
 	                         session_view_root, kit_global_fx);
 }

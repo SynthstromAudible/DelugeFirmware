@@ -53,7 +53,6 @@
 #include "scenes/menu/context.h"
 
 #include "scenes/bind/device_reader.h"
-#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/node.h"
@@ -173,14 +172,11 @@ MenuContext context_for(const project::Song& model, const bind::Ports* ports, co
 	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
-	// What a target node binds through: the ports the caller passes -- the app's when the app plays the song `model`
-	// records, a spec's fakes over its own model, or none over any other song (`context.h`'s `@param ports`). The
-	// device's own settings act on no song, so the device port is bound whatever the caller passes: its own when it
-	// has one, the app's otherwise.
+	// What a target node binds through: exactly the ports the caller passes -- the app's, or a spec's fakes over its
+	// own model -- and none when it passes none.
 	if (ports != nullptr) {
 		ctx.ports = *ports;
 	}
-	ctx.ports.device = (ports != nullptr && ports->device != nullptr) ? ports->device : host_ports().device;
 	ctx.horizontal_menus =
 	    bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::HORIZONTAL_MENUS));
 	ctx.shortcut_overlay = bind::read_device<project::ShortcutOverlay>(

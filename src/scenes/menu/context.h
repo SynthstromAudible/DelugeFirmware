@@ -197,11 +197,9 @@ struct MenuContext {
 ///
 /// @param model                   the record of the song the menu opens in; used instead of the `currentSong`
 ///                                global wherever `setup()` reached for it.
-/// @param ports                   the ports the context's reads and writes go through: the app's when the app plays
-///                                the song @p model records, a spec's fakes, or none (`nullptr`) for any other song,
-///                                which then binds no port. The device port is the exception: the device's own
-///                                settings act on no song, so a context always binds one -- @p ports' when it has
-///                                one, the app's otherwise.
+/// @param ports                   the ports the context's reads and writes go through, bound exactly: the app's, or a
+///                                spec's fakes over its own model. None (`nullptr`) binds no port, the device's
+///                                included, so every DEVICE row then reads its default.
 /// @param view                    what the menu opens over, as the view shows it: the clip (none for a song-level
 ///                                or settings menu), its track and what plays it, the kit row selected, the clip's
 ///                                affect-entire.
