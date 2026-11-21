@@ -17,8 +17,8 @@ class Song;
 
 namespace deluge::scenes::menu {
 
-/// @brief Whether the app's ports act on @p song: they resolve slots in the song the app plays, so a menu over any
-///        other song binds nothing through them.
+/// @brief Whether @p song is the song the app plays: the audio clip scene's guard over a song the app's ports do not
+///        act on.
 bool host_binds(const ::Song& song);
 /// @brief The app's ports, which every scene's context takes; valid for the program's life.
 [[nodiscard]] const deluge::scenes::bind::Ports& host_ports();
