@@ -6,6 +6,7 @@
 #include "scenes/menu/bind_host.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 
 namespace deluge::scenes::menu {
 
@@ -46,6 +47,7 @@ void install_scene_ports() {
 	const scenes::bind::Ports& ports = scenes::menu::host_ports();
 	scenes::overlay::count_in_scene().set_transport(ports.transport);
 	scenes::overlay::screensaver_scene().set_device(ports.device);
+	scenes::slicing::slicer_scene().set_ports(&ports);
 }
 
 bool applied(edits::Edit& edit) {

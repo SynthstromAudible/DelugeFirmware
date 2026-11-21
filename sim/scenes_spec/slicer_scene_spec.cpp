@@ -533,6 +533,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Sample* const sample = sf::make_sample();
 		deluge::scenes::spec::SliceHeld held{sample, sf::kSlicePath};
+		slicer_scene().set_ports(&menu::host_ports());
 		bfx::Rig r;
 		menu::MenuContext ctx = bfx::context_of(f);
 		(void)menu::ensure_first_range(ctx);
@@ -920,12 +921,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().set_ops(&ops);
 		deluge::scenes::spec::HeldPorts auditioning;
 		auditioning.ui.auditioning_now = true;
-		slicer_scene().set_ports(auditioning.ports());
+		const bind::Ports held = auditioning.ports();
+		slicer_scene().set_ports(&held);
 		r.open();
 		r.tick(0);
 		r.pad(kDisplayWidth, 3, 64, 10);
 		r.settle(10);
-		slicer_scene().set_ports({});
+		slicer_scene().set_ports(&menu::host_ports());
 		expect(r.on_stack()).to_be_true();
 		expect(ops.stop_previewing_calls).to_equal(0);
 	});

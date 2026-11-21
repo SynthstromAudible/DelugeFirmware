@@ -137,6 +137,7 @@ struct Rig {
 		// wired would hand the next example a dangling boundary. Unwired is also the state
 		// `SliceOps`'s docstring calls the honest default.
 		slicer_scene().set_ops(nullptr);
+		slicer_scene().set_ports(nullptr);
 		held.reset();
 		std::memset(matrixDriver.padStates, 0, sizeof(matrixDriver.padStates));
 	}
@@ -145,6 +146,8 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		// The app's boot wires the host's ops; an example starts unwired and installs its own.
 		slicer_scene().set_ops(nullptr);
+		// The app's ports, as its boot installs them; an example that needs a fake copies them and replaces one.
+		slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
 	}
 
 	/// @brief Put the fixture's sample in the preview drum and open the slicer's host on it, as the browser's SLICE

@@ -50,8 +50,8 @@
 /// `waveformRenderer` or `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
 ///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
-///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> `deluge::sample::find_peaks_per_col` +
-///     `services::paint_columns` (`ui::grid::waveform_full` over the scanned columns).
+///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> the waveforms port's read at the SLICE
+///     address (`services::read_waveform`) + `services::paint_columns` (`ui::grid::waveform_full` over its columns).
 ///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
@@ -274,9 +274,13 @@ public:
 	///            owned; it must outlive the scene's use of it.
 	void set_ops(SliceOps* ops) { ops_ = ops; }
 
-	/// @brief Answer the ports from @p ports instead of the host's, for a spec that needs a state the host cannot be
-	///        put into on demand; a null port goes back to the host's.
-	void set_ports(const bind::Ports& ports) { ports_ = ports; }
+	/// @brief Install the ports the scene reads: the app installs its own at boot
+	///        (`gui::shell_host::install_scene_ports`), a spec the app's or a copy with fakes in it.
+	///
+	/// With none, or a null port, the scene reads nothing auditioned, the SLOW play cursor and no waveform, and
+	/// wipes no undo log.
+	/// @param ports The set, or null. Borrowed, not owned; it must outlive the scene's use of it.
+	void set_ports(const bind::Ports* ports) { ports_ = ports; }
 
 	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
 	///
@@ -432,10 +436,8 @@ private:
 	/// The audio/model/card boundary; null until an application wires one. See `SliceOps`.
 	SliceOps* ops_ = nullptr;
 
-	/// The ports `set_ports` installed; each null one is the host's.
-	bind::Ports ports_{};
-	/// @brief The ports the scene reads: the installed ones, each null one filled from the host's.
-	[[nodiscard]] bind::Ports ports() const;
+	/// The ports `set_ports` installed, or null.
+	const bind::Ports* ports_ = nullptr;
 	/// @return The waveforms port the scene draws through, or null with none.
 	[[nodiscard]] const bind::Waveforms* waveforms() const;
 	/// @return What the waveforms port answers at the SLICE address, or none with no port.

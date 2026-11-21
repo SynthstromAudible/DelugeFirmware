@@ -90,7 +90,8 @@ namespace deluge::gui::shell_host {
 /// @brief The host's ViewActions: each the call the legacy opener it names makes on the root view.
 [[nodiscard]] scenes::bind::ViewActions& view_actions();
 
-/// @brief Give the overlays the app's ports they read. Idempotent; the boot and every guest open call it.
+/// @brief Give the overlays and the slicer the app's ports they read. Idempotent; the boot and every guest open call
+///        it.
 void install_scene_ports();
 
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as

@@ -6,7 +6,6 @@
 #include "deluge-project/device_settings.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/browser/browser_kind.h"
-#include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
 
 #include "ui/grid/columns.h"
@@ -17,7 +16,6 @@
 #include "gfx/grid/palette.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "model/action/action_logger.h"
 #include "notify/notice_queue.h"
 
 #include <algorithm>
@@ -138,7 +136,9 @@ bool SlicerScene::on_enter(const SceneId& id) {
 }
 
 void SlicerScene::reset_state() {
-	actionLogger.deleteAllLogs();
+	if (auto* d = bind::port_of(ports_, &bind::Ports::device_actions)) {
+		d->delete_all_logs();
+	}
 	num_clips_ = 16;
 	num_manual_slices_ = 1;
 	current_slice_ = 0;
@@ -373,7 +373,7 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 }
 
 const bind::Waveforms* SlicerScene::waveforms() const {
-	return &menu::host_waveforms();
+	return bind::port_of(ports_, &bind::Ports::waveforms);
 }
 
 std::optional<bind::WaveformInfo> SlicerScene::slice_info() const {
@@ -382,15 +382,6 @@ std::optional<bind::WaveformInfo> SlicerScene::slice_info() const {
 		return std::nullopt;
 	}
 	return port->info({.kind = bind::WaveformAddress::Kind::SLICE});
-}
-
-bind::Ports SlicerScene::ports() const {
-	const bind::Ports& host = menu::host_ports();
-	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
-	        .card = ports_.card != nullptr ? ports_.card : host.card,
-	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui,
-	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound,
-	        .device = ports_.device != nullptr ? ports_.device : host.device};
 }
 
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
@@ -477,7 +468,9 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
 	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
 	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
-	if (x == kMainCols && on && !ports().ui->auditioning()) {
+	const bind::UiFacts* ui = bind::port_of(ports_, &bind::Ports::ui);
+	const bool auditioning = ui != nullptr && ui->auditioning();
+	if (x == kMainCols && on && !auditioning) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
 		}
@@ -699,8 +692,8 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 	// The device's play cursor; Slow, the row's default, with no device port.
-	const deluge::project::FlashCursor cursor = deluge::scenes::bind::read_device<deluge::project::FlashCursor>(
-	    ports().device, deluge::project::device_path::kPlayCursor);
+	const deluge::project::FlashCursor cursor = bind::read_device<deluge::project::FlashCursor>(
+	    bind::port_of(ports_, &bind::Ports::device), deluge::project::device_path::kPlayCursor);
 	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}

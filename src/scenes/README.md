@@ -597,9 +597,11 @@ because `scenes-no-root-ui` forbids the whole word `slicer`.
 * **Two doors open it:** SLICE in the kit's SAMPLES menu, and Shift+Select on a file in a brand-new
   kit. Either asks the browser host to slice; the host loads the file into the preview drum
   without sounding it, and `BrowserScene::slice_ready` pushes the slicer.
-* **It opens on the browser's preview navigator when that shows the same sample**
+* **It holds its file as a `SliceFile`, the waveform's identity and its path**, never the sample. The SLICE address
+  resolves through the sample the host opened it on, and to nothing once a guest close has released the host.
+* **It opens on the browser's preview navigator when that shows the same file**
   (`BrowserScene::shown_waveform`), as legacy's slicer draws through `waveformBasicNavigator`, which the preview
-  scanned from the audio. **Reopened on the same sample and file, it keeps its navigator**, as legacy's global
+  scanned from the audio. **Reopened on the same file, it keeps its navigator**, as legacy's global
   navigator draws the first open's peaks.
 * **`on_resume()` is `focusRegained`**, and resets the scene. It fires only when `input_top()`
   changes hands, so a popup the slicer raised expiring above it resets nothing, and a real scene
@@ -699,9 +701,9 @@ for live param values. Their vocabulary is `project::` addresses, `plugin::` ids
 * **A service or an overlay holds a non-owning pointer** the host installs, as a context holds its `Ports`: each
   service takes `set_ports` and `set_model` (the song's record), and each overlay the one port it reads
   (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices` installs them at
-  boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the overlays'. A specification
-  installs fakes over its own model and keeps them alive while the service runs. No service calls `host_ports()` or
-  `host_binds()`.
+  boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the overlays' and the slicer's
+  (`SlicerScene::set_ports`). A specification installs fakes over its own model and keeps them alive while the service
+  runs. No service calls `host_ports()` or `host_binds()`.
 * **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
   recording, no clocks, metronome off, count 0, undo not allowed and no overdubs; `AudioFacts` reads no foreground
   source, not resampling and not busy; `MidiDevices` knows no device, so `MidiLearn` leaves MIDI events unhandled;

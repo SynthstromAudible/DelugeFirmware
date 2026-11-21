@@ -11,6 +11,7 @@
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
@@ -43,6 +44,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/source_resources.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -1313,6 +1315,44 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		expect(lit).to_be_greater_than(0);
 		expect(differ).to_equal(0);
 		sound.hold(nullptr);
+	});
+
+	it("answers SLICE from the sample the slicer's host holds once the preview stops, and nothing once it is released", _ {
+		// Entering MANUAL stops the preview (`AudioEngine::stopAnyPreviewing`), which unbinds the preview's holder:
+		// PREVIEW then names nothing, while the slicer keeps drawing its file, from the columns the preview read.
+		const bind::Waveforms& waveforms = app_waveforms();
+		PreviewSound sound;
+		// Resident and leased, as a loaded sample is, so the stop's unbind may drop the holder's lease.
+		Sample* const sample = make_sample(kNumClusters, deluge::memory::alloc_external(sizeof(Sample), 16));
+		audioFileManager.adoptAudioFileObject(sample);
+		sample->addReason(); // the preview holder's
+		sample->addReason(); // the song's, which keeps the file loaded after the stop
+		auto* range = static_cast<MultisampleRange*>(sound.drum->getOrCreateFirstRange(0));
+		range->sampleHolder.filePath = "SAMPLES/SLICE.WAV";
+		sound.hold(sample);
+		deluge::gui::ui::openShellSlice("SAMPLES/SLICE.WAV");
+		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
+		const WaveformAddress slice{.kind = WaveformAddress::Kind::SLICE};
+		const Window window{.scroll = 0, .zoom = kWholeZoom};
+		const PeakRead read = waveforms.peaks(preview, window);
+		expect(count_of(read, ColumnState::PEAK)).to_equal(16);
+		// A read that went back to the sample would find these peaks instead.
+		for (int32_t i = 0; i < kNumClusters; i++) {
+			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			e.min = 0;
+			e.max = 0;
+		}
+		AudioEngine::stopAnyPreviewing();
+		expect(waveforms.info(preview).has_value()).to_be_false();
+		const std::optional<bind::WaveformInfo> info = waveforms.info(slice);
+		expect(info.has_value()).to_be_true();
+		if (info) {
+			expect(info->identity).to_equal(deluge::gui::shell_host::waveform_identity(*sample));
+		}
+		expect(waveforms.peaks(slice, window)).to_equal(read);
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		expect(waveforms.info(slice).has_value()).to_be_false();
+		range->sampleHolder.filePath.clear();
 	});
 
 	it("holds the waveforms contract on the app's port: a loaded range, and a range at a slot no sound holds", _ {

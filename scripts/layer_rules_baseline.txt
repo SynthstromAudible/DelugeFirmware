@@ -127,5 +127,4 @@ src/scenes/browser/listing.cpp	scenes-reads-outside-bind	1
 src/scenes/browser/listing.h	scenes-reads-outside-bind	1
 src/scenes/context_menu/context_menu_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/rename/rename_scene.cpp	scenes-reads-outside-bind	1
-src/scenes/slicing/slicer_scene.cpp	scenes-reads-outside-bind	2
 src/scenes/timeline/timeline.cpp	scenes-reads-outside-bind	1

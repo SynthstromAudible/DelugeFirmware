@@ -386,6 +386,7 @@ constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @param held The sample in the preview drum; it must outlive the run.
 /// @param ops  The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(const deluge::scenes::spec::SliceHeld& held, deluge::scenes::slicing::SliceOps& ops) {
+	slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
 	held.open();
 	slicer_scene().set_ops(&ops);
 }
