@@ -29,6 +29,7 @@
 ///       may not. Same rule `menu_scene_spec.cpp` and `context_menu_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -61,7 +62,6 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
-#include "model/sample/waveform_navigator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -1034,13 +1034,12 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		// The `renderFullScreen` of main's `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), zoomed all the way out.
-		deluge::sample::WaveformNav nav;
-		nav.length_samples = sample->lengthInSamples;
-		nav.opened(0, 0);
+		const deluge::sample_view::WaveformView view =
+		    deluge::sample_view::WaveformView::open(sample->lengthInSamples, std::nullopt);
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		WaveformRenderData data{};
-		data.xScroll = -1;
-		(void)waveformRenderer.renderFullScreen(sample, nav.xScroll, nav.xZoom, legacy, &data);
+		deluge::sample_view::PeakCache cache;
+		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
+		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
 		int32_t differ = 0;
 		int32_t lit = 0;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -1053,7 +1052,38 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(differ).to_equal(0);
 	});
 
-	it("offers the slicer the navigator its preview drew, for that sample only", _ {
+	it("Q27: scales a fresh preview's first frame by the range its read widened", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample();
+		sample->maxValueFound = INT32_MIN; // the constructor's empty range
+		sample->minValueFound = INT32_MAX;
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(sample->maxValueFound).to_equal(INT32_MIN); // nothing has read it yet
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		browser_scene().preview_settled(true);
+		r.step(); // the settle asks for the repaint on the next tick
+		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(1);
+		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		browser_scene().preview_settled(true); // the same sample again: a second frame
+		r.step();
+		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(2);
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (uint8_t x = 0; x < kDisplayWidth; x++) {
+			for (uint8_t y = 0; y < kDisplayHeight; y++) {
+				differ += first.at(x, y) == r.fake.grid().grid().at(x, y) ? 0 : 1;
+				lit += first.at(x, y) == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit).to_be_greater_than(0);
+		expect(differ).to_equal(0);
+	});
+
+	it("offers the slicer the view its preview drew, for that sample only", _ {
 		// `main`'s slicer reads `waveformBasicNavigator`, which only `SampleBrowser::previewIfPossible` sets
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): the previewed sample's view.
 		CleanBrowser clean;
@@ -1063,14 +1093,23 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		PreviewHeld held(sample);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		expect(browser_scene().shown_waveform(sample)).to_be_null(); // nothing drawn yet
+		using deluge::gui::shell_host::waveform_identity;
+		expect(browser_scene().shown_waveform(waveform_identity(*sample)).has_value()).to_be_false(); // nothing drawn
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().shown_waveform(sample)).to_equal(&browser_scene().waveform_nav());
-		expect(browser_scene().waveform_nav().renderData.colStatus[0]).to_equal(COL_STATUS_INVESTIGATED);
+		const std::optional<deluge::sample_view::ShownWaveform> shown =
+		    browser_scene().shown_waveform(waveform_identity(*sample));
+		expect(shown.has_value()).to_be_true();
+		if (shown) {
+			expect(shown->view).to_equal(browser_scene().waveform_view());
+		}
+		// The columns the preview read are the waveforms port's, kept by file.
+		const deluge::sample_view::PeakRead read = menu::host_waveforms().peaks(
+		    {.kind = deluge::scenes::services::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
+		expect(read.column(0).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
 		Sample* other = make_overview_sample();
-		expect(browser_scene().shown_waveform(other)).to_be_null();
-		expect(browser_scene().shown_waveform(nullptr)).to_be_null();
+		expect(browser_scene().shown_waveform(waveform_identity(*other)).has_value()).to_be_false();
+		expect(browser_scene().shown_waveform(0).has_value()).to_be_false();
 	});
 
 	it("redraws a preview the card has not caught up with, and gives up 300 ms after its last progress", _ {
@@ -1766,12 +1805,12 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.horizontal(1);
 		r.button(kXEncX, kXEncY, false, r.clock + 10);
 		r.step();
-		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
 		r.pad_backspace(true, r.clock + 10);
 		r.step();
-		const int64_t scroll = browser_scene().waveform_nav().xScroll;
+		const int64_t scroll = browser_scene().waveform_view().scroll();
 		r.horizontal(1);
-		expect(browser_scene().waveform_nav().xScroll).to_equal(scroll);
+		expect(browser_scene().waveform_view().scroll()).to_equal(scroll);
 		r.pad_backspace(false, r.clock + 10);
 		r.step();
 		browser_scene().preview_settled(true);
@@ -2992,19 +3031,19 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.step();
 		r.settle();
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
-		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
 		expect(r.fake.state()).not_().to_equal(zoomed_out);
-		const int64_t scroll = browser_scene().waveform_nav().xScroll;
+		const int64_t scroll = browser_scene().waveform_view().scroll();
 		r.horizontal(1);
 		r.settle();
-		expect(browser_scene().waveform_nav().xScroll).not_().to_equal(scroll);
+		expect(browser_scene().waveform_view().scroll()).not_().to_equal(scroll);
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		r.button(kXEncX, kXEncY, true, r.clock + 10);
 		r.step();
 		r.horizontal(-8);
 		r.button(kXEncX, kXEncY, false, r.clock + 10);
 		r.step();
-		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_false();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_false();
 		r.horizontal(1);
 		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 		expect(browser_scene().cursor()).to_equal(1);
@@ -3026,10 +3065,10 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.horizontal(1);
 		r.button(kXEncX, kXEncY, false, r.clock + 10);
 		r.step();
-		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_false();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_false();
 	});
 
 	it("redraws a zoomed view the card has not caught up with, after the last view's redraw gave up", _ {

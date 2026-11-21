@@ -48,12 +48,15 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
+#include "ui/oled/sample_position.h"
+#include "ui/oled/text.h"
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
@@ -67,6 +70,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
@@ -99,6 +103,7 @@
 #include "support/printers/rgb_printer.h"
 #include "support/printers/sound_record_printer.h"
 #include "unit/gfx/support/golden.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -106,9 +111,11 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "support/menu_context.h"
@@ -262,6 +269,54 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 	expect(d.count).to_equal(0);
 }
 
+/// @brief The host's waveforms, passed through, with each frame's read counted. `length` reports another length, a
+///        file past what 32 bits count over the fixture's sample; `pending_once` answers that column PENDING on the
+///        first read.
+struct Through final : deluge::scenes::services::Waveforms {
+	std::optional<uint64_t> length;
+	std::optional<int32_t> pending_once;
+	mutable int32_t reads = 0;
+	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+	info(const deluge::scenes::services::WaveformAddress& a) const override {
+		std::optional<deluge::scenes::services::WaveformInfo> i = menu::host_waveforms().info(a);
+		if (i && length) {
+			i->length_samples = *length;
+		}
+		return i;
+	}
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress& a,
+	                                                  deluge::sample_view::Window at) const override {
+		deluge::sample_view::PeakRead read = menu::host_waveforms().peaks(a, at);
+		if (reads++ == 0 && pending_once) {
+			read.set(*pending_once, deluge::sample_view::ColumnRead::pending());
+		}
+		return read;
+	}
+	[[nodiscard]] std::optional<int64_t>
+	play_position(const deluge::scenes::services::WaveformAddress&) const override {
+		return std::nullopt;
+	}
+};
+
+/// A length past what 32 bits count: 2^33 frames.
+constexpr uint64_t kLongLength = uint64_t{1} << 33;
+
+/// @brief How many main pads of @p a differ from @p b.
+int32_t main_pads_differ(const deluge::gfx::grid::PadGrid& a, const deluge::gfx::grid::PadGrid& b) {
+	int32_t n = 0;
+	for (uint8_t x = 0; x < kDisplayWidth; x++) {
+		for (uint8_t y = 0; y < kDisplayHeight; y++) {
+			n += a.at(x, y) == b.at(x, y) ? 0 : 1;
+		}
+	}
+	return n;
+}
+
+/// @brief The pin of marker @p m.
+deluge::sample_view::MarkerPin pin_of(MarkerType m) {
+	return marker_scene().pins()[static_cast<size_t>(m)];
+}
+
 } // namespace
 
 // clang-format off
@@ -297,15 +352,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::END);
 		r.tick(0);
 		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::END));
-		// `WaveformNav::opened` with no remembered view: scroll 0, zoom = max_zoom().
+		// Opened with no remembered view: scroll 0, zoom = max_zoom().
 		expect(static_cast<int32_t>(marker_scene().x_scroll())).to_equal(0);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax);
 	});
 
 	it("adopts the holder's remembered scroll and zoom when it has one", _ {
 		Rig r;
-		r.range->sampleHolder.waveformViewZoom = kZoomMax / 2;
-		r.range->sampleHolder.waveformViewScroll = kZoomMax * 2;
+		r.remembered = {.scroll = kZoomMax * 2, .zoom = kZoomMax / 2};
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
@@ -478,7 +532,6 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		expect(r.view().has_value()).to_be_true();
 		expect(static_cast<int32_t>(r.view()->zoom)).to_equal(kZoomMax / 2);
-		expect(static_cast<int32_t>(r.range->sampleHolder.waveformViewZoom)).to_equal(0);
 	});
 
 	it("writes a source's first range into the record when the editor is reached on a source with none", _ {
@@ -1000,9 +1053,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			info(const deluge::scenes::services::WaveformAddress&) const override {
 				return std::nullopt;
 			}
-			bool peaks(const deluge::scenes::services::WaveformAddress&, int64_t, uint64_t, WaveformRenderData&, int32_t,
-			           int32_t) const override {
-				return false;
+			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress&,
+			                                                  deluge::sample_view::Window) const override {
+				return deluge::sample_view::PeakRead::all_past_end();
+			}
+			[[nodiscard]] std::optional<int64_t>
+			play_position(const deluge::scenes::services::WaveformAddress&) const override {
+				return std::nullopt;
 			}
 		};
 		Rig q;
@@ -1204,9 +1261,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			info(const deluge::scenes::services::WaveformAddress& a) const override {
 				return menu::host_waveforms().info(a);
 			}
-			bool peaks(const deluge::scenes::services::WaveformAddress& a, int64_t scroll, uint64_t zoom,
-			           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
-				return menu::host_waveforms().peaks(a, scroll, zoom, cache, x_start, x_end);
+			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::services::WaveformAddress& a,
+			                                                  deluge::sample_view::Window at) const override {
+				return menu::host_waveforms().peaks(a, at);
 			}
 			[[nodiscard]] std::optional<int64_t>
 			play_position(const deluge::scenes::services::WaveformAddress&) const override {
@@ -1502,8 +1559,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = kSampleLength;
 		// A remembered view zoomed right in, a long way to the right of the START marker: at zoom
 		// 1024 and scroll 100000, START (sample 0) is at column -98.
-		r.range->sampleHolder.waveformViewZoom = 1024;
-		r.range->sampleHolder.waveformViewScroll = 100000;
+		r.remembered = {.scroll = 100000, .zoom = 1024};
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(static_cast<int32_t>(marker_scene().x_scroll())).to_equal(100000);
@@ -1838,8 +1894,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 0;
 		r.range->sampleHolder.endPos = kSampleLength;
-		r.range->sampleHolder.waveformViewZoom = kZoomMax / 4;
-		r.range->sampleHolder.waveformViewScroll = 8 * (kZoomMax / 4);
+		r.remembered = {.scroll = 8 * (kZoomMax / 4), .zoom = kZoomMax / 4};
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_horizontal(1, 10);
@@ -1885,6 +1940,241 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
 		deluge::test::set(*r.sound->state_, "osc1/reversed", "0");
+	});
+
+	// --- the fixed quirks ----------------------------------------------------------------------
+
+	it("Q23: maps a file past 2^31 frames' markers to their own columns, in 64 bits", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		Rig r;
+		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
+		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
+		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
+		r.open(MarkerType::START);
+		r.tick(0);
+		expect(marker_scene().x_scroll()).to_equal(int64_t{1} << 31);
+		expect(marker_scene().x_zoom()).to_equal(int64_t{1} << 20);
+		expect(pin_of(MarkerType::START).column).to_equal(std::optional<int64_t>{0});            // floor(7 / 2^20)
+		expect(pin_of(MarkerType::END).column).to_equal(std::optional<int64_t>{2048});           // floor((2^31 + 4) / 2^20)
+		expect(pin_of(MarkerType::START).position).to_equal(static_cast<int64_t>((uint64_t{1} << 31) + 7));
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q23: writes an end marker pressed past 2^31 frames at its own position", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		Rig r;
+		bind::test::RecordingSoundWrites recording;
+		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
+		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
+		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
+		r.open(MarkerType::END, &recording);
+		r.tick(0);
+		r.pad(15, 3, true, 10);
+		r.pad(15, 3, false, 12);
+		r.tick(20);
+		expect(recording.calls.size()).to_equal(size_t{1});
+		if (!recording.calls.empty() && !recording.calls[0].ranges.empty()) {
+			expect(recording.calls[0].ranges[0].end_pos).to_equal((uint64_t{1} << 31) + 16 * (uint64_t{1} << 20));
+		}
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q23: clamps a loop end written past what the record stores to UINT32_MAX", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		Rig r;
+		bind::test::RecordingSoundWrites recording;
+		constexpr int64_t kZoom = int64_t{1} << 20;
+		constexpr int64_t kScroll = (int64_t{1} << 32) + 3 - 4 * kZoom; // column 3 ends at 2^32 + 3
+		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
+		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
+		r.range->sampleHolder.loopEndPos = static_cast<uint32_t>(kScroll + 3 * kZoom); // column 2
+		r.remembered = {.scroll = kScroll, .zoom = kZoom};
+		r.open(MarkerType::LOOP_END, &recording);
+		r.tick(0);
+		expect(pin_of(MarkerType::LOOP_END).column).to_equal(std::optional<int64_t>{2});
+		r.turn_select(1, 10);
+		r.tick(10);
+		expect(recording.calls.size()).to_equal(size_t{1});
+		if (!recording.calls.empty() && !recording.calls[0].ranges.empty()) {
+			expect(recording.calls[0].ranges[0].loop_end_pos).to_equal(std::numeric_limits<uint32_t>::max());
+		}
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q23: asks for an audio clip's start written past 2^31 frames as INT32_MAX", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		AudioRig r;
+		bind::test::RecordingClipWrites clip_writes;
+		constexpr int64_t kZoom = int64_t{1} << 20;
+		r.f.clip->setSampleStartPos((uint64_t{1} << 31) - kZoom + 9); // column 2047 at a scroll of 9
+		services::view_state().forget_unless(r.f.song->project.identity());
+		services::view_state().set_sample_view(
+		    {.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = deluge::project::ClipAddress{r.f.clip->id()}.clip_id},
+		    {.scroll = 9, .zoom = kZoom});
+		r.open(MarkerType::START, &clip_writes);
+		r.tick(0);
+		expect(marker_scene().x_scroll()).to_equal(int64_t{9});
+		expect(marker_scene().x_zoom()).to_equal(kZoom);
+		r.turn_select(1, 10); // to 9 + 2048 * 2^20 = 2^31 + 9
+		r.tick(10);
+		expect(clip_writes.calls.size()).to_equal(size_t{1});
+		if (!clip_writes.calls.empty()) {
+			expect(clip_writes.calls[0].path).to_equal(std::string{"startSamplePos"});
+			expect(clip_writes.calls[0].value).to_equal(int64_t{std::numeric_limits<int32_t>::max()});
+		}
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q23: shows a start past 2^31 frames as its own sample count", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		Rig r;
+		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
+		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
+		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
+		r.open(MarkerType::START);
+		r.tick(0);
+		deluge::ui::test::Rig48 reference;
+		deluge::ui::oled::title(reference.frame, "Start point");
+		deluge::ui::oled::sample_position(
+		    reference.frame,
+		    deluge::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
+		                            2 * deluge::ui::oled::kSamplePositionLineGap},
+		    2147483655, 44100);
+		expect(r.oled()).to_equal(reference.pbm());
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q25: refuses a locked loop's move or doubling whose end would pass UINT32_MAX", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		Rig r;
+		bind::test::RecordingSoundWrites recording;
+		constexpr uint32_t kLoopStart = std::numeric_limits<uint32_t>::max() - 99; // 2^32 - 100
+		constexpr uint32_t kLoopEnd = std::numeric_limits<uint32_t>::max() - 9;    // 2^32 - 10
+		r.range->sampleHolder.startPos = (uint64_t{1} << 32) - 1000;
+		r.range->sampleHolder.endPos = kLongLength;
+		r.range->sampleHolder.loopStartPos = kLoopStart;
+		r.range->sampleHolder.loopEndPos = kLoopEnd;
+		r.range->sampleHolder.loopLocked = true;
+		// 64 frames a column, the loop start 40 frames into column 0 and its end in column 2.
+		r.remembered = {.scroll = int64_t{kLoopStart} - 40, .zoom = 64};
+		r.open(MarkerType::LOOP_START, &recording);
+		r.tick(0);
+		expect(pin_of(MarkerType::LOOP_START).column).to_equal(std::optional<int64_t>{0});
+		expect(pin_of(MarkerType::LOOP_END).column).to_equal(std::optional<int64_t>{2});
+		r.turn_select(1, 10); // to 2^32 - 76, whose locked end would be 2^32 + 14
+		r.tick(10);
+		for (const bind::test::RecordingSoundWrites::Call& call : recording.calls) {
+			if (!call.ranges.empty()) {
+				expect(call.ranges[0].loop_start_pos).to_equal(kLoopStart);
+				expect(call.ranges[0].loop_end_pos).to_equal(kLoopEnd);
+			}
+		}
+		DirectEvents d;
+		const std::vector<uint16_t> doubled = popups_of(d.horizontal(1, /*shift=*/true));
+		expect(doubled).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_TOO_LONG)});
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q26: pins a zoom's slide by the 64-bit scroll difference", _ {
+		Through long_file;
+		long_file.length = kLongLength;
+		marker_scene().set_waveforms(&long_file);
+		const auto pin_after = [](int64_t scroll, int64_t zoom, int32_t turn) {
+			Rig r;
+			r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
+			r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
+			r.remembered = {.scroll = scroll, .zoom = zoom};
+			r.open(MarkerType::START);
+			r.tick(0);
+			r.x_enc_button(true, 10);
+			r.tick(10);
+			r.turn_horizontal(turn, 20);
+			r.tick(20);
+			const int64_t new_scroll = marker_scene().x_scroll();
+			const int64_t new_zoom = marker_scene().x_zoom();
+			r.x_enc_button(false, 30);
+			const int64_t expected = ((scroll - new_scroll) << 16) / (new_zoom - zoom);
+			return std::pair{int64_t{marker_scene().zoom_slide().params.pin_square_from}, expected};
+		};
+		// In, at 2^31 + 2^24 and 2^20 frames a column.
+		const auto [in_pin, in_expected] = pin_after((int64_t{1} << 31) + (int64_t{1} << 24), int64_t{1} << 20, 1);
+		expect(in_pin).to_equal(in_expected);
+		// Out, from 2^32 at 2^28 to the whole file at 2^29: the scroll moves by 2^32, past what 32 bits hold.
+		const auto [out_pin, out_expected] = pin_after(int64_t{1} << 32, int64_t{1} << 28, -1);
+		expect(out_expected).to_equal(int64_t{1} << 20);
+		expect(out_pin).to_equal(out_expected);
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q27: scales its first frame by the range its read widened", _ {
+		Through counted;
+		marker_scene().set_waveforms(&counted);
+		Rig r;
+		r.sample->maxValueFound = INT32_MIN; // the constructor's empty range
+		r.sample->minValueFound = INT32_MAX;
+		r.open(MarkerType::START);
+		r.tick(0);
+		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		r.tick(200); // the blink's next phase draws again
+		expect(counted.reads).to_equal(2);
+		expect(main_pads_differ(first, r.fake.grid().grid())).to_equal(0);
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q28: draws again while a column is pending, and fills it in", _ {
+		Through pending;
+		pending.pending_once = 3;
+		marker_scene().set_waveforms(&pending);
+		Rig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		expect(pending.reads).to_equal(1);
+		for (uint8_t y = 0; y < kDisplayHeight; y++) {
+			expect(r.fake.grid().grid().at(3, y)).to_equal(RGB{});
+		}
+		expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{services::kPeakRetryPollMs});
+		r.tick(services::kPeakRetryPollMs);
+		expect(pending.reads).to_equal(2);
+		int32_t lit = 0;
+		for (uint8_t y = 0; y < kDisplayHeight; y++) {
+			lit += r.fake.grid().grid().at(3, y) == RGB{} ? 0 : 1;
+		}
+		expect(lit).to_be_greater_than(0);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		if (r.shell.next_wake().has_value()) {
+			expect(*r.shell.next_wake()).to_be_greater_than(2 * services::kPeakRetryPollMs);
+		}
+		marker_scene().set_waveforms(nullptr);
+	});
+
+	it("Q29: draws a re-entry's first frame from the columns the host kept for the file", _ {
+		// The fixture's columns at max zoom span two clusters each, read from the overview. The overview is changed
+		// between the entries, standing in for the coarser overview peak a re-read would take: a kept column is not
+		// read again.
+		Rig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		const deluge::gfx::grid::PadGrid last = r.fake.grid().grid();
+		for (int32_t i = 0; i < mf::kNumClusters; i++) {
+			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			e.min = static_cast<int8_t>(-mf::cluster_peak(i) / 2);
+			e.max = static_cast<int8_t>(mf::cluster_peak(i) / 2);
+		}
+		r.reopen(MarkerType::START, 0);
+		r.tick(300);
+		expect(main_pads_differ(last, r.fake.grid().grid())).to_equal(0);
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

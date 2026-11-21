@@ -109,7 +109,8 @@
 #include "ui/oled/frame.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "model/sample/waveform_navigator.h"
+#include "sample-view/view.h"
+#include "scenes/services/peak_retry.h"
 
 #include <array>
 #include <cstdint>
@@ -245,13 +246,13 @@ public:
 	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason `MarkerScene::open` is.
 	/// Legacy has no equivalent line inside `Slicer` at all: it reads the **`waveformBasicNavigator` global**, which
 	/// the sample browser's preview path set up and scanned (`SampleBrowser::previewIfPossible`,
-	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view, scroll,
-	/// zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens zoomed out on
-	/// a fresh navigator; called again on the sample and file it already shows, it keeps the navigator, as nothing
-	/// resets legacy's global between two slicer opens.
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes the preview's view,
+	/// and the waveforms port answers the columns the preview read, since it keeps them by file. Without it the scene
+	/// opens zoomed out; called again on the sample and file it already shows, it keeps its view, as nothing resets
+	/// legacy's global between two slicer opens.
 	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
-	/// @param shown  The navigator the browser's preview drew @p sample through, or null.
-	void open(Sample* sample, const deluge::sample::WaveformNav* shown = nullptr);
+	/// @param shown  The file and view the browser's preview drew @p sample at, or none.
+	void open(Sample* sample, std::optional<sample_view::ShownWaveform> shown = std::nullopt);
 
 	/// @brief Switch between REGION and MANUAL.
 	///
@@ -345,14 +346,16 @@ public:
 	/// @return That slice's start position and transpose (`manualSlicePoints[i]`).
 	const SlicePoint& slice(int32_t i) const { return points_[i]; }
 	/// @return The left edge of the waveform view, in samples.
-	int64_t x_scroll() const { return nav_.xScroll; }
+	int64_t x_scroll() const { return view_.scroll(); }
 	/// @return Samples per waveform column.
-	int64_t x_zoom() const { return nav_.xZoom; }
+	int64_t x_zoom() const { return view_.zoom(); }
 	/// @return Is a slice commit out? Legacy's `currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate,
 	///         which refuses every button and pad until the host ends the commit (`commit_done`).
 	bool committing() const { return committing_; }
 	/// @return Whether `open` handed the scene a sample to slice.
-	bool has_sample() const { return nav_.sample != nullptr; }
+	bool has_sample() const { return sample_ != nullptr; }
+	/// @return The sample the scene slices, which the waveforms port's SLICE address resolves to; null before an open.
+	[[nodiscard]] Sample* sliced_sample() const { return sample_; }
 	/// @}
 
 	/// @brief How often the playhead is redrawn while something plays.
@@ -402,11 +405,14 @@ private:
 	/// @param req The audition request.
 	void preview(const PreviewRequest& req);
 
-	/// The scroll/zoom and per-column peak cache. Legacy shares one global
-	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; every
-	/// port owns its own, as `MarkerScene` already does.
-	deluge::sample::WaveformNav nav_{};
-	/// The file `nav_` was opened on: a reopen keeps the navigator only for the same sample on the same file.
+	/// The sample the scene slices; null before an open.
+	Sample* sample_{nullptr};
+	/// The scroll and zoom. Main shares one navigator (`waveformBasicNavigator`) between the browser, the marker
+	/// editor and the slicer; each scene here owns its view, and the waveforms port keeps the columns by file.
+	sample_view::WaveformView view_{};
+	/// The redraws of a frame whose read left columns pending.
+	services::PeakRetry retry_{};
+	/// The file `view_` was opened on: a reopen keeps the view only for the same sample on the same file.
 	std::string nav_path_{};
 
 	/// `int16_t`, as legacy declares it (`Slicer::numClips` in `origin/main:src/deluge/gui/ui/slicer.h`) -- the wrap in

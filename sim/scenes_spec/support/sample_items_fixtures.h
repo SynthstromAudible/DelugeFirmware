@@ -30,7 +30,7 @@ inline constexpr int32_t kBytesPerFrame = 2;
 ///
 /// **Two clusters per display column is a cliff**, not a preference (`waveform_scan.cpp`'s `numClustersSpan >= 2`), so
 /// the samples the marker examples open are 32 and 64 clusters long -- both over the line, and different enough that
-/// `WaveformNav::max_zoom()` tells them apart.
+/// `WaveformView::max_zoom()` tells them apart.
 inline Sample* make_sample(int32_t num_clusters) {
 	Cluster::set_size(kClusterSize);
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;

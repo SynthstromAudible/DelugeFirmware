@@ -39,11 +39,11 @@
 #include "deluge-project/track_kind.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
-#include "model/sample/waveform_scan.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
+#include "scenes/services/waveform_paint.h"
 #include "serialization/tree.h"
 #include "storage/flash_storage.h"
 
@@ -113,8 +113,7 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::So
 	if (clip_writes != nullptr) {
 		ports_.clip_writes = clip_writes;
 	}
-	render_.xScroll = -1;
-	render_.xZoom = -1;
+	retry_.restart();
 	if (song_ != nullptr) {
 		timeline_.adopt(*song_);
 		// `adopt` copies `Song::tripletsOn`, but `supportsTriplets()` is a property of the VIEW
@@ -996,8 +995,8 @@ void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	if (!dirty.has(deluge::notify::Dirty::ClipContent) || !clip_) {
 		return;
 	}
-	// The clip's waveform may have changed under the cache (a sample attached, a take cleared).
-	render_.xScroll = -1;
+	// The clip's waveform may have changed (a sample attached, a take cleared): a redraw waiting on the old one stops.
+	retry_.restart();
 	// `AudioClipView::clipNeedsReRendering`'s `if (c == getCurrentAudioClip())`. The fact carries clip bits when the
 	// raiser named one; a raise with no index means "which clips is unknown -- treat as all dirty"
 	// (`notify/dirty_set.h`'s `has()` note), which is the over-invalidating side and so is safe to take as "this clip".
@@ -1075,13 +1074,9 @@ int32_t AudioClipScene::compute_tick_square() {
 	else if (!playbackHandler.isEitherClockActive() || (currentPlaybackMode == &arrangement && recording)) {
 		// Tempoless or arranger recording.
 		square = kMainCols - 1;
-		if (recording) {
-			// Force the waveform cache to be recomputed. This is why the routine runs from
-			// `render_grid` and not from `tick` -- the scan below reads what this invalidates.
-			render_.xScroll = -1;
-			// The `needsRenderingDependingOnSubMode()` call there is a redraw request, which the shell
-			// already grants every tick while the cursor is live (`next_timer`).
-		}
+		// While recording, the `needsRenderingDependingOnSubMode()` call there is a redraw request, which the shell
+		// already grants every tick while the cursor is live (`next_timer`); the waveforms port reads the take's new
+		// columns on every read.
 	}
 	else {
 		// `getTickSquare()` is `ClipView::getTickSquare`,
@@ -1122,18 +1117,13 @@ int32_t AudioClipScene::compute_tick_square() {
 // Rendering
 
 void AudioClipScene::render_grid(GridFrame& f) {
-	// `graphicsRoutine` before the render, as the main loop runs it (`deluge/deluge.cpp`'s loop calls
-	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`), and because its middle arm's
-	// `renderData.xScroll = -1` has to land before the scan.
+	// `graphicsRoutine` before the render, as the main loop runs it (`origin/main:src/deluge/deluge.cpp`'s loop calls
+	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
 	const int32_t tick_col = compute_tick_square();
 
 	const std::optional<deluge::scenes::services::WaveformInfo> info =
 	    clip_ ? menu::host_waveforms().info(waveform()) : std::nullopt;
 	const std::optional<deluge::scenes::bind::AudioClipFact> clip_fact = fact();
-	if (info && info->identity != waveform_identity_) {
-		waveform_identity_ = info->identity;
-		render_.xScroll = -1; // the cached columns are another waveform's
-	}
 	// `renderMainPads`' two "just clear the display" arms: no sample, or no clip. The
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
 	// means no waveform, no grey, no markers and (legacy's driver still substitutes) the cursor.
@@ -1167,26 +1157,26 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		// (model) and the paint (toolkit).
 		//
 		// The scan's failure is legacy's own: `renderFullScreen` returns **before its own
-		// clear** (`gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
+		// clear** (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
 		// the image untouched and legacy asks to come back later. The port draws nothing for the
-		// same reason -- `SlicerScene::render_grid` makes the identical call.
-		if (menu::host_waveforms().peaks(waveform(), scroll_samples, static_cast<uint64_t>(zoom_samples), render_)) {
+		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again.
+		const std::optional<deluge::scenes::services::WaveformFrame> wf = deluge::scenes::services::read_waveform(
+		    menu::host_waveforms(), waveform(),
+		    deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
+		if (wf && retry_.after(wf->read, f.now_ms()) == deluge::scenes::services::PeakRetry::Next::ASK_AGAIN) {
+			f.grid_gate().request_repaint_after(deluge::scenes::services::kPeakRetryPollMs, f.now_ms());
+		}
+		if (wf && !wf->read.pending()) {
 			std::array<deluge::ui::grid::PeakCol, kMainCols> peaks{};
-			const int32_t centre = info->centre;
-			const int32_t span = info->span;
 			const bool reversed = clip_fact->reversed;
 			for (int32_t x = 0; x < x_end; x++) {
 				// `renderOneCol`'s own source mapping (`waveform_renderer.cpp`): the reversal
 				// picks which SOURCE column an output column reads, which is why
 				// `ui::grid::waveform_full` takes no `reversed` flag (its header says so).
 				const int32_t src = reversed ? (kMainCols - 1 - x) : x;
-				if (render_.colStatus[src] != COL_STATUS_INVESTIGATED) {
-					continue;
+				if (const std::optional<deluge::sample_view::Bar> bar = wf->read.bar(src, wf->centre, wf->span)) {
+					peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
 				}
-				int32_t min24 = 0;
-				int32_t max24 = 0;
-				deluge::sample::col_bar_positions(src, &render_, &min24, &max24, centre, span);
-				peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
 			}
 
 			f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, f.bounds().h}, [&](GridFrame& main) {

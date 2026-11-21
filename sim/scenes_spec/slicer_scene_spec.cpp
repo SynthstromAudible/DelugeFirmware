@@ -50,7 +50,7 @@
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
-#include "model/sample/waveform_scan.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -520,34 +520,35 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(differ).to_equal(0);
 	});
 
-	it("opens on the navigator the browser's preview drew, as main's slicer reads the preview's global", _ {
+	it("opens on the view the browser's preview drew, with the columns the preview read", _ {
 		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) opened and scanned for this sample: the columns
-		// are already investigated, so the slicer draws the preview's peaks. A fresh navigator scans again, and on the
-		// device that scan reads the overview cache's coarse peaks.
+		// are already read, so the slicer draws the preview's peaks. The waveforms port keeps a file's columns, so the
+		// slicer's read at the preview's view finds them; a fresh read would take the overview cache's coarse peaks.
 		Rig r;
-		deluge::sample::WaveformNav shown{};
-		shown.length_samples = r.sample->lengthInSamples;
-		shown.opened(0, 0);
-		(void)deluge::sample::find_peaks_per_col(r.sample, shown.xScroll, static_cast<uint64_t>(shown.xZoom),
-		                                         &shown.renderData);
+		const deluge::sample_view::WaveformView view =
+		    deluge::sample_view::WaveformView::open(r.sample->lengthInSamples, std::nullopt);
+		const deluge::sample_view::ShownWaveform shown{.identity = deluge::gui::shell_host::waveform_identity(*r.sample),
+		                                               .view = view};
+		slicer_scene().open(nullptr); // nothing kept from an earlier example
+		slicer_scene().open(r.sample, shown);
+		// The preview's read, before the overview's peaks change under it.
+		(void)menu::host_waveforms().peaks({.kind = services::WaveformAddress::Kind::SLICE}, view.window());
 		for (int32_t i = 0; i < kNumClusters; i++) {
 			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = 0;
 			e.max = 0;
 		}
-		slicer_scene().open(nullptr); // nothing kept from an earlier example
-		slicer_scene().open(r.sample, &shown);
 		r.shell.init(SceneId{kSlicerSceneKind, 0});
 		r.tick(0);
 		expect_pads_match(self, r, "slicer_preview_nav");
-		expect(static_cast<int32_t>(slicer_scene().x_zoom())).to_equal(static_cast<int32_t>(shown.xZoom));
+		expect(slicer_scene().x_zoom()).to_equal(view.zoom());
 	});
 
 	it("opens zoomed out on a fresh navigator when the browser shows no preview of the sample", _ {
 		Rig r;
 		slicer_scene().open(nullptr);
-		slicer_scene().open(r.sample, nullptr);
+		slicer_scene().open(r.sample, std::nullopt);
 		r.shell.init(SceneId{kSlicerSceneKind, 0});
 		r.tick(0);
 		expect_pads_match(self, r, "slicer_fresh_nav");

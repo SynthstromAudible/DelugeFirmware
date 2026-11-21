@@ -207,9 +207,9 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
-#include "model/sample/waveform_render_data.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
+#include "scenes/services/peak_retry.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
 
@@ -447,9 +447,8 @@ private:
 
 	/// @brief `AudioClipView::graphicsRoutine` (`audio_clip_view.cpp`) minus its paint.
 	///
-	/// Called from `render_grid` rather than from `tick`, because its middle arm writes
-	/// `renderData.xScroll = -1` to force the waveform cache to be recomputed, and that
-	/// write has to land before the scan the same frame reads it.
+	/// Called from `render_grid`, before the frame's read, as the main loop runs `UI::graphicsRoutine` before
+	/// `doAnyPendingUIRendering` (`origin/main:src/deluge/deluge.cpp`).
 	/// @return The column for every row, or 255.
 	int32_t compute_tick_square();
 
@@ -588,10 +587,8 @@ private:
 	deluge::scenes::bind::Ports ports_{};
 	/// @}
 
-	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
-	WaveformRenderData render_{};
-	/// The identity of the waveform render_ holds.
-	uint64_t waveform_identity_ = 0;
+	/// The redraws of a frame whose read left columns pending. The scene keeps no columns: the waveforms port does.
+	deluge::scenes::services::PeakRetry retry_{};
 
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h`) baked into the state at construction.

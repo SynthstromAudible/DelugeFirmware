@@ -489,8 +489,7 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 	f.clip->sampleControls.reversed = false;
 	f.clip->recorder = nullptr;
-	f.clip->renderData.xScroll = -1;
-	f.clip->renderData.xZoom = -1;
+	f.clip->renderData.forget();
 	f.clip->activeIfNoSolo = true;
 	f.clip->soloingInSessionMode = false;
 	f.clip->armState = ArmState::OFF;

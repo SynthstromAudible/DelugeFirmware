@@ -360,8 +360,7 @@ struct Rig {
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleControls.reversed = false;
 		f.clip->recorder = nullptr;
-		f.clip->renderData.xScroll = -1;
-		f.clip->renderData.xZoom = -1;
+		f.clip->renderData.forget();
 		// `Clip::getLivePos()`'s SIGFPE guard -- see the extern's docstring.
 		currentlyActioningSwungTickOrResettingPlayPos = true;
 		// Legacy's `graphicsRoutine` gate and `prepareColour`'s substitution both read this; the
@@ -403,8 +402,7 @@ struct Rig {
 		f.clip->soloingInSessionMode = false;
 		f.clip->armState = ArmState::OFF;
 		// Both caches invalidated, so each side's own scan runs from scratch.
-		f.clip->renderData.xScroll = -1;
-		f.clip->renderData.xZoom = -1;
+		f.clip->renderData.forget();
 	}
 
 	/// @brief Put the model back to EXACTLY what @p s describes -- the clip's length, the sample's
@@ -1078,7 +1076,7 @@ describe audio_clip_scene_spec_body(
 			        e.max = 100;
 		        }
 		        r.f.clip->sampleHolder.audioFile = flat;
-		        r.f.clip->renderData.xScroll = -1; // as the clip's own sample changes leave it, for legacy's scan
+		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
 		        deluge::notify::raise(deluge::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
