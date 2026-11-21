@@ -1764,57 +1764,46 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel = (AudioEngine::renderInStereo && paramView.modulated(params::LOCAL_PAN));
 
-		// Setup filters
-		bool thisHasFilters = hasFilters();
-		int32_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager);
-		int32_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager);
-		int32_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
-		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
-		bool doLPF = thisHasFilters
-		             && (renderEffects().filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
-		                 || paramView.modulated(params::LOCAL_LPF_FREQ) || (lpfFreq < 0x7FFFFFD2)
-		                 || (lpfMorph > std::numeric_limits<int32_t>::min()));
-		bool doHPF = thisHasFilters
-		             && (paramView.modulated(params::LOCAL_HPF_FREQ) || (hpfFreq != std::numeric_limits<int32_t>::min())
-		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
-		// What changes this block for each of the sound's voices; their settings are its config.
-		std::array<bool, kNumSources> dxPatchChangeds;
-		std::array<bool, kNumSources> sourceEverActives;
-		std::array<bool, kNumSources> sourceActiveCurrentlys;
-		for (int32_t s = 0; s < kNumSources; s++) {
-			dxPatchChangeds[s] = sourceResources[s].dxPatchChanged;
-			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
-			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
-		}
-		const deluge::synth::BlockValues blockValues{
-		    .low_pass = doLPF ? deluge::effects::low_pass_slot(renderEffects().filter.lpf_mode)
-		                      : deluge::dsp::fixed::LowPassSlot{},
-		    .high_pass = doHPF ? deluge::effects::high_pass_slot(renderEffects().filter.hpf_mode)
-		                       : deluge::dsp::fixed::HighPassSlot{},
-		    .filter_route = deluge::effects::filter_route(renderEffects().filter.route),
+		// The block's facts, the engine's and the sound's own, which the synth makes the block's values of
+		const deluge::synth::HostBlock hostBlock{
 		    .cpu_direness = AudioEngine::cpuDireness,
+		    .engine_in_stereo = AudioEngine::renderInStereo,
+		    .pitch_adjust = pitchAdjust,
+		};
+		deluge::instrument::SoundBlockFacts facts{
+		    .has_filters = hasFilters(),
+		    .lpf_mode = renderEffects().filter.lpf_mode,
+		    .hpf_mode = renderEffects().filter.hpf_mode,
+		    .filter_route = renderEffects().filter.route,
+		    .lpf_morph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager),
+		    .lpf_freq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager),
+		    .hpf_morph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager),
+		    .hpf_freq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager),
+		    .lpf_modulated = paramView.modulated(params::LOCAL_LPF_FREQ),
+		    .hpf_modulated = paramView.modulated(params::LOCAL_HPF_FREQ),
+		    .noise_can_sound = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
+		    .local_wired = paramView.sources_wired(GLOBALITY_LOCAL),
+		    .bend_ranges = paramView.bend_ranges(),
+		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
 		    .lfo2_synced_phase_increment = (config_.lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
 		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO2_ID]),
 		    .lfo4_synced_phase_increment = (config_.lfos[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
 		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO4_ID]),
-		    .has_filters = thisHasFilters,
-		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
+		    .expression_sources_changed = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
 		    .clipping_amount = renderEffects().saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
-		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
-		    .dx_patch_changed = dxPatchChangeds,
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
-		    .source_ever_active = sourceEverActives,
-		    .noise_volume_contains_something = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
-		    .local_sources_patched_to_anything = paramView.sources_wired(GLOBALITY_LOCAL),
-		    .bend_ranges = paramView.bend_ranges(),
-		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
-		    .source_active_currently = sourceActiveCurrentlys,
 		};
+		for (int32_t s = 0; s < kNumSources; s++) {
+			facts.dx_patch_changed[s] = sourceResources[s].dxPatchChanged;
+			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
+			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
+		}
+		const deluge::synth::BlockValues blockValues = deluge::instrument::DelugeSynth::begin_block(hostBlock, facts);
 
 		// The matrix's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
@@ -1831,7 +1820,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		                          .num_samples = static_cast<int32_t>(sound_mono.size()),
 		                          .sound_in_stereo = voice_rendered_in_stereo,
 		                          .pan_at_voice_level = applyingPanAtVoiceLevel,
-		                          .pitch_adjust = pitchAdjust,
+		                          .pitch_adjust = hostBlock.pitch_adjust,
 		                          .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
 		                                            spareRenderingBuffer[2], spareRenderingBuffer[3]},
 		                          .filter_scratch = deluge::render::filter_scratch(),

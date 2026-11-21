@@ -206,6 +206,9 @@ LIBRARIES: dict[str, Library] = {
             "synth/voice/voicing_state.h",
             # the voice seam, whose instrument side the pool is
             "synth/voice/voice_host.h",
+            # the block values begin_block makes for the synth's voices, and the engine's facts it makes them from
+            "synth/voice/block_values.h",
+            "synth/voice/host_block.h",
         ),
     ),
     "host-chain": Library(

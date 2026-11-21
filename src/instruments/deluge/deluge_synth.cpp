@@ -21,6 +21,8 @@
 #include "instruments/deluge/state_access.h"
 #include "synth/voice/unison.h"
 
+#include <limits>
+
 namespace deluge::instrument {
 namespace {
 
@@ -135,6 +137,38 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 	mark(parts, Part::LFO_SYNC, lfo_sync);
 	mark(parts, Part::EFFECTS, sound_effects(before) != sound_effects(after));
 	return parts;
+}
+
+synth::BlockValues DelugeSynth::begin_block(const synth::HostBlock& host, const SoundBlockFacts& facts) noexcept {
+	constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+	const bool low = facts.has_filters
+	                 && (facts.lpf_mode == effects::FilterMode::TRANSISTOR_24DB_DRIVE || facts.lpf_modulated
+	                     || (facts.lpf_freq < 0x7FFFFFD2) || (facts.lpf_morph > kMin));
+	const bool high =
+	    facts.has_filters && (facts.hpf_modulated || (facts.hpf_freq != kMin) || (facts.hpf_morph > kMin));
+	return {
+	    .low_pass = low ? effects::low_pass_slot(facts.lpf_mode) : dsp::fixed::LowPassSlot{},
+	    .high_pass = high ? effects::high_pass_slot(facts.hpf_mode) : dsp::fixed::HighPassSlot{},
+	    .filter_route = effects::filter_route(facts.filter_route),
+	    .cpu_direness = host.cpu_direness,
+	    .lfo2_synced_phase_increment = facts.lfo2_synced_phase_increment,
+	    .lfo4_synced_phase_increment = facts.lfo4_synced_phase_increment,
+	    .has_filters = facts.has_filters,
+	    .expression_sources_changed_at_synth_level = facts.expression_sources_changed,
+	    .monophonic_expression_values = facts.monophonic_expression_values,
+	    .clipping_amount = facts.clipping_amount,
+	    .doing_osc_sync = facts.doing_osc_sync,
+	    .engine_rendering_in_stereo = host.engine_in_stereo,
+	    .dx_patch_changed = facts.dx_patch_changed,
+	    .global_source_values = facts.global_source_values,
+	    .note_tails_allowed = facts.note_tails_allowed,
+	    .source_ever_active = facts.source_ever_active,
+	    .noise_volume_contains_something = facts.noise_can_sound,
+	    .local_sources_patched_to_anything = facts.local_wired,
+	    .bend_ranges = facts.bend_ranges,
+	    .portamento = facts.portamento,
+	    .source_active_currently = facts.source_active_currently,
+	};
 }
 
 } // namespace deluge::instrument

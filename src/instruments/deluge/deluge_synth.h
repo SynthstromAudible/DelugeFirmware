@@ -21,9 +21,13 @@
 /// @brief The Deluge synth as a plugin: its state and codec, what its state makes of a sound (its config), and which
 /// parts of the state an edit changed.
 
+#include "effects/filter_slots.h"
+#include "instruments/deluge/block_facts.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/sound_state.h"
 #include "plugin-api/plugin.h"
+#include "synth/voice/block_values.h"
+#include "synth/voice/host_block.h"
 #include "synth/voice/sound_config.h"
 
 #include <bitset>
@@ -82,6 +86,15 @@ struct DelugeSynth {
 	[[nodiscard]] static synth::SoundConfig derive(const State& state) noexcept;
 	/// @brief Which parts differ between @p before and @p after.
 	[[nodiscard]] static Parts changes(const State& before, const State& after) noexcept;
+
+	/// @brief The values a block of a sound's voices plays with, from the engine's facts and the sound's own. A
+	///        filter runs when it is set and could be heard: the low-pass when driven, modulated, below its top or
+	///        morphed; the high-pass when modulated, above its bottom or morphed.
+	/// @param host The engine's facts for the block.
+	/// @param facts The sound's own facts for the block.
+	/// @return The block's values.
+	[[nodiscard]] static synth::BlockValues begin_block(const synth::HostBlock& host,
+	                                                    const SoundBlockFacts& facts) noexcept;
 };
 
 static_assert(plugin::InstrumentPlugin<DelugeSynth>);
