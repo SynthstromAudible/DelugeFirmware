@@ -258,6 +258,26 @@ static void write_snapshot(const char* name) {
 	if (state.overflowed) {
 		script_fail("a .state snapshot needed more lines than HOST_SNAPSHOT_MAX_LINES");
 	}
+	if (getenv("UI_SNAPSHOT_MIDI") != NULL) {
+		// Opt-in: the DIN MIDI the app sent since the previous snapshot, which a comparison of two builds reads; the
+		// goldens do not record it.
+		FILE* m = open_snapshot_file(name, ".midi");
+		if (m == NULL) {
+			script_fail("could not open a snapshot .midi for writing");
+		}
+		uint8_t buf[256];
+		uint32_t n;
+		while ((n = deluge_host_midi_out_take(buf, sizeof(buf))) > 0) {
+			for (uint32_t i = 0; i < n; i++) {
+				fprintf(m, "%02x%c", buf[i], (i % 32 == 31) ? '\n' : ' ');
+			}
+		}
+		fprintf(m, "\n");
+		if (fclose(m) != 0) {
+			script_fail("could not write a snapshot .midi");
+		}
+	}
+
 	FILE* f = open_snapshot_file(name, ".state");
 	if (f == NULL) {
 		script_fail("could not open a snapshot .state for writing");
@@ -330,6 +350,18 @@ static int apply_step(const UiScriptStep* step) {
 	case UI_SCRIPT_MODEL:
 	case UI_SCRIPT_NOTICE:
 		script_fail("shell-level command in an app script"); // already rejected at load
+
+	case UI_SCRIPT_MIDI: {
+		// The parser has checked `text` is whole hex bytes; a 63-digit field holds at most 31 of them.
+		uint8_t bytes[31];
+		uint32_t n = 0;
+		for (const char* p = step->text; p[0] != '\0' && p[1] != '\0' && n < sizeof(bytes); p += 2) {
+			const char hex[3] = {p[0], p[1], '\0'};
+			bytes[n++] = (uint8_t)strtoul(hex, NULL, 16);
+		}
+		host_script_push_midi(bytes, n);
+		break;
+	}
 
 	case UI_SCRIPT_QUIT:
 		return 0;
@@ -453,6 +485,7 @@ static void validate_script(void) {
 		case UI_SCRIPT_SNAPSHOT:
 		case UI_SCRIPT_RELEASED:
 		case UI_SCRIPT_QUIT:
+		case UI_SCRIPT_MIDI:
 			break;
 		}
 		if ((UiScriptStepKind)step.kind != UI_SCRIPT_BOARD) {

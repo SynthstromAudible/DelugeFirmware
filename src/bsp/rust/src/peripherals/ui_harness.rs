@@ -48,6 +48,32 @@ fn shadows() -> std::sync::MutexGuard<'static, Shadows> {
     SHADOWS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// DIN MIDI input a UI script queued, served in order by the host's DIN read.
+static MIDI_IN: Mutex<std::collections::VecDeque<u8>> =
+    Mutex::new(std::collections::VecDeque::new());
+
+/// Queues DIN MIDI input a UI script sends (`tests/harness/level3/host_script.c`'s `midi` step).
+#[unsafe(no_mangle)]
+pub extern "C" fn host_script_push_midi(bytes: *const u8, len: u32) {
+    if bytes.is_null() || len == 0 {
+        return;
+    }
+    // SAFETY: the runner passes a pointer to `len` initialised bytes, which it keeps alive for the call.
+    let bytes = unsafe { core::slice::from_raw_parts(bytes, len as usize) };
+    MIDI_IN
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .extend(bytes);
+}
+
+/// The next byte of DIN MIDI input a UI script queued, if any.
+pub fn midi_in_pop() -> Option<u8> {
+    MIDI_IN
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .pop_front()
+}
+
 /// Records an indicator LED.
 pub fn record_led(led: u8, on: bool) {
     if let Some(slot) = shadows().leds.get_mut(led as usize) {

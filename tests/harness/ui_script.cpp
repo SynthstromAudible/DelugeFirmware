@@ -1,5 +1,7 @@
 #include "ui_script.h"
 
+#include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstring>
 #include <fstream>
@@ -80,8 +82,8 @@ void set_error(ScriptResult& r, uint16_t line, std::string_view message) {
 
 } // namespace
 
-ScriptResult parse_script(std::string_view text) {
-	ScriptResult result;
+std::unique_ptr<ScriptResult> parse_script(std::string_view text) {
+	auto result = std::make_unique<ScriptResult>();
 	uint32_t last_at_ms = 0;
 	bool have_last = false;
 	uint16_t line_no = 0;
@@ -104,18 +106,18 @@ ScriptResult parse_script(std::string_view text) {
 
 			uint32_t at_ms = 0;
 			if (tok.empty() || !parse_u32(tok[0], at_ms)) {
-				set_error(result, line_no, "bad time");
+				set_error(*result, line_no, "bad time");
 				return result;
 			}
 			if (have_last && at_ms < last_at_ms) {
-				set_error(result, line_no, "time must be non-decreasing");
+				set_error(*result, line_no, "time must be non-decreasing");
 				return result;
 			}
 			last_at_ms = at_ms;
 			have_last = true;
 
 			if (tok.size() < 2) {
-				set_error(result, line_no, "missing command");
+				set_error(*result, line_no, "missing command");
 				return result;
 			}
 			std::string_view cmd = tok[1];
@@ -131,7 +133,7 @@ ScriptResult parse_script(std::string_view text) {
 			}
 			else if (cmd == "snapshot") {
 				if (tok.size() < 3) {
-					set_error(result, line_no, "snapshot needs a name");
+					set_error(*result, line_no, "snapshot needs a name");
 					return result;
 				}
 				step.kind = StepKind::Snapshot;
@@ -139,7 +141,7 @@ ScriptResult parse_script(std::string_view text) {
 			}
 			else if (cmd == "button") {
 				if (tok.size() < 4) {
-					set_error(result, line_no, "button needs a name and down|up");
+					set_error(*result, line_no, "button needs a name and down|up");
 					return result;
 				}
 				step.kind = StepKind::Button;
@@ -151,37 +153,37 @@ ScriptResult parse_script(std::string_view text) {
 					step.down = false;
 				}
 				else {
-					set_error(result, line_no, "button requires down|up");
+					set_error(*result, line_no, "button requires down|up");
 					return result;
 				}
 			}
 			else if (cmd == "encoder") {
 				if (tok.size() < 4) {
-					set_error(result, line_no, "encoder needs a role and signed detents");
+					set_error(*result, line_no, "encoder needs a role and signed detents");
 					return result;
 				}
 				step.kind = StepKind::Encoder;
 				copy_field(step.name, sizeof(step.name), tok[2]);
 				if (!parse_i32(tok[3], step.a)) {
-					set_error(result, line_no, "encoder detents must be a signed integer");
+					set_error(*result, line_no, "encoder detents must be a signed integer");
 					return result;
 				}
 			}
 			else if (cmd == "pad") {
 				if (tok.size() < 5) {
-					set_error(result, line_no, "pad needs x y down|up");
+					set_error(*result, line_no, "pad needs x y down|up");
 					return result;
 				}
 				step.kind = StepKind::Pad;
 				if (!parse_i32(tok[2], step.a) || !parse_i32(tok[3], step.b)) {
-					set_error(result, line_no, "pad x y must be integers");
+					set_error(*result, line_no, "pad x y must be integers");
 					return result;
 				}
 				if (tok[4] == "down") {
 					step.down = true;
 					if (tok.size() >= 6) {
 						if (!parse_i32(tok[5], step.c)) {
-							set_error(result, line_no, "pad velocity must be an integer");
+							set_error(*result, line_no, "pad velocity must be an integer");
 							return result;
 						}
 					}
@@ -194,7 +196,7 @@ ScriptResult parse_script(std::string_view text) {
 					step.c = 0; // pad ... up -> velocity 0
 				}
 				else {
-					set_error(result, line_no, "pad requires down|up");
+					set_error(*result, line_no, "pad requires down|up");
 					return result;
 				}
 			}
@@ -203,7 +205,7 @@ ScriptResult parse_script(std::string_view text) {
 			}
 			else if (cmd == "model") {
 				if (tok.size() < 3) {
-					set_error(result, line_no, "model needs a Dirty kind");
+					set_error(*result, line_no, "model needs a Dirty kind");
 					return result;
 				}
 				step.kind = StepKind::Model;
@@ -214,7 +216,7 @@ ScriptResult parse_script(std::string_view text) {
 			}
 			else if (cmd == "notice") {
 				if (tok.size() < 4) {
-					set_error(result, line_no, "notice needs a Kind and an arg");
+					set_error(*result, line_no, "notice needs a Kind and an arg");
 					return result;
 				}
 				step.kind = StepKind::Notice;
@@ -222,16 +224,28 @@ ScriptResult parse_script(std::string_view text) {
 				copy_field(step.text, sizeof(step.text), tok[3]);
 				parse_i32(tok[3], step.a); // stored numerically too, when the arg is numeric
 			}
+			else if (cmd == "midi") {
+				// `midi HEX`: the DIN MIDI input bytes as one hex string with no spaces, at most sizeof(step.text) - 1
+				// digits.
+				if (tok.size() < 3 || tok[2].size() % 2 != 0 || tok[2].size() >= sizeof(step.text)
+				    || !std::ranges::all_of(tok[2],
+				                            [](char c) { return std::isxdigit(static_cast<unsigned char>(c)) != 0; })) {
+					set_error(*result, line_no, "midi needs whole hex bytes");
+					return result;
+				}
+				step.kind = StepKind::Midi;
+				copy_field(step.text, sizeof(step.text), tok[2]);
+			}
 			else if (cmd == "quit") {
 				step.kind = StepKind::Quit;
 			}
 			else {
-				set_error(result, line_no, "unknown command");
+				set_error(*result, line_no, "unknown command");
 				return result;
 			}
 
-			if (!result.steps.push_back(step)) {
-				set_error(result, line_no, "too many steps");
+			if (!result->steps.push_back(step)) {
+				set_error(*result, line_no, "too many steps");
 				return result;
 			}
 		}
@@ -248,7 +262,7 @@ ScriptResult parse_script(std::string_view text) {
 } // namespace deluge::harness
 
 namespace {
-deluge::harness::ScriptResult g_script;
+std::unique_ptr<deluge::harness::ScriptResult> g_script;
 size_t g_cursor = 0;
 } // namespace
 
@@ -261,17 +275,17 @@ extern "C" int ui_script_load(const char* path) {
 	buf << in.rdbuf();
 	g_script = deluge::harness::parse_script(buf.str());
 	g_cursor = 0;
-	if (g_script.error.has_value()) {
-		return static_cast<int>(g_script.error->line);
+	if (g_script->error.has_value()) {
+		return static_cast<int>(g_script->error->line);
 	}
 	return 0;
 }
 
 extern "C" int ui_script_next_due(uint32_t now_ms, UiScriptStep* out) {
-	if (out == nullptr || g_cursor >= g_script.steps.size()) {
+	if (out == nullptr || g_script == nullptr || g_cursor >= g_script->steps.size()) {
 		return 0;
 	}
-	const deluge::harness::Step& step = g_script.steps[g_cursor];
+	const deluge::harness::Step& step = g_script->steps[g_cursor];
 	if (step.at_ms > now_ms) {
 		return 0;
 	}

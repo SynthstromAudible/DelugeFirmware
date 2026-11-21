@@ -331,13 +331,18 @@ async fn run_stepped_scenario(steps: Steps, name: &'static str, done: &'static A
     // `deluge_app_init`.
     unsafe { (steps.begin)() };
 
-    let deadline = Instant::now() + Duration::from_secs(600);
+    // Wall-clock seconds the scenario may take: GOLDEN_SCENARIO_DEADLINE_S, for a script whose virtual run is long.
+    let deadline_s: u64 = std::env::var("GOLDEN_SCENARIO_DEADLINE_S")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(600);
+    let deadline = Instant::now() + Duration::from_secs(deadline_s);
     loop {
         if unsafe { (steps.complete)() } {
             break;
         }
         if Instant::now() >= deadline {
-            log::error!("golden_vt_render: {name} did not complete within 600s — wedged");
+            log::error!("golden_vt_render: {name} did not complete within {deadline_s}s — wedged");
             hard_exit(2);
         }
         unsafe { (steps.dispatch_step)() };
