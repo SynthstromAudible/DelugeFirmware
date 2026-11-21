@@ -74,7 +74,7 @@ const char* text(String s) {
 
 /// The song's input tick magnitude, as its transport records it.
 int32_t tick_magnitude(const project::Song& song) {
-	return song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
+	return song.transport.input_tick_magnitude();
 }
 
 const char* filter_type_name(effects::FilterType type) {

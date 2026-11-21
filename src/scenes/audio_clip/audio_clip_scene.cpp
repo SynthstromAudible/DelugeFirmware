@@ -981,9 +981,8 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 		return;
 	}
 	// `Song::getBarLength`: 96 ticks, by the song's input tick magnitude.
-	const uint32_t one_bar = static_cast<uint32_t>(
-	    deluge::gfx::grid::increase_magnitude(96, model_->transport.inside_world_tick_magnitude
-	                                                  + model_->transport.inside_world_tick_magnitude_offset_from_bpm));
+	const uint32_t one_bar =
+	    static_cast<uint32_t>(deluge::gfx::grid::increase_magnitude(96, model_->transport.input_tick_magnitude()));
 	if (one_bar == 0) {
 		return;
 	}

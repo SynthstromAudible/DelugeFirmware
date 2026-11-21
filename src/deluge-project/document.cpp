@@ -161,8 +161,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	(void)decode(*song, document.arrangement, document.mappings, &legacy);
 	decode_mappings(*song, ControlsAddress{ControlsAddress::Kind::SONG, 0}, document.mappings,
 	                naming_of("song", plugins));
-	const int32_t magnitude =
-	    document.transport.inside_world_tick_magnitude + document.transport.inside_world_tick_magnitude_offset_from_bpm;
+	const int32_t magnitude = document.transport.input_tick_magnitude();
 	if (plugins.chains.decode != nullptr) {
 		document.master_effects = plugins.chains.decode(*song, ChainHome::MASTER, magnitude);
 	}
@@ -344,8 +343,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 Value encode_song(const SongDocument& song, std::string_view firmware_version, const CodecPlugins& plugins) {
 	auto map = Value::makeMap();
 	map.set("firmwareVersion", Value::makeScalar(std::string(firmware_version)));
-	const int32_t magnitude =
-	    song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
+	const int32_t magnitude = song.transport.input_tick_magnitude();
 	append_entries(map, encode(song.transport));
 	append_entries(map, encode(song.groove, magnitude));
 	append_entries(map, encode(song.scale));

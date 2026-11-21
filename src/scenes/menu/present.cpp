@@ -230,9 +230,7 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 }
 
 int32_t input_tick_magnitude(const MenuContext& ctx) {
-	return ctx.model != nullptr ? ctx.model->transport.inside_world_tick_magnitude
-	                                  + ctx.model->transport.inside_world_tick_magnitude_offset_from_bpm
-	                            : 0;
+	return ctx.model != nullptr ? ctx.model->transport.input_tick_magnitude() : 0;
 }
 
 std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32_t value, std::span<char> out) {
