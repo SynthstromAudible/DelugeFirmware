@@ -142,6 +142,14 @@ describe voice_pool("a sound's voices", ${
 		expect(rig.ids()).to_equal(std::vector<int32_t>{0});
 	});
 
+	it("frees the voice a cull stops while it is still listed, its slot released before the list shrinks", _{
+		Rig rig({5, 9});
+		rig.pool.cull(kPriority, CullKind::IMMEDIATE, 0);
+		expect(rig.host.log).to_equal(
+		    std::vector<std::string>{"unassign 1 listed 2", "edit depth 2", "release 1 listed 2"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0});
+	});
+
 	it("answers none with no voices, and with only cull-fading ones when passing over them", _{
 		Rig none;
 		expect(none.pool.cull_rating(kPriority, false)).to_equal(std::optional<uint32_t>{});
