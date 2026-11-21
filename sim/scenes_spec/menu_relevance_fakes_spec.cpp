@@ -88,6 +88,26 @@ describe menu_relevance_fakes("the menu's relevance over the ports' fakes and a 
 		expect(listed(nodes::root_settings, nodes::battery_level, ctx)).to_be_true();
 		expect(fakes.host.device.stores.empty()).to_be_true();
 	});
+	it("offers the audio clip's waveform only while the waveforms fake holds the clip's finished file", _ {
+		spec::FakeHostRig fakes;
+		MenuContext ctx = fakes.synth_context();
+		ctx.is_audio_clip = true;
+		ctx.addresses.clip = spec::FakeHostRig::kSynthClip;
+		expect(menu::bindings::relevant(nodes::audio_clip_waveform, ctx)).to_be_false();
+
+		const bind::WaveformAddress clip{.kind = bind::WaveformAddress::Kind::AUDIO_CLIP,
+		                                 .clip = spec::FakeHostRig::kSynthClip};
+		fakes.host.waveforms.waveforms.push_back(
+		    {.at = clip, .info = {.length_samples = 1000, .sample_rate = 44100, .channels = 1, .identity = 1}});
+		expect(menu::bindings::relevant(nodes::audio_clip_waveform, ctx)).to_be_true();
+		// A take still being recorded is no file yet.
+		fakes.host.waveforms.waveforms[0].info.recording = true;
+		expect(menu::bindings::relevant(nodes::audio_clip_waveform, ctx)).to_be_false();
+		fakes.host.waveforms.waveforms[0].info.recording = false;
+		// No waveforms port: nothing says the file is loaded.
+		ctx.ports.waveforms = nullptr;
+		expect(menu::bindings::relevant(nodes::audio_clip_waveform, ctx)).to_be_false();
+	});
 });
 // clang-format on
 

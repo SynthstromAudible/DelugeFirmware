@@ -135,6 +135,8 @@ struct Rig {
 	MultisampleRange* range = nullptr;
 	/// The view the editor remembers for the range as it opens: none (zoom 0) opens zoomed out.
 	deluge::scenes::services::SampleView remembered{};
+	/// The waveforms the editor reads; the app's when null.
+	const bind::Waveforms* waveforms = nullptr;
 
 	const BoardProfile& profile;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
@@ -182,8 +184,17 @@ struct Rig {
 
 	MenuContext ctx() {
 		// `context_for` resolves the range only when the source has exactly one, as it has here.
-		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                    /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
+		if (waveforms != nullptr) {
+			c.ports.waveforms = waveforms;
+		}
+		return c;
+	}
+
+	/// @brief The waveform the editor opens on: the range.
+	[[nodiscard]] bind::WaveformAddress address() {
+		return {.kind = bind::WaveformAddress::Kind::RANGE, .slot = slot(), .source = 0, .range = 0};
 	}
 
 	/// @brief The key the scene remembers the range's view under: the range's own identity.
@@ -323,6 +334,8 @@ struct AudioRig {
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake;
 	Shell shell;
+	/// The waveforms the editor reads; the app's when null.
+	const bind::Waveforms* waveforms = nullptr;
 
 	AudioRig(const AudioRig&) = delete;
 	AudioRig& operator=(const AudioRig&) = delete;
@@ -353,12 +366,20 @@ struct AudioRig {
 		if (clip_writes != nullptr) {
 			c.ports.clip_writes = clip_writes;
 		}
+		if (waveforms != nullptr) {
+			c.ports.waveforms = waveforms;
+		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
 	}
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 	void turn_select(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+	}
+
+	/// @brief The waveform the editor opens on: the clip's.
+	[[nodiscard]] bind::WaveformAddress address() const {
+		return {.kind = bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = deluge::project::ClipAddress{f.clip->id()}};
 	}
 
 	/// @brief The descriptor record's markers, as a save writes them.

@@ -188,7 +188,7 @@ struct PreviewSound {
 };
 
 /// @brief The app's waveforms port, as the app's ports hold it.
-const bind::Waveforms& host_waveforms_port() {
+const bind::Waveforms& app_waveforms() {
 	return *menu::host_ports().waveforms;
 }
 } // namespace
@@ -917,7 +917,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		currentSong = synth.song;
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE, .slot = slot, .source = 0, .range = 0};
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		expect(waveforms.info(range).has_value()).to_be_false();
 
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
@@ -966,7 +966,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,
 		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()}};
 		const int64_t zoom = ((kSampleLength - 1) >> 4) + 1;
-		const deluge::sample_view::PeakRead through = host_waveforms_port().peaks(range, {.scroll = 0, .zoom = zoom});
+		const deluge::sample_view::PeakRead through = app_waveforms().peaks(range, {.scroll = 0, .zoom = zoom});
 		deluge::sample_view::PeakCache cache;
 		const deluge::sample_view::PeakRead direct =
 		    deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
@@ -1008,7 +1008,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		sample->maxValueFound = INT32_MIN;
 		sample->minValueFound = INT32_MAX;
 		RangeHeld held(sample);
-		(void)host_waveforms_port().peaks(held.address, {.scroll = 0, .zoom = kWholeZoom});
+		(void)app_waveforms().peaks(held.address, {.scroll = 0, .zoom = kWholeZoom});
 		expect(sample->maxValueFound).to_equal(kFreshMax);
 		expect(sample->minValueFound).to_equal(kFreshMin);
 	});
@@ -1020,8 +1020,8 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		sample->minValueFound = INT32_MAX;
 		RangeHeld held(sample);
 		const int64_t zoom = kClusterSize;
-		(void)host_waveforms_port().peaks(held.address, {.scroll = 0, .zoom = zoom});
-		(void)host_waveforms_port().peaks(held.address, {.scroll = 3 * zoom, .zoom = zoom});
+		(void)app_waveforms().peaks(held.address, {.scroll = 0, .zoom = zoom});
+		(void)app_waveforms().peaks(held.address, {.scroll = 3 * zoom, .zoom = zoom});
 		expect(sample->maxValueFound).to_equal(kScrolledMax);
 		expect(sample->minValueFound).to_equal(kScrolledMin);
 	});
@@ -1043,9 +1043,9 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("answers every column of a window over the whole sample PEAK, or PAST_END from the length on", _ {
 		RangeHeld held(make_sample());
-		const PeakRead whole = host_waveforms_port().peaks(held.address, {.scroll = 0, .zoom = kWholeZoom});
+		const PeakRead whole = app_waveforms().peaks(held.address, {.scroll = 0, .zoom = kWholeZoom});
 		expect(count_of(whole, ColumnState::PEAK)).to_equal(16);
-		const PeakRead wider = host_waveforms_port().peaks(held.address, {.scroll = 0, .zoom = 2 * kWholeZoom});
+		const PeakRead wider = app_waveforms().peaks(held.address, {.scroll = 0, .zoom = 2 * kWholeZoom});
 		for (int32_t c = 0; c < 8; c++) {
 			expect(wider.column(c).state()).to_equal(ColumnState::PEAK);
 		}
@@ -1113,14 +1113,14 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("Q3: answers a window whose zoom is below 1 every column PAST_END through the host", _ {
 		RangeHeld held(make_sample());
-		expect(host_waveforms_port().peaks(held.address, {.scroll = 5, .zoom = 0})).to_equal(PeakRead::all_past_end());
+		expect(app_waveforms().peaks(held.address, {.scroll = 5, .zoom = 0})).to_equal(PeakRead::all_past_end());
 	});
 
 	it("Q22: reads a column straddling the start from frame 0, and one wholly before it as PAST_END", _ {
 		// Q22. At two clusters a column, the straddling column 0 covers frames -3 to 32764 and takes the whole first
 		// cluster's overview peak; a column narrower than a cluster reads frames the fixture's sample has not.
 		RangeHeld held(make_sample());
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		const PeakRead straddling = waveforms.peaks(held.address, {.scroll = -3, .zoom = kWholeZoom});
 		expect(straddling.column(0)).to_equal(ColumnRead::of({.min = -16 << 24, .max = 16 << 24}));
 		const PeakRead before = waveforms.peaks(held.address, {.scroll = -16, .zoom = 8});
@@ -1143,7 +1143,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		audio.clip->recorder = recorder;
 		const WaveformAddress clip{.kind = WaveformAddress::Kind::AUDIO_CLIP,
 		                           .clip = deluge::project::ClipAddress{audio.clip->id()}};
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		const std::optional<bind::WaveformInfo> info = waveforms.info(clip);
 		expect(info.has_value()).to_be_true();
 		if (info.has_value()) {
@@ -1170,13 +1170,13 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const Window whole{.scroll = 0, .zoom = kWholeZoom};
 		Sample* const first = make_sample(kNumClusters, memory);
 		RangeHeld held(first);
-		const PeakRead before = host_waveforms_port().peaks(held.address, whole);
+		const PeakRead before = app_waveforms().peaks(held.address, whole);
 		held.multisample->sampleHolder.audioFile = nullptr;
 		first->~Sample();
 		Sample* const second = make_sample(kNumClusters, memory, 20); // the same length, other peaks
 		expect(static_cast<void*>(second)).to_equal(memory);
 		held.multisample->sampleHolder.audioFile = second;
-		const PeakRead after = host_waveforms_port().peaks(held.address, whole);
+		const PeakRead after = app_waveforms().peaks(held.address, whole);
 		PeakCache fresh;
 		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh);
 		expect(count_of(own, ColumnState::PEAK)).to_equal(16);
@@ -1200,12 +1200,12 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		audio.clip->recorder = recorder;
 		Sample* const first = make_sample(kNumClusters, memory);
 		recorder->sample = first;
-		const PeakRead before = host_waveforms_port().peaks(clip, whole);
+		const PeakRead before = app_waveforms().peaks(clip, whole);
 		first->~Sample();
 		Sample* const second = make_sample(kNumClusters, memory, 20); // a take aborted and recorded again
 		expect(static_cast<void*>(second)).to_equal(memory);
 		recorder->sample = second;
-		const PeakRead after = host_waveforms_port().peaks(clip, whole);
+		const PeakRead after = app_waveforms().peaks(clip, whole);
 		PeakCache fresh;
 		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh, recorder);
 		expect(count_of(own, ColumnState::PEAK)).to_equal(5);
@@ -1216,7 +1216,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 	});
 
 	it("answers every column PAST_END at an address that resolves to nothing", _ {
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		PreviewSound sound;
 		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
 		expect(waveforms.peaks(preview, {.scroll = 0, .zoom = kWholeZoom})).to_equal(PeakRead::all_past_end());
@@ -1226,7 +1226,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("answers the preview sample under PREVIEW, and nothing with no preview loaded", _ {
 		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		PreviewSound sound;
 		expect(waveforms.info(preview).has_value()).to_be_false();
 		Sample* sample = make_sample();
@@ -1245,7 +1245,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("gives two previewed files two identities", _ {
 		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		PreviewSound sound;
 		sound.hold(make_sample());
 		const std::optional<bind::WaveformInfo> first = waveforms.info(preview);
@@ -1261,7 +1261,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("paints the preview's main columns as legacy's full-screen renderer does", _ {
 		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		PreviewSound sound;
 		Sample* sample = make_sample();
 		sound.hold(sample);
@@ -1313,7 +1313,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 	});
 
 	it("resolves a range, an audio clip and the preview to the sample their holder holds", _ {
-		const bind::Waveforms& waveforms = host_waveforms_port();
+		const bind::Waveforms& waveforms = app_waveforms();
 		Sample* const in_range = make_sample();
 		RangeHeld held(in_range);
 		const std::optional<bind::WaveformInfo> range = waveforms.info(held.address);
@@ -1357,7 +1357,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		recorder->sample = take;
 		recorder->numSamplesCaptured = static_cast<uint32_t>(kWholeZoom);
 		audio.clip->recorder = recorder;
-		const std::optional<bind::WaveformInfo> info = host_waveforms_port().info(
+		const std::optional<bind::WaveformInfo> info = app_waveforms().info(
 		    {.kind = WaveformAddress::Kind::AUDIO_CLIP, .clip = deluge::project::ClipAddress{audio.clip->id()}});
 		expect(info.has_value()).to_be_true();
 		if (info.has_value()) {

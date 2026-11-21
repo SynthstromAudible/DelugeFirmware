@@ -22,7 +22,7 @@
 ///   * its lock icon + `invertArea` -> `ui::oled::title_badge`.
 ///   * its time and sample-count lines -> `ui::oled::sample_position`.
 ///
-/// The read and the navigation are not widgets: the read goes through the waveform service
+/// The read and the navigation are not widgets: the read goes through the context's waveforms port
 /// (`scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the navigation
 /// is `sample_view::WaveformView` (`sample-view/view.h`). The scene keeps no columns: a frame with pending ones asks
 /// for another (`services::PeakRetry`).
@@ -94,6 +94,7 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
+#include "deluge-project/device_settings.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 
@@ -203,8 +204,6 @@ public:
 	bool sliding() const { return zoom_pending_.has_value() || zoom_.active; }
 	/// @brief The last zoom slide begun, running or not.
 	const deluge::ui::grid::ZoomTransition& zoom_slide() const { return zoom_; }
-	/// @brief Read waveforms from @p waveforms in place of the host's, or the host's again with null. For specs.
-	void set_waveforms(const bind::Waveforms* waveforms) { waveforms_override_ = waveforms; }
 	/// @brief The zone's markers in zone order, each with its frame and the column it lands on now, as
 	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
 	///        them: a start marker by its first frame, an end marker by its last.
@@ -316,10 +315,18 @@ private:
 	bool holding_ = false;
 	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
 	bool xenc_held_ = false;
-	/// A spec's waveforms, in place of the host's.
-	const bind::Waveforms* waveforms_override_ = nullptr;
-	/// The waveforms the editor reads: the host's, unless a spec gave its own.
-	const bind::Waveforms& waveforms() const;
+	/// @brief The waveforms the editor reads: its context's port.
+	/// @return The port; null where the context has none, which `can` refuses.
+	[[nodiscard]] const bind::Waveforms* waveforms() const { return ctx_.ports.waveforms; }
+	/// @brief What the waveform the markers sit on is.
+	/// @return The info; none where the context has no waveforms port or no file is loaded there.
+	[[nodiscard]] std::optional<bind::WaveformInfo> waveform_info() const;
+	/// @brief Where a voice plays in the waveform the markers sit on.
+	/// @return The frame; none where the context has no waveforms port or nothing plays there.
+	[[nodiscard]] std::optional<int64_t> play_position() const;
+	/// @brief How the playhead is shown: the device's `pads/playCursor` row through the context's device port; Slow,
+	///        the row's default, with no device port.
+	[[nodiscard]] deluge::project::FlashCursor play_cursor() const;
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.

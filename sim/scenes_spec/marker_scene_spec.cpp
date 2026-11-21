@@ -96,6 +96,7 @@
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in.
 #include "support/card_access.h"
+#include "support/fake_host_rig.h"
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/project_address_printer.h"
@@ -269,30 +270,40 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 	expect(d.count).to_equal(0);
 }
 
-/// @brief The host's waveforms, passed through, with each frame's read counted. `length` reports another length, a
-///        file past what 32 bits count over the fixture's sample; `pending_once` answers that column PENDING on the
-///        first read.
-struct Through final : deluge::scenes::bind::Waveforms {
-	std::optional<uint64_t> length;
-	std::optional<int32_t> pending_once;
+/// @brief A fake holding the host's waveform at @p at: its info, and its peaks over the whole-waveform window, which is
+///        the window the editor opens on with no view remembered.
+/// @param length The length the fake answers in place of the host's, when given.
+bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::optional<uint64_t> length = std::nullopt) {
+	const bind::Waveforms& host = *menu::host_ports().waveforms;
+	const int64_t whole =
+	    deluge::sample_view::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
+	                                  deluge::sample_view::kColumns);
+	const deluge::sample_view::PeakRead read = host.peaks(at, {.scroll = 0, .zoom = std::max<int64_t>(1, whole)});
+	bind::test::FakeWaveforms::Entry entry{.at = at, .info = host.info(at).value_or(bind::WaveformInfo{})};
+	for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+		entry.peaks[static_cast<size_t>(c)] = read.column(c).peak().value_or(deluge::sample_view::Peak{});
+	}
+	if (length) {
+		entry.info.length_samples = *length;
+	}
+	bind::test::FakeWaveforms fake;
+	fake.waveforms.push_back(entry);
+	return fake;
+}
+
+/// @brief The host's waveforms, passed through, with each read counted: the read's own widening of the running range
+///        is the host's.
+struct Counted final : bind::Waveforms {
 	mutable int32_t reads = 0;
-	[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
-	info(const deluge::scenes::bind::WaveformAddress& a) const override {
-		std::optional<deluge::scenes::bind::WaveformInfo> i = menu::host_waveforms().info(a);
-		if (i && length) {
-			i->length_samples = *length;
-		}
-		return i;
+	[[nodiscard]] std::optional<bind::WaveformInfo> info(const bind::WaveformAddress& a) const override {
+		return menu::host_ports().waveforms->info(a);
 	}
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress& a,
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const bind::WaveformAddress& a,
 	                                                  deluge::sample_view::Window at) const override {
-		deluge::sample_view::PeakRead read = menu::host_waveforms().peaks(a, at);
-		if (reads++ == 0 && pending_once) {
-			read.set(*pending_once, deluge::sample_view::ColumnRead::pending());
-		}
-		return read;
+		reads++;
+		return menu::host_ports().waveforms->peaks(a, at);
 	}
-	[[nodiscard]] std::optional<int64_t> play_position(const deluge::scenes::bind::WaveformAddress&) const override {
+	[[nodiscard]] std::optional<int64_t> play_position(const bind::WaveformAddress&) const override {
 		return std::nullopt;
 	}
 };
@@ -316,6 +327,82 @@ deluge::sample_view::MarkerPin pin_of(MarkerType m) {
 	return marker_scene().pins()[static_cast<size_t>(m)];
 }
 
+/// @brief The editor over the ports' fakes and a model song of its own: a synth whose source 0 plays one range, with a
+///        zone over 1000 frames, and a fake waveform of 1000 frames there. No legacy song or host port is read.
+struct FakeMarkerRig {
+	spec::FakeHostRig fakes;
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake;
+	Shell shell;
+	/// The synth's range, where the waveform is.
+	static constexpr bind::WaveformAddress kRange{
+	    .kind = bind::WaveformAddress::Kind::RANGE, .slot = spec::FakeHostRig::kSynthSlot, .source = 0, .range = 0};
+	/// The synth clip, as an audio clip's address.
+	static constexpr bind::WaveformAddress kClip{.kind = bind::WaveformAddress::Kind::AUDIO_CLIP,
+	                                             .clip = spec::FakeHostRig::kSynthClip};
+	/// A finished mono file of 1000 frames, its bars centred on 0, one pad a 2^24 range (Q8.24).
+	static constexpr bind::WaveformInfo kInfo{
+	    .length_samples = 1000, .sample_rate = 44100, .channels = 1, .centre = 0, .span = 1 << 24, .identity = 1};
+
+	FakeMarkerRig(const FakeMarkerRig&) = delete;
+	FakeMarkerRig& operator=(const FakeMarkerRig&) = delete;
+	FakeMarkerRig()
+	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
+	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		using deluge::instrument::SourceId;
+		const deluge::instrument::SoundState sample =
+		    deluge::test::with_kind(deluge::instrument::SoundState{}, SourceId::A, deluge::instrument::OscType::SAMPLE);
+		fakes.hold_synth(deluge::instrument::with_ranges(
+		    sample, SourceId::A,
+		    {deluge::instrument::RangeState{.top_note = deluge::instrument::kOpenTopNote,
+		                                    .file_path = "SAMPLES/a.wav",
+		                                    .start_pos = 0,
+		                                    .end_pos = 1000}}));
+		fakes.model.getOrCreateDocAudioClip(spec::FakeHostRig::kSynthClip).end_pos = 1000;
+		fakes.host.waveforms.waveforms.push_back({.at = kRange, .info = kInfo});
+		fakes.host.waveforms.waveforms.push_back({.at = kClip, .info = kInfo});
+	}
+	~FakeMarkerRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(SceneKind::Null);
+		}
+	}
+
+	/// @brief The sound root's context over the synth's source 0: its one range resolved.
+	[[nodiscard]] MenuContext range_context() { return fakes.synth_context(); }
+	/// @brief The synth clip's context, as an audio clip's.
+	[[nodiscard]] MenuContext clip_context() {
+		MenuContext ctx = fakes.synth_context();
+		ctx.is_audio_clip = true;
+		ctx.addresses.clip = spec::FakeHostRig::kSynthClip;
+		return ctx;
+	}
+	/// @brief Open the editor over @p ctx on @p marker.
+	void open(const MenuContext& ctx, MarkerType marker) {
+		marker_scene().open(ctx);
+		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
+	}
+	void tick(uint32_t at_ms) { shell.tick(at_ms); }
+	/// @brief One detent of the select encoder.
+	void turn_select(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+	}
+	void pad(int32_t x, int32_t y, bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
+		                                      static_cast<int16_t>(on ? 255 : 0)},
+		                     at_ms);
+	}
+	/// @brief Whether the editor is on the shell's stack.
+	[[nodiscard]] bool editing() {
+		for (const deluge::ui::shell::Scene* sc : shell.stack().scenes()) {
+			if (sc->kind() == kMarkerSceneKind) {
+				return true;
+			}
+		}
+		return false;
+	}
+};
+
 } // namespace
 
 // clang-format off
@@ -326,6 +413,97 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		if (display == nullptr) {
 			display = &d;
 		}
+	});
+
+	context("on fakes", _ {
+		it("refuses to open with no waveform at the range, and with no waveforms port", _ {
+			FakeMarkerRig r;
+			MenuContext ctx = r.range_context();
+			expect(ctx.range_index).to_equal(int16_t{0});
+			expect(MarkerScene::can(ctx)).to_be_true();
+			ctx.ports.waveforms = nullptr;
+			expect(MarkerScene::can(ctx)).to_be_false();
+			r.fakes.host.waveforms.waveforms.clear();
+			expect(MarkerScene::can(r.range_context())).to_be_false();
+		});
+
+		it("writes a sound's start moved by the select encoder to the sound port, as a marker's move", _ {
+			FakeMarkerRig r;
+			r.open(r.range_context(), MarkerType::START);
+			r.tick(0);
+			r.turn_select(1, 10);
+			r.tick(10);
+			expect(r.fakes.host.sound_writes.calls.size()).to_equal(size_t{1});
+			if (!r.fakes.host.sound_writes.calls.empty()) {
+				const bind::test::RecordingSoundWrites::Call& call = r.fakes.host.sound_writes.calls[0];
+				expect(call.slot).to_equal(spec::FakeHostRig::kSynthSlot);
+				expect(call.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
+				                                              .marker = static_cast<int8_t>(MarkerType::START)});
+				expect(call.ranges.size()).to_equal(size_t{1});
+				if (!call.ranges.empty()) {
+					expect(call.ranges[0].start_pos).to_be_greater_than(uint64_t{0});
+				}
+			}
+		});
+
+		it("asks the clip port to move an audio clip's start", _ {
+			FakeMarkerRig r;
+			r.open(r.clip_context(), MarkerType::START);
+			r.tick(0);
+			r.turn_select(1, 10);
+			r.tick(10);
+			expect(r.fakes.host.clip_writes.calls.size()).to_equal(size_t{1});
+			if (!r.fakes.host.clip_writes.calls.empty()) {
+				const bind::test::RecordingClipWrites::Call& call = r.fakes.host.clip_writes.calls[0];
+				expect(call.kind).to_equal(bind::test::RecordingClipWrites::Call::Kind::MARKER);
+				expect(call.clip).to_equal(spec::FakeHostRig::kSynthClip);
+				expect(call.path).to_equal(std::string{"startSamplePos"});
+			}
+			expect(r.fakes.host.sound_writes.calls.size()).to_equal(size_t{0});
+		});
+
+		it("asks for the playhead while a voice plays only with the device's flash cursor on", _ {
+			// 15 ms is `kPlayheadMs`: `graphicsRoutine`'s every pass.
+			FakeMarkerRig r;
+			const deluge::project::DevicePath cursor = deluge::project::device_path::kPlayCursor;
+			expect(static_cast<int>(r.fakes.host.device.write(cursor, std::to_underlying(deluge::project::FlashCursor::OFF))))
+			    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+			r.open(r.range_context(), MarkerType::END);
+			r.tick(0);
+			r.fakes.host.waveforms.waveforms[0].position = 500;
+			expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
+			expect(static_cast<int>(r.fakes.host.device.write(cursor, std::to_underlying(deluge::project::FlashCursor::SLOW))))
+			    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+			expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
+		});
+
+		it("refuses the mute column's exit while the UI port says a note auditions, and exits on it otherwise", _ {
+			FakeMarkerRig r;
+			r.open(r.range_context(), MarkerType::START);
+			r.tick(0);
+			r.fakes.host.ui.auditioning_now = true;
+			r.pad(kDisplayWidth, 0, true, 10);
+			r.tick(10);
+			expect(r.editing()).to_be_true();
+			r.pad(kDisplayWidth, 0, false, 20);
+			r.fakes.host.ui.auditioning_now = false;
+			r.pad(kDisplayWidth, 0, true, 30);
+			r.tick(30);
+			expect(r.editing()).to_be_false();
+		});
+
+		it("reads the waveform once a frame, at the view's window", _ {
+			FakeMarkerRig r;
+			r.open(r.range_context(), MarkerType::START);
+			r.tick(0);
+			const deluge::sample_view::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
+			expect(window.zoom).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			expect(r.fakes.host.waveforms.reads.size()).to_equal(size_t{1});
+			if (!r.fakes.host.waveforms.reads.empty()) {
+				expect(r.fakes.host.waveforms.reads[0])
+				    .to_equal(bind::test::FakeWaveforms::Read{.at = FakeMarkerRig::kRange, .in = window});
+			}
+		});
 	});
 
 	// --- composition --------------------------------------------------------------------------
@@ -1047,32 +1225,18 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.x_enc_button(false, 30);
 		}
 
-		struct Gone final : deluge::scenes::bind::Waveforms {
-			[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
-			info(const deluge::scenes::bind::WaveformAddress&) const override {
-				return std::nullopt;
-			}
-			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress&,
-			                                                  deluge::sample_view::Window) const override {
-				return deluge::sample_view::PeakRead::all_past_end();
-			}
-			[[nodiscard]] std::optional<int64_t>
-			play_position(const deluge::scenes::bind::WaveformAddress&) const override {
-				return std::nullopt;
-			}
-		};
 		Rig q;
+		bind::test::FakeWaveforms gone = host_fake(q.address());
+		q.waveforms = &gone;
 		q.open(MarkerType::START);
 		q.tick(0);
 		q.x_enc_button(true, 10);
 		q.turn_horizontal(1, 20);
 		q.tick(20);
 		expect(marker_scene().sliding()).to_be_true();
-		Gone gone;
-		marker_scene().set_waveforms(&gone);
+		gone.waveforms.clear(); // the file is gone from under the editor
 		q.tick(80);
 		expect(marker_scene().sliding()).to_be_false();
-		marker_scene().set_waveforms(nullptr);
 		q.x_enc_button(false, 90);
 	});
 
@@ -1254,26 +1418,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
 		// `graphicsRoutine` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): `(pos - xScroll) / xZoom`, all
 		// eight rows, through `PadLEDs::setTickSquares`.
-		struct Playing final : deluge::scenes::bind::Waveforms {
-			std::optional<int64_t> pos;
-			[[nodiscard]] std::optional<deluge::scenes::bind::WaveformInfo>
-			info(const deluge::scenes::bind::WaveformAddress& a) const override {
-				return menu::host_waveforms().info(a);
-			}
-			[[nodiscard]] deluge::sample_view::PeakRead peaks(const deluge::scenes::bind::WaveformAddress& a,
-			                                                  deluge::sample_view::Window at) const override {
-				return menu::host_waveforms().peaks(a, at);
-			}
-			[[nodiscard]] std::optional<int64_t>
-			play_position(const deluge::scenes::bind::WaveformAddress&) const override {
-				return pos;
-			}
-		};
-		Playing playing;
-		marker_scene().set_waveforms(&playing);
 		const uint8_t saved = PadLEDs::flashCursor;
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 		Rig r;
+		bind::test::FakeWaveforms playing = host_fake(r.address());
+		r.waveforms = &playing;
 		r.open(MarkerType::END);
 		r.tick(0);
 		if (marker_scene().next_timer().has_value()) {
@@ -1281,7 +1430,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 		// A voice that starts after a render is found by the timer, with no other event (`graphicsRoutine` runs every
 		// pass).
-		playing.pos = 7 * kZoomMax;
+		playing.waveforms[0].position = 7 * kZoomMax;
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(1);
 		r.tick(20);
@@ -1296,7 +1445,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(40);
 		expect(r.fake.grid().grid().at(7, 0)).not_().to_equal(tick);
 		expect(r.fake.flashes_sent.size()).to_equal(from);
-		playing.pos = 9 * kZoomMax;
+		playing.waveforms[0].position = 9 * kZoomMax;
 		r.tick(60);
 		size_t at_nine = 0;
 		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
@@ -1307,25 +1456,24 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// Off: nothing, and nothing asked for.
 		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		from = r.fake.flashes_sent.size();
-		playing.pos = 11 * kZoomMax;
+		playing.waveforms[0].position = 11 * kZoomMax;
 		r.tick(80);
 		expect(r.fake.grid().grid().at(11, 0)).not_().to_equal(tick);
 		expect(r.fake.flashes_sent.size()).to_equal(from);
 		expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
 		// The voice ends under Slow: one more frame, which clears the playhead, and then no more.
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
-		playing.pos = 7 * kZoomMax;
+		playing.waveforms[0].position = 7 * kZoomMax;
 		r.tick(100);
 		r.tick(120);
 		expect(r.fake.grid().grid().at(7, 0)).to_equal(tick);
-		playing.pos.reset();
+		playing.waveforms[0].position.reset();
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(140);
 		r.tick(160);
 		expect(r.fake.grid().grid().at(7, 0)).not_().to_equal(tick);
 		expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
 		PadLEDs::flashCursor = saved;
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("adds a loop start by holding START and tapping to its right", _ {
@@ -1944,10 +2092,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	// --- the fixed quirks ----------------------------------------------------------------------
 
 	it("Q23: maps a file past 2^31 frames' markers to their own columns, in 64 bits", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		Rig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
@@ -1958,14 +2105,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(pin_of(MarkerType::START).column).to_equal(std::optional<int64_t>{0});            // floor(7 / 2^20)
 		expect(pin_of(MarkerType::END).column).to_equal(std::optional<int64_t>{2048});           // floor((2^31 + 4) / 2^20)
 		expect(pin_of(MarkerType::START).position).to_equal(static_cast<int64_t>((uint64_t{1} << 31) + 7));
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q23: writes an end marker pressed past 2^31 frames at its own position", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		Rig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		bind::test::RecordingSoundWrites recording;
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
@@ -1979,14 +2124,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		if (!recording.calls.empty() && !recording.calls[0].ranges.empty()) {
 			expect(recording.calls[0].ranges[0].end_pos).to_equal((uint64_t{1} << 31) + 16 * (uint64_t{1} << 20));
 		}
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q23: clamps a loop end written past what the record stores to UINT32_MAX", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		Rig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		bind::test::RecordingSoundWrites recording;
 		constexpr int64_t kZoom = int64_t{1} << 20;
 		constexpr int64_t kScroll = (int64_t{1} << 32) + 3 - 4 * kZoom; // column 3 ends at 2^32 + 3
@@ -2003,14 +2146,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		if (!recording.calls.empty() && !recording.calls[0].ranges.empty()) {
 			expect(recording.calls[0].ranges[0].loop_end_pos).to_equal(std::numeric_limits<uint32_t>::max());
 		}
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q23: asks for an audio clip's start written past 2^31 frames as INT32_MAX", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		AudioRig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		bind::test::RecordingClipWrites clip_writes;
 		constexpr int64_t kZoom = int64_t{1} << 20;
 		r.f.clip->setSampleStartPos((uint64_t{1} << 31) - kZoom + 9); // column 2047 at a scroll of 9
@@ -2029,14 +2170,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(clip_writes.calls[0].path).to_equal(std::string{"startSamplePos"});
 			expect(clip_writes.calls[0].value).to_equal(int64_t{std::numeric_limits<int32_t>::max()});
 		}
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q23: shows a start past 2^31 frames as its own sample count", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		Rig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
@@ -2050,14 +2189,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		                            2 * deluge::ui::oled::kSamplePositionLineGap},
 		    2147483655, 44100);
 		expect(r.oled()).to_equal(reference.pbm());
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q25: refuses a locked loop's move or doubling whose end would pass UINT32_MAX", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		Rig r;
+		bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+		r.waveforms = &long_file;
 		bind::test::RecordingSoundWrites recording;
 		constexpr uint32_t kLoopStart = std::numeric_limits<uint32_t>::max() - 99; // 2^32 - 100
 		constexpr uint32_t kLoopEnd = std::numeric_limits<uint32_t>::max() - 9;    // 2^32 - 10
@@ -2084,15 +2221,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		const std::vector<uint16_t> doubled = popups_of(d.horizontal(1, /*shift=*/true));
 		expect(doubled).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_TOO_LONG)});
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q26: pins a zoom's slide by the 64-bit scroll difference", _ {
-		Through long_file;
-		long_file.length = kLongLength;
-		marker_scene().set_waveforms(&long_file);
 		const auto pin_after = [](int64_t scroll, int64_t zoom, int32_t turn) {
 			Rig r;
+			bind::test::FakeWaveforms long_file = host_fake(r.address(), kLongLength);
+			r.waveforms = &long_file;
 			r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 			r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 			r.remembered = {.scroll = scroll, .zoom = zoom};
@@ -2115,13 +2250,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const auto [out_pin, out_expected] = pin_after(int64_t{1} << 32, int64_t{1} << 28, -1);
 		expect(out_expected).to_equal(int64_t{1} << 20);
 		expect(out_pin).to_equal(out_expected);
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q27: scales its first frame by the range its read widened", _ {
-		Through counted;
-		marker_scene().set_waveforms(&counted);
+		Counted counted;
 		Rig r;
+		r.waveforms = &counted;
 		r.sample->maxValueFound = INT32_MIN; // the constructor's empty range
 		r.sample->minValueFound = INT32_MAX;
 		r.open(MarkerType::START);
@@ -2130,23 +2264,23 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(200); // the blink's next phase draws again
 		expect(counted.reads).to_equal(2);
 		expect(main_pads_differ(first, r.fake.grid().grid())).to_equal(0);
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q28: draws again while a column is pending, and fills it in", _ {
-		Through pending;
-		pending.pending_once = 3;
-		marker_scene().set_waveforms(&pending);
 		Rig r;
+		bind::test::FakeWaveforms pending = host_fake(r.address());
+		pending.waveforms[0].pending.set(3);
+		pending.waveforms[0].pending_reads = 1;
+		r.waveforms = &pending;
 		r.open(MarkerType::START);
 		r.tick(0);
-		expect(pending.reads).to_equal(1);
+		expect(pending.reads.size()).to_equal(size_t{1});
 		for (uint8_t y = 0; y < kDisplayHeight; y++) {
 			expect(r.fake.grid().grid().at(3, y)).to_equal(RGB{});
 		}
 		expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{services::kPeakRetryPollMs});
 		r.tick(services::kPeakRetryPollMs);
-		expect(pending.reads).to_equal(2);
+		expect(pending.reads.size()).to_equal(size_t{2});
 		int32_t lit = 0;
 		for (uint8_t y = 0; y < kDisplayHeight; y++) {
 			lit += r.fake.grid().grid().at(3, y) == RGB{} ? 0 : 1;
@@ -2156,7 +2290,6 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		if (r.shell.next_wake().has_value()) {
 			expect(*r.shell.next_wake()).to_be_greater_than(2 * services::kPeakRetryPollMs);
 		}
-		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("Q29: draws a re-entry's first frame from the columns the host kept for the file", _ {

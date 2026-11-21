@@ -18,7 +18,6 @@
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/waveforms.h"
-#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
@@ -97,12 +96,6 @@ const std::array<RGB, kNumMarkerTypes> kMarkerColours{
 /// title face is taller.
 int32_t body_y(const deluge::ui::oled::OledFrame& f) {
 	return f.style.title_height + 5;
-}
-
-/// @brief How the playhead is shown: the device's `pads/playCursor` row; Slow, the row's default, with no device port.
-deluge::project::FlashCursor play_cursor() {
-	return bind::read_device<deluge::project::FlashCursor>(menu::host_ports().device,
-	                                                       deluge::project::device_path::kPlayCursor);
 }
 
 } // namespace
@@ -241,7 +234,7 @@ bool MarkerScene::can(const menu::MenuContext& ctx) {
 	// `LoopPoint::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) before
 	// it ever opens: no file loaded where the context points, or nowhere to point.
 	const std::optional<bind::WaveformAddress> address = address_of(ctx);
-	return address && menu::host_waveforms().info(*address).has_value();
+	return address && ctx.ports.waveforms != nullptr && ctx.ports.waveforms->info(*address).has_value();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -270,7 +263,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	where_ = *address_of(ctx_);
 	view_key_ = view_key_of();
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
-	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	const services::SampleView remembered = view();
 	view_ = sample_view::WaveformView::open(
 	    info->length_samples,
@@ -881,7 +874,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
-	if (const std::optional<bind::WaveformInfo> info = waveforms().info(where_)) {
+	if (const std::optional<bind::WaveformInfo> info = waveform_info()) {
 		follow_waveform(*info);
 	}
 
@@ -1019,8 +1012,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 		next = kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
-	if (playing_
-	    || (play_cursor() != deluge::project::FlashCursor::OFF && waveforms().play_position(where_).has_value())) {
+	if (playing_ || (play_cursor() != deluge::project::FlashCursor::OFF && play_position().has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
 	return next;
@@ -1031,7 +1023,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	if (!info) {
 		return;
 	}
@@ -1077,7 +1069,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	const std::optional<bind::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	if (!info) {
 		// Nothing to slide or to play: a slide left running would hold every input refused.
 		zoom_pending_.reset();
@@ -1101,7 +1093,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			deluge::ui::grid::GridFrame bare =
 			    deluge::ui::grid::root_grid_frame(to, f.ctx, deluge::ui::InputMask::none(), nullptr, nullptr, true);
 			if (const std::optional<services::WaveformFrame> wf =
-			        services::read_waveform(waveforms(), where_, view_.window())) {
+			        services::read_waveform(*waveforms(), where_, view_.window())) {
 				services::paint_columns(bare, wf->read, wf->centre, wf->span);
 			}
 		}
@@ -1120,7 +1112,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// could not give paints black this frame, and the frame asks again for it.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 		if (const std::optional<services::WaveformFrame> wf =
-		        services::read_waveform(waveforms(), where_, view_.window())) {
+		        services::read_waveform(*waveforms(), where_, view_.window())) {
 			services::paint_columns(main, wf->read, wf->centre, wf->span);
 			if (retry_.after(wf->read, f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
 				f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
@@ -1212,7 +1204,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
-	const std::optional<int64_t> pos = waveforms().play_position(where_);
+	const std::optional<int64_t> pos = play_position();
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= view_.scroll()) {
 		const int64_t col = sample_view::floor_div(*pos - view_.scroll(), view_.zoom());
@@ -1227,8 +1219,19 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
-const bind::Waveforms& MarkerScene::waveforms() const {
-	return waveforms_override_ != nullptr ? *waveforms_override_ : menu::host_waveforms();
+std::optional<bind::WaveformInfo> MarkerScene::waveform_info() const {
+	const bind::Waveforms* w = waveforms();
+	return w != nullptr ? w->info(where_) : std::nullopt;
+}
+
+std::optional<int64_t> MarkerScene::play_position() const {
+	const bind::Waveforms* w = waveforms();
+	return w != nullptr ? w->play_position(where_) : std::nullopt;
+}
+
+deluge::project::FlashCursor MarkerScene::play_cursor() const {
+	return bind::read_device<deluge::project::FlashCursor>(ctx_.ports.device,
+	                                                       deluge::project::device_path::kPlayCursor);
 }
 
 MarkerScene& marker_scene() {

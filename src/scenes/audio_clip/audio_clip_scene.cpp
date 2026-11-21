@@ -150,7 +150,7 @@ deluge::scenes::bind::WaveformAddress AudioClipScene::waveform() const {
 
 bool AudioClipScene::has_sample() const {
 	// `getSample()` (`audio_clip_view.cpp`): the take while recording linearly, else the file.
-	return clip_ && menu::host_waveforms().info(waveform()).has_value();
+	return clip_ && ports_.waveforms != nullptr && ports_.waveforms->info(waveform()).has_value();
 }
 
 std::optional<deluge::project::TrackAddress> AudioClipScene::track() const {
@@ -1121,8 +1121,9 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
 	const int32_t tick_col = compute_tick_square();
 
+	const deluge::scenes::bind::Waveforms* waveforms = ports_.waveforms;
 	const std::optional<deluge::scenes::bind::WaveformInfo> info =
-	    clip_ ? menu::host_waveforms().info(waveform()) : std::nullopt;
+	    clip_ && waveforms != nullptr ? waveforms->info(waveform()) : std::nullopt;
 	const std::optional<deluge::scenes::bind::AudioClipFact> clip_fact = fact();
 	// `renderMainPads`' two "just clear the display" arms: no sample, or no clip. The
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
@@ -1160,9 +1161,9 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		// clear** (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
 		// the image untouched and legacy asks to come back later. The port draws nothing for the
 		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again.
+		// `info` came through the port, so the port is here.
 		const std::optional<deluge::scenes::services::WaveformFrame> wf = deluge::scenes::services::read_waveform(
-		    menu::host_waveforms(), waveform(),
-		    deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
+		    *waveforms, waveform(), deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
 		if (wf && retry_.after(wf->read, f.now_ms()) == deluge::scenes::services::PeakRetry::Next::ASK_AGAIN) {
 			f.grid_gate().request_repaint_after(deluge::scenes::services::kPeakRetryPollMs, f.now_ms());
 		}
