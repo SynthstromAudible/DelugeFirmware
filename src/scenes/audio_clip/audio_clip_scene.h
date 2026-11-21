@@ -91,8 +91,8 @@
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp`), which
 /// is the driver-side substitution this widget is the port of.
 ///
-/// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
-///       `UiFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
+/// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the device port's
+///       `pads/playCursor` row: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
 ///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
 ///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
 ///       colourless for a muted row.

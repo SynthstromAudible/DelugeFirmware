@@ -1244,7 +1244,8 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // The one setting, which legacy reads directly and the port through `UiFacts::flash_cursor`.
+		        // The one setting, which legacy reads directly and the port through the device port's
+		        // `pads/playCursor` row.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.tick(1);

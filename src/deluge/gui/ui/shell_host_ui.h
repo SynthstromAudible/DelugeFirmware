@@ -252,8 +252,9 @@ namespace deluge::gui::ui {
 ///    `ShiftIsSticky::writeCurrentValue` mirrors a live change.
 ///  - **`hold_time_ms`.** `feed()` seats `FlashStorage::holdTime` (audio samples) through
 ///    `InputLowering::set_hold_time_ms` on every pad and button, which is where legacy's own live read
-///    happens (`Buttons::commandToggleShift`): `nodes::set_default_hold_time` writes the flash global from
-///    inside the guest, so a per-open seed would lag it by a whole session.
+///    happens (`Buttons::commandToggleShift`): the menu's hold-time item has a DEVICE row whose store
+///    (`gui/ui/shell_host/device_settings.cpp`) writes `FlashStorage::holdTime` from inside the guest, so a
+///    per-open seed would lag it by a whole session.
 ///  - **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on every button press including
 ///    the eight mod buttons (`buttonAction` in `hid/buttons.cpp`); `modButtonAction` feeds them as matrix buttons,
 ///    so `InputLowering::on_button` clears its own on the same presses.

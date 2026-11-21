@@ -512,10 +512,10 @@ void run_all(auto& self) {
 // ---------------------------------------------------------------------------------------------
 // The nodes no row reaches.
 
-/// @brief The device settings: the hooked value nodes under the settings root, which hold a device's state
-/// (FlashStorage, a MIDI device, a CV or gate output) rather than a song's or a
-/// sound's, so no engine or model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds
-/// it. Each is named by the names from the root to it, with how many nodes carry that path.
+/// @brief The device settings: the hooked value nodes under the settings root, which hold a MIDI device's own setting
+/// or a MIDI-follow input (the MIDI devices port and the learn port) rather than a song's or a sound's, so no engine or
+/// model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds it. Each is named by the
+/// names from the root to it, with how many nodes carry that path.
 struct DeviceNode {
 	std::string_view path;
 	size_t count;
@@ -533,9 +533,8 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > MIDI > MIDI-Follow > Channel > Channel A", 1},
 };
 
-constexpr std::string_view kDeviceReason = "a device setting (FlashStorage, a MIDI device, a CV or gate output): "
-                                           "the "
-                                           "device's, not a song's or a sound's, so no engine or model row holds it";
+constexpr std::string_view kDeviceReason =
+    "a MIDI device's own setting or a MIDI-follow input: the device's, not a song's or a sound's, so no row holds it";
 
 /// @brief A subtree whose value nodes have no row, and why.
 struct Subtree {

@@ -289,7 +289,7 @@ struct FakeDeviceSettings final : DeviceSettings {
 	FakeDeviceSettings();
 	/// What `load` answers, by path, in file form; a spec may set a value the row cannot name.
 	std::map<std::string, serialization::Value, std::less<>> values;
-	std::set<std::string, std::less<>> accept_restart; ///< the paths a store answers StoredForRestart
+	std::set<std::string, std::less<>> accept_restart; ///< the paths a store answers `STORED_FOR_RESTART`
 	std::set<std::string, std::less<>> refuse;         ///< the paths a store answers REFUSED, keeping nothing
 	std::vector<std::pair<std::string, serialization::Value>> stores; ///< every store, in order, refused ones too
 
