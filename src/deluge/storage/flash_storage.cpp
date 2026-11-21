@@ -212,6 +212,7 @@ enum Entries {
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
 186: unused (formerly defaultLoopRecordingCommand)
+187: defaultSwingFeel + 1 (0 = never saved -> NESTED)
 188: defaultUseSharps
 189: default patch cable polarity
 190: GlobalMIDICommand::SHIFT channel + 1
@@ -271,6 +272,7 @@ uint8_t screensaverTimeoutMinutes;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
+SwingFeel defaultSwingFeel = SwingFeel::NESTED;
 
 std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 // We're storing the scales in a two-byte bitmask in the flash. Current intent is to not
@@ -388,6 +390,7 @@ void resetSettings() {
 	screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
+	defaultSwingFeel = SwingFeel::NESTED;
 
 	defaultDisabledPresetScales = {0};
 
@@ -795,6 +798,14 @@ void readSettings() {
 		defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 	}
 
+	// Stored + 1 so that units which have never saved it read 0 and get the factory default
+	if (buffer[187] == 0 || buffer[187] > kNumSwingFeels) {
+		defaultSwingFeel = SwingFeel::NESTED;
+	}
+	else {
+		defaultSwingFeel = static_cast<SwingFeel>(buffer[187] - 1);
+	}
+
 	if (savedVersion < FirmwareVersion::community({1, 2, 0})) {
 		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>(0);
 	}
@@ -1147,6 +1158,8 @@ void writeSettings() {
 	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
 
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
+
+	buffer[187] = util::to_underlying(defaultSwingFeel) + 1;
 
 	buffer[188] = defaultUseSharps;
 

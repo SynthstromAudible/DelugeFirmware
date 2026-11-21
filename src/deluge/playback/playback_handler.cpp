@@ -63,6 +63,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/swing_map.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -1084,6 +1085,10 @@ doMetronome:
 	currentlyActioningSwungTickOrResettingPlayPos = false;
 }
 
+static SwingLevels currentSwingLevels() {
+	return computeSwingLevels(currentSong->swingAmount, currentSong->swingInterval, currentSong->swingFeel);
+}
+
 void PlaybackHandler::scheduleSwungTick() {
 	if (isInternalClockActive()) {
 		scheduleSwungTickFromInternalClock();
@@ -1111,24 +1116,9 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 		uint32_t swungTicksIntoTimerBit = nextSwungTick - lastTimerTickActioned;
 
 		if (currentSong->hasAnySwing()) {
-			int32_t leftShift = 9 - currentSong->swingInterval;
-			leftShift = std::max(leftShift, 0_i32);
-			uint32_t swingInterval = 3 << (leftShift);
-
-			// Before swing mid-point
-			if (swungTicksIntoTimerBit <= swingInterval) {
-				uint64_t timeInBig = currentSong->timePerTimerTickBig * swungTicksIntoTimerBit
-				                     * (uint32_t)(50 + currentSong->swingAmount) / 50;
-				scheduledSwungTickTime = (uint64_t)(timeLastTimerTickBig + timeInBig) >> 32;
-			}
-
-			// After swing mid-point
-			else {
-				uint32_t swungTicksTilEnd = (swingInterval << 1) - swungTicksIntoTimerBit;
-				uint64_t timeTilEndBig = currentSong->timePerTimerTickBig * swungTicksTilEnd
-				                         * (uint32_t)(50 - currentSong->swingAmount) / 50;
-				scheduledSwungTickTime = (uint64_t)(timeNextTimerTickBig - timeTilEndBig) >> 32;
-			}
+			SwingBlockPos pos = swingForwardInBlock(currentSwingLevels(), swungTicksIntoTimerBit);
+			uint64_t timeInBig = swingScaleByPos(currentSong->timePerTimerTickBig, pos);
+			scheduledSwungTickTime = (timeLastTimerTickBig + timeInBig) >> 32;
 		}
 		else {
 			scheduledSwungTickTime =
@@ -1159,26 +1149,12 @@ int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRema
 			*timeRemainder = 0; // To be improved
 		}
 
-		int32_t leftShift = 9 - currentSong->swingInterval;
-		leftShift = std::max(leftShift, 0_i32);
-		uint32_t swingInterval = 3 << (leftShift);
-
-		// First, see if we're in the first half still
-		uint32_t timePassedFiddledWith = (uint32_t)(timePassed * 50) / (uint32_t)(50 + currentSong->swingAmount);
-		uint32_t ticksIn = timePassedFiddledWith / timePerTimerTick;
-		if (ticksIn < swingInterval) {
-			return ticksIn;
+		if ((int32_t)timePassed < 0) {
+			return 0;
 		}
-
-		// Or if we're still here, it's in the second half
-		uint32_t timeTilNextTimerTick = (uint32_t)(timeNextTimerTickBig >> 32) - AudioEngine::audioSampleTimer;
-		uint32_t timeTilNextFiddledWith =
-		    (uint32_t)(timeTilNextTimerTick * 50) / (uint32_t)(50 - currentSong->swingAmount);
-		if (!timeTilNextFiddledWith) {
-			return 1; // Otherwise we'd get a negative number when subtracting 1 below
-		}
-		int32_t ticksTilEnd = (uint32_t)(timeTilNextFiddledWith - 1) / (uint32_t)timePerTimerTick + 1; // Rounds up.
-		return (swingInterval << 1) - ticksTilEnd;
+		// Time in 1/256 samples over the exact time per tick, so long swing blocks don't accumulate rounding error
+		return swingInverseInBlock(currentSwingLevels(), (uint64_t)timePassed << 8,
+		                           currentSong->timePerTimerTickBig >> 24);
 	}
 
 	else {
@@ -1236,27 +1212,12 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 		// Yes swing
 		else {
 
-			int32_t leftShift = 9 - currentSong->swingInterval;
-			leftShift = std::max(leftShift, 0_i32);
-			uint32_t swingInterval = 3 << (leftShift);
-			uint32_t doubleSwingInterval = swingInterval << 1;
-
-			uint64_t startOfSwingBlock = (uint64_t)currentInternalTick / doubleSwingInterval * doubleSwingInterval;
-			float posWithinSwingBlock = currentInternalTick - startOfSwingBlock;
-
-			// First, see if we're in the first half still
-			float swungTicksIn = (uint32_t)(posWithinSwingBlock * 50) / (uint32_t)(50 + currentSong->swingAmount);
-			if (swungTicksIn < swingInterval) {
-				actualSwungTick = startOfSwingBlock + swungTicksIn;
-			}
-
-			// Or, if we're in the second half
-			else {
-				float posTilEndOfSwingBlock = (float)doubleSwingInterval - posWithinSwingBlock;
-				float swungTicksTilEnd =
-				    (uint32_t)(posTilEndOfSwingBlock * 50) / (uint32_t)(50 - currentSong->swingAmount);
-				actualSwungTick = startOfSwingBlock + doubleSwingInterval - (swungTicksTilEnd + 1); // Round that bit up
-			}
+			SwingLevels levels = currentSwingLevels();
+			uint32_t blockTicks = levels.blockTicks();
+			uint64_t startOfSwingBlock = (uint64_t)currentInternalTick / blockTicks * blockTicks;
+			float posWithinSwingBlock = std::max(currentInternalTick - startOfSwingBlock, 0.f);
+			actualSwungTick =
+			    startOfSwingBlock + swingInverseInBlock(levels, (uint64_t)(posWithinSwingBlock * 65536.f), 65536);
 		}
 	}
 
@@ -1771,67 +1732,46 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	}
 
 	uint64_t nextSwungTick = lastSwungTickActioned + swungTicksTilNextEvent;
-	uint64_t internalTickPositionForNextSwungTickTimes50;
-	if (!currentSong->hasAnySwing()) {
-		internalTickPositionForNextSwungTickTimes50 = nextSwungTick * 50;
+
+	// Internal tick position of the next swung tick, as a fraction over den
+	SwingBlockPos pos = {nextSwungTick, 1};
+	if (currentSong->hasAnySwing()) {
+		SwingLevels levels = currentSwingLevels();
+		uint32_t swungTickWithinBlock = nextSwungTick % levels.blockTicks();
+		pos = swingForwardInBlock(levels, swungTickWithinBlock);
+		pos.num += (nextSwungTick - swungTickWithinBlock) * pos.den;
 	}
-	else {
-
-		int32_t leftShift = 10 - currentSong->swingInterval;
-		leftShift = std::max(leftShift, 0_i32);
-		uint32_t doubleSwingInterval = 3 << (leftShift);
-
-		uint32_t swungTickWithinInterval = nextSwungTick % doubleSwingInterval;
-		uint64_t startOfSwingInterval = nextSwungTick - swungTickWithinInterval;
-
-		uint32_t internalTickWithinIntervalTimes50;
-
-		// If in first half of interval
-		if (swungTickWithinInterval <= (doubleSwingInterval >> 1)) {
-			internalTickWithinIntervalTimes50 = swungTickWithinInterval * (50 + currentSong->swingAmount);
-		}
-
-		// Or if in second half of interval
-		else {
-			int32_t ticksTilEnd = doubleSwingInterval - swungTickWithinInterval;
-			internalTickWithinIntervalTimes50 =
-			    doubleSwingInterval * 50 - ticksTilEnd * (50 - currentSong->swingAmount);
-		}
-
-		internalTickPositionForNextSwungTickTimes50 = internalTickWithinIntervalTimes50 + (startOfSwingInterval * 50);
-	}
+	int64_t den = pos.den;
 
 	uint32_t internalTicksPer;
 	uint32_t inputTicksPer;
 	getInternalTicksToInputTicksRatio(&inputTicksPer, &internalTicksPer);
 
-	int64_t inputTickPositionForNextSwungTickTimes50TimesInternalTicksPer =
-	    internalTickPositionForNextSwungTickTimes50 * inputTicksPer;
+	int64_t inputTickPositionForNextSwungTickTimesDenTimesInternalTicksPer = pos.num * inputTicksPer;
 
-	int64_t lastInputTickReceivedTimes50 = lastInputTickReceived * 50;
+	int64_t lastInputTickReceivedTimesDen = lastInputTickReceived * den;
 
 	// If this next swung tick is gonna happen before we're going to receive the *next* input tick
 	// (possibly right on this current input tick that we've just received but haven't actually processed yet)...
-	if (inputTickPositionForNextSwungTickTimes50TimesInternalTicksPer
-	    < (lastInputTickReceivedTimes50 + 50) * internalTicksPer) {
+	if (inputTickPositionForNextSwungTickTimesDenTimesInternalTicksPer
+	    < (lastInputTickReceivedTimesDen + den) * internalTicksPer) {
 		swungTickScheduled = true;
-		uint64_t inputTickFractionTimes50TimesInternalTicksPer =
-		    inputTickPositionForNextSwungTickTimes50TimesInternalTicksPer
-		    - (lastInputTickReceivedTimes50 * internalTicksPer);
+		int64_t inputTickFractionTimesDenTimesInternalTicksPer =
+		    inputTickPositionForNextSwungTickTimesDenTimesInternalTicksPer
+		    - (lastInputTickReceivedTimesDen * internalTicksPer);
 		// TODO: if we're scheduling a swung tick which corresponds to a couple of input ticks back in time, which
 		// could happen if they haven't actually "happened" yet and only been "received", I feel like the current
 		// method would be quite inexact and we should be looking at timeLastInputTicks[some_higher_number]. Though
 		// would that do less smoothing out of jitter?
 
-		// Another important note here: inputTickFractionTimes50TimesInternalTicksPer may be negative because the
+		// Another important note here: inputTickFractionTimesDenTimesInternalTicksPer may be negative because the
 		// scheduled swung tick might be further back in time than the scheduled time of the most recently received
 		// input tick - I think particularly for very high resolution songs? This is fine, and even if we end up
 		// with a time which has already passed, the swung tick will still get actioned on the next audio routine
 		// call. The key point is just that the below calculation must correctly deal with negative numbers.
-		scheduledSwungTickTime =
-		    timeLastInputTicks[0]
-		    + (int64_t)(inputTickFractionTimes50TimesInternalTicksPer * timePerInputTickMovingAverage)
-		          / (int32_t)(internalTicksPer * 50);
+		scheduledSwungTickTime = timeLastInputTicks[0]
+		                         + inputTickFractionTimesDenTimesInternalTicksPer * timePerInputTickMovingAverage
+		                               / (int64_t)(internalTicksPer * den);
 	}
 }
 
@@ -2102,20 +2042,41 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 	lastMIDIClockOutTickDone = (uint64_t)getCurrentInternalTickCount() * midiClockOutTicksPer / internalTicksPer;
 }
 
+/** OLED swing popup: amount, interval and, if the swing feel adds finer levels, the first finer level. */
+static void appendOLEDSwingText(StringBuf& text) {
+	text.append("Swing: ");
+	if (currentSong->swingAmount == 0) {
+		text.append("off");
+	}
+	else {
+		text.appendInt(currentSong->swingAmount + 50);
+	}
+	text.append("\n");
+	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+
+	SwingLevels levels = currentSwingLevels();
+	if (levels.numLevels > 1) {
+		// Format into its own buffer: syncValueToStringForHorzMenuLabel() clears its buffer and copies it into a
+		// 12-char scratch buffer, so it must not be given the popup text
+		DEF_STACK_STRING_BUF(levelName, 12);
+		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, syncValueToSyncLevel(currentSong->swingInterval + 1),
+		                                  levelName, currentSong->getInputTickMagnitude());
+		text.append(" +");
+		text.append(levelName.c_str());
+		text.append(" ");
+		text.appendInt(levels.level[1].amount + 50);
+	}
+}
+
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
 void PlaybackHandler::commandDisplaySwingInterval() {
-	DEF_STACK_STRING_BUF(text, 30);
+	DEF_STACK_STRING_BUF(text, 48);
 	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
+		appendOLEDSwingText(text);
 	}
-	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+	else {
+		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+	}
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
@@ -2125,17 +2086,9 @@ void PlaybackHandler::commandClearTempoAutomation() {
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
-	DEF_STACK_STRING_BUF(text, 30);
+	DEF_STACK_STRING_BUF(text, 48);
 	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
-		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+		appendOLEDSwingText(text);
 	}
 	else {
 		if (currentSong->swingAmount == 0) {
