@@ -7,12 +7,11 @@
 /// Ports the **drawing** half of legacy's `hid::display::Screensaver`
 /// (`hid/display/screensaver.h`). The *policy* half -- when to show it and when to wake --
 /// already shipped as `shell::Screensaver` (`shell/screensaver.h`), which pushes this scene by
-/// kind; this scene is what that service could not find until now.
+/// kind; this scene is what that service finds.
 ///
-/// The two animations themselves moved out of `hid/display/` to `ui/oled/rainfall.h` and
-/// `ui/oled/starfield.h` in the same task, because `src/scenes/**` may include neither `gui/` nor
-/// `hid/` (`check_layer_rules.py`'s `scenes-includes-gui` row). Legacy's `Screensaver` still draws
-/// the same two objects, now through the moved symbols; see `ui/oled/rainfall.h`'s file doc.
+/// The two animations live in `ui/oled/rainfall.h` and `ui/oled/starfield.h`, because `src/scenes/**` may include
+/// neither `gui/` nor `hid/` (`check_layer_rules.py`'s `scenes-includes-gui` row). Legacy's `Screensaver` draws the
+/// same two objects; see `ui/oled/rainfall.h`'s file doc.
 ///
 /// @par What chooses the mode, and where legacy chooses it
 ///

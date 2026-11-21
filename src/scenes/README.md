@@ -658,7 +658,8 @@ shell's; every model-aware implementation is here, as with `Scene`.
   construct the services over `shell.stack()`/`shell.lowering()`, then `Shell::set_services`.
 * **Installing is not sufficient.** A `ModKnobs` with no focus declares all eight mod LEDs off and
   both indicators at 0 every tick, so the application's reads and moves `View::knobFocus()`
-  (`use_focus`), and the wiring re-seeds the song and the view state on every open. The root views reach
+  (`use_focus`), and the wiring re-installs the ports and the song's record, and re-seeds the view state, on every
+  open. The root views reach
   the same service through `gui/ui/root_knobs` (`turn`, `section_button`, `push`), shown through the legacy
   display; no engine object has a gold-knob path of its own. `root_knobs` numbers each physical control through
   `controls::map_input` and `kDelugeControls` before the service sees it, so the service speaks sections and slots.
@@ -676,18 +677,42 @@ shell's; every model-aware implementation is here, as with `Scene`.
 ## The host's ports
 
 A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
-`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
-`SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
-settings; `DeviceSettings` (`device`) for the device's own settings, by DEVICE row, read and written outside any song
-and its undo; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
-`instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
-`midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
+`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts` and `Transport` for reads; `ClipWrites`,
+`SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `TransportActions`,
+`DeviceActions` and `MidiFeedback` for calls; `MidiDevices` for the per-device settings; `DeviceSettings` (`device`)
+for the device's own settings, by DEVICE row, read and written outside any song and its undo; and `controls::Facts`
+for live param values. Their vocabulary is `project::` addresses, `plugin::` ids, `instrument::`, `effects::`,
+`controls::` and `midi::` words, never a legacy type; a MIDI device is a `midi::DeviceId`, which the host's registry
+(`io/midi/device_registry.h`) maps to its cable.
+
+* **`Transport`** answers whether playback is on, whether a clock drives it, what it records into
+  (`TransportRecording`), whether the metronome is on, the count-in's digit, whether undo is allowed and whether any
+  clip waits to overdub. **`TransportActions`** is PLAY, RECORD, tap tempo, the metronome toggle, the tempo popups,
+  undo and redo, the output recording's start and end, and fill: each a one-to-one wrapper of the legacy call,
+  popups included.
+* **`AudioFacts`** also answers whether the audio routine is running (`audio_busy`), whether the foreground recorder
+  is resampling, and what it records from (`ForegroundRecording`: `UNSET`, `NONE`, `EXTERNAL`, `INTERNAL`).
+* **`DeviceActions`** saves the device's settings and forgets the undo history. **`MidiFeedback`** is MIDI follow's
+  feedback: whether it is on, which CC follows a param, and sending one CC or every followed param's. **`MidiDevices`**
+  also answers how a song names a device (`reference`).
+* **A service or an overlay holds a non-owning pointer** the host installs, as a context holds its `Ports`: each
+  service takes `set_ports` and `set_model` (the song's record), and each overlay the one port it reads
+  (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices` installs them at
+  boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the overlays'. A specification
+  installs fakes over its own model and keeps them alive while the service runs. No service calls `host_ports()` or
+  `host_binds()`.
+* **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
+  recording, no clocks, metronome off, count 0, undo not allowed and no overdubs; `AudioFacts` reads no foreground
+  source, not resampling and not busy; `MidiDevices` knows no device, so `MidiLearn` leaves MIDI events unhandled;
+  `DeviceSettings` reads each row's default; every call port is a no-op.
+* **A menu context binds exactly the ports it is given.** A caller that wants the device port passes it.
 
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
 * **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
   `scenes-reads-outside-bind` rule counts none there). What the menu asks the app for directly is the set of
-  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes and the services share.
+  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes share. The services and the overlays count none
+  either; `host_binds` is left for the audio clip scene alone.
 
 ### The DEVICE setting group
 
