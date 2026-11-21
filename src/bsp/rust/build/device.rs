@@ -42,6 +42,15 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     // fragment's patterns that move statics to SDRAM must win over `link.x`'s `*(.bss.*)`.
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
     println!("cargo:rustc-link-arg=-Wl,-T,link.x");
+    // libgcc's unwinder searches [__exidx_start, __exidx_end), which `link.x` sets around its own
+    // `.ARM.exidx`, left empty now the fragment's `.sdram_exidx` takes the index. An assignment in
+    // the fragment loses to `link.x`'s; a --defsym wins over both.
+    for (sym, at) in [
+        ("__exidx_start", "__sdram_exidx_start"),
+        ("__exidx_end", "__sdram_exidx_end"),
+    ] {
+        println!("cargo:rustc-link-arg=-Wl,--defsym={sym}={at}");
+    }
     // The rig harness's code lives in SRAM; its images are never shipped, so they may take a few
     // KB more of the heap than a shipping image may.
     if env::var("CARGO_FEATURE_RIG_HARNESS").is_ok() {
@@ -228,7 +237,8 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
 }
 
 /// Re-adds the C and C++ runtime the app needs, which rustc's `-nodefaultlibs` drops, grouped
-/// for their circular references. rza1-rt's `link.x` keeps `.ARM.exidx`, so C++ unwinding works.
+/// for their circular references. The unwind tables C++ unwinding needs are kept, in SDRAM
+/// (`linker/sdram_sections.x`).
 fn emit_runtime_link_args() {
     println!("cargo:rustc-link-arg=-Wl,--start-group");
     for l in ["-lstdc++", "-lsupc++", "-lc", "-lm", "-lgcc", "-lnosys"] {

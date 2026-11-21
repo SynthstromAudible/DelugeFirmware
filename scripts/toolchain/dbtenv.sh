@@ -42,7 +42,7 @@ dbtenv_restore_env()
     TOOLCHAIN_ARCH_DIR_SED="$(echo "$TOOLCHAIN_ARCH_DIR" | sed 's/\//\\\//g')"
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/python\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/arm-none-eabi-gcc\/bin://g")";
-    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin://g")";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/:$TOOLCHAIN_ARCH_DIR_SED\/openocd\/bin//g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/clang\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/ninja-build\/bin://g")";
@@ -426,7 +426,8 @@ dbtenv_main()
     dbtenv_print_version;
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
+    # Appended, not prepended: a system-wide OpenOCD (0.12+) wins, the toolchain's is the fallback.
+    PATH="$PATH:$TOOLCHAIN_ARCH_DIR/openocd/bin";
     PATH="$TOOLCHAIN_ARCH_DIR/clang-format:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/ninja-build/bin:$PATH";
