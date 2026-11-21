@@ -56,6 +56,7 @@
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/tempo.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -290,6 +291,7 @@ void Song::setupDefault() {
 	key.modeNotes = presetScaleNotes[whichScale];
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
+	globalEffectable.bindPresetValues(&paramManager);
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -1282,12 +1284,13 @@ weAreInArrangementEditorOrInClipInstance:
 
 	globalEffectable.writeTagsToFile(writer, NULL, false);
 
-	int32_t* valuesForOverride = paramsInAutomationMode ? unautomatedParamValues : NULL;
+	// Save the evaluated value and the separate song scalar metadata.
+	int32_t* values_for_override = nullptr;
 
 	writer.writeOpeningTagBeginning("songParams");
-	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
+	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, values_for_override);
 	writer.writeOpeningTagEnd();
-	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
+	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, values_for_override);
 	writer.writeClosingTag("songParams");
 
 	writer.writeArrayStart("instruments");
@@ -2101,6 +2104,11 @@ loadOutput:
 				reader.exitTag();
 			}
 
+			else if ((strcmp(tagName, "presetPatchedValues") == 0) || (strcmp(tagName, "presetUnpatchedValues") == 0)
+			         || (strcmp(tagName, "presetPatchCableValues") == 0)) {
+				// Song baselines always come from this load, never historical metadata.
+				reader.exitTag(tagName);
+			}
 			else {
 				Error result =
 				    globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
@@ -2351,6 +2359,9 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading();
 
+	// Capture after file migration and tempo reconciliation. Relative automation
+	// remains bound to the song scalar; loading establishes a fresh zero offset.
+	globalEffectable.bindPresetValues(&paramManager);
 	return Error::NONE;
 }
 
@@ -3151,13 +3162,28 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		                           arrangerView.getMaxLength());
 	}
 
-	if (length == 0 && !shouldLogAction) {
+	int64_t scalar_before = tempoParam->autoParam->getUnclampedClipValue();
+	uint64_t ticks_before = timePerTimerTickBig;
+	// Song loading and initialization reconcile the live tempo without editing
+	// the saved scalar. User encoder/tap edits request undo logging.
+	if (length != 0) {
+		tempoParam->paramCollection->setValueFromControl(intTempo, tempoParam, pos, length);
+	}
+	else if (!shouldLogAction) {
 		AutoParamSetup(*tempoParam->autoParam).setCurrentValueWithNoReversionOrRecording(tempoParam, intTempo);
 	}
 	else {
-		tempoParam->paramCollection->setValueFromControl(intTempo, tempoParam, pos, length);
+		bool edit_scalar = ParamCollection::controlsEditClipValue(tempoParam);
+		int32_t target = edit_scalar ? tempoParam->autoParam->getScalarForEffectiveValue(intTempo) : intTempo;
+		tempoParam->paramCollection->setValueFromControl(target, tempoParam);
+		if (edit_scalar) {
+			tempoBPM = static_cast<float>(tempoParam->autoParam->getCurrentValue()) / 100;
+		}
 	}
-	setBPMInner(tempoBPM, shouldLogAction);
+	setBPMInner(tempoBPM, false);
+	if (shouldLogAction) {
+		actionLogger.recordTempoChange(ticks_before, timePerTimerTickBig, &scalar_before);
+	}
 }
 
 void Song::clearTempoAutomation() {
@@ -3172,6 +3198,8 @@ void Song::clearTempoAutomation() {
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
+	// Relative tempo curves can cross zero. Keep the clock period positive.
+	tempoBPM = std::max(tempoBPM, 0.01f);
 	if (insideWorldTickMagnitude > 0) {
 		tempoBPM *= ((uint32_t)1 << (insideWorldTickMagnitude));
 	}
@@ -4784,24 +4812,20 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	// If going automated...
-	if (newState) {
-
-		// Back up the unautomated values
-		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
+	// Song scalars now live independently of automation. Leaving arrangement
+	// playback reveals the current song value, including edits or a reset made
+	// during playback, rather than restoring a stale snapshot.
+	if (!newState) {
+		std::array<char, MODEL_STACK_MAX_SIZE> memory{};
+		auto* stack = setupModelStackWithSongAsTimelineCounter(memory.data());
+		for (int32_t p = 0; p < unpatchedParams->getNumParams(); ++p) {
+			auto* param = getModelStackWithParam(stack, p);
+			int32_t previous = param->autoParam->getCurrentValue();
+			bool automated = param->autoParam->isAutomated();
+			AutoParamPlayback(*param->autoParam).clearAutomationOffset();
+			unpatchedParams->notifyParamModifiedInSomeWay(param, previous, false, automated, automated);
 		}
-	}
-
-	// Or if going un-automated
-	else {
-
-		// Restore the unautomated values, where automation is present
-		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			if (unpatchedParams->params[p].isAutomated()) {
-				AutoParamSetup(unpatchedParams->params[p]).setCurrentValueBasicForSetup(unautomatedParamValues[p]);
-			}
-		}
+		updateBPMFromAutomation(true);
 	}
 
 	view.notifyParamAutomationOccurred(&paramManager, true);
@@ -6093,13 +6117,12 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	return modelStackWithParam;
 }
 
-void Song::updateBPMFromAutomation() {
-	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
-	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo && currentTempo != intBPM) {
-		setBPMInner((float)currentTempo / 100, false);
-		intBPM = currentTempo;
+void Song::updateBPMFromAutomation(bool force) {
+	int32_t current_tempo =
+	    deluge::tempo::clockValue(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO));
+	if (force || current_tempo != intBPM) {
+		setBPMInner(static_cast<float>(current_tempo) / 100, false);
+		intBPM = current_tempo;
 	}
 }
 

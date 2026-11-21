@@ -70,6 +70,7 @@ public:
 	[[nodiscard]] int64_t getUnclampedClipValue() const {
 		return clipValue() != nullptr ? clipValue()->getUnclampedValue() : standaloneValue();
 	}
+	[[nodiscard]] int32_t getScalarForEffectiveValue(int32_t value) const;
 	void captureState(AutoParamState& state, bool stealNodes);
 	void swapStateBasicForSetup(AutoParamState* state);
 	void rebindClipValueAfterMove(ClipParamValue* clip) {

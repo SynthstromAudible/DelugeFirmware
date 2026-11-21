@@ -252,8 +252,6 @@ public:
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
-
 	String dirPath;
 
 	std::array<SessionMacro, 8> sessionMacros{};
@@ -439,7 +437,7 @@ public:
 
 	// Tempo automation
 	void clearTempoAutomation();
-	void updateBPMFromAutomation();
+	void updateBPMFromAutomation(bool force = false);
 
 	float calculateBPM() {
 		float timePerTimerTick = getTimePerTimerTickFloat();
