@@ -97,6 +97,14 @@ public:
 		}
 	}
 
+	// Adjust the offset before the shared baseline changes, retaining even the
+	// portion of the scalar hidden by saturation. Other owners are untouched.
+	void preserveBeforePresetChange(const int32_t* preset, int32_t newValue) {
+		if (presetPointer() == preset) {
+			setUnclampedValue(getUnclampedValue() + int64_t{*preset} - newValue);
+		}
+	}
+
 private:
 	[[nodiscard]] const int32_t* presetPointer() const {
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast, performance-no-int-to-ptr)

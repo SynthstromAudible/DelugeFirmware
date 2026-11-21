@@ -3151,7 +3151,12 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		                           arrangerView.getMaxLength());
 	}
 
-	AutoParamLiveInput(*tempoParam->autoParam).setLiveValuePossiblyForRegion(intTempo, tempoParam, pos, length);
+	if (length == 0 && !shouldLogAction) {
+		AutoParamSetup(*tempoParam->autoParam).setCurrentValueWithNoReversionOrRecording(tempoParam, intTempo);
+	}
+	else {
+		tempoParam->paramCollection->setValueFromControl(intTempo, tempoParam, pos, length);
+	}
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3911,6 +3916,8 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 	if (!paramManager->containsAnyMainParamCollections()) {
 		return;
 	}
+
+	modControllable->bindPresetValues(paramManager);
 
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)modControllable;

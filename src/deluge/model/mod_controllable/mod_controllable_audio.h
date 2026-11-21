@@ -49,13 +49,23 @@ public:
 	ModControllableAudio();
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
+	void bindPresetValues(ParamManager* manager) override;
+	int32_t* getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) override;
+	[[nodiscard]] int32_t getPresetValue(deluge::modulation::params::Kind kind, int32_t id) const;
 
+private:
+	std::array<int32_t, deluge::modulation::params::kNumParams> presetPatched_{};
+	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> presetUnpatched_{};
+	bool hasPresetPatched_ = false;
+	bool hasPresetUnpatched_ = false;
+
+public:
 	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
 	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
 	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
 	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
-	void writeTagsToFile(Serializer& writer);
+	void writeTagsToFile(Serializer& writer, bool savingSong = true);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);

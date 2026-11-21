@@ -818,7 +818,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		writer.writeClosingTag("defaultParams");
 	}
 
-	ModControllableAudio::writeTagsToFile(writer);
+	ModControllableAudio::writeTagsToFile(writer, writeAutomation);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

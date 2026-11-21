@@ -112,6 +112,9 @@ public:
 		return (PatchedParamSet*)summaries[1].paramCollection;
 	}
 
+	int32_t getPatchedValueForRender(int32_t p);
+	int32_t getUnpatchedValueForRender(int32_t p);
+
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 		if (!summaries[1].paramCollection) {
 			FREEZE_WITH_ERROR("E411");

@@ -43,6 +43,7 @@ class LearnedMIDI;
 class ParamManager;
 class Serializer;
 class Deserializer;
+class PresetSaveValues;
 
 inline const char* outputTypeToString(OutputType type) {
 	switch (type) {
@@ -85,6 +86,9 @@ public:
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
+	Error captureSavedPreset(Song* song, Clip* clip, PresetSaveValues& saved);
+	Error rebasePresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                            int32_t value);
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
 	String name; // Contains the display name as the user sees it.

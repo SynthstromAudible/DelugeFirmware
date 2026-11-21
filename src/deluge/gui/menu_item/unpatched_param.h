@@ -71,6 +71,7 @@ public:
 	}
 
 protected:
+	int32_t getControlValue();
 	virtual int32_t getFinalValue();
 
 private:

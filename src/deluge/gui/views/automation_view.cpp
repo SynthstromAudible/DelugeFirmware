@@ -1145,7 +1145,17 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			if (modelStackWithParam->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
+				bool show_control_value = !padSelected && !padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)
+				                          && !playbackHandler.isEitherClockActive();
+				int32_t knob_pos = 0;
+				if (show_control_value) {
+					int32_t value = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+					knob_pos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+				}
+				else {
+					knob_pos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+				}
+				knob_pos += kKnobPosOffset;
 
 				bool displayValue = updateDisplay
 				                    && (display->haveOLED()
@@ -1156,7 +1166,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 				// don't update value displayed if there's no automation unless instructed to update display
 				// don't update value displayed when playback is stopped
 				if (displayValue) {
-					renderDisplay(knobPos);
+					renderDisplay(knob_pos);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
@@ -1164,7 +1174,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					renderDisplay();
 				}
 
-				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, knob_pos, knob_pos);
 			}
 		}
 	}

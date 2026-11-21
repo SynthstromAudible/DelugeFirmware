@@ -282,7 +282,7 @@ public:
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
 		}
-		return paramManager.getPatchedParamSet()->getValue(p);
+		return paramManager.getPatchedValueForRender(p);
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,

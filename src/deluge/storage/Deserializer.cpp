@@ -25,7 +25,6 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
-#include "version.h"
 #include <string.h>
 
 extern "C" {

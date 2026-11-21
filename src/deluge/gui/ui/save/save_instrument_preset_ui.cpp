@@ -32,6 +32,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/preset_save_values.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
@@ -204,6 +205,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
+	PresetSaveValues saved_values;
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
 	char const* endString;
@@ -227,6 +229,15 @@ fail:
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;
+	}
+
+	error = saved_values.error();
+	if (error == Error::NONE) {
+		error = instrumentToSave->captureSavedPreset(currentSong, getCurrentClip(), saved_values);
+	}
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
 
 	// Give the Instrument in memory its new slot

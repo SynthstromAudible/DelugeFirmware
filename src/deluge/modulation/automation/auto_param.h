@@ -48,9 +48,15 @@ public:
 	using AutoParamData::nodeStorageIdentity;
 	using AutoParamData::searchNodes;
 
+	using AutoParamData::getAutomationOffset;
+	using AutoParamData::getClipValue;
 	using AutoParamData::getCurrentValue;
+	using AutoParamData::getNodeValue;
+	using AutoParamData::getUnclampedClipValue;
 	using AutoParamData::getValueAtPos;
+	using AutoParamData::getValueForClip;
 	using AutoParamData::isAutomated;
+	using AutoParamData::writeRelativeToFile;
 	using AutoParamData::writeToFile;
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool containsSomething(uint32_t neutralValue = 0);
@@ -60,6 +66,7 @@ public:
 	bool hasInterpolationIncrement(bool use_float_interpolation);
 
 private:
+	using AutoParamData::getOffsetAtPos;
 	using AutoParamData::grabValueFromPos;
 	void setValueForLiveInput(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t livePos = -1,
 	                          bool mayDeleteNodesInLinearRun = true, bool doMPEMode = false);
@@ -106,6 +113,7 @@ private:
 	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 	void notifyPingpongOccurred(bool use_float_interpolation);
+	int64_t getOffsetAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
@@ -114,15 +122,15 @@ private:
 	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
-	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
+	void calculateInterpolationIncrement(int64_t half_distance, int32_t ticks_til_next_node,
 	                                     bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 	void reverseInterpolationIncrement(bool use_float_interpolation);
-	int32_t consumeFloatInterpolationIncrement(float value_increment);
-	bool applyValueIncrement(int32_t value_increment);
+	int64_t consumeFloatInterpolationIncrement(float value_increment);
+	bool applyValueIncrement(int64_t value_increment);
 
 	void cloneFrom(AutoParam* other, bool copyAutomation) { AutoParamData::cloneFrom(other, copyAutomation); }
 };
-static_assert(sizeof(AutoParam) == sizeof(AutoParamData));
+static_assert(sizeof(AutoParam) == 2 * sizeof(void*));
 static_assert(std::is_standard_layout_v<AutoParam>);
 static_assert(alignof(AutoParam) == alignof(AutoParamData));

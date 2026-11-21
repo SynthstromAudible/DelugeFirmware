@@ -25,22 +25,28 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
+#include <array>
 
 namespace deluge::gui::menu_item::patched_param {
+int32_t Integer::getControlValue() {
+	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
+	char* model_stack_memory = model_stack_memory_storage.data();
+	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+	auto* param_set = soundEditor.currentParamManager->getPatchedParamSet();
+	return param_set->getValueForControl(getP(), model_stack);
+}
+
 void Integer::readCurrentValue() {
-	this->setValue(computeCurrentValueForStandardMenuItem(
-	    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
+	this->setValue(computeCurrentValueForStandardMenuItem(getControlValue()));
 }
 
 void Integer::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
-	AutoParamLiveInput(*modelStack->autoParam).setValueForLiveInput(value, modelStack);
 
 	// If affect-entire button held, do whole kit
 	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -55,14 +61,13 @@ void Integer::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
-				AutoParamLiveInput(*modelStackForSoundDrum->autoParam)
-				    .setValueForLiveInput(value, modelStackForSoundDrum);
+				modelStackForSoundDrum->paramCollection->setValueFromControl(value, modelStackForSoundDrum);
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
-		AutoParamLiveInput(*modelStack->autoParam).setValueForLiveInput(value, modelStack);
+		modelStack->paramCollection->setValueFromControl(value, modelStack);
 	}
 
 	// send midi follow feedback

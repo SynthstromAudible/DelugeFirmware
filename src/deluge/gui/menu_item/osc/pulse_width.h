@@ -31,10 +31,7 @@ public:
 
 	int32_t getFinalValue() override { return computeFinalValueForHalfPrecisionMenuItem(this->getValue()); }
 
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
-		    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
-	}
+	void readCurrentValue() override { this->setValue(computeCurrentValueForHalfPrecisionMenuItem(getControlValue())); }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);

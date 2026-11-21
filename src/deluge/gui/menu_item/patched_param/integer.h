@@ -73,6 +73,7 @@ public:
 	}
 
 protected:
+	int32_t getControlValue();
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();

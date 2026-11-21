@@ -67,7 +67,10 @@ public:
 	                                                                      int32_t value) {
 		param_->setCurrentValueWithNoReversionOrRecording(modelStack, value);
 	}
-
+	[[gnu::always_inline]] void restoreClipValueFromFile(int32_t value) { param_->restoreClipValueFromFile(value); }
+	[[gnu::always_inline]] bool readRelativeFromFile(Deserializer& reader) {
+		return param_->readRelativeFromFile(reader);
+	}
 	[[gnu::always_inline]] void setCurrentValueBasicForSetup(int32_t value) {
 		param_->setCurrentValueBasicForSetup(value);
 	}
@@ -101,11 +104,14 @@ public:
 	[[gnu::always_inline]] void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
 		param_->swapState(state, modelStack);
 	}
-
+	[[gnu::always_inline]] void bindClipValue(ClipParamValue* clip) { param_->bindClipValue(clip); }
 	[[gnu::always_inline]] void captureState(AutoParamState& state, bool stealNodes) {
 		param_->captureState(state, stealNodes);
 	}
 
+	[[gnu::always_inline]] void rebindClipValueAfterMove(ClipParamValue* clip) {
+		param_->rebindClipValueAfterMove(clip);
+	}
 	[[gnu::always_inline]] void releaseNodes() { param_->nodes.empty(); }
 	[[gnu::always_inline]] void forgetNodes() { param_->nodes.init(); }
 
@@ -145,7 +151,7 @@ public:
 		return param_->grabValueFromPos(pos, modelStack);
 	}
 	[[gnu::always_inline]] void copyOverridingFrom(AutoParam* otherParam) { param_->copyOverridingFrom(otherParam); }
-
+	[[gnu::always_inline]] void clearAutomationOffset() const { param_->clearAutomationOffset(); }
 	[[gnu::always_inline]] void notifyPingpongOccurred(bool use_float_interpolation) {
 		param_->notifyPingpongOccurred(use_float_interpolation);
 	}
@@ -239,25 +245,8 @@ private:
 	AutoParam* param_;
 };
 
-namespace deluge::gui::menu_item {
-class PatchCableStrength;
-class UnpatchedParam;
-namespace patched_param {
-class Integer;
-}
-} // namespace deluge::gui::menu_item
-
 class AutoParamLiveInput {
 	friend class ParamCollection;
-	friend class deluge::gui::menu_item::PatchCableStrength;
-	friend class deluge::gui::menu_item::UnpatchedParam;
-	friend class deluge::gui::menu_item::patched_param::Integer;
-	friend class AutomationEditorLayoutModControllable;
-	friend class View;
-	friend class MidiFollow;
-	friend class MelodicInstrument;
-	friend class ModControllableAudio;
-	friend class Song;
 	friend class NoteRow;
 	friend class PerformanceView;
 	explicit AutoParamLiveInput(AutoParam& param) : param_(&param) {}

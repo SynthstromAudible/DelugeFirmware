@@ -18,6 +18,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_node_vector.h"
+#include "modulation/params/param_value.h"
 #include <cstdint>
 
 class Serializer;
@@ -27,8 +28,13 @@ class ParamNode;
 // For backing up a snapshot
 class AutoParamState {
 public:
+	// Existing public curve-editing interface; this object owns its nodes.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
 	LazyParamNodeVector nodes;
-	int32_t value;
+	int32_t value = 0;
+	int64_t clipValue = 0;
+	int64_t curveValue = 0;
+	int32_t nodeBase = 0;
 };
 
 // Independently owned parameter data and algorithms, shared by firmware and unit tests.
@@ -37,18 +43,58 @@ class AutoParamData {
 public:
 	AutoParamData();
 	void init();
-	void captureState(AutoParamState& state, bool stealNodes);
 	int32_t getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed = false);
 	bool grabValueFromPos(uint32_t pos, int32_t loopLength);
 	void cloneFrom(AutoParamData* otherParam, bool copyAutomation);
+	Error copyNodesForTrim(int32_t num_nodes, LazyParamNodeVector& trimmed) const;
 	void deleteAutomationBasicForSetup();
 	void writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	int32_t setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
-	[[nodiscard]] int32_t getCurrentValue() const { return currentValue; }
-	void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
+	[[nodiscard]] int32_t getCurrentValue() const {
+		return (clipValue() != nullptr) && (nodes.get() != nullptr)
+		           ? nodes.get()->value.getValueForBase(clipValue()->getValue())
+		           : getClipValue();
+	}
+	[[nodiscard]] int32_t getValueForClip(int32_t clip_value) const {
+		auto* curve = nodes.get();
+		return curve != nullptr && curve->getNumElements() != 0 ? curve->value.getValueForBase(clip_value) : clip_value;
+	}
+	[[nodiscard]] int32_t getClipValue() const {
+		return (clipValue() != nullptr) ? clipValue()->getValue() : standaloneValue();
+	}
+	[[nodiscard]] int64_t getAutomationOffset() const {
+		return (clipValue() != nullptr) && (nodes.get() != nullptr) ? nodes.get()->value.getOffset() : 0;
+	}
+	void bindClipValue(ClipParamValue* clip);
+	[[nodiscard]] int64_t getUnclampedClipValue() const {
+		return clipValue() != nullptr ? clipValue()->getUnclampedValue() : standaloneValue();
+	}
+	void captureState(AutoParamState& state, bool stealNodes);
+	void swapStateBasicForSetup(AutoParamState* state);
+	void rebindClipValueAfterMove(ClipParamValue* clip) {
+
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		binding_.clip = clip;
+		if (clip == nullptr) {
+
+			setStandaloneValue(0);
+		}
+		nodes.setHasClipValue(clip != nullptr);
+	}
+	int32_t getNodeValue(const ParamNode* node) const;
+	void setNodeValue(ParamNode* node, int32_t value);
+	void restoreClipValueFromFile(int32_t value);
+	void writeRelativeToFile(Serializer& writer) const;
+	bool readRelativeFromFile(Deserializer& reader);
+	void clearAutomationOffset() {
+		if (nodes.get() != nullptr) {
+			nodes.get()->value.setOffsetForBase(0, getNodeBase());
+		}
+	}
+	void setCurrentValueBasicForSetup(int32_t value);
 	[[nodiscard]] bool isAutomated() const { return nodes.getNumElements() != 0; }
-	void cancelOverriding() { renewedOverridingAtTime = 0; }
+	void cancelOverriding() { setOverridingTime(0); }
 	void resetInterpolationIncrement();
 	// Standalone storage owners may edit their own data. AutoParam inherits privately
 	// and exposes only a const data view, so this cannot mutate a live parameter.
@@ -61,20 +107,54 @@ public:
 	}
 
 protected:
-	// Runtime methods need direct access; one access level preserves standard-layout storage.
+	// Storage layout is fixed: one tagged curve pointer plus the scalar-binding union.
 	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
 	LazyParamNodeVector nodes;
-	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
-	int32_t currentValue;
-	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
-	union {
-		int32_t valueIncrementPerHalfTick;
-		float value_increment_per_half_tick_float;
-	};
-	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
-	float interpolation_increment_remainder_float;
-	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
-	uint32_t renewedOverridingAtTime;
+	[[nodiscard]] int64_t getCurveValue() const {
+		return (clipValue() != nullptr) ? getAutomationOffset() : standaloneValue();
+	}
+	[[nodiscard]] int32_t getNodeBase() const { return (clipValue() != nullptr) ? clipValue()->getValue() : 0; }
+	void restoreClipValue(int32_t value);
+
+	union Binding {
+		int32_t standalone = 0;
+		ClipParamValue* clip;
+		// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+	} binding_;
+	[[nodiscard]] int32_t standaloneValue() const {
+
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		return binding_.standalone;
+	}
+	void setStandaloneValue(int32_t value) {
+
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		binding_.standalone = value;
+	}
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+	[[nodiscard]] ClipParamValue* clipValue() const { return nodes.hasClipValue() ? binding_.clip : nullptr; }
+	[[nodiscard]] int32_t resolveOffset(int64_t offset) const {
+		return ClipParamValue::resolve(int64_t{getNodeBase()} + offset);
+	}
+	void setCurveValue(int64_t offset) {
+		if (clipValue() == nullptr) {
+			setStandaloneValue(ClipParamValue::resolve(offset));
+		}
+		else if (nodes.get() != nullptr) {
+			nodes.get()->value.setOffsetForBase(offset, getNodeBase());
+		}
+	}
+	[[nodiscard]] uint32_t getOverridingTime() const {
+		return (nodes.get() != nullptr) ? nodes.get()->renewedOverridingAtTime : 0;
+	}
+	void setOverridingTime(uint32_t time) const {
+		if (nodes.get() != nullptr) {
+			nodes.get()->renewedOverridingAtTime = time;
+		}
+	}
+	void rebaseNodes(int64_t difference);
+	int64_t getOffsetAtPos(uint32_t pos, int32_t loopLength, bool reversed = false);
 	Error readAutomationFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	Error readLegacyAutomationEndpoint(int32_t value, bool interpolated);
 };
+static_assert(sizeof(AutoParamData) == 2 * sizeof(void*));

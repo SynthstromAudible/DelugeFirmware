@@ -513,8 +513,10 @@ bool JsonDeserializer::match(char const ch) {
 }
 
 void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
-	if (closeObject) {
-		match('}');
+	if (closeObject && match('}')) {
+		// An empty object has no child value to change KeyRead to ValueRead.
+		// Its closing brace completes the value just as a scalar read would.
+		readState = JsonState::ValueRead;
 	}
 	if (readState == JsonState::ValueRead)
 		return;
@@ -544,7 +546,13 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 		return;
 	}
 	else {
-		D_PRINTLN("Malformed value encountered.");
+		// Unrecognized scalar literals (true, false, null) have no matching
+		// closing character. Stop at the next structural delimiter, leaving
+		// it for the enclosing object/array reader.
+		while (peekChar(&currentChar) && currentChar != ',' && currentChar != '}' && currentChar != ']') {
+			readChar(&currentChar);
+		}
+		return;
 	}
 
 	while ((balanceCtr > 0) && readChar(&currentChar)) {

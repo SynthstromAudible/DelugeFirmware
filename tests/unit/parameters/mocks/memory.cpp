@@ -44,3 +44,10 @@ extern "C" void freezeWithError(char const* message) {
 	std::fprintf(stderr, "Firmware invariant failed: %s\n", message);
 	std::abort();
 }
+
+void* GeneralMemoryAllocator::allocExternal(uint32_t size, bool tight) {
+	return alloc(size, false, false, nullptr, tight);
+}
+int32_t GeneralMemoryAllocator::getRegion(void*) {
+	return MEMORY_REGION_EXTERNAL;
+}

@@ -35,7 +35,6 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
@@ -1097,7 +1096,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		}
 		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
+			currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 		}
 
 		// convert current value to knobPos to compare to cc value being received
@@ -1114,8 +1113,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
-			AutoParamLiveInput(*modelStackWithParam->autoParam)
-			    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+			modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam, modPos, modLength);
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the
@@ -1347,7 +1345,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}
 					else {
-						currentValue = modelStackWithParam->autoParam->getCurrentValue();
+						currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 					}
 
 					// convert current value to a knob position

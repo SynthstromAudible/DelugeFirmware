@@ -660,3 +660,15 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
+
+// Playback summaries are maintained by the same notification path that schedules automation.
+int32_t ParamManager::getPatchedValueForRender(int32_t p) {
+	auto* set = getPatchedParamSet();
+	return ((summaries[1].whichParamsAreAutomated[p >> 5] & (uint32_t{1} << (p & 31))) != 0) ? set->getValue(p)
+	                                                                                         : set->getClipValue(p);
+}
+int32_t ParamManager::getUnpatchedValueForRender(int32_t p) {
+	auto* set = getUnpatchedParamSet();
+	return ((summaries[0].whichParamsAreAutomated[p >> 5] & (uint32_t{1} << (p & 31))) != 0) ? set->getValue(p)
+	                                                                                         : set->getClipValue(p);
+}
