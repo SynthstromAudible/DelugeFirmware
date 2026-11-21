@@ -41,8 +41,8 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 		expect(modulators(s)[1].tuning.transpose).to_equal(int16_t{-12});
 		expect(modulators(s)[0].tuning.cents).to_equal(int8_t{0});
 		expect(modulators(s)[1].tuning.cents).to_equal(int8_t{0});
-		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(uint32_t{0xFFFFFFFF});
-		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(uint32_t{0xFFFFFFFF});
+		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(kFreeRunningPhase);
+		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(kFreeRunningPhase);
 		for (size_t l = 0; l < 4; ++l) {
 			expect(lfo(s, l).shape).to_equal(LFOType::TRIANGLE);
 		}
@@ -70,8 +70,8 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 		expect(unison(s).detune).to_equal(int8_t{8});
 		expect(modulators(s)[0].tuning.transpose).to_equal(int16_t{0});
 		expect(modulators(s)[1].tuning.transpose).to_equal(int16_t{-12});
-		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(uint32_t{0xFFFFFFFF});
-		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(uint32_t{0xFFFFFFFF});
+		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(kFreeRunningPhase);
+		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(kFreeRunningPhase);
 		for (size_t l = 0; l < 4; ++l) {
 			expect(lfo(s, l).shape).to_equal(LFOType::TRIANGLE);
 		}

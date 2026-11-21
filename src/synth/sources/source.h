@@ -24,6 +24,7 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"
+#include "synth/sources/source_state.h" // kFreeRunningPhase
 #include <cstdint>
 #include <optional>
 
@@ -62,8 +63,6 @@ namespace deluge::synth {
 	add_frame(frame, dsp::panned_stereo(left, right, amplitude_l, amplitude_r));
 }
 
-/// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.
-inline constexpr uint32_t kNoRetrigger = 0xFFFFFFFF;
 /// A voice's portamento position when it is not gliding.
 inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
 

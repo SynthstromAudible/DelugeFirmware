@@ -50,8 +50,8 @@ struct SoundPieces {
 };
 
 /// @brief The instrument's entries of a sound element for @p state, in file order, as pieces (see SoundPieces).
-/// Numbers are written as the file's 32-bit signed integers (a free-running phase, 0xFFFFFFFF, as -1); sync levels
-/// relative to @p context's tick magnitude.
+/// Numbers are written as the file's 32-bit signed integers (a free-running phase, kFreeRunningPhase, as -1); sync
+/// levels relative to @p context's tick magnitude.
 /// @param state                The sound's settings.
 /// @param context              The file context (tick magnitude).
 /// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as

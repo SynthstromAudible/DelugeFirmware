@@ -47,7 +47,7 @@ SoundState fm_state() {
 	test::set(s, "osc1/retrigPhase", "0");
 	test::set(s, "osc2/retrigPhase", std::to_string(1U << 30));
 	test::set(s, "modulator1/retrigPhase", "3");
-	test::set(s, "modulator2/retrigPhase", std::to_string(static_cast<int32_t>(0xFFFFFFFF)));
+	test::set(s, "modulator2/retrigPhase", std::to_string(static_cast<int32_t>(kFreeRunningPhase)));
 	test::set(s, "lfo3/type", to_string(LFOType::SAW));
 	test::set(s, "lfo2/syncLevel", number(deluge::plugin::SyncLevel::EIGHTH));
 	return s;
@@ -87,7 +87,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 		expect(c.engine.osc_retrigger_phase[1]).to_equal(1U << 30);
 		expect(int{c.engine.modulators[0].transpose}).to_equal(7);
 		expect(same_tune(c.engine.modulators[1].tune, FineTune::of_cents(-50))).to_equal(true);
-		expect(c.engine.modulators[1].retrigger_phase).to_equal(0xFFFFFFFFU);
+		expect(c.engine.modulators[1].retrigger_phase).to_equal(kFreeRunningPhase);
 		expect(c.lfos[2].shape).to_equal(LFOType::SAW);
 		expect(c.lfos[1].sync_level).to_equal(deluge::plugin::SyncLevel::EIGHTH);
 	});

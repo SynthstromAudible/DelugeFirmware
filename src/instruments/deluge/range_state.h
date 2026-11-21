@@ -28,8 +28,7 @@ namespace deluge::instrument {
 /// it.
 inline constexpr int16_t kOpenTopNote = 32767;
 
-/// @brief A retrigger phase word that means free-running: the oscillator starts each note where it is.
-inline constexpr uint32_t kFreeRunningPhase = 0xFFFFFFFF;
+using synth::kFreeRunningPhase;
 
 /// @brief The end a range's zone has before a file sets it: a file loaded into it plays to its own end.
 inline constexpr uint64_t kUnsetEndPos = 9999999;
