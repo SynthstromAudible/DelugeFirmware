@@ -281,6 +281,11 @@ struct FakeMidiDevices final : MidiDevices {
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 	[[nodiscard]] std::optional<LearnedBinding> global_command(project::GlobalCommand command) const override;
 	[[nodiscard]] std::optional<LearnedBinding> follow_input(project::FollowInput input) const override;
+	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, and kept
+	///        with default settings, so a learn from it is kept.
+	/// @param device      The device that connects.
+	/// @param device_name What `name` answers for it.
+	void connect(midi::DeviceId device, std::string_view device_name);
 };
 
 /// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in

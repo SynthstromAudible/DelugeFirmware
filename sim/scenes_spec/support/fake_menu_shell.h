@@ -171,6 +171,23 @@ struct FakeMenuShell {
 	/// @brief A short press of BACK, as `press` does.
 	/// @param at_ms When the press arrives.
 	void back(uint32_t at_ms) { press(kBackX, kBackY, at_ms); }
+	/// @brief LEARN held while @p event arrives, as the menu takes a MIDI message or a gold knob in learn mode. The
+	///        three events go to the menu scene directly, with no tick.
+	/// @param event The event offered while LEARN is down.
+	/// @return Whether the menu used @p event.
+	bool offer_while_learning(const ui::shell::UiEvent& event) {
+		using ui::shell::ButtonId;
+		using ui::shell::UiEvent;
+		const ui::shell::ButtonSet held{};
+		const ui::PadMask pads{};
+		const ui::shell::UiContext ui_ctx{held, pads, false, false, 0, deluge_profile()};
+		(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn},
+		                          ui_ctx);
+		const bool used = menu_scene().handle(event, ui_ctx).handled;
+		(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn},
+		                          ui_ctx);
+		return used;
+	}
 	/// @brief The main OLED as the last tick drew it, as P1 PBM text.
 	[[nodiscard]] std::string oled() { return surfaces.pbm(0); }
 };

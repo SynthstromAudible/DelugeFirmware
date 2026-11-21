@@ -37,7 +37,6 @@ using deluge::project::OwnerParamTarget;
 using deluge::scenes::bind::LearnedBinding;
 using deluge::scenes::spec::FakeHostRig;
 using deluge::scenes::spec::FakeMenuShell;
-using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::UiEvent;
 using Call = deluge::scenes::bind::test::RecordingLearnSink::Call;
 
@@ -45,27 +44,8 @@ namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
 
-/// A hosted device, which the MIDI devices fake learns of in `connect_hosted`.
+/// A hosted device, which the MIDI devices fake learns of through `FakeMidiDevices::connect`.
 constexpr deluge::midi::DeviceId kHosted = deluge::midi::kFirstHosted;
-
-/// @brief The MIDI devices fake knowing the hosted device as well as DIN.
-void connect_hosted(FakeMenuShell& r) {
-	r.fakes.host.midi.list.push_back(kHosted);
-	r.fakes.host.midi.names.insert_or_assign(kHosted.value, "HOSTED");
-	r.fakes.host.midi.kept.insert_or_assign(kHosted.value, deluge::scenes::bind::MidiDeviceSettings{});
-}
-
-/// @brief LEARN held while @p event arrives, as the menu takes a MIDI message in learn mode.
-/// @return Whether the menu used the message.
-bool offer_while_learning(const UiEvent& event) {
-	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
-	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
-	const bool used = menu_scene().handle(event, ui).handled;
-	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
-	return used;
-}
 
 /// @brief The knob target the synth's low-pass cutoff page learns onto: the synth output's controls, the cutoff's
 ///        engine param. Spelled from the page and the rig, not from the menu's own learn target.
@@ -92,12 +72,12 @@ std::vector<Call> calls_of(const FakeMenuShell& r, Call::Kind kind) {
 describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a model song", ${
 	it("learns a CC onto the focused param as a knob, from the device and the channel it came on", _ {
 		FakeMenuShell r;
-		connect_hosted(r);
+		r.fakes.host.midi.connect(kHosted, "HOSTED");
 		(void)r.open_synth(nodes::lpf_freq);
 		const std::optional<OwnerParamTarget> target = menu_scene().learn_target();
 		expect(target).to_equal(std::optional{cutoff_target()});
-		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
-		                                    .device = kHosted}))
+		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
+		                                      .device = kHosted}))
 		    .to_be_true();
 		const std::vector<Call> knobs = calls_of(r, Call::Kind::LEARN_KNOB);
 		expect(knobs.size()).to_equal(size_t{1});
@@ -113,11 +93,11 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 	it("learns a pitch bend as knob 128 and a gold knob as a mod knob with no device", _ {
 		FakeMenuShell r;
 		(void)r.open_synth(nodes::lpf_freq);
-		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5,
-		                                    .device = deluge::midi::kDin}))
+		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5,
+		                                      .device = deluge::midi::kDin}))
 		    .to_be_true();
-		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::Encoder,
-		                                    .encoder = deluge::ui::EncoderRole::GoldUpper, .delta = 1}))
+		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::Encoder,
+		                                      .encoder = deluge::ui::EncoderRole::GoldUpper, .delta = 1}))
 		    .to_be_true();
 		const std::vector<Call> knobs = calls_of(r, Call::Kind::LEARN_KNOB);
 		expect(knobs.size()).to_equal(size_t{2});
@@ -134,18 +114,18 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 	it("takes a note-on on a param in learn mode and learns nothing from it, as no param learns a note", _ {
 		FakeMenuShell r;
 		(void)r.open_synth(nodes::lpf_freq);
-		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .channel = 1, .data1 = 60,
-		                                    .data2 = 100, .device = deluge::midi::kDin}))
+		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .channel = 1, .data1 = 60,
+		                                      .data2 = 100, .device = deluge::midi::kDin}))
 		    .to_be_true();
 		expect(r.fakes.host.learn.calls.size()).to_equal(size_t{0});
 	});
 
 	it("learns a note-on onto a global command, carrying the device the note came from", _ {
 		FakeMenuShell r;
-		connect_hosted(r);
+		r.fakes.host.midi.connect(kHosted, "HOSTED");
 		(void)r.open_settings(nodes::midi_command_play);
-		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .channel = 6, .data1 = 48,
-		                                    .data2 = 100, .device = kHosted}))
+		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .channel = 6, .data1 = 48,
+		                                      .data2 = 100, .device = kHosted}))
 		    .to_be_true();
 		const LearnedBinding want{.device = kHosted, .channel_or_zone = 6, .note_or_cc = 48};
 		const std::vector<Call> globals = calls_of(r, Call::Kind::LEARN_GLOBAL);

@@ -40,20 +40,13 @@ MenuContext context_over(FakeHost& host) {
 	return ctx;
 }
 
-/// @brief @p host's MIDI devices fake, knowing the hosted device as well as DIN.
-void connect_hosted(FakeHost& host) {
-	host.midi.list.push_back(kHosted);
-	host.midi.names.insert_or_assign(kHosted.value, "HOSTED");
-	host.midi.kept.insert_or_assign(kHosted.value, deluge::scenes::bind::MidiDeviceSettings{});
-}
-
 } // namespace
 
 // clang-format off
 describe menu_midi_command("scenes::menu::nodes::MidiCommandItem -- a global command's learn", ${
 	it("learns a note-on onto its command with the device, the channel and the note it came with", _ {
 		FakeHost host;
-		connect_hosted(host);
+		host.midi.connect(kHosted, "HOSTED");
 		const MenuContext ctx = context_over(host);
 		expect(nodes::kMidiCommandPlayItem.learn_note_on(ctx, kHosted, 3, 60)).to_be_true();
 		const LearnedBinding want{.device = kHosted, .channel_or_zone = 3, .note_or_cc = 60};

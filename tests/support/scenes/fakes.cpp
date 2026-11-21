@@ -301,6 +301,12 @@ std::optional<LearnedBinding> FakeMidiDevices::follow_input(project::FollowInput
 	return at != follows.end() ? std::optional{at->second} : std::nullopt;
 }
 
+void FakeMidiDevices::connect(midi::DeviceId device, std::string_view device_name) {
+	list.push_back(device);
+	names.insert_or_assign(device.value, std::string{device_name});
+	kept.insert_or_assign(device.value, MidiDeviceSettings{});
+}
+
 bool RecordingWrites::write(const WriteRequest& request) {
 	requests.push_back(request);
 	return accept;

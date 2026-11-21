@@ -93,21 +93,12 @@ std::vector<std::string> last_stores(const spec::FakeHostRig& fakes, size_t coun
 	return out;
 }
 
-/// @brief LEARN held while one MIDI message of @p kind arrives from the DIN port, as the menu takes it in learn mode.
-/// @return Whether the menu used the message.
-bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t data1) {
-	using deluge::ui::shell::ButtonId;
-	using deluge::ui::shell::UiEvent;
-	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
-	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
-	const bool used =
-	    menu_scene()
-	        .handle(UiEvent{.kind = kind, .channel = 4, .data1 = data1, .data2 = 100, .device = deluge::midi::kDin}, ui)
-	        .handled;
-	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
-	return used;
+/// @brief One MIDI message of @p kind from the DIN port, on channel 4 with velocity or value 100.
+/// @param kind  The message's kind.
+/// @param data1 Its note or CC number.
+deluge::ui::shell::UiEvent din_message(deluge::ui::shell::UiEvent::Kind kind, uint8_t data1) {
+	return deluge::ui::shell::UiEvent{
+	    .kind = kind, .channel = 4, .data1 = data1, .data2 = 100, .device = deluge::midi::kDin};
 }
 
 /// @brief The community features' nodes, in the page's order, each with its feature.
@@ -676,9 +667,9 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		FakeMenuShell r;
 		r.open_settings(nodes::midi_follow_kit_root_note);
 		// Learn mode takes the CC, and the item learns nothing from it.
-		(void)offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 20);
+		(void)r.offer_while_learning(din_message(deluge::ui::shell::UiEvent::Kind::MidiCc, 20));
 		expect(r.fakes.host.device.stores.empty()).to_be_true();
-		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		expect(r.offer_while_learning(din_message(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61))).to_be_true();
 		expect(last_stores(r.fakes, 1))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kFollowKitRootNote} + "=61"});
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
@@ -721,12 +712,15 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		}
 	});
 
-	it("records a command's learn and a turn's unlearn on the learn sink, and keeps them in the fake", _ {
+	it("records a command's learn and a turn's unlearn on the learn sink, keeps them in the fake, and draws the page unassigned after the unlearn", _ {
 		using deluge::project::GlobalCommand;
 		using Call = bind::test::RecordingLearnSink::Call;
 		FakeMenuShell r;
 		r.open_settings(nodes::midi_command_record);
-		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		r.shell.tick(40);
+		// The page as it opens with nothing learned: the unassigned one.
+		const std::string unassigned = r.oled();
+		expect(r.offer_while_learning(din_message(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61))).to_be_true();
 		const LearnedBinding note{.device = deluge::midi::kDin, .channel_or_zone = 4, .note_or_cc = 61};
 		const auto& calls = r.fakes.host.learn.calls;
 		expect(calls.size()).to_equal(size_t{1});
@@ -737,12 +731,15 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		}
 		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD)).to_equal(std::optional{note});
 		// A CC is learned in its band; program changes are refused on FILL alone.
-		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 20)).to_be_true();
+		expect(r.offer_while_learning(din_message(deluge::ui::shell::UiEvent::Kind::MidiCc, 20))).to_be_true();
 		const LearnedBinding cc{.device = deluge::midi::kDin,
 		                        .channel_or_zone = static_cast<uint8_t>(deluge::project::kFirstCcChannel + 4),
 		                        .note_or_cc = 20};
 		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD)).to_equal(std::optional{cc});
-		// Any turn of the select encoder unlearns it.
+		// The learned command draws its binding, so the page drawn after the turn below is a change.
+		r.shell.tick(50);
+		expect(r.oled()).not_().to_equal(unassigned);
+		// Any turn of the select encoder unlearns it, and the page draws it unassigned again.
 		r.turn(-1, 60);
 		expect(calls.size()).to_equal(size_t{3});
 		if (calls.size() == 3) {
@@ -750,6 +747,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 			expect(calls[2].binding.has_value()).to_be_false();
 		}
 		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD).has_value()).to_be_false();
+		expect(r.oled()).to_equal(unassigned);
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();
 	});
 
@@ -767,7 +765,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1)).to_equal(std::optional{din_4});
 		// A note learns the device and the channel it came on.
 		r.fakes.host.midi.follows.insert_or_assign(FollowInput::TRACK_1, LearnedBinding{.channel_or_zone = 9});
-		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		expect(r.offer_while_learning(din_message(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61))).to_be_true();
 		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1)).to_equal(std::optional{din_4});
 		menu_scene().unlearn();
 		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1).has_value()).to_be_false();
