@@ -169,7 +169,7 @@ budget.
 | 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion), C3 (one store per instance; `ParamBackup` retires; after step 3, replacing `ParamView`'s adapter), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
 | 3 | The Deluge synth's state (`instrument::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
-| 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |
+| 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instrument::VoicePool` (`src/instruments/deluge/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instrument::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2, its own spec: an engine registry in place of the note-on `OscType` dispatch, and DX7 as a sound-level engine only; a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change. Engine stacking (several engine instances per sound, as layers) is an idea for part 2, not decided | 3 |
 | 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin-api` on CLAP's types; TODO.md) | can run beside 2 to 4 |
 | 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
 
@@ -196,7 +196,7 @@ budget.
 | Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in dsp-next; loading and the holder app-side |
 | Time-stretch, sample playback | `src/deluge/dsp/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
-| Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; note-on setup and the sample adapter stay app-side until Track A step 4 |
+| Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `VoicePart`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; the slot and the pool are the instrument's (`src/instruments/deluge/voice_pool.h`); `SoundVoice` is that slot over the app's `VoicePart` (ports, playback guides); note-on setup and the sample adapter are app-side |
 | Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Frozen in the q31 instrument; the unified forms belong to the float instrument |
 
 ## Long-term ordering
@@ -208,7 +208,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- | --- |
 | UI shell | Done: 3b blockers, 3c flip, R1 read ratchet; flash-test 3a | Done: 3d legacy menus deleted, oracle specs frozen; R2 reads behind `bind` | Root-view program (small UIs, the big views with P5, then the shell as root and `ShellHostUI` deleted); kit rows and mapping-table UI; R3 readers on P5 ids | P6 interface (R4) |
 | Model | ModelStack plan, inventory of readers (shared with R1) | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
-| Synth | Done: FM/DX7, wavetable, reverb, voice lift, M3 matrix | Track A 1 to 2 (MCA/GE and C4 done; D7, C2, C3, C5); Track B voice pool | Track A 3 to 5 (the synth's state, voice ownership, layout and CLAP arcs); SampleSource and P4 clip player; float instrument | Track A 6: L3 adapter, both instruments behind it; external `.clap` hosting |
+| Synth | Done: FM/DX7, wavetable, reverb, voice lift, M3 matrix | Track A 1 to 2 (MCA/GE and C4 done; D7, C2, C3, C5); Track B voice pool | Track A 3 and 4 part 1 done (the synth's state, voice ownership); Track A 4 part 2 (engine registry, DX7 as a sound-level engine), 5 (layout and CLAP arcs); SampleSource and P4 clip player; float instrument | Track A 6: L3 adapter, both instruments behind it; external `.clap` hosting |
 | Platform, storage | Device flash-tests, USB-MIDI fix push, live-bug triage | Tier B sync callers, tier D comments, FS-lock queue wait | Allocator redesign, libdeluge hard wall | Supervisor + MMU, warm restart |
 | Release, features | UI branch into `next`, nightly with both corpora | `next` to `main` PR, port #5049 follow-ups | Merge each phase, merge `main` into `next` often | Faster-than-real-time export |
 
@@ -237,7 +237,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | ModelStack deleted | 4 | P6; the wave-1 inventory shows no readers left | (proposed) |
 | Patch cable data | Done | n/a | In instrument state, per slot and clip (P2c) |
 | Patch cable runtime (Patcher to a replacement mod matrix) | Done | n/a | M3: the q31 matrix program and evaluator, bit-exact (abd530faa) |
-| `OscType` switch to persistent per-voice engines | 3 | Track A step 3; bit-exact, since the q31 sound is frozen **(proposed)** | `renderOsc` deleted; VA and wavetable engines persist per voice-source; the note-on `OscType` dispatch remains |
+| `OscType` switch to persistent per-voice engines | 3 | Track A step 3; bit-exact, since the q31 sound is frozen **(proposed)** | `renderOsc` deleted; VA and wavetable engines persist per voice-source; the note-on `OscType` dispatch remains until Track A step 4 part 2 |
 | `Voice`, `Sound::render` to `synth::Voice` | Done | n/a | Slices a to f done; the kernel is `deluge::synth::Voice`, held by `SoundVoice` |
 
 ### Worktrees
