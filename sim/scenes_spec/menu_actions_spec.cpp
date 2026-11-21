@@ -1273,7 +1273,9 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// stops it before the browser opens; anywhere else it does nothing.
 		select_language();
 		UiStackGuard ui_guard;
-		const menu::MenuContext ctx{};
+		// The audition ends through the context's view actions port, the app's here.
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports();
 
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
