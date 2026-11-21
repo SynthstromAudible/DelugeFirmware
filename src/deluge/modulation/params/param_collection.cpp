@@ -53,18 +53,15 @@ bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const*
 	return !recording_automation;
 }
 
-int32_t ParamCollection::getValueForControl(ModelStackWithAutoParam const* modelStack) {
-	using namespace deluge::modulation::params;
-	auto* clip = getClipValueStorage(modelStack->paramId);
-	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack), false);
-	return readControlValue(layer, clip, layer == ControlLayer::LIVE ? &modelStack->autoParam->data() : nullptr);
+int32_t ParamCollection::getValueForControl(ModelStackWithParamId const* modelStack) {
+	return getValueForControl(modelStack->paramId, modelStack);
 }
 
-void ParamCollection::setValueFromControl(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
+void ParamCollection::setValueFromControl(int32_t value, ModelStackWithParamId const* modelStack, int32_t pos,
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
 	using namespace deluge::modulation::params;
 	auto* clip = getClipValueStorage(modelStack->paramId);
-	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack), false,
+	auto layer = controlLayer(getParamKind(), true, controlsEditClipValue(modelStack), false,
 	                          length != 0 && modelStack->timelineCounterIsSet());
 	// Avoid even resolving AutoParam for a scalar edit which changes nothing.
 	if (layer == ControlLayer::CLIP && clip != nullptr && value == clip->getValue()) {

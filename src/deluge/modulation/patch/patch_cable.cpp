@@ -89,6 +89,8 @@ bool PatchCable::isActive() {
 
 void PatchCable::initAmount(int32_t value) {
 	AutoParamOwnership(param).releaseNodes();
+	clipValue = ClipParamValue{};
+	AutoParamOwnership(param).rebindClipValueAfterMove(&clipValue);
 	AutoParamSetup(param).setCurrentValueBasicForSetup(value);
 }
 

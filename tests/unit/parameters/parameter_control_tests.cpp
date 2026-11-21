@@ -12,3 +12,13 @@ TEST(ParameterControlTests, ExpressionReadsAndWritesRemainLiveWithOrWithoutTrack
 		CHECK(controlLayer(Kind::EXPRESSION, true, true, linked, true) == ControlLayer::REGION);
 	}
 }
+
+TEST(ParameterControlTests, AutomationRemovalSendsMidiOnlyForActiveClipAndOutput) {
+	AutomationTransition removal{true, false};
+	CHECK(removal.sendMidi(true, true));
+	CHECK_FALSE(removal.sendMidi(true, false));
+	CHECK_FALSE(removal.sendMidi(false, true));
+	// Preserve intentional manual edits of inactive clips.
+	CHECK((AutomationTransition{false, false}.sendMidi(true, false)));
+	CHECK((AutomationTransition{true, true}.sendMidi(true, false)));
+}

@@ -24,6 +24,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param_access.h"
+#include "modulation/params/param_control_value.h"
+#include "modulation/params/patch_cable_preset_values.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
@@ -31,6 +33,7 @@
 #include "storage/storage_manager.h"
 #include "util/algorithm/quick_sorter.h"
 #include "util/misc.h"
+#include <array>
 #include <string.h>
 
 namespace params = deluge::modulation::params;
@@ -106,6 +109,8 @@ void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
 	memcpy(&temp, &patchCables[c1], sizeof(PatchCable));
 	memcpy(&patchCables[c1], &patchCables[c2], sizeof(PatchCable));
 	memcpy(&patchCables[c2], &temp, sizeof(PatchCable));
+	AutoParamOwnership(patchCables[c1].param).rebindClipValueAfterMove(&patchCables[c1].clipValue);
+	AutoParamOwnership(patchCables[c2].param).rebindClipValueAfterMove(&patchCables[c2].clipValue);
 }
 
 Destination* PatchCableSet::getDestinationForParam(int32_t p) {
@@ -132,6 +137,9 @@ const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
+	if (presetValues_ != nullptr) {
+		bindPresetValues(presetValues_);
+	}
 
 	// Deallocate any old memory
 	freeDestinationMemory(false);
@@ -441,7 +449,9 @@ uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor dest
 	else {
 		c = numPatchCables++;
 claimPatchCable:
-		patchCables[c].initAmount(0);
+		int32_t baseline =
+		    presetValues_ != nullptr ? *presetValues_->find(getParamId(destinationParamDescriptor, from)) : 0;
+		patchCables[c].initAmount(baseline);
 		patchCables[c].from = from;
 		patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
 		patchCables[c].setDefaultPolarity();
@@ -477,6 +487,7 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
 			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			AutoParamOwnership(patchCables[c].param).rebindClipValueAfterMove(&patchCables[c].clipValue);
 			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
 			AutoParamOwnership(patchCables[numPatchCables - 1].param).forgetNodes();
 			break;
@@ -521,7 +532,7 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 	// For some params, we square the cable strength, to make it slope up more slowly at first, so we have access
 	// to small effects as well as big
 	int32_t output;
-	int32_t amount = patchCables[c].param.getCurrentValue();
+	int32_t amount = patchCables[c].getValue();
 	switch (p) {
 	case params::LOCAL_PITCH_ADJUST:
 	case params::LOCAL_OSC_A_PITCH_ADJUST:
@@ -758,11 +769,13 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	int32_t c;
 	for (c = 0; c < numUsablePatchCables; c++) {
+		AutoParamOwnership(patchCables[c].param).rebindClipValueAfterMove(&patchCables[c].clipValue);
 		AutoParamOwnership(patchCables[c].param).beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 
 	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
 	for (; c < kMaxNumPatchCables; c++) {
+		AutoParamOwnership(patchCables[c].param).rebindClipValueAfterMove(&patchCables[c].clipValue);
 		AutoParamOwnership(patchCables[c].param).init();
 	}
 
@@ -834,7 +847,12 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 			PatchSource source = PatchSource::NONE;
 			ParamDescriptor destinationParamDescriptor;
 			destinationParamDescriptor.setToNull();
+			ClipParamValue temp_clip;
 			AutoParam tempParam;
+			AutoParamOwnership(tempParam).bindClipValue(&temp_clip);
+			int32_t saved_clip_value = 0;
+			bool has_clip_value = false;
+			bool has_relative_value = false;
 			Polarity polarity = Polarity::BIPOLAR;
 			bool rangeAdjustable = false;
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -851,6 +869,13 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 				else if (!strcmp(tagName, "amount")) {
 					AutoParamSetup(tempParam).readFromFile(reader, readAutomationUpToPos);
 				}
+				else if (strcmp(tagName, "relativeAmount") == 0) {
+					has_relative_value = AutoParamSetup(tempParam).readRelativeFromFile(reader);
+				}
+				else if (strcmp(tagName, "clipAmount") == 0) {
+					saved_clip_value = reader.readTagOrAttributeValueInt();
+					has_clip_value = true;
+				}
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
@@ -864,7 +889,12 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 						if (!strcmp(tagName, "patchCable")) {
 							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
+							ClipParamValue temp_range_clip;
 							AutoParam tempRangeParam;
+							AutoParamOwnership(tempRangeParam).bindClipValue(&temp_range_clip);
+							int32_t saved_range_clip = 0;
+							bool has_range_clip = false;
+							bool has_relative_range = false;
 							Polarity rangePolarity = Polarity::BIPOLAR;
 							while (*(tagName = reader.readNextTagOrAttributeName())) {
 								if (!strcmp(tagName, "source")) {
@@ -873,6 +903,13 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								else if (!strcmp(tagName, "amount")) {
 									AutoParamSetup(tempRangeParam).readFromFile(reader, readAutomationUpToPos);
 								}
+								else if (strcmp(tagName, "relativeAmount") == 0) {
+									has_relative_range = AutoParamSetup(tempRangeParam).readRelativeFromFile(reader);
+								}
+								else if (strcmp(tagName, "clipAmount") == 0) {
+									saved_range_clip = reader.readTagOrAttributeValueInt();
+									has_range_clip = true;
+								}
 								else if (!strcmp(tagName, "polarity")) {
 									rangePolarity = stringToPolarity(reader.readTagOrAttributeValue());
 								}
@@ -880,7 +917,11 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							}
 							reader.match('}'); // leave value
 							reader.match('}'); // leave box.
-							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
+							if (has_range_clip && !has_relative_range && tempRangeParam.isAutomated()) {
+								AutoParamSetup(tempRangeParam).restoreClipValueFromFile(saved_range_clip);
+							}
+							if (rangeSource != PatchSource::NONE
+							    && (has_range_clip || tempRangeParam.containsSomething(0))) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 									if (patchCables[c].from == rangeSource) {
@@ -903,7 +944,11 @@ doneWithThisRangeCable:
 				reader.match(']');
 				reader.exitTag();
 			}
-			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
+			if (has_clip_value && !has_relative_value && tempParam.isAutomated()) {
+				AutoParamSetup(tempParam).restoreClipValueFromFile(saved_clip_value);
+			}
+			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull()
+			    && (has_clip_value || tempParam.containsSomething(0))) {
 				// Just make sure this cable is allowed in some capacity
 				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really
 				// necessary anyway
@@ -995,6 +1040,16 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.write("\"");
 		patchCables[c].param.writeToFile(writer, writeAutomation);
 		writer.write("\"");
+		if (writeAutomation) {
+			writer.writeAttribute("clipAmount", patchCables[c].clipValue.getValue());
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("relativeAmount");
+			writer.write("\"");
+			patchCables[c].param.writeRelativeToFile(writer);
+			writer.write("\"");
+		}
 
 		// See if another cable(s) controls the range/depth of this cable
 		ParamDescriptor paramDescriptor = patchCables[c].destinationParamDescriptor;
@@ -1018,6 +1073,16 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				writer.write("\"");
 				patchCables[d].param.writeToFile(writer, writeAutomation);
 				writer.write("\"");
+				if (writeAutomation) {
+					writer.writeAttribute("clipAmount", patchCables[d].clipValue.getValue());
+					writer.insertCommaIfNeeded();
+					writer.write("\n");
+					writer.printIndents();
+					writer.writeTagNameAndSeperator("relativeAmount");
+					writer.write("\"");
+					patchCables[d].param.writeRelativeToFile(writer);
+					writer.write("\"");
+				}
 				writer.closeTag(true);
 			}
 		}
@@ -1049,6 +1114,9 @@ void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinatio
 // Watch the heck out! This might delete the PatchCable, and AutoParam, in question.
 void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                  bool automationChanged, bool automatedBefore, bool automatedNow) {
+	if (automatedBefore && !automatedNow) {
+		AutoParamPlayback(*modelStack->autoParam).clearAutomationOffset();
+	}
 
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
@@ -1065,7 +1133,8 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
 		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0)) {
+		if (!modelStack->autoParam->containsSomething(0) && (getClipValueStorage(modelStack->paramId)->getOffset() == 0)
+		    && (getClipValueStorage(modelStack->paramId)->getPresetValue() == 0)) {
 			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
 			if (c != 255) {
 
@@ -1110,7 +1179,7 @@ void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWith
 	ParamDescriptor destinationParamDescriptor;
 	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 
-	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
+	int32_t c = getPatchCableIndex(s, destinationParamDescriptor, modelStack, true);
 	if (c == 255) {
 		return;
 	}
@@ -1122,15 +1191,22 @@ void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWith
 }
 
 void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
-	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
-	AutoParam* autoParam = &patchCables[c].param;
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(paramId, autoParam);
-	autoParam->automation().erase(action, modelStackWithParam, false);
-
-	FOR_EACH_PARAM_END
-
+	// Deletion can remove a zero-strength route and reorder the array. Snapshot
+	// IDs first, then resolve each route again before sending its notification.
+	std::array<int32_t, kMaxNumPatchCables> ids_storage{};
+	int32_t* ids = ids_storage.data();
+	int32_t count = 0;
+	for (int32_t c = 0; c < numPatchCables; ++c) {
+		if (patchCables[c].param.isAutomated()) {
+			ids[count++] = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+		}
+	}
+	for (int32_t i = 0; i < count; ++i) {
+		auto* param = getParam(ids[i]);
+		if (param != nullptr) {
+			param->automation().erase(action, modelStack->addAutoParam(ids[i], param));
+		}
+	}
 	modelStack->summary->resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
 	modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
 }
@@ -1221,4 +1297,45 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 		return nullptr;
 	}
 	return &patchCables[i];
+}
+
+void PatchCableSet::bindPresetValues(const PatchCablePresetValues* values) {
+	presetValues_ = values;
+	for (int32_t c = 0; c < numPatchCables; ++c) {
+		auto& cable = patchCables[c];
+		cable.clipValue.bindPreset(values->find(getParamId(cable.destinationParamDescriptor, cable.from)));
+	}
+}
+
+ClipParamValue* PatchCableSet::getClipValueStorage(int32_t paramId) {
+	PatchSource source = PatchSource::NOT_AVAILABLE;
+	ParamDescriptor destination;
+	dissectParamId(paramId, &destination, &source);
+	int32_t c = getPatchCableIndex(source, destination);
+	return c == 255 ? nullptr : &patchCables[c].clipValue;
+}
+
+int32_t PatchCableSet::getValueForControl(int32_t paramId, ModelStackWithThreeMainThings const* modelStack) {
+	using namespace deluge::modulation::params;
+	auto layer = controlLayer(Kind::PATCH_CABLE, true, controlsEditClipValue(modelStack), false);
+	int32_t baseline = presetValues_ != nullptr ? *presetValues_->find(paramId) : 0;
+	auto* automation = layer == ControlLayer::LIVE ? getParam(paramId) : nullptr;
+	return readControlValue(layer, getClipValueStorage(paramId), automation != nullptr ? &automation->data() : nullptr,
+	                        baseline);
+}
+
+AutoParam* PatchCableSet::getParam(int32_t paramId) {
+	PatchSource source = PatchSource::NOT_AVAILABLE;
+	ParamDescriptor destination;
+	dissectParamId(paramId, &destination, &source);
+	int32_t c = getPatchCableIndex(source, destination);
+	return c == 255 ? nullptr : &patchCables[c].param;
+}
+
+void PatchCableSet::detachZeroPresetValues(const PatchCablePresetValues* values) {
+	if (presetValues_ == values) {
+		for (uint32_t c = 0; c < numPatchCables; ++c) {
+			patchCables[c].clipValue.detachZeroPreset();
+		}
+	}
 }

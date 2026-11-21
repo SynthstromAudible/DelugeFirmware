@@ -27,6 +27,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
+#include "modulation/params/param_control.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 
@@ -137,7 +138,12 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 		AutoParam* param = &midiParam->param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
+		bool was_automated = param->isAutomated();
+		int32_t old_value = param->getCurrentValue();
 		param->automation().trimToLength(newLength, action, modelStackWithAutoParam);
+		if (was_automated && !param->isAutomated()) {
+			notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, true, true, false);
+		}
 	}
 	ticksTilNextEvent = 0;
 }
@@ -197,7 +203,7 @@ void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithPara
 
 		if (midiParam->param.isAutomated()) {
 			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam->cc, &midiParam->param);
-			midiParam->param.automation().erase(action, modelStackWithParam, false);
+			midiParam->param.automation().erase(action, modelStackWithParam);
 		}
 	}
 }
@@ -279,19 +285,30 @@ void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t o
 		AutoParam* param = &midiParam->param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
+		bool was_automated = param->isAutomated();
+		int32_t old_value = param->getCurrentValue();
 		param->automation().nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
 		                                                    modelStackWithAutoParam);
+		if (was_automated && !param->isAutomated()) {
+			notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, true, true, false);
+		}
 	}
 }
 
 void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                        bool automationChanged, bool automatedBefore,
                                                        bool automatedNow) {
+	if (automatedBefore && !automatedNow) {
+		AutoParamPlayback(*modelStack->autoParam).clearAutomationOffset();
+	}
 
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
+	if (deluge::modulation::params::AutomationTransition{.before = automatedBefore, .after = automatedNow}.sendMidi(
+	        modelStack->song->isOutputActiveInArrangement(static_cast<MIDIInstrument*>(modelStack->modControllable)),
+	        !modelStack->timelineCounterIsSet()
+	            || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput())) {
 		auto new_v = modelStack->autoParam->getCurrentValue();
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, new_v, getParamKind(), modelStack->paramId);
@@ -344,7 +361,13 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 			writer.writeOpeningTag("value", false);
 			midiParam->param.writeToFile(writer, true);
 			writer.writeClosingTag("value", false);
+			if (midiParam->param.isAutomated()) {
+				writer.writeTag("clipValue", midiParam->clipValue.getValue());
+			}
 
+			writer.writeOpeningTag("relativeValue", false);
+			midiParam->param.writeRelativeToFile(writer);
+			writer.writeClosingTag("relativeValue", false);
 			writer.writeClosingTag("param");
 		}
 
@@ -358,3 +381,13 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+ClipParamValue* MIDIParamCollection::getClipValueStorage(int32_t cc) {
+	auto* entry = params.getParamFromCC(cc);
+	return (entry != nullptr) ? &entry->clipValue : nullptr;
+}
+
+int32_t MIDIParamCollection::getValueForControl(int32_t cc, ModelStackWithThreeMainThings const* modelStack) {
+	using namespace deluge::modulation::params;
+	return params.getValueForControl(cc, controlLayer(Kind::MIDI, true, controlsEditClipValue(modelStack), false));
+}

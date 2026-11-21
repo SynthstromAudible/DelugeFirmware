@@ -37,6 +37,10 @@ struct MPEOutputMemberChannel {
 
 class MIDIInstrument final : public NonAudioInstrument {
 public:
+	void bindPresetValues(ParamManager* manager) override;
+	int32_t* getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) override;
+	[[nodiscard]] int32_t getPresetMidiValue(uint8_t cc) const { return presetMidiValues_[cc]; }
+
 	MIDIInstrument();
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
@@ -155,6 +159,9 @@ protected:
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 private:
+	std::array<int32_t, 256> presetMidiValues_{};
+	bool hasPresetMidiValues_ = false;
+
 	void sendMonophonicExpressionEvent(int32_t expressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);

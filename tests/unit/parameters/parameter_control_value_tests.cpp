@@ -3,7 +3,8 @@
 #include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_control_value.h"
 #include "modulation/params/param_node.h"
-
+#include "modulation/patch/patch_cable.h"
+#include "storage/preset_save_values.h"
 #include <type_traits>
 #include <utility>
 
@@ -70,7 +71,7 @@ TEST_GROUP(ParameterControlValueTests) {
 };
 
 TEST(ParameterControlValueTests, ScalarReadsDoNotRequireAutomationOrAllocateCurveStorage) {
-	for (Kind kind : {Kind::PATCHED, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_GLOBAL}) {
+	for (Kind kind : {Kind::PATCHED, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_GLOBAL, Kind::MIDI, Kind::PATCH_CABLE}) {
 		CHECK_EQUAL(100, readControlValue(controlLayer(kind, true, true, true), &scalar, nullptr));
 		CHECK_EQUAL(125, readControlValue(controlLayer(kind, true, true, false), &scalar, nullptr));
 	}
@@ -79,7 +80,7 @@ TEST(ParameterControlValueTests, ScalarReadsDoNotRequireAutomationOrAllocateCurv
 
 TEST(ParameterControlValueTests, AutomatedControlReadsChoosePresetClipOrLiveValue) {
 	addCurve();
-	for (Kind kind : {Kind::PATCHED, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_GLOBAL}) {
+	for (Kind kind : {Kind::PATCHED, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_GLOBAL, Kind::MIDI, Kind::PATCH_CABLE}) {
 		CHECK_EQUAL(100, readControlValue(controlLayer(kind, true, true, true), &scalar, nullptr));
 		CHECK_EQUAL(125, readControlValue(controlLayer(kind, true, true, false), &scalar, nullptr));
 		CHECK_EQUAL(145, readControlValue(controlLayer(kind, true, false, true), &scalar, &automation));
@@ -116,6 +117,17 @@ TEST(ParameterControlValueTests, ClipEditRetainsUnclampedCurveOvershoot) {
 	CHECK_EQUAL(145, automation.getCurrentValue());
 }
 
+TEST(ParameterControlValueTests, PatchCableEditUsesSameScalarOperation) {
+	PatchCable cable;
+	cable.clipValue.bindPreset(&preset);
+	cable.clipValue.setValue(125);
+	CHECK(cable.param.automation().setNodeAtPos(0, 145, false) >= 0);
+	CHECK_EQUAL(125, setClipValueFromControl(cable.clipValue, cable.param.data(), 150));
+	CHECK_EQUAL(100, preset);
+	CHECK_EQUAL(170, cable.param.getValueAtPos(0, 32));
+	CHECK_EQUAL(20, cable.param.nodeAt(0)->offset);
+}
+
 TEST(ParameterControlValueTests, EditingInterfaceUpdatesTheLiveParameterWithReadOnlyInspection) {
 	AutoParam live;
 	const auto& data = live.data();
@@ -126,4 +138,15 @@ TEST(ParameterControlValueTests, EditingInterfaceUpdatesTheLiveParameterWithRead
 	CHECK_EQUAL(2, data.nodeCount());
 	CHECK_EQUAL(100, live.getNodeValue(data.nodeAt(0)));
 	CHECK_EQUAL(150, live.getValueAtPos(8, 32));
+}
+
+TEST(ParameterControlValueTests, LiveParameterSerializationUsesItsReadOnlyDataIdentity) {
+	PatchCable cable;
+	cable.clipValue.setValue(125);
+	PresetSaveValues saved;
+	MemorySerializer writer;
+	cable.param.writeToFile(writer, false);
+	CHECK(saved.find(&cable.param.data()).has_value());
+	CHECK_EQUAL(125, *saved.find(&cable.param.data()));
+	CHECK_EQUAL(125, cable.param.getClipValue());
 }
