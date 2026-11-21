@@ -43,11 +43,17 @@
 #include "scenarios/drivers/voice_pins_records.h"
 #include "serialization/value.h"
 #include "storage/storage_manager.h"
+#include "storage/tree_document.h"
 #include "support/golden_update.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
+#include <filesystem>
 #include <format>
+#include <fstream>
+#include <iterator>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -277,6 +283,121 @@ void readersCase() {
 	}
 }
 
+/// What a note-on reads of its sound beside its voices: whether note tails are allowed, and each source's activity.
+struct NoteFacts {
+	bool note_tails{};
+	std::array<bool, kNumSources> active{};
+	bool operator==(const NoteFacts&) const = default;
+};
+
+/// The facts as @p sound answers them now, through the model stack a note-on gets.
+NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &sound, &clip, &clip.paramManager);
+	NoteFacts facts{.note_tails = sound.allowNoteTails(ms->addSoundFlags(), true)};
+	for (int32_t s = 0; s < kNumSources; s++) {
+		facts.active[s] = sound.isSourceActiveCurrently(s, &clip.paramManager);
+	}
+	return facts;
+}
+
+/// Every voice of @p sound as the record lists it, for comparing before and after a read.
+std::string voicesOf(const Sound& sound) {
+	std::string text;
+	for (const auto& voice : sound.voices()) {
+		text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
+		                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
+		                    int{voice->just_created});
+	}
+	return text;
+}
+
+/// A note-on reads its facts inside its voice walk, between the walk's edits; read once before the walk instead, they
+/// must answer the same. So, for each render preset in each polyphony mode, across two note-ons: reading them twice
+/// gives the same answer and changes neither the record nor any voice, and the note-on's own voice edits leave them as
+/// they were. Each preset is loaded once, for all three modes. Returns the presets checked, or -1 after printing the
+/// first that breaks this.
+int32_t factsCase(Io io) {
+	namespace fs = std::filesystem;
+	const fs::path root = "tests/golden/render/presets";
+	if (!fs::is_directory(root)) {
+		std::fprintf(io.err, "voice_pins: no %s here\n", root.c_str());
+		return -1;
+	}
+	std::vector<fs::path> paths;
+	for (const auto& entry : fs::recursive_directory_iterator(root)) {
+		const std::string ext = entry.path().extension().string();
+		if (entry.is_regular_file() && (ext == ".xml" || ext == ".XML" || ext == ".json")) {
+			paths.push_back(entry.path());
+		}
+	}
+	std::ranges::sort(paths);
+	int32_t checked = 0;
+	for (const fs::path& path : paths) {
+		std::ifstream file(path, std::ios::binary);
+		const std::string bytes{std::istreambuf_iterator<char>(file), {}};
+		char const* firstTag = nullptr;
+		char const* altTag = nullptr;
+		StorageManager::instrumentDocumentTags(OutputType::SYNTH, &firstTag, &altTag);
+		deluge::storage::TreeDocument document;
+		if (document.open(std::span{reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()},
+		                  path.extension() == ".json", firstTag, altTag)
+		    != Error::NONE) {
+			continue; // not a synth preset
+		}
+		Instrument* instrument = nullptr;
+		std::string name = "PRESET";
+		std::string dir = "SYNTHS";
+		const Error parsed = StorageManager::parseInstrumentDocument(document, currentSong, nullptr, OutputType::SYNTH,
+		                                                             false, &instrument, &name, &dir);
+		document.release();
+		if (parsed != Error::NONE || instrument == nullptr) {
+			continue;
+		}
+		auto& sound = *static_cast<SoundInstrument*>(instrument);
+		InstrumentClip* clip = attachClip(&sound);
+		if (clip == nullptr) {
+			std::fprintf(io.err, "voice_pins: no clip for %s after %d presets\n", path.c_str(), checked);
+			return -1;
+		}
+		for (const PolyphonyMode mode : {PolyphonyMode::MONO, PolyphonyMode::LEGATO, PolyphonyMode::POLY}) {
+			sound.killAllVoices();
+			deluge::edits::settingFor(sound, "polyphonic",
+			                          Value::makeScalar(std::string(deluge::instrument::to_string(mode))));
+			for (const int32_t note : {60, 64}) {
+				const deluge::instrument::SoundState record = sound.state();
+				const std::string voices = voicesOf(sound);
+				const NoteFacts before = factsOf(sound, *clip);
+				const NoteFacts again = factsOf(sound, *clip);
+				const bool unchanged = record == sound.state() && voices == voicesOf(sound);
+				alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
+				    memory, currentSong, &sound, clip, &clip->paramManager);
+				sound.Sound::noteOn(ms, &sound.arpeggiator, note, zeroMPEValues);
+				const NoteFacts after = factsOf(sound, *clip);
+				if (before != again || !unchanged || before != after) {
+					std::fprintf(io.err, "voice_pins: %s, %s, note %d: facts %s\n", path.c_str(),
+					             std::string(deluge::instrument::to_string(mode)).c_str(), note,
+					             before != again ? "differ when read twice"
+					             : !unchanged    ? "reading them changed the sound"
+					                             : "changed across the note-on's voice edits");
+					return -1;
+				}
+			}
+		}
+		// Freed as the app frees them, so the presets fit the heap: the clip took the preset's param manager out of
+		// the song's backup, so its collections go with the clip; the instrument's deletion is retired later
+		sound.killAllVoices();
+		clip->paramManager.destructAndForgetParamCollections();
+		currentSong->deleteOutput(instrument);
+		clip->~InstrumentClip();
+		deluge::memory::dealloc(clip);
+		checked++;
+	}
+	return checked;
+}
+
 int voice_pins_main(int /*argc*/, char** /*argv*/, Io io) {
 	Song* song = freshSong();
 	currentSong = song;
@@ -309,12 +430,15 @@ int voice_pins_main(int /*argc*/, char** /*argv*/, Io io) {
 	const bool oom = outOfMemoryCase(io);
 	readersCase();
 	silenceAll();
+	const int32_t checked = factsCase(io);
+	const bool facts = checked > 0;
+	g_lines.push_back(std::format("facts mono legato poly presets {}", checked));
 
 	if (golden::updating()) {
 		for (const std::string& line : g_lines) {
 			golden::record(kHeader, "kRecords", std::format("    \"{}\",", line));
 		}
-		return oom ? 0 : 1;
+		return oom && facts ? 0 : 1;
 	}
 	const auto& records = voice_pins_records::kRecords;
 	for (size_t i = 0; i < std::max(g_lines.size(), records.size()); i++) {
@@ -327,7 +451,7 @@ int voice_pins_main(int /*argc*/, char** /*argv*/, Io io) {
 		}
 	}
 	std::fprintf(io.out, "voice_pins: %zu lines match\n", g_lines.size());
-	return oom ? 0 : 1;
+	return oom && facts ? 0 : 1;
 }
 
 } // namespace
