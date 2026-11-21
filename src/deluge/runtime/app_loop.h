@@ -27,15 +27,6 @@ namespace deluge::runtime {
 using Micros = uint64_t;
 /// A time that never comes: a job with no timer, or a loop with nothing due.
 inline constexpr Micros kNever = ~Micros{0};
-/// How soon a TIMERLESS job (gap == kNever) is retried after a run that threw, in microseconds.
-///
-/// A gapped job is retried by its gap regardless of whether a run throws. A timerless job runs only
-/// when requested or woken, and a throw unwinds out of the body before it can make either of those
-/// happen for itself -- so without this, a single throw would strand it (and whatever it owns: a
-/// queue, a held resource) with no way to ever run again. 10 ms is short enough that the retry is not
-/// itself a user-visible delay, and long enough that a job thrashing on a repeat failure does not spin
-/// the loop.
-inline constexpr Micros kThrowRetryUs = 10'000;
 /// A set of `DelugeWake` reasons (libdeluge/app.h).
 using WakeMask = uint32_t;
 using JobId = uint8_t;
@@ -44,10 +35,9 @@ inline constexpr JobId kNoJob = 0xFF;
 /// A job's run times, from the loop's clock.
 struct JobStats {
 	const char* name = nullptr;
-	Micros maxRun = 0;     ///< the longest run since the last Loop::resetStats(), in µs
-	Micros lastRun = 0;    ///< the most recent run, in µs
-	uint32_t runs = 0;     ///< runs since the last Loop::resetStats()
-	uint32_t failures = 0; ///< runs that threw, since the last Loop::resetStats()
+	Micros maxRun = 0;  ///< the longest run since the last Loop::resetStats(), in µs
+	Micros lastRun = 0; ///< the most recent run, in µs
+	uint32_t runs = 0;  ///< runs since the last Loop::resetStats()
 };
 
 /// The interaction tier's jobs, which the BSP's app loop runs through `deluge_app_service`.
@@ -92,11 +82,7 @@ public:
 	void cancel(JobId id);
 
 	/// Runs the next job of the current pass, starting a pass if none is in progress. A pass runs
-	/// every job that is due, woken or requested, once each, in order, one job per call. A job that
-	/// throws still counts as having run: the throw is caught, the job's stats advance as for a
-	/// normal run, and the pass carries on with the next job, so one misbehaving job cannot starve
-	/// the rest. A gapped job is then retried by its gap as usual; a timerless job is retried after
-	/// @ref kThrowRetryUs instead, since nothing else would ever run it again.
+	/// every job that is due, woken or requested, once each, in order, one job per call.
 	///
 	/// Reasons that arrive mid-pass reach the jobs still ahead in this pass, and every job in the
 	/// next pass.
@@ -129,7 +115,6 @@ private:
 		Micros maxRun = 0;
 		Micros lastRun = 0;
 		uint32_t runs = 0;
-		uint32_t failures = 0;
 	};
 
 	Clock clock_;

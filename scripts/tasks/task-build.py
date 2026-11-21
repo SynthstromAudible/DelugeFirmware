@@ -145,6 +145,7 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
         "-mthumb",
         "-mlittle-endian",
         "-funsafe-math-optimizations",
+        "-fno-exceptions",  # as the CMake device build: nothing in the firmware throws
         "-stdlib=libstdc++",
         f"--sysroot={sysroot}",
         f"--gcc-toolchain={gcc}",

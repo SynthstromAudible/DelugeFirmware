@@ -1078,20 +1078,16 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
 /// objects handed to the render are let go of and freed on schedule.
 extern "C" void deluge_app_render_skipped(void) noexcept {
-	try {
-		// The render's own work, excluded like a rendered block (see deluge_app_render()).
-		AudioExcludedSection render_block;
+	// The render's own work, excluded like a rendered block (see deluge_app_render()).
+	AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
-		View::RenderBlockStackWatch stackWatch;
-		deluge::playback::RenderBlockInteractionWatch interactionWatch;
+	View::RenderBlockStackWatch stackWatch;
+	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
-		renderRetirementStep();
-	} catch (...) {
-		// Nothing to report to: whatever this step did not let go of stays retired, and the next block's step takes it.
-	}
+	renderRetirementStep();
 }
 
-/// The body of deluge_app_render(), which catches whatever it throws.
+/// The body of deluge_app_render().
 static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
 	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
@@ -1262,24 +1258,11 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 }
 
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) noexcept {
-	try {
-		renderAppBlock(in, out, frames);
-	} catch (...) {
-		// The render must not throw (it must not even allocate); if it does, this block is silence rather than an
-		// unwind out of the BSP's render driver. `out` may be NULL (app.h), and then there is no block to silence.
-		if (out != nullptr) {
-			memset(out, 0, frames * sizeof(DelugeStereoSample));
-		}
-	}
+	renderAppBlock(in, out, frames);
 }
 
 extern "C" bool deluge_app_audio_tick() noexcept {
-	try {
-		return AudioEngine::routine_task();
-	} catch (...) {
-		// routine()'s re-entry guard clears on unwind, so the next tick renders; this one rendered nothing.
-		return false;
-	}
+	return AudioEngine::routine_task();
 }
 
 int32_t* getInputBufferStart(AudioInputChannel channel) {

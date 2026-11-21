@@ -25,16 +25,14 @@
 ///     ATH-NESTED   nested holds release only when the outermost ends
 ///     ATH-HELD     a held tick does nothing: routine_task() is false, routine() 0, the routine body never reached
 ///     ATH-REENTRY  routine() called from inside routine() returns 0 without running the body
-///     ATH-THROW    a throw out of routine() does not latch it: the next tick reaches the routine body
 /// then `ATH-RESULT failures=N`.
 ///
 /// Gate audio-tick-hold:
 ///     the audio tick's hold and re-entry guard, on the booted app: no hold alive means ticks are not held (ATH-IDLE);
 ///     an AudioEngine::AudioTickHold holds them for its scope and releases them after (ATH-HOLD), and nested holds
 ///     release only when the outermost ends (ATH-NESTED); a held tick does nothing, routine_task() false and routine()
-///     0 without reaching the routine body (ATH-HELD); routine() called from inside routine() returns 0 without running
-///     the body again (ATH-REENTRY); and a throw out of routine() does not latch its re-entry guard, so the next
-///     deluge_app_audio_tick() reaches the routine body (ATH-THROW), which a guard left set would silence for good
+///     0 without reaching the routine body (ATH-HELD); and routine() called from inside routine() returns 0 without
+///     running the body again (ATH-REENTRY)
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
@@ -44,7 +42,6 @@
 
 #include <cstdio>
 #include <optional>
-#include <stdexcept>
 
 // The engine headers reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
 // `putchar_` for.
@@ -63,10 +60,6 @@ int32_t g_reached = 0;
 
 void countReach() {
 	g_reached++;
-}
-
-void throwFromRoutine() {
-	throw std::runtime_error("injected");
 }
 
 /// The routine's return from inside the routine.
@@ -138,17 +131,6 @@ void checkReentry() {
 	       "routine() called from inside routine() returns 0 and does not reach the body again");
 }
 
-void checkThrow() {
-	AudioEngine::setRoutineInjection(&throwFromRoutine);
-	const bool thrownTick = deluge_app_audio_tick();
-	g_reached = 0;
-	AudioEngine::setRoutineInjection(&countReach);
-	(void)deluge_app_audio_tick();
-	AudioEngine::setRoutineInjection(nullptr);
-	report("ATH-THROW", !thrownTick && g_reached == 1,
-	       "the tick that threw rendered nothing, and the next tick reached the routine body");
-}
-
 } // namespace
 
 void deluge_scenario_audio_tick_hold_begin(void) {
@@ -158,7 +140,6 @@ void deluge_scenario_audio_tick_hold_begin(void) {
 	checkNested();
 	checkHeldTick();
 	checkReentry();
-	checkThrow();
 	g_report.printResult();
 	std::fflush(stdout);
 }

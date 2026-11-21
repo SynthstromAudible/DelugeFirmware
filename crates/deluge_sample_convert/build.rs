@@ -25,7 +25,7 @@ use std::process::Command;
 /// NEON rather than VFPv3 floating point).
 ///
 /// Shared by the host verify compile and the device compile so the two cannot drift apart.
-const ARM_ARCH_FLAGS: [&str; 7] = [
+const ARM_ARCH_FLAGS: [&str; 8] = [
     "-mcpu=cortex-a9",
     "-mfpu=neon",
     "-mfloat-abi=hard",
@@ -33,6 +33,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
     "-mthumb-interwork",
     "-mlittle-endian",
     "-funsafe-math-optimizations",
+    "-fno-exceptions", // as the firmware: nothing it builds throws
 ];
 
 // Must match the revisions in `cmake/deps.cmake`.

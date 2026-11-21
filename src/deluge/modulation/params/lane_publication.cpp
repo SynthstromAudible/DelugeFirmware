@@ -449,12 +449,7 @@ void LanePublication::walkDirty(bool settle) {
 	}
 	struct Walk {
 		Walk() { g_publishing = true; }
-		~Walk() {
-			g_publishing = false;
-			if (std::uncaught_exceptions() > 0) {
-				g_anyPending.store(true, std::memory_order_relaxed); // the next publish point looks again
-			}
-		}
+		~Walk() { g_publishing = false; }
 	} walk;
 	g_anyPending.store(false, std::memory_order_relaxed);
 	bool failed = false;
@@ -554,11 +549,7 @@ LaneOperation::~LaneOperation() {
 		return;
 	}
 	if (--g_operations == 0) {
-		try {
-			LanePublication::publishDirty(false);
-		} catch (...) {
-			// Out of memory building a snapshot: the lanes stay marked for the next publish point
-		}
+		LanePublication::publishDirty(false);
 	}
 }
 

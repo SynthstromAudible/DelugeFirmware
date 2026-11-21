@@ -607,7 +607,7 @@ template = "scenario"
 kind = "regression"
 gates = "the audio tick's hold and re-entry guard, on the booted app"
 scenario = "audio_tick_hold"
-markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY", "ATH-THROW"]
+markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY"]
 result = "ATH-RESULT failures=0"
 tier = "pr"
 job = "app"

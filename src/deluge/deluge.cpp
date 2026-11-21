@@ -109,12 +109,8 @@ Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
 extern "C" void midiAndGateTimerGoneOff(void) noexcept {
-	try {
-		// Sends only what's due now, and arms the timer again for anything still to come
-		AudioEngine::midiGateOutputTimerFired();
-	} catch (...) {
-		// An interrupt has no caller to report to. What was not sent stays pending for the next flush.
-	}
+	// Sends only what's due now, and arms the timer again for anything still to come
+	AudioEngine::midiGateOutputTimerFired();
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -407,16 +403,16 @@ deluge::runtime::JobId startupJob = deluge::runtime::kNoJob;
 /// can make every other job, the playback and MIDI routines included.
 constexpr Micros kReportRunAtLeast = 1000;
 
-/// Prints each job whose worst run since the last report reached kReportRunAtLeast or that threw,
-/// then starts a new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the
+/// Prints each job whose worst run since the last report reached kReportRunAtLeast, then starts a
+/// new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the
 /// device).
 void reportJobStats() {
 	for (deluge::runtime::JobId id = 0; id < appLoop.size(); ++id) {
 		const auto s = appLoop.stats(id);
-		if (s.maxRun >= kReportRunAtLeast || s.failures != 0) {
-			D_PRINTLN("job %s: worst %llu us over %lu runs, %lu failed (last %llu us)", s.name,
+		if (s.maxRun >= kReportRunAtLeast) {
+			D_PRINTLN("job %s: worst %llu us over %lu runs (last %llu us)", s.name,
 			          static_cast<unsigned long long>(s.maxRun), static_cast<unsigned long>(s.runs),
-			          static_cast<unsigned long>(s.failures), static_cast<unsigned long long>(s.lastRun));
+			          static_cast<unsigned long long>(s.lastRun));
 		}
 	}
 	appLoop.resetStats();
@@ -731,38 +727,24 @@ static void deluge_boot(const DelugeBoard* board) {
 // BSP's audio tier starts calling deluge_app_audio_tick() and its app loop deluge_app_service(),
 // which runs the jobs registerJobs() added.
 extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
-	try {
-		deluge_boot(board);
-		registerJobs();
-		// The BSP's audio tier starts rendering once this returns.
-		AudioEngine::renderDrivenByTier.store(true, std::memory_order_release);
-	} catch (...) {
-		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently. The throw may
-		// come before the display exists, which freezeWithError() handles.
-		FREEZE_WITH_ERROR("BOOT");
-	}
+	deluge_boot(board);
+	registerJobs();
+	// The BSP's audio tier starts rendering once this returns.
+	AudioEngine::renderDrivenByTier.store(true, std::memory_order_release);
 }
 
 extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noexcept {
-	try {
-		// Before any job reads interaction-owned state the render's work changes: do what it asked for since the last
-		// job.
-		deluge::playback::applyRenderRequests();
-		// What the render recorded since the last job, into the model the jobs read
-		if (currentSong != nullptr) {
-			deluge::modulation::commitBeforeJob(*currentSong);
-		}
-		const uint64_t next = appLoop.service(now_us, reasons);
-		// The lanes the jobs changed, published for the render now the jobs are done with them
-		deluge::modulation::publishDirtyLanes(true);
-		return next;
-	} catch (...) {
-		// appLoop.service() already catches a throwing job's own body, so this is something else --
-		// e.g. a bad reasons value hitting undefined behaviour above the job loop. There is no job to
-		// charge the failure to, so just keep the clock moving: ask for another pass right away rather
-		// than leave the app loop stalled.
-		return now_us;
+	// Before any job reads interaction-owned state the render's work changes: do what it asked for since the last
+	// job.
+	deluge::playback::applyRenderRequests();
+	// What the render recorded since the last job, into the model the jobs read
+	if (currentSong != nullptr) {
+		deluge::modulation::commitBeforeJob(*currentSong);
 	}
+	const uint64_t next = appLoop.service(now_us, reasons);
+	// The lanes the jobs changed, published for the render now the jobs are done with them
+	deluge::modulation::publishDirtyLanes(true);
+	return next;
 }
 
 // Card-detect is pull-based: AudioFileManager::slowRoutine() polls
