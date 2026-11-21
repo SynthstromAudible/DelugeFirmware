@@ -26,6 +26,7 @@
 #include "processing/engines/input_monitor.h"
 #include "processing/engines/voice_budget.h"
 #include "runtime/app_loop.h"
+#include "synth/voice/voice_clock.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
 #include <atomic>
@@ -337,7 +338,12 @@ void setReverbModel(deluge::effects::ReverbModel model);
 /// @brief Publishes the song's reverb knobs (project.reverb), which the render takes up at its next block. From the
 /// interaction tier, or from the render itself in a song swap at a launch.
 void publishReverbSettings(const deluge::project::ReverbSettings& knobs);
+/// The next tick of the clock every voice's envelope stamps are taken from.
 extern uint32_t nextVoiceState;
+/// @brief The clock every voice's envelope stamps are taken from, shared by every sound.
+inline deluge::synth::VoiceClock voiceClock() {
+	return deluge::synth::VoiceClock{&nextVoiceState};
+}
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbSidechainVolume;
 extern int32_t reverbSidechainShape;
@@ -430,6 +436,20 @@ extern deluge::audio::VoiceBudget voiceBudget;
 ///        fast-releases the lowest-priority voice not already fading (the cull's pick), so the new note always
 ///        starts. The caller excludes the render (or is the render).
 void admitVoice(uint32_t cost);
+
+/// @brief Stops the voice the cull rates highest across every sound within this block (it may click), or an audio
+///        clip when no sound has a voice: the backstop's hardest cull.
+/// @param num_samples The block's length, for the log.
+void killOneVoice(size_t num_samples);
+
+/// @brief Fast-releases the voice the cull rates highest across every sound, skipping voices already cull-fading.
+/// @param num_samples The block's length, for the log.
+void terminateOneVoice(size_t num_samples);
+
+/// @brief Releases the voice the cull rates highest across every sound, or speeds up its release, skipping voices
+///        already cull-fading.
+/// @param num_samples The block's length, for the log.
+void forceReleaseOneVoice(size_t num_samples);
 
 /// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
 ///        voices and deregisters it at the top of a following block. It is destroyed and freed at the first

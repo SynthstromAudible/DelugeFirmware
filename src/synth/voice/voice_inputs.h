@@ -22,6 +22,7 @@
 #include "dsp-next/fixed/pitch/fine_tune.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "synth/matrix/matrix_block.h"
+#include "synth/voice/voice_clock.h"
 #include "util/misc.h" // util::to_underlying
 #include <array>
 #include <cstddef>
@@ -30,15 +31,6 @@
 #include <span>
 
 namespace deluge::synth {
-
-/// @brief The voice-state clock the cull order reads: each envelope stage a voice enters takes the next tick, so of two
-/// voices in one stage the one that entered it first is culled first.
-struct VoiceClock {
-	uint32_t& next; ///< The next tick to hand out, shared by every voice.
-
-	/// @return The next tick, advancing the clock.
-	[[nodiscard]] uint32_t tick() const { return next++; }
-};
 
 /// @brief What one voice of a sound renders from, beyond its sound's config: what differs between the sound's voices,
 /// or changes from one voice's render to the next.

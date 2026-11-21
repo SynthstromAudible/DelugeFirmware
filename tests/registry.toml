@@ -1527,6 +1527,17 @@ runtime_s = 1
 variants = ["asan"]
 
 [[harness]]
+name = "voice-pins"
+template = "scenario-driver"
+kind = "unit"
+gates = "which voice each cull, steal and admit takes across sounds, against the record"
+scenario = "voice_pins"
+baseline = ["tests/integration/scenarios/drivers/voice_pins_records.h"]
+tier = "pr"
+job = "model"
+runtime_s = 1
+
+[[harness]]
 name = "mapping-dispatch"
 template = "scenario"
 kind = "property"
