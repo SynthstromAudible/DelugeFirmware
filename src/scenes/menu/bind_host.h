@@ -30,24 +30,6 @@ void host_grab_tempo(deluge::project::ClipAddress clip);
 ///        settings main reads live.
 void host_settings_reset();
 
-/// @name Settings writes main applies at once
-/// A settings item's setter stores the value, then calls one of these for the half this layer may not perform, as
-/// main's `writeCurrentValue` makes both its statements at once. Each re-reads what the setter stored.
-/// @{
-/// @brief Both screensavers take the stored mode and timeout (`Screensaver::settingsChanged`).
-void host_screensaver_settings_changed();
-/// @brief The pads' dimmer takes `FlashStorage::defaultPadBrightness` (`PadLEDs::setBrightnessLevel`).
-void host_pad_brightness_changed();
-/// @brief Main's canvas flag and the guest's panels take the stored menu highlighting.
-void host_highlighting_changed();
-/// @brief Main's canvas flag and the guest's panels take the stored rounded-corners setting.
-void host_rounded_corners_changed();
-/// @brief The guest's shift machine takes the stored sticky-shift setting; turned off, both shift latches release.
-void host_shift_sticky_changed();
-/// @brief Every pad re-renders, whatever the UI (`renderingNeededRegardlessOfUI`): a pad colour changed.
-void host_pad_colours_changed();
-/// @}
-
 /// @brief The waveforms of the song the app plays.
 const deluge::scenes::services::Waveforms& host_waveforms();
 /// @brief The file the sample browser last started to preview or load (`deluge::model::lastFilePathLoaded`),
@@ -66,8 +48,7 @@ enum class AuditionEnd : uint8_t {
 /// @brief End a held audition the way @p how names, before a scene opens over it: the scene claims every pad, so the
 ///        held pad's release never reaches the view that started the note.
 void host_end_audition(AuditionEnd how);
-/// @brief Clear the slow flash's tick squares: what main's recorder does as it opens, and its flash-status item when
-///        it leaves the slow flash.
+/// @brief Clear the slow flash's tick squares: what main's recorder does as it opens.
 void host_clear_tick_squares();
 /// @brief Forget the undo history: what main's sample browser does as it opens.
 void host_forget_undo();

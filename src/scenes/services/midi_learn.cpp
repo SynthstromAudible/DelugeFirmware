@@ -18,6 +18,8 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
+#include "deluge-project/track_kind.h"
+
 #include "definitions_cxx.hpp" // GlobalMIDICommand, MidiLearn, IS_A_CC, MIDI_CHANNEL_NONE
 #include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
@@ -332,7 +334,7 @@ void MidiLearn::cc_received(deluge::midi::DeviceId device, int32_t channel, int3
 		// that set the target is on the current clip's output) but the question is legacy's, so
 		// the port asks legacy's.
 		const MenuView& current = services::view_state().current_view();
-		const bool current_output_is_midi = current.clip && current.kind == bind::TrackKind::MIDI_OUT;
+		const bool current_output_is_midi = current.clip && current.kind == project::TrackKind::MIDI_OUT;
 		// The input the track holds now, from the song's mapping table.
 		const deluge::project::Mapping* const held =
 		    song_ != nullptr && pressed_.mapping ? song_->project.mappings.find(*pressed_.mapping) : nullptr;

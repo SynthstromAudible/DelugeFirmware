@@ -50,6 +50,10 @@ namespace deluge::gui::shell_host {
 /// @brief The host's MidiDevices: the cables `MIDIDeviceManager` keeps, and their own settings.
 [[nodiscard]] scenes::bind::MidiDevices& midi_devices();
 
+/// @brief The host's DeviceSettings: the device's own settings where it keeps them (the flash settings, the pad
+///        controller's play cursor), each stored with the side effects its menu item has. Nothing is saved on a write.
+[[nodiscard]] scenes::bind::DeviceSettings& device_settings();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///
@@ -68,6 +72,8 @@ public:
 	bool write_text(const scenes::bind::Target& target, const scenes::bind::Addresses& where,
 	                std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_song_threshold_recording(int32_t mode) override;
+	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
 	                 controls::Resolution resolution) override;

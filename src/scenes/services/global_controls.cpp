@@ -343,7 +343,9 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// Buttons::isShiftButtonPressed()` (`View::buttonAction`). So the root is `settingsRootMenu`
 	// (its final `else`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
-	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
+	// The app's ports act on the song it plays, and on no other.
+	const bind::Ports* ports = menu::host_binds(*song_) ? &menu::host_ports() : nullptr;
+	menu::MenuContext menu_ctx = menu::context_for(song_->project, ports, services::MenuView{}, /*source_index=*/0,
 	                                               /*performance_view=*/false,
 	                                               /*session_or_arranger_root=*/false,
 	                                               /*session_view_root=*/false, /*kit_global_fx=*/false);

@@ -1,5 +1,9 @@
 #include "fakes.h"
 
+#include "deluge-project/device_settings.h"
+
+#include <array>
+
 namespace deluge::scenes::bind::test {
 
 uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
@@ -210,6 +214,63 @@ bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, mid
 	return accept;
 }
 
+namespace {
+
+/// @brief Keep @p binding in @p kept under @p key, or forget @p key for nullopt; a binding naming a device @p devices
+///        does not know keeps nothing.
+template <typename Key>
+void keep(const FakeMidiDevices& devices, std::map<Key, LearnedBinding>& kept, Key key,
+          const std::optional<LearnedBinding>& binding) {
+	if (!binding) {
+		kept.erase(key);
+		return;
+	}
+	if (binding->device && !devices.settings(*binding->device)) {
+		return;
+	}
+	kept.insert_or_assign(key, *binding);
+}
+
+} // namespace
+
+void RecordingLearnSink::learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_GLOBAL, .global = command, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->globals, command, binding);
+	}
+}
+
+void RecordingLearnSink::learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_FOLLOW, .follow = input, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->follows, input, binding);
+	}
+}
+
+FakeDeviceSettings::FakeDeviceSettings() {
+	for (const plugin::SettingInfo& row : project::device_table()) {
+		std::array<char, 12> digits{};
+		const std::optional<std::string_view> text = plugin::stored_text(row, row.default_value, digits);
+		values.emplace(std::string{row.path}, row.kind == plugin::SettingKind::CHOICE && text
+		                                          ? serialization::Value::makeScalar(std::string{*text})
+		                                          : serialization::Value::makeNumber(row.default_value));
+	}
+}
+
+serialization::Value FakeDeviceSettings::load(const plugin::SettingInfo& row) const {
+	const auto found = values.find(row.path);
+	return found != values.end() ? found->second : serialization::Value::makeNumber(row.default_value);
+}
+
+DeviceWrite FakeDeviceSettings::store(const plugin::SettingInfo& row, const serialization::Value& value) {
+	stores.emplace_back(std::string{row.path}, value);
+	if (refuse.contains(row.path)) {
+		return DeviceWrite::REFUSED;
+	}
+	values.insert_or_assign(std::string{row.path}, value);
+	return accept_restart.contains(row.path) ? DeviceWrite::STORED_FOR_RESTART : DeviceWrite::STORED;
+}
+
 std::string_view FakeMidiDevices::name(midi::DeviceId device) const {
 	const auto at = names.find(device.value);
 	return at != names.end() ? std::string_view{at->second} : std::string_view{};
@@ -230,6 +291,22 @@ bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& set
 	return true;
 }
 
+std::optional<LearnedBinding> FakeMidiDevices::global_command(project::GlobalCommand command) const {
+	const auto at = globals.find(command);
+	return at != globals.end() ? std::optional{at->second} : std::nullopt;
+}
+
+std::optional<LearnedBinding> FakeMidiDevices::follow_input(project::FollowInput input) const {
+	const auto at = follows.find(input);
+	return at != follows.end() ? std::optional{at->second} : std::nullopt;
+}
+
+void FakeMidiDevices::connect(midi::DeviceId device, std::string_view device_name) {
+	list.push_back(device);
+	names.insert_or_assign(device.value, std::string{device_name});
+	kept.insert_or_assign(device.value, MidiDeviceSettings{});
+}
+
 bool RecordingWrites::write(const WriteRequest& request) {
 	requests.push_back(request);
 	return accept;
@@ -247,6 +324,14 @@ bool RecordingWrites::write_text(const Target& target, const Addresses& where, s
 
 void RecordingWrites::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = Gesture::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
+}
+
+void RecordingWrites::set_song_threshold_recording(int32_t mode) {
+	gestures.push_back({.kind = Gesture::Kind::THRESHOLD_RECORDING, .value = mode});
+}
+
+void RecordingWrites::set_reverb_sidechain_sync_type(plugin::SyncType type) {
+	gestures.push_back({.kind = Gesture::Kind::SIDECHAIN_SYNC_TYPE, .value = std::to_underlying(type)});
 }
 
 bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,

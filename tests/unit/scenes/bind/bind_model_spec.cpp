@@ -35,7 +35,7 @@ int32_t record_menu(ModelFixture& fixture, const SettingAddress& address, std::s
 
 /// Whether @p target's row shows at @p where.
 bool applies(ModelFixture& fixture, const Target& target, const Addresses& where) {
-	const auto shown = view(target, fixture.song, where, fixture.ports());
+	const auto shown = view(target, &fixture.song, where, fixture.ports());
 	return shown.has_value() && shown->applies;
 }
 
@@ -66,7 +66,7 @@ describe bind_model("a model target", ${
 		};
 		for (const Case& c : cases) {
 			expect(deluge::project::write_setting(f.song, c.address, c.path, c.value)).to_be_true();
-			const auto shown = view(model(c.address.group, c.path), f.song, c.where, f.ports());
+			const auto shown = view(model(c.address.group, c.path), &f.song, c.where, f.ports());
 			expect(std::string{c.path} + "=" + (shown ? std::to_string(shown->value) : "none"))
 			    .to_equal(std::string{c.path} + "=" + std::to_string(record_menu(f, c.address, c.path)));
 		}
@@ -82,8 +82,8 @@ describe bind_model("a model target", ${
 		octaves({SettingGroupId::LANE_ARP, kSoundLane}, 4);
 		const Target arp = model(SettingGroupId::CLIP_ARP, "arpeggiator/numOctaves");
 		const auto on_lane =
-		    view(arp, f.song, {.clip = kKitClip, .lane = kSoundLane, .instrument = Instrument::KIT}, f.ports());
-		const auto on_kit = view(arp, f.song, {.clip = kKitClip, .instrument = Instrument::KIT}, f.ports());
+		    view(arp, &f.song, {.clip = kKitClip, .lane = kSoundLane, .instrument = Instrument::KIT}, f.ports());
+		const auto on_kit = view(arp, &f.song, {.clip = kKitClip, .instrument = Instrument::KIT}, f.ports());
 		expect(on_lane.has_value()).to_be_true();
 		expect(on_kit.has_value()).to_be_true();
 		expect(on_lane->value).to_equal(record_menu(f, {SettingGroupId::LANE_ARP, kSoundLane}, "arpeggiator/numOctaves"));
@@ -95,7 +95,7 @@ describe bind_model("a model target", ${
 		ModelFixture f;
 		const Addresses midi{.clip = kMidiClip, .track = kMidiTrack, .instrument = Instrument::MIDI};
 		const auto shown = [&](SettingGroupId group, std::string_view path, const Addresses& where) {
-			const auto v = view(model(group, path), f.song, where, f.ports());
+			const auto v = view(model(group, path), &f.song, where, f.ports());
 			return v ? v->value : -1;
 		};
 		expect(shown(SettingGroupId::CLIP_VALUES, "bendRange", midi)).to_equal(kDeviceBendRange);
@@ -113,10 +113,10 @@ describe bind_model("a model target", ${
 		f.song.output_structure.getOrCreate(kMidiTrack.output_id).output_mpe_y = 2; // a file's CC 2
 		const Addresses midi{.track = kMidiTrack, .instrument = Instrument::MIDI};
 		const Target y = model(SettingGroupId::INSTRUMENT_DEVICE, "outputMpeY");
-		const auto shown = view(y, f.song, midi, f.ports());
+		const auto shown = view(y, &f.song, midi, f.ports());
 		expect(shown.has_value()).to_be_true();
 		expect(shown->value).to_equal(0); // CC 74, as legacy shows any CC other than 1
-		const auto request = request_for(y, f.song, midi, f.ports(), 1);
+		const auto request = request_for(y, &f.song, midi, f.ports(), 1);
 		expect(request.has_value()).to_be_true();
 		expect(request->menu_value).to_equal(1);
 	});
@@ -134,7 +134,7 @@ describe bind_model("a model target", ${
 	it("names a song row through the song group's table", _ {
 		ModelFixture f;
 		std::array<ChoiceName, 32> out{};
-		const size_t count = choice_names(model(SettingGroupId::SONG, "reverb/model"), f.song, {}, f.ports(), out);
+		const size_t count = choice_names(model(SettingGroupId::SONG, "reverb/model"), &f.song, {}, f.ports(), out);
 		const auto* names = deluge::l10n::setting_names(SettingGroupId::SONG, "reverb/model",
 		                                                SettingContext{.owner = SettingContext::Owner::SONG});
 		expect(names).not_().to_be_null();
@@ -172,13 +172,13 @@ describe bind_model("a model target", ${
 		                                      Value::makeScalar("2")))
 		    .to_be_true();
 		const Target priority{.kind = Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"};
-		const auto shown = view(priority, f.song,
+		const auto shown = view(priority, &f.song,
 		                        {.clip = kAudioClip, .track = kAudioTrack, .instrument = Instrument::AUDIO}, f.ports());
 		expect(shown.has_value()).to_be_true();
 		expect(shown->value).to_equal(2);
 		std::array<ChoiceName, 32> out{};
 		const size_t count = choice_names(
-		    priority, f.song, {.clip = kAudioClip, .track = kAudioTrack, .instrument = Instrument::AUDIO}, f.ports(), out);
+		    priority, &f.song, {.clip = kAudioClip, .track = kAudioTrack, .instrument = Instrument::AUDIO}, f.ports(), out);
 		const auto* names = deluge::l10n::setting_names(SettingGroupId::AUDIO_CLIP, "priority",
 		                                                SettingContext{.owner = SettingContext::Owner::CLIP,
 		                                                               .instrument = Instrument::AUDIO});
@@ -194,16 +194,16 @@ describe bind_model("a model target", ${
 		off_lane.shown_on = Target::ShownOn::OFF_LANE;
 		const Addresses lane{.clip = kKitClip, .lane = kSoundLane, .instrument = Instrument::KIT};
 		const Addresses clip{.clip = kSynthClip, .instrument = Instrument::SYNTH};
-		expect(view(on_lane, f.song, lane, f.ports()).has_value()).to_be_true();
-		expect(view(on_lane, f.song, clip, f.ports()).has_value()).to_be_false();
-		expect(view(off_lane, f.song, clip, f.ports()).has_value()).to_be_true();
-		expect(view(off_lane, f.song, lane, f.ports()).has_value()).to_be_false();
-		expect(request_for(on_lane, f.song, clip, f.ports(), 0).has_value()).to_be_false();
+		expect(view(on_lane, &f.song, lane, f.ports()).has_value()).to_be_true();
+		expect(view(on_lane, &f.song, clip, f.ports()).has_value()).to_be_false();
+		expect(view(off_lane, &f.song, clip, f.ports()).has_value()).to_be_true();
+		expect(view(off_lane, &f.song, lane, f.ports()).has_value()).to_be_false();
+		expect(request_for(on_lane, &f.song, clip, f.ports(), 0).has_value()).to_be_false();
 	});
 
 	it("resolves nothing for an owner the song does not hold", _ {
 		ModelFixture f;
-		const auto shown = view(model(SettingGroupId::CLIP_VALUES, "midiPGM"), f.song,
+		const auto shown = view(model(SettingGroupId::CLIP_VALUES, "midiPGM"), &f.song,
 		                        {.clip = deluge::project::ClipAddress{999}, .instrument = Instrument::MIDI}, f.ports());
 		expect(shown.has_value()).to_be_false();
 	});

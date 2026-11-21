@@ -4,6 +4,7 @@
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
 #include "controls/sink.h"
+#include "deluge-project/device_settings.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
@@ -13,6 +14,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -24,10 +26,16 @@ namespace deluge::scenes::bind::test {
 
 /// @brief AudioFacts a spec sets directly.
 struct FakeAudioFacts final : AudioFacts {
-	bool inputs{false}; ///< what `audio_inputs_present` answers
-	int32_t voices{0};  ///< what `live_voice_count` answers
+	bool inputs{false};                                      ///< what `audio_inputs_present` answers
+	int32_t voices{0};                                       ///< what `live_voice_count` answers
+	bool line_in{false};                                     ///< what `line_in_plugged` answers
+	int32_t threshold{0};                                    ///< what `song_threshold_recording` answers
+	plugin::SyncType sidechain_type{plugin::SyncType::EVEN}; ///< what `reverb_sidechain_sync_type` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
+	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
+	[[nodiscard]] int32_t song_threshold_recording() const override { return threshold; }
+	[[nodiscard]] plugin::SyncType reverb_sidechain_sync_type() const override { return sidechain_type; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -42,14 +50,14 @@ struct FakeCardFacts final : CardFacts {
 struct FakeUiFacts final : UiFacts {
 	bool auditioning_now{false};                                  ///< what `auditioning` answers
 	bool popup{false};                                            ///< what `popup_showing` answers
-	FlashCursor cursor{FlashCursor::Slow};                        ///< what `flash_cursor` answers
 	PerformanceEditing performance{PerformanceEditing::Disabled}; ///< what `performance_editing_mode` answers
-	bool dx7_engine{false};                                       ///< what `dx7_engine_enabled` answers
+	int32_t battery_mv{0};                                        ///< what `battery_millivolts` answers
+	std::string_view firmware{"2.0.0-test"};                      ///< what `firmware_version` answers
 	[[nodiscard]] bool auditioning() const override { return auditioning_now; }
 	[[nodiscard]] bool popup_showing() const override { return popup; }
-	[[nodiscard]] FlashCursor flash_cursor() const override { return cursor; }
 	[[nodiscard]] PerformanceEditing performance_editing_mode() const override { return performance; }
-	[[nodiscard]] bool dx7_engine_enabled() const override { return dx7_engine; }
+	[[nodiscard]] int32_t battery_millivolts() const override { return battery_mv; }
+	[[nodiscard]] std::string_view firmware_version() const override { return firmware; }
 };
 
 /// @brief SoundFacts a spec sets directly, keyed by slot id.
@@ -220,14 +228,20 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool velocity_to_level_everywhere(midi::DeviceId device) override;
 };
 
-/// @brief LearnSink that records every learn, in order, and answers each with @ref accept.
+struct FakeMidiDevices;
+
+/// @brief LearnSink that records every learn, in order, and answers each with @ref accept. A global or follow learn is
+///        also kept in @ref devices, when set, so the MIDI devices fake reads it back; one naming a device that fake
+///        does not know is recorded and kept nowhere.
 struct RecordingLearnSink final : LearnSink {
 	/// @brief One recorded learn: its kind and its arguments.
 	struct Call {
 		/// @brief Which learn it was.
 		enum class Kind : uint8_t {
-			LEARN,      ///< learn
-			LEARN_KNOB, ///< learn_knob
+			LEARN,        ///< learn
+			LEARN_KNOB,   ///< learn_knob
+			LEARN_GLOBAL, ///< learn_global
+			LEARN_FOLLOW, ///< learn_follow
 		};
 		Kind kind{Kind::LEARN};                       ///< which learn it was
 		std::optional<project::MappingTarget> target; ///< LEARN's target, or LEARN_KNOB's owner and param
@@ -236,13 +250,19 @@ struct RecordingLearnSink final : LearnSink {
 		midi::DeviceId device{};                      ///< LEARN_KNOB's device; none for a mod knob
 		int32_t which_knob{0};                        ///< LEARN_KNOB's mod knob or CC number
 		int32_t midi_channel{0};                      ///< LEARN_KNOB's channel, 16 or more for a mod knob
+		project::GlobalCommand global{};              ///< LEARN_GLOBAL's command
+		project::FollowInput follow{};                ///< LEARN_FOLLOW's input
+		std::optional<LearnedBinding> binding;        ///< LEARN_GLOBAL's or LEARN_FOLLOW's binding; none to unlearn
 	};
-	std::vector<Call> calls; ///< every learn taken, in order
-	bool accept{true};       ///< what each learn answers
+	std::vector<Call> calls;           ///< every learn taken, in order
+	bool accept{true};                 ///< what each learn answers
+	FakeMidiDevices* devices{nullptr}; ///< where a global or follow learn is kept; none keeps nothing
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
 	bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
 	                int32_t midi_channel) override;
+	void learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) override;
+	void learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) override;
 };
 
 /// @brief MidiDevices a spec sets directly: DIN alone, connected, with default settings, until the spec says otherwise.
@@ -251,37 +271,66 @@ struct FakeMidiDevices final : MidiDevices {
 	std::map<uint32_t, std::string> names{{midi::kDin.value, "DIN"}};    ///< what `name` answers, by handle
 	std::map<uint32_t, MidiDeviceSettings> kept{{midi::kDin.value, {}}}; ///< what `settings` answers, by handle
 	std::vector<std::pair<midi::DeviceId, MidiDeviceSettings>> writes;   ///< every write, in order, known or not
+	std::map<project::GlobalCommand, LearnedBinding> globals;            ///< what `global_command` answers
+	std::map<project::FollowInput, LearnedBinding> follows;              ///< what `follow_input` answers
 	[[nodiscard]] std::span<const midi::DeviceId> connected() const override { return list; }
 	[[nodiscard]] std::string_view name(midi::DeviceId device) const override;
 	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override;
 	/// @brief Records the write, and keeps @p settings when @p device is in @ref kept.
 	/// @return Whether @p device is in @ref kept.
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
+	[[nodiscard]] std::optional<LearnedBinding> global_command(project::GlobalCommand command) const override;
+	[[nodiscard]] std::optional<LearnedBinding> follow_input(project::FollowInput input) const override;
+	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, and kept
+	///        with default settings, so a learn from it is kept.
+	/// @param device      The device that connects.
+	/// @param device_name What `name` answers for it.
+	void connect(midi::DeviceId device, std::string_view device_name);
+};
+
+/// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in
+///        order. The port's own front checks each write, so a store is always one the rows allow.
+struct FakeDeviceSettings final : DeviceSettings {
+	FakeDeviceSettings();
+	/// What `load` answers, by path, in file form; a spec may set a value the row cannot name.
+	std::map<std::string, serialization::Value, std::less<>> values;
+	std::set<std::string, std::less<>> accept_restart; ///< the paths a store answers `STORED_FOR_RESTART`
+	std::set<std::string, std::less<>> refuse;         ///< the paths a store answers REFUSED, keeping nothing
+	std::vector<std::pair<std::string, serialization::Value>> stores; ///< every store, in order, refused ones too
+
+private:
+	[[nodiscard]] serialization::Value load(const plugin::SettingInfo& row) const override;
+	[[nodiscard]] DeviceWrite store(const plugin::SettingInfo& row, const serialization::Value& value) override;
 };
 
 /// @brief WriteSink that records every request, in order, and answers each with @ref accept.
 struct RecordingWrites final : WriteSink {
-	/// @brief A text or default-input-channel request, as recorded.
+	/// @brief A text, default-input-channel, threshold or sidechain-type request, as recorded.
 	struct Gesture {
 		/// @brief Which request it was.
 		enum class Kind : uint8_t {
 			TEXT,                  ///< write_text
 			DEFAULT_INPUT_CHANNEL, ///< set_default_audio_input_channel
+			THRESHOLD_RECORDING,   ///< set_song_threshold_recording
+			SIDECHAIN_SYNC_TYPE,   ///< set_reverb_sidechain_sync_type
 		};
 		Kind kind{Kind::TEXT}; ///< which request it was
 		Target target{};       ///< TEXT's row
 		Addresses where{};     ///< TEXT's owner
 		std::string text;      ///< TEXT's text
-		int64_t value{0};      ///< DEFAULT_INPUT_CHANNEL's channel
+		int64_t value{0}; ///< DEFAULT_INPUT_CHANNEL's channel, THRESHOLD_RECORDING's mode, SIDECHAIN_SYNC_TYPE's type
 	};
 	std::vector<WriteRequest> requests;         ///< every write, in order
 	std::vector<project::ParamAddress> deletes; ///< every delete_automation's param, in order
-	std::vector<Gesture> gestures;              ///< every text and default-input-channel request, in order
+	std::vector<Gesture>
+	    gestures;      ///< every text, default-input-channel, threshold and sidechain-type request, in order
 	bool accept{true}; ///< what each request answers (set_default_audio_input_channel answers nothing)
 	bool write(const WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_song_threshold_recording(int32_t mode) override;
+	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 };
 
 /// @brief controls::Sink that records every request, in order, and answers each with @ref accept; take_for answers
@@ -364,8 +413,11 @@ struct FakeHost {
 	FakeMidiDevices midi;                ///< the MIDI devices port's fake
 	RecordingWrites writes;              ///< the menu writes' recorder
 	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
-	/// @brief Ports pointing at this host's fakes; valid while it lives.
+	FakeDeviceSettings device;           ///< the device settings' fake
+	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
+	///        follow learns in the MIDI devices fake.
 	[[nodiscard]] Ports ports() {
+		learn.devices = &midi;
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,
@@ -378,7 +430,8 @@ struct FakeHost {
 		        .learn = &learn,
 		        .midi = &midi,
 		        .writes = &writes,
-		        .controls_sink = &controls_sink};
+		        .controls_sink = &controls_sink,
+		        .device = &device};
 	}
 };
 

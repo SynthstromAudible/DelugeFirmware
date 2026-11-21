@@ -72,11 +72,9 @@
 ///  3. **`perform_editor` shows the performance view's own mode.** It reads
 ///     `UiFacts::performance_editing_mode()`, which the host answers from `PerformanceView`'s two bools, so the
 ///     item and the view cannot disagree.
-///  4. **The settings items that write flash notify the owner.** The shortcut-layout
-///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
-///     their `FlashStorage` assignment in the menu's hook, matching the first statement of each
-///     main `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and call
-///     `menu::host_screensaver_settings_changed()` for the second, `Screensaver::settingsChanged()`.
+///  4. **The settings items that write flash notify the owner.** Each writes its DEVICE row through the device port,
+///     whose store sets the flash setting and does the rest of main's `writeCurrentValue`: for the two screensaver
+///     items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult
 #include "gfx/grid/rgb.h"

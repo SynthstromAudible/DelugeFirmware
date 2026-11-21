@@ -17,6 +17,7 @@
 
 #include "gui/l10n/setting_names.h"
 
+#include "deluge-project/device_settings.h"
 #include "effects/host_chain/params.h"
 #include "instruments/deluge/params.h"
 
@@ -411,6 +412,331 @@ constexpr SettingNames kUnisonDetuneNames{STRING_FOR_UNISON_DETUNE_MENU_TITLE, S
 constexpr SettingNames kUnisonNumNames{STRING_FOR_UNISON_NUMBER_MENU_TITLE, STRING_FOR_UNISON_NUMBER, {}, {}};
 constexpr SettingNames kUnisonSpreadNames{
     STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE, STRING_FOR_UNISON_STEREO_SPREAD, {}, {}};
+
+/// @name The device's own settings' names.
+/// @{
+constexpr std::array<String, 2> kPatchCablePolarityChoices{{STRING_FOR_POLARITY_UNIPOLAR, STRING_FOR_POLARITY_BIPOLAR}};
+constexpr SettingNames kPatchCablePolarityNames{
+    STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY, kPatchCablePolarityChoices, {}};
+constexpr SettingNames kUseSharpsNames{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS, {}, {}};
+/// The defaults page's rows. A default range's two ends are named as their one item is.
+constexpr SettingNames kDefaultTempoNames{STRING_FOR_DEFAULT_TEMPO, STRING_FOR_TEMPO, {}, {}};
+constexpr SettingNames kDefaultSwingNames{STRING_FOR_DEFAULT_SWING, STRING_FOR_SWING_AMOUNT, {}, {}};
+constexpr SettingNames kDefaultKeyNames{STRING_FOR_DEFAULT_KEY, STRING_FOR_KEY, {}, {}};
+constexpr SettingNames kDefaultMagnitudeNames{STRING_FOR_DEFAULT_RESOL_MENU_TITLE, STRING_FOR_RESOLUTION, {}, {}};
+constexpr SettingNames kDefaultSwingIntervalNames{STRING_FOR_DEFAULT_SWING, STRING_FOR_SWING_INTERVAL, {}, {}};
+/// The preset scales in their own order, then random and none: the scales' own names.
+constexpr std::array<String, 18> kDefaultScaleChoices{{
+    STRING_FOR_SCALE_MAJOR,
+    STRING_FOR_SCALE_MINOR,
+    STRING_FOR_SCALE_DORIAN,
+    STRING_FOR_SCALE_PHRYGIAN,
+    STRING_FOR_SCALE_LYDIAN,
+    STRING_FOR_SCALE_MIXOLYDIAN,
+    STRING_FOR_SCALE_LOCRIAN,
+    STRING_FOR_SCALE_MELODIC_MINOR,
+    STRING_FOR_SCALE_HARMONIC_MINOR,
+    STRING_FOR_SCALE_HUNGARIAN_MINOR,
+    STRING_FOR_SCALE_MARVA,
+    STRING_FOR_SCALE_ARABIAN,
+    STRING_FOR_SCALE_WHOLE_TONE,
+    STRING_FOR_SCALE_BLUES,
+    STRING_FOR_SCALE_PENTATONIC_MINOR,
+    STRING_FOR_SCALE_HIRAJOSHI,
+    STRING_FOR_SCALE_RANDOM,
+    STRING_FOR_SCALE_NONE,
+}};
+constexpr SettingNames kDefaultScaleNames{STRING_FOR_INIT_SCALE, STRING_FOR_INIT_SCALE, kDefaultScaleChoices, {}};
+constexpr SettingNames kDefaultVelocityNames{STRING_FOR_DEFAULT_VELOC_MENU_TITLE, STRING_FOR_VELOCITY, {}, {}};
+constexpr SettingNames kDefaultBendRangeNames{STRING_FOR_DEFAULT_BEND_R, STRING_FOR_BEND_RANGE, {}, {}};
+constexpr SettingNames kDefaultMetronomeVolumeNames{STRING_FOR_DEFAULT_METRO_MENU_TITLE, STRING_FOR_METRONOME, {}, {}};
+constexpr std::array<String, 4> kDefaultStartupSongChoices{{
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_BLANK,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED,
+}};
+constexpr SettingNames kDefaultStartupSongNames{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                kDefaultStartupSongChoices,
+                                                {}};
+constexpr std::array<String, 4> kDefaultSliceModeChoices{{
+    STRING_FOR_CUT,
+    STRING_FOR_ONCE,
+    STRING_FOR_LOOP,
+    STRING_FOR_STRETCH,
+}};
+constexpr SettingNames kDefaultSliceModeNames{
+    STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE, STRING_FOR_DEFAULT_SLICE_MODE, kDefaultSliceModeChoices, {}};
+constexpr SettingNames kDefaultCpuIndicatorNames{
+    STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, {}, {}};
+constexpr SettingNames kDefaultHoldTimeNames{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME, {}, {}};
+constexpr SettingNames kDefaultRecordQuantizeNames{STRING_FOR_QUANTIZATION, STRING_FOR_QUANTIZATION, {}, {}};
+constexpr SettingNames kDefaultRecordMarginsNames{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, {}, {}};
+constexpr std::array<String, 4> kDefaultThresholdRecordingChoices{{
+    STRING_FOR_DISABLED,
+    STRING_FOR_LOW,
+    STRING_FOR_MEDIUM,
+    STRING_FOR_HIGH,
+}};
+constexpr SettingNames kDefaultThresholdRecordingNames{
+    STRING_FOR_MODE, STRING_FOR_MODE, kDefaultThresholdRecordingChoices, {}};
+constexpr std::array<String, 5> kDefaultNewClipTypeChoices{{
+    STRING_FOR_NEW_CLIP_TYPE_SYNTH,
+    STRING_FOR_NEW_CLIP_TYPE_KIT,
+    STRING_FOR_NEW_CLIP_TYPE_MIDI,
+    STRING_FOR_NEW_CLIP_TYPE_CV,
+    STRING_FOR_NEW_CLIP_TYPE_AUDIO,
+}};
+constexpr SettingNames kDefaultNewClipTypeNames{
+    STRING_FOR_DEFAULT_NEW_CLIP_TYPE, STRING_FOR_DEFAULT_NEW_CLIP_TYPE, kDefaultNewClipTypeChoices, {}};
+constexpr SettingNames kDefaultUseLastClipTypeNames{
+    STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, {}, {}};
+constexpr SettingNames kDefaultAutomationInterpolateNames{
+    STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION, STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION, {}, {}};
+constexpr SettingNames kDefaultAutomationClearNames{
+    STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR, {}, {}};
+constexpr SettingNames kDefaultAutomationShiftNames{
+    STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT, {}, {}};
+constexpr SettingNames kDefaultAutomationNudgeNoteNames{
+    STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, {}, {}};
+constexpr SettingNames kDefaultAutomationNoAuditionShortcutsNames{
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    {},
+    {}};
+/// The play cursor's forms, in the row's order: fast, off, slow.
+constexpr std::array<String, 3> kPlayCursorChoices{{STRING_FOR_FAST, STRING_FOR_DISABLED, STRING_FOR_SLOW}};
+constexpr SettingNames kPlayCursorNames{STRING_FOR_PLAY_CURSOR, STRING_FOR_PLAY_CURSOR, kPlayCursorChoices, {}};
+constexpr std::array<String, 2> kShortcutsVersionChoices{
+    {STRING_FOR_SHORTCUTS_VERSION_1, STRING_FOR_SHORTCUTS_VERSION_3}};
+constexpr SettingNames kShortcutsVersionNames{
+    STRING_FOR_SHORTCUTS_VER_MENU_TITLE, STRING_FOR_SHORTCUTS_VERSION, kShortcutsVersionChoices, {}};
+/// The pads' and the screen's rows, each named as its menu item is.
+constexpr std::array<String, 3> kTextKeyboardChoices{
+    {STRING_FOR_TEXT_KEYBOARD_QWERTY, STRING_FOR_TEXT_KEYBOARD_AZERTY, STRING_FOR_TEXT_KEYBOARD_QWERTZ}};
+constexpr SettingNames kTextKeyboardNames{
+    STRING_FOR_KEY_LAYOUT, STRING_FOR_KEYBOARD_FOR_TEXT, kTextKeyboardChoices, {}};
+/// The nine pad colours, in the rows' order.
+constexpr std::array<String, 9> kPadColourChoices{{
+    STRING_FOR_RED,
+    STRING_FOR_GREEN,
+    STRING_FOR_BLUE,
+    STRING_FOR_YELLOW,
+    STRING_FOR_CYAN,
+    STRING_FOR_MAGENTA,
+    STRING_FOR_AMBER,
+    STRING_FOR_WHITE,
+    STRING_FOR_PINK,
+}};
+constexpr SettingNames kPadColourActiveNames{STRING_FOR_ACTIVE, STRING_FOR_ACTIVE, kPadColourChoices, {}};
+constexpr SettingNames kPadColourStoppedNames{STRING_FOR_STOPPED, STRING_FOR_STOPPED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourMutedNames{STRING_FOR_MUTED, STRING_FOR_MUTED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourSoloedNames{STRING_FOR_SOLOED, STRING_FOR_SOLOED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourFillNames{STRING_FOR_FILL, STRING_FOR_FILL, kPadColourChoices, {}};
+constexpr SettingNames kPadColourOnceNames{STRING_FOR_ONCE, STRING_FOR_ONCE, kPadColourChoices, {}};
+constexpr SettingNames kAccessibilityShortcutsNames{
+    STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS, STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS, {}, {}};
+constexpr std::array<String, 3> kMenuHighlightingChoices{
+    {STRING_FOR_FULL_INVERSION, STRING_FOR_PARTIAL_INVERSION, STRING_FOR_NO_INVERSION}};
+constexpr SettingNames kMenuHighlightingNames{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                              STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                              kMenuHighlightingChoices,
+                                              {}};
+constexpr std::array<String, 2> kSessionLayoutChoices{
+    {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, STRING_FOR_DEFAULT_UI_GRID}};
+constexpr SettingNames kSessionLayoutNames{
+    STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT, kSessionLayoutChoices, {}};
+constexpr std::array<String, 3> kGridActiveModeChoices{
+    {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, STRING_FOR_GREEN, STRING_FOR_BLUE}};
+constexpr SettingNames kGridActiveModeNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                            STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                            kGridActiveModeChoices,
+                                            {}};
+constexpr SettingNames kGridAllowGreenSelectionNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                     {},
+                                                     {}};
+constexpr SettingNames kGridEmptyPadsUnarmNames{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, {}, {}};
+constexpr SettingNames kGridEmptyPadsCreateRecNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                    {},
+                                                    {}};
+constexpr std::array<String, 3> kKeyboardLayoutChoices{
+    {STRING_FOR_KEYBOARD_LAYOUT_ISOMORPHIC, STRING_FOR_KEYBOARD_LAYOUT_IN_KEY, STRING_FOR_KEYBOARD_LAYOUT_PIANO}};
+constexpr SettingNames kKeyboardLayoutNames{
+    STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT, kKeyboardLayoutChoices, {}};
+constexpr SettingNames kVelocityMomentaryNames{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, {}, {}};
+constexpr SettingNames kModwheelMomentaryNames{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, {}, {}};
+constexpr std::array<String, 3> kFavouritesLayoutChoices{
+    {STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES,
+     STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES_AND_BANKS, STRING_FOR_OFF}};
+constexpr SettingNames kFavouritesLayoutNames{
+    STRING_FOR_DEFAULT_UI_FAVOURITES, STRING_FOR_DEFAULT_UI_FAVOURITES, kFavouritesLayoutChoices, {}};
+constexpr SettingNames kPadBrightnessNames{
+    STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE, STRING_FOR_DEFAULT_PAD_BRIGHTNESS, {}, {}};
+constexpr std::array<String, 4> kScreensaverModeChoices{{STRING_FOR_OFF, STRING_FOR_SCREENSAVER_MODE_BLANK,
+                                                         STRING_FOR_SCREENSAVER_MODE_STARSCAPE,
+                                                         STRING_FOR_SCREENSAVER_MODE_DELUGE}};
+constexpr SettingNames kScreensaverModeNames{
+    STRING_FOR_SCREENSAVER_MODE, STRING_FOR_SCREENSAVER_MODE, kScreensaverModeChoices, {}};
+constexpr SettingNames kScreensaverTimeoutNames{STRING_FOR_SCREENSAVER_TIMEOUT, STRING_FOR_SCREENSAVER_TIMEOUT, {}, {}};
+constexpr std::array<String, 3> kSamplePreviewChoices{
+    {STRING_FOR_DISABLED, STRING_FOR_CONDITIONAL, STRING_FOR_ENABLED}};
+constexpr SettingNames kSamplePreviewNames{
+    STRING_FOR_SAMPLE_PREVIEW, STRING_FOR_SAMPLE_PREVIEW, kSamplePreviewChoices, {}};
+constexpr SettingNames kCountInNames{STRING_FOR_REC_COUNT_IN, STRING_FOR_COUNT_IN, {}, {}};
+constexpr std::array<String, 3> kMonitorModeChoices{{STRING_FOR_CONDITIONAL, STRING_FOR_ENABLED, STRING_FOR_DISABLED}};
+constexpr SettingNames kMonitorModeNames{
+    STRING_FOR_MONITORING, STRING_FOR_SAMPLING_MONITORING, kMonitorModeChoices, {}};
+constexpr SettingNames kUsbAudioEnabledNames{STRING_FOR_USB_AUDIO, STRING_FOR_ENABLED, {}, {}};
+constexpr SettingNames kUsbDirectMonitoringNames{STRING_FOR_USB_INPUT, STRING_FOR_INPUT, {}, {}};
+constexpr std::array<String, 2> kUsbOutputSourceChoices{{STRING_FOR_MAIN_MIX, STRING_FOR_LINE_IN}};
+constexpr SettingNames kUsbOutputSourceNames{STRING_FOR_USB_OUTPUT, STRING_FOR_OUTPUT, kUsbOutputSourceChoices, {}};
+constexpr SettingNames kTriggerInPpqnNames{STRING_FOR_INPUT_PPQN, STRING_FOR_PPQN, {}, {}};
+constexpr SettingNames kTriggerInAutoStartNames{STRING_FOR_AUTO_START, STRING_FOR_AUTO_START, {}, {}};
+constexpr SettingNames kTriggerOutPpqnNames{STRING_FOR_OUTPUT_PPQN, STRING_FOR_PPQN, {}, {}};
+constexpr SettingNames kMidiClockOutNames{STRING_FOR_MIDI_CLOCK_OUT, STRING_FOR_OUTPUT, {}, {}};
+constexpr SettingNames kMidiClockInNames{STRING_FOR_MIDI_CLOCK_IN, STRING_FOR_INPUT, {}, {}};
+constexpr SettingNames kTempoMagnitudeMatchingNames{
+    STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING, {}, {}};
+/// MIDI follow's rows and the MIDI page's own. The feedback channels after the follow channels' own names are the
+/// track's channel alone and with each of them, as the feedback's channel item names them.
+constexpr SettingNames kFollowKitRootNoteNames{
+    STRING_FOR_FOLLOW_KIT_ROOT_NOTE, STRING_FOR_FOLLOW_KIT_ROOT_NOTE, {}, {}};
+constexpr std::array<String, 8> kFollowFeedbackChannelChoices{{
+    STRING_FOR_NONE,
+    STRING_FOR_FOLLOW_CHANNEL_A,
+    STRING_FOR_FOLLOW_CHANNEL_B,
+    STRING_FOR_FOLLOW_CHANNEL_C,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_A,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_B,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C,
+}};
+constexpr SettingNames kFollowFeedbackChannelNames{
+    STRING_FOR_CHANNEL, STRING_FOR_CHANNEL, kFollowFeedbackChannelChoices, {}};
+constexpr std::array<String, 4> kFollowFeedbackAutomationChoices{{
+    STRING_FOR_DISABLED,
+    STRING_FOR_LOW,
+    STRING_FOR_MEDIUM,
+    STRING_FOR_HIGH,
+}};
+constexpr SettingNames kFollowFeedbackAutomationNames{
+    STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, kFollowFeedbackAutomationChoices, {}};
+constexpr SettingNames kFollowFeedbackFilterNames{
+    STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER, {}, {}};
+constexpr SettingNames kFollowDisplayParamNames{
+    STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM, {}, {}};
+constexpr SettingNames kMidiSelectKitRowNames{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, {}, {}};
+constexpr SettingNames kMidiThruNames{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, {}, {}};
+constexpr std::array<String, 2> kMidiTransposeChoices{{STRING_FOR_TRANSPOSE_INKEY, STRING_FOR_TRANSPOSE_CHROMATIC}};
+constexpr SettingNames kMidiTransposeNames{STRING_FOR_TRANSPOSE, STRING_FOR_TRANSPOSE, kMidiTransposeChoices, {}};
+constexpr std::array<String, 4> kMidiTakeoverChoices{
+    {STRING_FOR_JUMP, STRING_FOR_PICK_UP, STRING_FOR_SCALE, STRING_FOR_RELATIVE}};
+constexpr SettingNames kMidiTakeoverNames{STRING_FOR_TAKEOVER, STRING_FOR_TAKEOVER, kMidiTakeoverChoices, {}};
+constexpr SettingNames kDifferentiateInputsNames{
+    STRING_FOR_DIFFERENTIATE_INPUTS, STRING_FOR_DIFFERENTIATE_INPUTS, {}, {}};
+/// The CV outputs' and the gate outputs' rows. Every output's row of a kind shares its names; a gate's mode lists the
+/// clock or the run signal only on the gate whose row has that choice.
+constexpr SettingNames kCvVoltsPerOctaveNames{
+    STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE, STRING_FOR_VOLTS_PER_OCTAVE, {}, {}};
+constexpr SettingNames kCvTransposeNames{STRING_FOR_CV_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr std::array<String, 2> kGateModeChoices{{STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER}};
+constexpr SettingNames kGateModeNames{STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kGateModeChoices, {}};
+constexpr std::array<String, 3> kRunGateModeChoices{
+    {STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER, STRING_FOR_RUN_SIGNAL}};
+constexpr SettingNames kRunGateModeNames{
+    STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kRunGateModeChoices, {}};
+constexpr std::array<String, 3> kClockGateModeChoices{{STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER, STRING_FOR_CLOCK}};
+constexpr SettingNames kClockGateModeNames{
+    STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kClockGateModeChoices, {}};
+constexpr SettingNames kGateMinOffTimeNames{STRING_FOR_MINIMUM_OFF_TIME, STRING_FOR_MINIMUM_OFF_TIME, {}, {}};
+/// The stem export's options: the plain and the drums' normalization share their item's name.
+constexpr SettingNames kStemNormalizeNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, {}, {}};
+constexpr SettingNames kStemToSilenceNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, {}, {}};
+constexpr SettingNames kStemSongFxNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, {}, {}};
+constexpr SettingNames kStemKitFxNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, {}, {}};
+constexpr SettingNames kStemOfflineNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, {}, {}};
+constexpr SettingNames kStemMixdownNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, {}, {}};
+/// The community features' names: each row's name is its menu item's, and a feature with choices of its own names
+/// them in its values' order.
+constexpr std::array<String, 2> kSyncScalingActionChoices{
+    {STRING_FOR_SYNC_SCALING_ACTION_SYNC_SCALING, STRING_FOR_SYNC_SCALING_ACTION_FILL}};
+constexpr std::array<String, 3> kShortcutOverlayChoices{
+    {STRING_FOR_OFF, STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY, STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP}};
+constexpr SettingNames kFeatureDrumRandomizerNames{
+    STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, {}, {}};
+constexpr SettingNames kFeatureQuantizeNames{
+    STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, {}, {}};
+constexpr SettingNames kFeatureFineTempoKnobNames{
+    STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, {}, {}};
+constexpr SettingNames kFeatureCatchNotesNames{
+    STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, {}, {}};
+constexpr SettingNames kFeatureDeleteUnusedKitRowsNames{
+    STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, {}, {}};
+constexpr SettingNames kFeatureAltGoldenKnobDelayParamsNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, {}, {}};
+constexpr SettingNames kFeatureSyncScalingActionNames{STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
+                                                      STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
+                                                      kSyncScalingActionChoices,
+                                                      {}};
+constexpr SettingNames kFeatureHighlightIncomingNotesNames{STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
+                                                           STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
+                                                           {},
+                                                           {}};
+constexpr SettingNames kFeatureDisplayNornsLayoutNames{
+    STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, {}, {}};
+constexpr SettingNames kFeatureStickyShiftNames{
+    STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, {}, {}};
+constexpr SettingNames kFeatureLightShiftNames{
+    STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, {}, {}};
+constexpr SettingNames kFeatureEnableDX7EngineNames{
+    STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, {}, {}};
+constexpr SettingNames kFeatureEnableKeyboardViewSidebarMenuExitNames{
+    STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+    STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableLaunchEventPlayheadNames{
+    STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, {}, {}};
+constexpr SettingNames kFeatureDisplayChordKeyboardNames{
+    STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, {}, {}};
+constexpr SettingNames kFeatureAlternativePlaybackStartBehaviourNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableGridViewLoopPadsNames{
+    STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, {}, {}};
+constexpr SettingNames kFeatureAlternativeTapTempoBehaviourNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableHorizontalMenusNames{
+    STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, {}, {}};
+constexpr SettingNames kFeatureTrimFromStartOfAudioClipNames{STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
+                                                             STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
+                                                             {},
+                                                             {}};
+constexpr SettingNames kFeatureShowBatteryLevelNames{
+    STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, {}, {}};
+constexpr SettingNames kFeatureRoundedCornersNames{
+    STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, {}, {}};
+constexpr SettingNames kFeatureShortcutOverlayNames{STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
+                                                    STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
+                                                    kShortcutOverlayChoices,
+                                                    {}};
 /// @}
 
 /// @brief The tables several owners' menus show alike, stored once and keyed after the owners: the arp's setting rows
@@ -437,7 +763,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 118> kEntries{{
+constexpr std::array<Entry, 230> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -475,6 +801,137 @@ constexpr std::array<Entry, 118> kEntries{{
     Entry{SettingGroupId::SOUND_ROUTING, "midiOutput/channel", &kMidiOutputChannelNames},
     Entry{SettingGroupId::SOUND_ROUTING, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
     Entry{SettingGroupId::SOUND_ROUTING, "sideChainSend", &kSideChainSendNames},
+    // A DEVICE row named by a `device_path` constant shares its one stored copy with the row (`project::kStoredText`);
+    // the built feature, CV and gate paths keep their own copy here, in the same SDRAM table.
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/midiIn">, &kMidiClockInNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/midiOut">, &kMidiClockOutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/tempoMagnitudeMatching">, &kTempoMagnitudeMatchingNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/triggerIn/autoStart">, &kTriggerInAutoStartNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/triggerIn/ppqn">, &kTriggerInPpqnNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"clock/triggerOut/ppqn">, &kTriggerOutPpqnNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"cv/0/transpose">, &kCvTransposeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"cv/0/voltsPerOctave">, &kCvVoltsPerOctaveNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"cv/1/transpose">, &kCvTransposeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"cv/1/voltsPerOctave">, &kCvVoltsPerOctaveNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/automation/clear">, &kDefaultAutomationClearNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/automation/interpolate">,
+          &kDefaultAutomationInterpolateNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/automation/noAuditionShortcuts">,
+          &kDefaultAutomationNoAuditionShortcutsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/automation/nudgeNote">,
+          &kDefaultAutomationNudgeNoteNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/automation/shift">, &kDefaultAutomationShiftNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/bendRange">, &kDefaultBendRangeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/cpuIndicator">, &kDefaultCpuIndicatorNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/holdTime">, &kDefaultHoldTimeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/key/lower">, &kDefaultKeyNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/key/upper">, &kDefaultKeyNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/magnitude">, &kDefaultMagnitudeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/metronomeVolume">, &kDefaultMetronomeVolumeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/newClipType">, &kDefaultNewClipTypeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/patchCablePolarity">, &kPatchCablePolarityNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/recordMargins">, &kDefaultRecordMarginsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/recordQuantize">, &kDefaultRecordQuantizeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/scale">, &kDefaultScaleNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/sliceMode">, &kDefaultSliceModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/startupSong">, &kDefaultStartupSongNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/swing/lower">, &kDefaultSwingNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/swing/upper">, &kDefaultSwingNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/swingInterval">, &kDefaultSwingIntervalNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/tempo/lower">, &kDefaultTempoNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/tempo/upper">, &kDefaultTempoNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/thresholdRecording">,
+          &kDefaultThresholdRecordingNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useLastClipType">, &kDefaultUseLastClipTypeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useSharps">, &kUseSharpsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/velocity">, &kDefaultVelocityNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/EnableDX7Engine">, &kFeatureEnableDX7EngineNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/altGoldenKnobDelayParams">,
+          &kFeatureAltGoldenKnobDelayParamsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/alternativePlaybackStartBehaviour">,
+          &kFeatureAlternativePlaybackStartBehaviourNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/alternativeTapTempoBehaviour">,
+          &kFeatureAlternativeTapTempoBehaviourNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/catchNotes">, &kFeatureCatchNotesNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/deleteUnusedKitRows">,
+          &kFeatureDeleteUnusedKitRowsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/displayChordKeyboard">,
+          &kFeatureDisplayChordKeyboardNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/displayNornsLayout">,
+          &kFeatureDisplayNornsLayoutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/drumRandomizer">, &kFeatureDrumRandomizerNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/enableGridViewLoopPads">,
+          &kFeatureEnableGridViewLoopPadsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/enableHorizontalMenus">,
+          &kFeatureEnableHorizontalMenusNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/enableKeyboardViewSidebarMenuExit">,
+          &kFeatureEnableKeyboardViewSidebarMenuExitNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/enableLaunchEventPlayhead">,
+          &kFeatureEnableLaunchEventPlayheadNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/fineTempoKnob">, &kFeatureFineTempoKnobNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/highlightIncomingNotes">,
+          &kFeatureHighlightIncomingNotesNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/lightShift">, &kFeatureLightShiftNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/quantize">, &kFeatureQuantizeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/roundedCorners">, &kFeatureRoundedCornersNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/shortcutOverlay">, &kFeatureShortcutOverlayNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/showBatteryLevel">, &kFeatureShowBatteryLevelNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/stickyShift">, &kFeatureStickyShiftNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/syncScalingAction">, &kFeatureSyncScalingActionNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"features/trimFromStartOfAudioClip">,
+          &kFeatureTrimFromStartOfAudioClipNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"gate/0/mode">, &kGateModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"gate/1/mode">, &kGateModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"gate/2/mode">, &kRunGateModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"gate/3/mode">, &kClockGateModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"gate/minOffTime">, &kGateMinOffTimeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midi/differentiateInputs">, &kDifferentiateInputsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midi/selectKitRow">, &kMidiSelectKitRowNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midi/takeover">, &kMidiTakeoverNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midi/thru">, &kMidiThruNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midi/transpose">, &kMidiTransposeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midiFollow/displayParam">, &kFollowDisplayParamNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midiFollow/feedback/automation">,
+          &kFollowFeedbackAutomationNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midiFollow/feedback/channel">, &kFollowFeedbackChannelNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midiFollow/feedback/filter">, &kFollowFeedbackFilterNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"midiFollow/kitRootNote">, &kFollowKitRootNoteNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/active">, &kPadColourActiveNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/fill">, &kPadColourFillNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/muted">, &kPadColourMutedNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/once">, &kPadColourOnceNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/soloed">, &kPadColourSoloedNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/colour/stopped">, &kPadColourStoppedNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/playCursor">, &kPlayCursorNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/shortcutsVersion">, &kShortcutsVersionNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"pads/textKeyboardLayout">, &kTextKeyboardNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"recording/countIn">, &kCountInNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"recording/monitorMode">, &kMonitorModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/kitFx">, &kStemKitFxNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/mixdown">, &kStemMixdownNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/normalize">, &kStemNormalizeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/normalizeDrums">, &kStemNormalizeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/offline">, &kStemOfflineNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/songFx">, &kStemSongFxNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"stemExport/toSilence">, &kStemToSilenceNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/accessibilityShortcuts">, &kAccessibilityShortcutsNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/favouritesLayout">, &kFavouritesLayoutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/grid/activeMode">, &kGridActiveModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/grid/allowGreenSelection">, &kGridAllowGreenSelectionNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/grid/emptyPadsCreateRec">, &kGridEmptyPadsCreateRecNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/grid/emptyPadsUnarm">, &kGridEmptyPadsUnarmNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/keyboard/modwheelMomentary">, &kModwheelMomentaryNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/keyboard/velocityMomentary">, &kVelocityMomentaryNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/keyboardLayout">, &kKeyboardLayoutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/menuHighlighting">, &kMenuHighlightingNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/padBrightness">, &kPadBrightnessNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/samplePreview">, &kSamplePreviewNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/screensaver/mode">, &kScreensaverModeNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/screensaver/timeout">, &kScreensaverTimeoutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"ui/sessionLayout">, &kSessionLayoutNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/directMonitoring">, &kUsbDirectMonitoringNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/enabled">, &kUsbAudioEnabledNames},
+    Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/outputSource">, &kUsbOutputSourceNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},

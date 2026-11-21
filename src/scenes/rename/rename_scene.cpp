@@ -251,7 +251,7 @@ void RenameScene::on_exit() {
 	// `openUI`), so it never had to answer the question.
 	//
 	// Cleared rather than "make `on_enter` demand a fresh `open()`" via a separate flag, because
-	// the two are the same test done twice: a zeroed `MenuContext` has null `clip`/`output`/`song`,
+	// the two are the same test done twice: a zeroed `MenuContext` has no model and no addresses,
 	// every target's `can` already rejects that, and `on_enter` already refuses when `can` says no.
 	// One mechanism, and it fails closed -- an entry with no `open()` rolls the push back instead
 	// of drawing an editor over a stale model.

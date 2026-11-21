@@ -69,6 +69,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -341,8 +342,8 @@ struct Rig {
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -350,8 +351,8 @@ struct Rig {
 	}
 	/// @brief `open`, numbering the application's own tree (`nodes::kAllRoots`) for a real node.
 	MenuContext open_real(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -390,8 +391,8 @@ struct Rig {
 	///        with INSUFFICIENT_RAM.
 	/// @param list Open with horizontal menus off.
 	void open_refusing_ranges(const Node& root, bool list = false) {
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                               /*kit_global_fx=*/false);
 		if (list) {
 			ctx.horizontal_menus = false;
 		}
@@ -983,7 +984,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		Rig r;
 		MenuContext ctx = r.open(horiz_page);
-		::Sound& sound = *spec::menu_engine(ctx).sound;
+		::Sound& sound = *spec::menu_engine(ctx, *r.song.song).sound;
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(0);
 		sound.sourceResources[0].ranges.getElement(0)->topNote = 40;
@@ -1730,7 +1731,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		Rig r;
 		const auto open_ctx = [&] {
-			return menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false);
+			return spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false);
 		};
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
 		expect(open_ctx().horizontal_menus).to_be_false();
@@ -1769,9 +1770,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::source_group);
-		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "mode",
+		deluge::edits::settingFor(*spec::menu_engine(ctx, *r.song.song).sound, "mode",
 		                          deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::FM))));
-		expect(spec::menu_engine(ctx).sound->getSynthMode()).to_equal(SynthMode::FM);
+		expect(spec::menu_engine(ctx, *r.song.song).sound->getSynthMode()).to_equal(SynthMode::FM);
 		const Node* listed[menu::kMaxDynamicChildren];
 		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),
 		                                                       listed, menu::bindings::ListFor::Columns);
@@ -2062,23 +2063,23 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// Not `r.open()`: that assigns ids over this file's own local `kRoots`, not the real tree
 		// `nodes::randomizer` lives in.
 		const MenuContext ctx =
-		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		    spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
 		r.shell.tick(0);
-		spec::menu_engine(ctx).arp->randomizerLock = false;
+		spec::menu_engine(ctx, *r.song.song).arp->randomizerLock = false;
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // default focus
 
 		r.enter(100);
 		r.shell.tick(110);
-		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_true();
+		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_true();
 		expect(depth_of()).to_equal(0); // stayed -- no ascend, no chain
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
 
 		r.enter(400);
 		r.shell.tick(410);
-		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_false(); // flips right back
+		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_false(); // flips right back
 	});
 
 	it("SYNTH focuses randomizer_lock; pressing SYNTH again flips it and notifies -- the "
@@ -2088,12 +2089,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx =
-		    menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		    spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::randomizer, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
 		r.shell.tick(0);
-		spec::menu_engine(ctx).arp->randomizerLock = false;
+		spec::menu_engine(ctx, *r.song.song).arp->randomizerLock = false;
 
 		r.press(kKitX, kKitY, 200); // move focus off column 0 first (spread_gate, column 1)
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
@@ -2101,7 +2102,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)last_notice(); // drain
 		r.press(kSynthX, kSynthY, 500); // new focus onto randomizer_lock: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
-		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_false();
+		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_false();
 		std::string title;
 		{
 			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
@@ -2111,7 +2112,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		(void)last_notice(); // drain
 		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
-		expect(spec::menu_engine(ctx).arp->randomizerLock).to_be_true();
+		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_true();
 		{
 			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(title); // the same column, notified again

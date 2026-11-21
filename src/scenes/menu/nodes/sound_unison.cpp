@@ -24,7 +24,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "processing/sound/sound.h"
 #include "serialization/value.h"
 
 namespace deluge::scenes::menu::nodes {

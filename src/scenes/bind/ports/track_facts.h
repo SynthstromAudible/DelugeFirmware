@@ -5,6 +5,7 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/setting_group.h"
+#include "deluge-project/track_kind.h"
 #include "effects/state.h"
 
 #include <cstdint>
@@ -12,27 +13,19 @@
 
 namespace deluge::scenes::bind {
 
-/// @brief What kind of track an output is.
-enum class TrackKind : uint8_t {
-	SYNTH,    ///< a synth track
-	KIT,      ///< a kit track
-	MIDI_OUT, ///< a MIDI track, playing an external device
-	CV,       ///< a CV/gate track
-	AUDIO,    ///< an audio track
-};
-
 /// @brief One of the song's tracks, as the host holds them: its id, its kind, and (MIDI and CV) its channel.
 struct TrackFact {
-	uint32_t output_id{0};            ///< the track's output id
-	TrackKind kind{TrackKind::SYNTH}; ///< what kind of track it is
-	int32_t channel{0};               ///< MIDI and CV only: the channel it plays on
+	uint32_t output_id{0};                              ///< the track's output id
+	project::TrackKind kind{project::TrackKind::SYNTH}; ///< what kind of track it is
+	int32_t channel{0};                                 ///< MIDI and CV only: the channel it plays on
 	bool operator==(const TrackFact&) const = default;
 };
 
 /// @brief Whether the audio track @p editing may record from @p track: another track, and one that sounds (not a
 ///        MIDI or CV track), as `AudioOutput::canRecordFrom` decides.
 [[nodiscard]] constexpr bool can_record_from(uint32_t editing, const TrackFact& track) {
-	return track.output_id != editing && track.kind != TrackKind::MIDI_OUT && track.kind != TrackKind::CV;
+	return track.output_id != editing && track.kind != project::TrackKind::MIDI_OUT
+	       && track.kind != project::TrackKind::CV;
 }
 
 /// @brief The song's track and owner facts, answered by the host.

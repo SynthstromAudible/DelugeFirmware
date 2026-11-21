@@ -26,9 +26,9 @@
 #include "notify/notice_queue.h"
 
 #include "gui/l10n/short_label.h"
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "ui/oled/list.h"
 
+#include "deluge-project/song.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"

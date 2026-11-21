@@ -127,6 +127,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -1738,7 +1739,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::drum(*drum->id()), fixture.clip->id()))
 		    .to_equal(std::optional<int32_t>{0x10000000});
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		if (ctx.addresses.note_row) {
 			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
@@ -1895,7 +1896,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		fixture.song->setCurrentClip(fixture.clip);
 		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		const std::string before =
 		    ctx.addresses.note_row
@@ -1988,7 +1989,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .clip_id = fixture.clip->id()};
 		expect(deluge::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		const std::string before =
 		    ctx.addresses.note_row
 		        ? recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row, "bendRange")

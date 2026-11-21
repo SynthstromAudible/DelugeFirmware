@@ -402,6 +402,59 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		}
 		expect(flagged).to_equal(std::vector<uint16_t>{445, 447});
 	});
+
+	it("flags a range whose lower edge is no DEVICE row's, and passes one on a DEVICE row", _ {
+		// `Issue::Kind::RangeWithoutSpec`: a range's upper edge is written to the device port alone, so its lower edge
+		// must be a DEVICE row too.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr deluge::scenes::bind::Target kSound{.kind = deluge::scenes::bind::Target::Kind::SOUND,
+		                                                      .path = "polyphonic"};
+		static constexpr deluge::scenes::bind::Target kDevice{
+		    .kind = deluge::scenes::bind::Target::Kind::MODEL,
+		    .path = deluge::project::device_path::kTempoLower,
+		    .group = deluge::project::SettingGroupId::DEVICE};
+		static constexpr RangeSpec kSpec{.upper_path = deluge::project::device_path::kTempoUpper,
+		                                 .format = [](int32_t, const void*, std::span<char>) {
+			                                 return std::string_view{"0"};
+		                                 }};
+		static constexpr Node on_device = range_item(454, 0, kDevice, &kSpec);
+		static constexpr Node on_sound = range_item(455, 0, kSound, &kSpec);
+		static constexpr const Node* kids[] = {&on_device, &on_sound};
+		static constexpr Node root = submenu(453, kids);
+		static constexpr const Node* roots[] = {&root};
+
+		std::vector<uint16_t> flagged;
+		for (const Issue& i : validate_tree(roots, {})) {
+			if (i.kind == Issue::Kind::RangeWithoutSpec) {
+				flagged.push_back(i.node->name);
+			}
+		}
+		expect(flagged).to_equal(std::vector<uint16_t>{455});
+	});
+
+	it("flags an after-write on a node that is no DEVICE row's, and passes one on a DEVICE row", _ {
+		// `Flag::AfterWriteOffDevice`: only a device write runs a node's after-write.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr deluge::scenes::bind::Target kSound{.kind = deluge::scenes::bind::Target::Kind::SOUND,
+		                                                      .path = "polyphonic"};
+		static constexpr deluge::scenes::bind::Target kDevice{.kind = deluge::scenes::bind::Target::Kind::MODEL,
+		                                                       .path = "pads/playCursor",
+		                                                       .group = deluge::project::SettingGroupId::DEVICE};
+		static constexpr Node on_device = with_after_write(setting_item(450, Kind::Enum, kDevice), discard);
+		static constexpr Node on_sound = with_after_write(setting_item(451, Kind::Enum, kSound), discard);
+		static constexpr Node hooked = with_after_write(toggle_item(452, zero, discard), discard);
+		static constexpr const Node* kids[] = {&on_device, &on_sound, &hooked};
+		static constexpr Node root = submenu(449, kids);
+		static constexpr const Node* roots[] = {&root};
+
+		std::vector<uint16_t> flagged;
+		for (const Issue& i : validate_tree(roots, {})) {
+			if (i.kind == Issue::Kind::FlagMismatch && i.detail == static_cast<uint16_t>(Flag::AfterWriteOffDevice)) {
+				flagged.push_back(i.node->name);
+			}
+		}
+		expect(flagged).to_equal(std::vector<uint16_t>{451, 452});
+	});
 });
 // clang-format on
 

@@ -15,6 +15,7 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
+#include "deluge-project/device_settings.h" // RangeSpec::upper_path
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
@@ -95,9 +96,9 @@ enum class Kind : uint8_t {
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.h`, `KeyRange` in
 	///        `origin/main:src/deluge/gui/menu_item/key_range.h`).
 	///
-	/// `Binding::get`/`set` are the **lower** edge; `Binding::range_spec` carries the upper edge's
-	/// hooks and the two per-item rules (how the ends spell themselves, and what happens when they
-	/// would cross). Rendered by `ui::oled::range_value`.
+	/// `Binding::target` is the **lower** edge's row; `Binding::range_spec` names the upper edge's row and carries
+	/// the two per-item rules (how the ends spell themselves, and what happens when they would cross). Rendered by
+	/// `ui::oled::range_value`.
 	Range,
 	Custom,
 };
@@ -365,24 +366,23 @@ inline constexpr size_t kMaxNodes = 1024;
 ///       `param` (model code, out of reach here).
 /// @brief The half of a `Kind::Range` binding that a `Kind::Int` one has no room for.
 ///
-/// A `Binding` names one value through `get`/`set`; a range is two. Rather than grow four more
-/// fields on a struct every node pays for, the three range nodes point at one of these -- the same
-/// trade `Node::chain_targets`' span makes for the seven chaining nodes.
+/// A `Binding` names one value through its target; a range is two. Rather than grow more fields on a struct every node
+/// pays for, the three range nodes point at one of these -- the same trade `Node::chain_targets`' span makes for the
+/// seven chaining nodes.
 ///
-/// `get`/`set` on the `Binding` itself stay the **lower** edge, so `bindings::read`/`write` and
-/// `validate_tree`'s "a value node has something to read" rule keep working on a range node without
-/// a special case.
+/// The `Binding`'s own target stays the **lower** edge, so `bindings::read`/`write`/`range` and `validate_tree`'s "a
+/// value node has something to read" rule keep working on a range node without a special case;
+/// `bindings::read_upper`/`write_upper` reach the other end.
 struct RangeSpec {
-	/// @brief The upper edge: main's `IntegerRange::upper` / `KeyRange::upper`
+	/// @brief The upper edge's row: main's `IntegerRange::upper` / `KeyRange::upper`
 	///        (`origin/main:src/deluge/gui/menu_item/integer_range.h`,
-	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), held in `FlashStorage::defaultRanges`
-	///        (`storage/flash_storage.h`).
-	GetFn get_upper = nullptr;
-	SetFn set_upper = nullptr;
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`): a DEVICE row, as the node's own target is, which
+	///        shares the lower edge's bounds.
+	deluge::project::DevicePath upper_path;
 
 	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half (`IntegerRange::getText` in
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::getText`
-	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)).
+	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)). Its context is the menu's `MenuContext`.
 	deluge::ui::oled::RangeFormatFn format = nullptr;
 
 	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
@@ -509,6 +509,11 @@ struct Binding {
 	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
 	///        every ordinary node, which is always permitted.
 	PermittedFn permitted = nullptr;
+
+	/// @brief A DEVICE row's node: what the open menu does once the device port stored a write, given the menu value
+	///        written. It is the menu's own half of a setting it lays itself out by, which no host store may reach
+	///        (the horizontal-menus feature). Null for every other node.
+	SetFn after_write = nullptr;
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own
@@ -770,37 +775,43 @@ struct CustomItem {
 	/// @{
 
 	/// @brief Bind a note-on to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel, or the MPE zone the port mapped it to.
 	/// @param note    Its note number.
 	/// @return Whether it learned.
-	virtual bool learn_note_on(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*note*/) const {
+	virtual bool learn_note_on(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                           int32_t /*note*/) const {
 		return false;
 	}
 
 	/// @brief Bind a CC to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel, or the MPE zone the port mapped it to.
 	/// @param cc      The controller number.
 	/// @param value   The controller value.
 	/// @return Whether it learned.
-	virtual bool learn_cc(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*cc*/,
-	                      int32_t /*value*/) const {
+	virtual bool learn_cc(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                      int32_t /*cc*/, int32_t /*value*/) const {
 		return false;
 	}
 
 	/// @brief Bind a program change to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel.
 	/// @param program The program number.
 	/// @return Whether it learned: false for a refusal.
-	virtual bool learn_program_change(deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
-	                                  int32_t /*program*/) const {
+	virtual bool learn_program_change(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/,
+	                                  int32_t /*channel*/, int32_t /*program*/) const {
 		return false;
 	}
 
-	/// @brief Forget what this item learned -- `MenuItem::unlearnAction`. @return Whether it has anything to forget.
-	virtual bool unlearn() const { return false; }
+	/// @brief Forget what this item learned -- `MenuItem::unlearnAction`.
+	/// @param ctx The menu's context, whose ports take the unlearn.
+	/// @return Whether it has anything to forget.
+	virtual bool unlearn(const MenuContext& /*ctx*/) const { return false; }
 
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
 	///        `MenuItem::shouldBlinkLearnLed`, which `SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`
@@ -1347,6 +1358,12 @@ constexpr Node with_leaf_text(Node n, ValueTextFn text) {
 	return n;
 }
 
+/// @brief `n`, a DEVICE row's node, applying a stored write to the open menu with @p apply (`Binding::after_write`).
+constexpr Node with_after_write(Node n, SetFn apply) {
+	n.bind.after_write = apply;
+	return n;
+}
+
 /// @brief `n` drawing its full-screen value with @p draw (`Binding::leaf_draw`).
 constexpr Node with_leaf_draw(Node n, LeafDrawFn draw) {
 	n.bind.leaf_draw = draw;
@@ -1627,22 +1644,21 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 
 /// @brief A `Kind::Range` leaf -- `menu_item::Range` (`origin/main:src/deluge/gui/menu_item/range.h`).
 ///
-/// @param get_lower/@param set_lower The lower edge, which is also what `bindings::read`/`write`
-///                                   see (`RangeSpec`).
-/// @param spec  The upper edge and the two per-item rules. Required: a null one is a
-///              `validate_tree` issue, not a defaulted-to-something.
-/// @param r The bounds both ends live inside, and the select detent's step -- `IntegerRange::minValue`/`maxValue`, or
-///              `KeyRange`'s own `KEY_MIN`/`KEY_MAX` locals (`KeyRange::selectEncoderAction` in
-///              `origin/main:src/deluge/gui/menu_item/key_range.cpp`).
-constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
-                          IntRange r, RelevantFn rel = nullptr) {
+/// @param name  The node's name.
+/// @param title Its title; 0 for its name.
+/// @param lower The lower edge's row, which is also what `bindings::read`/`write` see, and whose range both ends live
+///              inside (`RangeSpec`).
+/// @param spec  The upper edge's row and the two per-item rules. Required: a null one is a `validate_tree` issue, not a
+///              defaulted-to-something.
+/// @param rel   When the node is listed; null for always.
+/// @return The node.
+constexpr Node range_item(uint16_t name, uint16_t title, deluge::scenes::bind::Target lower, const RangeSpec* spec,
+                          RelevantFn rel = nullptr) {
 	Node n{};
 	n.name = name;
 	n.title = title != 0 ? title : name;
 	n.kind = Kind::Range;
-	n.bind.get = get_lower;
-	n.bind.set = set_lower;
-	n.bind.fixed_range = r;
+	n.bind.target = lower;
 	n.bind.range_spec = spec;
 	n.relevant = rel;
 	return n;

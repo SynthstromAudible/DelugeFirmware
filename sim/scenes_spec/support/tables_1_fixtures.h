@@ -19,6 +19,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
 
+#include "support/menu_context.h"
 #include "support/menu_engine.h"
 #include "support/oracle_tree.h"
 #include "support/song_fixture.h"
@@ -85,8 +86,8 @@ struct Fixture {
 
 	Fixture() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                        /*kit_global_fx=*/false);
+		ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                   /*kit_global_fx=*/false);
 	}
 };
 
@@ -114,8 +115,8 @@ struct RangeFixture {
 		if (n > 0) {
 			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		}
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                        /*kit_global_fx=*/false);
+		ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                   /*kit_global_fx=*/false);
 		install(ctx, song.song);
 	}
 	~RangeFixture() {

@@ -1,23 +1,18 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "hid/buttons.h"
-#include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/sample/last_file_path_loaded.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstdint>
@@ -118,36 +113,6 @@ void host_end_audition(AuditionEnd how) {
 		}
 		break;
 	}
-}
-
-void host_screensaver_settings_changed() {
-	deluge::hid::display::Screensaver::settingsChanged();
-}
-
-void host_pad_brightness_changed() {
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-}
-
-void host_highlighting_changed() {
-	gui::ui::pushShellHighlighting();
-}
-
-void host_rounded_corners_changed() {
-	gui::ui::pushShellRoundedCorners();
-}
-
-void host_shift_sticky_changed() {
-	// The guest's shift machine takes the setting (`opened()` seeds it only on the way in), and off, legacy's latch
-	// goes with the guest's.
-	const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
-	shellHostUI.shell().lowering().set_shift_is_sticky(on);
-	if (!on) {
-		Buttons::clearShiftSticky();
-	}
-}
-
-void host_pad_colours_changed() {
-	renderingNeededRegardlessOfUI();
 }
 
 } // namespace deluge::scenes::menu

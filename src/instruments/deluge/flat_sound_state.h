@@ -72,7 +72,7 @@ struct FlatSoundState {
 	std::array<plugin::SyncType, 4> lfo_sync_type{};
 	std::array<plugin::SyncLevel, 4> lfo_sync_level{};
 	deluge::effects::EffectStates effects; ///< the sound's own effects' settings
-	std::array<SourceState, 2> sources;
+	std::array<SourceState, kSourceCount> sources;
 	bool operator==(const FlatSoundState&) const = default;
 };
 

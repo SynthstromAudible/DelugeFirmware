@@ -73,13 +73,13 @@ bool learn_into(const MenuContext& ctx, const MenuState& st, const UiEvent& even
 	else if (const CustomItem* item = custom_of(at)) {
 		switch (event.kind) {
 		case UiEvent::Kind::MidiNoteOn:
-			learned = item->learn_note_on(event.device, event.channel, event.data1);
+			learned = item->learn_note_on(ctx, event.device, event.channel, event.data1);
 			break;
 		case UiEvent::Kind::MidiCc:
-			learned = item->learn_cc(event.device, event.channel, event.data1, event.data2);
+			learned = item->learn_cc(ctx, event.device, event.channel, event.data1, event.data2);
 			break;
 		case UiEvent::Kind::MidiProgramChange:
-			learned = item->learn_program_change(event.device, event.channel, event.data1);
+			learned = item->learn_program_change(ctx, event.device, event.channel, event.data1);
 			break;
 		default:
 			break;
@@ -206,7 +206,7 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 		forgot = at->unlearn(ctx);
 	}
 	else if (const CustomItem* item = custom_of(at)) {
-		forgot = item->unlearn();
+		forgot = item->unlearn(ctx);
 	}
 	if (forgot) {
 		announce(st, *at, deluge::l10n::String::STRING_FOR_UNLEARNED);

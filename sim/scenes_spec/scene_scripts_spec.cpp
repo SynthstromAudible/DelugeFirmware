@@ -162,6 +162,7 @@
 #include <optional>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge;
@@ -707,7 +708,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::saturation, ctx);
 		const int32_t before = bindings::read(nodes::saturation, ctx);

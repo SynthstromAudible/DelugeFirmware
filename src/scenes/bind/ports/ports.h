@@ -10,6 +10,7 @@
 #include "scenes/bind/ports/card_facts.h"
 #include "scenes/bind/ports/clip_facts.h"
 #include "scenes/bind/ports/clip_writes.h"
+#include "scenes/bind/ports/device_settings.h"
 #include "scenes/bind/ports/learn_sink.h"
 #include "scenes/bind/ports/midi_devices.h"
 #include "scenes/bind/ports/sound_facts.h"
@@ -37,6 +38,7 @@ struct Ports {
 	MidiDevices* midi{nullptr};               ///< the connected MIDI devices and their own settings
 	WriteSink* writes{nullptr};               ///< where a menu's setting, text and automation writes go
 	controls::Sink* controls_sink{nullptr};   ///< where the knobs' writes and an effect setting's exact word go
+	DeviceSettings* device{nullptr};          ///< the device's own settings, by DEVICE row
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

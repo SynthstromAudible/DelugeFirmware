@@ -30,16 +30,16 @@
 ///
 /// @note **Both layers are here.** The tables below are the default (`SHORTCUTS_VERSION_3`) layout, which is what the
 ///       legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and `kAudioClipV1Cells` are the pre-3.0 one,
-///       and `set_shortcuts_version` selects between them for every lookup in this file. `nodes::shortcuts_version` is
-///       the setting item that calls it. `SoundEditor::setShortcutsVersion`
+///       and the device's `pads/shortcutsVersion` row (`shortcuts_version`) selects between them for every lookup in
+///       this file; the setting item `nodes::shortcuts_version` writes the row. `SoundEditor::setShortcutsVersion`
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) reaches the same layout by *writing* into the V3 arrays --
-///       see `menu::set_shortcuts_version` for the two ways that differs.
+///       see `menu::shortcuts_version` for the two ways that differs.
 
 #include "scenes/menu/shortcuts.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
-#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstddef>
@@ -233,7 +233,7 @@ constexpr Cells with_cell(Cells base, uint8_t x, uint8_t y, const Node* node) {
 /// @name The `SHORTCUTS_VERSION_1` layers.
 ///
 /// `SoundEditor::setShortcutsVersion`'s V1 arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), as whole tables
-/// rather than as writes into the V3 ones -- see the note on `menu::set_shortcuts_version`, which
+/// rather than as writes into the V3 ones -- see the note on `menu::shortcuts_version`, which
 /// also accounts for the six of legacy's ten assignments that produce no difference here.
 ///
 /// The `static_assert`s pin what each write is replacing: if a future edit to the V3 table moves
@@ -369,9 +369,9 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
-const Layers& layers_for(MenuContext::Root root) {
+const Layers& layers_for(MenuContext::Root root, project::ShortcutsVersion version) {
 	const auto i = static_cast<size_t>(root);
-	const Layers* by_root = shortcuts_version() == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	const Layers* by_root = version == project::ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
 	return i < static_cast<size_t>(MenuContext::Root::Count)
 	           ? by_root[i]
 	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
@@ -404,13 +404,15 @@ ShortcutPos find_in(const Cells& cells, const Node& node) {
 
 } // namespace
 
-std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer) {
-	const Layers& l = layers_for(root);
+std::span<const Node* const> shortcut_layer(MenuContext::Root root, project::ShortcutsVersion version,
+                                            bool second_layer) {
+	const Layers& l = layers_for(root, version);
 	return second_layer ? std::span<const Node* const>{*l.second} : std::span<const Node* const>{*l.first};
 }
 
-const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y) {
-	const Layers& l = layers_for(root);
+const Node* shortcut_node(MenuContext::Root root, project::ShortcutsVersion version, bool second_layer, uint8_t x,
+                          uint8_t y) {
+	const Layers& l = layers_for(root, version);
 	// First: the arm's own guard on which pads reach the table at all -- a cell the guard excludes
 	// is transcribed (and so still blinks) but was never pressable (`kit_global_fx_press_gate`).
 	if (l.press_gate != nullptr && !l.press_gate(x, y)) {
@@ -445,8 +447,8 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
 	}
 }
 
-ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
-	const Layers& l = layers_for(root);
+ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion version, const Node& node) {
+	const Layers& l = layers_for(root, version);
 	// Second layer first, the order `updatePadLightsFor` scans in -- an item that is in both layers blinks at the pad
 	// it is reached from second.
 	if (l.second != l.first) {
@@ -458,16 +460,8 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	return find_in(*l.first, node);
 }
 
-static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(ShortcutsVersion::V1));
-static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(ShortcutsVersion::V3));
-
-ShortcutsVersion shortcuts_version() {
-	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? ShortcutsVersion::V1
-	                                                                          : ShortcutsVersion::V3;
-}
-
-void set_shortcuts_version(ShortcutsVersion version) {
-	FlashStorage::shortcutsVersion = static_cast<uint8_t>(version);
+project::ShortcutsVersion shortcuts_version(const MenuContext& ctx) {
+	return bind::read_device<project::ShortcutsVersion>(ctx.ports.device, project::device_path::kShortcutsVersion);
 }
 
 } // namespace deluge::scenes::menu

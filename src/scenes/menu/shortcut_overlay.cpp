@@ -109,8 +109,9 @@ bool other_source_pad_held(const deluge::ui::PadMask& held, uint8_t x, uint8_t y
 	return false;
 }
 
-RGB shortcut_colour(const MenuContext& ctx, uint8_t x, uint8_t y, bool ask_relevance) {
-	const Node* node = shortcut_node(ctx.root, false, x, y);
+RGB shortcut_colour(const MenuContext& ctx, project::ShortcutsVersion version, uint8_t x, uint8_t y,
+                    bool ask_relevance) {
+	const Node* node = shortcut_node(ctx.root, version, false, x, y);
 	if (node == nullptr) {
 		return kNone;
 	}
@@ -126,9 +127,10 @@ RGB shortcut_colour(const MenuContext& ctx, uint8_t x, uint8_t y, bool ask_relev
 }
 
 void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& ctx) {
+	const project::ShortcutsVersion version = shortcuts_version(ctx);
 	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
-			(void)f.pad(x, y, shortcut_colour(ctx, x, y));
+			(void)f.pad(x, y, shortcut_colour(ctx, version, x, y));
 		}
 	}
 }
@@ -175,6 +177,7 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 		}
 		return patching::source_may_patch(ctx, source, param);
 	};
+	const project::ShortcutsVersion version = shortcuts_version(ctx);
 	for (uint8_t sx = 0; sx < 2; sx++) {
 		const auto x = static_cast<uint8_t>(kShortcutCols - 2 + sx);
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -193,8 +196,8 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 				}
 			}
 			const bool edits_range = target == SourceTarget::Range;
-			if (allowed(patching::mod_source_shortcut(sx, y, false), edits_range)
-			    || allowed(patching::mod_source_shortcut(sx, y, true), edits_range)) {
+			if (allowed(patching::mod_source_shortcut(version, sx, y, false), edits_range)
+			    || allowed(patching::mod_source_shortcut(version, sx, y, true), edits_range)) {
 				(void)f.pad(x, y, c::blue);
 			}
 		}

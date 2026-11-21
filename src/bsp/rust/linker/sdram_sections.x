@@ -101,6 +101,10 @@ SECTIONS {
         __menu_tables_start = .;
         *(.rodata.*11menu_tables*)
         __menu_tables_end = .;
+        /* The DEVICE rows' path handles (`deluge::project::device_path`'s constants), which the scenes and
+         * the host's device port read; their text is `menu_tables` data, above. Matched by the struct's
+         * name in the mangled name, so a rename returns them to SRAM. */
+        *(.rodata.*6deluge7project11device_path*)
         /* The scenes' menu: its node and cell tables, read by the menu scene and its shortcuts, never
          * the audio tier or an interrupt. Matched by the `deluge::scenes::menu` namespace in the
          * mangled name, so a rename returns them to SRAM, as for the setting tables above. */

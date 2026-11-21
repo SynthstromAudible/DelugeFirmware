@@ -4,15 +4,26 @@
 /// @brief Cases every implementation of a port must pass, the fake and the host's alike. Each takes the port under
 ///        test and returns whether it holds; a spec states the case and expects true.
 
+#include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
+#include "plugin-api/types/display_mapping.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace deluge::scenes::bind::contract {
 
 /// @brief A port answers the same thing twice when nothing changed between the calls.
 [[nodiscard]] inline bool ui_facts_are_stable(const UiFacts& ui) {
 	return ui.auditioning() == ui.auditioning() && ui.popup_showing() == ui.popup_showing()
-	       && ui.flash_cursor() == ui.flash_cursor() && ui.performance_editing_mode() == ui.performance_editing_mode()
-	       && ui.dx7_engine_enabled() == ui.dx7_engine_enabled();
+	       && ui.performance_editing_mode() == ui.performance_editing_mode();
 }
 
 /// @brief The card's facts are stable across two calls. No case that the host and a fake both answer the same way
@@ -28,10 +39,39 @@ namespace deluge::scenes::bind::contract {
 	return audio.live_voice_count() >= 0;
 }
 
-/// @brief The flash cursor is one of its three values.
-[[nodiscard]] inline bool flash_cursor_is_named(const UiFacts& ui) {
-	const auto c = ui.flash_cursor();
-	return c == FlashCursor::Fast || c == FlashCursor::Off || c == FlashCursor::Slow;
+/// @brief The threshold-recording mode is one of the menu's four choices, and the sidechain's sync type one of the
+///        three it lists. (The line-input fact has no case a fake and the host share; each spec checks it against
+///        its own source.)
+[[nodiscard]] inline bool audio_runtime_facts_are_choices(const AudioFacts& audio) {
+	const int32_t threshold = audio.song_threshold_recording();
+	const plugin::SyncType type = audio.reverb_sidechain_sync_type();
+	return threshold >= 0 && threshold <= 3
+	       && std::ranges::find(plugin::kSyncTypeChoices, type) != plugin::kSyncTypeChoices.end();
+}
+
+/// @brief Host-only: a recording fake cannot read back. The caller must have a song, since the threshold lives on it.
+///        Each runtime write is visible through the audio fact that reads it back. Meaningful on the host, whose
+///        writes land in the engine; the caller restores what it changed.
+[[nodiscard]] inline bool runtime_writes_are_read_back(WriteSink& writes, const AudioFacts& audio) {
+	const int32_t threshold = audio.song_threshold_recording();
+	const plugin::SyncType type = audio.reverb_sidechain_sync_type();
+	const int32_t other_threshold = threshold == 2 ? 1 : 2;
+	const plugin::SyncType other_type =
+	    type == plugin::SyncType::TRIPLET ? plugin::SyncType::DOTTED : plugin::SyncType::TRIPLET;
+	writes.set_song_threshold_recording(other_threshold);
+	writes.set_reverb_sidechain_sync_type(other_type);
+	const bool read_back =
+	    audio.song_threshold_recording() == other_threshold && audio.reverb_sidechain_sync_type() == other_type;
+	writes.set_song_threshold_recording(threshold);
+	writes.set_reverb_sidechain_sync_type(type);
+	return read_back && audio.song_threshold_recording() == threshold && audio.reverb_sidechain_sync_type() == type;
+}
+
+/// @brief The firmware version is a non-empty view over storage that outlives the call: the same bytes answer twice.
+[[nodiscard]] inline bool firmware_version_is_a_stable_view(const UiFacts& ui) {
+	const std::string_view first = ui.firmware_version();
+	const std::string_view second = ui.firmware_version();
+	return !first.empty() && first.data() == second.data() && first == second;
 }
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.
@@ -128,5 +168,182 @@ namespace deluge::scenes::bind::contract {
 [[nodiscard]] inline bool write_to_no_device_is_refused(MidiDevices& midi) {
 	return !midi.write(midi::DeviceId{}, MidiDeviceSettings{.send_clock = true});
 }
+
+/// @brief A global command's and a follow input's learn reads back through @p midi, one from @p known and one from any
+///        device, and a nullopt learn unlearns each. Puts back what it found: the host spec shares its process.
+/// @param known A device @p midi knows.
+[[nodiscard]] inline bool learns_read_back(LearnSink& learns, const MidiDevices& midi, midi::DeviceId known) {
+	constexpr project::GlobalCommand kCommand = project::GlobalCommand::TAP;
+	constexpr project::FollowInput kInput = project::FollowInput::TRACK_2;
+	const std::optional<LearnedBinding> command_was = midi.global_command(kCommand);
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
+	const LearnedBinding cc{
+	    .device = known, .channel_or_zone = static_cast<uint8_t>(project::kFirstCcChannel + 3), .note_or_cc = 42};
+	const LearnedBinding channel{.channel_or_zone = 5};
+	learns.learn_global(kCommand, cc);
+	learns.learn_follow(kInput, channel);
+	const bool learned = midi.global_command(kCommand) == cc && midi.follow_input(kInput) == channel;
+	learns.learn_global(kCommand, std::nullopt);
+	learns.learn_follow(kInput, std::nullopt);
+	const bool forgot = !midi.global_command(kCommand).has_value() && !midi.follow_input(kInput).has_value();
+	learns.learn_global(kCommand, command_was);
+	learns.learn_follow(kInput, input_was);
+	return learned && forgot && midi.global_command(kCommand) == command_was && midi.follow_input(kInput) == input_was;
+}
+
+/// @brief A global command's or a follow input's learn from a device @p midi does not know stores nothing.
+[[nodiscard]] inline bool unknown_device_learn_is_refused(LearnSink& learns, const MidiDevices& midi) {
+	constexpr project::GlobalCommand kCommand = project::GlobalCommand::PLAY;
+	constexpr project::FollowInput kInput = project::FollowInput::A;
+	constexpr midi::DeviceId kUnknown{0xFFFF'FFF0};
+	const std::optional<LearnedBinding> command_was = midi.global_command(kCommand);
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
+	learns.learn_global(kCommand, LearnedBinding{.device = kUnknown, .channel_or_zone = 1, .note_or_cc = 60});
+	learns.learn_follow(kInput, LearnedBinding{.device = kUnknown, .channel_or_zone = 2});
+	return midi.global_command(kCommand) == command_was && midi.follow_input(kInput) == input_was;
+}
+
+/// @brief A follow input learned to a device and no channel, as a settings file can leave it, reads back with its
+///        device, and a channel written over it keeps the device. Puts back what it found.
+/// @param known A device @p midi knows.
+[[nodiscard]] inline bool follow_device_without_channel_reads_back(LearnSink& learns, const MidiDevices& midi,
+                                                                   midi::DeviceId known) {
+	constexpr project::FollowInput kInput = project::FollowInput::B;
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
+	const LearnedBinding device_only{.device = known};
+	learns.learn_follow(kInput, device_only);
+	const bool kept = midi.follow_input(kInput) == device_only;
+	const LearnedBinding with_channel{.device = known, .channel_or_zone = 0};
+	learns.learn_follow(kInput, with_channel);
+	const bool channel_kept = midi.follow_input(kInput) == with_channel;
+	learns.learn_follow(kInput, input_was);
+	return kept && channel_kept && midi.follow_input(kInput) == input_was;
+}
+
+/// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with
+///       other specs.
+/// @{
+
+/// @brief Every DEVICE row's value, by path, as @p device reads it now.
+[[nodiscard]] inline std::vector<std::optional<int32_t>> device_values(const DeviceSettings& device) {
+	std::vector<std::optional<int32_t>> values;
+	for (const plugin::SettingInfo& row : project::device_table()) {
+		values.push_back(device.read(row.path));
+	}
+	return values;
+}
+
+/// @brief The first DEVICE row of @p kind, or null where the group has none.
+[[nodiscard]] inline const plugin::SettingInfo* first_device_row(plugin::SettingKind kind) {
+	const auto table = project::device_table();
+	const auto found = std::ranges::find(table, kind, &plugin::SettingInfo::kind);
+	return found != table.end() ? &*found : nullptr;
+}
+
+/// @brief A path no DEVICE row has reads as nothing.
+[[nodiscard]] inline bool device_unknown_path_reads_nothing(const DeviceSettings& device) {
+	return !device.read("no/such/row").has_value() && !device.reader()("no/such/row").has_value();
+}
+
+/// @brief A write to a path no DEVICE row has is refused, and no row changes.
+[[nodiscard]] inline bool device_unknown_path_write_is_refused(DeviceSettings& device) {
+	const auto before = device_values(device);
+	return device.write("no/such/row", 0) == DeviceWrite::REFUSED && device_values(device) == before;
+}
+
+/// @brief A menu value past a row's range is refused and the row reads as it did: an INTEGER row's max + 1, a CHOICE
+///        row's past its last choice, a BOOL row's 2; the group has a row of each kind.
+[[nodiscard]] inline bool device_out_of_range_write_is_refused(DeviceSettings& device) {
+	const auto before = device_values(device);
+	bool refused = true;
+	for (const plugin::SettingKind kind :
+	     {plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE, plugin::SettingKind::BOOL}) {
+		const plugin::SettingInfo* row = first_device_row(kind);
+		refused = refused && row != nullptr
+		          && device.write(row->path, plugin::menu_range(*row).second + 1) == DeviceWrite::REFUSED;
+	}
+	return refused && device_values(device) == before;
+}
+
+/// @brief Every menu value of the DEVICE row at @p path is stored and reads back as written, in stored units; the row
+///        is put back as it was.
+[[nodiscard]] inline bool device_row_reads_back(DeviceSettings& device, std::string_view path) {
+	const plugin::SettingInfo* row = plugin::find_setting(project::device_table(), path);
+	const std::optional<int32_t> was = device.read(path);
+	if (row == nullptr || !was) {
+		return false;
+	}
+	// Every value of a short range; a long one's ends and their neighbours.
+	const auto [least, greatest] = plugin::menu_range(*row);
+	std::vector<int32_t> menus{least, least + 1, greatest - 1, greatest};
+	if (greatest - least <= 3) {
+		menus.clear();
+		for (int32_t menu = least; menu <= greatest; ++menu) {
+			menus.push_back(menu);
+		}
+	}
+	bool read_back = true;
+	for (const int32_t menu : menus) {
+		const auto stored = plugin::from_menu(*row, menu);
+		const DeviceWrite done = device.write(path, menu);
+		read_back = read_back && stored && done != DeviceWrite::REFUSED && device.read(path) == stored->first;
+	}
+	const bool restored = device.write(path, plugin::to_menu(*row, *was)) != DeviceWrite::REFUSED;
+	return read_back && restored && device.read(path) == was;
+}
+
+/// @brief A write in range is stored and reads back as written: for the first BOOL, INTEGER and CHOICE row, which the
+///        group has each of.
+[[nodiscard]] inline bool device_write_reads_back(DeviceSettings& device) {
+	const plugin::SettingInfo* boolean = first_device_row(plugin::SettingKind::BOOL);
+	const plugin::SettingInfo* choice = first_device_row(plugin::SettingKind::CHOICE);
+	const plugin::SettingInfo* integer = first_device_row(plugin::SettingKind::INTEGER);
+	return boolean != nullptr && choice != nullptr && integer != nullptr && device_row_reads_back(device, boolean->path)
+	       && device_row_reads_back(device, choice->path) && device_row_reads_back(device, integer->path);
+}
+
+/// @brief The port's reader reads what `read` reads, for the first row of each kind and a path no row has.
+[[nodiscard]] inline bool device_reader_reads_the_rows(const DeviceSettings& device) {
+	const plugin::SettingReader reader = device.reader();
+	bool same = reader("no/such/row") == device.read("no/such/row");
+	for (const plugin::SettingKind kind :
+	     {plugin::SettingKind::BOOL, plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE}) {
+		const plugin::SettingInfo* row = first_device_row(kind);
+		same = same && row != nullptr && reader(row->path).has_value() && reader(row->path) == device.read(row->path);
+	}
+	return same;
+}
+
+/// @brief The typed reads answer what `read` reads: the play cursor as one of its three values, the shortcut layout as
+///        one of its two, the favourites layout as one of its three, the automation feedback as one of its four, and a
+///        feature's flag as its row's value.
+[[nodiscard]] inline bool device_typed_reads_match(const DeviceSettings& device) {
+	using device_path = project::device_path;
+	const project::FlashCursor cursor = read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
+	const project::ShortcutsVersion version =
+	    read_device<project::ShortcutsVersion>(&device, device_path::kShortcutsVersion);
+	const project::FavouritesLayout favourites =
+	    read_device<project::FavouritesLayout>(&device, device_path::kFavouritesLayout);
+	const project::FeedbackAutomation automation =
+	    read_device<project::FeedbackAutomation>(&device, device_path::kFollowFeedbackAutomation);
+	const project::DevicePath battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
+	const bool named_cursor = cursor == project::FlashCursor::FAST || cursor == project::FlashCursor::OFF
+	                          || cursor == project::FlashCursor::SLOW;
+	const bool named_version = version == project::ShortcutsVersion::V1 || version == project::ShortcutsVersion::V3;
+	const bool named_favourites = favourites == project::FavouritesLayout::FAVOURITES
+	                              || favourites == project::FavouritesLayout::FAVOURITES_AND_BANKS
+	                              || favourites == project::FavouritesLayout::OFF;
+	const bool named_automation =
+	    automation == project::FeedbackAutomation::DISABLED || automation == project::FeedbackAutomation::LOW
+	    || automation == project::FeedbackAutomation::MEDIUM || automation == project::FeedbackAutomation::HIGH;
+	return named_cursor && named_version && named_favourites && named_automation
+	       && device.read(device_path::kPlayCursor) == std::to_underlying(cursor)
+	       && device.read(device_path::kShortcutsVersion) == std::to_underlying(version)
+	       && device.read(device_path::kFavouritesLayout) == std::to_underlying(favourites)
+	       && device.read(device_path::kFollowFeedbackAutomation) == std::to_underlying(automation)
+	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0);
+}
+
+/// @}
 
 } // namespace deluge::scenes::bind::contract

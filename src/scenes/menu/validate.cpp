@@ -319,9 +319,13 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// A target node takes everything a hook would give from its descriptor -- see `Flag::TargetWithHooks`.
 		if (n.bind.target.valid()
 		    && (n.bind.get != nullptr || n.bind.set != nullptr || n.bind.range != nullptr || n.bind.fixed_range
-		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.bind.adjust != nullptr
-		        || n.bind.range_spec != nullptr)) {
+		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.bind.adjust != nullptr)) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
+		}
+
+		// Only a device write runs a node's after-write -- see `Flag::AfterWriteOffDevice`.
+		if (n.bind.after_write != nullptr && !(n.bind.target.valid() && n.bind.target.on_device())) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::AfterWriteOffDevice));
 		}
 
 		// A chain hook and its static target list are set together or not at all -- see
@@ -331,7 +335,9 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 
 		// A range node's upper edge lives entirely in `range_spec` -- see `Issue::Kind::RangeWithoutSpec`.
-		if (n.kind == Kind::Range && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr)) {
+		if (n.kind == Kind::Range
+		    && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr || !n.bind.target.valid()
+		        || !n.bind.target.on_device())) {
 			add(out, Issue::Kind::RangeWithoutSpec, &n);
 		}
 
@@ -398,17 +404,23 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		add(out, Issue::Kind::TooManyCustom, last_custom, static_cast<uint16_t>(custom_count));
 	}
 
-	// --- Every shortcut cell points at a node the tree reaches --------------------------------
-	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`.
+	// --- Every shortcut cell points at a node the tree reaches ----------------------------------
+	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`. Both layouts are swept; a cell the two share is
+	// reported once.
+	using project::ShortcutsVersion;
 	for (uint8_t root = 0; !options.skip_shortcut_sweep && root < static_cast<uint8_t>(MenuContext::Root::Count);
 	     root++) {
+		const auto menu_root = static_cast<MenuContext::Root>(root);
 		for (uint8_t layer = 0; layer < 2; layer++) {
 			for (uint8_t y = 0; y < deluge::gfx::grid::kMaxGridRows; y++) {
 				for (uint8_t x = 0; x < deluge::gfx::grid::kMaxGridCols; x++) {
-					const Node* cell = shortcut_node(static_cast<MenuContext::Root>(root), layer != 0, x, y);
-					if (cell != nullptr && !seen.contains(cell)) {
-						add(out, Issue::Kind::ShortcutToNothing, cell,
-						    static_cast<uint16_t>(static_cast<uint16_t>(y) * 256 + x));
+					const Node* current = shortcut_node(menu_root, ShortcutsVersion::V3, layer != 0, x, y);
+					const Node* older = shortcut_node(menu_root, ShortcutsVersion::V1, layer != 0, x, y);
+					for (const Node* cell : {current, older != current ? older : nullptr}) {
+						if (cell != nullptr && !seen.contains(cell)) {
+							add(out, Issue::Kind::ShortcutToNothing, cell,
+							    static_cast<uint16_t>(static_cast<uint16_t>(y) * 256 + x));
+						}
 					}
 				}
 			}

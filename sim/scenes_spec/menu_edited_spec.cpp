@@ -51,6 +51,7 @@
 #include <set>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 namespace {
@@ -244,8 +245,8 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		static_cast<InstrumentClip*>(fx.clip)->affectEntire = true;
 		activate(fx);
 		const menu::MenuContext ctx =
-		    menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
-		                      /*session_or_arranger_root=*/false, /*session_view_root=*/false, /*kit_global_fx=*/true);
+		    spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
+		                 /*session_or_arranger_root=*/false, /*session_view_root=*/false, /*kit_global_fx=*/true);
 		expect(ctx.root).to_equal(menu::MenuContext::Root::KitGlobalFx);
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(open_on_guest(nodes::delay_type, ctx)).to_be_true();
@@ -255,7 +256,7 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 
 	it("resolves no sound where legacy's currentSound is null: audio, MIDI and CV clips, MIDI and gate rows", _ {
 		const auto slot_of = [](::Song& song, Clip* clip) {
-			return menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false)
+			return spec::ctx_of(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false)
 			    .addresses.slot.has_value();
 		};
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();

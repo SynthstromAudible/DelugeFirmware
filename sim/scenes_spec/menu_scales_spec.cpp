@@ -52,6 +52,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -135,8 +136,8 @@ struct Rig {
 	    : profile(p), fake(board, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -286,7 +287,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		(void)r.open(nodes::root_song);
 		r.shell.tick(5);
 		// Walk to `active_scales` and enter it.
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false);
 		int32_t index = -1;
 		{
 			int32_t i = 0;
@@ -362,7 +363,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		select_language();
 		spec::SongFixture fixture = spec::make_synth_song();
 		ScalesGuard guard;
-		const MenuContext ctx = menu::context_for(*currentSong, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
+		const MenuContext ctx = spec::ctx_of(*currentSong, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		const auto* song_item = dynamic_cast<const nodes::ActiveScalesItem*>(nodes::active_scales.custom);
 		const auto* default_item = dynamic_cast<const nodes::ActiveScalesItem*>(nodes::default_active_scale.custom);
 		expect(song_item).not_().to_be_null();

@@ -34,6 +34,7 @@
 // drags in.
 #include "support/card_access.h"
 
+#include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/record_state.h"
 
@@ -119,8 +120,8 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}

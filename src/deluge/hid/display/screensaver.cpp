@@ -205,7 +205,7 @@ void Screensaver::settingsChanged() {
 	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a
 	// change to either setting funnels through, from all of its writers -- `deluge_boot` (`deluge.cpp`, after
-	// `FlashStorage::readSettings()`), the menu's two setters (below) and a settings reset
+	// `FlashStorage::readSettings()`), the menu's two items (below) and a settings reset
 	// (`gui::ui::reapplyLiveSettingsAfterReset`). A boot call would have covered only the first, and the guest's copy
 	// would go stale the moment the user changed either setting.
 	//
@@ -213,9 +213,9 @@ void Screensaver::settingsChanged() {
 	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` and the `ScreensaverMode::OFF` early-outs of
 	// `noteActivity()`, `timerEvent()` and this function, which the shell spells as `idle_ms == 0`.
 	//
-	// **The menu's two setters.** `nodes::set_screensaver_mode` and `nodes::set_screensaver_timeout`
-	// (`scenes/menu/nodes/settings.cpp`) write the same two `FlashStorage` globals and call
-	// `menu::host_screensaver_settings_changed()`, which calls this function, as main's two settings items call it.
+	// **The menu's two items.** They write the `ui/screensaver/mode` and `ui/screensaver/timeout` DEVICE rows, whose
+	// store in the device port (`gui/ui/shell_host/device_settings.cpp`) sets the same two `FlashStorage` globals and
+	// calls this function, as main's two settings items call it.
 	shellHostUI.shell().set_screensaver_idle_ms(FlashStorage::screensaverMode == ScreensaverMode::OFF
 	                                                ? 0u
 	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)

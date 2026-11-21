@@ -58,8 +58,9 @@ FlashColour layer_colour(bool second_layer) {
 /// oscillators' columns share their items. Main's reverb-sidechain carve-out (`x == 10 && y < 6 &&
 /// editingReverbSidechain()`) is not here: nothing selects the reverb's sidechain for editing, so it never fires.
 ParamBlink own_pad(const MenuContext& ctx, const Node& item) {
-	const std::span<const Node* const> first = shortcut_layer(ctx.root, false);
-	const std::span<const Node* const> second = shortcut_layer(ctx.root, true);
+	const project::ShortcutsVersion version = shortcuts_version(ctx);
+	const std::span<const Node* const> first = shortcut_layer(ctx.root, version, false);
+	const std::span<const Node* const> second = shortcut_layer(ctx.root, version, true);
 	ParamBlink found{};
 	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -86,13 +87,13 @@ bool is_patched_param(const Node* node, uint8_t p) {
 
 /// @brief The pad of patched param @p p, every fourth cycle -- `SoundEditor::findPatchedParam`
 ///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): cell by cell, column-major, the first layer before the
-///        second at each cell.
-ParamBlink patched_param_pad(MenuContext::Root root, uint8_t p) {
+///        second at each cell, under the shortcut layout @p version.
+ParamBlink patched_param_pad(MenuContext::Root root, project::ShortcutsVersion version, uint8_t p) {
 	if (p == kNoBlink) {
 		return {};
 	}
-	const std::span<const Node* const> first = shortcut_layer(root, false);
-	const std::span<const Node* const> second = shortcut_layer(root, true);
+	const std::span<const Node* const> first = shortcut_layer(root, version, false);
+	const std::span<const Node* const> second = shortcut_layer(root, version, true);
 	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
 			const size_t cell = (size_t{y} * kShortcutCols) + x;
@@ -126,14 +127,15 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 ///        first-layer source, then its second-layer one; the lower frequency wins, a second-layer win flashes yellow,
 ///        and an equal frequency alternates.
 void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& item, BlinkPlan& plan) {
+	const project::ShortcutsVersion version = shortcuts_version(ctx);
 	for (uint8_t sx = 0; sx < 2; sx++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
 			SourceBlink& blink = plan.sources[sx][y];
 			blink = SourceBlink{};
-			if (const PatchSource s = patching::mod_source_shortcut(sx, y, false); s < PatchSource::NONE) {
+			if (const PatchSource s = patching::mod_source_shortcut(version, sx, y, false); s < PatchSource::NONE) {
 				blink.freq_mask = source_answer(ctx, state, item, s, blink.colour);
 			}
-			if (const PatchSource s = patching::mod_source_shortcut(sx, y, true); s < PatchSource::NONE) {
+			if (const PatchSource s = patching::mod_source_shortcut(version, sx, y, true); s < PatchSource::NONE) {
 				FlashColour unused = FlashColour::Default;
 				const uint8_t second = source_answer(ctx, state, item, s, unused);
 				blink.alternates = second != kNoBlink && second == blink.freq_mask;
@@ -179,7 +181,7 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 	}
 	if (ctx.root != MenuContext::Root::Sound && ctx.root != MenuContext::Root::Drum) {
 		// The table arms: the item's own pad, every cycle.
-		const ShortcutPos pos = shortcut_pos(ctx.root, focused);
+		const ShortcutPos pos = shortcut_pos(ctx.root, shortcuts_version(ctx), focused);
 		if (pos.valid) {
 			plan.param = ParamBlink{
 			    .x = pos.x, .y = pos.y, .valid = true, .freq_mask = 0, .colour = layer_colour(pos.second_layer)};
@@ -201,7 +203,7 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 		// Failing that, the patched param the item is patching (the `getIndexOfPatchedParamToBlink` arm of
 		// `SoundEditor::updatePadLightsFor`).
 		const uint8_t p = item->custom != nullptr ? item->custom->patched_param_to_blink(ctx, state) : kNoBlink;
-		plan.param = patched_param_pad(ctx.root, p);
+		plan.param = patched_param_pad(ctx.root, shortcuts_version(ctx), p);
 	}
 	// A source never blinks without a param pad (`SoundEditor::updateSourceBlinks`
 	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) runs only after a param pad is found).

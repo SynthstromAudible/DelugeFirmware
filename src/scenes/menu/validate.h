@@ -56,13 +56,14 @@ struct Issue {
 		/// @brief A node whose `title` is 0 (no string id at all -- the builders default `title` to
 		///        `name`, so this means neither was given one).
 		MissingTitle,
-		/// @brief A `Kind::Range` with no `Binding::range_spec`, or one whose `format` is null:
-		///        `render_leaf_range` would draw a title and nothing else.
+		/// @brief A `Kind::Range` with no `Binding::range_spec`, one whose `format` is null, or one whose lower edge's
+		///        target is no DEVICE row: `render_leaf_range` would draw a title and nothing else, or edit an end it
+		///        cannot store (`bindings::write_upper` writes a DEVICE row's upper edge alone).
 		///
 		/// The `Kind::Range` counterpart of `NullCustom`, and it needs to exist for the same reason:
-		/// the pointer is the *only* thing that says how the upper edge is read, written and spelled
+		/// the pointer is the *only* thing that says where the upper edge is and how the ends are spelled
 		/// (`node.h`'s `RangeSpec`), and a table that forgot it produces a blank editor rather than a
-		/// crash. `range_item()` takes the spec as a required argument, so this fires only on a node
+		/// crash. `range_item()` takes the target and the spec as required arguments, so this fires only on a node
 		/// assembled by hand.
 		RangeWithoutSpec,
 		/// @brief A `Kind::Custom` whose `custom` pointer is null: nothing would render.
@@ -112,13 +113,17 @@ enum class Flag : uint16_t {
 	/// of one node, like the two flags just above.
 	AdjustWithoutGet,
 	/// @brief A node with a `Binding::target` that also sets a hook the target replaces: `get`, `set`, `range`,
-	///        `fixed_range`, `names`, `dynamic_names`, `adjust` or `range_spec`. A target node's value, range, choices
+	///        `fixed_range`, `names`, `dynamic_names` or `adjust`. A range node's `range_spec` names its upper edge's
+	///        row beside its target, and is no hook. A target node's value, range, choices
 	///        and relevance come from its descriptor; a hook beside it would be a second, silently ignored, source. A
 	///        `param` beside a target is learn-only (what `learn_target` binds), as beside a `get`; `value_text` and
 	///        `permitted` stay the node's own (how the value reads, and when it may be edited). A `relevant` beside a
 	///        target narrows where the descriptor applies, for a legacy `isRelevant` that asks what the editor edits
 	///        rather than the owner's rows (`bindings::relevant` asks both).
 	TargetWithHooks,
+	/// @brief A node with a `Binding::after_write` whose target is not a DEVICE row: only a device write runs it, so
+	///        anywhere else it would never run.
+	AfterWriteOffDevice,
 };
 
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom

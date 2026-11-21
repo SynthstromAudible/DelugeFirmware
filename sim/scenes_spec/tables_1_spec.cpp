@@ -39,9 +39,11 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/display.h"
+#include "storage/flash_storage.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -69,6 +71,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -602,6 +605,27 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		expect(label_of(f.ctx, 1)).to_equal(std::string("B-4    - B-3"));
 	});
 
+	it("names a black-key top note with the flat glyph when the device spells with flats", _ {
+		// With the device spelling in flats, a black key's name is the next letter up and the font's flat glyph; the
+		// spelling is a process-wide setting, so the guard puts it back however the example ends.
+		struct SharpsGuard {
+			bool saved = FlashStorage::defaultUseSharps;
+			~SharpsGuard() { FlashStorage::defaultUseSharps = saved; }
+		} guard;
+		RangeFixture f{3};
+		const int16_t tops[] = {46, 70, 32767}; // A#1/Bb1, A#3/Bb3, the top
+		f.set_tops(tops);
+
+		const std::string flat_b3 = std::string{"B"} + deluge::gfx::oled::kFlatGlyph + "3";
+		FlashStorage::defaultUseSharps = false;
+		const std::string flats = label_of(f.ctx, 1);
+		expect(flats.substr(flats.size() - flat_b3.size())).to_equal(flat_b3);
+		FlashStorage::defaultUseSharps = true;
+		const std::string sharps = label_of(f.ctx, 1);
+		expect(sharps.substr(sharps.size() - 3)).to_equal(std::string{"A#3"});
+		expect(flats.size()).to_equal(sharps.size());
+	});
+
 	it("chains to the node it stood in for, and its chain_targets are the range-specific set", _ {
 		// `MultiRange::selectButtonPress` returns the item the picker was heading to; the port's equivalent pair is
 		// `MenuWalkState::pending_after_range` and this hook.
@@ -629,13 +653,13 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		// `MenuScene::enter_child` is what calls it.
 		RangeFixture f{0};
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
-		expect(spec::menu_engine(f.ctx).range).to_be_null();
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).to_be_null();
 
 		expect(menu::ensure_first_range(f.ctx)).to_be_true();
 		// One range now exists, and the context points at it, so a range-dependent item opens rather than
 		// bouncing to a one-row picker.
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-		expect(spec::menu_engine(f.ctx).range).not_().to_be_null();
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).not_().to_be_null();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
 		expect(menu::permission_for(nodes::source0_transpose, f.ctx)).to_equal(menu::Permission::Yes);
 		// `SourceResources::getOrCreateFirstRange` gives the new range the top of the keyboard.
@@ -867,8 +891,8 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 			sound->sourceResources[0].ranges.getElement(i)->topNote = tops[i];
 		}
 		deluge::edits::recordRanges(*sound, 0);
-		MenuContext ctx = menu::context_for(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
+		                               /*kit_global_fx=*/false);
 		menu::MenuState picker{};
 		picker.list[0].cursor = 2;
 		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();
@@ -884,7 +908,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-		expect(spec::menu_engine(f.ctx).range).to_equal(spec::menu_engine(f.ctx).source->ranges.getElement(2));
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).to_equal(spec::menu_engine(f.ctx, *f.song.song).source->ranges.getElement(2));
 		// Out of range is ignored rather than clamped -- every caller has clamped already.
 		menu::select_range(f.ctx, 7);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);

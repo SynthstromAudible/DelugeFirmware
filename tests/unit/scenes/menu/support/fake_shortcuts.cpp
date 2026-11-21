@@ -24,15 +24,17 @@ const Node* cell_at(uint8_t x, uint8_t y) {
 
 } // namespace
 
-std::span<const Node* const> shortcut_layer(MenuContext::Root /*root*/, bool /*second_layer*/) {
+std::span<const Node* const> shortcut_layer(MenuContext::Root /*root*/, project::ShortcutsVersion /*version*/,
+                                            bool /*second_layer*/) {
 	return g_table;
 }
 
-const Node* shortcut_node(MenuContext::Root /*root*/, bool /*second_layer*/, uint8_t x, uint8_t y) {
+const Node* shortcut_node(MenuContext::Root /*root*/, project::ShortcutsVersion /*version*/, bool /*second_layer*/,
+                          uint8_t x, uint8_t y) {
 	return cell_at(x, y);
 }
 
-ShortcutPos shortcut_pos(MenuContext::Root /*root*/, const Node& node) {
+ShortcutPos shortcut_pos(MenuContext::Root /*root*/, project::ShortcutsVersion /*version*/, const Node& node) {
 	for (uint8_t y = 0; y < g_rows; y++) {
 		for (uint8_t x = 0; x < g_cols; x++) {
 			if (cell_at(x, y) == &node) {

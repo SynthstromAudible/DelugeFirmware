@@ -239,40 +239,37 @@ char const* getThingName(OutputType outputType) {
 	}
 }
 
-char const* getOutputTypeName(OutputType outputType, int32_t channel) {
+static_assert(MIDI_CHANNEL_MPE_LOWER_ZONE == deluge::project::kMidiChannelLowerZone);
+static_assert(MIDI_CHANNEL_MPE_UPPER_ZONE == deluge::project::kMidiChannelUpperZone);
+static_assert(static_cast<int32_t>(AudioOutputMode::player) == 0 && static_cast<int32_t>(AudioOutputMode::sampler) == 1
+              && static_cast<int32_t>(AudioOutputMode::looper) == 2);
+
+std::optional<deluge::project::TrackKind> trackKindOf(OutputType outputType) {
+	using deluge::project::TrackKind;
 	switch (outputType) {
 	case OutputType::SYNTH:
-		return "Synth";
+		return TrackKind::SYNTH;
 	case OutputType::KIT:
-		return "Kit";
+		return TrackKind::KIT;
 	case OutputType::MIDI_OUT:
-		if (channel < 16) {
-			return "MIDI";
-		}
-		else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			return "MPE";
-		}
-		else {
-			return "Internal";
-		}
+		return TrackKind::MIDI_OUT;
 	case OutputType::CV:
-		return "CV / gate";
-	case OutputType::AUDIO: {
-		auto mode = static_cast<AudioOutputMode>(channel);
-		switch (mode) {
-
-		case AudioOutputMode::player:
-			return "Audio Player";
-		case AudioOutputMode::sampler:
-			return "Audio Sampler";
-		case AudioOutputMode::looper:
-			return "Audio Looper";
-		}
-		return "Audio";
+		return TrackKind::CV;
+	case OutputType::AUDIO:
+		return TrackKind::AUDIO;
+	case OutputType::NONE:
+		break;
 	}
-	default:
+	return std::nullopt;
+}
+
+char const* getOutputTypeName(OutputType outputType, int32_t channel) {
+	const std::optional<deluge::project::TrackKind> kind = trackKindOf(outputType);
+	if (!kind) {
 		return "None";
 	}
+	// Every kind name is a string literal, so its view is NUL-terminated.
+	return deluge::project::track_kind_name(*kind, channel).data();
 }
 
 // May give wrong result for -2147483648

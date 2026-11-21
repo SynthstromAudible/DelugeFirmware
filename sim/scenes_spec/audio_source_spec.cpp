@@ -62,6 +62,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 /// `defaultAudioOutputInputChannel`, defined in `model/song/song.cpp`. Both sides write it
@@ -158,8 +159,8 @@ struct Rig {
 	}
 
 	MenuContext menu_context() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 
 	/// @brief Open the context menu scene straight onto the audio-source descriptor, the way
@@ -363,7 +364,7 @@ describe audio_source_seed("scenes::context_menu the audio-source descriptor: op
 		std::vector<int> seen;
 		for (const AudioInputChannel channel : kAllChannels) {
 			seed(f.output, channel, nullptr);
-			const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			seen.push_back(static_cast<int>(d.initial_option(ctx)));
 		}
 		// NONE and UNSET both fold into OFF (legacy's `default:` arm), so nine distinct answers over
@@ -544,7 +545,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 		std::array<char, cm::kFooterScratch> scratch{};
 
 		seed(f.output, AudioInputChannel::LEFT, nullptr);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(d.footer(ctx, std::span{scratch}).empty()).to_be_true();
 
 		seed(f.output, AudioInputChannel::SPECIFIC_OUTPUT, nullptr);

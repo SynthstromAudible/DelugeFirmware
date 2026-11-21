@@ -116,6 +116,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -247,7 +248,7 @@ struct KitRig {
 	KitRig& operator=(const KitRig&) = delete;
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 	}
 
 	/// @brief The lane's name, as the record holds it.

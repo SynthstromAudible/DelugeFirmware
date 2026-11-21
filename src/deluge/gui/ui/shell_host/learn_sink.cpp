@@ -1,6 +1,11 @@
 #include "gui/ui/shell_host/shell_host.h"
 
+#include "definitions_cxx.hpp"
+#include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
 #include "io/midi/device_registry.h"
+#include "io/midi/learned_midi.h"
+#include "io/midi/midi_engine.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/instrument/instrument.h"
@@ -13,6 +18,28 @@
 
 namespace deluge::gui::shell_host {
 namespace {
+
+using scenes::bind::LearnedBinding;
+
+/// @brief Make @p binding what @p learned holds, or clear it for nullopt, as the menu's learn items wrote the engine's
+///        slot: the cable the device names, the channel or zone, and the number. A binding naming a device with no
+///        cable stores nothing.
+void store(::LearnedMIDI& learned, const std::optional<LearnedBinding>& binding) {
+	if (!binding) {
+		learned.clear();
+		return;
+	}
+	::MIDICable* cable = nullptr;
+	if (binding->device) {
+		cable = midi::cable_of(*binding->device);
+		if (cable == nullptr) {
+			return;
+		}
+	}
+	learned.cable = cable;
+	learned.channelOrZone = binding->channel_or_zone.value_or(MIDI_CHANNEL_NONE);
+	learned.noteOrCC = binding->note_or_cc.value_or(project::MidiCommand::kNone);
+}
 
 /// The learns, applied to the current song.
 class HostLearnSink final : public scenes::bind::LearnSink {
@@ -72,6 +99,18 @@ public:
 			instrument->beenEdited();
 		}
 		return true;
+	}
+
+	void learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) override {
+		// `midi::Command`'s learns and unlearn (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) write the
+		// slot and save nothing; the settings menu saves on close.
+		store(midiEngine.globalMIDICommands[std::to_underlying(command)], binding);
+	}
+
+	void learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) override {
+		// `midi::FollowChannel`'s learns, unlearn and value write
+		// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`).
+		store(midiEngine.midiFollowChannelType[std::to_underlying(input)], binding);
 	}
 };
 

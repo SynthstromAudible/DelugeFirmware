@@ -3,6 +3,8 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "deluge-project/device_settings.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
@@ -376,7 +378,8 @@ bind::Ports SlicerScene::ports() const {
 	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
 	        .card = ports_.card != nullptr ? ports_.card : host.card,
 	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui,
-	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound};
+	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound,
+	        .device = ports_.device != nullptr ? ports_.device : host.device};
 }
 
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
@@ -684,11 +687,13 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 	}
-	const bind::FlashCursor cursor = ports().ui->flash_cursor();
-	if (cursor == bind::FlashCursor::Slow) {
+	// The device's play cursor; Slow, the row's default, with no device port.
+	const deluge::project::FlashCursor cursor = deluge::scenes::bind::read_device<deluge::project::FlashCursor>(
+	    ports().device, deluge::project::device_path::kPlayCursor);
+	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
 void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {

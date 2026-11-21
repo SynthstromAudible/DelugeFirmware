@@ -91,8 +91,8 @@
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp`), which
 /// is the driver-side substitution this widget is the port of.
 ///
-/// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
-///       `UiFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
+/// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the device port's
+///       `pads/playCursor` row: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
 ///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
 ///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
 ///       colourless for a muted row.
@@ -204,9 +204,11 @@
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
@@ -253,8 +255,6 @@ inline constexpr uint32_t kUiModeHoldingSongButton = 65;
 ///        `TimelineView::buttonAction`'s `X_ENC` arm (`gui/views/timeline_view.cpp`).
 inline constexpr uint32_t kUiModeHoldingHorizontalEncoder = 1u << 31;
 /// @}
-
-using FlashCursor = deluge::scenes::bind::FlashCursor;
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 9` (`scenes/registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kAudioClipSceneKind =
@@ -625,8 +625,11 @@ private:
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
-	/// @brief The flash-cursor setting, from the host (`UiFacts::flash_cursor`); the factory's Slow with none.
-	FlashCursor flash_cursor() const { return ports_.ui != nullptr ? ports_.ui->flash_cursor() : FlashCursor::Slow; }
+	/// @brief The flash-cursor setting: the device's `pads/playCursor` row; the factory's Slow, the row's default, with
+	///        no device port.
+	project::FlashCursor flash_cursor() const {
+		return bind::read_device<project::FlashCursor>(ports_.device, project::device_path::kPlayCursor);
+	}
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.

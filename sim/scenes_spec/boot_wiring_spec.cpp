@@ -43,6 +43,7 @@
 
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/project_address_printer.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -54,8 +55,9 @@
 
 #include "support/spec_main.h"
 
-using deluge::scenes::menu::ShortcutsVersion;
+using deluge::project::ShortcutsVersion;
 namespace menu = deluge::scenes::menu;
+namespace spec = deluge::scenes::spec;
 namespace services = deluge::scenes::services;
 
 namespace {
@@ -141,31 +143,31 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
 		// from the reset menu) and the settings item
-		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
+		// (its `pads/shortcutsVersion` row) each write this one byte, so the example drives the byte and the row
 		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
 		// binary.
 		//
 		// Both values byte 60 can hold, in both directions -- a read that only ever followed one would pass a one-way
 		// check.
 		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion1;
-		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V1);
+		expect(spec::shortcut_layout()).to_equal(ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion3;
-		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V3);
-		menu::set_shortcuts_version(ShortcutsVersion::V1);
-		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V1);
+		expect(spec::shortcut_layout()).to_equal(ShortcutsVersion::V3);
+		spec::set_shortcut_layout(ShortcutsVersion::V1);
+		expect(spec::shortcut_layout()).to_equal(ShortcutsVersion::V1);
 
 		// The layout the port actually resolves moves with it -- the setting is not just recorded.
 		// `(0, 6)` of the sound table is interpolation under V3 and the sample end point under V1,
 		// which `shortcuts_spec.cpp` establishes is one of the only two cells that genuinely move.
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6))
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, spec::shortcut_layout(), false, 0, 6))
 		    .to_equal(&deluge::scenes::menu::nodes::sample0_end);
-		menu::set_shortcuts_version(ShortcutsVersion::V3);
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6))
+		spec::set_shortcut_layout(ShortcutsVersion::V3);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, spec::shortcut_layout(), false, 0, 6))
 		    .to_equal(&deluge::scenes::menu::nodes::sample0_interpolation);
 
 		// And a byte that is neither enumerator takes the V3 layout, as legacy's own `default` does.
 		FlashStorage::shortcutsVersion = 7;
-		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V3);
+		expect(spec::shortcut_layout()).to_equal(ShortcutsVersion::V3);
 
 		FlashStorage::shortcutsVersion = saved;
 	});

@@ -18,6 +18,7 @@
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h"
 
+#include "support/menu_context.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
@@ -50,18 +51,24 @@ inline std::string text_of(uint16_t id) {
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief The synth song `install_sound_context` installs, built once and never torn down.
+inline SongFixture& sound_fixture() {
+	static SongFixture fixture = make_synth_song();
+	return fixture;
+}
+
 /// @brief Install a real synth clip as the context the shortcut tables are read over, and pick a language. Several
 /// items
 ///        build their names out of live state (the filter items read the filter mode of the sound being edited), so
 ///        nothing may be asked before this has run. The fixture is built once and never torn down.
 inline const menu::MenuContext& install_sound_context() {
 	select_language();
-	static SongFixture fixture = make_synth_song();
+	SongFixture& fixture = sound_fixture();
 	static const menu::MenuContext ctx =
-	    menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false,
-	                      /*kit_global_fx=*/false);
+	    spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false,
+	                 /*kit_global_fx=*/false);
 	currentSong = fixture.song;
-	fixture.song->setCurrentClip(menu_engine(ctx).clip);
+	fixture.song->setCurrentClip(menu_engine(ctx, *fixture.song).clip);
 	return ctx;
 }
 

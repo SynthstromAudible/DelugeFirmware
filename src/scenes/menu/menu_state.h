@@ -318,8 +318,8 @@ struct DxState {
 ///      descent decided below reads it; legacy commits it inside `selectButtonPress`
 ///      (`SoundEditor::setCurrentMultiRange`).
 ///   2. **`source_choice`** -- above navigation, and this is the load-bearing one.
-///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and what
-///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
+///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and whose
+///      `gate/<n>/mode` row the mode page edits, so draining it below navigation chains off the *previous*
 ///      output. Legacy assigns `soundEditor.currentSourceIndex` on the way *through*
 ///      `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/gate/selection.h` `selectButtonPress`).
 ///   3. **`midi_device_choice`** -- above navigation, same shape: `ctx_.midi_device` is read by the

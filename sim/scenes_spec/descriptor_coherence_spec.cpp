@@ -131,11 +131,11 @@ struct NodeException {
 struct UnsetProbe {
 	std::string_view path;
 	int32_t stored;
-	void (*set)(const deluge::scenes::menu::MenuContext&);
+	void (*set)(const deluge::scenes::menu::MenuContext&, Song&);
 };
 
-void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
-	Sound& sound = *spec::menu_engine(ctx).sound;
+void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx, Song& song) {
+	Sound& sound = *spec::menu_engine(ctx, song).sound;
 	// Unset is outside the note row, so no setting write makes it; the sound's routing holds it.
 	sound.routingRecord().midi_note = std::nullopt;
 	sound.applyRouting();
@@ -373,7 +373,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 
 	// Where the row has no value, what the node shows.
 	if (const UnsetProbe* probe = unset_probe_of(c.path); probe != nullptr) {
-		probe->set(ctx);
+		probe->set(ctx, song_of(c.where));
 		const int32_t got = bindings::read(node, ctx);
 		const int32_t want = to_menu(row, probe->stored);
 		if (got != want) {
@@ -517,127 +517,29 @@ void run_all(auto& self) {
 // ---------------------------------------------------------------------------------------------
 // The nodes no row reaches.
 
-/// @brief The device settings: the value nodes under the settings root, which hold a device's state (FlashStorage, a
-/// runtime feature, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a sound's, so no engine
-/// or model row holds them. Each is named by the names from the root to it, with how many nodes carry that path.
+/// @brief The device settings: the hooked value nodes under the settings root, which hold a MIDI device's own setting
+/// or a MIDI-follow input (the MIDI devices port and the learn port) rather than a song's or a sound's, so no engine or
+/// model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds it. Each is named by the
+/// names from the root to it, with how many nodes carry that path.
 struct DeviceNode {
 	std::string_view path;
 	size_t count;
 };
 
 constexpr DeviceNode kDeviceSettings[] = {
-    {"Settings > Community Features > Shortcut Overlay", 1},
-    {"Settings > Community Features > Show Battery Level", 1},
-    {"Settings > Community Features > Trim From Start Of Audio Clips", 1},
-    {"Settings > Community Features > Rounded Corners", 1},
-    {"Settings > Community Features > Horizontal Menus", 1},
-    {"Settings > Community Features > Alternative Tap Tempo Behaviour", 1},
-    {"Settings > Community Features > Grid View Loop Layer Pads", 1},
-    {"Settings > Community Features > Alternative Playback Start Behaviour", 1},
-    {"Settings > Community Features > Chord Keyboards", 1},
-    {"Settings > Community Features > Launch Event Playhead", 1},
-    {"Settings > Community Features > KB View Sidebar Menu Exit", 1},
-    {"Settings > Community Features > DX7 Engine", 1},
-    {"Settings > Community Features > Light Shift", 1},
-    {"Settings > Community Features > Sticky Shift", 1},
-    {"Settings > Community Features > Display Norns Layout", 1},
-    {"Settings > Community Features > Highlight Incoming Notes", 1},
-    {"Settings > Community Features > Sync Scaling Action", 1},
-    {"Settings > Community Features > Alternative Golden Knob Delay Params", 1},
-    {"Settings > Community Features > Delete Unused Kit Rows", 1},
-    {"Settings > Community Features > Catch Notes", 1},
-    {"Settings > Community Features > Quantize", 1},
-    {"Settings > Community Features > Fine Tempo Knob", 1},
-    {"Settings > Community Features > Drum Randomizer", 1},
-    {"Settings > Recording > Threshold Recording > Mode", 1},
-    {"Settings > Recording > Sampling monitoring", 1},
-    {"Settings > Recording > Loop margins", 1},
-    {"Settings > Recording > Quantization", 1},
-    {"Settings > Recording > Count-in bars", 1},
-    {"Settings > Play-Cursor", 1},
-    {"Settings > Sample Preview", 1},
-    {"Settings > Pads > Colours > Once", 1},
-    {"Settings > Pads > Colours > Fill", 1},
-    {"Settings > Pads > Colours > Soloed", 1},
-    {"Settings > Pads > Colours > Muted", 1},
-    {"Settings > Pads > Colours > Stopped", 1},
-    {"Settings > Pads > Colours > Active", 1},
-    {"Settings > Pads > Keyboard for Text", 1},
-    {"Settings > Pads > Shortcut Version", 1},
-    {"Settings > Defaults > Screensaver > Timeout", 1},
-    {"Settings > Defaults > Screensaver > Mode", 1},
-    {"Settings > Defaults > Hold Press Time", 1},
-    {"Settings > Defaults > High CPU Indicator", 1},
-    {"Settings > Defaults > Sample Slice Mode", 1},
-    {"Settings > Defaults > Pad Brightness", 1},
-    {"Settings > Defaults > Startup Song", 1},
-    {"Settings > Defaults > Patch cable polarity", 1},
-    {"Settings > Defaults > Metronome", 1},
-    {"Settings > Defaults > Bend range", 1},
-    {"Settings > Defaults > Resolution", 1},
-    {"Settings > Defaults > Velocity", 1},
-    {"Settings > Defaults > Scale > Init Scale", 1},
-    {"Settings > Defaults > Key", 1},
-    {"Settings > Defaults > Swing Interval", 1},
-    {"Settings > Defaults > Swing Amount", 1},
-    {"Settings > Defaults > Tempo", 1},
-    {"Settings > Defaults > Automation > Disable Audition Pad Shortcuts", 1},
-    {"Settings > Defaults > Automation > Nudge Note", 1},
-    {"Settings > Defaults > Automation > Shift", 1},
-    {"Settings > Defaults > Automation > Clear", 1},
-    {"Settings > Defaults > Automation > Interpolation", 1},
-    {"Settings > Defaults > UI > Use Sharps (#)", 1},
-    {"Settings > Defaults > UI > Clip Type > Use Last Clip Type", 1},
-    {"Settings > Defaults > UI > Clip Type > New Clip Type", 1},
-    {"Settings > Defaults > UI > Keyboard > Favourites", 1},
-    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Modwheel", 1},
-    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Velocity", 1},
-    {"Settings > Defaults > UI > Keyboard > Layout", 1},
-    {"Settings > Defaults > UI > Song > Grid > Empty pads > Create + Record", 1},
-    {"Settings > Defaults > UI > Song > Grid > Empty pads > Unarm", 1},
-    {"Settings > Defaults > UI > Song > Grid > Select in green mode", 1},
-    {"Settings > Defaults > UI > Song > Grid > Default active mode", 1},
-    {"Settings > Defaults > UI > Song > Layout", 1},
-    {"Settings > Defaults > UI > Accessibility > Menu Highlighting", 1},
-    {"Settings > Defaults > UI > Accessibility > Shortcuts", 1},
-    {"Settings > USB audio > Output", 1},
-    {"Settings > USB audio > Input", 1},
-    {"Settings > USB audio > Enabled", 1},
     {"Settings > MIDI > Devices >> MIDI devices > MIDI-Thru", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Use Relative CC", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Clock In", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Clock Out", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Velocity", 1},
-    {"Settings > MIDI > Differentiate inputs", 1},
-    {"Settings > MIDI > Takeover", 1},
-    {"Settings > MIDI > Transpose", 1},
-    {"Settings > MIDI > MIDI-Thru", 1},
-    {"Settings > MIDI > Select Kit Row", 1},
-    {"Settings > MIDI > MIDI-Follow > Display Param", 1},
-    {"Settings > MIDI > MIDI-Follow > Feedback > Filter Responses", 1},
-    {"Settings > MIDI > MIDI-Follow > Feedback > Automation Feedback", 1},
-    {"Settings > MIDI > MIDI-Follow > Feedback > Channel", 1},
-    {"Settings > MIDI > MIDI-Follow > Kit Root Note", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel Track**", 16},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel C", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel B", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel A", 1},
-    {"Settings > MIDI > Clock > Tempo Magnitude Matching", 1},
-    {"Settings > MIDI > Clock > Input", 1},
-    {"Settings > MIDI > Clock > Output", 1},
-    {"Settings > Trigger Clock > Output > PPQN", 1},
-    {"Settings > Trigger Clock > Input > Auto-Start", 1},
-    {"Settings > Trigger Clock > Input > PPQN", 1},
-    {"Settings > Gate >> Minimum Off-Time", 1},
-    {"Settings > Gate >> Gate out* mode", 1},
-    {"Settings > CV >> CV output * > Transpose", 1},
-    {"Settings > CV >> CV output * > Volts per Octave", 1},
 };
 
 constexpr std::string_view kDeviceReason =
-    "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour, USB audio): "
-    "the "
-    "device's, not a song's or a sound's, so no engine or model row holds it";
+    "a MIDI device's own setting or a MIDI-follow input: the device's, not a song's or a sound's, so no row holds it";
 
 /// @brief A subtree whose value nodes have no row, and why.
 struct Subtree {
@@ -650,8 +552,6 @@ const std::vector<Subtree>& subtrees() {
 	    {&nodes::note_editor_root,
 	     "the selected note's property, edited as an offset over every note under a zoomed-out square: no row"},
 	    {&nodes::note_row_editor_root, "the selected note row's property, edited as an offset over its notes: no row"},
-	    {&nodes::configure_stem_export, "an option of the stem export, which the export reads: no row"},
-	    {&nodes::kit_fx_configure_stem_export, "an option of the stem export, which the export reads: no row"},
 	    {&nodes::song_threshold_recording, "the song's recording threshold mode: a runtime field seeded from "
 	                                       "FlashStorage when the song is made, and not saved: no row"},
 	    {&nodes::voice_usage, "a readout of the voices sounding, which the scene samples: no row"},

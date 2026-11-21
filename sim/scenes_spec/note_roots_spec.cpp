@@ -6,6 +6,7 @@
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
 /// not here) -- it already owns every other root's row of that same table.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -35,6 +36,7 @@
 
 #include <cstdint>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -73,22 +75,19 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 
 	it("both roots' shortcut layers are empty in both shortcut versions, and light no pad even for "
 	   "a node with a real shortcut elsewhere", _ {
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		for (menu::ShortcutsVersion version : {menu::ShortcutsVersion::V1, menu::ShortcutsVersion::V3}) {
-			menu::set_shortcuts_version(version);
+		for (deluge::project::ShortcutsVersion version : {deluge::project::ShortcutsVersion::V1, deluge::project::ShortcutsVersion::V3}) {
 			for (MenuContext::Root root : {MenuContext::Root::NoteEditor, MenuContext::Root::NoteRowEditor}) {
-				expect(all_null(menu::shortcut_layer(root, /*second_layer=*/false))).to_be_true();
-				expect(all_null(menu::shortcut_layer(root, /*second_layer=*/true))).to_be_true();
+				expect(all_null(menu::shortcut_layer(root, version, /*second_layer=*/false))).to_be_true();
+				expect(all_null(menu::shortcut_layer(root, version, /*second_layer=*/true))).to_be_true();
 			}
 		}
-		menu::set_shortcuts_version(saved);
 
-		// `render_grid` only ever flashes `shortcut_pos(ctx_.root, *focused())`. `note_editor_root`
+		// `render_grid` only ever flashes `shortcut_pos(ctx_.root, version, *focused())`. `note_editor_root`
 		// itself is in NO root's table, so opening the scene on it could never observe a leak.
 		// `nodes::lpf_freq` is a real cell under `Root::Sound` (`shortcuts_spec.cpp` pins it at
 		// (8, 7)), so focusing on IT under each note root is what exercises the table lookup.
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
 
 		// The first render after `open()` anchors the cycle and is its source step, which flashes no
@@ -121,7 +120,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		// `SoundEditor::getGreyoutColsAndRows` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): `inNoteEditor()`
 		// greys the sidebar only (`cols = 0x03`, `rows = 0`); `inNoteRowEditor()` greys nothing (`doGreyout = false`).
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
 
 		ctx.root = MenuContext::Root::NoteEditor;
@@ -141,7 +140,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequence_direction under Root::NoteRowEditor", $ {
 	it("on a non-kit clip, reads and writes the auditioned row through the bridge, and offers NONE", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		expect(ctx.is_kit).to_be_false();
 		ctx.root = MenuContext::Root::NoteRowEditor;
 
@@ -163,7 +162,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 	it("falls back to the clip's own mode when the bridge answers false (no auditioned row)", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		ctx.root = MenuContext::Root::NoteRowEditor;
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 
@@ -189,7 +188,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		// at all.
 		spec::SongFixture fx = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.is_kit).to_be_true();
 		ctx.root = MenuContext::Root::NoteRowEditor;
@@ -217,7 +216,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 	it("under any other root, is unchanged: the bridge is never consulted", _ {
 		spec::SongFixture fx = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		expect(ctx.root).not_().to_equal(MenuContext::Root::NoteRowEditor);
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 

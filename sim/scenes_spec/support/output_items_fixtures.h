@@ -19,6 +19,7 @@
 #include "processing/audio_output.h"
 #include "storage/storage_manager.h"
 
+#include "support/menu_context.h"
 #include "support/song_fixture.h"
 
 #include <array>
@@ -100,8 +101,8 @@ struct ClipRig {
 	}
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 
 	/// @brief Where in the song the edited output records from: its output index, or -1 for none.
@@ -133,8 +134,8 @@ struct MidiRig {
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 };
 

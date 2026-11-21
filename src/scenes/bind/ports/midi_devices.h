@@ -3,6 +3,7 @@
 /// @file
 /// @brief The MIDI devices the menu lists, their names, and the settings each keeps for itself.
 
+#include "deluge-project/device_settings.h"
 #include "midi/device_id.h"
 
 #include <array>
@@ -39,6 +40,19 @@ struct MidiDeviceSettings {
 	bool operator==(const MidiDeviceSettings&) const = default;
 };
 
+/// @brief One learned MIDI input: a global command's or a follow input's. A global command's always names a channel; a
+///        follow input's may name only a device, as a settings file can leave it.
+struct LearnedBinding {
+	/// The device it must come from when inputs are told apart by device; none means any device.
+	std::optional<midi::DeviceId> device;
+	/// A channel 0–15 or an MPE zone (16 lower, 17 upper), from `project::kFirstCcChannel` the same for a CC, and from
+	/// `project::kFirstProgramChangeChannel` for a program change; none for a follow input whose channel is unassigned.
+	std::optional<uint8_t> channel_or_zone;
+	/// The note, CC or program number; none for an input that names only a channel (a follow input's).
+	std::optional<uint8_t> note_or_cc;
+	bool operator==(const LearnedBinding&) const = default;
+};
+
 /// @brief The connected MIDI devices and their own settings, answered and applied by the host.
 class MidiDevices {
 public:
@@ -63,6 +77,14 @@ public:
 	/// @return Whether it was taken: false for a device the host does not know; true for a known one, a write that
 	///         changes nothing included.
 	virtual bool write(midi::DeviceId device, const MidiDeviceSettings& settings) = 0;
+	/// @brief What @p command is learned to.
+	/// @param command The global command.
+	/// @return Its binding, which names a channel; none when no channel is learned.
+	[[nodiscard]] virtual std::optional<LearnedBinding> global_command(project::GlobalCommand command) const = 0;
+	/// @brief What @p input is learned to.
+	/// @param input The follow input.
+	/// @return Its binding, which may name a device and no channel; none when it names neither.
+	[[nodiscard]] virtual std::optional<LearnedBinding> follow_input(project::FollowInput input) const = 0;
 };
 
 } // namespace deluge::scenes::bind

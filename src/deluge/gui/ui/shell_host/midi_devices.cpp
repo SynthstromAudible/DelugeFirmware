@@ -1,11 +1,16 @@
 #include "gui/ui/shell_host/shell_host.h"
 
+#include "definitions_cxx.hpp"
+#include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/device_registry.h"
+#include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 
 #include <cstddef>
 #include <optional>
@@ -17,12 +22,53 @@
 namespace deluge::gui::shell_host {
 namespace {
 
+using project::FollowInput;
+using project::GlobalCommand;
+using scenes::bind::LearnedBinding;
 using scenes::bind::MidiDeviceSettings;
 using scenes::bind::MidiDirection;
 
 // The ports' own indices, which `MidiDeviceSettings::zones` is ordered by.
 static_assert(std::to_underlying(MidiDirection::IN) == MIDI_DIRECTION_INPUT_TO_DELUGE);
 static_assert(std::to_underlying(MidiDirection::OUT) == MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
+
+// The engine's slots, which a global command and a follow input index: legacy's enums count them in the same order.
+// Legacy's LAST is a boundary past the commands; the engine's array has a slot for it too.
+static_assert(project::kGlobalCommandCount == util::to_underlying(GlobalMIDICommand::LAST));
+static_assert(project::kGlobalCommandCount <= kNumGlobalMIDICommands);
+static_assert(std::to_underlying(GlobalCommand::PLAYBACK_RESTART)
+              == util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART));
+static_assert(std::to_underlying(GlobalCommand::PLAY) == util::to_underlying(GlobalMIDICommand::PLAY));
+static_assert(std::to_underlying(GlobalCommand::RECORD) == util::to_underlying(GlobalMIDICommand::RECORD));
+static_assert(std::to_underlying(GlobalCommand::TAP) == util::to_underlying(GlobalMIDICommand::TAP));
+static_assert(std::to_underlying(GlobalCommand::LOOP) == util::to_underlying(GlobalMIDICommand::LOOP));
+static_assert(std::to_underlying(GlobalCommand::LOOP_CONTINUOUS_LAYERING)
+              == util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING));
+static_assert(std::to_underlying(GlobalCommand::UNDO) == util::to_underlying(GlobalMIDICommand::UNDO));
+static_assert(std::to_underlying(GlobalCommand::REDO) == util::to_underlying(GlobalMIDICommand::REDO));
+static_assert(std::to_underlying(GlobalCommand::FILL) == util::to_underlying(GlobalMIDICommand::FILL));
+static_assert(std::to_underlying(GlobalCommand::TRANSPOSE) == util::to_underlying(GlobalMIDICommand::TRANSPOSE));
+static_assert(std::to_underlying(GlobalCommand::NEXT_SONG) == util::to_underlying(GlobalMIDICommand::NEXT_SONG));
+static_assert(std::to_underlying(GlobalCommand::SHIFT) == util::to_underlying(GlobalMIDICommand::SHIFT));
+static_assert(project::kFollowInputCount == kNumMIDIFollowChannelTypesIncludingTracks);
+static_assert(std::to_underlying(FollowInput::A) == util::to_underlying(MIDIFollowChannelType::A));
+static_assert(std::to_underlying(FollowInput::C) == util::to_underlying(MIDIFollowChannelType::C));
+static_assert(std::to_underlying(FollowInput::TRACK_1) == util::to_underlying(MIDIFollowChannelType::Track1));
+static_assert(std::to_underlying(FollowInput::TRACK_16) == util::to_underlying(MIDIFollowChannelType::Track16));
+// The message-kind bands of a learned channel.
+static_assert(project::kFirstCcChannel == IS_A_CC);
+static_assert(project::kFirstProgramChangeChannel == IS_A_PC);
+
+/// @brief @p learned as a binding, whatever it holds: its cable as a device, and its channel and number, each none
+///        when unset.
+LearnedBinding binding_of(const ::LearnedMIDI& learned) {
+	return LearnedBinding{
+	    .device = learned.cable != nullptr ? std::optional{midi::id_of(*learned.cable)} : std::nullopt,
+	    .channel_or_zone = learned.containsSomething() ? std::optional<uint8_t>{learned.channelOrZone} : std::nullopt,
+	    .note_or_cc =
+	        learned.noteOrCC != project::MidiCommand::kNone ? std::optional<uint8_t>{learned.noteOrCC} : std::nullopt,
+	};
+}
 
 /// The MIDI devices: the cables `MIDIDeviceManager` keeps, by their session handles.
 class HostMidiDevices final : public scenes::bind::MidiDevices {
@@ -107,6 +153,23 @@ public:
 			cable->sendRPN(15, 0, 6, 15 - now.upper_last_member);
 		}
 		return true;
+	}
+
+	[[nodiscard]] std::optional<LearnedBinding> global_command(GlobalCommand command) const override {
+		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) shows a command as
+		// learned only when its channel is (`containsSomething`).
+		const ::LearnedMIDI& learned = midiEngine.globalMIDICommands[std::to_underlying(command)];
+		return learned.containsSomething() ? std::optional{binding_of(learned)} : std::nullopt;
+	}
+
+	[[nodiscard]] std::optional<LearnedBinding> follow_input(FollowInput input) const override {
+		// `FollowChannel::drawInteger` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`) names the
+		// cable whatever the channel, and the settings file can set either alone.
+		const ::LearnedMIDI& learned = midiEngine.midiFollowChannelType[std::to_underlying(input)];
+		if (learned.cable == nullptr && !learned.containsSomething()) {
+			return std::nullopt;
+		}
+		return binding_of(learned);
 	}
 
 private:

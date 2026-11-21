@@ -111,7 +111,24 @@ int32_t read(const Node& node, const MenuContext& ctx);
 /// @param node  The item to write.
 /// @param ctx   What is being edited.
 /// @param value The new value, in menu units.
-void write(const Node& node, const MenuContext& ctx, int32_t value);
+/// @return Whether the value now stands: false where a target's write was refused -- the sink or the device port
+///         refused it, or the target did not resolve -- so the stored value is still the one before. A `get`/`set`
+///         binding's hook reports no refusal, and a binding with neither writes nothing; both answer true.
+bool write(const Node& node, const MenuContext& ctx, int32_t value);
+
+/// @brief The upper edge of the `Kind::Range` @p node, in menu units: its `RangeSpec::upper_path` row, read as the
+///        node's own target reads the lower edge.
+/// @param node A range node.
+/// @param ctx  What is being edited.
+/// @return The value; 0 for a node with no upper row, or one the menu cannot read.
+int32_t read_upper(const Node& node, const MenuContext& ctx);
+
+/// @brief Writes @p value to the upper edge of the `Kind::Range` @p node, as `write` writes the lower edge.
+/// @param node  A range node.
+/// @param ctx   What is being edited.
+/// @param value The new value, in menu units.
+/// @return Whether the upper edge now stands, as `write` answers; true for a node with no DEVICE upper row.
+bool write_upper(const Node& node, const MenuContext& ctx, int32_t value);
 
 /// @brief Commit an offset edit through `node.bind.adjust`.
 ///

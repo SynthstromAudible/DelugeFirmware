@@ -19,23 +19,27 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
-#include "definitions_cxx.hpp" // FLAT_CHAR
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
+#include "instruments/deluge/words.h"
+#include "music-theory/note_names.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
 #include "gfx/oled/font.h"
+#include "gfx/oled/glyphs.h"
 #include "notify/notice_queue.h"
+#include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "processing/sound/source_resources.h"
-#include "storage/flash_storage.h"
+#include "deluge-project/device_settings.h"
+#include "scenes/bind/device_reader.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -44,62 +48,11 @@
 #include <string_view>
 #include <vector>
 
-// `util/lookuptables/lookuptables.h` is outside this layer's include allowance
-// (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the three note-name tables
-// `noteCodeToString` reads are declared here at the global scope where they are defined
-// (`util/lookuptables/lookuptables.cpp`) -- the same spelling `sound_sidechain.cpp` uses for
-// the sidechain rate tables.
-extern const uint8_t noteCodeToNoteLetter[];
-extern const uint8_t noteCodeToNoteLetterFlats[];
-extern const bool noteCodeIsSharp[];
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {
 
 using deluge::l10n::String;
-
-/// @brief `noteCodeToString(noteCode, buffer, nullptr, /*appendOctaveNo=*/true)`
-///        (`noteCodeToString` in `util/functions.cpp`), transcribed and appending into a caller-owned buffer.
-///
-/// The sharps-vs-flats choice really is a global preference read
-/// (`FlashStorage::defaultUseSharps`), not menu state, so it is read here exactly as legacy reads it.
-void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
-	// The floor of the twelfths, so a note code below 0 lands in the octave under it
-	int32_t within = note_code % 12;
-	int32_t octave = note_code / 12 - 2;
-	if (within < 0) {
-		within += 12;
-		octave--;
-	}
-	const bool sharps = FlashStorage::defaultUseSharps;
-
-	const auto put = [&](char c) {
-		if (len + 1 < cap) {
-			out[len++] = c;
-		}
-	};
-	put(static_cast<char>(sharps ? noteCodeToNoteLetter[within] : noteCodeToNoteLetterFlats[within]));
-	if (noteCodeIsSharp[within]) {
-		put(sharps ? '#' : static_cast<char>(FLAT_CHAR));
-	}
-	// `intToString(octave, thisChar, 1)`: at least one digit, with a leading '-' for a negative
-	// octave (a note code below 24 -- the bottom two octaves of the MIDI range, and below).
-	int64_t magnitude = octave;
-	if (magnitude < 0) {
-		put('-');
-		magnitude = -magnitude;
-	}
-	char digits[10];
-	size_t d = 0;
-	do {
-		digits[d++] = static_cast<char>('0' + magnitude % 10);
-		magnitude /= 10;
-	} while (magnitude != 0 && d < sizeof(digits));
-	while (d > 0) {
-		put(digits[--d]);
-	}
-}
 
 void append(char* out, size_t& len, size_t cap, std::string_view s) {
 	for (const char c : s) {
@@ -107,6 +60,29 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 			out[len++] = c;
 		}
 	}
+}
+
+/// @brief Whether a note's name takes a sharp rather than a flat: the device's `defaults/useSharps` row, read where
+///        the name is drawn so a change on the Defaults page shows at once. Sharps, the row's default, where the
+///        context binds no device port.
+bool sharps_preferred(const MenuContext& ctx) {
+	return bind::read_device_flag(ctx.ports.device, project::device_path::kUseSharps);
+}
+
+/// @brief A note's name with its octave, as `noteCodeToString(noteCode, buffer, nullptr, true)` spells it
+///        (`origin/main:src/deluge/util/functions.cpp`), appended into a caller-owned buffer.
+///
+/// @p sharps is the device's preference (`sharps_preferred`), not menu state.
+void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code, bool sharps) {
+	const deluge::music::NoteName name = deluge::music::note_name(note_code, sharps);
+	append(out, len, cap, std::string_view{&name.letter, 1});
+	if (name.accidental != deluge::music::Accidental::NONE) {
+		const char sign = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
+		append(out, len, cap, std::string_view{&sign, 1});
+	}
+	// The octave as `intToString(octave, buffer, 1)` writes it: at least one digit, '-' first when negative.
+	std::array<char, 12> octave{};
+	append(out, len, cap, deluge::ui::oled::detail::int_to_string(name.octave, 1, octave));
 }
 
 size_t depth_of(const MenuState& state) {
@@ -123,7 +99,7 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
 	else { // the previous range's top, plus one
-		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
+		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1, sharps_preferred(ctx));
 	}
 	// Pad the lower end out to column 7, so the two halves line up down the list.
 	// Reproduced rather than replaced by a single separator, because it is what makes this function
@@ -136,7 +112,7 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 		append(buf, len, cap, "top");
 	}
 	else { // any other range's upper end
-		append_note_name(buf, len, cap, range_top_note(ctx, index));
+		append_note_name(buf, len, cap, range_top_note(ctx, index), sharps_preferred(ctx));
 	}
 	return {buf, len};
 }
@@ -154,7 +130,7 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 	const instrument::SoundState* sound =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr
-	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != OscType::SAMPLE) {
+	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != instrument::OscType::SAMPLE) {
 		return 0;
 	}
 	char* buf = out.data();
@@ -166,14 +142,14 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
 	else {
-		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
+		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1, sharps_preferred(ctx));
 	}
 	append(buf, len, cap, "-");
 	if (index == count - 1) {
 		append(buf, len, cap, "top");
 	}
 	else {
-		append_note_name(buf, len, cap, range_top_note(ctx, index));
+		append_note_name(buf, len, cap, range_top_note(ctx, index), sharps_preferred(ctx));
 	}
 	append(buf, len, cap, ")");
 	return len;

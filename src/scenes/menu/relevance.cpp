@@ -35,10 +35,12 @@
 #include "scenes/menu/context.h"
 
 #include "deluge-project/audio_input.h"
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveforms.h"
 
@@ -217,10 +219,11 @@ bool audio_clip_has_sample(const MenuContext& ctx) {
 	return info && !info->recording;
 }
 
-bool battery_shown(const MenuContext& /*ctx*/) {
-	// `battery::Level::isRelevant` (`origin/main:src/deluge/gui/menu_item/battery/level.h`). A global read rather
-	// than a context one -- the runtime feature settings are device-wide, exactly as legacy has it.
-	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
+bool battery_shown(const MenuContext& ctx) {
+	// `battery::Level::isRelevant` (`origin/main:src/deluge/gui/menu_item/battery/level.h`): the device's
+	// show-battery-level feature; its row's default, shown, where the context binds no device port.
+	return bind::read_device_flag(ctx.ports.device,
+	                              project::device_path::feature(project::Feature::SHOW_BATTERY_LEVEL));
 }
 
 bool is_session_view(const MenuContext& ctx) {

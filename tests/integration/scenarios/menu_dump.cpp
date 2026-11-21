@@ -116,6 +116,9 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
+#include "scenes/bind/dispatch.h"
+#include "scenes/bind/target.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
@@ -130,6 +133,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 #include "instruments/deluge/settings.h"
@@ -237,12 +241,13 @@ void merge_names(std::vector<std::string>& into, const std::vector<std::string>&
 	into.insert(into.begin(), front.begin(), front.end());
 }
 
-/// @brief The names @p target's row table gives its values: every choice it names, in the row's order.
+/// @brief The names the row of the concrete target @p target gives its values: every choice it names, in the row's
+///        order.
 ///
 /// A sound's settings and effects are named as the Deluge instrument names them, a host chain's effects as the global
 /// effectable names them where the instrument has no entry, and a model row as its setting group names it. A param or
 /// a cable has no values to name.
-std::vector<std::string> target_option_names(const deluge::scenes::bind::Target& target) {
+std::vector<std::string> row_option_names(const deluge::scenes::bind::Target& target) {
 	using Kind = deluge::scenes::bind::Target::Kind;
 	const deluge::l10n::SettingNames* names = nullptr;
 	switch (target.kind) {
@@ -280,6 +285,25 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 	return out;
 }
 
+/// @brief The names @p target's rows give their values. A source-indexed target names one row per output, and an
+///        output may offer values the others do not (gate output 3's CLOCK), so it gives each output's, each value
+///        once, in list order (`merge_names`).
+std::vector<std::string> target_option_names(const deluge::scenes::bind::Target& target) {
+	if (!target.source_indexed) {
+		return row_option_names(target);
+	}
+	std::vector<std::string> out;
+	deluge::scenes::bind::Addresses where{};
+	for (uint8_t index = 0;; ++index) {
+		where.source_index = index;
+		const std::optional<deluge::scenes::bind::Target> named = deluge::scenes::bind::concrete(target, where);
+		if (!named) {
+			return out;
+		}
+		merge_names(out, row_option_names(*named));
+	}
+}
+
 /// The source indices a names hook is asked under: every output the CV and gate selectors pick (`NUM_GATE_CHANNELS`
 /// gate outputs, which covers the two CV outputs and the two oscillators).
 constexpr int8_t kDumpedSourceIndices = NUM_GATE_CHANNELS;
@@ -305,7 +329,9 @@ void build_names_contexts() {
 		if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
-		menu::MenuContext ctx = menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), 0, false, false, false,
+		// The song the app plays, which the app's ports act on.
+		menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(),
+		                                          deluge::gui::menuViewOf(clip), 0, false, false, false,
 		                                          /*kit_global_fx=*/false);
 		ctx.root = menu::MenuContext::Root::NoteRowEditor;
 		g_names_contexts.push_back(ctx);

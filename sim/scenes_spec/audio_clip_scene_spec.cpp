@@ -124,6 +124,7 @@
 #include <ostream>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 /// @brief `PlaybackHandler`'s "the swung-tick answer is zero" latch
@@ -158,7 +159,6 @@ extern bool shiftCurrentlyStuck;
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;
 using deluge::scenes::audio_clip::AudioClipScene;
-using deluge::scenes::audio_clip::FlashCursor;
 using deluge::scenes::audio_clip::kAudioClipSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
@@ -1244,7 +1244,8 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // The one setting, which legacy reads directly and the port through `UiFacts::flash_cursor`.
+		        // The one setting, which legacy reads directly and the port through the device port's
+		        // `pads/playCursor` row.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.tick(1);
@@ -2281,7 +2282,7 @@ describe audio_clip_scene_spec_body(
 	        "offers the Waveform item on a clip whose file is loaded, and not while the clip is still recording", _ {
 		        // Legacy tests the clip's own file, which a linear recording has not attached yet.
 		        Rig r;
-		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
+		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::spec::ctx_of(
 		            *r.f.song, deluge::gui::menuViewOf(r.f.clip), 0, false, false, false, false);
 		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
 		        auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take

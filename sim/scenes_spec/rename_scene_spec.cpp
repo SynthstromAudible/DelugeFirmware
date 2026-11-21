@@ -11,6 +11,7 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `menu_scene_spec.cpp` runs under.
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
@@ -40,6 +41,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -54,6 +56,7 @@
 #include <string>
 #include <string_view>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -269,8 +272,8 @@ spec::SongFixture kit_fixture() {
 
 MenuContext context_of(spec::SongFixture& f) {
 	currentSong = f.song;
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 /// The name the @p group record holds for the owner @p ctx names, or empty.
@@ -1132,12 +1135,13 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 	});
 
 	it("draws no menu title beneath the drum rename opened from its shortcut pad", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		deluge::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
 		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
-		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, false, 11, 5);
+		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, deluge::project::ShortcutsVersion::V3, false, 11, 5);
 		expect(node).to_equal(&nodes::drum_name_edit);
 
 		// Shift + (11,5) opens the menu ON the name item, so the item is the menu's root and

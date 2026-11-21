@@ -311,12 +311,16 @@ one tick, so one slot holds only while its consumer polls every tick.
 from `ShellHostUI::timerCallback` after every `Shell::tick` and above the close check, so no tick
 skips it. If it ever wants to be lazy, the slot has to become a queue first.
 
-**A setting's side effect is a call, not an action.** A settings write `main` applies at once is a synchronous call
-the setter makes into `menu/bind_host.h`, and the host has applied it when the setter returns:
-`host_screensaver_settings_changed` (the screensaver's mode and timeout), `host_pad_brightness_changed`,
-`host_highlighting_changed`, `host_rounded_corners_changed`, `host_shift_sticky_changed`, `host_pad_colours_changed`,
-and `host_clear_tick_squares` when the flash status leaves its slow flash. The file selector ends a keyboard
-audition the same way, with `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
+**A setting's side effect is the host's, not an action.** A setting that is a DEVICE row has no setter: its node
+writes the device port (`Ports::device`), whose host store does what the item's write does, and has done it when the
+write returns: both screensavers take a new mode or timeout, the pads dim to a new brightness and re-render for a new
+colour, main's canvas and the guest's panels take a new highlighting, the play cursor leaving its slow flash clears
+the tick squares, sticky shift reaches the shift machines, rounded corners restyles the display, a trigger clock's
+pulses resync the ticks, a MIDI clock starts or stops, a CV output's voltage goes out again and a gate switches. A
+write the device applies only after a restart (USB audio's enable) says so, and the menu raises "restart to apply".
+What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus feature's re-lays
+out the menu. The file selector ends a keyboard audition the same way, with
+`host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`
 (`scenes/browser/browser_scene.h`): `perform` takes a `BrowserChoice` (the claim of a chosen file, the folder imports
@@ -388,10 +392,10 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (`UiFacts::dx7_engine_enabled`):
-  `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
-  first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
-  the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
+* **The parameter page has its own pads** while the DX7 engine feature is on (the device's
+  `features/EnableDX7Engine` row): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
+  (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of
+  the blink's `dx::param_pad`), and the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
 * **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or
   with the page open toggles and carries the param as `openForOpOrGlobal` does (`dx::column_param`,
   `MenuScene::dx_column_press`, which re-targets the menu from another page). The column flashes the edited
@@ -674,12 +678,42 @@ shell's; every model-aware implementation is here, as with `Scene`.
 A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
 `AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
 `SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
-settings; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
+settings; `DeviceSettings` (`device`) for the device's own settings, by DEVICE row, read and written outside any song
+and its undo; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
 `instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
 `midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
+* **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
+  `scenes-reads-outside-bind` rule counts none there). What the menu asks the app for directly is the set of
+  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes and the services share.
+
+### The DEVICE setting group
+
+The device's own settings are a setting group, `project::SettingGroupId::DEVICE`, with its own owner
+(`SettingContext::Owner::DEVICE`, `project::DeviceAddress`), so no song reader evaluates a DEVICE row.
+
+* **The rows** are `project::device_table()` (`src/deluge-project/device_settings.{h,cpp}`), with their paths as
+  typed `project::DevicePath` constants there. They cover the defaults, the pads and screen, the recording and
+  sample settings, audio (input monitoring, metronome volume, USB audio), the trigger and MIDI clocks, MIDI and MIDI
+  follow, the CV and gate outputs, the community features (`deluge-project/features.h`), the play cursor, and the stem
+  export's options. A CHOICE row's value is its choice's index; the few rows a scene branches on have a neutral
+  `enum class` (`ShortcutsVersion`, `FlashCursor`, `FavouritesLayout` and `FeedbackAutomation` beside the table,
+  `ShortcutOverlay` beside the features).
+* **A scene reads** a row through `bind::DeviceSettings::read` or `reader()` (`bind/ports/device_settings.h`), or
+  typed through `bind/device_reader.h`; the menu's bindings dispatch DEVICE nodes there without reading
+  `MenuContext::model`. A CHOICE value outside the row's choices reads clamped into them, as a choice widget shows it.
+* **A scene writes** a row through `DeviceSettings::write`, the one place a value is refused, checked against the
+  row. A DEVICE write does not go through `WriteSink` or the edit log: it is not an undoable song edit, and it works
+  with no song.
+* **The host stores them** where the device keeps them, in `gui/ui/shell_host/device_settings.cpp`: the flash
+  settings, the pad controller's play cursor, the community features, the audio engine, USB audio, the playback
+  handler's clocks, the MIDI engine and MIDI follow, MIDI transpose, the CV engine and the stem export. Its `store`
+  does what the legacy item's write did, side effects included, and answers `STORED_FOR_RESTART` for a value that
+  takes effect only after a restart.
+* **A write never saves.** The host saves the whole batch when the settings root closes
+  (`gui::ui::saveSettingsBeforeClose`). The stem export's options are DEVICE rows that nothing saves.
 * **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
   and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
@@ -736,17 +770,18 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
-  and `menu::set_shortcuts_version` writes. The settings item writes it.
+* **The shortcut layout** is the device's `pads/shortcutsVersion` row, which `menu::shortcuts_version` reads through
+  the device port. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`). The settings item writes
+  it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
-  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the two screensaver
-  setters reach through `menu::host_screensaver_settings_changed()` (`menu/bind_host.h`).
+  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the device port's store calls for a
+  write of either screensaver row.
 * **The services** are installed by `gui/ui/shell_guest_services.cpp`, from `deluge_boot` and from
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
-* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `UiFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the device's
+  `pads/playCursor` row, which the audio clip view, the slicer and the marker editor read each frame: Slow
   paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware

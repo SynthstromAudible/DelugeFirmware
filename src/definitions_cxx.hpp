@@ -25,6 +25,7 @@
 #include "deluge-project/sequence_direction.h"
 #include "effects/words.h"
 #include "gfx/oled/font.h"
+#include "gfx/oled/glyphs.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
 #include "plugin-api/types/voice_priority.h"
@@ -53,7 +54,8 @@
 
 // Constants for the char value of the flat(♭) accidental glyph
 #define FLAT_CHAR_STR "\x81"
-#define FLAT_CHAR 0x81u
+inline constexpr char FLAT_CHAR = deluge::gfx::oled::kFlatGlyph;
+static_assert(FLAT_CHAR_STR[0] == FLAT_CHAR, "the flat sign has one code point");
 
 constexpr uint8_t kOctaveSize = 12;
 
@@ -448,7 +450,8 @@ constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) 
 using FilterType = deluge::effects::FilterType;
 constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
-constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources =
+    static_cast<int32_t>(deluge::instrument::kSourceCount); // sources as in oscillators - within a Sound (synth).
 
 enum class OldArpMode {
 	OFF,
@@ -520,6 +523,8 @@ enum class PatchCableAcceptance {
 
 enum class OverDubType { Normal, ContinuousLayering };
 
+/// The global MIDI commands, indexing `MidiEngine::globalMIDICommands`. NONE and LAST are legacy's own; the rest equal
+/// `deluge::project::GlobalCommand`'s, asserted in `gui/ui/shell_host/midi_devices.cpp`.
 enum class GlobalMIDICommand {
 	NONE = -1,
 	PLAYBACK_RESTART,
@@ -546,6 +551,8 @@ enum class MIDITakeoverMode : uint8_t {
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::RELATIVE) + 1;
 
+/// The MIDI follow inputs, indexing `MidiEngine::midiFollowChannelType`. NONE and INVALID are legacy's own; A to
+/// Track16 equal `deluge::project::FollowInput`'s, asserted in `gui/ui/shell_host/midi_devices.cpp`.
 enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,

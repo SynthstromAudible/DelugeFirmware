@@ -20,12 +20,12 @@
 
 #include "scenes/menu/nodes/actions.h"
 
+#include "scenes/bind/ports/ui_facts.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
-#include "definitions_cxx.hpp" // PerformanceEditingMode, for the numbering static_asserts
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
@@ -46,12 +46,9 @@ size_t depth_of(const MenuState& state) {
 }
 
 /// @brief The cursor `PerformEditorItem` starts on: the performance view's mode as the host answers it, in the
-///        `PerformanceEditingMode` numbering the page's options follow. Disabled where the context binds no host.
+///        `bind::PerformanceEditing` numbering the page's options follow. Disabled where the context binds no host.
 int16_t view_mode_cursor(const MenuContext& ctx) {
 	using bind::PerformanceEditing;
-	static_assert(static_cast<int>(PerformanceEditing::Disabled) == static_cast<int>(PerformanceEditingMode::DISABLED));
-	static_assert(static_cast<int>(PerformanceEditing::Value) == static_cast<int>(PerformanceEditingMode::VALUE));
-	static_assert(static_cast<int>(PerformanceEditing::Param) == static_cast<int>(PerformanceEditingMode::PARAM));
 	const PerformanceEditing mode =
 	    ctx.ports.ui != nullptr ? ctx.ports.ui->performance_editing_mode() : PerformanceEditing::Disabled;
 	return static_cast<int16_t>(mode);
@@ -118,9 +115,6 @@ void PerformEditorItem::on_reread(const MenuContext& ctx, MenuState& state) cons
 }
 
 std::array<std::string_view, 3> PerformEditorItem::option_names() {
-	static_assert(static_cast<int32_t>(PerformanceEditingMode::DISABLED) == 0);
-	static_assert(static_cast<int32_t>(PerformanceEditingMode::VALUE) == 1);
-	static_assert(static_cast<int32_t>(PerformanceEditingMode::PARAM) == 2);
 	static_assert(std::size(kPerformEditingModeNames) == 3);
 	return {
 	    deluge::scenes::text_lookup(kPerformEditingModeNames[0]),
@@ -146,10 +140,11 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 	// `EditingMode::selectButtonPress`
 	// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`). `currentMode` is whatever
 	// `EditingMode::writeCurrentValue` last stored from the cursor, so the cursor is the mode.
-	const auto mode = static_cast<PerformanceEditingMode>(
-	    std::clamp<int32_t>(index, 0, static_cast<int32_t>(PerformanceEditingMode::PARAM)));
+	using bind::PerformanceEditing;
+	const auto mode =
+	    static_cast<PerformanceEditing>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(PerformanceEditing::Param)));
 
-	if (mode == PerformanceEditingMode::DISABLED) {
+	if (mode == PerformanceEditing::Disabled) {
 		// `DISABLED` is main's `return nullptr`, i.e. go up a level. `render_resp.entered` is left set, and
 		// `MenuScene::after_render`'s leaf arm ascends. No request is filed: legacy does not touch
 		// `performanceView` on this arm either.

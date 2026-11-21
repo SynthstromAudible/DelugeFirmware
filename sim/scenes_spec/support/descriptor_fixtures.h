@@ -40,34 +40,34 @@ struct Fixture {
 	std::string_view name;
 	Where where;
 	std::vector<Family> families;
-	void (*setup)(const MenuContext& ctx) = nullptr;
+	void (*setup)(const MenuContext& ctx, Song& song) = nullptr;
 };
 
 inline void set_word(Sound& sound, std::string_view path, std::string_view word) {
 	sound_setting(sound, path, word);
 }
-inline void set_arp(const MenuContext& ctx, std::string_view mode) {
-	deluge::edits::arpSettingFor(*spec::menu_engine(ctx).arp, "arpeggiator/arpMode",
+inline void set_arp(const MenuContext& ctx, Song& song, std::string_view mode) {
+	deluge::edits::arpSettingFor(*spec::menu_engine(ctx, song).arp, "arpeggiator/arpMode",
 	                             Value::makeScalar(std::string{mode}));
 }
-inline void set_song_stutter(const MenuContext& ctx, bool use) {
-	deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx).mod, "stutter/useSongStutter",
+inline void set_song_stutter(const MenuContext& ctx, Song& song, bool use) {
+	deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx, song).mod, "stutter/useSongStutter",
 	                                Value::makeNumber(use ? 1 : 0));
 }
 /// A sound as `enter` leaves it, poly, its arp off, using the song's stutter.
-inline void plain_sound(const MenuContext& ctx) {
-	set_word(*spec::menu_engine(ctx).sound, "polyphonic", "poly");
-	set_arp(ctx, "off");
-	set_song_stutter(ctx, true);
+inline void plain_sound(const MenuContext& ctx, Song& song) {
+	set_word(*spec::menu_engine(ctx, song).sound, "polyphonic", "poly");
+	set_arp(ctx, song, "off");
+	set_song_stutter(ctx, song, true);
 }
 /// The whole kit as `enter` leaves it, with its arp in @p arp_mode and using the song's stutter.
-inline void plain_kit(const MenuContext& ctx, std::string_view arp_mode) {
-	set_arp(ctx, arp_mode);
-	set_song_stutter(ctx, true);
+inline void plain_kit(const MenuContext& ctx, Song& song, std::string_view arp_mode) {
+	set_arp(ctx, song, arp_mode);
+	set_song_stutter(ctx, song, true);
 }
-inline void osc_types(const MenuContext& ctx, OscType first, OscType second) {
-	set_word(*spec::menu_engine(ctx).sound, "osc1/type", deluge::instrument::to_string(first));
-	set_word(*spec::menu_engine(ctx).sound, "osc2/type", deluge::instrument::to_string(second));
+inline void osc_types(const MenuContext& ctx, Song& song, OscType first, OscType second) {
+	set_word(*spec::menu_engine(ctx, song).sound, "osc1/type", deluge::instrument::to_string(first));
+	set_word(*spec::menu_engine(ctx, song).sound, "osc2/type", deluge::instrument::to_string(second));
 }
 
 inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT, Family::ARP,
@@ -82,8 +82,8 @@ inline const std::vector<Family> kNonAudioTrackFamilies{Family::ARP, Family::ARP
 inline const std::vector<Family> kAudioFamilies{Family::AUDIO_CLIP, Family::EFFECT, Family::AUDIO_INPUT, Family::CLIP};
 inline const std::vector<Family> kSongFamilies{Family::SONG, Family::EFFECT};
 
-inline void set_cv_channel(const MenuContext& ctx, int32_t channel) {
-	deluge::edits::trackSettingFor(*spec::menu_engine(ctx).output, "channel", Value::makeNumber(channel));
+inline void set_cv_channel(const MenuContext& ctx, Song& song, int32_t channel) {
+	deluge::edits::trackSettingFor(*spec::menu_engine(ctx, song).output, "channel", Value::makeNumber(channel));
 }
 inline void set_song(std::string_view path, int32_t value) {
 	deluge::edits::songSettingFor(path, Value::makeNumber(value));
@@ -98,15 +98,15 @@ inline AudioFile* fake_file() {
 	return file;
 }
 /// Give source @p source of the sound @p ctx edits a loaded file.
-inline void load_file(const MenuContext& ctx, int32_t source) {
-	spec::menu_engine(ctx).sound->getOrCreateFirstRange(source)->getAudioFileHolder()->audioFile = fake_file();
+inline void load_file(const MenuContext& ctx, Song& song, int32_t source) {
+	spec::menu_engine(ctx, song).sound->getOrCreateFirstRange(source)->getAudioFileHolder()->audioFile = fake_file();
 }
 /// Take every fake file off the sound @p ctx edits, before its oscillator types change again.
-inline void unload_files(const MenuContext& ctx) {
-	if (spec::menu_engine(ctx).sound == nullptr) {
+inline void unload_files(const MenuContext& ctx, Song& song) {
+	if (spec::menu_engine(ctx, song).sound == nullptr) {
 		return;
 	}
-	for (SourceResources& source : spec::menu_engine(ctx).sound->sourceResources) {
+	for (SourceResources& source : spec::menu_engine(ctx, song).sound->sourceResources) {
 		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
 			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
 		}
@@ -115,9 +115,10 @@ inline void unload_files(const MenuContext& ctx) {
 /// The descriptor context @p where stands for, with the sources that hold a file as the host reads them off the sound.
 inline SettingContext descriptor_context(const Fixture& fixture, const MenuContext& ctx, Family family) {
 	SettingContext shown = context_of(fixture.where, family);
-	if (spec::menu_engine(ctx).sound != nullptr) {
+	Song& song = song_of(fixture.where);
+	if (spec::menu_engine(ctx, song).sound != nullptr) {
 		for (int32_t i = 0; i < static_cast<int32_t>(deluge::plugin::kMaxSoundSources); ++i) {
-			if (spec::menu_engine(ctx).sound->sourceResources[i].hasAtLeastOneAudioFileLoaded()) {
+			if (spec::menu_engine(ctx, song).sound->sourceResources[i].hasAtLeastOneAudioFileLoaded()) {
 				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
 			}
 		}
@@ -127,204 +128,207 @@ inline SettingContext descriptor_context(const Fixture& fixture, const MenuConte
 
 inline const std::vector<Fixture>& fixtures() {
 	static const std::vector<Fixture> all{
-	    {"a subtractive synth", Where::SYNTH, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
-	    {"an FM synth", Where::SYNTH_FM, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
-	    {"a ring-mod synth", Where::SYNTH_RINGMOD, kSoundFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a subtractive synth", Where::SYNTH, kSoundFamilies, [](const MenuContext& c, Song& s) { plain_sound(c, s); }},
+	    {"an FM synth", Where::SYNTH_FM, kSoundFamilies, [](const MenuContext& c, Song& s) { plain_sound(c, s); }},
+	    {"a ring-mod synth", Where::SYNTH_RINGMOD, kSoundFamilies,
+	     [](const MenuContext& c, Song& s) { plain_sound(c, s); }},
 	    {"a mono synth", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_word(*spec::menu_engine(c).sound, "polyphonic", "mono");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_word(*spec::menu_engine(c, s).sound, "polyphonic", "mono");
 	     }},
 	    {"a legato synth", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_word(*spec::menu_engine(c).sound, "polyphonic", "legato");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_word(*spec::menu_engine(c, s).sound, "polyphonic", "legato");
 	     }},
 	    {"a synth playing samples with no file", Where::SYNTH_SAMPLE, kSoundFamilies,
-	     [](const MenuContext& c) { plain_sound(c); }},
+	     [](const MenuContext& c, Song& s) { plain_sound(c, s); }},
 	    {"a synth playing a sample and a wavetable", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::WAVETABLE);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::WAVETABLE);
 	     }},
 	    {"a synth playing wavetables", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::WAVETABLE, OscType::SINE);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::WAVETABLE, OscType::SINE);
 	     }},
 	    {"a synth playing the inputs", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::INPUT_L, OscType::INPUT_STEREO);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::INPUT_L, OscType::INPUT_STEREO);
 	     }},
 	    {"a synth playing the right input", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::INPUT_R, OscType::SQUARE);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::INPUT_R, OscType::SQUARE);
 	     }},
 	    {"a synth with its own stutter", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_song_stutter(c, false);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_song_stutter(c, s, false);
 	     }},
 	    {"a synth with a DX7", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::DX7, OscType::SAW);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::DX7, OscType::SAW);
 	     }},
 	    {"a synth with its arp on", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_arp(c, "arp");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_arp(c, s, "arp");
 	     }},
 	    {"a synth with other LFO waves", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_word(*spec::menu_engine(c).sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
-		     set_word(*spec::menu_engine(c).sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
-		     set_word(*spec::menu_engine(c).sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_word(*spec::menu_engine(c, s).sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
+		     set_word(*spec::menu_engine(c, s).sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
+		     set_word(*spec::menu_engine(c, s).sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
 	     }},
 	    {"an FM synth whose first oscillator holds a sample", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
-		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::SQUARE);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "fm");
 	     }},
 	    {"an FM synth whose oscillators hold wavetables", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
-		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::WAVETABLE, OscType::WAVETABLE);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "fm");
 	     }},
 	    {"a synth playing loaded samples", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::SAMPLE);
-		     load_file(c, 0);
-		     load_file(c, 1);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::SAMPLE);
+		     load_file(c, s, 0);
+		     load_file(c, s, 1);
 	     }},
 	    {"a synth playing a loaded wavetable and a sample with no file", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::WAVETABLE, OscType::SAMPLE);
-		     load_file(c, 0);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::WAVETABLE, OscType::SAMPLE);
+		     load_file(c, s, 0);
 	     }},
 	    {"a synth with a loaded file on a square oscillator", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::WAVETABLE);
-		     load_file(c, 0);
-		     osc_types(c, OscType::SQUARE, OscType::WAVETABLE);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::WAVETABLE);
+		     load_file(c, s, 0);
+		     osc_types(c, s, OscType::SQUARE, OscType::WAVETABLE);
 	     }},
 	    {"an FM synth whose oscillators hold a loaded wavetable and an empty one", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::WAVETABLE, OscType::WAVETABLE);
-		     load_file(c, 1);
-		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::WAVETABLE, OscType::WAVETABLE);
+		     load_file(c, s, 1);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "fm");
 	     }},
 	    {"an FM synth whose first oscillator holds a loaded sample", Where::SYNTH, kSoundFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
-		     load_file(c, 0);
-		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::SQUARE);
+		     load_file(c, s, 0);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "fm");
 	     }},
-	    {"a kit's sound row", Where::KIT_LANE, kLaneFamilies, [](const MenuContext& c) { plain_sound(c); }},
+	    {"a kit's sound row", Where::KIT_LANE, kLaneFamilies, [](const MenuContext& c, Song& s) { plain_sound(c, s); }},
 	    {"a kit's sound row with its own stutter", Where::KIT_LANE, kLaneFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_song_stutter(c, false);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_song_stutter(c, s, false);
 	     }},
 	    {"a kit's sound row playing a loaded sample", Where::KIT_LANE, kLaneFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     osc_types(c, OscType::SAMPLE, OscType::SQUARE);
-		     load_file(c, 0);
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     osc_types(c, s, OscType::SAMPLE, OscType::SQUARE);
+		     load_file(c, s, 0);
 	     }},
 	    {"a kit's sound row in FM", Where::KIT_LANE, kLaneFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_word(*spec::menu_engine(c).sound, "mode", "fm");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "fm");
 	     }},
 	    {"a kit's sound row with its arp on", Where::KIT_LANE, kLaneFamilies,
-	     [](const MenuContext& c) {
-		     plain_sound(c);
-		     set_arp(c, "arp");
+	     [](const MenuContext& c, Song& s) {
+		     plain_sound(c, s);
+		     set_arp(c, s, "arp");
 	     }},
-	    {"a kit's MIDI row", Where::MIDI_DRUM, kNonSoundLaneFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	    {"a kit's MIDI row", Where::MIDI_DRUM, kNonSoundLaneFamilies,
+	     [](const MenuContext& c, Song& s) { set_arp(c, s, "off"); }},
 	    {"a kit's MIDI row with its arp on", Where::MIDI_DRUM, kNonSoundLaneFamilies,
-	     [](const MenuContext& c) { set_arp(c, "arp"); }},
-	    {"a kit's gate row", Where::GATE_DRUM, kNonSoundLaneFamilies, [](const MenuContext& c) { set_arp(c, "off"); }},
+	     [](const MenuContext& c, Song& s) { set_arp(c, s, "arp"); }},
+	    {"a kit's gate row", Where::GATE_DRUM, kNonSoundLaneFamilies,
+	     [](const MenuContext& c, Song& s) { set_arp(c, s, "off"); }},
 	    {"a kit's gate row with its arp on", Where::GATE_DRUM, kNonSoundLaneFamilies,
-	     [](const MenuContext& c) { set_arp(c, "arp"); }},
-	    {"the whole kit", Where::KIT, kWholeKitFamilies, [](const MenuContext& c) { plain_kit(c, "off"); }},
+	     [](const MenuContext& c, Song& s) { set_arp(c, s, "arp"); }},
+	    {"the whole kit", Where::KIT, kWholeKitFamilies, [](const MenuContext& c, Song& s) { plain_kit(c, s, "off"); }},
 	    {"the whole kit with its arp on", Where::KIT, kWholeKitFamilies,
-	     [](const MenuContext& c) { plain_kit(c, "arp"); }},
+	     [](const MenuContext& c, Song& s) { plain_kit(c, s, "arp"); }},
 	    {"the whole kit with its own stutter", Where::KIT, kWholeKitFamilies,
-	     [](const MenuContext& c) {
-		     plain_kit(c, "off");
-		     set_song_stutter(c, false);
+	     [](const MenuContext& c, Song& s) {
+		     plain_kit(c, s, "off");
+		     set_song_stutter(c, s, false);
 	     }},
 	    // Legacy reads the selected row's kind on the whole kit; the descriptor reads the kit's.
 	    {"the whole kit with a gate row selected", Where::KIT_GATE_ROW, kWholeKitFamilies,
-	     [](const MenuContext& c) { plain_kit(c, "off"); }},
+	     [](const MenuContext& c, Song& s) { plain_kit(c, s, "off"); }},
 	    {"the whole kit with a gate row selected and its arp on", Where::KIT_GATE_ROW, kWholeKitFamilies,
-	     [](const MenuContext& c) { plain_kit(c, "arp"); }},
+	     [](const MenuContext& c, Song& s) { plain_kit(c, s, "arp"); }},
 	    {"a MIDI track", Where::MIDI_CLIP, kNonAudioTrackFamilies,
-	     [](const MenuContext& c) {
-		     set_arp(c, "off");
-		     set_cv_channel(c, 0);
+	     [](const MenuContext& c, Song& s) {
+		     set_arp(c, s, "off");
+		     set_cv_channel(c, s, 0);
 	     }},
 	    {"a MIDI track with its arp on", Where::MIDI_CLIP, kNonAudioTrackFamilies,
-	     [](const MenuContext& c) {
-		     set_arp(c, "arp");
-		     set_cv_channel(c, 0);
+	     [](const MenuContext& c, Song& s) {
+		     set_arp(c, s, "arp");
+		     set_cv_channel(c, s, 0);
 	     }},
 	    // Channel 3 is stored as the word a CV track stores for both its channels: only a CV track offers a second
 	    // channel's source.
 	    {"a MIDI track on channel 3", Where::MIDI_CLIP, kNonAudioTrackFamilies,
-	     [](const MenuContext& c) {
-		     set_arp(c, "off");
-		     set_cv_channel(c, both);
+	     [](const MenuContext& c, Song& s) {
+		     set_arp(c, s, "off");
+		     set_cv_channel(c, s, both);
 	     }},
 	    {"a CV track on both channels", Where::CV_CLIP, kNonAudioTrackFamilies,
-	     [](const MenuContext& c) {
-		     set_arp(c, "off");
-		     set_cv_channel(c, both);
+	     [](const MenuContext& c, Song& s) {
+		     set_arp(c, s, "off");
+		     set_cv_channel(c, s, both);
 	     }},
 	    {"a CV track on one channel with its arp on", Where::CV_CLIP, kNonAudioTrackFamilies,
-	     [](const MenuContext& c) {
-		     set_arp(c, "arp");
-		     set_cv_channel(c, one);
+	     [](const MenuContext& c, Song& s) {
+		     set_arp(c, s, "arp");
+		     set_cv_channel(c, s, one);
 	     }},
 	    {"an audio clip", Where::AUDIO_CLIP, kAudioFamilies,
-	     [](const MenuContext& c) {
-		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c).output),
+	     [](const MenuContext& c, Song& s) {
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c, s).output),
 		                                         "inputChannel", Value::makeScalar("left"));
 	     }},
 	    {"an audio clip recording another track", Where::AUDIO_CLIP, kAudioFamilies,
-	     [](const MenuContext& c) {
-		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c).output),
+	     [](const MenuContext& c, Song& s) {
+		     deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(c, s).output),
 		                                         "inputChannel", Value::makeScalar("specificTrack"));
 	     }},
 	    {"the song with the freeverb", Where::SONG, kSongFamilies,
-	     [](const MenuContext&) {
+	     [](const MenuContext&, Song&) {
 		     set_song("reverb/model", 0);
 		     set_song("reverb/compressor/volume", -1);
 	     }},
 	    {"the song with the mutable reverb, ducking at a set volume", Where::SONG, kSongFamilies,
-	     [](const MenuContext&) {
+	     [](const MenuContext&, Song&) {
 		     set_song("reverb/model", 1);
 		     set_song("reverb/compressor/volume", 0);
 	     }},
 	    {"the song with its reverb ducking automatic, as the menu writes it", Where::SONG, kSongFamilies,
-	     [](const MenuContext&) {
+	     [](const MenuContext&, Song&) {
 		     set_song("reverb/model", 1);
 		     set_song("reverb/compressor/volume", -21474836);
 	     }},
 	    {"the song with the digital reverb", Where::SONG, kSongFamilies,
-	     [](const MenuContext&) {
+	     [](const MenuContext&, Song&) {
 		     set_song("reverb/model", 2);
 		     set_song("reverb/compressor/volume", -1);
 	     }},

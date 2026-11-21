@@ -114,7 +114,7 @@ private:
 	MenuAction action_;
 };
 
-/// `EditingMode::getOptions`, in its own order -- the order IS the `PerformanceEditingMode` numbering, which is what
+/// `EditingMode::getOptions`, in its own order -- the order IS the `bind::PerformanceEditing` numbering, which is what
 /// makes the page's cursor the value.
 inline constexpr uint16_t kPerformEditingModeNames[] = {
     sid(deluge::l10n::String::STRING_FOR_DISABLED),
@@ -138,7 +138,7 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 
-	/// @brief The option names the page lists, in the order of the `PerformanceEditingMode` numbering: the cursor is
+	/// @brief The option names the page lists, in the order of the `bind::PerformanceEditing` numbering: the cursor is
 	///        the mode.
 	static std::array<std::string_view, 3> option_names();
 };

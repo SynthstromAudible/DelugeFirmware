@@ -24,8 +24,6 @@
 #include <cstdint>
 #include <vector>
 
-class Song;
-
 namespace deluge::project {
 class Song;
 } // namespace deluge::project
@@ -78,10 +76,6 @@ struct MenuContext {
 		Count,
 	};
 
-	/// @brief The song, for the device and session menus that act on the running song itself (its threshold
-	///        recording mode, its stem export, the velocity default every instrument takes). Everything else a node
-	///        edits it reaches through `model`, `addresses` and `ports`.
-	Song* song = nullptr;
 	/// @brief The range the menu edits, by index into the source's ranges; -1 for none chosen.
 	int16_t range_index = -1;
 	/// @brief The sound source the menu edits.
@@ -201,8 +195,13 @@ struct MenuContext {
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,
 ///        with no UI reads.
 ///
-/// @param song                    the song that owns @p clip; used instead of the `currentSong`
+/// @param model                   the record of the song the menu opens in; used instead of the `currentSong`
 ///                                global wherever `setup()` reached for it.
+/// @param ports                   the ports the context's reads and writes go through: the app's when the app plays
+///                                the song @p model records, a spec's fakes, or none (`nullptr`) for any other song,
+///                                which then binds no port. The device port is the exception: the device's own
+///                                settings act on no song, so a context always binds one -- @p ports' when it has
+///                                one, the app's otherwise.
 /// @param view                    what the menu opens over, as the view shows it: the clip (none for a song-level
 ///                                or settings menu), its track and what plays it, the kit row selected, the clip's
 ///                                affect-entire.
@@ -230,7 +229,8 @@ struct MenuContext {
 ///                                (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the caller that passes false
 ///                                with affect-entire on, and it is why this is an argument rather than a re-read of the
 ///                                clip.
-MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
+MenuContext context_for(const deluge::project::Song& model, const deluge::scenes::bind::Ports* ports,
+                        const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
 /// @brief May a session begin on @p node in @p ctx? One rule in place of the

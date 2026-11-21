@@ -15,6 +15,7 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
@@ -23,6 +24,7 @@
 #include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
@@ -93,6 +95,12 @@ const std::array<RGB, kNumMarkerTypes> kMarkerColours{
 /// title face is taller.
 int32_t body_y(const deluge::ui::oled::OledFrame& f) {
 	return f.style.title_height + 5;
+}
+
+/// @brief How the playhead is shown: the device's `pads/playCursor` row; Slow, the row's default, with no device port.
+deluge::project::FlashCursor play_cursor() {
+	return bind::read_device<deluge::project::FlashCursor>(menu::host_ports().device,
+	                                                       deluge::project::device_path::kPlayCursor);
 }
 
 } // namespace
@@ -1005,8 +1013,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
 	if (playing_
-	    || (menu::host_ports().ui->flash_cursor() != bind::FlashCursor::Off
-	        && waveforms().play_position(where_).has_value())) {
+	    || (play_cursor() != deluge::project::FlashCursor::OFF && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
 	return next;
@@ -1185,9 +1192,9 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const bind::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
+	const deluge::project::FlashCursor cursor = play_cursor();
 	playing_ = false;
-	if (cursor == bind::FlashCursor::Off) {
+	if (cursor == deluge::project::FlashCursor::OFF) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
@@ -1200,10 +1207,10 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			                                          .colour = deluge::ui::grid::TickColour::Normal});
 		}
 	}
-	if (cursor == bind::FlashCursor::Slow) {
+	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
 const services::Waveforms& MarkerScene::waveforms() const {
