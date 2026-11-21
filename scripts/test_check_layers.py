@@ -465,5 +465,92 @@ class TransitiveRules(unittest.TestCase):
         )
 
 
+class TreeChecks(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo()
+        self.repo.plant("src/CMakeLists.txt", "")
+        self.repo.plant("src/lib/a.h", "#pragma once\n")
+        self.repo.plant("src/deluge/model/song.h", "#pragma once\n")
+
+    def tearDown(self):
+        self.repo.close()
+
+    def found(self) -> list[str]:
+        return cl.tree_violations(self.repo.config(), self.repo.root)
+
+    def test_the_listed_tree_passes(self):
+        self.assertEqual(self.found(), [])
+
+    def test_an_unlisted_directory_fails(self):
+        self.repo.plant("src/newlib/x.h", "")
+        self.assertEqual(
+            self.found(),
+            ["tree: src/newlib/ is a directory scripts/layers.toml does not list"],
+        )
+
+    def test_an_unlisted_root_file_fails(self):
+        self.repo.plant("src/stray.h", "")
+        self.assertEqual(
+            self.found(),
+            [
+                "tree: src/stray.h is a file at the src/ root that scripts/layers.toml does not list"
+            ],
+        )
+
+    def test_a_path_under_both_roots_fails(self):
+        self.repo.plant("src/model/song.h", "")
+        found = self.found()
+        self.assertIn(
+            "tree: src/model/song.h and src/deluge/model/song.h are both reached by an include of model/song.h",
+            found,
+        )
+
+    def test_a_build_file_at_the_same_path_is_not_a_shadow(self):
+        self.repo.plant("src/deluge/CMakeLists.txt", "")
+        self.assertEqual(self.found(), [])
+
+    def test_a_different_file_in_a_same_named_directory_passes(self):
+        self.repo.plant("src/lib/model/other.h", "")
+        self.assertEqual(self.found(), [])
+
+
+class LegacyRatchet(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo()
+        self.repo.plant("src/deluge/a.cpp", "")
+        self.repo.plant("src/deluge/model/b.h", "")
+        self.repo.plant("src/deluge/README.md", "")
+        self.baseline = self.repo.root / "scripts" / "layers_baseline.txt"
+
+    def tearDown(self):
+        self.repo.close()
+
+    def run_main(self, *args: str) -> int:
+        import contextlib
+        import io
+
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            return cl.main(["--repo", str(self.repo.root), *args])
+
+    def test_the_count_is_the_source_files(self):
+        self.assertEqual(cl.legacy_count(self.repo.config(), self.repo.root), 2)
+
+    def test_a_new_legacy_file_fails(self):
+        self.baseline.write_text("# header\nsrc/deluge\tlegacy-shrinks\t2\n")
+        self.assertEqual(self.run_main(), 0)
+        self.repo.plant("src/deluge/model/c.cpp", "")
+        self.assertEqual(self.run_main(), 1)
+
+    def test_update_may_lower_it_but_not_raise_it(self):
+        self.baseline.write_text("# header\nsrc/deluge\tlegacy-shrinks\t1\n")
+        self.assertEqual(self.run_main("--update"), 1)
+        self.baseline.write_text("# header\nsrc/deluge\tlegacy-shrinks\t3\n")
+        self.assertEqual(self.run_main("--update"), 0)
+        self.assertIn("src/deluge\tlegacy-shrinks\t2\n", self.baseline.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

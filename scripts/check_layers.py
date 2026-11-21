@@ -63,6 +63,7 @@ PLAIN_INCLUDE = re.compile(
 )
 ANY_INCLUDE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
 QUOTED_INCLUDE = re.compile(r'^\s*#\s*include\s*"([^"]+)"')
+LEGACY_RULE = "legacy-shrinks"
 
 # The C++23 standard library headers, including the C compatibility headers (<cstdint>, not <stdint.h>).
 STANDARD_HEADERS = frozenset(
@@ -471,18 +472,48 @@ def rule_counts(config: Config, repo: Path) -> dict[tuple[str, str], int]:
 
 
 def tree_violations(config: Config, repo: Path) -> list[str]:
-    return []
+    found = []
+    src = repo / "src"
+    for entry in sorted(src.iterdir()):
+        if entry.is_dir() and entry.name not in config.tree.directories:
+            found.append(
+                f"tree: src/{entry.name}/ is a directory scripts/layers.toml does not list"
+            )
+        elif entry.is_file() and entry.name not in config.tree.root_files:
+            found.append(
+                f"tree: src/{entry.name} is a file at the src/ root that scripts/layers.toml does not list"
+            )
+    legacy = repo / config.tree.legacy
+    # Source files only: an include names a source file, and src/deluge/CMakeLists.txt beside src/CMakeLists.txt
+    # shadows nothing.
+    for path in source_files(repo, config.tree.legacy):
+        inner = path.relative_to(legacy).as_posix()
+        if (src / inner).is_file():
+            found.append(
+                f"tree: src/{inner} and {relative(repo, path)} are both reached by an include of {inner}"
+            )
+    return found
+
+
+def legacy_count(config: Config, repo: Path) -> int:
+    return len(source_files(repo, config.tree.legacy))
 
 
 def all_counts(config: Config, repo: Path) -> dict[tuple[str, str], int]:
-    return rule_counts(config, repo)
+    counts = rule_counts(config, repo)
+    counts[(config.tree.legacy, LEGACY_RULE)] = legacy_count(config, repo)
+    return counts
 
 
 def is_shrink_only(config: Config, rule_name: str) -> bool:
-    return any(rule.name == rule_name and rule.shrink_only for rule in config.rules)
+    return rule_name == LEGACY_RULE or any(
+        rule.name == rule_name and rule.shrink_only for rule in config.rules
+    )
 
 
 def reason_of(config: Config, rule_name: str) -> str:
+    if rule_name == LEGACY_RULE:
+        return "the legacy tree only shrinks: code leaves it by rewrite, and nothing is added"
     return next((rule.reason for rule in config.rules if rule.name == rule_name), "")
 
 
