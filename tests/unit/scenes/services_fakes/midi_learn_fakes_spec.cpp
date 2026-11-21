@@ -27,9 +27,11 @@
 #include "support/printers/mapping_printer.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include "support/spec_main.h"
 
@@ -58,6 +60,9 @@ namespace {
 /// A device the MIDI devices fake does not know.
 constexpr deluge::midi::DeviceId kUnknown{0xFFFF'FFF0};
 
+/// The root scene's slot in the rig's registry: its kind's index.
+constexpr size_t kRootSlot = std::to_underlying(SceneKind::FirstApp);
+
 /// @brief The root view, which the learn's button arms are gated on.
 class RootScene final : public Scene {
 public:
@@ -69,7 +74,7 @@ public:
 /// @brief A `MidiLearn` over a root scene, with the fakes' ports and an empty song record installed.
 struct Rig {
 	RootScene root;
-	std::array<Scene*, 17> table{};
+	std::array<Scene*, kRootSlot + 1> table{};
 	SceneRegistry reg{};
 	SceneStack stack{reg};
 	LearnService ml{stack};
@@ -80,7 +85,7 @@ struct Rig {
 	deluge::ui::PadMask pads{};
 
 	Rig() {
-		table[16] = &root;
+		table[kRootSlot] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
 		ml.set_ports(&ports);
@@ -204,6 +209,19 @@ describe midi_learn_fakes("scenes::services::MidiLearn -- learns through its ins
 		}
 		expect(led_of(learned, ButtonId::Record).has_value()).to_be_false();
 	});
+	it("learns PLAY from a device the MIDI devices port does not know as a binding with no device", _ {
+		Rig rig;
+		(void)rig.button(ButtonId::Learn, true);
+		(void)rig.button(ButtonId::Play, true);
+		rig.ml.note_on_received(kUnknown, 4, 50, 100);
+		expect(rig.host.learn.calls.size()).to_equal(size_t{1});
+		if (rig.host.learn.calls.size() == 1) {
+			expect(rig.host.learn.calls[0].kind).to_equal(Call::Kind::LEARN_GLOBAL);
+			expect(rig.host.learn.calls[0].global).to_equal(GlobalCommand::PLAY);
+			expect(rig.host.learn.calls[0].binding)
+			    .to_equal(std::optional{LearnedBinding{.channel_or_zone = 4, .note_or_cc = 50}});
+		}
+	});
 	it("leaves a note-on from a device it does not know unhandled, and learns nothing", _ {
 		Rig rig;
 		(void)rig.button(ButtonId::Learn, true);
@@ -240,6 +258,36 @@ describe midi_learn_fakes("scenes::services::MidiLearn -- learns through its ins
 			    .to_equal(std::optional<deluge::project::MappingTarget>{deluge::project::TrackInputTarget{9}});
 			expect(call.command).to_equal(std::optional{MidiCommand{
 			    .channel_or_zone = 5, .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}}});
+		}
+	});
+	it("learns no CC channel for a MIDI track whose input already holds a channel", _ {
+		Rig rig;
+		(void)rig.model.mappings.learn(deluge::project::Mapping{
+		    .source = MidiCommand{.channel_or_zone = 2, .note_or_cc = 60}, .target = deluge::project::TrackInputTarget{9}});
+		const deluge::scenes::services::MenuView was = deluge::scenes::services::view_state().current_view();
+		deluge::scenes::services::view_state().set_current_view(
+		    {.clip = deluge::project::ClipAddress{.clip_id = 3}, .kind = deluge::project::TrackKind::MIDI_OUT});
+		(void)rig.button(ButtonId::Learn, true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(9), true);
+		expect(rig.cc(deluge::midi::kDin, 5, 74, 64).handled).to_be_true();
+		deluge::scenes::services::view_state().set_current_view(was);
+		expect(rig.host.learn.calls.empty()).to_be_true();
+	});
+	it("keeps the held note of a MIDI track's input that holds no channel when a CC learns its channel", _ {
+		Rig rig;
+		(void)rig.model.mappings.learn(deluge::project::Mapping{
+		    .source = MidiCommand{.note_or_cc = 61}, .target = deluge::project::TrackInputTarget{9}});
+		const deluge::scenes::services::MenuView was = deluge::scenes::services::view_state().current_view();
+		deluge::scenes::services::view_state().set_current_view(
+		    {.clip = deluge::project::ClipAddress{.clip_id = 3}, .kind = deluge::project::TrackKind::MIDI_OUT});
+		(void)rig.button(ButtonId::Learn, true);
+		rig.ml.thing_pressed(LearnTarget::instrument_input(9), true);
+		expect(rig.cc(deluge::midi::kDin, 5, 74, 64).handled).to_be_true();
+		deluge::scenes::services::view_state().set_current_view(was);
+		expect(rig.host.learn.calls.size()).to_equal(size_t{1});
+		if (rig.host.learn.calls.size() == 1) {
+			expect(rig.host.learn.calls[0].command).to_equal(std::optional{MidiCommand{
+			    .channel_or_zone = 5, .note_or_cc = 61, .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}}});
 		}
 	});
 });

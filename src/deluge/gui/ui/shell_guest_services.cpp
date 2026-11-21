@@ -456,12 +456,12 @@ void wireShellGuestServices() {
 	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 	wireShellKitGlobalShortcuts();
 
-	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
-	// `scenes-currentSong` row) and which the knobs and the global controls resolve against
-	// (`ModKnobs::set_song`, `GlobalControls::set_song`).
 	// The app's ports and the record of the song it plays, which the learn writes through and reads.
 	services.learn.set_ports(&deluge::scenes::menu::host_ports());
 	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
+	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
+	// `scenes-currentSong` row) and which the knobs and the global controls resolve against
+	// (`ModKnobs::set_song`, `GlobalControls::set_song`).
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
