@@ -52,29 +52,6 @@
 #define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
-AutoParam::AutoParam() {
-	init();
-	currentValue = 0;
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
-}
-
-void AutoParam::init() {
-	nodes.init();
-}
-
-void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
-	if (copyAutomation) {
-		nodes.cloneFrom(&otherParam->nodes);
-	}
-	else {
-		nodes.init();
-	}
-	currentValue = otherParam->currentValue;
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
-}
-
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 	if (otherParam->renewedOverridingAtTime) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
@@ -387,14 +364,6 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	if (shouldNotify && wasAutomated) {
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
 	}
-}
-
-// Beware. As this will do no notifying, the caller must ensure that any required notification is done.
-// I.e. a ParamSet must be notified if automation is deleted.
-void AutoParam::deleteAutomationBasicForSetup() {
-	nodes.empty();
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
 }
 
 #define OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING 15 // Means 2^x audio samples in length
@@ -782,13 +751,6 @@ bool AutoParam::hasInterpolationIncrement(bool use_float_interpolation) {
 	return valueIncrementPerHalfTick != 0;
 }
 
-/// resets interpolation increment to zero (can happen if we reached parameter value limits)
-/// or if we've reached another node in which case we'll be re-calculating the increment
-void AutoParam::resetInterpolationIncrement() {
-	valueIncrementPerHalfTick = 0;
-	interpolation_increment_remainder_float = 0.0f;
-}
-
 /// reverse the interpolation increment in case we're now interpolating backwards to the previous node
 void AutoParam::reverseInterpolationIncrement(bool use_float_interpolation) {
 	if (use_float_interpolation) [[unlikely]] {
@@ -1065,33 +1027,6 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
-}
-
-int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
-	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
-	ParamNode* ourNode;
-
-	// Check there's not already a node there
-	if (i < nodes.getNumElements()) {
-		ourNode = nodes.getElement(i);
-		if (ourNode->pos == pos) {
-			goto setupNode;
-		}
-	}
-
-	{
-		Error error = nodes.insertAtIndex(i);
-		if (error != Error::NONE) {
-			return -1;
-		}
-	}
-	ourNode = nodes.getElement(i);
-	ourNode->pos = pos;
-setupNode:
-	ourNode->value = value;
-	ourNode->interpolated = shouldInterpolate;
-
-	return i;
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
@@ -1483,64 +1418,18 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 // value abruptly changes, well whether we want the value to the left or the right depends on which direction we're
 // going.
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-
-	if (!nodes.getNumElements()) {
+	if (!isAutomated()) {
 		return currentValue;
 	}
-
-	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= nodes.getNumElements()) {
-		rightI = 0;
-	}
-	ParamNode* rightNode = nodes.getElement(rightI);
-
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += nodes.getNumElements();
-	}
-	ParamNode* leftNode = nodes.getElement(leftI);
-	if (!rightNode->interpolated) {
-returnLeftNodeValue:
-		return leftNode->value;
-	}
-
-	int32_t ticksSinceLeftNode = pos - leftNode->pos;
-	if (!ticksSinceLeftNode) {
-		goto returnLeftNodeValue;
-	}
-
-	if (ticksSinceLeftNode < 0) { // If pos we're looking at is left of leftmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have
-			                                  // arrived at the next node value
-			return rightNode->value;
-		}
-		ticksSinceLeftNode += lengthBeforeLoop;
-	}
-
-	int32_t ticksBetweenNodes = rightNode->pos - leftNode->pos;
-	if (ticksBetweenNodes <= 0) { // If pos we're looking at is right of rightmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop
-		    == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
-			goto returnLeftNodeValue;
-		}
-		ticksBetweenNodes += lengthBeforeLoop;
-	}
-
-	int64_t valueDistance = (int64_t)rightNode->value - (int64_t)leftNode->value;
-	return leftNode->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
+	return getValueAtPos(pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to currentValue
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
-	if (!nodes.getNumElements()) {
+	if (!isAutomated()) {
 		return false;
 	}
-
-	int32_t oldValue = currentValue;
-	currentValue = getValueAtPos(pos, modelStack);
-	return (currentValue != oldValue);
+	return grabValueFromPos(pos, modelStack->getLoopLength());
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
@@ -2000,153 +1889,6 @@ addNewNodeAt0IfNecessary:
 		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
-}
-
-void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {
-	char buffer[9];
-
-	writer.write("0x");
-
-	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
-
-	intToHex(valueNow, buffer);
-	writer.write(buffer);
-
-	if (writeAutomation) {
-
-		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-			ParamNode* thisNode = nodes.getElement(i);
-			intToHex(thisNode->value, buffer);
-			writer.write(buffer);
-
-			uint32_t pos = thisNode->pos;
-			if (thisNode->interpolated) {
-				pos |= ((uint32_t)1 << 31);
-			}
-			intToHex(pos, buffer);
-			writer.write(buffer);
-		}
-	}
-}
-
-// Returns error code.
-// If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
-// Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
-
-	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
-	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
-	deleteAutomationBasicForSetup();
-
-	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-		return Error::NONE;
-	}
-
-	// char buffer[12];
-	char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-	if (!firstChars) {
-		return Error::NONE;
-	}
-
-	// If a decimal, then read the rest of the digits
-	if (*(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-		char buffer[12];
-		buffer[0] = firstChars[0];
-		buffer[1] = firstChars[1];
-
-		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
-		buffer[11] = 0;
-		currentValue = stringToInt(buffer);
-		return Error::NONE;
-	}
-
-	// Or, normal case - hex and automation...
-
-	// First, read currentValue
-	char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8);
-	if (!hexChars) {
-		return Error::NONE;
-	}
-	currentValue = hexToIntFixedLength(hexChars, 8);
-
-	// And now read in the automation
-	int32_t numElementsToAllocateFor = 0;
-
-	if (readAutomationUpToPos) {
-
-		int32_t prevPos = -1;
-
-		while (true) {
-
-			// Every time we've reached the end of a cluster...
-			if (numElementsToAllocateFor <= 0) {
-
-				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
-				if (charsRemaining) {
-
-					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
-					// this check again
-					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
-				}
-			}
-
-			hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
-			if (!hexChars) {
-				return Error::NONE;
-			}
-			int32_t value = hexToIntFixedLength(hexChars, 8);
-			int32_t pos = hexToIntFixedLength(&hexChars[8], 8);
-
-			bool interpolated = (pos & ((uint32_t)1 << 31));
-			if (interpolated) {
-				pos &= ~((uint32_t)1 << 31);
-			}
-
-			// Ensure there isn't some problem where nodes are out of order...
-			if (pos <= prevPos) {
-				D_PRINTLN("Automation nodes out of order");
-				continue;
-			}
-
-			// If we've reached the end of our allowed timeline length for automation...
-			if (pos >= readAutomationUpToPos) {
-
-				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
-				// when it should have been at pos 0. So, reinterpret that data to make it right.
-				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes.getElement(0);
-					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAtIndex(0);
-						if (error != Error::NONE) {
-							return error;
-						}
-						firstNode = nodes.getElement(0);
-						firstNode->pos = 0;
-						firstNode->value = value;
-						firstNode->interpolated = interpolated;
-					}
-				}
-				break;
-			}
-
-			prevPos = pos;
-
-			int32_t nodeI = nodes.insertAtKey(pos, true);
-			if (nodeI == -1) {
-				return Error::INSUFFICIENT_RAM;
-			}
-			ParamNode* node = nodes.getElement(nodeI);
-			node->value = value;
-			node->interpolated = interpolated;
-
-			numElementsToAllocateFor--;
-		}
-	}
-
-	return Error::NONE;
 }
 
 bool AutoParam::containsSomething(uint32_t neutralValue) {

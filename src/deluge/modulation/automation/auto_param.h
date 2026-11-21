@@ -19,9 +19,10 @@
 #include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
-#include "storage/storage_manager.h"
 #include <cstdint>
 
+class Serializer;
+class Deserializer;
 class InstrumentClip;
 class ParamNode;
 class Action;
@@ -55,6 +56,8 @@ public:
 	                       ActionType actionType = ActionType::NOTE_EDIT);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
+	int32_t getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed = false);
+	bool grabValueFromPos(uint32_t pos, int32_t loopLength);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	/// tick the interolator by a number of samples - used for internal synths
 	bool tickSamples(int32_t numSamples, bool use_float_interpolation);
@@ -69,7 +72,7 @@ public:
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
-	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
+	void writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
@@ -147,6 +150,8 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	Error readAutomationFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
+	Error readLegacyAutomationEndpoint(int32_t value, bool interpolated);
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,

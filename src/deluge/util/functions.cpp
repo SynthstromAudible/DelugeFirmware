@@ -610,33 +610,6 @@ uint8_t hexToByte(char const* firstChar) {
 	return value;
 }
 
-// May give wrong result for -2147483648
-int32_t stringToInt(char const* __restrict__ string) {
-	uint32_t number = 0;
-	bool isNegative = (*string == '-');
-	if (isNegative) {
-		string++;
-	}
-
-	while (*string >= '0' && *string <= '9') {
-		number *= 10;
-		number += (*string - '0');
-		string++;
-	}
-
-	if (isNegative) {
-		if (number >= 2147483648) {
-			return -2147483648;
-		}
-		else {
-			return -(int32_t)number;
-		}
-	}
-	else {
-		return number;
-	}
-}
-
 int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	uint32_t number = 0;
 	while (*mem) {
@@ -1925,7 +1898,6 @@ Error fatfsErrorToDelugeError(FatFS::Error result) {
 	}
 }
 
-char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 float sigmoidLikeCurve(const float x, const float xMax, const float softening) {
