@@ -140,6 +140,12 @@ that include it):
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
+**How an R2 stage shows it changes nothing.** Each task runs the parity scripts on the x86 host build's virtual clock,
+the stage's base binary against HEAD (`tools/x86_parity.py`), and the two must agree on every snapshot: the virtual
+clock is deterministic and code layout does not move it, so any difference is behaviour. Each merge adds one
+emulator sweep against upstream main (`tools/emu_parity.py`), which alone sees real timing, ARM code generation, the
+PIC and parity with main.
+
 **R2c-2 and R2c-3 carry these from the menu and the services:**
 
 - **The `menu::host_*` hooks** left in `scenes/menu/bind_host.h`, each retired with its callers:
@@ -158,8 +164,10 @@ that include it):
 - **`ForegroundRecording`** (`AudioFacts::foreground_recording`) is ready for the recorder's and the browser's
   comparisons: `<= NONE` and `!= NONE` become the four-value tests.
 - **`relevance::audio_clip_has_sample`'s waveform read** moves behind a port, with its relevance case on fakes.
-- **`gui/l10n/setting_names.cpp`'s `kSequenceDirectionChoices`** is a duplicate that nothing reaches; R2c-2 removes it
-  or reads it where the sequence-direction choices are shown.
+- **The play-direction choice names have two homes.** The menu draws them from `sequence_direction_names` in
+  `scenes/menu/nodes/sound_actions.cpp`; `gui/l10n/setting_names.cpp`'s `kSequenceDirectionChoices` (behind
+  `kSequenceDirectionNames` and `kClipSequenceDirectionNames`) is a second list that no parity snapshot shows. R2c-2
+  finds its readers and gives the names one home.
 - **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app.
   `context.cpp` links without it. Nine roots name an app symbol themselves; every other menu file outside the driver
   depends on one of them:
