@@ -103,8 +103,9 @@
 /// `scenes-no-frame-primitives`), and nothing names `waveformRenderer` or
 /// `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
-///   * `renderMainPads`' `waveformRenderer.renderFullScreen` ->
-///     `deluge::sample::find_peaks_per_col` + `ui::grid::waveform_full`.
+///   * `renderMainPads`' `waveformRenderer.renderFullScreen` -> the waveforms port's read at the clip's AUDIO_CLIP
+///     address (`services::read_waveform`) + `ui::grid::waveform_full` over its PEAK columns. A frame whose read left
+///     a column pending draws no waveform and asks again (`services::PeakRetry`).
 ///   * the grey region and the two marker columns -> `GridFrame::pad` through the
 ///     main-column region, with the colours resolved here.
 ///   * `renderSidebar`'s black fill -> `ui::grid::sidebar_columns`.

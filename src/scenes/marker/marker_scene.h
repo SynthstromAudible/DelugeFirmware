@@ -291,7 +291,7 @@ private:
 	std::optional<services::ViewKey> view_key_of() const;
 	/// @brief The view the store remembers for the waveform's range or clip, or an empty one.
 	services::SampleView view() const;
-	/// @brief Follow the waveform @p info describes: its length, and a fresh cache when it is another waveform.
+	/// @brief Follow the waveform @p info describes: the view takes its length.
 	void follow_waveform(const bind::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};

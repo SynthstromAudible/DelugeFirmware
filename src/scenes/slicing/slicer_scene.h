@@ -56,6 +56,14 @@
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
+/// A frame whose read left a column pending paints no main pad and asks again (`services::PeakRetry`).
+///
+/// @par Its ports are installed, not given by a context
+///
+/// The menu does not open this scene, so it has no `MenuContext`: it reads the set the host installs with `set_ports`
+/// (`gui::shell_host::install_scene_ports`), each port through `bind::port_of`. With no set installed it reads not
+/// auditioning, a Slow play cursor and no waveform, wipes no logs, and its `next_timer` never reads live.
+///
 /// @par The commit does not need `RecorderScene`'s settled-recorder wait
 ///
 /// `RecorderScene::after_render` waits for `SampleRecorder::settled()` before it finishes a recording, because freeing
