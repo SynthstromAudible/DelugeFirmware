@@ -42,6 +42,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/record_state.h"
 
 #include <string>
 
@@ -683,32 +684,33 @@ describe song_settings_edit("SetSetting", $ {
 		expect(static_cast<int>(drum->arpSettings.numOctaves)).to_equal(4);
 	});
 
-	it("records a synth's polyphony, voice count and MIDI output channel set from the scenes", _ {
+	it("records a synth's polyphony and voice count in its state, and its MIDI output channel in its routing", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
+		const deluge::instrument::SoundState* const state = &spec::menu_engine(ctx).sound->state();
 		expect(state).not_().to_be_null();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
-		expect(state->polyphonic).to_equal(PolyphonyMode::LEGATO);
+		expect(deluge::instrument::voicing(*state).polyphony).to_equal(PolyphonyMode::LEGATO);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 5);
-		expect(static_cast<int>(state->max_voice_count)).to_equal(5);
+		expect(static_cast<int>(deluge::instrument::voicing(*state).max_voices)).to_equal(5);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 0);
-		expect(static_cast<int>(state->max_voice_count)).to_equal(127);
+		expect(static_cast<int>(deluge::instrument::voicing(*state).max_voices)).to_equal(127);
+		const deluge::project::SoundRouting& routing = spec::menu_engine(ctx).sound->routing();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_channel, ctx, 4);
-		expect(static_cast<int>(state->output_midi_channel)).to_equal(3);
+		expect(routing.midi_channel).to_equal(std::optional<uint8_t>{3});
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiChannel)).to_equal(3);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_channel, ctx, 0);
-		expect(static_cast<int>(state->output_midi_channel)).to_equal(static_cast<int>(MIDI_CHANNEL_NONE));
+		expect(routing.midi_channel.has_value()).to_be_false();
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiChannel)).to_equal(static_cast<int>(MIDI_CHANNEL_NONE));
 	});
 
-	it("records the note-for-drum menu's note in the sound's state", _ {
+	it("records the note-for-drum menu's note in the sound's routing", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
-		expect(state).not_().to_be_null();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
-		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
+		expect(spec::menu_engine(ctx).sound->routing().midi_note).to_equal(std::optional<uint8_t>{61});
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiNoteForDrum)).to_equal(61);
 	});
 
@@ -721,9 +723,8 @@ describe song_settings_edit("SetSetting", $ {
 		ctx.addresses.affect_entire = deluge::scenes::menu::bindings::writes_whole_kit(ctx);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
 		for (SoundDrum* drum : {first, second}) {
-			const deluge::instrument::SoundState* state = drum->boundState();
-			expect(state).not_().to_be_null();
-			expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(72);
+			expect(drum->routing().midi_note).to_equal(std::optional<uint8_t>{72});
+			expect(static_cast<int>(drum->outputMidiNoteForDrum)).to_equal(72);
 		}
 	});
 

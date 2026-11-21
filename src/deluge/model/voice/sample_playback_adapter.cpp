@@ -17,12 +17,12 @@
 
 #include "model/voice/sample_playback_adapter.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/source.h"
 
 // --- App-side note lifecycle --------------------------------------------------------------------------------
 
@@ -75,7 +75,6 @@ void SamplePlaybackAdapter::unassign(bool deletingSong) {
 		AudioEngine::voiceSampleUnassigned(voiceSample_);
 		voiceSample_ = nullptr;
 	}
-	source_ = nullptr;
 	settings_ = nullptr;
 	guide_ = nullptr;
 }
@@ -95,8 +94,8 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 	newVoiceSample.doneFirstRenderYet = true;
-	// The new part plays the same note: the render queries read its source and guide
-	source_ = from.source_;
+	// The new part plays the same note: the render queries read its settings and guide
+	settings_ = from.settings_;
 	guide_ = from.guide_;
 	return true;
 }
@@ -188,7 +187,7 @@ uint32_t SamplePlaybackAdapter::adjust_pitch_to_correct_drift_from_sync(uint32_t
 }
 
 int32_t SamplePlaybackAdapter::interpolation_buffer_size(uint32_t phaseIncrement) const {
-	return source_->sampleControls.getInterpolationBufferSize(phaseIncrement);
+	return SampleControls::getInterpolationBufferSize(settings_->interpolation_mode, phaseIncrement);
 }
 
 uint32_t SamplePlaybackAdapter::pending_samples_late() const {
@@ -214,7 +213,7 @@ SamplePlaybackAdapter::LateStartOutcome SamplePlaybackAdapter::attempt_late_star
 
 bool SamplePlaybackAdapter::possibly_set_up_cache(int32_t phaseIncrement, int32_t timeStretchRatio,
                                                   int32_t priorityRating, LoopType loopingType) {
-	return voiceSample_->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement, timeStretchRatio,
+	return voiceSample_->possiblySetUpCache(settings_->interpolation_mode, guide_, phaseIncrement, timeStretchRatio,
 	                                        priorityRating, loopingType);
 }
 

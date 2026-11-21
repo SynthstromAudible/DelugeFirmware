@@ -32,7 +32,7 @@ namespace {
 using deluge::dsp::UQ;
 
 /// One block of @p lfo's wave at the increment's word, as the value's word.
-int32_t render(LFO& lfo, int32_t num_samples, const LFOConfig& config, uint32_t phase_increment) {
+int32_t render(LFO& lfo, int32_t num_samples, const deluge::synth::LfoState& config, uint32_t phase_increment) {
 	return lfo.render(num_samples, config, UQ<32>::from_raw(phase_increment), deluge::synth_noise).raw();
 }
 
@@ -57,7 +57,7 @@ describe lfo_spec_body("LFO", ${
 	// ---- Deterministic waveforms: exact q31 outputs ----
 	it("renders a global triangle from zero", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::TRIANGLE);
+		const deluge::synth::LfoState conf{.shape = LFOType::TRIANGLE};
 		lfo.set_global_initial_phase(conf);
 		expect(render(lfo, 10, conf, 100)).to_equal(0);
 		expect(render(lfo, 0, conf, 0)).to_equal(10 * 100 * 2); // slope of 2 per phase step
@@ -65,7 +65,7 @@ describe lfo_spec_body("LFO", ${
 
 	it("renders a local triangle from the negative extreme", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::TRIANGLE);
+		const deluge::synth::LfoState conf{.shape = LFOType::TRIANGLE};
 		lfo.set_local_initial_phase(conf);
 		expect(render(lfo, 10, conf, 100)).to_equal(INT32_MIN);
 		expect(render(lfo, 0, conf, 0)).to_equal(INT32_MIN + 2000);
@@ -73,7 +73,7 @@ describe lfo_spec_body("LFO", ${
 
 	it("renders a global sine from zero", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::SINE);
+		const deluge::synth::LfoState conf{.shape = LFOType::SINE};
 		lfo.set_global_initial_phase(conf);
 		expect((int32_t)lfo.phase().raw()).to_equal(0); // sin(0) == 0
 		lfo.set_phase(UQ<32>::from_raw(1024));
@@ -83,7 +83,7 @@ describe lfo_spec_body("LFO", ${
 
 	it("renders a local sine from the negative extreme", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::SINE);
+		const deluge::synth::LfoState conf{.shape = LFOType::SINE};
 		lfo.set_local_initial_phase(conf);
 		expect(lfo.phase().raw()).to_equal(3221225472u);
 		expect(render(lfo, 10, conf, 100)).to_equal(-2147418112);
@@ -92,7 +92,7 @@ describe lfo_spec_body("LFO", ${
 
 	it("renders a saw with the same initial phase for local and global", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::SAW);
+		const deluge::synth::LfoState conf{.shape = LFOType::SAW};
 		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase().raw();
 		lfo.set_global_initial_phase(conf);
@@ -103,7 +103,7 @@ describe lfo_spec_body("LFO", ${
 
 	it("renders a square and crosses its phase-width threshold", _ {
 		LFO lfo;
-		LFOConfig conf(LFOType::SQUARE);
+		const deluge::synth::LfoState conf{.shape = LFOType::SQUARE};
 		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase().raw();
 		lfo.set_global_initial_phase(conf);
@@ -117,7 +117,7 @@ describe lfo_spec_body("LFO", ${
 	it("samples and holds a random value per period", _ {
 		seedRng();
 		LFO lfo;
-		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+		deluge::synth::LfoState conf{.shape = LFOType::SAMPLE_AND_HOLD};
 		lfo.set_local_initial_phase(conf);
 		uint32_t local_phase = lfo.phase().raw();
 		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
@@ -147,7 +147,7 @@ describe lfo_spec_body("LFO", ${
 	it("random-walks a biased value per period", _ {
 		seedRng();
 		LFO lfo;
-		LFOConfig conf(LFOType::RANDOM_WALK);
+		deluge::synth::LfoState conf{.shape = LFOType::RANDOM_WALK};
 		lfo.set_local_initial_phase(conf);
 		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.set_global_initial_phase(conf);
@@ -174,7 +174,7 @@ describe lfo_spec_body("LFO", ${
 	it("keeps a global sample-and-hold value across clock re-syncs", _ {
 		seedRng();
 		LFO lfo;
-		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+		const deluge::synth::LfoState conf{.shape = LFOType::SAMPLE_AND_HOLD};
 		lfo.set_global_initial_phase(conf);
 		const int32_t held = render(lfo, 1, conf, 100);
 		expect(held).not_().to_equal(0);
@@ -197,7 +197,7 @@ describe lfo_spec_body("LFO", ${
 		for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
 			seedRng();
 			LFO lfo;
-			LFOConfig conf(type);
+			const deluge::synth::LfoState conf{.shape = type};
 			lfo.set_local_initial_phase(conf);
 			render(lfo, 1, conf, 0x10000000);
 			lfo.set_phase(UQ<32>::from_raw(0x40000000));
@@ -224,7 +224,7 @@ describe lfo_spec_body("LFO", ${
 		for (LFOType type : {LFOType::SAMPLE_AND_HOLD, LFOType::RANDOM_WALK, LFOType::WARBLER}) {
 			seedRng();
 			LFO lfo;
-			LFOConfig conf(type);
+			const deluge::synth::LfoState conf{.shape = type};
 			lfo.set_global_initial_phase(conf, true);
 			render(lfo, 1, conf, 0x10000000);
 
@@ -241,7 +241,7 @@ describe lfo_spec_body("LFO", ${
 	it("samples and holds again after a playback restart", _ {
 		seedRng();
 		LFO lfo;
-		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+		const deluge::synth::LfoState conf{.shape = LFOType::SAMPLE_AND_HOLD};
 		for (int restart = 0; restart < 2; ++restart) {
 			lfo.set_global_initial_phase(conf, true);
 			const int32_t held = render(lfo, 1, conf, 100);
@@ -255,7 +255,7 @@ describe lfo_spec_body("LFO", ${
 	it("warbles at double phase rate", _ {
 		seedRng();
 		LFO lfo;
-		LFOConfig conf(LFOType::WARBLER);
+		const deluge::synth::LfoState conf{.shape = LFOType::WARBLER};
 		lfo.set_local_initial_phase(conf);
 		expect(lfo.phase().raw()).to_equal(0u);
 		render(lfo, 10, conf, 100);

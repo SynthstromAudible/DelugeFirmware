@@ -29,6 +29,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/instrument_load.h"
@@ -136,8 +137,8 @@ void countResidents(int32_t& samples, int32_t& referenced) {
 	}
 }
 
-AudioFileHolder* firstHolder(Source& source) {
-	MultiRange* range = source.getOrCreateFirstRange();
+AudioFileHolder* firstHolder(Sound& sound, int32_t s) {
+	MultiRange* range = sound.getOrCreateFirstRange(s);
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
@@ -176,8 +177,8 @@ bool buildFixture() {
 		g_report.fail("the boot song has no synth");
 		return false;
 	}
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	AudioFileHolder* surviveHolder = firstHolder(synth->sources[0]);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
+	AudioFileHolder* surviveHolder = firstHolder(*synth, 0);
 	if (surviveHolder == nullptr) {
 		g_report.fail("the synth's source has no range");
 		return false;

@@ -110,6 +110,7 @@
 // the headers above that name util:: from inside namespace deluge.
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
+#include "instruments/deluge/state_access.h"
 #include "processing/engines/render_domain.h"
 
 namespace params = deluge::modulation::params;
@@ -555,7 +556,10 @@ void init() {
 	sampleForPreview->performInitialPatching(
 	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
-	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
+	// The preview sends all of itself to the sidechain: its own routing (no record owns it), and the runtime's copy the
+	// render reads
+	sampleForPreview->routingRecord().side_chain_send = deluge::project::SoundRouting::kFullSend;
+	sampleForPreview->applyRouting();
 
 	// Before the first render reads it.
 	voiceBudget.configure(deluge_cycle_hz(), DELUGE_VOICE_BUDGET_PERCENT);
@@ -2164,8 +2168,8 @@ void soundPreview(PreviewVolume const& volume) {
 
 void stopAnyPreviewing() {
 	sampleForPreview->killAllVoices();
-	if (std::ssize(sampleForPreview->sources[0].ranges)) {
-		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
+	if (std::ssize(sampleForPreview->sourceResources[0].ranges)) {
+		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sourceResources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}
 }

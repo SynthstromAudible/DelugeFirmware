@@ -37,6 +37,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/words.h"
 #include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -45,7 +46,7 @@
 #include "modulation/sync.h"
 #include "plugin-api/types/arp_rhythm.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "util/functions.h"
 
 #include "fakes.h"
@@ -58,6 +59,7 @@
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
+#include "support/record_state.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -376,10 +378,11 @@ struct Rig {
 	///        first range.
 	SoundInstrument* without_ranges() {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
-			source.ranges.clear();
+		for (int32_t s = 0; s < kNumSources; s++) {
+			deluge::test::set(*sound->state_, "osc" + std::to_string(s + 1) + "/type", "square");
+			sound->sourceResources[s].ranges.clear();
 		}
+		sound->projectSnapshot();
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
@@ -982,10 +985,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		MenuContext ctx = r.open(horiz_page);
 		::Sound& sound = *spec::menu_engine(ctx).sound;
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[0].getOrCreateFirstRange();
-		sound.sources[0].ranges.getElement(0)->topNote = 40;
-		sound.sources[0].ranges.insertMultiRange(1)->topNote = 60;
-		sound.sources[0].ranges.insertMultiRange(2)->topNote = 32767;
+		(void)sound.getOrCreateFirstRange(0);
+		sound.sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound.sourceResources[0].ranges.insertMultiRange(1)->topNote = 60;
+		sound.sourceResources[0].ranges.insertMultiRange(2)->topNote = 32767;
 		deluge::edits::recordRanges(sound, 0);
 		r.shell.tick(0);
 		char buf[48];
@@ -1766,7 +1769,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::source_group);
-		spec::menu_engine(ctx).sound->setSynthMode(SynthMode::FM, r.song.song);
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "mode",
+		                          deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::FM))));
+		expect(spec::menu_engine(ctx).sound->getSynthMode()).to_equal(SynthMode::FM);
 		const Node* listed[menu::kMaxDynamicChildren];
 		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),
 		                                                       listed, menu::bindings::ListFor::Columns);
@@ -2405,8 +2410,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2454,8 +2459,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kScaleX, kScaleY, 900); // back to page 1 at the same position: the file browser
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(depth_of()).to_equal(0);
-		expect(sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(sound->sources[0].ranges.size()).to_equal(size_t{0});
+		expect(sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(sound->sourceResources[0].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
@@ -2479,7 +2484,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sourceResources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2510,7 +2515,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sourceResources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2558,8 +2563,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);

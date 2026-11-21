@@ -12,7 +12,7 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/DX7Cartridge.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -57,7 +57,7 @@ public:
 		uint8_t loaded = 0;
 		if (sound != nullptr) {
 			for (uint8_t s = 0; s < kNumSources; ++s) {
-				if (sound->sources[s].hasAtLeastOneAudioFileLoaded()) {
+				if (sound->sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 					loaded |= static_cast<uint8_t>(1u << s);
 				}
 			}
@@ -67,7 +67,7 @@ public:
 
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(project::SlotAddress slot) const override {
 		::Sound* sound = sound_at(slot);
-		return sound != nullptr ? sound->boundState() : nullptr;
+		return sound != nullptr ? &sound->state() : nullptr;
 	}
 
 	[[nodiscard]] bool kit_takes_whole_folder(project::SlotAddress slot) const override {
@@ -88,8 +88,8 @@ public:
 		if (sound == nullptr || source >= kNumSources) {
 			return std::nullopt;
 		}
-		const int32_t i = sound->sources[source].defaultRangeI;
-		if (i < 0 || i >= std::ssize(sound->sources[source].ranges)) {
+		const int32_t i = sound->sourceResources[source].defaultRangeI;
+		if (i < 0 || i >= std::ssize(sound->sourceResources[source].ranges)) {
 			return std::nullopt;
 		}
 		return static_cast<uint16_t>(i);
@@ -98,10 +98,10 @@ public:
 	[[nodiscard]] std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
 	                                                     uint16_t range) const override {
 		const ::Sound* sound = sound_at(slot);
-		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sources[source].ranges)) {
+		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sourceResources[source].ranges)) {
 			return std::nullopt;
 		}
-		return sound->sources[source].ranges.getElement(range)->identity();
+		return sound->sourceResources[source].ranges.getElement(range)->identity();
 	}
 
 	[[nodiscard]] std::optional<uint16_t> take_range(const scenes::bind::TakeTarget& target) const override {
@@ -118,7 +118,7 @@ public:
 		if (sound == nullptr) {
 			return std::nullopt;
 		}
-		const MultiRangeArray& ranges = sound->sources[target.source].ranges;
+		const MultiRangeArray& ranges = sound->sourceResources[target.source].ranges;
 		for (int32_t i = 0; i < std::ssize(ranges); i++) {
 			if (ranges.getElement(i)->identity() == *target.range) {
 				return static_cast<uint16_t>(i);

@@ -113,4 +113,20 @@ struct EffectStates {
 	bool operator==(const EffectStates&) const = default;
 };
 
+/// @brief The effect settings a new owner takes from its song: the delay's sync level and the sidechain envelope both
+/// follow the song's tick magnitude, so no constant holds them. The host works them out once from the song.
+struct SongDefaults {
+	plugin::SyncLevel delay_sync_level{plugin::SyncLevel::SIXTEENTH};
+	SidechainState sidechain;
+	bool operator==(const SongDefaults&) const = default;
+};
+
+/// @brief @p effects with the settings that follow the song set from @p defaults: a new owner's effects are
+/// `with_song_defaults(EffectStates{}, defaults)`.
+[[nodiscard]] constexpr EffectStates with_song_defaults(EffectStates effects, const SongDefaults& defaults) {
+	effects.delay.sync_level = defaults.delay_sync_level;
+	effects.sidechain = defaults.sidechain;
+	return effects;
+}
+
 } // namespace deluge::effects

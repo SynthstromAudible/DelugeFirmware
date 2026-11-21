@@ -35,7 +35,7 @@ namespace deluge::harness {
 
 /// @brief Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
-	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
+	bool runtime = true;       ///< what the runtime still holds == the record: types, patches, ranges, effects
 	bool bound = true;         ///< the sound plays its slot's state: the record's, not a copy of it
 	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
 	bool controls = true;      ///< its controls record == its mod knobs; no learned knob outside the table
@@ -52,7 +52,7 @@ struct CoherenceChecks {
 /// @return The encoding, or nullopt where @p song has no such slot.
 std::optional<deluge::serialization::Value> encodedSlot(::Song& song, deluge::project::SlotAddress address);
 
-/// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
+/// @brief Find the first equation @p sound breaks. A sound with no slot in @p song breaks none.
 /// @param sound  The sound to check.
 /// @param song   The song whose project holds the sound's slot and controls records.
 /// @param checks Which equations to hold the sound to.

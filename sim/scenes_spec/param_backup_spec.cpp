@@ -25,6 +25,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/song_load.h"
 
 #include "support/spec_main.h"
 
@@ -45,24 +46,6 @@ constexpr std::string_view kAudioTrackNoClips = R"(<?xml version="1.0" encoding=
 	</sessionClips>
 </song>
 )";
-
-/// @brief Load @p xml into a new song, as a song file is read; null if the read failed.
-Song* load_song(std::string_view xml) {
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
-	Song* song = new (memory) Song();
-	song->paramManager.setupUnpatched();
-	deluge::model::initGlobalParams(&song->paramManager);
-	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
-	if (!tree) {
-		return nullptr;
-	}
-	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(deluge::storage::DocumentFormat::XML));
-	Error error = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
-	if (error == Error::NONE) {
-		error = deluge::bridge::loadSong(*song, adapter);
-	}
-	return error == Error::NONE ? song : nullptr;
-}
 
 /// @brief The minimum `Display` the drum creator's menu and browser opening reach.
 struct StubDisplay final : deluge::hid::Display {
@@ -92,7 +75,7 @@ namespace params = deluge::modulation::params;
 describe param_backup("the song's param backup, by owner and clip id", ${
 	it("an audio track with no clips keeps its saved params through a load", _ {
 		Song* const saved = currentSong;
-		Song* song = load_song(kAudioTrackNoClips);
+		Song* song = deluge::scenes::spec::load_song(kAudioTrackNoClips);
 		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			Output* audio = song->live.media.first_output;

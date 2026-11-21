@@ -454,6 +454,28 @@ void HostEditSink::apply(const WriteRequest& request) {
 			return;
 		}
 	}
+	if (model && model->group == project::SettingGroupId::SOUND_ROUTING && request.where.affect_entire
+	    && request.target.whole_kit && request.where.kit_output) {
+		// A sound's routing with affect-entire held: every sound row of the kit that plays an instrument, as a sound
+		// setting's affect-entire writes them (SetKitSetting)
+		Kit* kit = bridge::kitAt(*currentSong, *request.where.kit_output);
+		if (kit == nullptr) {
+			refusals_++;
+			return;
+		}
+		edits::Context ctx{*currentSong, currentSong->project};
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+			const auto lane = drum->type == DrumType::SOUND ? bridge::laneAddressOf(*drum, *currentSong) : std::nullopt;
+			if (!lane || project::sound_routing(currentSong->project, *lane) == nullptr) {
+				continue;
+			}
+			const project::SettingAddress address{project::SettingGroupId::SOUND_ROUTING, *lane};
+			commit_both(ctx, [&](std::string on, const serialization::Value& value) {
+				return edits::SetSetting{address, std::move(on), value};
+			});
+		}
+		return;
+	}
 	if (model) {
 		bridge::seedArpRecordAt(*currentSong, *model); // an arp's writers seed its record from the arp first
 		edits::Context ctx{*currentSong, currentSong->project};

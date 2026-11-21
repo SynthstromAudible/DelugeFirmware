@@ -57,11 +57,10 @@ enum class Part : uint8_t {
 	LFO_WAVE,
 	LFO_SYNC,
 	EFFECTS,
-	HOST, ///< the sidechain send and the MIDI output, the host's fields
 };
 
 /// @brief The parts an edit changed.
-using Parts = std::bitset<std::to_underlying(Part::HOST) + 1>;
+using Parts = std::bitset<std::to_underlying(Part::EFFECTS) + 1>;
 
 /// @brief The Deluge synth: a sound's settings (SoundState), its codec, and what the settings make of the sound.
 struct DelugeSynth {

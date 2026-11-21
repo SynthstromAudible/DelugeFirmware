@@ -7,7 +7,10 @@
 #include "scenes/menu/bind_host.h"
 
 #include "deluge-project/instrument_slot.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/song.h"
@@ -18,12 +21,16 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/record_state.h"
 
 #include "support/spec_main.h"
 
 #include <array>
 #include <cstdio>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 
 using namespace deluge::scenes;
 namespace params = deluge::modulation::params;
@@ -61,12 +68,49 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 	return found;
 }
 
+/// Takes @p sound's setting at @p path to the file text @p text, through its slot's Edit.
+/// @return Whether the Edit applied.
+bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path,
+                 std::string_view text) {
+	deluge::instrument::SoundState wanted = sound.state();
+	const std::optional<deluge::serialization::Value> written =
+	    deluge::instrument::canonical_setting(path, deluge::serialization::Value::makeScalar(std::string(text)));
+	if (!written || !deluge::instrument::allows_setting(wanted, path, *written)) {
+		return false;
+	}
+	(void)deluge::instrument::write_setting(wanted, path, *written);
+	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
+	if (!value) {
+		return false;
+	}
+	deluge::edits::Context ctx{song, song.project};
+	deluge::edits::SetEngineSetting edit{slot, std::string(path), *value};
+	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+/// Syncs @p sound's LFO @p lfo (1–4) evenly to @p level, through its slot's Edits.
+void set_lfo_sync(Sound& sound, Song& song, deluge::project::SlotAddress slot, int32_t lfo, SyncLevel level) {
+	const std::string prefix = "lfo" + std::to_string(lfo) + "/";
+	set_setting(sound, song, slot, prefix + "syncType", std::to_string(std::to_underlying(SyncType::EVEN)));
+	set_setting(sound, song, slot, prefix + "syncLevel", std::to_string(std::to_underlying(level)));
+}
+
 /// Sets @p sound into every combination of the settings acceptance reads, and counts disagreements over them all.
 int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager, deluge::project::SlotAddress slot,
                                  bool is_drum, std::string& first) {
 	int32_t found = 0;
+	// Ring mod takes ring-moddable oscillators; acceptance reads no oscillator type, so both are saws throughout.
+	for (const char* path : {"osc1/type", "osc2/type"}) {
+		if (!set_setting(sound, song, slot, path, deluge::instrument::to_string(OscType::SAW))) {
+			first = std::string(path) + " refused";
+			return 1;
+		}
+	}
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
-		sound.setSynthMode(mode, &song);
+		if (!set_setting(sound, song, slot, "mode", deluge::instrument::to_string(mode))) {
+			first = "mode " + std::to_string(static_cast<int>(mode)) + " refused";
+			return found + 1;
+		}
 		for (const FilterMode lpf : {FilterMode::TRANSISTOR_24DB, FilterMode::OFF}) {
 			deluge::model::changeEffects(*sound.effectsOwner(),
 			                             [&](deluge::effects::EffectStates& e) { e.filter.lpf_mode = lpf; });
@@ -74,9 +118,9 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 				deluge::model::changeEffects(*sound.effectsOwner(),
 				                             [&](deluge::effects::EffectStates& e) { e.filter.hpf_mode = hpf; });
 				for (const SyncLevel lfo1 : {SyncLevel::NONE, SyncLevel::QUARTER}) {
-					sound.setLfoSync(LFO1_ID, SyncType::EVEN, lfo1);
+					set_lfo_sync(sound, song, slot, 1, lfo1);
 					for (const SyncLevel lfo3 : {SyncLevel::NONE, SyncLevel::QUARTER}) {
-						sound.setLfoSync(LFO3_ID, SyncType::EVEN, lfo3);
+						set_lfo_sync(sound, song, slot, 3, lfo3);
 						std::string here;
 						const int32_t n = disagreements(sound, manager, slot, is_drum, here);
 						if (n != 0 && found == 0) {

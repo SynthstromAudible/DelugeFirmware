@@ -14,8 +14,8 @@ ModelFixture::ModelFixture() {
 	host.tracks.bend_mpe = kDeviceBendRangeMpe;
 	song.output_structure.getOrCreate(kSynth.id);
 	song.drum_structure.getOrCreate(kDrum.id);
-	set_state(kSynth, instrument::new_synth_state());
-	set_state(kDrum, instrument::new_synth_state());
+	set_state(kSynth, instrument::SoundState{});
+	set_state(kDrum, instrument::SoundState{});
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain}) {
 		song.output_structure.getOrCreate(chain.id).effects = project::FxChain{};
 	}
@@ -46,7 +46,8 @@ ModelFixture::ModelFixture() {
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
 	host.sound.states[slot.id] = state;
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
-	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
+	                             .state =
+	                                 plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(state)),
 	                             .tick_magnitude = 1};
 	if (slot.kind == project::SlotAddress::Kind::OUTPUT) {
 		song.output_structure.getOrCreate(slot.id).instrument = std::move(made);

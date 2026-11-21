@@ -35,6 +35,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/song_load.h"
 
 #include "support/spec_main.h"
 
@@ -125,24 +126,6 @@ std::string synth_song_xml(std::string_view midiKnobs) {
 )";
 }
 
-/// @brief Load @p xml into a new song, as a song file is read; null if the read failed.
-Song* load_song(std::string_view xml) {
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
-	Song* song = new (memory) Song();
-	song->paramManager.setupUnpatched();
-	deluge::model::initGlobalParams(&song->paramManager);
-	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
-	if (!tree) {
-		return nullptr;
-	}
-	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(deluge::storage::DocumentFormat::XML));
-	Error error = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
-	if (error == Error::NONE) {
-		error = deluge::bridge::loadSong(*song, adapter);
-	}
-	return error == Error::NONE ? song : nullptr;
-}
-
 /// @brief @p song as it saves, as text.
 std::string saved(Song& song) {
 	std::vector<char> buffer(1U << 20);
@@ -150,31 +133,18 @@ std::string saved(Song& song) {
 	return length > 0 ? std::string(buffer.data(), static_cast<size_t>(length)) : std::string{};
 }
 
-/// @brief The first synth of @p song, playing or (with no clip) hibernating.
-SoundInstrument* synth_of(Song& song) {
-	for (Output* first :
-	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
-		for (Output* output = first; output != nullptr; output = output->next) {
-			if (output->type == OutputType::SYNTH) {
-				return static_cast<SoundInstrument*>(output);
-			}
-		}
-	}
-	return nullptr;
-}
-
 } // namespace
 
 // clang-format off
 describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 	it("puts a song's knobs in its table on the volume the runtime turns, without a cable's range, and saves them so", _ {
-		Song* song = load_song(synth_song_xml(R"(
+		Song* song = spec::load_song(synth_song_xml(R"(
 				<midiKnob channel="1" ccNumber="10" relative="0" controlsParam="volume" />
 				<midiKnob channel="1" ccNumber="11" relative="1" controlsParam="range" />
 				<midiKnob channel="1" ccNumber="12" relative="0" controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
 				<midiKnob channel="1" ccNumber="13" relative="1" controlsParam="pitch" />)"));
 		expect(song).not_().to_be_null("the loaded song");
-		SoundInstrument* synth = song != nullptr ? synth_of(*song) : nullptr;
+		SoundInstrument* synth = song != nullptr ? spec::first_synth(*song) : nullptr;
 		expect(synth).not_().to_be_null("the song's synth");
 		if (synth != nullptr) {
 			expect(synth->id().has_value()).to_be_true("the synth's id");

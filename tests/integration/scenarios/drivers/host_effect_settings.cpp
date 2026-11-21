@@ -165,7 +165,7 @@ void settingLegs(Song& song, const HostOwner& owner) {
 			else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
 				fail(owner, row.path, value, what);
 			}
-			else if (!(runtime->binding->snapshot().effects == runtime->effects())) {
+			else if (!(runtime->binding->renderEffects() == runtime->effects())) {
 				fail(owner, row.path, value, "the render copy differs");
 			}
 			else {

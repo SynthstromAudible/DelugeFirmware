@@ -78,7 +78,7 @@ public:
 		Evaluator::run_uncabled_param(matrix_pass(), control_block, param);
 	}
 
-	dsp::UQ<32> get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
+	dsp::UQ<32> get_local_lfo_phase_increment(const LfoState& config, deluge::modulation::params::Local param,
 	                                          dsp::UQ<32> synced_phase_increment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const matrix::MatrixBlock& control_block, const SoundConfig& config, const BlockValues& cfg,

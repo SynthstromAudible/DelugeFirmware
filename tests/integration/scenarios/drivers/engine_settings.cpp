@@ -20,14 +20,15 @@
 // replaces another. Every legal value of every setting path an Edit maps is set on every bound sound through
 // SetEngineSetting: after each, the slot holds the value, the slot's instrument entries are the encoding of the
 // sound's state (equation 1), and the sound's snapshot is the one its state projects (equation 2); then the old value
-// is restored. Each oscillator keeps its tuning while FM. A kit's affect-entire leg sets one path on all its sound
-// drums at once. Exit: 0 every check holds; 1 the
-// file does not load; 2 usage/IO; 3 a check fails (printed).
+// is restored. Each oscillator keeps its tuning while FM. A loaded sample oscillator's own tuning is in its range
+// and a ring-mod sound's sample oscillator loads as a wavetable one. A kit's affect-entire leg sets one path on all its
+// sound drums at once. Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
 #include "extern.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -152,9 +153,8 @@ int expectBound(Output& output, const char* how) {
 		                         ? output.docOutput_->instrument.has_value()
 		                         : (static_cast<SoundDrum&>(sound).docDrum_ != nullptr
 		                            && static_cast<SoundDrum&>(sound).docDrum_->instrument.has_value());
-		if (code == 0 && (sound.boundState() == nullptr || !slotted)) {
-			std::fprintf(io.err, "UNBOUND %s: a %s of %s has no %s\n", how, kind, output.name.c_str(),
-			             sound.boundState() == nullptr ? "bound state" : "slot");
+		if (code == 0 && !slotted) {
+			std::fprintf(io.err, "UNBOUND %s: a %s of %s has no slot\n", how, kind, output.name.c_str());
 			code = 3;
 		}
 	});
@@ -162,14 +162,13 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 73> kEditedPaths{
+constexpr std::array<std::string_view, 70> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
     "mode",
     "transpose",
     "cents",
-    "sideChainSend",
     "osc1/type",
     "osc1/transpose",
     "osc1/cents",
@@ -211,8 +210,6 @@ constexpr std::array<std::string_view, 73> kEditedPaths{
     "modulator2/cents",
     "modulator2/retrigPhase",
     "modulator2/toModulator1",
-    "midiOutput/channel",
-    "midiOutput/noteForDrum",
     "modFXType",
     "lpfMode",
     "hpfMode",
@@ -252,7 +249,7 @@ bool isSamplePlayback(std::string_view path) {
 /// Whether @p sound's source that @p path names (`oscN/…`) takes the sample-playback setting: a sample source of a
 /// non-FM sound, or for interpolation a live-input one too.
 bool playsSamples(Sound& sound, std::string_view path) {
-	const OscType type = sound.sources[path[3] - '1'].oscType;
+	const OscType type = sound.oscType(path[3] - '1');
 	const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
 	return sound.getSynthMode() != SynthMode::FM
 	       && (type == OscType::SAMPLE || (input && path.ends_with("/linearInterpolation")));
@@ -329,7 +326,7 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 		return "no slot";
 	}
 	const Value encoded =
-	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
+	    deluge::instrument::encode(sound.state(), {.input_tick_magnitude = song.getInputTickMagnitude()});
 	const Value held_tree = slot->state.encode({.input_tick_magnitude = slot->tick_magnitude});
 	const std::string* held = deluge::serialization::text_of(leafAt(held_tree, path));
 	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
@@ -362,7 +359,7 @@ bool takes(Sound& sound, std::string_view path) {
 		return sound.getSynthMode() != SynthMode::FM;
 	}
 	if (path.starts_with("osc") && (path.ends_with("/transpose") || path.ends_with("/cents"))) {
-		return sound.getSynthMode() == SynthMode::FM || sound.sources[path[3] - '1'].oscType != OscType::SAMPLE;
+		return sound.getSynthMode() == SynthMode::FM || sound.oscType(path[3] - '1') != OscType::SAMPLE;
 	}
 	if (path.starts_with("modulator")) {
 		return sound.getSynthMode() == SynthMode::FM;
@@ -396,7 +393,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
 			const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
-			if (!deluge::instrument::allows_setting(*sound.boundState(), path, value)) {
+			if (!deluge::instrument::allows_setting(sound.state(), path, value)) {
 				// Ring mod and an oscillator it cannot ring: refused, the slot as it was.
 				if (deluge::edits::apply(ctx, edit) == Error::NONE
 				    || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)),
@@ -439,12 +436,20 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 }
 
 /// Whether @p a and @p b are the same oscillator in what no FM file holds: its type, ranges, DX patch and playback.
-bool sameHiddenSource(const deluge::instrument::SourceState& a, const deluge::instrument::SourceState& b) {
-	return a.osc_type == b.osc_type && a.ranges == b.ranges && a.dx_patch == b.dx_patch
-	       && a.repeat_mode == b.repeat_mode && a.reversed == b.reversed
-	       && a.pitch_and_speed_independent == b.pitch_and_speed_independent
-	       && a.time_stretch_amount == b.time_stretch_amount && a.interpolation_mode == b.interpolation_mode;
+bool sameHiddenSource(const deluge::instrument::SoundState& a, const deluge::instrument::SoundState& b,
+                      deluge::instrument::SourceId id) {
+	namespace instrument = deluge::instrument;
+	const instrument::DxPatchState* patchA = instrument::dx_patch(a, id);
+	const instrument::DxPatchState* patchB = instrument::dx_patch(b, id);
+	return instrument::source_type(a, id) == instrument::source_type(b, id)
+	       && instrument::source_ranges(a, id) == instrument::source_ranges(b, id)
+	       && (patchA != nullptr) == (patchB != nullptr) && (patchA == nullptr || *patchA == *patchB)
+	       && instrument::sample_playback(a, id) == instrument::sample_playback(b, id);
 }
+
+/// The oscillator slots a sound has, in file order.
+constexpr std::array<deluge::instrument::SourceId, 2> kSourceIds{deluge::instrument::SourceId::A,
+                                                                 deluge::instrument::SourceId::B};
 
 /// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
 /// modulators only while FM, and its oscillators afterwards what they were (the types, samples and DX patches no FM
@@ -452,12 +457,13 @@ bool sameHiddenSource(const deluge::instrument::SourceState& a, const deluge::in
 /// 0 when each holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr) {
+	if (!address) {
 		return 0;
 	}
-	const deluge::instrument::SoundState before = *sound.boundState();
-	const auto tuningOf = [](const deluge::instrument::SourceState& source) {
-		return std::pair{source.transpose, source.cents};
+	const deluge::instrument::SoundState before = sound.state();
+	const auto tuningOf = [](const deluge::instrument::SoundState& state, deluge::instrument::SourceId id) {
+		const deluge::instrument::Tuning tuning = deluge::instrument::source_tuning(state, id);
+		return std::pair{tuning.transpose, tuning.cents};
 	};
 	deluge::edits::Context ctx{song, song.project};
 	const Value old = *leafAt((*deluge::harness::encodedSlot(song, *address)), "mode");
@@ -478,9 +484,9 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		if (mode != "fm") {
 			continue;
 		}
-		for (size_t s = 0; s < before.sources.size(); s++) {
-			const auto now = tuningOf(sound.boundState()->sources[s]);
-			const auto was = tuningOf(before.sources[s]);
+		for (size_t s = 0; s < kSourceIds.size(); s++) {
+			const auto now = tuningOf(sound.state(), kSourceIds[s]);
+			const auto was = tuningOf(before, kSourceIds[s]);
 			if (now != was) {
 				std::fprintf(io.err, "%s mode pair: osc%zu's tuning while FM is %d/%d, it was %d/%d\n", name, s + 1,
 				             now.first, now.second, was.first, was.second);
@@ -490,7 +496,8 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		// While FM, each oscillator's own tuning moves and comes back: its entry changes, and what no FM file holds of
 		// it must outlast that.
 		for (std::string path : {"osc1/transpose", "osc2/transpose"}) {
-			const int32_t was = static_cast<int32_t>(sound.boundState()->sources[path[3] - '1'].transpose);
+			const int32_t was = static_cast<int32_t>(
+			    deluge::instrument::source_tuning(sound.state(), kSourceIds[path[3] - '1']).transpose);
 			for (int32_t to : {was < 96 ? was + 1 : was - 1, was}) {
 				deluge::edits::SetEngineSetting tune{*address, path, Value::makeNumber(to)};
 				if (deluge::edits::apply(ctx, tune) != Error::NONE) {
@@ -500,8 +507,8 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 			}
 		}
 	}
-	for (size_t s = 0; s < before.sources.size(); s++) {
-		if (!sameHiddenSource(sound.boundState()->sources[s], before.sources[s])) {
+	for (size_t s = 0; s < kSourceIds.size(); s++) {
+		if (!sameHiddenSource(sound.state(), before, kSourceIds[s])) {
 			std::fprintf(io.err, "%s mode pair: osc%zu is not the oscillator it was\n", name, s + 1);
 			return 3;
 		}
@@ -515,11 +522,11 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 /// oscillator), else 3 after printing the first that does not.
 int ringModLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr || sound.getSynthMode() == SynthMode::FM
-	    || sound.sources[0].oscType != OscType::SAMPLE) {
+	if (!address || sound.getSynthMode() == SynthMode::FM || sound.oscType(0) != OscType::SAMPLE) {
 		return 0;
 	}
-	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
+	const std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(sound.state(), deluge::instrument::SourceId::A);
 	const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 	deluge::edits::Context ctx{song, song.project};
 	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
@@ -527,8 +534,8 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 	if (deluge::edits::apply(ctx, ringMod) == Error::NONE) {
 		failed = "taken";
 	}
-	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.sources[0].oscType != OscType::SAMPLE
-	         || sound.boundState()->sources[0].ranges != ranges
+	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.oscType(0) != OscType::SAMPLE
+	         || deluge::instrument::source_ranges(sound.state(), deluge::instrument::SourceId::A) != ranges
 	         || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)), slotBefore)
 	                 .empty()) {
 		failed = "the refusal changed the sound";
@@ -561,10 +568,11 @@ int rangeLeg(Sound& sound, Song& song, const char* name) {
 	}
 	deluge::edits::Context ctx{song, song.project};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (!playsSamples(sound, s == 0 ? "osc1/loopMode" : "osc2/loopMode") || sound.sources[s].ranges.empty()) {
+		if (!playsSamples(sound, s == 0 ? "osc1/loopMode" : "osc2/loopMode")
+		    || sound.sourceResources[s].ranges.empty()) {
 			continue;
 		}
-		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sources[s]);
+		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sourceResources[s]);
 		for (const auto& ranges : {nudged(old), old}) {
 			deluge::edits::SetSourceRanges edit{*address, static_cast<uint8_t>(s), ranges};
 			const std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE
@@ -589,10 +597,10 @@ int affectEntireRangeLeg(Kit& kit, Song& song) {
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		auto* soundDrum = drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 		const auto address = soundDrum != nullptr ? deluge::bridge::slotAddressOf(*soundDrum) : std::nullopt;
-		if (!address || !playsSamples(*soundDrum, "osc1/loopMode") || soundDrum->sources[0].ranges.empty()) {
+		if (!address || !playsSamples(*soundDrum, "osc1/loopMode") || soundDrum->sourceResources[0].ranges.empty()) {
 			continue;
 		}
-		before.push_back(deluge::bridge::rangesOf(soundDrum->sources[0]));
+		before.push_back(deluge::bridge::rangesOf(soundDrum->sourceResources[0]));
 		deluge::edits::SetSourceRanges edit{*address, 0, nudged(before.back())};
 		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 			std::fprintf(io.err, "kit %s affect-entire ranges on %s: refused\n", kit.name.c_str(),
@@ -813,7 +821,7 @@ int liveRangeLeg(Song& song) {
 		auto* synth = static_cast<SoundInstrument*>(output);
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
 		int32_t s = 0;
-		while (s < kNumSources && synth->sources[s].ranges.empty()) {
+		while (s < kNumSources && synth->sourceResources[s].ranges.empty()) {
 			s++;
 		}
 		if (!address || s == kNumSources) {
@@ -827,8 +835,8 @@ int liveRangeLeg(Song& song) {
 		if (sounding == 0) {
 			continue;
 		}
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[s]);
-		if (synth->sources[s].oscType == OscType::SAMPLE) {
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sourceResources[s]);
+		if (synth->oscType(s) == OscType::SAMPLE) {
 			ranges.back().transpose = static_cast<int16_t>(ranges.back().transpose == 0 ? 1 : 0);
 		}
 		else {
@@ -886,11 +894,18 @@ int magnitudeLeg(Song& song) {
 	deluge::edits::Context ctx{song, song.project};
 	for (Sound* sound : sounds) {
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*sound);
-		if (!address || sound->boundState() == nullptr) {
+		if (!address) {
 			continue;
 		}
-		const auto levels = sound->boundState()->lfo_sync_level;
-		const deluge::effects::EffectStates effects = sound->boundState()->effects;
+		const auto lfoLevels = [sound] {
+			std::array<deluge::plugin::SyncLevel, 4> levels{};
+			for (size_t l = 0; l < levels.size(); l++) {
+				levels[l] = deluge::instrument::lfo(sound->state(), l).sync_level;
+			}
+			return levels;
+		};
+		const auto levels = lfoLevels();
+		const deluge::effects::EffectStates effects = deluge::instrument::sound_effects(sound->state());
 		const Value priority = *leafAt((*deluge::harness::encodedSlot(song, *address)), "voicePriority");
 		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
@@ -900,12 +915,13 @@ int magnitudeLeg(Song& song) {
 		if (failed.empty() && deluge::edits::apply(ctx, delay) != Error::NONE) {
 			failed = "delay/syncLevel refused";
 		}
-		if (failed.empty() && sound->boundState()->lfo_sync_level != levels) {
+		if (failed.empty() && lfoLevels() != levels) {
 			failed = "the LFO sync levels moved";
 		}
 		if (failed.empty()
-		    && (sound->boundState()->effects.delay.sync_level != effects.delay.sync_level
-		        || sound->boundState()->effects.sidechain.sync_level != effects.sidechain.sync_level)) {
+		    && (deluge::instrument::sound_effects(sound->state()).delay.sync_level != effects.delay.sync_level
+		        || deluge::instrument::sound_effects(sound->state()).sidechain.sync_level
+		               != effects.sidechain.sync_level)) {
 			failed = "the delay's or sidechain's sync level moved";
 		}
 		if (failed.empty()) {
@@ -1066,6 +1082,69 @@ int presetArpLeg(std::string_view bytes, deluge::storage::DocumentFormat format,
 	return 0;
 }
 
+/// A sound as a preset holds it, its first oscillator a sample one (the sample/mono render golden's): @p mode its
+/// engine, @p tuning its own transpose and cents attributes.
+std::string samplePreset(std::string_view mode, std::string_view tuning) {
+	std::string text = R"PRESET(<?xml version="1.0" encoding="UTF-8"?>
+<sound firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" polyphonic="poly" voicePriority="1" mode="@MODE@" lpfMode="24dB" modFXType="none">
+	<osc1 type="sample" loopMode="2" reversed="0" timeStretchEnable="0" timeStretchAmount="0" @TUNING@ fileName="SAMPLES/WT.WAV">
+		<zone startSamplePos="0" endSamplePos="4096" />
+	</osc1>
+	<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+	<lfo1 type="triangle" syncLevel="0" />
+	<lfo2 type="triangle" />
+	<unison num="1" detune="8" />
+	<delay pingPong="1" analog="0" syncLevel="7" />
+	<defaultParams arpeggiatorGate="0x00000000" portamento="0x80000000" compressorShape="0xDC28F5B2" oscAVolume="0x7FFFFFFF" oscAPulseWidth="0x00000000" oscBVolume="0x80000000" oscBPulseWidth="0x00000000" noiseVolume="0x80000000" volume="0x4CCCCCA8" pan="0x00000000" lpfFrequency="0x7FFFFFFF" lpfResonance="0x80000000" hpfFrequency="0x80000000" hpfResonance="0x80000000" lfo1Rate="0x1999997E" lfo2Rate="0x00000000" modulator1Amount="0x80000000" modulator1Feedback="0x80000000" modulator2Amount="0x80000000" modulator2Feedback="0x80000000" carrier1Feedback="0x80000000" carrier2Feedback="0x80000000" modFXRate="0x00000000" modFXDepth="0x00000000" delayRate="0x00000000" delayFeedback="0x80000000" reverbAmount="0x80000000" arpeggiatorRate="0x00000000" stutterRate="0x00000000" sampleRateReduction="0x80000000" bitCrush="0x80000000" modFXOffset="0x00000000" modFXFeedback="0x00000000" waveFold="0x00000000">
+		<envelope1 attack="0x80000000" decay="0xE6666654" sustain="0x7FFFFFFF" release="0x80000000" />
+		<envelope2 attack="0xE6666654" decay="0xE6666654" sustain="0xFFFFFFE9" release="0xE6666654" />
+		<patchCables>
+			<patchCable source="velocity" destination="volume" amount="0x3FFFFFE8" />
+		</patchCables>
+		<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />
+	</defaultParams>
+</sound>
+)PRESET";
+	text.replace(text.find("@MODE@"), 6, mode);
+	text.replace(text.find("@TUNING@"), 8, tuning);
+	return text;
+}
+
+/// The load-rules leg: a loaded sample oscillator's own tuning is in its range, not on it; a ring-mod sound's sample
+/// oscillator loads as a wavetable one. Each is the record the sound plays. 0 when each holds, else 3 after printing.
+int loadRulesLeg(Song& song) {
+	Instrument* tuned = loadPreset(samplePreset("subtractive", R"(transpose="3" cents="5")"),
+	                               deluge::storage::DocumentFormat::XML, OutputType::SYNTH, song);
+	Instrument* ringmod = loadPreset(samplePreset("ringmod", R"(transpose="0" cents="0")"),
+	                                 deluge::storage::DocumentFormat::XML, OutputType::SYNTH, song);
+	if (tuned == nullptr || ringmod == nullptr) {
+		std::fprintf(io.err, "LOADFAIL load-rules presets\n");
+		return 1;
+	}
+	const deluge::instrument::SoundState* a = &static_cast<SoundInstrument*>(tuned)->state();
+	const deluge::instrument::SoundState* b = &static_cast<SoundInstrument*>(ringmod)->state();
+	constexpr deluge::instrument::SourceId kFirst = deluge::instrument::SourceId::A;
+	std::string_view failed;
+	if (a == nullptr || b == nullptr) {
+		failed = "a loaded sound plays no state";
+	}
+	else if (deluge::instrument::source_tuning(*a, kFirst).transpose != 0
+	         || deluge::instrument::source_tuning(*a, kFirst).cents != 0
+	         || deluge::instrument::source_ranges(*a, kFirst).size() != 1
+	         || deluge::instrument::source_ranges(*a, kFirst)[0].transpose != 3
+	         || deluge::instrument::source_ranges(*a, kFirst)[0].cents != 5) {
+		failed = "a sample oscillator's own tuning is not in its range";
+	}
+	else if (deluge::instrument::source_type(*b, kFirst) != OscType::WAVETABLE) {
+		failed = "a ring-mod sound's sample oscillator is not a wavetable one";
+	}
+	if (!failed.empty()) {
+		std::fprintf(io.err, "load rules: %.*s\n", static_cast<int>(failed.size()), failed.data());
+		return 3;
+	}
+	return 0;
+}
+
 int engine_settings_run(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
@@ -1151,6 +1230,9 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 	}
 	if (type == OutputType::SYNTH) {
 		if (int r = presetArpLeg(bytes, deluge::storage::formatOfPath(argv[1]), *first, *currentSong)) {
+			return r;
+		}
+		if (int r = loadRulesLeg(*currentSong)) {
 			return r;
 		}
 	}

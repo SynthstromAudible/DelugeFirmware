@@ -30,6 +30,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
@@ -44,6 +45,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/words.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
@@ -61,6 +63,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/fx/chain_inputs.h"
 #include "model/fx/chain_params.h"
 #include "model/fx/song_stutter.h"
@@ -85,7 +88,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
@@ -453,11 +456,11 @@ MasterFxRender renderMasterFx(ModControllable& master, ParamManager& params) {
 	static int32_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
 	deluge::model::ChainConversions conversions;
-	const deluge::snapshot::ModControllableSnapshot& snapshot = master.effectsOwner()->binding->snapshot();
+	const deluge::model::EffectsBinding& binding = *master.effectsOwner()->binding;
 	const deluge::effects::Delay::State delayState = deluge::model::delayWorkingState(
-	    params, (*master.effectsOwner()->core).delay(), snapshot.effects.delay, false, true, conversions);
+	    params, (*master.effectsOwner()->core).delay(), binding.renderEffects().delay, false, true, conversions);
 	const deluge::effects::FxInputs fx =
-	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState,
+	    deluge::model::hostFxInputs(binding, deluge::model::activeModFXType(binding, params), params, delayState,
 	                                deluge::dsp::Q<31>{}, conversions);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
@@ -821,31 +824,38 @@ bool setupLeg() {
 		if (second == nullptr) {
 			return false;
 		}
-		static_cast<SoundDrum*>(g_kit->firstDrum)->setPolyphonic(PolyphonyMode::CHOKE);
-		second->setPolyphonic(PolyphonyMode::CHOKE);
+		const deluge::serialization::Value choke =
+		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(PolyphonyMode::CHOKE)));
+		deluge::edits::settingFor(*static_cast<SoundDrum*>(g_kit->firstDrum), "polyphonic", choke);
+		deluge::edits::settingFor(*second, "polyphonic", choke);
 		g_drum = second;
 		return true;
 	}
 	case Leg::VoiceMono:
 		// MONO: a second note re-triggers the voice the render is already playing.
-		static_cast<SoundInstrument*>(g_clip->output)->setPolyphonic(PolyphonyMode::MONO);
+		deluge::edits::settingFor(
+		    *static_cast<SoundInstrument*>(g_clip->output), "polyphonic",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(PolyphonyMode::MONO))));
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceKill:
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceFail: {
-		// Ring-mod with a sample source that has no sample: Sound::noteOn lets a ring-mod note through, and the voice's
-		// own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
+		// Ring-mod with a wavetable source that has no file: Sound::noteOn lets a ring-mod note through, and the
+		// voice's own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
-		synth->setSynthMode(SynthMode::RINGMOD, currentSong);
-		synth->sources[0].setOscType(OscType::SAMPLE);
+		deluge::edits::settingFor(
+		    *synth, "mode",
+		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::RINGMOD))));
+		deluge::test::setOscType(*synth, 0, OscType::WAVETABLE);
 		return true;
 	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
-		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
-		if (source.getOrCreateFirstRange() == nullptr || source.ranges.insertMultiRange(1) == nullptr) {
+		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sourceResources[0];
+		if (static_cast<SoundInstrument*>(g_clip->output)->getOrCreateFirstRange(0) == nullptr
+		    || source.ranges.insertMultiRange(1) == nullptr) {
 			return setupFailed("no memory for two multi-ranges");
 		}
 		auditionSynth(kRowNote);
@@ -1318,7 +1328,7 @@ void editLeg() {
 		// The oscillator-type menu's shape (gui/menu_item/osc/type.h): end the voices, then change the type.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		synth->killAllVoices();
-		synth->sources[0].setOscType(OscType::SQUARE);
+		deluge::test::setOscType(*synth, 0, OscType::SQUARE);
 		break;
 	}
 	case Leg::VoiceFail: {

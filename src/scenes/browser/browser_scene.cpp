@@ -173,7 +173,7 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 	if (state == nullptr) {
 		return std::nullopt;
 	}
-	const std::span<const deluge::instrument::RangeState> ranges =
+	const std::vector<deluge::instrument::RangeState> ranges =
 	    deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index));
 	return static_cast<size_t>(ctx.range_index) < ranges.size()
 	           ? std::optional{ranges[static_cast<size_t>(ctx.range_index)].file_path}

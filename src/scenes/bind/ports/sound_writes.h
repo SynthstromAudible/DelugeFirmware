@@ -37,8 +37,8 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
 	                          RangesCause cause) = 0;
-	/// @brief Make @p range the range source @p source of the sound at @p slot remembers (`Source::defaultRangeI`):
-	/// runtime state, as legacy's picker writes it, not an edit.
+	/// @brief Make @p range the range source @p source of the sound at @p slot remembers
+	/// (`SourceResources::defaultRangeI`): runtime state, as legacy's picker writes it, not an edit.
 	virtual void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) = 0;
 	/// @brief Insert a range at @p at into source @p source of the sound at @p slot, with top note @p top_note, and
 	/// give the range below it @p previous_top when set: `MultiRange::selectEncoderAction`'s insert, the voices killed

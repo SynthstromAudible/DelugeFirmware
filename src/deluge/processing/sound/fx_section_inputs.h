@@ -17,22 +17,22 @@
 
 #pragma once
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 
 #include <cstdint>
 
 class ParamManager;
 class Sound;
 
-/// @brief A sound's post-voice chain inputs for one block: its matrix's finals and its unpatched params as
+/// @brief A sound's FxSection inputs for one block: its matrix's finals and its unpatched params as
 /// Sound::render resolves them, its render copy of its settings, and the song's stutter while the sound is the one
 /// stuttering.
-/// @param sound The sound whose chain inputs are gathered.
+/// @param sound The sound whose FxSection inputs are gathered.
 /// @param paramManager The sound's param manager (its unpatched params are read).
-/// @param delay The block's delay working state, which the sound set up on its chain's delay before its voices.
+/// @param delay The block's delay working state, which the sound set up on its FxSection's delay before its voices.
 /// @param anyVoices Whether the sound has voices.
 /// @param reverbSendAmount The sound's reverb send amount.
-/// @return The inputs for the sound's chain for this block.
-[[nodiscard]] deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
-                                                                 const deluge::effects::Delay::State& delay,
-                                                                 bool anyVoices, deluge::dsp::Q<31> reverbSendAmount);
+/// @return The inputs for the sound's FxSection for this block.
+[[nodiscard]] deluge::effects::FxSectionInputs fxSectionInputs(Sound& sound, ParamManager& paramManager,
+                                                               const deluge::effects::Delay::State& delay,
+                                                               bool anyVoices, deluge::dsp::Q<31> reverbSendAmount);

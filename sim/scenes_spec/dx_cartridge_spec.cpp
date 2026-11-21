@@ -10,6 +10,7 @@
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/notices.h"
 
@@ -22,7 +23,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/DX7Cartridge.h"
 
 #include "fakes.h"
@@ -31,7 +32,7 @@
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/oracle_table.h"
-#include "support/printers/sound_state_printer.h"
+#include "support/printers/sound_record_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -117,7 +118,7 @@ struct DxSong {
 	DxSong() {
 		deluge::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
 	~DxSong() { deluge::scenes::spec::make_current(saved); }
 	DxSong(const DxSong&) = delete;
@@ -127,7 +128,7 @@ struct DxSong {
 		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
-	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sources[0]).value(); }
+	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sourceResources[0]).value(); }
 };
 
 /// @brief The card these examples list: `tests/fixtures/scenes_spec/dx_cartridge`, installed for this file before boot
@@ -475,11 +476,11 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]).value()).to_equal(before);
+		expect(deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value()).to_equal(before);
 	});
 
 	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {

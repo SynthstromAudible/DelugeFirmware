@@ -28,10 +28,10 @@
 #include "memory/stack_guard.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
+#include "model/sample/sample_controls.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
@@ -1899,8 +1899,9 @@ void VoiceSample::switchToReadingCacheFromWriting() {
 }
 
 // If returns false, means everything's failed badly and must cut whole VoiceSource (instantUnassign)
-bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
-                                     int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType) {
+bool VoiceSample::possiblySetUpCache(InterpolationMode interpolationMode, SamplePlaybackGuide* guide,
+                                     int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
+                                     LoopType loopingType) {
 
 	if (phaseIncrement == kMaxSampleValue) {
 		return true;
@@ -1908,11 +1909,12 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	if (guide->sequenceSyncLengthTicks && (playbackHandler.isExternalClockActive())) {
 		return true; // No syncing to external clock
 	}
-	if (sampleControls->interpolationMode != InterpolationMode::SMOOTH) {
+	if (interpolationMode != InterpolationMode::SMOOTH) {
 		return true;
 	}
 
-	bool mayCreate = (sampleControls->getInterpolationBufferSize(phaseIncrement) == kInterpolationMaxNumSamples);
+	bool mayCreate =
+	    (SampleControls::getInterpolationBufferSize(interpolationMode, phaseIncrement) == kInterpolationMaxNumSamples);
 	cache = ((Sample*)(guide->audioFileHolder->audioFile))
 	            ->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio,
 	                               guide->playDirection == -1, mayCreate, &writingToCache);

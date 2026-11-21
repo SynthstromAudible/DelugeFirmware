@@ -78,7 +78,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -97,6 +97,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -362,7 +363,7 @@ Sample* make_sample() {
 ///        pointing at `kChosenPath`, so `sample_start_at` lands the browser on that file.
 struct SongRig {
 	spec::SongFixture song = spec::make_synth_song();
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	SongRig(const SongRig&) = delete;
@@ -370,11 +371,12 @@ struct SongRig {
 
 	SongRig() {
 		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		source = &sound->sources[0];
-		source->oscType = OscType::SAMPLE;
-		source->repeatMode = SampleRepeatMode::ONCE;
+		source = &sound->sourceResources[0];
+		deluge::test::set(*sound->state_, "osc1/type", "sample");
+		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
+		sound->projectSnapshot();
 		Sample* sample = make_sample();
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.filePath = std::string{kChosenPath};
 		sample->filePath = std::string{kChosenPath}; // the record names the range's file by its sample
@@ -1466,7 +1468,7 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.timerCallback();
 		// The landed preview, as the previewer leaves it: its sample in the preview drum.
-		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		sample->addReason();
 		preview->sampleHolder.audioFile = sample;

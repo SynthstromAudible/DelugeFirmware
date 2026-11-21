@@ -6,6 +6,7 @@
 #include "scenes/bind/target.h"
 #include "support/model_fixture.h"
 
+#include "support/record_state.h"
 #include <array>
 #include <cppspec.hpp>
 #include <limits>
@@ -168,10 +169,10 @@ describe bind_param("a param target", ${
 			const auto shown = view(t, f.song, where, f.ports());
 			return shown.has_value() && shown->applies;
 		};
-		f.host.sound.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE;
+		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::SUBTRACTIVE));
 		expect(applies(kFmOnly, kOnSynth)).to_be_false();
 		expect(applies(kWithFm, kOnSynth)).to_be_false();
-		f.host.sound.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::FM;
+		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
 		expect(applies(kFmOnly, kOnSynth)).to_be_true();
 		expect(applies(kWithFm, kOnSynth)).to_be_true();
 		f.host.tracks.chains[FakeTrackFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::OFF;

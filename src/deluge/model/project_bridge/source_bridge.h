@@ -25,7 +25,7 @@
 #include <vector>
 
 class Sound;
-class Source;
+class SourceResources;
 
 namespace deluge::bridge {
 
@@ -33,7 +33,7 @@ namespace deluge::bridge {
 ///
 /// @param source The runtime source.
 /// @return The source's ranges.
-[[nodiscard]] std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& source);
+[[nodiscard]] std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& source);
 
 /// @brief Make source @p s of @p sound play @p ranges, changing ranges in place: top notes, a sample range's zone,
 /// loop points, transpose and cents (kept by sample ranges whatever the source's type). When they equal the source's
@@ -53,7 +53,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 ///
 /// @param source The runtime source.
 /// @return The patch, or nullopt.
-[[nodiscard]] std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::Source& source);
+[[nodiscard]] std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResources& source);
 
 /// @brief Give source @p s of @p sound the patch @p patch: its 156 voice bytes, its engine mode and its random detune.
 /// Its voices take the new patch at their next note, as a menu edit does.

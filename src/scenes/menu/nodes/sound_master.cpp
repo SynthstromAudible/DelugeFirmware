@@ -28,7 +28,7 @@
 #include "processing/sound/sound.h"
 #include "serialization/value.h"
 
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include <string>
 
 namespace deluge::scenes::menu::nodes {

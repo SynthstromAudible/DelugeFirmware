@@ -97,7 +97,7 @@ public:
 		}
 		AudioEngine::stopAnyPreviewing(); // also unbinds the preview's holder, so the load looks the path up
 		MultisampleRange* range =
-		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		if (range == nullptr) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			shellSliceReady(false);
@@ -164,7 +164,7 @@ private:
 
 	/// @brief The preview drum's range while it holds a sample file, else null.
 	static const MultisampleRange* heldPreview() {
-		Source& source = AudioEngine::sampleForPreview->sources[0];
+		SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 		if (source.ranges.empty()) {
 			return nullptr;
 		}
@@ -181,7 +181,7 @@ private:
 			return;
 		}
 		const auto* range =
-		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		Sample* sample = range != nullptr ? static_cast<Sample*>(range->sampleHolder.audioFile) : nullptr;
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;

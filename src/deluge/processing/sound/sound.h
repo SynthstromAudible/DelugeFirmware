@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
 #include "model/fx/channel_setup.h"
 #include "model/fx/effects_owner.h"
@@ -26,7 +27,6 @@
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/mod_controllable_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -35,7 +35,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/voice_budget.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"
@@ -66,7 +66,7 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 #include "instruments/deluge/sound_state.h"
 #include <optional>
 #include <utility>
@@ -127,29 +127,27 @@ public:
 	}
 
 	/// @brief The sound's effects after its voices.
-	/// @return The sound's chain.
-	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const { return chain_.core(); }
-	/// @brief The sound's effect settings: its bound record's, else its binding's own.
+	/// @return The sound's FxSection.
+	[[nodiscard]] deluge::effects::FxSection& fxSection() { return fxSection_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() { return fxSection_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const { return fxSection_.core(); }
+	/// @brief The sound's effect settings: the record's they are kept in, else the ones effectsBinding_ holds.
 	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
 	/// @brief The render's copy of the effect settings: it reads nothing else of them.
 	/// @return The render's copy.
-	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
-		return effectsBinding_.snapshot();
-	}
+	[[nodiscard]] const deluge::effects::EffectStates& renderEffects() const { return effectsBinding_.renderEffects(); }
 	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
 	/// @param next The new effect settings.
 	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
-	/// @brief Keep the sound's effect settings in @p record, or in its binding again (model::bindEffects).
+	/// @brief Keep the sound's effect settings in @p record, or in effectsBinding_ itself (model::bindEffects).
 	/// @param record The record that holds the settings, or nullptr.
 	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
 	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
-	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
+	void projectEffects() { deluge::model::projectEffects(*effectsOwner()); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
 		return deluge::model::EffectsOwner{
-		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
+		    .core = &fxSection_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
@@ -164,54 +162,67 @@ public:
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
 
-	/// @brief The Deluge instrument's settings for this sound, once bound: its record's state from Song::adoptOutput /
-	/// adoptDrum on (its own copy, ownedState_, before adoption and once its record goes), null before it is first
-	/// bound (a sound under preview or audition writes its runtime fields and snapshot directly).
-	deluge::instrument::SoundState* state_{nullptr};
-	/// @brief Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state
-	/// was bound.
-	void bindState();
-	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds (binding its
-	/// own state first when unbound), its own state moved in or another record's copied, and from then on every setter
-	/// writes the record.
-	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
-	void bindState(deluge::instrument::SoundState& record);
-	/// @brief Take the state back from the record the sound is bound into, as the record goes: the state moves into the
-	/// sound's own, which it then plays, and the record is left empty. Nothing when it plays its own state already, or
-	/// none.
+	/// @brief The Deluge instrument's settings for this sound, from its construction on: its own state (ownedState_)
+	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
+	deluge::instrument::SoundState* state_{&ownedState_};
+	/// @brief Bind this sound into its record's slot: the slot's state (@p record) and routing (@p routing) take what
+	/// the sound holds, its own moved in or another record's copied, and every setter writes the record while bound.
+	/// @param record  The state the sound's record owns; it must outlive the binding (unbindState before it goes).
+	/// @param routing The routing the same slot owns, beside @p record.
+	void bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing);
+	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
+	/// slot's record the sound is bound into, else in its own state, which its record takes when it is adopted.
+	/// @param loaded The state to play.
+	void adoptState(deluge::instrument::SoundState loaded);
+	/// @brief Take the state and the routing back from the record the sound is bound into, as the record goes: they
+	/// move into the sound's own, which it then plays, and the record is left empty. Nothing when it plays its own
+	/// state already.
 	void unbindState();
-	/// @brief The bound state.
-	/// @return The bound state, or null while unbound.
-	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
-	/// @brief The record this sound plays, to write a change into before applying it; null when unbound.
-	[[nodiscard]] deluge::instrument::SoundState* boundRecord() { return state_; }
+	/// @brief Where this sound's output goes beyond its instrument: its record's slot's routing once adopted, its own
+	/// (ownedRouting_) before, as a preset being read or the sample preview holds it.
+	/// @return The routing.
+	[[nodiscard]] const deluge::project::SoundRouting& routing() const { return *routing_; }
+	/// @brief The routing to write a change into, before applyRouting() projects it.
+	/// @return The routing.
+	[[nodiscard]] deluge::project::SoundRouting& routingRecord() { return *routing_; }
+	/// @brief Set the render's send and the MIDI output's channel and note from the routing.
+	void applyRouting();
+	/// @brief The state this sound plays: its record's once adopted, its own before.
+	/// @return The state.
+	[[nodiscard]] const deluge::instrument::SoundState& state() const { return *state_; }
+	/// @brief The state this sound plays, to write a change into before applying it.
+	/// @return The state.
+	[[nodiscard]] deluge::instrument::SoundState& record() { return *state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
-	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
-	/// @return The seeded state.
-	[[nodiscard]] deluge::instrument::SoundState seededState() const;
-	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
-	///
-	/// @pre state_ is bound.
-	/// @note Run from bindState and again at doneReadingFromFile: a SoundDrum's adoptDrum binds the record before its
-	///       fields are parsed, so the bind-time seed is stale for drums and must be refreshed once parsing has
-	///       finished.
-	void seedDocSoundScalars();
-	/// @brief Copy the scalars seedDocSoundScalars copies, into @p d.
-	/// @param d The record to fill.
-	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
 	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
 	/// doneReadingFromFile and after edits; the render reads it.
 	///
-	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
+	/// Always present, so the render never needs a fallback.
 	deluge::synth::SoundConfig config_{};
-	/// @brief Re-derive config_ from state_; an unbound sound takes its oscillators' settings from them.
+	/// @brief Re-derive config_ from state_.
 	void projectSnapshot();
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
+	/// @brief Oscillator @p s's first range, made when it has none and then recorded as the record's.
+	/// @details The range it makes is the empty default, written to the record at once so a gesture's range Edit
+	/// (`editRange`) finds it there; the gesture's own Edit then records what it puts in the range.
+	/// @return The range, or null when there is no memory for one.
+	MultiRange* getOrCreateFirstRange(int32_t s);
+	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped), when the
+	/// record holds others.
+	void recordHeldRanges(int32_t s);
+	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it, when the record holds another.
+	void recordHeldDxPatch(int32_t s);
+	/// @brief What oscillator @p s plays.
+	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
+	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
+	[[nodiscard]] bool playsReversed(int32_t s) const {
+		return config_.sources[s].reversed != sourceResources[s].invertReversed;
+	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
 	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
@@ -222,7 +233,7 @@ public:
 
 	ParamLPF paramLPF{};
 
-	Source sources[kNumSources];
+	SourceResources sourceResources[kNumSources];
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
@@ -239,7 +250,7 @@ public:
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// modKnobs was historically force-aligned (alignas(8), and before that a 0xDEADBEEF padding word) to mask
-	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became LFOConfig and shifted
+	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became one per-LFO struct and shifted
 	// Sound's layout. The cause was the offsetof-indexed param/patcher plumbing, since replaced by std::span
 	// over the ParamPlane POD (no offsetof; no layout-sensitive param access). The band-aid is therefore
 	// vestigial — removed here, gated on the golden masters not moving (x86 + ARM) + a #2660-repro hardware
@@ -256,44 +267,7 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	/// @brief Set the voice priority.
-	///
-	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
-	/// @param value New priority.
-	void setVoicePriority(VoicePriority value);
-
-	// Setters for the scalar fields the record owns (SoundState). The native fields are kept as caches, seeded at
-	// bind, so the recipe is uniform whether the field is hot like oscillatorSync or cold. Each writes the record
-	// (when bound) and the cache; every runtime write site funnels through these, and save reads the record.
-	void setMaxVoiceCount(uint8_t value);
-	void setSideChainSendLevel(int32_t value);
-	void setOutputMidiChannel(uint8_t value);
-	void setOutputMidiNoteForDrum(uint8_t value);
-	void setOscillatorSync(bool value);
-	// The top-level scalars follow the same recipe; setSynthMode / setNumUnison / setUnison* /
-	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
-	void setPolyphonic(PolyphonyMode value);
-	void setTranspose(int16_t value);
 	[[nodiscard]] int16_t getTranspose() const { return config_.voicing.transpose; }
-	void setModulator1ToModulator0(bool value);
-	void setOscRetriggerPhase(int32_t s, uint32_t value);
-	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
-	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
-	// path.
-	void assignModulatorTranspose(int32_t m, int16_t value);
-	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
-	// path.
-	void assignModulatorCents(int32_t m, int8_t value);
-	// Store the unison settings without recomputing the unison tables — for the load path and default setup;
-	// doneReadingFromFile() and projectSnapshot() compute the tables.
-	void assignNumUnison(uint8_t value);
-	void assignUnisonDetune(int8_t value);
-	void assignUnisonStereoSpread(uint8_t value);
-	// LFO config: the record is authoritative, the render reads a hot cache. Sync writes both fields together to match
-	// the menu gesture (one sync value sets type and level).
-	void setLfoWaveType(int32_t lfoId, LFOType value);
-	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
 	bool skippingRendering = true;
 
@@ -356,14 +330,9 @@ public:
 	bool hasFilters();
 
 	void sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack);
-	void setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack);
 	/// @brief Give the live voices' sample parts the new unison count: a part that comes plays on from its neighbour,
 	/// a part that goes lets go of its clusters. The count, detunes and level are already the new ones.
 	void revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack);
-	void setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack);
-	void setUnisonStereoSpread(int32_t newAmount);
-	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
 	/// @param knobsSong   The song whose table holds the sound's learned knobs (the one being saved, or the one a
@@ -397,18 +366,13 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(SynthMode value, Song* song);
 	[[nodiscard]] SynthMode getSynthMode() const { return config_.engine.mode; }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
-	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
-	// effects (voice kill, filter modes, patching) — for the load path.
-	void assignSynthMode(SynthMode value);
 
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	void set_cents(int8_t new_cents);
 	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
 	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
@@ -432,12 +396,6 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
-	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
-	/// reproject the snapshot. Does nothing when unbound.
-	///
-	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
-	/// another folder).
-	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
@@ -475,7 +433,7 @@ public:
 	void wontBeRenderedForAWhile();
 	virtual ArpeggiatorBase* getArp() = 0;
 
-	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
+	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const deluge::synth::LfoState& config);
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
@@ -522,6 +480,10 @@ private:
 	deluge::audio::VoiceCost voiceCost_;
 	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
+	/// @brief The sound's routing, owned here until a record adopts it (bindState).
+	deluge::project::SoundRouting ownedRouting_;
+	/// @brief The routing the sound plays: ownedRouting_, or its record's slot's.
+	deluge::project::SoundRouting* routing_{&ownedRouting_};
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 
@@ -548,7 +510,7 @@ private:
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
-	deluge::effects::SoundChain chain_;
+	deluge::effects::FxSection fxSection_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
 	/// @brief Set by a read whose element held an arpeggiator.

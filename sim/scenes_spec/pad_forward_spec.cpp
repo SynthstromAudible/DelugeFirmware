@@ -693,11 +693,11 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		for (int32_t i = 0; i < 3; i++) {
-			(void)sound->sources[0].ranges.insertMultiRange(i);
+			(void)sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
-		sound->sources[0].ranges.getElement(0)->topNote = 40;
-		sound->sources[0].ranges.getElement(1)->topNote = 60;
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		// BROWSE, OSC1's file selector: range-dependent, so on a source of several ranges the picker opens first.
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
@@ -708,13 +708,13 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			ShiftHeld shift;
 			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true)).to_equal(ActionResult::DEALT_WITH);
 		}
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
 		currentUIMode = UI_MODE_NONE;
 		{
 			ShiftHeld shift;
 			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true)).to_equal(ActionResult::DEALT_WITH);
 		}
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(2);
 		display->cancelPopup();
 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SAVE, true);
@@ -1079,13 +1079,13 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		for (int32_t i = 0; i < 3; i++) {
-			(void)sound->sources[0].ranges.insertMultiRange(i);
+			(void)sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
 		const int32_t row0 = fx.clip->getYNoteFromYDisplay(0, fx.song) + sound->getTranspose();
 		// Row 0's note and the one above it; two more; the rest (the clip's rows step through its scale).
-		sound->sources[0].ranges.getElement(0)->topNote = static_cast<int16_t>(row0 + 1);
-		sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
-		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = static_cast<int16_t>(row0 + 1);
+		sound->sourceResources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
+		sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false(); // no menu: legacy's own answer
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
@@ -1143,9 +1143,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(before);
 			deluge::gui::ui::refreshShellRangeDisplay();
 			expect(whichSideRowsNeedRendering).not_().to_equal(0);
-			(void)sound->sources[0].ranges.insertMultiRange(2);
-			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
-			sound->sources[0].ranges.getElement(2)->topNote = 32767;
+			(void)sound->sourceResources[0].ranges.insertMultiRange(2);
+			sound->sourceResources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
+			sound->sourceResources[0].ranges.getElement(2)->topNote = 32767;
 			deluge::edits::recordRanges(*sound, 0);
 			deluge::gui::ui::refreshShellRangeDisplay();
 			whichSideRowsNeedRendering = 0;
@@ -1153,12 +1153,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		{
 			// An edge moved under the same range and count: `MultiRange::selectEncoderAction`'s edge arm re-renders the
 			// keyboard only, so the clip view's sidebar keeps its highlight.
-			const int32_t top = sound->sources[0].ranges.getElement(1)->topNote;
-			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top + 1);
+			const int32_t top = sound->sourceResources[0].ranges.getElement(1)->topNote;
+			sound->sourceResources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top + 1);
 			deluge::edits::recordRanges(*sound, 0);
 			deluge::gui::ui::refreshShellRangeDisplay();
 			expect(whichSideRowsNeedRendering).to_equal(0u);
-			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top);
+			sound->sourceResources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top);
 			deluge::edits::recordRanges(*sound, 0);
 			deluge::gui::ui::refreshShellRangeDisplay();
 			whichSideRowsNeedRendering = 0;
@@ -1209,10 +1209,10 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		for (int32_t i = 0; i < 2; i++) {
-			(void)sound->sources[0].ranges.insertMultiRange(i);
+			(void)sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
-		sound->sources[0].ranges.getElement(0)->topNote = 59; // below middle C
-		sound->sources[0].ranges.getElement(1)->topNote = 32767;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 59; // below middle C
+		sound->sourceResources[0].ranges.getElement(1)->topNote = 32767;
 		deluge::edits::recordRanges(*sound, 0);
 		fx.clip->onKeyboardScreen = true;
 		// The pads with no menu up: nothing highlighted, so every lit difference later is the +35.
@@ -1255,7 +1255,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard.
 		deluge::gui::ui::refreshShellRangeDisplay();
 		whichMainRowsNeedRendering = 0;
-		sound->sources[0].ranges.getElement(0)->topNote = 60;
+		sound->sourceResources[0].ranges.getElement(0)->topNote = 60;
 		deluge::edits::recordRanges(*sound, 0);
 		deluge::gui::ui::refreshShellRangeDisplay();
 		expect(whichMainRowsNeedRendering).not_().to_equal(0);

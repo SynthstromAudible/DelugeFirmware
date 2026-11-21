@@ -33,7 +33,7 @@ Error SetEffectSetting::apply(Context& ctx) {
 	if (!deluge::effects::write_effect_setting(next, path_, value_)) {
 		return Error::UNSPECIFIED;
 	}
-	if (deluge::bridge::typedWriteAudit().enabled) {
+	if (deluge::bridge::typedWriteAuditOn()) {
 		deluge::bridge::auditEffectWrite(
 		    owner->effects(), chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::TRACK,
 		    path_, value_, ctx.song.getInputTickMagnitude(), next);

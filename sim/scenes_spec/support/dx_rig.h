@@ -14,6 +14,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -23,7 +24,7 @@
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/menu_engine.h"
 #include "support/mocks/fake_surfaces.h"
@@ -59,13 +60,13 @@ struct DxRig {
 	DxRig() {
 		deluge::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
 	~DxRig() { deluge::scenes::spec::make_current(saved); }
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 
-	DxPatch& patch() { return *sound->sources[0].ensureDxPatch(); }
+	DxPatch& patch() { return *sound->sourceResources[0].ensureDxPatch(); }
 
 	deluge::project::SlotAddress slot() {
 		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)

@@ -35,6 +35,7 @@
 
 #include "cppspec.hpp"
 
+#include "instruments/deluge/state_access.h"
 #include "support/spec_main.h"
 
 #include <algorithm>
@@ -106,7 +107,7 @@ Outcome outcome_of(const Side& side, std::string text) {
 		if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&*owner)) {
 			if (const deluge::instrument::SoundState* state =
 			        deluge::scenes::menu::host_ports().sound->sound_state(*slot)) {
-				out.effects = state->effects;
+				out.effects = deluge::instrument::sound_effects(*state);
 			}
 			if (slot->kind == deluge::project::SlotAddress::Kind::DRUM) {
 				if (const deluge::project::DocDrum* drum = model.drum_structure.find(slot->id)) {

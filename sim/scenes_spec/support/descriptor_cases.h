@@ -344,6 +344,7 @@ enum class Family : uint8_t {
 	AUDIO_CLIP,
 	SONG,
 	CLIP_VALUES,
+	SOUND_ROUTING,
 	// The groups whose rows are named but not driven by the range, read and write checks.
 	NOTE_ROW,
 	CLIP,
@@ -405,11 +406,15 @@ inline SettingContext context_of(Where where, Family family) {
 		                                                                      : Owner::TRACK;
 		break;
 	case Family::INSTRUMENT:
+	case Family::SOUND_ROUTING:
 	case Family::NOTE_ROW:
 	case Family::ARP:
 	case Family::ARP_HOST:
-		// A kit row's own sound, note row and arp are the lane's; a synth's arp and the whole kit's are the clip's.
-		shown.owner = is_kit_lane(where) ? Owner::KIT_LANE : family == Family::INSTRUMENT ? Owner::TRACK : Owner::CLIP;
+		// A kit row's own sound, routing, note row and arp are the lane's; a synth's sound and routing the track's; a
+		// synth's arp and the whole kit's are the clip's.
+		shown.owner = is_kit_lane(where)                                                ? Owner::KIT_LANE
+		              : family == Family::INSTRUMENT || family == Family::SOUND_ROUTING ? Owner::TRACK
+		                                                                                : Owner::CLIP;
 		break;
 	case Family::AUDIO_CLIP:
 	case Family::CLIP_VALUES:
@@ -452,6 +457,8 @@ inline std::span<const SettingInfo> table_of(Family family) {
 		return deluge::project::table_of(deluge::project::SettingGroupId::INSTRUMENT_DEVICE);
 	case Family::AUDIO_INPUT:
 		return deluge::project::table_of(deluge::project::SettingGroupId::AUDIO_INPUT);
+	case Family::SOUND_ROUTING:
+		return deluge::project::table_of(deluge::project::SettingGroupId::SOUND_ROUTING);
 	}
 	return {};
 }
@@ -559,6 +566,9 @@ inline void set_stored(Family family, const MenuContext& ctx, Where where, const
 	case Family::AUDIO_INPUT:
 		deluge::edits::audioInputSettingFor(static_cast<AudioOutput&>(*spec::menu_engine(ctx).output), row.path, value);
 		return;
+	case Family::SOUND_ROUTING:
+		deluge::edits::routingSettingFor(*spec::menu_engine(ctx).sound, row.path, value);
+		return;
 	}
 	(void)where;
 }
@@ -568,7 +578,7 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
-		value = deluge::instrument::setting_value(*spec::menu_engine(ctx).sound->boundState(), row.path);
+		value = deluge::instrument::setting_value(spec::menu_engine(ctx).sound->state(), row.path);
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(
@@ -633,6 +643,9 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		value = deluge::project::read_setting(song_of(where).project, {group, *address}, row.path);
 		break;
 	}
+	case Family::SOUND_ROUTING:
+		value = deluge::project::read_routing_setting(spec::menu_engine(ctx).sound->routing(), row.path);
+		break;
 	}
 	if (!value) {
 		return std::nullopt;
@@ -682,6 +695,8 @@ inline std::string_view name_of(Family family) {
 		return "INSTRUMENT_DEVICE";
 	case Family::AUDIO_INPUT:
 		return "AUDIO_INPUT";
+	case Family::SOUND_ROUTING:
+		return "SOUND_ROUTING";
 	}
 	return "";
 }
@@ -896,7 +911,7 @@ struct SpecReader {
 			        switch (owner.family) {
 			        case Family::INSTRUMENT: {
 				        const std::optional<int32_t> held =
-				            deluge::instrument::held_setting(*spec::menu_engine(owner.ctx).sound->boundState(), path);
+				            deluge::instrument::held_setting(spec::menu_engine(owner.ctx).sound->state(), path);
 				        if (!held) {
 					        owner.unknown.emplace_back(path);
 				        }
@@ -985,6 +1000,8 @@ inline std::vector<NamesOwner> owners_of(Family family) {
 		return {SettingGroupId::INSTRUMENT_DEVICE};
 	case Family::AUDIO_INPUT:
 		return {SettingGroupId::AUDIO_INPUT};
+	case Family::SOUND_ROUTING:
+		return {SettingGroupId::SOUND_ROUTING};
 	}
 	return {};
 }
@@ -1099,7 +1116,7 @@ inline const std::vector<Case>& voice_cases() {
 	    {.path = "voicePriority", .family = Family::INSTRUMENT},
 	    {.path = "maxVoices", .family = Family::INSTRUMENT, .stored = {1, 16, 17, 126, 127}},
 	    {.path = "sideChainSend",
-	     .family = Family::INSTRUMENT,
+	     .family = Family::SOUND_ROUTING,
 	     .where = Where::KIT_LANE,
 	     .stored = {21474836, 21474837, 42949673, 1073741823, 2126008811, 2126008812}},
 	    {.path = "mode", .family = Family::INSTRUMENT, .writes = kNoFrozenWrite},
@@ -1168,8 +1185,8 @@ inline const std::vector<Case>& unison_and_midi_cases() {
 	    {.path = "unison/num", .family = Family::INSTRUMENT},
 	    {.path = "unison/detune", .family = Family::INSTRUMENT},
 	    {.path = "unison/spread", .family = Family::INSTRUMENT},
-	    {.path = "midiOutput/channel", .family = Family::INSTRUMENT},
-	    {.path = "midiOutput/noteForDrum", .family = Family::INSTRUMENT, .where = Where::KIT_LANE},
+	    {.path = "midiOutput/channel", .family = Family::SOUND_ROUTING},
+	    {.path = "midiOutput/noteForDrum", .family = Family::SOUND_ROUTING, .where = Where::KIT_LANE},
 	};
 	return cases;
 }
@@ -1417,7 +1434,7 @@ inline std::optional<int32_t> probe_int(std::string_view path, size_t at = 0) {
 /// An unset note (stored 255, which no menu value of the row stores) shows as `to_menu(row, 255)`, the note it plays;
 /// the item's reading of it is the frozen probe.
 inline bool note_for_drum_differs() {
-	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
+	const SettingInfo& row = table_row(Family::SOUND_ROUTING, "midiOutput/noteForDrum");
 	const std::optional<int32_t> shown = probe_int("midiOutput/noteForDrum");
 	const int32_t unset = int32_t{MIDI_NOTE_NONE};
 	return shown && unset > deluge::plugin::stored_bounds(row).second && *shown == to_menu(row, unset);
@@ -1480,7 +1497,7 @@ inline bool reverb_volume_differs() {
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
 /// (`descriptor_oracle_spec.cpp`), so a row that comes to agree leaves the list.
 inline const Exception kExceptions[] = {
-    {plugin::kDelugeInstrument, "midiOutput/noteForDrum",
+    {SettingGroupId::SOUND_ROUTING, "midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
      "it",
      &note_for_drum_differs},

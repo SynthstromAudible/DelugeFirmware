@@ -303,10 +303,10 @@ bool openMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessio
 	//
 	// Remembering the previously selected range across sessions (`SoundEditor::setup` in
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not done here either: the source keeps it
-	// (`Source::defaultRangeI`), which the picker reads.
+	// (`SourceResources::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
-	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check
+	// `SourceResources::getOrCreateFirstRange()`'s allocation inside the legacy permission check
 	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) belongs to whoever *opens* a range-dependent
 	// item, and this function does not: it hands the node id to `MenuScene::on_enter` through `SceneId::arg`, which is
 	// where the open happens and where it belongs. Site 8 -- the only site here that names a leaf -- is the one this

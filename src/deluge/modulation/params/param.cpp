@@ -65,7 +65,7 @@ char const* getPatchedParamShortName(ParamType type, const deluge::model::Effect
 	if (owner == nullptr) {
 		return getPatchedParamShortName(type);
 	}
-	const auto& filter = owner->binding->snapshot().effects.filter;
+	const auto& filter = owner->binding->renderEffects().filter;
 	return getPatchedParamShortName(type, filter.lpf_mode, filter.hpf_mode);
 }
 
@@ -81,7 +81,7 @@ char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::Effec
 	if (owner == nullptr) {
 		return getParamDisplayName(kind, p);
 	}
-	const auto& filter = owner->binding->snapshot().effects.filter;
+	const auto& filter = owner->binding->renderEffects().filter;
 	return getParamDisplayName(kind, p, filter.lpf_mode, filter.hpf_mode);
 }
 

@@ -60,24 +60,24 @@ void LFO::emplace_wave(LFOType type) {
 // LFO2 always starts from the negative extreme (it triggers per note-on), but LFO1
 // has historically waveform-specific behaviour when synced.
 
-void LFO::set_local_initial_phase(const LFOConfig& config) {
-	emplace_wave(config.wave_type); // fresh wave → accumulators zeroed (matches a per-note-on reset)
-	phase_ = get_lfo_initial_phase_for_negative_extreme(config.wave_type);
+void LFO::set_local_initial_phase(const deluge::synth::LfoState& config) {
+	emplace_wave(config.shape); // fresh wave → accumulators zeroed (matches a per-note-on reset)
+	phase_ = get_lfo_initial_phase_for_negative_extreme(config.shape);
 }
 
-void LFO::set_global_initial_phase(const LFOConfig& config, bool reset_state) {
+void LFO::set_global_initial_phase(const deluge::synth::LfoState& config, bool reset_state) {
 	// Clock re-syncs call this repeatedly during playback, so they only realign the phase: the random waveforms
 	// keep their held value and filter state. Playback start resets that state too.
 	if (reset_state) {
-		emplace_wave(config.wave_type);
+		emplace_wave(config.shape);
 	}
 	else {
-		select_wave(config.wave_type);
+		select_wave(config.shape);
 	}
-	if (config.wave_type == LFOType::SINE || config.wave_type == LFOType::TRIANGLE) {
-		phase_ = get_lfo_initial_phase_for_zero(config.wave_type);
+	if (config.shape == LFOType::SINE || config.shape == LFOType::TRIANGLE) {
+		phase_ = get_lfo_initial_phase_for_zero(config.shape);
 	}
 	else {
-		phase_ = get_lfo_initial_phase_for_negative_extreme(config.wave_type);
+		phase_ = get_lfo_initial_phase_for_negative_extreme(config.shape);
 	}
 }

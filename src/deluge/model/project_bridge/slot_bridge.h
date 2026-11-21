@@ -100,6 +100,19 @@ struct TypedWriteAudit {
 /// @return The audit.
 TypedWriteAudit& typedWriteAudit();
 
+/// @brief Whether this build carries the typed-write audit: the host builds the gates run (the harness, the scenes
+/// specs, the simulator) do; the device image makes the typed writes alone.
+#if defined(DELUGE_HOST)
+inline constexpr bool kTypedWriteAuditBuilt = true;
+#else
+inline constexpr bool kTypedWriteAuditBuilt = false;
+#endif
+
+/// @brief Whether the audit checks the writes made now: built in, and enabled by a gate.
+[[nodiscard]] inline bool typedWriteAuditOn() {
+	return kTypedWriteAuditBuilt && typedWriteAudit().enabled;
+}
+
 /// @brief The encoded state the old way starts from when the audit is enabled, else nothing (and the caller builds no
 /// changed tree).
 ///
@@ -138,8 +151,9 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got);
 
-/// @brief @p sound's record re-read from the runtime and its controls record set from its knobs, when it is bound in
-/// @p song.
+/// @brief What loading made of @p sound's oscillators (clamped zones, found files, a made DX7 patch) recorded through
+/// the Edits a gesture would make, its effects reprojected and its controls record set from its knobs, when it is
+/// bound in @p song.
 ///
 /// @param sound The sound.
 /// @param song  The song.

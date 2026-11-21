@@ -90,6 +90,7 @@
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -266,7 +267,7 @@ Sample* make_overview_sample(int32_t investigated_clusters = 32) {
 struct PreviewHeld {
 	MultisampleRange* range;
 	explicit PreviewHeld(Sample* sample)
-	    : range(static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange())) {
+	    : range(static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0))) {
 		range->sampleHolder.audioFile = sample;
 	}
 	~PreviewHeld() { range->sampleHolder.audioFile = nullptr; }
@@ -307,6 +308,12 @@ MenuContext sound_context(spec::SongFixture& f) {
 	MenuContext ctx = context_of(f);
 	(void)menu::ensure_first_range(ctx);
 	return ctx;
+}
+
+/// @brief Make @p sound a ring-mod synth before the browser opens on it: its state, and the config derived from it.
+void ring_mod(Sound& sound) {
+	deluge::test::set(sound.record(), "mode", "ringmod");
+	sound.projectSnapshot();
 }
 
 /// @brief Press Select on the next tick.
@@ -2544,7 +2551,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		ring_mod(*static_cast<SoundInstrument*>(f.instrument));
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		select_folder(r, true);
@@ -2558,7 +2565,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		ring_mod(*static_cast<SoundInstrument*>(f.instrument));
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		select_folder(r, false);

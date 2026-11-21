@@ -24,23 +24,20 @@
 
 namespace deluge::model {
 
+deluge::effects::SongDefaults songDefaults() {
+	// The song being loaded, or else the current one; with none, the stored default magnitude
+	const Song* song = preLoadedSong != nullptr ? preLoadedSong : currentSong;
+	const int32_t magnitude = song != nullptr
+	                              ? song->project.transport.inside_world_tick_magnitude
+	                                    + song->project.transport.inside_world_tick_magnitude_offset_from_bpm
+	                              : FlashStorage::defaultMagnitude;
+	return {.delay_sync_level = static_cast<SyncLevel>(8 - magnitude),
+	        .sidechain = modulation::default_sidechain_state()};
+}
+
 EffectsBinding::EffectsBinding() {
-	SyncLevel syncLevel;
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8
-		                        - (song->project.transport.inside_world_tick_magnitude
-		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
-	own_.delay.sync_level = syncLevel;
-	own_.sidechain = modulation::default_sidechain_state();
-	snapshot_.effects = own_; // nothing renders this owner yet
+	own_ = deluge::effects::with_song_defaults(own_, songDefaults());
+	render_effects_ = own_; // nothing renders this owner yet
 }
 
 void EffectsBinding::store(const deluge::effects::EffectStates& next) {
@@ -53,11 +50,8 @@ void EffectsBinding::store(const deluge::effects::EffectStates& next) {
 }
 
 void EffectsBinding::bind(deluge::effects::EffectStates* record) {
-	if (record != nullptr) {
-		*record = effects();
-	}
-	else if (bound_ != nullptr) {
-		own_ = *bound_;
+	if (record == nullptr && bound_ != nullptr) {
+		own_ = *bound_; // the record goes: its settings stay here
 	}
 	bound_ = record;
 }
@@ -71,13 +65,13 @@ void EffectsBinding::project(deluge::effects::ChainCore& core, std::size_t delay
 	deluge::effects::DelayChange delayChange = core.delay().prepare(delayType);
 	{
 		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
-		snapshot_.effects = effects();
+		render_effects_ = effects();
 		if (modFXParam) {
-			snapshot_.mod_fx_param = *modFXParam;
+			render_mod_fx_param_ = *modFXParam;
 		}
-		core.mod_fx().commit(snapshot_.effects.mod_fx.type, ring);
+		core.mod_fx().commit(render_effects_.mod_fx.type, ring);
 		noteStructuralEdit(StructuralContainer::MOD_FX_RING);
-		core.granular().commit(snapshot_.effects.mod_fx.type, grain);
+		core.granular().commit(render_effects_.mod_fx.type, grain);
 		noteStructuralEdit(StructuralContainer::GRAIN_BLOCK);
 		core.delay().commit(delayType, delayChange, delayReserve);
 		noteStructuralEdit(StructuralContainer::DELAY_TAPE);

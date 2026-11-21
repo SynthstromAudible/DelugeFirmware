@@ -17,7 +17,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/menu_engine.h"
 #include "support/oracle_tree.h"
@@ -109,7 +109,7 @@ struct RangeFixture {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (int32_t i = 0; i < n; i++) {
-			(void)sound->sources[0].ranges.insertMultiRange(i);
+			(void)sound->sourceResources[0].ranges.insertMultiRange(i);
 		}
 		if (n > 0) {
 			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
@@ -129,7 +129,7 @@ struct RangeFixture {
 	void set_tops(std::span<const int16_t> tops) {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (size_t i = 0; i < tops.size(); i++) {
-			sound->sources[0].ranges.getElement(static_cast<int32_t>(i))->topNote = tops[i];
+			sound->sourceResources[0].ranges.getElement(static_cast<int32_t>(i))->topNote = tops[i];
 		}
 		deluge::edits::recordRanges(*sound, 0);
 	}

@@ -1,5 +1,8 @@
 # Synth Phase 2 — Data plane & modulation-core extraction
 
+> **The model today:** an LFO's settings are `synth::LfoState` (`src/synth/modulation/lfo_state.h`), from the
+> sound's record to the render; this plan records the June state it was written against.
+
 > **Status:** Planning (2026-06-14). Re-scoped from the original
 > `synth_untangling_plan.md` §Phase-2 ("Kill the offsetof data plane") after
 > auditing the current tree — see §1. Prerequisite Phase 1 (the `dsp-next` L0

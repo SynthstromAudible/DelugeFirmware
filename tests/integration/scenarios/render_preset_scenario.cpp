@@ -205,7 +205,7 @@ void stepStart() {
 void moveZoneEnd() {
 	Clip* clip = currentSong->live.clips.session_clips[0];
 	auto& sound = *static_cast<SoundInstrument*>(clip->output);
-	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	ranges[0].end_pos = g_zoneMoveEnd;
 	deluge::edits::rangesFor(sound, 0, std::move(ranges));
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -222,8 +222,11 @@ void moveZoneEnd() {
 void applySettingNow() {
 	Clip* clip = currentSong->live.clips.session_clips[0];
 	auto& sound = *static_cast<SoundInstrument*>(clip->output);
-	const Error error = deluge::bridge::applySetting(
-	    sound, g_settingPath, deluge::serialization::Value::makeScalar(g_settingValue), *currentSong);
+	const std::optional<deluge::project::SlotAddress> slot = deluge::bridge::slotAddressOf(sound);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetEngineSetting edit{slot.value_or(deluge::project::SlotAddress{}), g_settingPath,
+	                                     deluge::serialization::Value::makeScalar(g_settingValue)};
+	const Error error = slot ? deluge::edits::apply(ctx, edit) : Error::UNSPECIFIED;
 	if (error != Error::NONE) {
 		g_report.fail("SETTING the setting was refused");
 		return;

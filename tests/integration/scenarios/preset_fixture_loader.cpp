@@ -16,13 +16,15 @@
  */
 
 #include "scenarios/preset_fixture_loader.h"
+#include "support/sound_fixtures.h"
 
 #include "gui/views/session_view.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
@@ -93,13 +95,14 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	MultiRange* range = synth->sources[0].getOrCreateFirstRange();
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
+	MultiRange* range = synth->getOrCreateFirstRange(0);
 	AudioFileHolder* holder = (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 	if (holder == nullptr) {
 		return false;
 	}
 	holder->filePath = samplePath;
+	deluge::edits::recordRanges(*synth, 0); // the set-up synth plays its state, which the save writes
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	if (StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false)
 	    != Error::NONE) {

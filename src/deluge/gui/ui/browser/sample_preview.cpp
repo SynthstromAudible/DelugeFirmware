@@ -12,7 +12,7 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/volume_param_gain.h"
@@ -134,7 +134,7 @@ void SamplePreviewer::start(Target target) {
 	generation_++;
 
 	AudioEngine::stopAnyPreviewing(); // Also unbinds the preview's holder, so the load looks the new path up.
-	MultisampleRange* range = (MultisampleRange*)AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange();
+	MultisampleRange* range = (MultisampleRange*)AudioEngine::sampleForPreview->getOrCreateFirstRange(0);
 	if (range == nullptr) {
 		load_.cancel();
 		display->displayError(Error::INSUFFICIENT_RAM);
@@ -202,7 +202,7 @@ SamplePreviewer::finish(deluge::storage::LatestSampleLoad<Target>::Outcome outco
 	}
 
 	bool hasSample = false;
-	Source& source = AudioEngine::sampleForPreview->sources[0];
+	SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 	if (std::ssize(source.ranges) >= 1) {
 		hasSample = ((MultisampleRange*)source.ranges.getElement(0))->sampleHolder.audioFile != nullptr;
 	}

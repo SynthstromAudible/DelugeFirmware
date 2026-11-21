@@ -17,19 +17,17 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "effects/state.h"
+#include "definitions_cxx.hpp" // LFOType
+#include "plugin-api/types/sync.h"
 
-namespace deluge::snapshot {
+namespace deluge::synth {
 
-/// @brief The render's copy of an effects owner's settings: the render reads nothing else of them.
-///
-/// Replaced whole, with the render excluded, whenever the owner's settings change (model::storeEffects).
-struct ModControllableSnapshot {
-	deluge::effects::EffectStates effects;
-	/// A host chain's selected mod FX knob, which its soft off reads (model::activeModFXType); set with
-	/// the render excluded whenever the chain's view changes. A sound's is not read.
-	ModFXParam mod_fx_param{ModFXParam::FEEDBACK};
+/// @brief What an LFO saves: its shape, and how it follows the song's tempo (level NONE runs free).
+struct LfoState {
+	LFOType shape{LFOType::TRIANGLE};
+	plugin::SyncType sync_type{plugin::SyncType::EVEN};
+	plugin::SyncLevel sync_level{plugin::SyncLevel::NONE};
+	bool operator==(const LfoState&) const = default;
 };
 
-} // namespace deluge::snapshot
+} // namespace deluge::synth
