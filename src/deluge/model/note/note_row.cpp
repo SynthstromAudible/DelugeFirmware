@@ -24,6 +24,7 @@
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
@@ -67,6 +68,7 @@ NoteRow::NoteRow(int16_t newY) {
 }
 
 NoteRow::~NoteRow() {
+	DeferredNoteOns::forgetNoteRow(this);
 	deleteOldDrumNames(false);
 }
 
@@ -1872,6 +1874,8 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 	if (!sequenced) {
 		return;
 	}
+	// If its note-on was held back from the tick and hasn't been sent yet, it mustn't be now
+	DeferredNoteOns::forgetNoteRow(this);
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}

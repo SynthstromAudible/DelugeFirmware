@@ -56,6 +56,8 @@ public:
 	void halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack);
 	void repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t posIncrement) override;
+	/// Send a note-on from one of this Clip's NoteRows to the Output
+	void sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
@@ -247,7 +249,6 @@ private:
 
 	void deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStackWithTimelineCounter* modelStack,
 	                                    bool mustKeepLastOne = true, bool keepOnesWithMIDIInput = true);
-	void sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
 	Error undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack);
 	void deleteBackedUpParamManagerMIDI();
 	bool possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoDrum, Song* song, bool onlyIfNonNumeric = false,
