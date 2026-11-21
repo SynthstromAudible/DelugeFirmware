@@ -61,35 +61,32 @@ uint32_t Sound::voiceRating(const SoundVoice& voice) const {
 	return voice.kernel.priority_rating(config_.voicing.priority, numActiveVoices());
 }
 
-void Sound::changeVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t noteBeforeArp,
-                            int32_t noteAfterArp, int32_t midiChannel,
-                            std::span<const int16_t, kNumExpressionDimensions> mpe) {
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
-	voice.kernel.change_note(note_setup_for(voice, *this, paramManager, flags, noteAfterArp, 0, 0, true), config_,
-	                         noteBeforeArp, noteAfterArp, midiChannel, mpe);
-}
-
 void Sound::calculateVoicePhaseIncrements(SoundVoice& voice, ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	voice.kernel.calculate_phase_increments(
 	    note_setup_for(voice, *this, paramManager, flags, voice.kernel.note_code(), 0, 0, true), config_);
 }
 
-void Sound::releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed,
-                             bool allowReleaseStage) {
+deluge::synth::ReleaseInfo Sound::prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager,
+                                                      bool noteTailsAllowed) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		voice.part.guides[s].noteOffReceived = true;
 	}
+	return release_info_for(*this, paramManager, noteTailsAllowed);
+}
 
-	voice.kernel.note_off(release_info_for(*this, paramManager, noteTailsAllowed), allowReleaseStage,
-	                      AudioEngine::voiceClock());
-
+void Sound::voiceReleased() {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		SourceResources* source = &sourceResources[s];
 		if (oscType(s) == OscType::SAMPLE) {
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
+}
+
+void Sound::releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed) {
+	voice.kernel.note_off(prepareVoiceRelease(voice, paramManager, noteTailsAllowed), true, AudioEngine::voiceClock());
+	voiceReleased();
 }
 
 void Sound::voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s) {
@@ -314,4 +311,18 @@ SoundVoiceHost::Noise& SoundVoiceHost::noise() {
 
 uint32_t SoundVoiceHost::steal_increment() {
 	return kSoftCullIncrement;
+}
+
+deluge::synth::ReleaseInfo SoundVoiceHost::prepare_release(SoundVoice& voice, Context modelStack,
+                                                           bool noteTailsAllowed) const {
+	return sound->prepareVoiceRelease(voice, static_cast<ParamManagerForTimeline*>(modelStack->paramManager),
+	                                  noteTailsAllowed);
+}
+
+void SoundVoiceHost::note_released(SoundVoice& /*voice*/) const {
+	sound->voiceReleased();
+}
+
+void SoundVoiceHost::last_note(int32_t note) const {
+	sound->lastNoteCode = note;
 }

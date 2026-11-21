@@ -70,6 +70,11 @@ struct FakeSetup {
 /// @brief The noise the kernel draws from; only passed through.
 struct FakeNoise {};
 
+/// @brief The release a fake host prepares: whether note tails were allowed.
+struct FakeRelease {
+	bool tails{};
+};
+
 /// @brief A kernel whose rating, cull fade and release stage are set, that stops after a set number of releases, and
 /// that logs its note path calls into its host's log.
 struct FakeKernel {
@@ -81,28 +86,34 @@ struct FakeKernel {
 	bool in_fast_release{};      ///< fast_releasing()
 	bool starts{true};           ///< What note_on() returns
 	std::array<int32_t, 2> levels{};
+	int32_t note{};                  ///< note_code()
 	std::vector<std::string>* log{}; ///< The host's log, set by acquire()
 
+	[[nodiscard]] int32_t note_code() const { return note; }
 	[[nodiscard]] bool releasing() const { return in_release; }
+	void note_off(const FakeRelease& release, bool allow_release_stage, synth::VoiceClock /*clock*/) {
+		logged("note_off tails " + std::to_string(int{release.tails}) + " stage "
+		       + std::to_string(int{allow_release_stage}));
+	}
 	[[nodiscard]] bool fast_releasing() const { return in_fast_release; }
 	[[nodiscard]] std::array<int32_t, 2> envelope_levels() const { return levels; }
 	void resume_attack(const std::array<int32_t, 2>& from) {
-		note("resume " + std::to_string(from[0]) + " " + std::to_string(from[1]));
+		logged("resume " + std::to_string(from[0]) + " " + std::to_string(from[1]));
 	}
 	bool note_on(const FakeSetup& setup, const FakeConfig& /*config*/, const FakeEvent& event,
 	             synth::VoiceClock /*clock*/, size_t count, FakeNoise& /*noise*/) {
-		note("note_on " + std::to_string(setup.note) + " reset " + std::to_string(int{event.reset_envelopes})
-		     + " count " + std::to_string(count));
+		logged("note_on " + std::to_string(setup.note) + " reset " + std::to_string(int{event.reset_envelopes})
+		       + " count " + std::to_string(count));
 		return starts;
 	}
 	void change_note(const FakeSetup& setup, const FakeConfig& /*config*/, int32_t before, int32_t after,
 	                 int32_t channel, std::span<const int16_t, 3> /*mpe*/) {
-		note("change " + std::to_string(setup.note) + " " + std::to_string(before) + " " + std::to_string(after)
-		     + " ch " + std::to_string(channel));
+		logged("change " + std::to_string(setup.note) + " " + std::to_string(before) + " " + std::to_string(after)
+		       + " ch " + std::to_string(channel));
 	}
-	void randomize_osc_phases(const FakeConfig& /*config*/, FakeNoise& /*noise*/) { note("randomize"); }
+	void randomize_osc_phases(const FakeConfig& /*config*/, FakeNoise& /*noise*/) { logged("randomize"); }
 	void unassign_sources(int32_t num_unison, bool deleting_song) {
-		note("unassign_sources " + std::to_string(num_unison) + " " + std::to_string(int{deleting_song}));
+		logged("unassign_sources " + std::to_string(num_unison) + " " + std::to_string(int{deleting_song}));
 	}
 
 	[[nodiscard]] uint32_t priority_rating(plugin::VoicePriority /*priority*/, size_t /*count*/) const {
@@ -120,7 +131,7 @@ private:
 		last_release = std::move(kind);
 		return --releases_to_stop > 0;
 	}
-	void note(std::string line) {
+	void logged(std::string line) {
 		if (log != nullptr) {
 			log->push_back(std::move(line));
 		}
@@ -202,6 +213,12 @@ struct FakeHost {
 	void note_started(Slot& slot) { log.push_back("started " + std::to_string(slot.part)); }
 	FakeNoise& noise() { return noise_stream; }
 	static uint32_t steal_increment() { return 128; }
+	FakeRelease prepare_release(Slot& slot, Context /*context*/, bool tails) {
+		log.push_back("prepare_release " + std::to_string(slot.part));
+		return {.tails = tails};
+	}
+	void note_released(Slot& slot) { log.push_back("released " + std::to_string(slot.part)); }
+	void last_note(int32_t note) { log.push_back("last_note " + std::to_string(note)); }
 	template <class Fn>
 	bool timed(Fn&& fn) {
 		log.push_back("timed");

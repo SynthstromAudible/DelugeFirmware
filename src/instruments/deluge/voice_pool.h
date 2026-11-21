@@ -247,6 +247,47 @@ public:
 		return true;
 	}
 
+	/// @brief A note held under a released one, which a LEGATO or MONO sound falls back to.
+	struct HeldNote {
+		int32_t note;                ///< Its note code
+		int32_t midi_channel;        ///< The channel it came on
+		decltype(H::Event::mpe) mpe; ///< Its MPE values, as the kernel's change_note takes them
+	};
+
+	/// @brief A note-off's voice half: each voice playing @p note_code and not yet releasing is released, or, for a
+	///        LEGATO sound falling back to @p held, glides to it.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param facts What the note-off reads of the sound.
+	/// @param note_code The note released.
+	/// @param all_notes Every voice matches, whatever its note.
+	/// @param held The note to fall back to, when the sound falls back and one is held.
+	/// @param context What the host prepares the release and the glide with.
+	/// @return The held note a MONO sound must start as a new note-on, or none.
+	template <class Config>
+	requires synth::note_host<H>
+	std::optional<HeldNote> note_off(const Config& config, const synth::NoteFacts& facts, int32_t note_code,
+	                                 bool all_notes, std::optional<HeldNote> held, Context context) {
+		const bool falls_back = !facts.arpeggiating && facts.falls_back && held.has_value();
+		for (Slot* voice : voices_) {
+			if ((voice->kernel.note_code() != note_code && !all_notes) || voice->kernel.releasing()) {
+				continue;
+			}
+			if (falls_back) {
+				if (config.voicing.polyphony != PolyphonyMode::LEGATO) {
+					return held; // MONO: the held note starts as a new note-on
+				}
+				voice->kernel.change_note(host_->prepare_change(*voice, context, held->note), config, held->note,
+				                          held->note, held->midi_channel, held->mpe);
+				host_->last_note(held->note);
+				continue;
+			}
+			const auto release = host_->prepare_release(*voice, context, facts.note_tails_allowed);
+			voice->kernel.note_off(release, true, host_->clock());
+			host_->note_released(*voice);
+		}
+		return std::nullopt;
+	}
+
 private:
 	/// @brief What a non-POLY note-on's walk found: a voice to re-trigger, or a voice to glide.
 	struct Found {

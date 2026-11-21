@@ -1096,58 +1096,31 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		return;
 	}
 
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-
-	for (SoundVoice* voice : voicePool_.list()) {
-		if ((voice->kernel.note_code() == noteCode || noteCode == ALL_NOTES_OFF)
-		    && voice->kernel.envelope(0).stage()
-		           < Envelope::Stage::RELEASE) { // Don't bother if it's already "releasing"
-
-			// If we have actual arpeggiation, just switch off.
-			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
-				goto justSwitchOff;
-			}
-
-			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((config_.voicing.polyphony == PolyphonyMode::LEGATO || config_.voicing.polyphony == PolyphonyMode::MONO)
-			    && !isDrum() && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                              // Arpeggiator will be full of notes which
-				// might not be active anymore, cos we were keeping track of them for MPE purposes.
-				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
-				if (arpeggiator->hasAnyInputNotesActive()) {
-					ArpNote* arpNote = &arpeggiator->notes.back();
-					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
-
-					if (config_.voicing.polyphony == PolyphonyMode::LEGATO) {
-						changeVoiceNote(*voice, *modelStack, newNoteCode, newNoteCode,
-						                arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
-						                mpeSpan(arpNote->mpeValues));
-						lastNoteCode = newNoteCode;
-						// I think we could just return here, too?
-					}
-					else { // PolyphonyMode::MONO
-						noteOnPostArpeggiator(
-						    modelStack, newNoteCode, newNoteCode,
-						    arpeggiator->lastVelocity, // Interesting - I've made it keep the velocity of presumably the
-						                               // note we just switched off. I must have decided that sounded
-						                               // best? I think I vaguely remember.
-						    arpNote->mpeValues, // ... We take the MPE values from the "keypress" associated with the
-						                        // new note we'll sound, though.
-						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-						return;
-					}
-				}
-				else {
-					goto justSwitchOff;
-				}
-			}
-
-			else {
-justSwitchOff:
-				releaseVoiceNote(*voice, (ParamManagerForTimeline*)modelStack->paramManager,
-				                 allowNoteTails(modelStack, true));
-			}
+	const deluge::synth::NoteFacts facts = noteFacts(modelStack);
+	using HeldNote = deluge::instrument::VoicePool<SoundVoiceHost>::HeldNote;
+	std::optional<HeldNote> held;
+	Arpeggiator* arpeggiator = nullptr;
+	if (!facts.arpeggiating && facts.falls_back) {
+		// A LEGATO or true-MONO sound switches back to the newest note still held. With no note tails (one-shot
+		// samples), the arpeggiator holds notes which may not sound any more, kept for MPE, so it falls back only with
+		// them.
+		arpeggiator = &static_cast<SoundInstrument*>(this)->arpeggiator;
+		if (arpeggiator->hasAnyInputNotesActive()) {
+			ArpNote& arpNote = arpeggiator->notes.back();
+			held = HeldNote{
+			    .note = arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    .midi_channel = arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
+			    .mpe = mpeSpan(arpNote.mpeValues),
+			};
 		}
+	}
+	const std::optional<HeldNote> restart =
+	    voicePool_.note_off(config_, facts, noteCode, noteCode == ALL_NOTES_OFF, held, modelStack);
+	if (restart.has_value()) {
+		// MONO: the held note sounds as a new note, at the velocity of the note just switched off and with the MPE
+		// values of the held note's own keypress
+		noteOnPostArpeggiator(modelStack, restart->note, restart->note, arpeggiator->lastVelocity, restart->mpe.data(),
+		                      0, 0, 0, restart->midi_channel);
 	}
 }
 

@@ -66,6 +66,7 @@ namespace deluge::synth {
 struct BlockValues;
 struct NoteSetup;
 struct NoteOnEvent;
+struct ReleaseInfo;
 struct VoiceBlock;
 struct VoiceRenderArgs;
 } // namespace deluge::synth
@@ -182,6 +183,13 @@ struct SoundVoiceHost {
 	/// @brief The voice limit's steal fade: a 128-sample (~2.9 ms) fade, as a faster one reads as a pop on sustained
 	/// material when a low voice limit makes every note-on steal.
 	static uint32_t steal_increment();
+	/// @brief A note-off's release for @p voice, whose files are marked as let go.
+	[[nodiscard]] deluge::synth::ReleaseInfo prepare_release(SoundVoice& voice, Context modelStack,
+	                                                         bool noteTailsAllowed) const;
+	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
+	void note_released(SoundVoice& voice) const;
+	/// @brief A LEGATO fall-back's note, which the next glide starts from.
+	void last_note(int32_t note) const;
 	/// @brief Runs @p fn, a note-on answering whether it started, inside the stream bench's note-on bracket.
 	template <class Fn>
 	static bool timed(Fn&& fn) {
@@ -576,15 +584,15 @@ private:
 	void unassignVoice(SoundVoice& voice, ModelStackWithSoundFlags* modelStack);
 	/// @brief The voice's rating in the cull order (higher is culled sooner), for this sound as it is now.
 	[[nodiscard]] uint32_t voiceRating(const SoundVoice& voice) const;
-	/// @brief Moves @p voice's note to another, gliding as the setup says.
-	void changeVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t noteBeforeArp,
-	                     int32_t noteAfterArp, int32_t midiChannel,
-	                     std::span<const int16_t, kNumExpressionDimensions> mpe);
 	/// @brief Recomputes @p voice's phase increments for its note.
 	void calculateVoicePhaseIncrements(SoundVoice& voice, ModelStackWithSoundFlags& flags);
+	/// @brief Marks @p voice's files as let go and builds its note-off's release.
+	[[nodiscard]] deluge::synth::ReleaseInfo
+	prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
+	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
+	void voiceReleased();
 	/// @brief Releases @p voice's note.
-	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed,
-	                      bool allowReleaseStage = true);
+	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
 	/// @brief Source @p s's sample zone moved under @p voice's note.
 	/// @return False if the voice must be unassigned now.
 	bool voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);

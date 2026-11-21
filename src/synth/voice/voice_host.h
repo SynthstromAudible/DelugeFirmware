@@ -85,29 +85,33 @@ concept voice_host = requires(H& host, H::Slot& slot, H::Context context, uint32
 	{ host.clock() } -> std::same_as<VoiceClock>;
 };
 
-/// @brief What a host gives the pool's note path besides voice_host: the note's setup, the voice order, the cost
-/// clock and the note-on's own bracket. Config, Event and Noise are the host's types, handed to the kernel.
+/// @brief What a host gives the pool's note path besides voice_host: the note's setup and release, the voice order,
+/// the cost clock and the note-on's own bracket. Config, Event and Noise are the host's types, handed to the kernel.
+///
+/// prepare() builds a note-on's setup and binds the note's files to the part; prepare_change() a note change's, the
+/// files kept; renew() rebuilds a voice in place for a steal; cycles() is the counter the admit cost is read from;
+/// note_started() follows the kernel's note-on (the parameter dump); steal_increment() is the voice-limit steal's
+/// fade; timed() runs a note-on inside the host's bench bracket; prepare_release() builds a note-off's release, the
+/// voice marked as let go; note_released() follows the kernel's note-off; last_note() takes a LEGATO fall-back's note,
+/// for the next glide.
 template <class H>
-concept note_host = voice_host<H>
-                    && requires(H& host, H::Slot& slot, H::Context context, const H::Event& event, uint32_t length,
-                                int32_t late, int32_t note) {
-	                       typename H::Config;
-	                       typename H::Noise;
-	                       {
-		                       host.prepare(slot, context, event, length, late)
-	                       }; ///< a note-on's setup; binds the note's files to the part
-	                       { host.prepare_change(slot, context, note) }; ///< a note change's setup, the files kept
-	                       { host.renew(slot) } noexcept;                ///< rebuilds a voice in place for a steal
-	                       { host.next_voice_order() } -> std::same_as<uint32_t>;
-	                       {
-		                       host.cycles()
-	                       } -> std::same_as<uint32_t>; ///< the cycle counter the admit cost is read from
-	                       { host.note_started(slot) }; ///< after the kernel's note-on (the parameter dump)
-	                       { host.noise() } -> std::same_as<typename H::Noise&>;
-	                       { host.steal_increment() } -> std::same_as<uint32_t>; ///< the voice-limit steal's fade
-	                       {
-		                       host.timed([] { return true; })
-	                       } -> std::same_as<bool>; ///< runs a note-on inside the host's bench bracket
-                       };
+concept note_host = requires(H& host, H::Slot& slot, H::Context context, const H::Event& event, uint32_t length,
+                             int32_t late, int32_t note, bool tails, bool (*note_on)()) {
+	requires voice_host<H>;
+	typename H::Config;
+	typename H::Noise;
+	{ host.prepare(slot, context, event, length, late) };
+	{ host.prepare_change(slot, context, note) };
+	{ host.renew(slot) } noexcept;
+	{ host.next_voice_order() } -> std::same_as<uint32_t>;
+	{ host.cycles() } -> std::same_as<uint32_t>;
+	{ host.note_started(slot) };
+	{ host.noise() } -> std::same_as<typename H::Noise&>;
+	{ host.steal_increment() } -> std::same_as<uint32_t>;
+	{ host.timed(note_on) } -> std::same_as<bool>;
+	{ host.prepare_release(slot, context, tails) };
+	{ host.note_released(slot) };
+	{ host.last_note(note) };
+};
 
 } // namespace deluge::synth
