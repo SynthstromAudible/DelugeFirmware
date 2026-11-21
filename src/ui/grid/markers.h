@@ -17,7 +17,7 @@ namespace deluge::ui::grid {
 ///       which column that lands on, whether the sample is reversed (legacy's `reverseRemap`,
 ///       a `SampleMarkerEditor` member) and therefore what colour a marker takes are all the caller's -- they read
 ///       `SampleHolder`, `SampleControls` and `MarkerType`, none of which `src/ui` may include
-///       (`check_layer_rules.py`, `ui-includes-outside`). What arrives here is a bitmask of which
+///       (`scripts/layers.toml`, `ui-includes-outside`). What arrives here is a bitmask of which
 ///       markers land on the column and a colour per marker index.
 ///
 /// Everything paints through `GridFrame::pad`/`peek`, so the component is region-local: give it a

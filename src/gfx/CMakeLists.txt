@@ -1,7 +1,7 @@
 # deluge_gfx_oled / deluge_gfx_grid — pure drawing, no policy, no globals, no hardware.
 # Depends on nothing but the C/C++ standard library. Included as <gfx/oled/...> and
 # <gfx/grid/...> via the universal `-I src` path. Rules: src/gfx/README.md; enforced by
-# scripts/check_gfx_layer.py (a ctest).
+# scripts/check_layers.py (the gfx libraries in scripts/layers.toml; the `layers` ctest).
 add_library(deluge_gfx_oled STATIC oled/canvas.cpp oled/font.cpp oled/fonts/fonts.c oled/icons.cpp)
 target_include_directories(deluge_gfx_oled PUBLIC ${SHARED_INCLUDE})
 # The project's warning set (-Werror=switch, -Warray-bounds, -Wstack-usage, and -Wall/-Wextra

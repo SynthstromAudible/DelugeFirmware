@@ -10,11 +10,10 @@
 ///
 /// `Slicer` reaches its work through four `gui/` globals -- `sampleBrowser`, `soundEditor`,
 /// `instrumentClipView` and `PadLEDs` -- every one of which `src/scenes/**` may never name
-/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui` and `scenes-includes-gui`). The calls that
-/// reach them are collected into `SliceOps` below, and the scene keeps everything else: the state,
-/// the guards, the snapshot at Select and the commit gate. The slice is asynchronous: the host
-/// answers `SliceOps::begin_commit` later with `commit_done`. See `SliceOps` for what a null `ops()`
-/// means.
+/// (`scripts/check_layer_rules.py`'s `scenes-no-root-ui` and `scripts/layers.toml`'s `scenes-includes-gui`). The calls
+/// that reach them are collected into `SliceOps` below, and the scene keeps everything else: the state, the guards, the
+/// snapshot at Select and the commit gate. The slice is asynchronous: the host answers `SliceOps::begin_commit` later
+/// with `commit_done`. See `SliceOps` for what a null `ops()` means.
 ///
 /// @par This is not a root scene
 ///

@@ -144,7 +144,7 @@ constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
 
 // ---------------------------------------------------------------------------------------------
 // Small local helpers. `util/` is outside this layer's include allowance
-// (`check_layer_rules.py`'s `scenes-includes-outside`), so the two things `qwerty_ui.cpp` borrows
+// (`scripts/layers.toml`'s `scenes-includes-outside`), so the two things `qwerty_ui.cpp` borrows
 // from it are spelled out here rather than included.
 
 /// @brief `charCaseEqual` (`util/functions.cpp`): equal ignoring ASCII letter case.

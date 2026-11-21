@@ -10,7 +10,7 @@
 /// kind; this scene is what that service finds.
 ///
 /// The two animations live in `ui/oled/rainfall.h` and `ui/oled/starfield.h`, because `src/scenes/**` may include
-/// neither `gui/` nor `hid/` (`check_layer_rules.py`'s `scenes-includes-gui` row). Legacy's `Screensaver` draws the
+/// neither `gui/` nor `hid/` (`scripts/layers.toml`'s `scenes-includes-gui` rule). Legacy's `Screensaver` draws the
 /// same two objects; see `ui/oled/rainfall.h`'s file doc.
 ///
 /// @par What chooses the mode, and where legacy chooses it

@@ -9,7 +9,8 @@ path, no mutable globals, `snake_case` members, `PascalCase` types, `k` constant
 
 ## Layer rules
 
-`scripts/check_layer_rules.py` enforces, over `src/shell/**`:
+Over `src/shell/**`, `scripts/layers.toml` holds the include rule (checked by `scripts/check_layers.py`) and
+`scripts/check_layer_rules.py` the others:
 
 | row | rule |
 |---|---|

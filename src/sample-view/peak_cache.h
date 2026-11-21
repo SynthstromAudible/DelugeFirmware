@@ -5,7 +5,7 @@
 ///        whole columns, reads only what it lacks; and the few a host keeps, one per waveform.
 ///
 /// Only the host's waveform reads and the legacy views use these. A scene asks the waveforms port for a window's
-/// columns and keeps nothing (`scripts/check_layer_rules.py`, `scenes-no-peak-cache`).
+/// columns and keeps nothing (`scripts/layers.toml`, `scenes-no-peak-cache`).
 
 #include "sample-view/divide.h"
 #include "sample-view/peaks.h"

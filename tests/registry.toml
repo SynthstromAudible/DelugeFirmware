@@ -1816,11 +1816,11 @@ job = "tooling"
 runtime_s = 2
 
 [[harness]]
-name = "library-boundary-selftest"
+name = "layers-selftest"
 template = "unittest"
 path = "scripts"
-gates = "each standalone library's boundary check rejects every way an undeclared header could slip in"
-run = ["python3", "-m", "unittest", "test_check_library_boundary"]
+gates = "the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth"
+run = ["python3", "-m", "unittest", "test_check_layers"]
 
 [[harness]]
 name = "registry-selftest"
