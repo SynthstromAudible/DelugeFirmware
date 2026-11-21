@@ -2,7 +2,8 @@
 
 Pure drawing primitives for the Deluge UI stack.
 
-Rules (enforced by `scripts/check_gfx_layer.py`):
+Rules (the includes enforced by `scripts/check_layers.py`, as the `gfx`, `gfx-oled` and `gfx-grid`
+libraries in `scripts/layers.toml`):
 - May include only `gfx/**` and the C/C++ standard library.
 - No mutable globals. No heap allocation in drawing paths.
 - No knowledge of the board: geometry, dimensions and style arrive as values.
@@ -25,7 +26,7 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
   someone remembers to update both. Worth resolving by hoisting them into a place both `util/` and
   `gfx/` can depend on, if that's ever worth the churn.
 
-Run the check locally with `python3 scripts/check_gfx_layer.py`; it is also the `gfx_layer_check` ctest.
+Run the check locally with `python3 scripts/check_layers.py`; it is also the `layers` ctest.
 
 ## `DELUGE_GFX_CONTRACT`
 
