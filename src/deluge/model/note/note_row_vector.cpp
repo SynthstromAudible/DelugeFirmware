@@ -30,6 +30,21 @@ void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete
 	erase(begin() + startIndex, begin() + startIndex + numToDelete); // Runs the NoteRows' destructors
 }
 
+Error NoteRowVector::cloneFrom(NoteRowVector const& other) {
+	NoteRowVector rows;
+	if (!rows.reserveExtra(static_cast<int32_t>(other.size()))) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	for (size_t i = 0; i < other.size(); i++) {
+		(void)rows.insertAt(static_cast<int32_t>(i)); // within the room reserved above: cannot fail
+		if (Error error = rows[i].cloneFrom(other[i]); error != Error::NONE) {
+			return error; // rows' destructor frees the rows copied so far
+		}
+	}
+	swap(rows);
+	return Error::NONE;
+}
+
 void NoteRowVector::swapRows(int32_t a, int32_t b) {
 	// One section for the whole swap: each row's move-assign is its own section, but between them one row would be
 	// in both places and the other in neither.

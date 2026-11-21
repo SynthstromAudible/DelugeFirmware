@@ -52,7 +52,6 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
-#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
@@ -78,35 +77,35 @@ NoteRow::NoteRow(int16_t newY) {
 	exportStem = false;
 }
 
-// Deep-copy ctor. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
+// Deep copy. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
 //  - value/POD members: copied directly
-//  - paramManager: default-constructed then deep-cloned through the clone()-dispatched path (fallible → throw)
-//  - notes: NoteVector deep copy (may throw)
+//  - notes: a fallible NoteVector deep copy
+//  - paramManager: deep-cloned through the clone()-dispatched path (fallible)
 //  - drum: pointer shared by design (the clone points at the same Drum)
 //  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
-//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
-NoteRow::NoteRow(NoteRow const& other)
-    : y_(other.y_), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
-      exportStem(other.exportStem), loopLengthIfIndependent_(other.loopLengthIfIndependent_),
-      lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
-      repeatCountIfIndependent(other.repeatCountIfIndependent),
-      currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
-      sequenceDirectionMode_(other.sequenceDirectionMode_), drum(other.drum), notes(other.notes),
-      probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
-      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset_(other.colourOffset_),
-      sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
-	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — clones own no drum-name list.
-	// Deep-clone the automation/param collections through the clone()-dispatched path.
-	Error error = paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
-	if (error != Error::NONE) {
-		throw deluge::exception::BAD_ALLOC;
+//  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, left as a new row has them
+Error NoteRow::cloneFrom(NoteRow const& other) {
+	y_ = other.y_;
+	muted_ = other.muted_;
+	mutedBeforeStemExport = other.mutedBeforeStemExport;
+	exportStem = other.exportStem;
+	loopLengthIfIndependent_ = other.loopLengthIfIndependent_;
+	lastProcessedPosIfIndependent = other.lastProcessedPosIfIndependent;
+	repeatCountIfIndependent = other.repeatCountIfIndependent;
+	currentlyPlayingReversedIfIndependent = other.currentlyPlayingReversedIfIndependent;
+	sequenceDirectionMode_ = other.sequenceDirectionMode_;
+	drum = other.drum;
+	probabilityValue = other.probabilityValue;
+	iteranceValue = other.iteranceValue;
+	fillValue = other.fillValue;
+	muteMIDICommand = other.muteMIDICommand;
+	midiInput = other.midiInput;
+	colourOffset_ = other.colourOffset_;
+	sequenced = other.sequenced;
+	if (!notes.tryAssign(other.notes)) {
+		return Error::INSUFFICIENT_RAM;
 	}
-}
-
-NoteRow& NoteRow::operator=(NoteRow const& other) {
-	NoteRow tmp(other);     // deep copy (may throw)
-	*this = std::move(tmp); // defaulted move-assign frees this row's old resources
-	return *this;
+	return paramManager.cloneParamCollectionsFrom(&other.paramManager, true, true);
 }
 
 NoteRow::~NoteRow() {

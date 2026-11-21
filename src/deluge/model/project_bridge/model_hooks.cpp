@@ -16,24 +16,15 @@
  */
 
 // The model's host hooks for the device and the host app: model memory comes from the fast heap, as the app's
-// fast_allocator containers' does; running out throws the app's out-of-memory exception, so the app's handlers catch
-// it; and a structural edit excludes the render exactly as AudioExcludedSection does, reporting to the
-// structural-edit probe.
+// fast_allocator containers' does (a fallible container op reports running out; an infallible one stops the firmware
+// through deluge::oom(), src/deluge/memory/oom.cpp); and a structural edit excludes the render exactly as
+// AudioExcludedSection does, reporting to the structural-edit probe.
 
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/model_memory.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
-#include "util/exceptions.h"
 #include "util/structural_edit_probe.h"
-
-namespace deluge::project {
-
-[[noreturn]] void model_out_of_memory() {
-	throw deluge::exception::BAD_ALLOC;
-}
-
-} // namespace deluge::project
 
 extern "C" void* deluge_model_alloc(std::size_t bytes, std::size_t alignment) noexcept {
 	return deluge::memory::alloc_fast(bytes, alignment);

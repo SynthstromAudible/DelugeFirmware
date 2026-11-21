@@ -19,6 +19,7 @@
 
 #include "deluge-project/containers.h"
 #include "deluge-project/edit_guard.h"
+#include "foundation/oom.h"
 #include "foundation/panic.h"
 #include <algorithm>
 #include <cstring>
@@ -41,9 +42,9 @@ namespace deluge::project {
 ///
 /// Beyond the standard surface, it offers: key-based lookups (lower_bound/find_key/firstAtOrAfter/tryGet),
 /// fallible std::expected mutations (insertAt/insertSorted/reserveExtra), the sequencer batch algorithms
-/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and value semantics (copy/move ctor+assign) —
-/// deep copies go through copy construction/assignment, which throw the host's out-of-memory exception
-/// (model_out_of_memory()).
+/// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and value semantics (copy/move ctor+assign). A deep
+/// copy that may fail goes through tryAssign(); copy construction and assignment are infallible (out of memory stops
+/// the firmware, deluge::oom()).
 ///
 /// Every structural edit (insert, erase, reorder, reallocate, hand-over) runs under an EditGuard: the render walks
 /// these vectors (a clip's note rows, a row's notes, automation nodes, an output's clip instances).
@@ -66,20 +67,28 @@ public:
 		elements_ = std::move(other.elements_);
 		return *this;
 	}
-	/// @brief Deep copy (element-wise, via the backing vector).
-	///
-	/// May throw the host's out-of-memory exception, like the container's other allocating ops; the fallible clone
-	/// factories that call it catch and convert to std::expected.
-	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_) {}
-	/// @brief The copy is made outside the section, and the old elements destroyed outside it: only the handover is
-	/// masked.
+	/// @brief Deep copy. Infallible: out of memory stops the firmware (deluge::oom()); use tryAssign() where a failure
+	/// is handled.
+	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_.clone()) {}
+	/// @brief Infallible deep copy (see the copy constructor); only the handover is masked.
 	OrderedPosVector& operator=(OrderedPosVector const& other) {
-		model_vector<T> copy = other.elements_;
+		deluge::or_oom(tryAssign(other));
+		return *this;
+	}
+	/// @brief Deep copy that reports out of memory. The copy is made outside the section, and the old elements
+	/// destroyed outside it: only the handover is masked.
+	/// @param other The vector to copy.
+	/// @return Success, or AllocError::OUT_OF_MEMORY (this vector is then unchanged).
+	[[nodiscard]] std::expected<void, AllocError> tryAssign(OrderedPosVector const& other) {
+		auto copy = other.elements_.try_clone();
+		if (!copy) {
+			return std::unexpected(copy.error());
+		}
 		{
 			EditGuard guard;
-			elements_.swap(copy);
+			elements_.swap(*copy);
 		}
-		return *this;
+		return {};
 	}
 
 	/// @brief Forget the current contents *without* freeing them.
@@ -143,12 +152,7 @@ public:
 	/// @return Success, or AllocError::OUT_OF_MEMORY.
 	std::expected<void, AllocError> reserveExtra(int32_t numAdditionalElementsNeeded) {
 		EditGuard guard;
-		try {
-			elements_.reserve(elements_.size() + numAdditionalElementsNeeded);
-		} catch (...) {
-			return std::unexpected(AllocError::OUT_OF_MEMORY);
-		}
-		return {};
+		return elements_.try_reserve(elements_.size() + numAdditionalElementsNeeded);
 	}
 
 	void swap(OrderedPosVector& other) noexcept {
@@ -329,13 +333,14 @@ public:
 		int32_t oldNum = firstAtOrAfter(wrapPoint);
 		int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
+		// The repeat loop below overwrites every element from oldNum on, so only the first newNum (or all, if fewer)
+		// need copying; the rest are default-constructed within the room reserved here.
 		model_vector<T> tiled;
-		try {
-			tiled = elements_;
-			tiled.resize(newNum);
-		} catch (...) {
+		const auto kept = std::min(elements_.size(), static_cast<size_t>(newNum));
+		if (!tiled.try_reserve(newNum) || !tiled.try_assign(elements_.begin(), elements_.begin() + kept)) {
 			return false;
 		}
+		tiled.resize(newNum); // within capacity: cannot allocate
 
 		for (int32_t r = 1; r <= numCompleteRepeats; r++) { // For each repeat
 			for (int32_t i = 0; i < oldNum; i++) {
@@ -375,19 +380,12 @@ protected:
 private:
 	/// @brief insertAt's body; the caller holds the section.
 	std::expected<void, AllocError> insertElements(int32_t i, int32_t numToInsert) {
-		try {
-			if constexpr (std::is_copy_constructible_v<T>) {
-				elements_.insert(elements_.begin() + i, numToInsert, T{});
-			}
-			else {
-				// Move-only T: reserve up front (the only step that can throw), then emplace one by one
-				elements_.reserve(elements_.size() + numToInsert);
-				for (int32_t n = 0; n < numToInsert; n++) {
-					elements_.emplace(elements_.begin() + i);
-				}
-			}
-		} catch (...) {
-			return std::unexpected(AllocError::OUT_OF_MEMORY);
+		// Reserve up front (the only step that can fail), then emplace one by one: works for move-only T too
+		if (auto room = elements_.try_reserve(elements_.size() + numToInsert); !room) {
+			return room;
+		}
+		for (int32_t n = 0; n < numToInsert; n++) {
+			elements_.emplace(elements_.begin() + i); // within capacity: cannot allocate
 		}
 		return {};
 	}

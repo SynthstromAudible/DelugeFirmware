@@ -206,7 +206,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// (d) NoteRow deep-copy ctor: notes + param manager deep-copied and independent; drum pointer shared;
+	// (d) NoteRow::cloneFrom: notes + param manager deep-copied and independent; drum pointer shared;
 	//     the owned drum-name list is NOT shared (reset to empty). This guards the highest-risk conversion.
 	{
 		NoteRow src(5);
@@ -219,7 +219,8 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		Drum* fakeDrum = reinterpret_cast<Drum*>(0xDEAD0000); // pointer is only copied, never dereferenced
 		src.drum = fakeDrum;
 
-		NoteRow dst(src); // copy ctor
+		NoteRow dst;
+		check(dst.cloneFrom(src) == Error::NONE, "noterow copy: cloneFrom succeeds");
 		check(dst.y() == 5, "noterow copy: y copied");
 		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
 		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");

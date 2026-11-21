@@ -104,15 +104,11 @@ project::DocAutoParam* copyOf(const project::DocAutoParam& model, size_t room) {
 	if (memory == nullptr) {
 		return nullptr;
 	}
-	try {
-		auto* copy = new (memory) project::DocAutoParam(model);
-		if (copy->nodes.reserveExtra(static_cast<int32_t>(room))) {
-			return copy;
-		}
-		copy->~DocAutoParam();
-	} catch (...) {
-		// out of memory copying the nodes
+	auto* copy = new (memory) project::DocAutoParam{.current_value = model.current_value};
+	if (copy->nodes.tryAssign(model.nodes) && copy->nodes.reserveExtra(static_cast<int32_t>(room))) {
+		return copy;
 	}
+	copy->~DocAutoParam(); // out of memory copying the nodes, or for the room
 	memory::dealloc(memory);
 	return nullptr;
 }

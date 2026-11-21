@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "foundation/oom.h"
+
 #include <cstddef>
 #include <limits>
 
@@ -33,10 +35,6 @@ extern "C" void* deluge_model_alloc(std::size_t bytes, std::size_t alignment) no
 extern "C" void deluge_model_free(void* p, std::size_t alignment) noexcept;
 
 namespace deluge::project {
-
-/// @brief Raise the host's out-of-memory exception; supplied by the host at link time, so a model container's failed
-/// allocation reaches the same handlers as the rest of the host's.
-[[noreturn]] void model_out_of_memory();
 
 /// @brief The allocator of every model container: stateless, forwarding to the host's hooks.
 template <class T>
@@ -61,11 +59,11 @@ struct ModelAllocator {
 		if (n == 0) {
 			return nullptr;
 		}
-		void* p = deluge_model_alloc(n * sizeof(T), alignof(T));
+		T* p = try_allocate(n);
 		if (p == nullptr) [[unlikely]] {
-			model_out_of_memory();
+			deluge::oom();
 		}
-		return static_cast<T*>(p);
+		return p;
 	}
 
 	void deallocate(T* p, std::size_t /*n*/) noexcept { deluge_model_free(p, alignof(T)); }
