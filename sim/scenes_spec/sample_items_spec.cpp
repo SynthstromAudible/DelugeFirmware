@@ -251,7 +251,7 @@ struct SoundRig {
 		    deluge::test::with_kind(*sound->state_, static_cast<deluge::instrument::SourceId>(i), OscType::SAMPLE);
 		deluge::test::set(*sound->state_, osc + "loopMode", "1"); // ONCE
 		deluge::test::set(*sound->state_, osc + "reversed", "0");
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		sample[i] = make_sample(num_clusters);
 		range[i] = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(i));
 		range[i]->sampleHolder.audioFile = sample[i];

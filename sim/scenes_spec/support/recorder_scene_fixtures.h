@@ -113,7 +113,7 @@ struct Rig {
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sourceResources[0];
 		deluge::test::set(*sound->state_, "osc1/type", "square"); // so "became SAMPLE" is a real observation
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		deluge::edits::recordRanges(*sound, 0); // the range made here is the record's, as a gesture records it
 	}

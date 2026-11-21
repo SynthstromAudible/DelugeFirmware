@@ -374,7 +374,7 @@ struct SongRig {
 		source = &sound->sourceResources[0];
 		deluge::test::set(*sound->state_, "osc1/type", "sample");
 		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		Sample* sample = make_sample();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;

@@ -1,5 +1,6 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/state_access.h"
+#include "support/fake_voice_host.h"
 #include "support/printers/sound_record_printer.h"
 #include "support/record_state.h"
 
@@ -131,6 +132,17 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 			expected.set(std::to_underlying(change.part));
 			expect(DelugeSynth::changes(before, after)).to_equal(expected);
 		}
+	});
+
+	it("holds the config its state derives and the sound's voices, empty at first", _{
+		deluge::instrument::test::FakeHost host;
+		DelugeSynth::Instance<deluge::instrument::test::FakeHost> synth{host};
+		expect(synth.config().engine.mode).to_equal(SynthMode::SUBTRACTIVE);
+		expect(synth.voices().empty()).to_equal(true);
+		synth.configure(fm_state());
+		expect(synth.config().engine.mode).to_equal(SynthMode::FM);
+		expect(int{synth.config().voicing.max_voices}).to_equal(3);
+		expect(synth.config().voicing.unison).to_equal(deluge::synth::derive_unison(5, 30, 25));
 	});
 });
 // clang-format on

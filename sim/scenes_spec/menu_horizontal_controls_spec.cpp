@@ -382,7 +382,7 @@ struct Rig {
 			deluge::test::set(*sound->state_, "osc" + std::to_string(s + 1) + "/type", "square");
 			sound->sourceResources[s].ranges.clear();
 		}
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}

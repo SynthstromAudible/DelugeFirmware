@@ -320,7 +320,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		expect(snap.voicing.unison_spread == instrument::unison(d()).spread, "unison_stereo_spread");
 		{
 			// The unison tables are derived; the loaded ones must match a fresh projection from the record.
-			sound.projectSnapshot();
+			sound.deriveConfig();
 			for (int32_t u = 0; u < snap.voicing.unison.count && snap.voicing.unison.count != 1; u++) {
 				expect(sameTuning(snap.voicing.unison.detunes[u], sound.config().voicing.unison.detunes[u]),
 				       "unison_detuners");
@@ -429,7 +429,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 			              && edited.voicing.unison_detune == instrument::unison(d()).detune
 			              && edited.voicing.unison_spread == instrument::unison(d()).spread,
 			          "unison/num, unison/detune and unison/spread");
-			sound.projectSnapshot();
+			sound.deriveConfig();
 			for (int32_t u = 0; u < otherUnison; u++) {
 				roundTrip(sameTuning(edited.voicing.unison.detunes[u], sound.config().voicing.unison.detunes[u])
 				              && edited.voicing.unison.pans[u] == sound.config().voicing.unison.pans[u],

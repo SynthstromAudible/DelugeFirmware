@@ -85,12 +85,12 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 		SourceResources& s = sound.sourceResources[i];
 		*sound.state_ = deluge::test::with_kind(*sound.state_, static_cast<deluge::instrument::SourceId>(i),
 		                                        i == which ? c.osc_type : OscType::SQUARE);
-		sound.projectSnapshot();
+		sound.deriveConfig();
 		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}
 	sound.record() = deluge::instrument::switch_engine(sound.record(), c.synth_mode);
-	sound.projectSnapshot();
+	sound.deriveConfig();
 	deluge::bridge::recordLoadedSound(sound, song);
 }
 
