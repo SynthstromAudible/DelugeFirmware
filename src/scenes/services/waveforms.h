@@ -3,10 +3,9 @@
 /// @file
 /// @brief A waveform by its address: what a scene draws a sample with, without the sample.
 
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
 #include "scenes/services/waveform_address.h"
-
-#include "definitions_cxx.hpp" // kDisplayWidth
 
 #include <cstdint>
 #include <optional>
@@ -37,7 +36,7 @@ public:
 	/// @return False where nothing is loaded there or some cluster could not be read; the columns that were read stay
 	/// valid.
 	virtual bool peaks(const WaveformAddress& address, int64_t scroll, uint64_t zoom, WaveformRenderData& cache,
-	                   int32_t x_start = 0, int32_t x_end = kDisplayWidth) const = 0;
+	                   int32_t x_start = 0, int32_t x_end = deluge::gfx::grid::kDelugeGrid.main_cols) const = 0;
 	/// @brief Where in the waveform at @p address a voice is playing now, in samples: the sound's newest voice on that
 	/// range, or the audio clip's own; nullopt while nothing plays there (`SampleMarkerEditor::graphicsRoutine`).
 	[[nodiscard]] virtual std::optional<int64_t> play_position(const WaveformAddress& address) const {

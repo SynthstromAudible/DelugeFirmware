@@ -3,9 +3,8 @@
 #include "ui/grid/frame.h"
 #include "ui/grid/waveform.h"
 
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_scan.h"
-
-#include "definitions_cxx.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,8 +13,8 @@
 namespace deluge::scenes::services {
 
 void paint_columns(deluge::ui::grid::GridFrame& f, const WaveformRenderData& cache, int32_t centre, int32_t span) {
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
-	std::array<deluge::ui::grid::PeakCol, kDisplayWidth> peaks{};
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, deluge::gfx::grid::kDelugeGrid.main_cols);
+	std::array<deluge::ui::grid::PeakCol, deluge::gfx::grid::kDelugeGrid.main_cols> peaks{};
 	for (int32_t x = 0; x < main_cols; x++) {
 		if (cache.colStatus[x] != COL_STATUS_INVESTIGATED) {
 			continue;

@@ -2,9 +2,10 @@
 // of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
 // library, on a synth and on a kit row.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
@@ -72,7 +73,7 @@ std::vector<const Node*> target_nodes(std::optional<bind::Target::Kind> kind = b
 /// Where a target node disagrees with the binding library on @p ctx: its read, its range, or a write at its ends and
 /// middle that does not round-trip through the descriptor. Empty when it agrees.
 std::string disagreements(const Node& node, MenuContext ctx) {
-	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, ctx.ports);
 	if (!shown) {
 		return std::string(node.bind.target.path) + " unresolved ";
 	}
@@ -88,9 +89,9 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 	const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
-	bind::RecordingSink recorded;
+	bind::test::RecordingWrites recorded;
 	MenuContext recording = ctx;
-	recording.sink = &recorded;
+	recording.ports.writes = &recorded;
 	for (const int32_t v : probes) {
 		if (shown->stale == v) {
 			continue;

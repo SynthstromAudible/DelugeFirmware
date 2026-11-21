@@ -25,6 +25,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
+#include "definitions_cxx.hpp" // PerformanceEditingMode, for the numbering static_asserts
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
@@ -52,7 +53,7 @@ int16_t view_mode_cursor(const MenuContext& ctx) {
 	static_assert(static_cast<int>(PerformanceEditing::Value) == static_cast<int>(PerformanceEditingMode::VALUE));
 	static_assert(static_cast<int>(PerformanceEditing::Param) == static_cast<int>(PerformanceEditingMode::PARAM));
 	const PerformanceEditing mode =
-	    ctx.facts != nullptr ? ctx.facts->performance_editing_mode() : PerformanceEditing::Disabled;
+	    ctx.ports.ui != nullptr ? ctx.ports.ui->performance_editing_mode() : PerformanceEditing::Disabled;
 	return static_cast<int16_t>(mode);
 }
 

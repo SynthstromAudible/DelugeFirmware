@@ -797,7 +797,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		expect(std::holds_alternative<bind::ChainFocus>(rig.knobs.focus().owner)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
-		(void)menu::host_controls_sink().stutter(rig.knobs.focus(), true);
+		(void)menu::host_ports().controls_sink->stutter(rig.knobs.focus(), true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
 		// main's `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
 		rig.knobs.mod_button_action(4, true);
@@ -1100,7 +1100,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.clip->activeIfNoSolo = true;
 		other->activeIfNoSolo = false;
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()};
-		const auto& facts = deluge::scenes::menu::host_runtime_facts();
+		const auto& facts = *deluge::scenes::menu::host_ports().controls;
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{f.clip->id()})).to_be_true();
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{other->id()})).to_be_false();
 		expect(facts.allows_note_tails(slot, std::nullopt)).to_be_true();
@@ -1162,7 +1162,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			}
 		}
 		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
-		auto& sink = deluge::scenes::menu::host_controls_sink();
+		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
 		expect(InstrumentClipMinder::editingMIDICCForWhichModKnob).to_equal(1);
@@ -1197,7 +1197,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}},
 		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}},
 		};
-		auto& sink = deluge::scenes::menu::host_controls_sink();
+		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		// One song per lane, with only that lane automated: a lane read in place of another reads no automation.
 		for (size_t automated = 0; automated < std::size(lanes); automated++) {
 			spec::SongFixture f = spec::make_midi_song();
@@ -1259,7 +1259,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		if (ccs != nullptr) {
 			expect(ccs->params.getParamFromCC(75)).to_be_null("CC 75's param");
 		}
-		auto& sink = deluge::scenes::menu::host_controls_sink();
+		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
 		for (const auto& [knob, cc] : {std::pair{0, Cc{.kind = Cc::Kind::NUMBER, .number = 75}}, std::pair{1, Cc{}}}) {
 			etl::string<30> name;

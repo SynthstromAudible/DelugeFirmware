@@ -199,6 +199,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/services/learn_mode.h"
 
+#include "definitions_cxx.hpp" // MidiLearn
 #include "ui/core/led_frame.h"
 
 #include "shell/scene.h"

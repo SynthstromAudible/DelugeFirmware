@@ -34,19 +34,20 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp"
-#include "io/midi/midi_device.h"
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, FLAT_CHAR, OutputType, ThresholdRecordingMode, ScreensaverMode
+#include "deluge-project/structure_codec.h"
+#include "instruments/deluge/cables.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
-#include "model/scale/preset_scales.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/patch/patch_cable.h" // polarityToString
-#include "modulation/sync.h"
+#include "music-theory/preset_scales.h"
 #include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"   // cvEngine -- the CV/gate output pages
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
@@ -186,11 +187,12 @@ void follow_channel_set(int32_t which, int32_t value) {
 
 bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || event.cable == nullptr) {
+	::MIDICable* const cable = deluge::midi::cable_of(event.device);
+	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || cable == nullptr) {
 		return false;
 	}
 	LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	input.cable = event.cable;
+	input.cable = cable;
 	input.channelOrZone = event.channel;
 	return true;
 }
@@ -206,7 +208,7 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 			return 0;
 		}
 		if (offset < 0) {
-			return MIDI_CHANNEL_MPE_UPPER_ZONE;
+			return project::kMidiChannelUpperZone;
 		}
 		return value;
 	}
@@ -214,7 +216,8 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
 }
 
-void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll) {
+void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
+                         deluge::ui::ScrollText& scroll) {
 	using deluge::l10n::String;
 	// Legacy's canvas rows 20 / 29 / 38 at the Apple face's height 7, laid out as `MidiCommandItem` lays the same rows
 	// (`ui/core/metrics.h`).
@@ -234,16 +237,19 @@ void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t 
 	                       ts);
 
 	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	const std::string_view device = input.cable != nullptr
-	                                    ? std::string_view{input.cable->getDisplayName()}
-	                                    : deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
+	// A learned cable with no MIDI devices port to name it (a spec's fakes) shows no name.
+	std::string_view device = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
+	if (input.cable != nullptr) {
+		device =
+		    ctx.ports.midi != nullptr ? ctx.ports.midi->name(deluge::midi::id_of(*input.cable)) : std::string_view{};
+	}
 	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 
 	std::string_view channel_text;
-	if (value == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+	if (value == project::kMidiChannelLowerZone) {
 		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_LOWER_ZONE));
 	}
-	else if (value == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+	else if (value == project::kMidiChannelUpperZone) {
 		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_UPPER_ZONE));
 	}
 	else if (value == MIDI_CHANNEL_NONE) {
@@ -579,22 +585,22 @@ int32_t get_default_scale(const MenuContext&) {
 	// `defaults::DefaultScale::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`) with its own
 	// `scaleToOptionIndex`: USER_SCALE is not offerable as a default, so the option index
 	// is the scale index with that one slot removed.
-	const Scale scale = flashStorageCodeToScale(FlashStorage::defaultScale);
-	return scale >= USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
+	const deluge::music::Scale scale = deluge::music::flashStorageCodeToScale(FlashStorage::defaultScale);
+	return scale >= deluge::music::USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
 }
 void set_default_scale(const MenuContext&, int32_t value) {
 	// `origin/main:src/deluge/gui/menu_item/defaults/scale.h` `writeCurrentValue` over `optionIndexToScale`
 	int32_t index = value;
-	if (index >= USER_SCALE) {
+	if (index >= deluge::music::USER_SCALE) {
 		index += 1;
 	}
-	FlashStorage::defaultScale = scaleToFlashStorageCode(static_cast<Scale>(index));
+	FlashStorage::defaultScale = deluge::music::scaleToFlashStorageCode(static_cast<deluge::music::Scale>(index));
 }
 size_t default_scale_names(const MenuContext&, std::span<std::string_view> out) {
 	size_t n = 0; // `DefaultScale::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`)
-	for (uint8_t i = 0; i < NUM_SCALELIKE && n < out.size(); i++) {
-		if (i != USER_SCALE) {
-			out[n++] = scalelikeNames[i];
+	for (uint8_t i = 0; i < deluge::music::NUM_SCALELIKE && n < out.size(); i++) {
+		if (i != deluge::music::USER_SCALE) {
+			out[n++] = deluge::music::scalelikeNames[i];
 		}
 	}
 	return n;
@@ -622,7 +628,8 @@ void set_default_magnitude(const MenuContext&, int32_t value) {
 	const int32_t old_magnitude = FlashStorage::defaultMagnitude;
 	FlashStorage::defaultMagnitude = static_cast<int8_t>(value);
 	const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
-	FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
+	FlashStorage::defaultSwingInterval =
+	    deluge::plugin::clamp_swing_interval(FlashStorage::defaultSwingInterval - delta);
 }
 
 int32_t get_default_bend_range(const MenuContext&) {
@@ -650,7 +657,7 @@ int32_t get_default_patch_cable_polarity(const MenuContext&) {
 }
 void set_default_patch_cable_polarity(const MenuContext&, int32_t value) {
 	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
-	FlashStorage::defaultPatchCablePolarity = static_cast<Polarity>(value);
+	FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(value);
 }
 
 int32_t get_default_startup_song(const MenuContext&) {
@@ -857,10 +864,10 @@ size_t polarity_names(const MenuContext&, std::span<std::string_view> out) {
 	// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
 	size_t n = 0;
 	if (n < out.size()) {
-		out[n++] = polarityToString(Polarity::UNIPOLAR);
+		out[n++] = instrument::to_string(instrument::Polarity::UNIPOLAR);
 	}
 	if (n < out.size()) {
-		out[n++] = polarityToString(Polarity::BIPOLAR);
+		out[n++] = instrument::to_string(instrument::Polarity::BIPOLAR);
 	}
 	return n;
 }

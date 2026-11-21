@@ -1,12 +1,11 @@
 // The DX7 cartridge the menu reads: the `.syx` read through the file prefix channel, the bank's names as the ported
-// cartridge page reads them, and a program loaded through the app's sink as main's cartridge page loads it. What main's
-// page answered is held in `tests/golden/ui/menu_oracle/dx_cartridge.tsv` and its panels.
+// cartridge page reads them, and a program loaded through the app's sound port as main's cartridge page loads it. What
+// main's page answered is held in `tests/golden/ui/menu_oracle/dx_cartridge.tsv` and its panels.
 //
 // The spec may include `gui/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/runtime_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -27,6 +26,7 @@
 #include "processing/sound/source_resources.h"
 #include "storage/DX7Cartridge.h"
 
+#include "fakes.h"
 #include "support/browser_host_fake.h"
 #include "support/card_access.h"
 #include "support/dx_cartridge_fixtures.h"
@@ -248,12 +248,12 @@ void shift_save(MenuRig& r) {
 // clang-format off
 describe dx_cartridge("the DX7 cartridge", ${
 	it("is no bank before a read has loaded one", _ {
-		expect(menu::host_runtime_facts().dx_cartridge().has_value()).to_be_false();
+		expect(menu::host_ports().sound->dx_cartridge().has_value()).to_be_false();
 	});
 
 	it("names the loaded bank's programs as main's cartridge page does", _ {
 		load_bank();
-		const std::optional<bind::DxCartridgeNames> names = menu::host_runtime_facts().dx_cartridge();
+		const std::optional<bind::DxCartridgeNames> names = menu::host_ports().sound->dx_cartridge();
 		expect(names.has_value()).to_be_true();
 		const std::vector<std::string>* want = table().find("bank", "names");
 		expect(want).not_().to_be_null();
@@ -277,7 +277,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		for (size_t i = 0; params != nullptr && i < params->size() && i < want.params.size(); i++) {
 			want.params[i] = static_cast<uint8_t>(std::stoi((*params)[i]));
 		}
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 5)).to_be_true();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 5)).to_be_true();
 		expect(s.patch()).to_equal(want);
 		expect(s.song.instrument->name).to_equal(std::string{"PROG 5"});
 	});
@@ -287,7 +287,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		load_bank();
 		s.song.instrument->mightExistOnCard = true;
 		s.song.instrument->name = "KEEP";
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 3)).to_be_true();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 3)).to_be_true();
 		expect(s.song.instrument->name).to_equal(std::string{"KEEP"});
 	});
 
@@ -295,15 +295,15 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxSong s;
 		load_bank();
 		const deluge::instrument::DxPatchState before = s.patch();
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, -1)).to_be_false();
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 32)).to_be_false();
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 1, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, -1)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 32)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 1, 0)).to_be_false();
 		deluge::project::SlotAddress nowhere = s.slot();
 		nowhere.id += 1000;
-		expect(menu::host_write_sink().load_dx_program(nowhere, 0, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(nowhere, 0, 0)).to_be_false();
 		DX7Cartridge* const held = bank();
 		bank() = nullptr;
-		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 0)).to_be_false();
 		bank() = held;
 		expect(s.patch()).to_equal(before);
 	});
@@ -637,12 +637,12 @@ describe dx_cartridge("the DX7 cartridge", ${
 	it("loads the first program on entry, and a program per turn only where the cursor moved", _ {
 		load_bank();
 		MenuRig r;
-		bind::RecordingSink sink;
-		r.open(nodes::dx_cartridge, &sink);
+		bind::test::RecordingSoundWrites writes;
+		r.open(nodes::dx_cartridge, &writes);
 		const auto programs = [&] {
 			std::vector<int64_t> out;
-			for (const bind::GestureRequest& g : sink.gestures) {
-				if (g.kind == bind::GestureRequest::Kind::DX_PROGRAM) {
+			for (const bind::test::RecordingSoundWrites::Call& g : writes.calls) {
+				if (g.kind == bind::test::RecordingSoundWrites::Call::Kind::DX_PROGRAM) {
 					out.push_back(g.value);
 				}
 			}
@@ -650,7 +650,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		};
 		expect(programs().empty()).to_be_false();
 		expect(programs().back()).to_equal(int64_t{0});
-		sink.gestures.clear();
+		writes.calls.clear();
 		r.turn(-1);
 		expect(programs().empty()).to_be_true();
 		r.turn(3);
@@ -664,12 +664,12 @@ describe dx_cartridge("the DX7 cartridge", ${
 		// `DxCartridge::selectEncoderAction` clamps `currentValue + offset`, on the scaled offset.
 		load_bank();
 		MenuRig r;
-		bind::RecordingSink sink;
-		r.open(nodes::dx_cartridge, &sink);
+		bind::test::RecordingSoundWrites writes;
+		r.open(nodes::dx_cartridge, &writes);
 		r.button(kShiftX, kShiftY, true);
 		r.turn(1);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
-		expect(sink.gestures.back().value).to_equal(int64_t{5});
+		expect(writes.calls.back().value).to_equal(int64_t{5});
 		r.turn(10);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
 		r.button(kShiftX, kShiftY, false);

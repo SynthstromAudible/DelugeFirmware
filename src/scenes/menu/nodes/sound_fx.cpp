@@ -29,18 +29,16 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "effects/state.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
 #include "instruments/deluge/state_access.h"
 #include "model/song/song.h"
-#include "modulation/sync.h"
+#include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/runtime_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
 
@@ -58,7 +56,7 @@ namespace {
 ///        (`origin/main:src/deluge/gui/menu_item/reverb/room_size.h` readCurrentValue and siblings). Writes go through
 ///        the row's user scale.
 int32_t reverb_float_to_menu(float value) {
-	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
+	return static_cast<int32_t>(std::lround(value * plugin::kMaxMenuSteps));
 }
 
 /// @brief `stutter::StutterDirection`'s own enumerators.
@@ -74,15 +72,13 @@ bool show_use_song(const MenuContext& ctx) {
 
 /// @brief The stutter the context edits, as its record holds it: its sound's, else its chain's.
 std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) {
-	if (ctx.facts == nullptr) {
-		return std::nullopt;
-	}
 	if (ctx.addresses.slot) {
-		const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+		const deluge::instrument::SoundState* state =
+		    ctx.ports.sound != nullptr ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
 	}
-	if (ctx.addresses.chain) {
-		const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+	if (ctx.addresses.chain && ctx.ports.tracks != nullptr) {
+		const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);
 		return effects != nullptr ? std::optional{effects->stutter} : std::nullopt;
 	}
 	return std::nullopt;
@@ -92,9 +88,9 @@ std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) 
 void write_stutter(const MenuContext& ctx, std::string_view path, bool on) {
 	bind::Addresses where = ctx.addresses;
 	where.affect_entire = bindings::writes_whole_kit(ctx);
-	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = path, .whole_kit = true},
-	                       .where = where,
-	                       .menu_value = on ? 1 : 0});
+	(void)ctx.ports.writes->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = path, .whole_kit = true},
+	                               .where = where,
+	                               .menu_value = on ? 1 : 0});
 }
 
 } // namespace
@@ -124,16 +120,19 @@ int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
 		return 0;
 	}
 	// The sync type is runtime-only for the reverb; the level is the song's.
-	return sidechain_sync_to_menu(AudioEngine::reverbSidechainSettings.sync_type, ctx.model->reverb.sidechain_sync);
+	return deluge::plugin::combined_sync_menu(
+	    deluge::plugin::index_of(ctx.model->reverb.sidechain_sync),
+	    deluge::plugin::sync_type_choice(AudioEngine::reverbSidechainSettings.sync_type));
 }
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	// The sync type is the engine's alone; the level is the song's record.
-	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
-	bindings::write_song(ctx, "reverb/compressor/syncLevel",
-	                     static_cast<int32_t>(deluge::plugin::index_of(syncValueToSyncLevel(value))));
+	const auto [level, type_choice] = deluge::plugin::combined_sync_stored(value);
+	const deluge::plugin::SyncType type = deluge::plugin::kSyncTypeChoices[static_cast<size_t>(type_choice)];
+	AudioEngine::reverbSidechainSettings.sync_type = type;
+	bindings::write_song(ctx, "reverb/compressor/syncLevel", level);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -183,17 +182,17 @@ int32_t get_stutter_direction(const MenuContext& ctx) {
 void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	// The private `getValue()` shift, then `applyOptionToStutter` over the affect-entire sweep
 	// (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`).
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
 	write_stutter(ctx, "stutter/useSongStutter", v == kUseSong);
 	write_stutter(ctx, "stutter/reverse", v == kReversed || v == kReversedPingPong);
 	write_stutter(ctx, "stutter/pingPong", v == kForwardPingPong || v == kReversedPingPong);
-	if (v == kUseSong && ctx.facts != nullptr) {
+	if (v == kUseSong && ctx.ports.tracks != nullptr) {
 		// Inherit the song's settings wholesale.
-		const deluge::effects::EffectStates* song =
-		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+		const deluge::effects::EffectStates* song = ctx.ports.tracks->chain_effects(
+		    deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
 		if (song != nullptr) {
 			write_stutter(ctx, "stutter/quantized", song->stutter.quantized);
 			write_stutter(ctx, "stutter/reverse", song->stutter.reversed);
@@ -209,9 +208,9 @@ bool stutter_rate_quantized(const MenuContext& ctx) {
 	if (!sc) {
 		return false;
 	}
-	if (sc->use_song_stutter && ctx.facts != nullptr) {
-		const deluge::effects::EffectStates* song =
-		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+	if (sc->use_song_stutter && ctx.ports.tracks != nullptr) {
+		const deluge::effects::EffectStates* song = ctx.ports.tracks->chain_effects(
+		    deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
 		return song != nullptr && song->stutter.quantized;
 	}
 	return sc->quantized;
@@ -296,7 +295,7 @@ int32_t get_stutter_quantize(const MenuContext& ctx) {
 void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
 	// `QuantizedStutter::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/stutter/quantized.h`). The
 	// affect-entire sweep tests the *context's* `use_song_stutter`, not each drum's, as legacy does.
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);

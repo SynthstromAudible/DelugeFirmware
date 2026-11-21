@@ -41,11 +41,16 @@
 
 #include "scenes/timeline/timeline.h"
 
+#include "definitions_cxx.hpp" // kMaxZoom, NAVIGATION_CLIP
+#include "gfx/grid/pad_grid.h"
 #include "model/song/song.h"
 
 #include <algorithm>
 
 namespace deluge::scenes::timeline {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
 
 void TimelineState::adopt(const Song& song) {
 	x_scroll = song.persistentView.xScroll[NAVIGATION_CLIP];
@@ -299,7 +304,7 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 	x_zoom = newZoom;
 	// `newScroll`'s initializer in `TimelineView::horizontalEncoderAction` computes the new scroll and `initiateXZoom`
 	// is what actually stores it. The division is unsigned -- see the transcription note at the top of this file.
-	int32_t newScroll = x_scroll / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
+	int32_t newScroll = x_scroll / (newZoom * kMainCols) * (newZoom * deluge::gfx::grid::kDelugeGrid.main_cols);
 	x_scroll = newScroll;
 	return ZoomOutcome::Zoomed;
 }
@@ -313,7 +318,7 @@ bool TimelineState::scroll(int32_t offset, uint32_t max_length) {
 	// horizontal turn, and is unconditional.
 	stop_following();
 
-	int32_t newXScroll = x_scroll + offset * x_zoom * kDisplayWidth;
+	int32_t newXScroll = x_scroll + offset * x_zoom * kMainCols;
 
 	// Make sure we don't scroll too far left
 	if (newXScroll < 0) {
@@ -339,7 +344,7 @@ bool TimelineState::zoom_to_max(uint32_t max_zoom, bool in_only) {
 	uint32_t oldZoom = x_zoom;
 	if (maxZoom != oldZoom && (!in_only || maxZoom < oldZoom)) {
 		x_zoom = maxZoom;
-		int32_t newScroll = x_scroll / (maxZoom * kDisplayWidth) * (maxZoom * kDisplayWidth);
+		int32_t newScroll = x_scroll / (maxZoom * kMainCols) * (maxZoom * deluge::gfx::grid::kDelugeGrid.main_cols);
 		x_scroll = newScroll;
 		return true;
 	}
@@ -348,8 +353,8 @@ bool TimelineState::zoom_to_max(uint32_t max_zoom, bool in_only) {
 
 bool TimelineState::scroll_right_to_end_of_length_if_necessary(int32_t max_length) {
 	// `TimelineView::scrollRightToEndOfLengthIfNecessary` (`timeline_view.cpp`).
-	if (pos_from_square(kDisplayWidth) < max_length) {
-		uint32_t displayLength = x_zoom * kDisplayWidth;
+	if (pos_from_square(kMainCols) < max_length) {
+		uint32_t displayLength = x_zoom * kMainCols;
 		x_scroll = (max_length - 1) / displayLength * displayLength;
 		return true;
 	}
@@ -359,7 +364,7 @@ bool TimelineState::scroll_right_to_end_of_length_if_necessary(int32_t max_lengt
 bool TimelineState::scroll_left_if_too_far_right(int32_t max_length) {
 	// `TimelineView::scrollLeftIfTooFarRight` (`timeline_view.cpp`).
 	if (pos_from_square(0) >= max_length) {
-		x_scroll = x_scroll - x_zoom * kDisplayWidth;
+		x_scroll = x_scroll - x_zoom * kMainCols;
 		return true;
 	}
 	return false;
@@ -398,14 +403,14 @@ TimelineState::TickSquare TimelineState::tick_square(int32_t live_pos, const Tic
 
 	// See if we maybe want to do an auto-scroll
 	if (gates.recording_linearly) {
-		if (out.square == kDisplayWidth && gates.ui_idle
+		if (out.square == kMainCols && gates.ui_idle
 		    && (gates.clip_unarmed || scroll_before_following != kNotFollowing)) {
 
 			if (scroll_before_following == kNotFollowing) {
 				scroll_before_following = x_scroll;
 			}
 
-			int32_t newXScroll = x_scroll + x_zoom * kDisplayWidth;
+			int32_t newXScroll = x_scroll + x_zoom * kMainCols;
 			out.scrolled = scroll_for_linear_recording(newXScroll, gates.max_length);
 		}
 	}

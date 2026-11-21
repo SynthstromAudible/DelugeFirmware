@@ -21,8 +21,9 @@
 ///     that could hide a regression here.
 ///
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
@@ -732,8 +733,8 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		ClipRig rig;
 		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 		MenuContext ctx = rig.ctx();
-		deluge::scenes::bind::RecordingSink recording;
-		ctx.sink = &recording;
+		deluge::scenes::bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);
 		r.turn(1);
@@ -916,12 +917,12 @@ describe midi_instrument_records("scenes::menu MIDI instrument writes reach the 
 		MidiRig rig;
 		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
 		MenuContext ctx = rig.ctx();
-		deluge::scenes::bind::RecordingSink recording;
-		ctx.sink = &recording;
+		deluge::scenes::bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		menu::MenuState state{};
 		nodes::kMidiDeviceLinked.on_focus(ctx, state);
 		const bool unlinked = recording.gestures.size() == 1
-		                      && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::TEXT
+		                      && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
 		                      && recording.gestures[0].target.path == "deviceDefinitionFileName"
 		                      && recording.gestures[0].text.empty();
 		expect(unlinked).to_be_true();

@@ -31,14 +31,15 @@
 /// @note The spec may include `gui/`; the library may not. Same rule `browser_scene_spec.cpp` and
 ///       `marker_scene_spec.cpp` run under.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/notify_drain.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/fx/chain_params.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
@@ -87,7 +88,7 @@
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/menu_engine.h"
 #include "support/oracle_files.h"
 #include "support/recorder_scene_fixtures.h"
@@ -172,65 +173,6 @@ struct DisplayAs {
 	~DisplayAs() { display = saved; }
 	DisplayAs(const DisplayAs&) = delete;
 	DisplayAs& operator=(const DisplayAs&) = delete;
-};
-
-/// @brief A sink that refuses every request.
-struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
-	bool write(const bind::WriteRequest&) override { return false; }
-	bool write_param(const deluge::project::ParamAddress&, int32_t, int32_t, int32_t,
-	                 deluge::controls::Resolution) override {
-		return false;
-	}
-	void learned_written(const deluge::project::ParamAddress&, int32_t) override {}
-	std::optional<uint32_t> take_for(uint32_t) override { return std::nullopt; }
-	bool make_param(const deluge::project::ParamAddress&) override { return false; }
-	void knob_absolute(const deluge::project::OwnerParamTarget&, const deluge::project::MidiCommand&) override {}
-	bool delete_automation(const deluge::project::ParamAddress&) override { return false; }
-	bool write_text(const bind::Target&, const bind::Addresses&, std::string_view) override { return false; }
-	bool write_ranges(deluge::project::SlotAddress, uint8_t, std::span<const deluge::synth::SourceRange>,
-	                  bind::RangesCause) override {
-		return false;
-	}
-	bool recolour_clip(deluge::project::ClipAddress, int32_t) override { return false; }
-	bool clear_clip(deluge::project::ClipAddress, bool, bool) override { return false; }
-	bool move_audio_clip_marker(deluge::project::ClipAddress, std::string_view, int64_t) override { return false; }
-	void set_default_audio_input_channel(int32_t) override {}
-	void set_default_range(deluge::project::SlotAddress, uint8_t, uint16_t) override {}
-	bool insert_range(deluge::project::SlotAddress, uint8_t, uint16_t, int16_t, std::optional<int16_t>) override {
-		return false;
-	}
-	bool delete_range(deluge::project::SlotAddress, uint8_t, uint16_t, std::optional<int16_t>) override {
-		return false;
-	}
-	bool attach_recording(deluge::project::SlotAddress, uint8_t, uint16_t, std::string_view) override { return false; }
-	bool write_dx_patch(deluge::project::SlotAddress, uint8_t, const deluge::instrument::DxPatchState&) override {
-		return false;
-	}
-	bool load_dx_program(deluge::project::SlotAddress, uint8_t, int32_t) override { return false; }
-	bool resize_audio_clip(deluge::project::ClipAddress, bind::ResizeKind, int32_t, int32_t) override { return false; }
-	void set_undo_scroll_after(deluge::project::ClipAddress, int32_t) override {}
-	bool learn(deluge::project::MappingTarget, std::optional<deluge::project::MidiCommand>,
-	           std::optional<bind::LearnInput>) override {
-		return false;
-	}
-	bool learn_knob(const deluge::project::OwnerParamTarget&, ::MIDICable*, int32_t, int32_t) override { return false; }
-	bool write_source_transpose(const bind::Addresses&, uint8_t, std::optional<uint16_t>, int32_t) override {
-		return false;
-	}
-	bool knob_mode(deluge::project::KnobModeOwner, uint8_t) override { return false; }
-	bool chain_view(deluge::project::ChainAddress, std::string_view, std::string_view) override { return false; }
-	bool write_controls(deluge::project::ControlsAddress, std::vector<deluge::project::ControllerMapping>) override {
-		return false;
-	}
-	bool stutter(const bind::KnobFocus&, bool) override { return false; }
-	bool grab_region(const bind::KnobFocus&, uint32_t) override { return false; }
-	bool write_effect(const bind::EffectOwner&, std::string_view, const deluge::serialization::Value&) override {
-		return false;
-	}
-	bool midi_cc_select(const bind::KnobFocus&, int32_t, bool) override { return false; }
-	bool velocity_to_level_everywhere(const ::MIDICable&) override { return false; }
-	bool delete_knob_automation(const deluge::project::ParamAddress&) override { return false; }
-	bool instrument_edited(const bind::KnobFocus&) override { return false; }
 };
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
@@ -626,23 +568,23 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		{
 			Rig r;
-			bind::RecordingSink recording;
+			bind::test::RecordingSoundWrites recording;
 			r.open(&recording);
 			r.tick(0);
 			SampleRecorder* rec = recorder_scene().recorder();
 			const Take take{*rec, "SAMPLES/RECORD/REC002.WAV"};
 			rec->status = RecorderStatus::COMPLETE;
 			r.tick(10);
-			expect(recording.gestures.size()).to_equal(size_t{1});
-			if (!recording.gestures.empty()) {
-				const bind::GestureRequest& attach = recording.gestures[0];
-				expect(attach.kind).to_equal(bind::GestureRequest::Kind::ATTACH);
+			expect(recording.calls.size()).to_equal(size_t{1});
+			if (!recording.calls.empty()) {
+				const bind::test::RecordingSoundWrites::Call& attach = recording.calls[0];
+				expect(attach.kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::ATTACH);
 				expect(attach.slot).to_equal(r.slot());
 				expect(attach.source).to_equal(0);
 				expect(attach.range).to_equal(std::optional<uint16_t>{0});
 				expect(attach.text).to_equal(std::string{"SAMPLES/RECORD/REC002.WAV"});
 			}
-			// Only the request: the sink took it and nothing else wrote.
+			// Only the request: the port took it and nothing else wrote.
 			expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 			expect(r.on_stack()).to_be_false();
 		}
@@ -653,7 +595,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC003.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
-		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			const std::vector<deluge::synth::SourceRange> ranges =
@@ -670,10 +612,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
-		expect(menu::host_write_sink().attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
+		expect(menu::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
-		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(deluge::instrument::source_type(*state, deluge::instrument::SourceId::A)).to_equal(OscType::SQUARE);
@@ -683,7 +625,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("reports an attach the app refuses", _ {
 		Guards g;
 		Rig r;
-		RefusingSink refusing;
+		bind::test::RecordingSoundWrites refusing;
+		refusing.accept = false;
 		r.open(&refusing);
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
@@ -734,15 +677,15 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		{
 			KitRig k;
-			bind::RecordingSink recording;
+			bind::test::RecordingWrites recording;
 			MenuContext c = k.ctx();
-			c.sink = &recording;
+			c.ports.writes = &recording;
 			recorder_scene().open(c);
 			k.shell.init(SceneId{kRecorderSceneKind, 0});
 			k.shell.tick(0);
 			expect(recording.gestures.size()).to_equal(size_t{1});
 			if (!recording.gestures.empty()) {
-				expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::TEXT);
+				expect(recording.gestures[0].kind).to_equal(bind::test::RecordingWrites::Gesture::Kind::TEXT);
 				expect(recording.gestures[0].text).to_equal(std::string{"REC1"});
 			}
 		}
@@ -1195,8 +1138,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 
 		MenuContext c = r.ctx();
-		const deluge::scenes::spec::ForwardingFacts loading{*c.facts, {.output_may_be_replaced = true}};
-		c.facts = &loading;
+		deluge::scenes::spec::HeldPorts loading{c};
+		loading.card.replacing = true;
 		r.open_on(c); // `on_enter` runs as the scene is pushed
 		expect(drained_notice(deluge::notify::Notice::Kind::Text, "Loading")).to_be_true();
 		r.tick(0);
@@ -1215,7 +1158,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		SampleRecorder* rec = recorder_scene().recorder();
 		const Take take{*rec, "SAMPLES/RECORD/REC020.WAV"};
 		// A range below the one the take is for: that range is now the source's second.
-		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		expect(r.on_stack()).to_be_false();
@@ -1232,8 +1175,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 		const Take take{*rec, "SAMPLES/RECORD/REC021.WAV"};
-		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
-		expect(menu::host_write_sink().delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
 		(void)drained_notice(deluge::notify::Notice::Kind::Error);
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);

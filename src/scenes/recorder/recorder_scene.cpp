@@ -3,13 +3,14 @@
 
 #include "scenes/recorder/recorder_scene.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, AudioRecordingFolder, Error, kInternalButtonPressLatency, kSampleRate
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 
 #include "notify/notice_queue.h"
 
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "ui/grid/frame.h"
@@ -109,7 +110,7 @@ bool RecorderScene::name_drum() {
 	if (!ctx_.is_kit) {
 		return true;
 	}
-	if (ctx_.sink == nullptr || !ctx_.addresses.lane) {
+	if (ctx_.ports.writes == nullptr || !ctx_.addresses.lane) {
 		// A kit context with no row to name -- affect-entire, which `can()` already refuses -- leaves the
 		// drum unnamed, where legacy would have dereferenced a null `SoundDrum*`.
 		return true;
@@ -125,7 +126,7 @@ bool RecorderScene::name_drum() {
 		if (own && own->str() == candidate) {
 			continue;
 		}
-		if (ctx_.sink->write_text(name, ctx_.addresses, candidate)) {
+		if (ctx_.ports.writes->write_text(name, ctx_.addresses, candidate)) {
 			return true;
 		}
 	}
@@ -172,7 +173,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	last_enter_refused_ = true; // until the take has begun
 	// `opened()`'s first refusal, ahead of the undo-log wipe so a refused take leaves the history intact: a load is
 	// running that may swap out what the take would attach to.
-	if (ctx_.facts != nullptr && ctx_.facts->output_may_be_replaced()) {
+	if (ctx_.ports.card != nullptr && ctx_.ports.card->output_may_be_replaced()) {
 		notify::notice_text(kLoading);
 		return false;
 	}
@@ -264,17 +265,19 @@ void RecorderScene::end_recording_soon() {
 void RecorderScene::attach_sample() {
 	// `process()`'s success arm, as one request: the app stops the sound's voices, makes the
 	// source a sample source and puts the take, found in memory by its path, on the range.
-	if (ctx_.sink == nullptr) {
+	if (ctx_.ports.sound_writes == nullptr) {
 		return;
 	}
-	// `RuntimeFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
+	// `SoundFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
 	// while the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing,
 	// with no popup.
-	const std::optional<uint16_t> range = ctx_.facts != nullptr ? ctx_.facts->take_range(target_) : std::nullopt;
+	const std::optional<uint16_t> range =
+	    ctx_.ports.sound != nullptr ? ctx_.ports.sound->take_range(target_) : std::nullopt;
 	if (!range) {
 		return;
 	}
-	if (!ctx_.sink->attach_recording(target_.slot, target_.source, *range, recorder_->sample->filePath.c_str())) {
+	if (!ctx_.ports.sound_writes->attach_recording(target_.slot, target_.source, *range,
+	                                               recorder_->sample->filePath.c_str())) {
 		// The take is on the card, but the sound did not get it.
 		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	}
@@ -288,9 +291,9 @@ bind::TakeTarget RecorderScene::take_target() const {
 	    .clip = ctx_.addresses.clip,
 	    .slot = *ctx_.addresses.slot,
 	    .source = source,
-	    .range = ctx_.facts != nullptr
-	                 ? ctx_.facts->range_identity(*ctx_.addresses.slot, source, static_cast<uint16_t>(ctx_.range_index))
-	                 : std::nullopt,
+	    .range = ctx_.ports.sound != nullptr ? ctx_.ports.sound->range_identity(*ctx_.addresses.slot, source,
+	                                                                            static_cast<uint16_t>(ctx_.range_index))
+	                                         : std::nullopt,
 	};
 }
 

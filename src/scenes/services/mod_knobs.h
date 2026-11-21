@@ -292,9 +292,16 @@ private:
 	void declare_indicators(deluge::ui::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
+	/// @brief The param a knob turn reports to MIDI follow: its kind and where it is.
+	struct TurnedParam {
+		deluge::plugin::ParamKind kind;               ///< The kind of the param the knob turned.
+		const deluge::project::ParamAddress& address; ///< The param the knob turned.
+	};
 	/// @brief `View::sendMidiFollowFeedback`.
-	void send_midi_follow_feedback(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos,
-	                               bool have_param, bool is_automation);
+	/// @param param         The param the knob turned, or nullopt for the no-param form of the feedback.
+	/// @param knob_pos      The knob's new position.
+	/// @param is_automation Whether the feedback reports automation.
+	void send_midi_follow_feedback(const std::optional<TurnedParam>& param, int32_t knob_pos, bool is_automation);
 	/// @brief Whether the app's facts and sink act on the song the knobs read.
 	bool bound() const;
 	/// @brief The focus's owner's effect settings: a sound's own, or its chain's; null for none.

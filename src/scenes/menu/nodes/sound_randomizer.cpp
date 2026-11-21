@@ -27,11 +27,9 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
-#include "modulation/arpeggiator.h"
 
 namespace deluge::scenes::menu::nodes {
 

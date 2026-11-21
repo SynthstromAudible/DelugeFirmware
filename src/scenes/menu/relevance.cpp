@@ -34,13 +34,11 @@
 
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveforms.h"
 
@@ -58,14 +56,15 @@ using deluge::instrument::SynthMode;
 
 /// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
 const deluge::instrument::SoundState* sound_state(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
 /// @brief Does source @p index hold a loaded audio file? `SourceResources::hasAtLeastOneAudioFileLoaded`: a fact of the
 /// card.
 bool loaded(const MenuContext& ctx, uint8_t index) {
-	return ctx.facts != nullptr && ctx.addresses.slot
-	       && ((ctx.facts->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot
+	       && ((ctx.ports.sound->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
 }
 
 /// @brief `isSampleModeSample` (`origin/main:src/deluge/gui/menu_item/sample/utils.cpp`).
@@ -166,7 +165,7 @@ bool reverb_sidechain_on(const MenuContext& ctx) {
 
 bool stutter_quantize_allowed(const MenuContext& ctx) {
 	// The song's own stutter always offers quantize; anything else's does unless it plays the song's.
-	if (ctx.facts == nullptr) {
+	if (ctx.ports.tracks == nullptr) {
 		return false;
 	}
 	if (const deluge::instrument::SoundState* state = sound_state(ctx); state != nullptr) {
@@ -178,7 +177,7 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 	if (ctx.addresses.chain_owner == bind::ChainOwner::SONG) {
 		return true;
 	}
-	const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+	const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);
 	return effects != nullptr && !effects->stutter.use_song_stutter;
 }
 
@@ -210,7 +209,7 @@ bool audio_source_is_specific(const MenuContext& ctx) {
 
 bool audio_clip_has_sample(const MenuContext& ctx) {
 	// A fact of the card: the clip's file is loaded. A take still being recorded is no file yet.
-	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.facts == nullptr) {
+	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.ports.clips == nullptr) {
 		return false;
 	}
 	const std::optional<deluge::scenes::services::WaveformInfo> info = menu::host_waveforms().info(

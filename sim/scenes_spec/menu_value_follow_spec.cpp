@@ -4,7 +4,7 @@
 ///        item after a gold-knob turn, a learned or followed MIDI CC or automation playback.
 ///
 /// Each example writes the param with the edit a gold knob makes (`edits::SetParamValue`, which
-/// `ShellEditSink::write_param` applies), then runs the timer's callback itself: the harness fires no UI timer.
+/// `HostEditSink::write_param` applies), then runs the timer's callback itself: the harness fires no UI timer.
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"

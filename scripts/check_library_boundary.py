@@ -227,7 +227,14 @@ LIBRARIES: dict[str, Library] = {
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)
     ),
     "music-theory": Library(
-        REPO / "src" / "music-theory", "music-theory/", ("foundation/panic.h",)
+        REPO / "src" / "music-theory",
+        "music-theory/",
+        # the sync words a note length is named from (header-only vocabulary)
+        (
+            "plugin-api/types/sync.h",
+            "plugin-api/types/display_mapping.h",
+            "foundation/panic.h",
+        ),
     ),
     "model": Library(
         REPO / "src" / "deluge-project",
@@ -258,6 +265,7 @@ LIBRARIES: dict[str, Library] = {
             "effects/",
             "effects/host_chain/",
             "serialization/",
+            "midi/device_id.h",
             "music-theory/",
             "foundation/panic.h",
             "gui/l10n/setting_names.h",

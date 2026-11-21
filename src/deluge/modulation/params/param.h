@@ -113,7 +113,7 @@ enum Local : ParamType {
 };
 
 /// "Global" patched params, which apply to the whole sound.
-/// ANY TIME YOU UPDATE THIS LIST, please also update getParamDisplayName and paramNameForFile!
+/// ANY TIME YOU UPDATE THIS LIST, please also update the names in gui/l10n/param_names.cpp and paramNameForFile!
 enum Global : ParamType {
 	FIRST_GLOBAL = LOCAL_LAST,
 	GLOBAL_VOLUME_POST_FX = FIRST_GLOBAL,
@@ -247,12 +247,10 @@ static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED 
 [[nodiscard]] bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag);
 
 bool isParamBipolar(Kind kind, int32_t paramID);
-bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner);
 
-char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them. Falls back to the

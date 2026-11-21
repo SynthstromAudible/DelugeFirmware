@@ -22,14 +22,13 @@
 ///       `bindings.h` says a table must name at the call site because nothing can infer it. The
 ///       validator's `Flag::HalfPrecision` audit re-checks that it is set (`kHalfPrecisionNodes`).
 ///
-/// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over 0..`kMaxKnobPos`), as
+/// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over
+/// 0..`plugin::kMaxKnobPosition`), as
 ///       legacy's `DecimalWithoutScrolling` does (`audio_compressor::CompressorValue`); their banners and screens show
 ///       `getDisplayValue()`'s real units through `compressor_banner`/`compressor_screen`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-
-#include "definitions_cxx.hpp" // kMaxKnobPos
 
 #include <span>
 
@@ -52,10 +51,11 @@ ValueText compressor_banner(const MenuContext& ctx, int32_t value, ValueTextUse 
 template <CompressorShown kWhich>
 ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
-inline constexpr Node comp_threshold = param(
-    sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
-    {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_COMPRESSOR_THRESHOLD},
-    Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
+inline constexpr Node comp_threshold =
+    param(sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
+          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+           deluge::instrument::runtime_index(deluge::instrument::param::kCompressorThreshold)},
+          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
 // The decimal-place counts are the `getNumDecimalPlaces()` overrides of `audio_compressor::CompressorValue`, `Release`
 // and `Blend`; the hints are the `getRenderingStyle()` overrides of `CompressorValue`, `Attack`, `Release` and
 // `SideHPF`.

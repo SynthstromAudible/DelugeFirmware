@@ -28,8 +28,6 @@
 #include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // kMaxNumVoicesUnison, kMaxUnisonDetune, kMaxUnisonStereoSpread
-
 #include <span>
 
 namespace deluge::scenes::menu {

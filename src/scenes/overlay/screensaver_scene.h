@@ -65,7 +65,7 @@
 #include "ui/oled/rainfall.h"
 #include "ui/oled/starfield.h"
 
-#include "definitions_cxx.hpp"
+#include "definitions_cxx.hpp" // ScreensaverMode
 
 #include <cstdint>
 #include <optional>

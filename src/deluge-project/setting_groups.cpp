@@ -4,6 +4,7 @@
 #include "deluge-project/audio_input.h"
 
 #include "deluge-project/fraction.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
 #include "deluge-project/song.h"
 #include "plugin-api/types/arp.h"
@@ -335,15 +336,13 @@ static_assert(plugin::conditions_are_valid(kTrackTable));
 static_assert(plugin::mappings_are_valid(kTrackTable));
 
 constexpr std::string_view kCcLabelPrefix = "ccLabels/";
-/// The CC numbers a MIDI instrument can label: 0..119.
-constexpr int32_t kNumCcLabels = 120;
 
 /// The instrument-device table: the fixed rows, the hide flag, then one `ccLabels/<cc>` row per CC. The label paths are
 /// built once, so the table's views stay valid for the program's life.
 std::span<const SettingInfo> instrument_device_table() {
 	static const std::vector<std::string> label_paths = [] {
 		std::vector<std::string> paths;
-		for (int32_t cc = 0; cc < kNumCcLabels; cc++) {
+		for (int32_t cc = 0; cc < kNumRealCcNumbers; cc++) {
 			paths.push_back(std::string{kCcLabelPrefix} + std::to_string(cc));
 		}
 		return paths;
@@ -365,7 +364,7 @@ std::optional<uint8_t> cc_label_of(std::string_view path) {
 		return std::nullopt;
 	}
 	const std::optional<int64_t> cc = plugin::whole_number(path.substr(kCcLabelPrefix.size()));
-	return cc && *cc >= 0 && *cc < kNumCcLabels ? std::optional<uint8_t>{static_cast<uint8_t>(*cc)} : std::nullopt;
+	return cc && *cc >= 0 && *cc < kNumRealCcNumbers ? std::optional<uint8_t>{static_cast<uint8_t>(*cc)} : std::nullopt;
 }
 
 std::optional<Value> read_output(const DocOutput& o, SettingGroupId group, std::string_view path) {

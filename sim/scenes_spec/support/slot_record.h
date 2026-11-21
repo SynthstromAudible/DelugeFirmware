@@ -12,12 +12,12 @@
 
 namespace deluge::scenes::spec {
 
-/// @brief The first oscillator's ranges the record holds at @p slot, read through the scenes' runtime facts, or none
+/// @brief The first oscillator's ranges the record holds at @p slot, read through the scenes' sound port, or none
 /// where there is no record.
 /// @param slot The slot.
 /// @return The ranges.
 inline std::vector<synth::SourceRange> first_ranges(project::SlotAddress slot) {
-	const instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
+	const instrument::SoundState* state = menu::host_ports().sound->sound_state(slot);
 	return state != nullptr ? instrument::source_ranges(*state, instrument::SourceId::A)
 	                        : std::vector<synth::SourceRange>{};
 }

@@ -114,6 +114,42 @@ describe follow("MIDI follow's params", ${
 		expect(follow_plugin(kAudio)).to_equal(plugin::kGlobalEffectable);
 		expect(follow_plugin(kSong)).to_equal(plugin::kGlobalEffectable);
 	});
+
+	it("follows a MIDI CC and an expression axis for either owner, whatever the table holds", _{
+		auto none = [](plugin::PluginId, plugin::ParamId) { return false; };
+		for (project::OwnerPlugin owner : {project::OwnerPlugin::INSTRUMENT, project::OwnerPlugin::GLOBAL_EFFECTABLE}) {
+			expect(follow_target(owner, plugin::ParamKind::MIDI, plugin::ParamId{74}, none))
+			    .to_equal(std::optional{ParamTarget{project::ParamSpace::MIDI_CC, plugin::ParamId{74}}});
+			expect(follow_target(owner, plugin::ParamKind::EXPRESSION, plugin::ParamId{2}, none))
+			    .to_equal(std::optional{ParamTarget{project::ParamSpace::EXPRESSION, plugin::ParamId{2}}});
+		}
+	});
+	it("follows an engine param only in its owner's plugin, and only when its table has the id", _{
+		auto has_7 = [](plugin::PluginId, plugin::ParamId id) { return id.value == 7; };
+		const auto sound = project::OwnerPlugin::INSTRUMENT;
+		const auto global = project::OwnerPlugin::GLOBAL_EFFECTABLE;
+		expect(follow_target(sound, plugin::ParamKind::PATCHED, plugin::ParamId{7}, has_7))
+		    .to_equal(std::optional{project::engine_target(7)});
+		expect(follow_target(sound, plugin::ParamKind::UNPATCHED_SOUND, plugin::ParamId{7}, has_7))
+		    .to_equal(std::optional{project::engine_target(7)});
+		expect(follow_target(global, plugin::ParamKind::UNPATCHED_GLOBAL, plugin::ParamId{7}, has_7))
+		    .to_equal(std::optional{project::engine_target(7)});
+		// the other owner's kind
+		expect(follow_target(global, plugin::ParamKind::PATCHED, plugin::ParamId{7}, has_7)).not_().to_have_value();
+		expect(follow_target(sound, plugin::ParamKind::UNPATCHED_GLOBAL, plugin::ParamId{7}, has_7)).not_().to_have_value();
+		// an id the table lacks, and a kind that follows nothing
+		expect(follow_target(sound, plugin::ParamKind::PATCHED, plugin::ParamId{8}, has_7)).not_().to_have_value();
+		expect(follow_target(sound, plugin::ParamKind::NONE, plugin::ParamId{7}, has_7)).not_().to_have_value();
+		expect(follow_target(sound, plugin::ParamKind::STATIC, plugin::ParamId{7}, has_7)).not_().to_have_value();
+	});
+	it("follows a cable's depth in a sound without asking the table", _{
+		auto none = [](plugin::PluginId, plugin::ParamId) { return false; };
+		const plugin::ParamId depth{0x4000'0119u};
+		expect(follow_target(project::OwnerPlugin::INSTRUMENT, plugin::ParamKind::PATCH_CABLE, depth, none))
+		    .to_equal(std::optional{project::engine_target(0x4000'0119u)});
+		expect(follow_target(project::OwnerPlugin::GLOBAL_EFFECTABLE, plugin::ParamKind::PATCH_CABLE, depth, none))
+		    .not_().to_have_value();
+	});
 });
 // clang-format on
 

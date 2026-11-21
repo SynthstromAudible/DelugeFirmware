@@ -30,9 +30,9 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
-#include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/knob_focus.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
@@ -43,6 +43,7 @@
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/menu_core.h"
@@ -539,30 +540,6 @@ std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const
 	return visit_.learn.target(ctx_, st_);
 }
 
-bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	const bool learned = visit_.learn.note_on(ctx_, st_, cable, channel, note);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
-bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	const bool learned = visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
-bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	const bool learned = visit_.learn.program_change(ctx_, st_, cable, channel, program);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
 void MenuScene::unlearn() {
 	visit_.learn.unlearn(ctx_, st_);
 	read_learned_value_again();
@@ -650,7 +627,7 @@ MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool 
 		const int8_t pos = st_.decimal_pos;
 		const bool moves = !xenc_held
 		                   && ((offset > 0 && pos > 0)
-		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= kMaxMenuPatchCableValue));
+		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= plugin::kCableMenuMax));
 		if (moves) {
 			cable_edge_until_ms_ = 0;
 			return HorizontalTurn::Menu;
@@ -819,13 +796,13 @@ void MenuScene::flip_in_place(const Node& node) {
 void MenuScene::mark_edited_after_turn() {
 	// `currentSound`, which the slot stands for, and `markInstrumentAsEdited`'s `!inSettingsMenu()`: the settings menu
 	// can be opened over a synth with a slot resolved.
-	if (ctx_.controls_sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
+	if (ctx_.ports.controls_sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
 	    || !select_turn_edits_instrument(ctx_, st_)) {
 		return;
 	}
 	const deluge::project::SlotAddress slot = *ctx_.addresses.slot;
 	const bool drum = slot.kind == deluge::project::SlotAddress::Kind::DRUM;
-	(void)ctx_.controls_sink->instrument_edited(deluge::scenes::bind::KnobFocus{
+	(void)ctx_.ports.controls_sink->instrument_edited(deluge::scenes::bind::KnobFocus{
 	    .owner = deluge::scenes::bind::SoundFocus{
 	        .slot = slot, .clip = ctx_.addresses.clip, .kit = drum ? ctx_.addresses.kit_output : std::nullopt}});
 }
@@ -885,7 +862,7 @@ Result MenuScene::after_render_navigation() {
 	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
 	// (`cv::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
 	// `gate::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- and the
-	// device list's `soundEditor.currentMIDICable = getCable(...)` (`Devices::beginSession` in
+	// device list's assignment of `soundEditor`'s current MIDI cable from `getCable(...)` (`Devices::beginSession` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`, `Devices::selectEncoderAction`). Same shape as
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns `currentSourceIndex` on the
 	// way through `selectButtonPress`, so `gate_selection_chain` and `gate_mode_names` must both see the output the
@@ -895,10 +872,10 @@ Result MenuScene::after_render_navigation() {
 		ctx_.source_index = st_.walk.source_choice;
 		st_.walk.source_choice = -1;
 	}
-	if (st_.walk.midi_cable_choice != nullptr) {
-		trace_drain(DrainBand::MidiCableChoice);
-		ctx_.midi_cable = st_.walk.midi_cable_choice;
-		st_.walk.midi_cable_choice = nullptr;
+	if (st_.walk.midi_device_choice) {
+		trace_drain(DrainBand::MidiDeviceChoice);
+		ctx_.midi_device = st_.walk.midi_device_choice;
+		st_.walk.midi_device_choice = {};
 	}
 
 	if (st_.tick.value_changed && st_.tick.value_node != nullptr) {
@@ -946,7 +923,7 @@ Result MenuScene::after_render_navigation() {
 		if (item != nullptr && is_automation_item(*item)) {
 			deleting_automation = true;
 			const std::optional<deluge::project::ParamAddress> address = automation_address(*item, ctx_, st_);
-			if (address && ctx_.sink != nullptr && ctx_.sink->delete_automation(*address)) {
+			if (address && ctx_.ports.writes != nullptr && ctx_.ports.writes->delete_automation(*address)) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup,
 				           .popup_string = static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED)});
@@ -1018,7 +995,7 @@ Result MenuScene::after_render_navigation() {
 				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
 				// the param it patches. The source page reads it from the level above it, which here is the page, not
 				// the column.
-				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+				if (column->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 					st_.walk.patching_param = column->bind.param.index;
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
@@ -1382,7 +1359,7 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 		if (!item.custom->is_automation_item()) {
 			return std::nullopt;
 		}
-		return AutomationParam{.kind = deluge::modulation::params::Kind::PATCH_CABLE,
+		return AutomationParam{.kind = deluge::plugin::ParamKind::PATCH_CABLE,
 		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
 	}
 	if (!item.bind.param.valid()) {

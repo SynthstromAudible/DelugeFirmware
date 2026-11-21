@@ -29,11 +29,11 @@
 /// @par Where the markers come from
 ///
 /// The scene holds addresses, not engine objects: a sound's markers are its range's zone in the
-/// source's record (`RuntimeFacts::sound_state`), an audio clip's are rows of the clip's record.
-/// A move goes to the menu's sink: a sound's as its source's ranges with the marker named, an
-/// audio clip's as a marker request. The view (scroll, zoom) and the loop lock are the scene's
-/// own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio clip's
-/// id (`services::ViewKey`), so they stay with that range or clip as main keeps them on its sample holder.
+/// source's record (`SoundFacts::sound_state`), an audio clip's are rows of the clip's record.
+/// A move goes to a port: a sound's to the sound port as its source's ranges with the marker
+/// named, an audio clip's to the clip port as a marker request. The view (scroll, zoom) and the loop lock are the
+/// scene's own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio
+/// clip's id (`services::ViewKey`), so they stay with that range or clip as main keeps them on its sample holder.
 ///
 /// @par The waveform is on the pads only
 ///
@@ -80,6 +80,7 @@
 ///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
+#include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
 #include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_address.h"
@@ -91,7 +92,7 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
-#include "definitions_cxx.hpp"
+#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "model/sample/waveform_navigator.h"
 
@@ -231,7 +232,7 @@ private:
 	/// @return Actions to file (the loop-length popups).
 	deluge::ui::shell::Result horizontal_encoder(int32_t offset, bool zooming, bool shift);
 	/// @brief Whether a note is auditioned: legacy's `UI_MODE_AUDITIONING`, from the host.
-	bool auditioning() const { return ctx_.facts != nullptr && ctx_.facts->auditioning(); }
+	bool auditioning() const { return ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning(); }
 	/// @brief Whether any UI mode is up: legacy's `currentUIMode != 0` (a held marker, X_ENC held, a zoom sliding,
 	/// auditioning).
 	bool mode_up() const { return holding_ || xenc_held_ || sliding() || auditioning(); }
@@ -320,7 +321,7 @@ private:
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
-	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> last_ticks_{};
 	/// A note was already auditioning when the held marker went down: legacy's hold assigns `currentUIMode`, so that
 	/// audition's bit is gone and only one begun under the hold makes `HOLDING_SAMPLE_MARKER | AUDITIONING`.
 	bool audition_under_hold_ = false;

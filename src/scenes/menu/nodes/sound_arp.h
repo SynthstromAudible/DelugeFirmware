@@ -64,9 +64,9 @@
 #include "scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
 #include "scenes/menu/relevance.h"
 
-#include "definitions_cxx.hpp" // ArpPreset -- `arp_preset_chain`'s CUSTOM test
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
+#include "plugin-api/types/arp.h"
 
 #include <optional>
 #include <span>
@@ -173,7 +173,7 @@ inline constexpr Node arp_octave_mode_to_note_mode_drums = with_affect_entire(wi
 ///        returns null, i.e. ascends.
 inline constexpr const Node* kArpPresetChain[] = {&arp_octave_mode_to_note_mode, &arp_octave_mode_to_note_mode_drums};
 inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
-	if (get_arp_preset(ctx) != static_cast<int32_t>(ArpPreset::CUSTOM)) {
+	if (get_arp_preset(ctx) != int32_t{plugin::kArpPresetCustom}) {
 		return nullptr;
 	}
 	return relevance::is_kit_row(ctx) ? &arp_octave_mode_to_note_mode_drums : &arp_octave_mode_to_note_mode;
@@ -183,20 +183,20 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 ///        in the title face, else the preset's icon, DOWN being UP's mirrored.
 inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
 	namespace icons = deluge::gfx::oled::icons;
-	switch (static_cast<ArpPreset>(value)) {
-	case ArpPreset::OFF:
+	switch (value) {
+	case int32_t{plugin::kArpPresetOff}:
 		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
 		                                   .face = deluge::ui::oled::ArtColumn::Face::Title,
 		                                   .dy = 5};
-	case ArpPreset::DOWN:
+	case int32_t{plugin::kArpPresetDown}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
-	case ArpPreset::BOTH:
+	case int32_t{plugin::kArpPresetBoth}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
-	case ArpPreset::RANDOM:
+	case int32_t{plugin::kArpPresetRandom}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
-	case ArpPreset::WALK:
+	case int32_t{plugin::kArpPresetWalk}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
-	case ArpPreset::CUSTOM:
+	case int32_t{plugin::kArpPresetCustom}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
 	default:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};
@@ -212,20 +212,22 @@ inline constexpr Node arp_preset = with_affect_entire(with_column_art(
     arp_preset_art));
 /// Not on a MIDI or gate drum row (`arpeggiator::ArpUnpatchedParam::isRelevant`), which the kit's own effects keep
 /// selected.
-inline constexpr Node arp_gate = with_relevant(
-    param(sid(deluge::l10n::String::STRING_FOR_GATE),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},
-          Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
-    relevance::not_non_audio_drum_row);
+inline constexpr Node arp_gate =
+    with_relevant(param(sid(deluge::l10n::String::STRING_FOR_GATE),
+                        {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                         deluge::instrument::runtime_index(deluge::instrument::param::kArpGate)},
+                        Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
+                  relevance::not_non_audio_drum_row);
 inline constexpr Node arp_sync = with_affect_entire(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
 /// Not on a MIDI or gate drum row or a kit's own effects (`arpeggiator::Rate::isRelevant`), which the kit's own
 /// shortcut table names it on.
 inline constexpr Node arp_rate = with_relevant(
-    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
-                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_ARP_RATE},
-                           Hint::Knob, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
+    with_patch_chain(param(
+        sid(deluge::l10n::String::STRING_FOR_RATE),
+        {deluge::plugin::ParamKind::PATCHED, deluge::instrument::runtime_index(deluge::instrument::param::kArpRate)},
+        Hint::Knob, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
     relevance::not_non_audio_drum_or_kit_fx);
 
 inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
@@ -265,20 +267,21 @@ inline constexpr Node arp_chord_simulator = with_affect_entire(with_short_column
     setting_item(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), Kind::Enum, arp_row("arpeggiator/chordType")),
     sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE))));
 // `Rhythm::getOccupiedSlots()` (`origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`) is 2, as is its MIDI/CV
-// twin's; the range is `{0, kMaxPresetArpRhythm}` (`Rhythm::getMinValue`/`getMaxValue`), and
-// `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h`), which is the param default -- so no
-// `with_range` is needed on either.
+// twin's; the range is `{0, kMaxMenuValue}` (`Rhythm::getMinValue`/`getMaxValue`), and
+// `plugin::kArpRhythms` (`plugin-api/types/arp_rhythm.h`) holds one entry per menu step, which is the param default --
+// so no `with_range` is needed on either.
 /// `arpeggiator::Rhythm::isRelevant`: not with a MIDI or gate drum selected.
 inline constexpr Node arp_rhythm = with_relevant(
     with_value_style(
-        with_leaf_text(with_column_art(with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
-                                                        {deluge::modulation::params::Kind::UNPATCHED_SOUND,
-                                                         deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
-                                                        Hint::None, ParamShows{},
-                                                        sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-                                                  2),
-                                       arp_rhythm_art),
-                       arp_rhythm_screen_text),
+        with_leaf_text(
+            with_column_art(
+                with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+                                 {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                                  deluge::instrument::runtime_index(deluge::instrument::param::kRhythm)},
+                                 Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                           2),
+                arp_rhythm_art),
+            arp_rhythm_screen_text),
         deluge::ui::oled::ValueStyle{.label_in_digits = true}),
     relevance::not_non_audio_drum_row);
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
@@ -290,15 +293,15 @@ inline constexpr Node arp_rhythm_midi =
                                    arp_rhythm_midi_art),
                    arp_rhythm_name_text);
 /// `arpeggiator::ArpUnpatchedParam::isRelevant`: not with a MIDI or gate drum selected.
-inline constexpr Node arp_sequence_length =
-    with_relevant(with_value_text(with_short_column_label(
-                                      param(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
-                                            {deluge::modulation::params::Kind::UNPATCHED_SOUND,
-                                             deluge::modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-                                            Hint::None, ParamShows{},
-                                            sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
-                                  off_at_zero_text),
-                  relevance::not_non_audio_drum_row);
+inline constexpr Node arp_sequence_length = with_relevant(
+    with_value_text(
+        with_short_column_label(param(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
+                                      {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                                       deluge::instrument::runtime_index(deluge::instrument::param::kSequenceLength)},
+                                      Hint::None, ParamShows{},
+                                      sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+        off_at_zero_text),
+    relevance::not_non_audio_drum_row);
 inline constexpr Node arp_sequence_length_midi = with_value_text(
     with_short_column_label(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
                                                     arp_row("arpeggiator/sequenceLength", false)),

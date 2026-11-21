@@ -2,10 +2,11 @@
 #
 # Standalone of the app: it depends on the model and the engine libraries only, so its specs (tests/unit/scenes/bind)
 # run against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
-# The app supplies what it cannot see: the runtime facts (RuntimeFacts) and the sink that applies Edits (WriteSink).
+# The app supplies what it cannot see: the sink that applies Edits (WriteSink) and the ports
+# (ports/), one interface per domain.
 
 add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp
-                                      write_sink.cpp)
+                                      ports/param_info.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_scenes_bind)
 # src/ for its own and the model's headers; src/deluge for the name table (gui/l10n/setting_names.h, whose definitions

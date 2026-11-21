@@ -5,14 +5,14 @@
 namespace deluge::scenes::bind {
 
 plugin::SettingContext setting_context(const project::Song& /*model*/, project::SlotAddress slot,
-                                       const RuntimeFacts& facts) {
+                                       const SoundFacts& sound, const AudioFacts& audio) {
 	using Owner = plugin::SettingContext::Owner;
 	using Instrument = plugin::SettingContext::Instrument;
 	const bool lane = slot.kind == project::SlotAddress::Kind::DRUM;
 	return {.owner = lane ? Owner::KIT_LANE : Owner::TRACK,
 	        .instrument = lane ? Instrument::SOUND_DRUM : Instrument::SYNTH,
-	        .audio_inputs_present = facts.audio_inputs_present(),
-	        .loaded_sources = facts.loaded_sources(slot)};
+	        .audio_inputs_present = audio.audio_inputs_present(),
+	        .loaded_sources = sound.loaded_sources(slot)};
 }
 
 plugin::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwner owner) {
@@ -30,7 +30,7 @@ plugin::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwn
 }
 
 plugin::SettingContext setting_context(const project::Song& model, const project::SettingAddress& address,
-                                       plugin::SettingContext::Instrument instrument, const RuntimeFacts& facts) {
+                                       plugin::SettingContext::Instrument instrument, const AudioFacts& audio) {
 	using Owner = plugin::SettingContext::Owner;
 	using Instrument = plugin::SettingContext::Instrument;
 	using project::SettingGroupId;
@@ -80,7 +80,7 @@ plugin::SettingContext setting_context(const project::Song& model, const project
 		}
 		break;
 	}
-	context.audio_inputs_present = facts.audio_inputs_present();
+	context.audio_inputs_present = audio.audio_inputs_present();
 	return context;
 }
 

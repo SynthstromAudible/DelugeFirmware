@@ -21,6 +21,7 @@
 #include "deluge-project/arrangement.h"
 #include "deluge-project/drum_type.h"
 #include "deluge-project/launch_style.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
 #include "effects/words.h"
 #include "gfx/oled/font.h"
@@ -444,12 +445,8 @@ enum class Error {
 using deluge::instrument::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
-enum class FilterType {
-	LPF,
-	HPF,
-	EQ,
-};
-constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
+using FilterType = deluge::effects::FilterType;
+constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
 constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
 
@@ -502,12 +499,8 @@ enum class ArpMpeModSource {
 	MPE_Y,
 };
 
-enum class ModFXParam {
-	DEPTH,
-	FEEDBACK,
-	OFFSET,
-};
-constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
+using ModFXParam = deluge::effects::ModFxParam;
+constexpr auto kNumModFXParams = deluge::effects::kNumModFxParams;
 
 enum class CompParam {
 	RATIO,
@@ -710,7 +703,7 @@ enum CCNumber {
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
-constexpr int32_t kNumRealCCNumbers = 120;
+constexpr int32_t kNumRealCCNumbers = deluge::project::kNumRealCcNumbers;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;
 enum class InstrumentRemoval {

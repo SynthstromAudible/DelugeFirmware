@@ -74,7 +74,7 @@
 #include "util/name_compare.h"
 
 #include "support/browser_scene_fixtures.h"
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
@@ -2311,14 +2311,13 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		MenuContext ctx = sound_context(f);
-		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
-		ctx.facts = &facts;
+		spec::HeldPorts held{ctx};
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
-		facts.set({.auditioning = true});
+		held.ui.auditioning_now = true;
 		r.button(kBackX, kBackY, true, r.clock + 10);
 		r.step();
 		r.button(kBackX, kBackY, false, r.clock + 10);
@@ -2330,7 +2329,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
 		expect(fake_browser_host().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
-		facts.set({.auditioning = false});
+		held.ui.auditioning_now = false;
 	});
 
 	it("leaves every other button to the UI beneath under the folder menu while an audition pad is held", _ {
@@ -2340,19 +2339,18 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		MenuContext ctx = sound_context(f);
-		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
-		ctx.facts = &facts;
+		spec::HeldPorts held{ctx};
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
-		facts.set({.auditioning = true});
+		held.ui.auditioning_now = true;
 		DirectCtx d;
 		const Result play = context_menu_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Play}, d.ctx);
 		expect(play.handled).to_be_false();
-		facts.set({.auditioning = false});
+		held.ui.auditioning_now = false;
 	});
 
 	it("ignores a Select turn while held", _ {
@@ -2374,8 +2372,8 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
-		ctx.facts = &loading;
+		spec::HeldPorts loading{ctx};
+		loading.card.sample_loading = true;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		(void)fake_browser_host().take_choice();
@@ -2395,8 +2393,8 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
-		ctx.facts = &loading;
+		spec::HeldPorts loading{ctx};
+		loading.card.sample_loading = true;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		const int32_t before = browser_scene().cursor();
@@ -2410,8 +2408,8 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
-		ctx.facts = &loading;
+		spec::HeldPorts loading{ctx};
+		loading.card.sample_loading = true;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		const int32_t before = browser_scene().file_index();
@@ -2622,8 +2620,8 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 	it("refuses BACK, Select and pads on a folder menu while a sample load runs", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
-		ctx.facts = &loading;
+		spec::HeldPorts loading{ctx};
+		loading.card.sample_loading = true;
 		auto& menu = context_menu_scene();
 		menu.open(ctx);
 		expect(menu.on_enter(SceneId{context_menu::kContextMenuSceneKind,
@@ -3264,8 +3262,8 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = true}};
-		ctx.facts = &facts;
+		spec::HeldPorts held{ctx};
+		held.ui.auditioning_now = true;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		DirectCtx d;
@@ -3278,7 +3276,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(released.handled).to_be_true();
 		expect(released.actions.empty()).to_be_true();
 		// The audition pad up, the same press opens the recorder.
-		facts.set({.auditioning = false});
+		held.ui.auditioning_now = false;
 		const Result opened = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
 		expect(find_action(opened, ShellAction::Kind::Push)).not_().to_be_null();
@@ -3291,13 +3289,12 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);
-		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
-		ctx.facts = &facts;
+		spec::HeldPorts held{ctx};
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
 		const std::string dir{browser_scene().current_dir()};
 		const int32_t index = browser_scene().file_index();
-		facts.set({.auditioning = true});
+		held.ui.auditioning_now = true;
 		DirectCtx d;
 		Result taken[4];
 		taken[0] = browser_scene().handle(
@@ -3331,7 +3328,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
 		expect(browser_scene().file_index()).to_equal(index);
 		expect(r.browser_on_stack()).to_be_true();
-		facts.set({.auditioning = false});
+		held.ui.auditioning_now = false;
 	});
 
 	it("walks nothing while X_ENC is held", _ {

@@ -5,7 +5,9 @@
 
 #include <cstdint>
 
+namespace deluge::instrument {
 enum class Polarity : uint8_t;
+}
 
 namespace deluge::edits {
 
@@ -15,7 +17,7 @@ class SetCablePolarity final : public Edit {
 public:
 	/// @param cable    The cable's depth address on a synth or a sound drum (with its clip).
 	/// @param polarity The polarity it takes.
-	SetCablePolarity(project::ParamAddress cable, Polarity polarity) : cable_(cable), polarity_(polarity) {}
+	SetCablePolarity(project::ParamAddress cable, instrument::Polarity polarity) : cable_(cable), polarity_(polarity) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED where the sound does not hold the cable.
@@ -23,7 +25,7 @@ public:
 
 private:
 	project::ParamAddress cable_;
-	Polarity polarity_;
+	instrument::Polarity polarity_;
 };
 
 } // namespace deluge::edits

@@ -137,6 +137,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/views/performance_view.h"
 #include "hid/display/display.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -500,7 +501,7 @@ struct SavedCables {
 bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
-	return request.has_value() && ctx.sink->write(*request);
+	return request.has_value() && ctx.ports.writes->write(*request);
 }
 
 } // namespace
@@ -1045,13 +1046,18 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		const CommandSlots saved = CommandSlots::capture();
 		CommandSlots::clear_all();
-		// Focus the item to learn onto it -- `MenuScene::learn_cc` forwards to `focused()` -- and then
+		// Focus the item to learn onto it -- its own learn hook, as `MenuLearn::offer` reaches it -- and then
 		// re-root on the list the script actually walks. The slot itself is
 		// `midiEngine.globalMIDICommands`, a global, so the binding survives the re-rooting.
 		menu_scene().open(nodes::midi_command_play, ctx);
 		// Channel 3 + `IS_A_CC`, CC 42 -- the same binding `tables_3_spec`'s learned-readout golden
 		// uses, so the three-line shape in `entered` is the one that file already pins at unit level.
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		const deluge::scenes::menu::Node* play = menu_scene().focused();
+		expect(play).not_().to_be_null();
+		expect(play == nullptr ? nullptr : play->custom).not_().to_be_null();
+		if (play != nullptr && play->custom != nullptr) {
+			expect(play->custom->learn_cc(deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
+		}
 		menu_scene().open(nodes::midi_commands, ctx);
 
 		const uitest::RunResult result =
@@ -1176,7 +1182,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const MenuContext ctx =
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		// `on_focus` seeds the cursor from the performance view's mode (`RuntimeFacts::performance_editing_mode`), so
+		// `on_focus` seeds the cursor from the performance view's mode (`UiFacts::performance_editing_mode`), so
 		// the view's two bools are put at DISABLED, and put back afterwards like any other global.
 		const bool saved_default = performanceView.defaultEditingMode;
 		const bool saved_param = performanceView.editingParam;
@@ -1217,11 +1223,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 
 		const SavedCables saved = SavedCables::capture();
-		// `connected_cables` walks `kLowestDeviceNum..hostedMIDIDevices.size()` and keeps every cable
-		// whose `connectionFlags` is non-zero (`connected_cables` in `nodes/dynamic.cpp`). With no hosted devices
-		// the walk is the three built-in cables, so lighting two of them is a two-row list -- and two
-		// is the number that matters: a page that read a *global* cable rather than
-		// `MenuContext::midi_cable` would pass a one-row list.
+		// The host's device list (`MidiDevices::connected`) walks DIN, the two upstream cables and the hosted ones, and
+		// keeps every cable whose `connectionFlags` is non-zero. With no hosted devices the walk is the three built-in
+		// cables, so lighting two of them is a two-row list -- and two is the number that matters: a page that read a
+		// *global* cable rather than `MenuContext::midi_device` would pass a one-row list.
 		MIDICable& din = MIDIDeviceManager::dinMIDIPorts;
 		MIDICable& usb = MIDIDeviceManager::upstreamUSBMIDICable1;
 		din.connectionFlags = 1;

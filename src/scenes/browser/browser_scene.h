@@ -72,6 +72,7 @@
 ///          `~Listing` asserts it is not in flight. Scenes are long-lived singletons, which is what
 ///          makes that satisfiable.
 
+#include "definitions_cxx.hpp" // Error
 #include "scenes/browser/listing.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcut_blink.h"
@@ -84,6 +85,7 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text_edit.h"
 
+#include "gfx/grid/pad_grid.h"
 #include "gfx/oled/icon.h"
 #include "model/sample/waveform_navigator.h"
 
@@ -748,12 +750,12 @@ private:
 	///        RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
 	bool mode_up() const {
 		return holding_ || xenc_held_ || backspace_due_ms_.has_value()
-		       || (ctx_.facts != nullptr && ctx_.facts->auditioning());
+		       || (ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning());
 	}
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
 	///        folder import is running, and every button and key is refused until it ends.
 	bool load_running() const {
-		return id_ == BrowserId::Sample && ctx_.facts != nullptr && ctx_.facts->sample_load_in_flight();
+		return id_ == BrowserId::Sample && ctx_.ports.card != nullptr && ctx_.ports.card->sample_load_in_flight();
 	}
 
 	/// `QwertyUI::padAction`'s `UI_MODE_HOLDING_BACKSPACE`: set by a backspace press, holding the tick the next repeat
@@ -846,7 +848,7 @@ private:
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
 	deluge::sample::WaveformNav nav_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
-	RGB waveform_shown_[kDisplayHeight][kDisplayWidth]{};
+	RGB waveform_shown_[deluge::gfx::grid::kDelugeGrid.rows][deluge::gfx::grid::kDelugeGrid.main_cols]{};
 	uint64_t nav_identity_ = 0;
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;

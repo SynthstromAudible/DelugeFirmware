@@ -25,6 +25,7 @@
 
 #include "effects/compressor.h" // the dsp-next display functions
 #include "foundation/string_format.h"
+#include "plugin-api/types/display_mapping.h"
 
 #include <algorithm>
 #include <cstring>
@@ -49,8 +50,8 @@ int32_t shown_q31(const Node& node, const MenuContext& ctx, int32_t value, bool 
 	    stored && (*stored >> 24) == value) {
 		return *stored;
 	}
-	if (value >= kMaxKnobPos) {
-		return blend ? std::numeric_limits<int32_t>::max() : (kMaxKnobPos - 1) << 24;
+	if (value >= plugin::kMaxKnobPosition) {
+		return blend ? std::numeric_limits<int32_t>::max() : (plugin::kMaxKnobPosition - 1) << 24;
 	}
 	return value << 24;
 }

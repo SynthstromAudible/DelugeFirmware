@@ -3,6 +3,7 @@
 namespace deluge::scenes::services {
 
 using deluge::l10n::String;
+using deluge::synth::PatchSource;
 
 const char* source_short_name(PatchSource source) {
 	switch (source) {

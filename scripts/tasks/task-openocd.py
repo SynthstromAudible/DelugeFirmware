@@ -46,7 +46,7 @@ _OPENOCD_CONFIG_MAP = {
         "swd": [os.path.join("interface", "delugeprobe.cfg"), "deluge-swj-swd.cfg"],
     },
     "esp-prog": {
-        "jtag": [os.path.join("interface", "esp-prog.cfg"), "deluge-jtag.cfg"],
+        "jtag": [os.path.join("interface", "esp-prog.cfg"), "deluge-swj-jtag.cfg"],
     },
 }
 
@@ -117,7 +117,17 @@ def main() -> int:
 
     cfg_files = _OPENOCD_CONFIG_MAP[hardware][protocol]
 
-    ocd_cmd = [__OPENOCD_BIN]
+    if not __OPENOCD_BIN:
+        print(
+            "ERROR: openocd not found on PATH. Run this through ./dbt (its toolchain "
+            "bundles one) or install OpenOCD 0.12 or newer.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"Using OpenOCD: {__OPENOCD_BIN}", flush=True)
+
+    # -s lets the configs find each other and the repo's interface files.
+    ocd_cmd = [__OPENOCD_BIN, "-s", OPENOCD_SCRIPT_DIR]
     for cfg_part in cfg_files:
         ocd_cmd.append("-f")
         path = os.path.join(OPENOCD_SCRIPT_DIR, cfg_part)
@@ -130,4 +140,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

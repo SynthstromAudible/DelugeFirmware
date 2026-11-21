@@ -15,7 +15,7 @@
 using namespace deluge::scenes::bind;
 using deluge::effects::FilterMode;
 using deluge::project::ChainAddress;
-using deluge::scenes::bind::test::FakeFacts;
+using deluge::scenes::bind::test::FakeTrackFacts;
 using deluge::scenes::bind::test::kAudioChain;
 using deluge::scenes::bind::test::kDrum;
 using deluge::scenes::bind::test::kKitChain;
@@ -33,9 +33,9 @@ Addresses on_chain(ChainAddress chain, ChainOwner owner) {
 }
 
 /// The names choice_names gives for @p path at @p where, as their ids.
-std::vector<int64_t> names_at(const ModelFixture& fixture, std::string_view path, const Addresses& where) {
+std::vector<int64_t> names_at(ModelFixture& fixture, std::string_view path, const Addresses& where) {
 	std::array<ChoiceName, 32> out{};
-	const size_t count = choice_names(effect(path), fixture.song, where, fixture.facts, out);
+	const size_t count = choice_names(effect(path), fixture.song, where, fixture.ports(), out);
 	std::vector<int64_t> ids;
 	for (size_t i = 0; i < count; ++i) {
 		ids.push_back(static_cast<int64_t>(out[i].name));
@@ -94,10 +94,10 @@ describe bind_effect("an effect target on a sound or a chain", ${
 
 	it("reads a sound's own effects through its slot", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.facts.states.at(kSynth.id);
+		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
 		deluge::instrument::sound_effects(state).filter.lpf_mode = FilterMode::SVF_NOTCH;
 		fixture.set_state(kSynth, state);
-		const auto shown = view(effect("lpfMode"), fixture.song, {.slot = kSynth}, fixture.facts);
+		const auto shown = view(effect("lpfMode"), fixture.song, {.slot = kSynth}, fixture.ports());
 		expect(shown.has_value()).to_be_true();
 		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "lpfMode");
 		expect(shown->value).to_equal(static_cast<int32_t>(deluge::plugin::stored_value(row, "SVF_Notch").value_or(-1)));
@@ -105,12 +105,12 @@ describe bind_effect("an effect target on a sound or a chain", ${
 
 	it("reads each chain's own effects", _ {
 		ModelFixture fixture;
-		fixture.facts.chains[FakeFacts::chain_key(kKitChain)].delay.ping_pong = false;
-		fixture.facts.chains[FakeFacts::chain_key(kAudioChain)].saturation.clipping_amount = 9;
-		fixture.facts.chains[FakeFacts::chain_key(kMasterChain)].delay.ping_pong = false;
-		const ChainReader kit{fixture.song, kKitChain, fixture.facts};
-		const ChainReader audio{fixture.song, kAudioChain, fixture.facts};
-		const ChainReader master{fixture.song, kMasterChain, fixture.facts};
+		fixture.host.tracks.chains[FakeTrackFacts::chain_key(kKitChain)].delay.ping_pong = false;
+		fixture.host.tracks.chains[FakeTrackFacts::chain_key(kAudioChain)].saturation.clipping_amount = 9;
+		fixture.host.tracks.chains[FakeTrackFacts::chain_key(kMasterChain)].delay.ping_pong = false;
+		const ChainReader kit{fixture.song, kKitChain, fixture.host.tracks};
+		const ChainReader audio{fixture.song, kAudioChain, fixture.host.tracks};
+		const ChainReader master{fixture.song, kMasterChain, fixture.host.tracks};
 		expect(kit.resolved()).to_be_true();
 		expect(audio.resolved()).to_be_true();
 		expect(master.resolved()).to_be_true();
@@ -120,7 +120,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		expect(master.read("delay/pingPong").value_or(-1)).to_equal(0);
 		expect(kit.read("osc1/type").has_value()).to_be_false();
 		const auto shown = view(effect("clippingAmount"), fixture.song, on_chain(kAudioChain, ChainOwner::AUDIO_TRACK),
-		                        fixture.facts);
+		                        fixture.ports());
 		expect(shown.has_value()).to_be_true();
 		if (shown.has_value()) {
 			expect(shown->applies).to_be_true();
@@ -146,17 +146,17 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("does not apply saturation on a kit's chain, nor the sidechain on the master's", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto clipping = view(effect("clippingAmount"), fixture.song, on_chain(kKitChain, ChainOwner::KIT),
-		                           fixture.facts);
+		                           fixture.ports());
 		expect(clipping.has_value()).to_be_true();
 		expect(clipping->applies).to_be_false();
 		const auto attack = view(effect("sidechain/attack"), fixture.song, on_chain(kMasterChain, ChainOwner::SONG),
-		                         fixture.facts);
+		                         fixture.ports());
 		expect(attack.has_value()).to_be_true();
 		expect(attack->applies).to_be_false();
 		const auto kit_attack = view(effect("sidechain/attack"), fixture.song, on_chain(kKitChain, ChainOwner::KIT),
-		                             fixture.facts);
+		                             fixture.ports());
 		expect(kit_attack.has_value()).to_be_true();
 		if (kit_attack.has_value()) {
 			expect(kit_attack->applies).to_be_true();
@@ -164,29 +164,29 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("names a chain's choices from the host chains' table and a sound's from the instrument's", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto chain = names_at(fixture, "lpfMode", on_chain(kKitChain, ChainOwner::KIT));
 		expect(chain).to_equal(table_names(deluge::plugin::kGlobalEffectable, "lpfMode",
 		                                   setting_context(kKitChain, ChainOwner::KIT)));
 		expect(chain.empty()).to_be_false();
 		const auto sound = names_at(fixture, "lpfMode", {.slot = kDrum});
 		expect(sound).to_equal(table_names(deluge::plugin::kDelugeInstrument, "lpfMode",
-		                                   setting_context(fixture.song, kDrum, fixture.facts)));
+		                                   setting_context(fixture.song, kDrum, fixture.host.sound, fixture.host.audio)));
 	});
 
 	it("resolves nothing for a chain the song does not hold, or with no address", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const ChainAddress gone{ChainAddress::Kind::OUTPUT, 77};
-		expect(view(effect("lpfMode"), fixture.song, on_chain(gone, ChainOwner::KIT), fixture.facts).has_value())
+		expect(view(effect("lpfMode"), fixture.song, on_chain(gone, ChainOwner::KIT), fixture.ports()).has_value())
 		    .to_be_false();
-		expect(view(effect("lpfMode"), fixture.song, {}, fixture.facts).has_value()).to_be_false();
-		expect(ChainReader(fixture.song, gone, fixture.facts).resolved()).to_be_false();
+		expect(view(effect("lpfMode"), fixture.song, {}, fixture.ports()).has_value()).to_be_false();
+		expect(ChainReader(fixture.song, gone, fixture.host.tracks).resolved()).to_be_false();
 	});
 
 	it("does not resolve a sound target on a chain", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const Target sound{.kind = Target::Kind::SOUND, .path = "lpfMode"};
-		expect(view(sound, fixture.song, on_chain(kKitChain, ChainOwner::KIT), fixture.facts).has_value())
+		expect(view(sound, fixture.song, on_chain(kKitChain, ChainOwner::KIT), fixture.ports()).has_value())
 		    .to_be_false();
 	});
 });

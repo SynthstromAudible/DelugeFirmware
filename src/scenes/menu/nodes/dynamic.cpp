@@ -30,17 +30,15 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
-#include "io/midi/cable_types/din.h"
-#include "io/midi/cable_types/usb_device_cable.h"
-#include "io/midi/cable_types/usb_hosted.h"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
+#include "definitions_cxx.hpp" // NUM_GATE_CHANNELS, NUM_PHYSICAL_CV_CHANNELS
+#include "midi/device_id.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <span>
 #include <string_view>
 
 namespace deluge::scenes::menu::nodes {
@@ -135,41 +133,26 @@ void focus_output_selection(MenuState& state) {
 	state.scroll[d] = deluge::ui::ScrollText{};
 }
 
-} // namespace
-
-MIDICable* cable_at(int32_t index) {
-	// `Devices::getCable` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). Legacy also `D_PRINTLN`s the
-	// out-of-range case; `io/debug/log.h` is not on this layer's include list and the null return says the same thing.
-	if (index < kLowestDeviceNum || index >= static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size())) {
-		return nullptr;
+/// @brief The devices `Devices::drawPixelsForOled` would draw, in its own order: the host's connected devices
+///        (`bind::MidiDevices::connected`), copied out so no caller holds the host's list across another call.
+///
+/// Legacy walks `lowestDeviceNum .. hostedMIDIDevices.size()` and draws a row only for a cable with `connectionFlags`
+/// set (`Devices::drawPixelsForOled`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- "Disconnected
+/// devices aren't drawn, so they don't take up a row" (`Devices::computeScrollForSelected`). So the visible list *is*
+/// the connected devices in that order, which is also exactly the set `Devices::selectEncoderAction` skips its way
+/// along.
+/// @return How many were written; none without a MIDI devices port.
+size_t listed_devices(const MenuContext& ctx, std::span<deluge::midi::DeviceId> out) {
+	if (ctx.ports.midi == nullptr) {
+		return 0;
 	}
-	switch (index) {
-	case -3:
-		return &MIDIDeviceManager::dinMIDIPorts;
-	case -2:
-		return &MIDIDeviceManager::upstreamUSBMIDICable1;
-	case -1:
-		return &MIDIDeviceManager::upstreamUSBMIDICable2;
-	default:
-		return MIDIDeviceManager::hostedMIDIDevices[index];
-	}
-}
-
-size_t connected_cables(std::span<MIDICable*> out) {
-	// `Devices::drawPixelsForOled`'s own walk (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), without the
-	// viewport limit: every connected cable, in index order, DIN first. Legacy states the reason for the
-	// `connectionFlags` test on its twin in `Devices::computeScrollForSelected` -- "Disconnected devices aren't drawn,
-	// so they don't take up a row" (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
-	size_t n = 0;
-	const auto end = static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size());
-	for (int32_t index = kLowestDeviceNum; index < end && n < out.size(); index++) {
-		MIDICable* cable = cable_at(index);
-		if (cable != nullptr && cable->connectionFlags != 0u) {
-			out[n++] = cable;
-		}
-	}
+	const std::span<const deluge::midi::DeviceId> connected = ctx.ports.midi->connected();
+	const size_t n = std::min(connected.size(), out.size());
+	std::copy_n(connected.begin(), n, out.begin());
 	return n;
 }
+
+} // namespace
 
 // ---------------------------------------------------------------------------------------------
 // `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`)
@@ -254,17 +237,17 @@ deluge::ui::shell::Result GateSelectionItem::handle(const deluge::ui::shell::UiE
 // `midi::Devices` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`)
 
 void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `Devices::beginSession` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): land on the cable the menu is
+	// `Devices::beginSession` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): land on the device the menu is
 	// already pointed at if it is still in the list, otherwise on the first one -- which is DIN, because
 	// `lowestDeviceNum` is -3 and the walk starts there ("Start on "DIN". That's the only one that'll always be
 	// there.", `Devices::beginSession`).
-	MIDICable* cables[kMaxDeviceRows];
-	const size_t n = connected_cables(cables);
+	std::array<deluge::midi::DeviceId, kMaxDeviceRows> devices{};
+	const size_t n = listed_devices(ctx, devices);
 
 	size_t cursor = 0;
-	if (ctx.midi_cable != nullptr) {
+	if (ctx.midi_device) {
 		for (size_t i = 0; i < n; i++) {
-			if (cables[i] == ctx.midi_cable) {
+			if (devices[i] == ctx.midi_device) {
 				cursor = i;
 				break;
 			}
@@ -276,33 +259,33 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	state.list[d].cursor = static_cast<int16_t>(cursor);
 	state.scroll[d] = deluge::ui::ScrollText{};
 
-	// `Devices::beginSession` sets `soundEditor.currentMIDICable = getCable(this->getValue())`. A `CustomItem` gets a
-	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
-	// `MenuWalkState::midi_cable_choice`), exactly as `MultiRangeItem` does for the selected range.
+	// `Devices::beginSession` sets `soundEditor`'s current MIDI cable to `getCable(this->getValue())`. A `CustomItem`
+	// gets a `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
+	// `MenuWalkState::midi_device_choice`), exactly as `MultiRangeItem` does for the selected range.
 	//
 	// **Unconditional, like legacy's own statement.** With nothing connected at all -- DIN included -- there is no row
 	// to sit on, but legacy still lands on `getCable(lowestDeviceNum)`, which is the DIN cable whatever its
 	// `connectionFlags` say (`Devices::getCable` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`: the `-3`
 	// case; the range guard before it only rejects indices, not disconnection). So the empty list resolves to DIN
-	// rather than leaving the previous visit's cable in place, which `nullptr` -- this field's "no choice" sentinel --
-	// would have done.
-	state.walk.midi_cable_choice = cursor < n ? cables[cursor] : cable_at(kLowestDeviceNum);
+	// rather than leaving the previous visit's device in place, which a default handle -- this field's "no choice"
+	// value -- would have done.
+	state.walk.midi_device_choice = cursor < n ? devices[cursor] : deluge::midi::kDin;
 }
 
-void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
 	// `Devices::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) builds
 	// `kOLEDMenuNumOptionsVisible` labels around its own `current_scroll_`; `ui::oled::list` owns the window, so every
-	// connected cable becomes a row and the widget picks the slice.
-	MIDICable* cables[kMaxDeviceRows];
-	const size_t n = connected_cables(cables);
+	// connected device becomes a row and the widget picks the slice.
+	std::array<deluge::midi::DeviceId, kMaxDeviceRows> devices{};
+	const size_t n = listed_devices(ctx, devices);
 
 	deluge::ui::oled::ListRow rows[kMaxDeviceRows];
 	for (size_t i = 0; i < n; i++) {
-		// `getDisplayName()` returns a `char const*` with static or device-owned storage
-		// (`MIDICable::getDisplayName` in `io/midi/midi_device.h`), so the view outlives this frame.
-		rows[i].label = std::string_view{cables[i]->getDisplayName()};
+		// `Devices::drawPixelsForOled` labels a row with the cable's `getDisplayName()`; the host's names outlive this
+		// frame.
+		rows[i].label = ctx.ports.midi->name(devices[i]);
 		rows[i].selectable = true;
 	}
 
@@ -312,11 +295,11 @@ void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[d]);
 
 	// `selectEncoderAction`'s own tail (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): the cursor IS the
-	// selection, and `soundEditor.currentMIDICable` follows it. Legacy's skip-the-disconnected loop
-	// (`Devices::selectEncoderAction`) has no port because the row list is already the connected cables only.
+	// selection, and `soundEditor`'s current MIDI cable follows it. Legacy's skip-the-disconnected loop
+	// (`Devices::selectEncoderAction`) has no port because the row list is already the connected devices only.
 	const int32_t cursor = state.list[d].cursor;
 	if (n > 0 && cursor >= 0 && static_cast<size_t>(cursor) < n) {
-		state.walk.midi_cable_choice = cables[cursor];
+		state.walk.midi_device_choice = devices[cursor];
 	}
 }
 

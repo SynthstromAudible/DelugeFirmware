@@ -17,24 +17,15 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "util/containers.h"
+/// @file
+/// @brief Whose param table an owner's ENGINE ids are in.
 
-#include <string_view>
+#include <cstdint>
 
-/// @brief The mod FX types' and their knobs' display names, for the menus and the OLED.
-namespace modfx {
+namespace deluge::project {
 
-/// @brief The name of @p type's knob @p param: the grain names its knobs apart from the delay-line types.
-/// @param type      The mod FX type.
-/// @param param     The knob to name.
-/// @param shortName Whether to give the short form, for a column label.
-/// @return The knob's name.
-[[nodiscard]] const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
+/// @brief Whose param table an owner's ENGINE ids are in: a sound's (a synth, a kit row) the Deluge instrument's, a
+/// global effectable's (the song, a kit's affect-entire, an audio clip) the host chain's table's.
+enum class OwnerPlugin : uint8_t { INSTRUMENT, GLOBAL_EFFECTABLE };
 
-/// @brief @p type's name.
-/// @param type The mod FX type.
-/// @return The type's name.
-[[nodiscard]] const char* modFXToString(ModFXType type);
-
-} // namespace modfx
+} // namespace deluge::project

@@ -20,8 +20,8 @@
 
 #include "scenes/rename/rename_scene.h"
 
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 
 #include "ui/core/blink.h"
@@ -82,7 +82,7 @@ std::optional<std::string> name_in(const menu::MenuContext& ctx, project::Settin
 }
 
 bool write_name(const menu::MenuContext& ctx, project::SettingGroupId group, std::string_view name) {
-	return ctx.sink != nullptr && ctx.sink->write_text(name_row(group), ctx.addresses, name);
+	return ctx.ports.writes != nullptr && ctx.ports.writes->write_text(name_row(group), ctx.addresses, name);
 }
 
 // --- Clip: `RenameClipUI` (`gui/ui/rename/rename_clip_ui.cpp`) ---

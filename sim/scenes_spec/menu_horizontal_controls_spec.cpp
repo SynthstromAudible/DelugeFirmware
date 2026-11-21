@@ -39,17 +39,17 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/words.h"
 #include "model/edits/setting_edit.h"
-#include "model/fx/mod_fx_names.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
 #include "util/functions.h"
 
+#include "fakes.h"
 #include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
@@ -326,6 +326,7 @@ struct Rig {
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake;
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	bind::test::RecordingSoundWrites refusing_writes; ///< the sound port `open_refusing_ranges` installs
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
@@ -385,8 +386,8 @@ struct Rig {
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
-	/// @brief `open` on a context with no sink, which refuses a range request as `main`'s `getOrCreateFirstRange`
-	///        fails with INSUFFICIENT_RAM.
+	/// @brief `open` on a context whose sound port refuses every write, as `main`'s `getOrCreateFirstRange` fails
+	///        with INSUFFICIENT_RAM.
 	/// @param list Open with horizontal menus off.
 	void open_refusing_ranges(const Node& root, bool list = false) {
 		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
@@ -394,7 +395,8 @@ struct Rig {
 		if (list) {
 			ctx.horizontal_menus = false;
 		}
-		ctx.sink = nullptr;
+		refusing_writes.accept = false;
+		ctx.ports.sound_writes = &refusing_writes;
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -706,7 +708,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 5, slot, col);
 		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
-		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[5]));
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::plugin::kArpRhythms[5].name));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
 		expect(static_cast<int>(slot.art.dx)).to_equal(2);
@@ -720,7 +722,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(slot.art.dx)).to_equal(1);
 		expect(std::string(col.label)).to_equal(rhythm);
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 0, slot, col);
-		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[0]));
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::plugin::kArpRhythms[0].name));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(0);
 	});
 
@@ -1156,9 +1158,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH); // an even sync's option is its level
 		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
-		etl::string<30> expected;
-		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, SYNC_LEVEL_16TH, expected, menu::input_tick_magnitude(ctx));
-		expect(std::string(col.label)).to_equal(std::string(expected.c_str()));
+		// The rig's tick magnitude makes a sixteenth level read as an eighth.
+		expect(std::string(col.label)).to_equal(std::string("8th"));
 		expect(slot.art.icon == &deluge::gfx::oled::icons::syncTypeEven).to_equal(true);
 	});
 
@@ -1271,9 +1272,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const std::string off = deluge::l10n::get(String::STRING_FOR_OFF);
 		expect(banner(nodes::arp_sync, 0)).to_equal(off);
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH);
-		etl::string<30> length;
-		syncValueToString(static_cast<uint32_t>(sixteenth), length, menu::input_tick_magnitude(ctx));
-		expect(banner(nodes::arp_sync, sixteenth)).to_equal(std::string(length.c_str()));
+		expect(banner(nodes::arp_sync, sixteenth)).to_equal(std::string("8th-notes"));
 		expect(banner(nodes::osc_sync, 1)).to_equal(std::string());
 		expect(banner(nodes::note_probability, 10)).to_equal(std::string("20"));
 		expect(banner(nodes::voice_count, 0)).to_equal(off);
@@ -1800,16 +1799,16 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a mod-FX knob's name and title follow the effect, its column label the short form", _ {
 		// `mod_fx::Depth_Patched::getName`/`getTitle` (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`):
-		// `modfx::getParamName`.
+		// the flanger's plain "Depth".
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // flanger
 		menu::NodeText scratch;
 		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Name, ctx, scratch)))
-		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DEPTH)));
 		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Title, ctx, scratch)))
-		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DEPTH)));
 	});
 
 	it("the filter morph's name and title are the long morph name for its family", _ {
@@ -1867,7 +1866,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("the LPF morph column reads DRIVE on a ladder, MORPH and a slider on an SVF", _ {
 		// `filter::FilterParam` (`origin/main:src/deluge/gui/menu_item/filter/param.h`) through
-		// `SpecificFilter::getMorphName`.
+		// `l10n::filter_morph_name`.
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
@@ -2466,8 +2465,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
 		// `Submenu::selectButtonPress` asks `checkPermissionToBeginSession`, whose `getOrCreateFirstRange` failure is
-		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sink is one
-		// whose range request is refused.
+		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A sound port that
+		// refuses is one whose range request is refused.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

@@ -41,8 +41,8 @@ namespace {
 /// @p first.
 int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::SlotAddress slot, bool is_drum,
                       std::string& first) {
-	const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
-	if (!state) {
+	const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(slot);
+	if (state == nullptr) {
 		first = "no sound state";
 		return 1;
 	}

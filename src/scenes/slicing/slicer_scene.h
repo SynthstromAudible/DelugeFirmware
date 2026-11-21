@@ -103,11 +103,12 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
 
+#include "scenes/bind/ports/ports.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
-#include "definitions_cxx.hpp"
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_navigator.h"
 
 #include <array>
@@ -116,10 +117,6 @@
 #include <string>
 
 class Sample;
-
-namespace deluge::scenes::bind {
-class RuntimeFacts;
-} // namespace deluge::scenes::bind
 
 namespace deluge::scenes::slicing {
 
@@ -270,9 +267,9 @@ public:
 	///            owned; it must outlive the scene's use of it.
 	void set_ops(SliceOps* ops) { ops_ = ops; }
 
-	/// @brief Answer the runtime facts from @p facts instead of the host's, for a spec that needs a state the host
-	///        cannot be put into on demand; null goes back to the host's.
-	void set_facts(const bind::RuntimeFacts* facts) { facts_ = facts; }
+	/// @brief Answer the ports from @p ports instead of the host's, for a spec that needs a state the host cannot be
+	///        put into on demand; a null port goes back to the host's.
+	void set_ports(const bind::Ports& ports) { ports_ = ports; }
 
 	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
 	///
@@ -423,10 +420,10 @@ private:
 	/// The audio/model/card boundary; null until an application wires one. See `SliceOps`.
 	SliceOps* ops_ = nullptr;
 
-	/// The runtime facts `set_facts` installed, or null for the host's (`facts`).
-	const bind::RuntimeFacts* facts_ = nullptr;
-	/// @brief The runtime facts the scene reads: the installed ones, or the host's.
-	[[nodiscard]] const bind::RuntimeFacts& facts() const;
+	/// The ports `set_ports` installed; each null one is the host's.
+	bind::Ports ports_{};
+	/// @brief The ports the scene reads: the installed ones, each null one filled from the host's.
+	[[nodiscard]] bind::Ports ports() const;
 
 	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};
@@ -439,7 +436,7 @@ private:
 	/// A voice played the sample at the last grid render, so the frame that clears its playhead is asked for.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
-	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> last_ticks_{};
 };
 
 /// @brief The application's one slicer.

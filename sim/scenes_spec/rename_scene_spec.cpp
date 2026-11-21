@@ -12,8 +12,9 @@
 ///       `menu_scene_spec.cpp` runs under.
 
 #include "deluge-project/setting_group.h"
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -627,8 +628,8 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		MenuContext ctx = context_of(f);
-		deluge::scenes::bind::RecordingSink recording;
-		ctx.sink = &recording;
+		deluge::scenes::bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		r.open_rename(ctx, TargetId::Output);
 		r.tick(0);
 		r.clock = 10;
@@ -636,7 +637,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		(void)commit(rename_scene());
 		expect(recording.gestures.size()).to_equal(size_t(1));
 		const bool named = !recording.gestures.empty()
-		                   && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::TEXT
+		                   && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
 		                   && recording.gestures[0].text == "Pad"
 		                   && recording.gestures[0].target.group == deluge::project::SettingGroupId::TRACK;
 		expect(named).to_be_true();

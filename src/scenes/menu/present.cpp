@@ -32,7 +32,8 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "modulation/sync.h"
+#include "music-theory/note_length.h"
+#include "plugin-api/types/display_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "ui/oled/columns.h"
 #include "ui/oled/meters.h"
@@ -245,9 +246,7 @@ std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32
 	}
 	const int32_t magnitude =
 	    node.bind.sync_name_magnitude != nullptr ? node.bind.sync_name_magnitude(ctx) : input_tick_magnitude(ctx);
-	etl::string<30> length;
-	syncValueToString(static_cast<uint32_t>(value), length, magnitude);
-	return copy(std::string_view{length.data(), length.size()});
+	return copy(music::sync_value_name(value, magnitude, music::SyncNameForm::FULL).view());
 }
 
 void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
@@ -395,21 +394,22 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		// `SyncLevel::getColumnLabel` and `renderInHorizontalMenu`
 		// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`): OFF in the row face under the name, else the note
 		// length as the label over the sync type's icon.
-		if (syncValueToSyncLevel(value) == SYNC_LEVEL_NONE) {
+		const auto [level, type_choice] = deluge::plugin::combined_sync_stored(value);
+		const auto sync_type = deluge::plugin::kSyncTypeChoices[static_cast<size_t>(type_choice)];
+		if (level == 0) {
 			draw_art({.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF)});
 			break;
 		}
-		etl::string<30> label;
-		syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), syncValueToSyncLevel(value), label,
-		                                  input_tick_magnitude(ctx));
-		const size_t copied = std::min(label.size(), sizeof(slot.label));
-		std::memcpy(slot.label, label.data(), copied);
+		const auto label =
+		    music::sync_value_name(value, input_tick_magnitude(ctx), music::SyncNameForm::HORIZONTAL_LABEL);
+		const size_t copied = std::min(label.view().size(), sizeof(slot.label));
+		std::memcpy(slot.label, label.view().data(), copied);
 		col.label = std::string_view{slot.label, copied};
 		const deluge::gfx::oled::Icon* icon = &deluge::gfx::oled::icons::syncTypeEven;
-		if (syncValueToSyncType(value) == SYNC_TYPE_DOTTED) {
+		if (sync_type == deluge::plugin::SyncType::DOTTED) {
 			icon = &deluge::gfx::oled::icons::syncTypeDotted;
 		}
-		else if (syncValueToSyncType(value) == SYNC_TYPE_TRIPLET) {
+		else if (sync_type == deluge::plugin::SyncType::TRIPLET) {
 			icon = &deluge::gfx::oled::icons::syncTypeTriplets;
 		}
 		draw_art({.icon = icon, .dy = -3});

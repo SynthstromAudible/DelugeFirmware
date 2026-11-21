@@ -69,7 +69,6 @@
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
-#include "definitions_cxx.hpp"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -77,10 +76,8 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "notify/dirty_set.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/sound/sound_drum.h"
 
 #include <algorithm>
@@ -92,14 +89,12 @@ namespace deluge::scenes::menu::bindings {
 
 namespace {
 
-namespace params = deluge::modulation::params;
-
 /// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
 std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.facts == nullptr) {
+	if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, ctx.ports);
 }
 
 /// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
@@ -146,13 +141,13 @@ bool writes_whole_kit(const MenuContext& ctx) {
 }
 
 void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
-	(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-	                                  .path = path,
-	                                  .group = deluge::project::SettingGroupId::SONG},
-	                       .menu_value = value});
+	(void)ctx.ports.writes->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	                                          .path = path,
+	                                          .group = deluge::project::SettingGroupId::SONG},
+	                               .menu_value = value});
 }
 
 bool relevant(const Node& node, const MenuContext& ctx) {
@@ -223,19 +218,19 @@ const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t co
 }
 
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.facts == nullptr || !ctx.addresses.slot) {
+	if (ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.facts}.read(target.path);
+	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(target.path);
 }
 
 std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
-	if (!node.bind.target.valid() || ctx.model == nullptr || ctx.facts == nullptr) {
+	if (!node.bind.target.valid() || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
 		return std::nullopt;
 	}
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, value);
+	    deluge::scenes::bind::request_for(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
 	if (!request) {
 		return std::nullopt;
 	}
@@ -268,12 +263,12 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
 	// outside the range and an unresolved target ask for nothing.
 	if (bind.target.valid()) {
-		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.sink == nullptr) {
+		if (ctx.model == nullptr || !ctx.ports.has_bind_ports() || ctx.ports.writes == nullptr) {
 			return;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
-		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, *ctx.facts, value);
-		if (request && ctx.sink->write(*request)) {
+		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
+		if (request && ctx.ports.writes->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
 				notify::raise(notify::Dirty::GridMain);
@@ -374,7 +369,7 @@ IntRange range(const Node& asked, const MenuContext& ctx) {
 		// `fixed_range` from its builder or a `range` hook, both of which are consulted above before this switch is
 		// ever reached. Deliberately not a hard failure -- a `FREEZE` in a library this layer means to keep pure would
 		// be worse than a wrong number.
-		return IntRange{kMinMenuValue, kMaxMenuValue, 1};
+		return IntRange{0, plugin::kMaxMenuSteps, 1};
 	}
 }
 
@@ -399,12 +394,12 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return text.text_or_digits(id, slot);
 	};
 	if (node.bind.target.valid()) {
-		if (ctx.model == nullptr || ctx.facts == nullptr) {
+		if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
 			return 0;
 		}
 		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
 		const size_t count = std::min(
-		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, listed), limit);
+		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, listed), limit);
 		for (size_t i = 0; i < count; ++i) {
 			const std::string_view name =
 			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
@@ -484,7 +479,7 @@ int32_t menu_to_pan(int32_t menu_value) {
 }
 int32_t unsigned_to_menu(uint32_t stored) {
 	// `computeCurrentValueForUnsignedMenuItem` (`util/value_scaling.cpp`).
-	return ((int64_t)stored * kMaxMenuValue + 2147483648) >> 32;
+	return ((int64_t)stored * plugin::kMaxMenuSteps + 2147483648) >> 32;
 }
 uint32_t menu_to_unsigned(int32_t menu_value) {
 	// `computeFinalValueForUnsignedMenuItem` (`util/value_scaling.cpp`).
@@ -521,7 +516,7 @@ deluge::scenes::bind::Addresses direction_where(const MenuContext& ctx) {
 
 /// @brief Is @p ctx one this pair of functions can work on at all: an instrument clip of the song the app plays?
 bool has_instrument_clip(const MenuContext& ctx) {
-	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.facts != nullptr;
+	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.ports.has_bind_ports();
 }
 
 // `getIndividualNoteRow`'s non-kit auditioned-row arm (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`),
@@ -556,7 +551,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
 	const std::optional<deluge::scenes::bind::View> shown =
-	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), *ctx.facts);
+	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), ctx.ports);
 	return shown ? shown->value : 0;
 }
 
@@ -577,15 +572,15 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 		deluge::notify::raise(deluge::notify::Dirty::Oled);
 		return;
 	}
-	if (!has_instrument_clip(ctx) || ctx.sink == nullptr) {
+	if (!has_instrument_clip(ctx) || ctx.ports.writes == nullptr) {
 		return;
 	}
 	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
 	// row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), *ctx.facts, value);
+	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), ctx.ports, value);
 	if (request) {
-		(void)ctx.sink->write(*request);
+		(void)ctx.ports.writes->write(*request);
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/learn_sink.h"
 
 #include <ostream>
 
@@ -31,13 +31,13 @@
 /// a spec linked with others that print the same type must agree with them.
 namespace deluge::scenes::bind {
 
-/// @brief Prints a learn input as its cable's address and its channel or zone, e.g.
-///        `{cable 0x5581a2c0, channel_or_zone 3}`.
+/// @brief Prints a learn input as its device's handle and its channel or zone, e.g.
+///        `{device 1, channel_or_zone 3}`.
 /// @param os The stream to print to.
 /// @param in The learn input.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const LearnInput& in) {
-	return os << "{cable " << static_cast<const void*>(in.cable) << ", channel_or_zone " << in.channel_or_zone << "}";
+	return os << "{device " << in.device.value << ", channel_or_zone " << in.channel_or_zone << "}";
 }
 
 } // namespace deluge::scenes::bind

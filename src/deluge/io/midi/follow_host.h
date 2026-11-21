@@ -18,8 +18,8 @@
 #pragma once
 
 /// @file
-/// @brief Where MIDI follow reaches the controls library's facts and sink: the app's, which the app's binding host
-///        (gui/ui/shell_bind_host.cpp) holds. Defined there, as io/ may not reach the scenes that declare them.
+/// @brief Where MIDI follow reaches the controls library's facts and sink: the app's, which its scenes' host holds.
+///        Defined in gui/ui/shell_host/learned_dispatch.cpp, as io/ may not reach the scenes that declare them.
 
 #include "controls/knob_focus.h"
 

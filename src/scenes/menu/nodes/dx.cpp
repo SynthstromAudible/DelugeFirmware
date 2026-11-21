@@ -3,11 +3,13 @@
 
 #include "scenes/menu/nodes/dx.h"
 
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/browser/browser_scene.h" // DxBrowseItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/dx_algorithms.h"
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
 #include "scenes/profile.h"
@@ -17,10 +19,8 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "definitions_cxx.hpp"
 #include "foundation/string_format.h"
 #include "instruments/deluge/state_access.h"
-#include "processing/dx7/algorithm_diagrams.h"
 
 #include <algorithm>
 #include <array>
@@ -33,6 +33,12 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
+using deluge::gfx::oled::kTextHugeSizeY;
+using deluge::gfx::oled::kTextHugeSpacingX;
+using deluge::gfx::oled::kTextSizeYUpdated;
+using deluge::gfx::oled::kTextSpacingX;
+using deluge::gfx::oled::kTextTitleSizeY;
+using deluge::gfx::oled::kTextTitleSpacingX;
 using deluge::l10n::String;
 
 size_t depth_of(const MenuState& state) {
@@ -52,7 +58,8 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 
 /// @brief The state of the sound the menu edits, if the facts know it.
 const deluge::instrument::SoundState* sound_of(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
 /// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
@@ -65,8 +72,8 @@ std::optional<deluge::instrument::DxPatchState> patch_of(const MenuContext& ctx)
 
 /// @brief Write oscillator 1's patch.
 void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState& patch) {
-	if (ctx.sink != nullptr && ctx.addresses.slot) {
-		(void)ctx.sink->write_dx_patch(*ctx.addresses.slot, 0, patch);
+	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
+		(void)ctx.ports.sound_writes->write_dx_patch(*ctx.addresses.slot, 0, patch);
 	}
 }
 
@@ -192,7 +199,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 /// title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::gfx::oled;
-	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
+	const int32_t algorithm = std::min<int32_t>(params[134], static_cast<int32_t>(kDxAlgorithms) - 1);
 	char badge[12] = "#";
 	intToString(algorithm + 1, badge + 1, 2);
 	constexpr int32_t kBadgePadding = 2;
@@ -202,8 +209,8 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 	const int32_t x = panel_width - width - 2 * kBadgePadding;
 	p.glyphs(badge, x + kBadgePadding, top + 1, kTextTitleSpacingX, kTextTitleSizeY);
 	p.invert(Rect{x, top, panel_width - x, separator_y - 2 - top + 1});
-	const deluge::dx7::AlgorithmDiagram d = deluge::dx7::algorithm_diagram(algorithm);
-	p.graphic(d.data, d.x, d.y, d.width, d.height, d.num_bytes_tall);
+	const DxAlgorithmDiagram& d = dx_algorithm_diagram(static_cast<size_t>(algorithm));
+	p.graphic(d.data.data(), d.x, d.y, d.width, d.height, d.num_bytes_tall);
 }
 
 /// @brief `DxParam::drawPixelsForOled` for @p param of @p patch, on the panel frame @p p.
@@ -278,8 +285,9 @@ namespace {
 
 /// @brief Load program @p program of the bank the last read loaded into the menu's source.
 void load_program(const MenuContext& ctx, int32_t program) {
-	if (ctx.sink != nullptr && ctx.addresses.slot) {
-		(void)ctx.sink->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), program);
+	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
+		(void)ctx.ports.sound_writes->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+		                                              program);
 	}
 }
 
@@ -294,7 +302,7 @@ void DxCartridgeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	const std::optional<bind::DxCartridgeNames> bank =
-	    ctx.facts != nullptr ? ctx.facts->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
+	    ctx.ports.sound != nullptr ? ctx.ports.sound->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
 	if (!bank || bank->count <= 0) {
 		return; // `drawPixelsForOled` draws nothing with no bank
 	}
@@ -553,8 +561,8 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 	// have unset it.
 	const int16_t param = state.dx.param;
 	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12
-	    && ctx.facts != nullptr) {
-		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.facts->isomorphic_keyboard()) {
+	    && ctx.ports.clips != nullptr) {
+		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.ports.clips->isomorphic_keyboard()) {
 			const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
 			const int32_t breakpoint = param - param % dx::kOperatorParams + 8;
 			const std::optional<dx::Pad> pad =
@@ -569,7 +577,7 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 }
 
 bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
-	if (ctx.facts == nullptr || !ctx.facts->dx7_engine_enabled()) {
+	if (ctx.ports.ui == nullptr || !ctx.ports.ui->dx7_engine_enabled()) {
 		return false;
 	}
 	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
@@ -582,7 +590,7 @@ bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t
 }
 
 bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
-	return focused_of(state) == &dx_param && ctx.facts != nullptr && ctx.facts->dx7_engine_enabled();
+	return focused_of(state) == &dx_param && ctx.ports.ui != nullptr && ctx.ports.ui->dx7_engine_enabled();
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

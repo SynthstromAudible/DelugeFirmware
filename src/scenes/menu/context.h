@@ -16,16 +16,14 @@
 ///       `session_view_root` / `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch
 ///       mapping and for what stayed behind.
 
-#include "definitions_cxx.hpp"
-#include "scenes/bind/runtime_facts.h"
+#include "midi/device_id.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/services/view_state.h"
 
 #include <cstdint>
 #include <vector>
 
-class MIDICable;
 class Song;
 
 namespace deluge::project {
@@ -42,7 +40,7 @@ struct Node;
 /// hook is handed a `const MenuContext&` instead of reading a global.
 ///
 /// It holds what a node edits by address -- the record (`model`), the owners (`addresses`) -- and what it reads and
-/// writes through: the host's runtime facts and its sink. Its flags say which kind of context `context_for()`
+/// writes through: the host's ports. Its flags say which kind of context `context_for()`
 /// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
@@ -82,22 +80,22 @@ struct MenuContext {
 
 	/// @brief The song, for the device and session menus that act on the running song itself (its threshold
 	///        recording mode, its stem export, the velocity default every instrument takes). Everything else a node
-	///        edits it reaches through `model`, `addresses`, `facts` and `sink`.
+	///        edits it reaches through `model`, `addresses` and `ports`.
 	Song* song = nullptr;
 	/// @brief The range the menu edits, by index into the source's ranges; -1 for none chosen.
 	int16_t range_index = -1;
 	/// @brief The sound source the menu edits.
 	int8_t source_index = 0;
 
-	/// @brief `soundEditor.currentMIDICable`. `setup()` never assigns it (the MIDI-device menus do,
-	///        from their own selection), so `context_for()` always leaves it null.
-	MIDICable* midi_cable = nullptr;
+	/// @brief `soundEditor`'s current MIDI cable, by its handle. `setup()` never assigns it (the MIDI-device menus do,
+	///        from their own selection), so `context_for()` always leaves it naming none.
+	deluge::midi::DeviceId midi_device{};
 
 	/// @brief Is the AFFECT-ENTIRE button held right now? Legacy's
 	///        `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`
 	///        (`UnpatchedParam::writeCurrentValue` and the 20-odd items that spell the same test).
 	///
-	/// A UI fact, so -- like `midi_cable` -- `context_for()` never assigns it: the caller sets it,
+	/// A UI fact, so -- like `midi_device` -- `context_for()` never assigns it: the caller sets it,
 	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments.
 	/// `bindings::write()` is its only reader; with it set on a kit row, a param write goes to every
 	/// `SoundDrum` in the kit instead of just the selected one.
@@ -189,15 +187,14 @@ struct MenuContext {
 	Root root = Root::Settings;
 
 	/// @name What a target node binds through
-	/// The model and addresses a target resolves against, the host's runtime facts, the sink its writes go to, and the
-	/// same host's controls sink, which takes the gold knobs' writes and an effect setting's exact word.
+	/// The model and addresses a target resolves against, and the host's ports, which its reads and writes go
+	/// through (`ports.writes` takes its writes, `ports.controls_sink` the gold knobs' and an effect setting's exact
+	/// word).
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
-	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
-	deluge::scenes::bind::WriteSink* sink = nullptr;
-	/// The same host's controls sink: the gold knobs' writes and an effect setting's exact word.
-	deluge::controls::Sink* controls_sink = nullptr;
+	/// The host's ports; a spec's fakes.
+	deluge::scenes::bind::Ports ports{};
 	/// @}
 };
 
@@ -285,7 +282,7 @@ int32_t range_count(const MenuContext& ctx);
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
 
 /// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
-///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
+///        rewrites and hands back to the sound writes, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
 std::vector<synth::SourceRange> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the choice is
@@ -304,7 +301,7 @@ std::vector<synth::SourceRange> ranges_of(const MenuContext& ctx);
 ///
 /// @param ctx The context to top up; only its sound and source matter. A context with no sound is a
 ///            no-op success -- nothing is being edited that could want a range.
-/// @return False only where the sink refused the first range -- main's `INSUFFICIENT_RAM`, answered with
+/// @return False only where the sound writes refused the first range -- main's `INSUFFICIENT_RAM`, answered with
 ///         `MenuPermission::NO`.
 bool ensure_first_range(MenuContext& ctx);
 
@@ -318,8 +315,8 @@ bool ensure_first_range(MenuContext& ctx);
 /// the answer (`HorizontalMenu::switchVisiblePage`).
 /// @param node The item; one that is not range-specific makes nothing and answers `Yes`.
 /// @param ctx  The menu's context, whose range index the first range resolves when the rule is about its source.
-/// @return `No` where the sink refused the first range; `MustSelectRange` where the rule's context edits a sound whose
-///         range is still unresolved (more than one, none remembered); `Yes` otherwise.
+/// @return `No` where the sound port refused the first range; `MustSelectRange` where the rule's context edits a sound
+///         whose range is still unresolved (more than one, none remembered); `Yes` otherwise.
 Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`

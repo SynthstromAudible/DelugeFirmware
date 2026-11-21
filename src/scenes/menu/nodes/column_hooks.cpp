@@ -25,19 +25,17 @@
 #include "scenes/menu/menu_scene.h" // node_text, for the formatted names the level columns cut
 #include "scenes/menu/nodes/nodes.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
+#include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "model/fx/mod_fx_names.h"
-#include "model/mod_controllable/filters/filter_config.h"
-#include "modulation/arpeggiator_rhythms.h"
+#include "plugin-api/types/arp_rhythm.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
-#include "scenes/bind/runtime_facts.h"
 
 #include <algorithm>
 #include <array>
@@ -137,10 +135,10 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 /// `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rhythm.h`), whose centring differs by
 /// @p nudge.
 std::optional<ArtColumn> rhythm_art(int32_t value, int8_t nudge) {
-	if (value < 0 || static_cast<size_t>(value) >= arpRhythmPatternNames.size()) {
+	if (value < 0 || static_cast<size_t>(value) >= plugin::kArpRhythms.size()) {
 		return std::nullopt;
 	}
-	const std::string_view pattern{arpRhythmPatternNames[value]};
+	const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(value)].name;
 	if (value == 0) {
 		return ArtColumn{.text = pattern};
 	}
@@ -159,7 +157,8 @@ std::string_view formatted_name(const Node& node, const MenuContext& ctx, NodeTe
 	return node_text(node.name, node, ctx, scratch);
 }
 
-ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse use, std::span<char> out) {
+ValueText mod_fx_knob_text(const MenuContext& ctx, deluge::effects::ModFxParam knob, ValueTextUse use,
+                           std::span<char> out) {
 	// The column label is the short name; the name and title the long one (`Depth_Patched::getColumnLabel` and
 	// `getName` in `origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`).
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
@@ -167,7 +166,7 @@ ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse
 	}
 	const int32_t shown = bindings::read(mod_fx_type, ctx);
 	const auto type = static_cast<deluge::effects::ModFXType>(choice_of(mod_fx_type, ctx, shown));
-	return put(modfx::getParamName(type, knob, use == ValueTextUse::Label), out);
+	return put(deluge::l10n::mod_fx_param_name(type, knob, use == ValueTextUse::Label), out);
 }
 
 } // namespace
@@ -345,19 +344,20 @@ ValueText default_magnitude_text(const MenuContext&, int32_t value, ValueTextUse
 }
 
 ValueText arp_rhythm_name_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+	if (use != ValueTextUse::Column || value < 0 || value > plugin::kMaxMenuSteps) {
 		return kValueTextFallback;
 	}
-	return put(arpRhythmPatternNames[static_cast<size_t>(value)], out);
+	return put(plugin::kArpRhythms[static_cast<size_t>(value)].name, out);
 }
 
 ValueText arp_rhythm_screen_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+	if (use != ValueTextUse::Column || value < 0 || value > plugin::kMaxMenuSteps) {
 		return kValueTextFallback;
 	}
 	char name[12];
-	const int written = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(value),
-	                                  arpRhythmPatternNames[static_cast<size_t>(value)]);
+	const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(value)].name;
+	const int written = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(value),
+	                                  static_cast<int>(pattern.size()), pattern.data());
 	// "%d: " alone is three bytes, so `written` is positive.
 	return put(std::string_view{name, std::min(static_cast<size_t>(written), sizeof(name) - 1)}, out);
 }
@@ -440,42 +440,45 @@ ValueText modulator1_volume_text(const MenuContext& ctx, int32_t, ValueTextUse u
 }
 
 ValueText mod_fx_depth_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::DEPTH, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::DEPTH, use, out);
 }
 
 ValueText mod_fx_feedback_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::FEEDBACK, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::FEEDBACK, use, out);
 }
 
 ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::OFFSET, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::OFFSET, use, out);
 }
 
 namespace {
 
-/// @brief The family of the LPF or HPF whose mode @p mode_node reads (`FilterInfo::getMode`,
-/// `origin/main:src/deluge/gui/menu_item/filter/info.h`).
-model::filter::FilterFamily filter_family(const MenuContext& ctx, bool hpf) {
+/// @brief The filter mode the LPF or HPF mode node reads; OFF for a low-pass index past the last low-pass mode.
+deluge::effects::FilterMode filter_mode_of(const MenuContext& ctx, bool hpf) {
+	using deluge::effects::FilterMode;
 	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
-	FilterMode mode = FilterMode::OFF;
 	if (hpf) {
-		mode = static_cast<FilterMode>(index + kFirstHPFMode);
+		return static_cast<FilterMode>(index + deluge::effects::kFirstHPFMode);
 	}
-	else if (index < kNumLPFModes) {
-		mode = static_cast<FilterMode>(index);
-	}
-	return model::filter::SpecificFilter(mode).getFamily();
+	return index < deluge::effects::kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF;
+}
+
+/// @brief The family of the LPF or HPF whose mode node @p ctx reads (`FilterInfo::getMode`,
+/// `origin/main:src/deluge/gui/menu_item/filter/info.h`).
+deluge::effects::FilterFamily filter_family_of(const MenuContext& ctx, bool hpf) {
+	return deluge::effects::filter_family(filter_mode_of(ctx, hpf));
 }
 
 std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, const Node& reso, const Node& morph,
                                           bool hpf) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::FilterGraph,
-	                            .filter = {.freq_raw = freq,
-	                                       .reso_raw = bindings::read(reso, ctx),
-	                                       .morph_raw = bindings::read(morph, ctx),
-	                                       .morphable = filter_family(ctx, hpf) == model::filter::FilterFamily::SVF,
-	                                       .hpf = hpf},
-	                            .span_next = 1};
+	return ui::oled::DrawColumn{
+	    .shape = ui::oled::DrawColumn::Shape::FilterGraph,
+	    .filter = {.freq_raw = freq,
+	               .reso_raw = bindings::read(reso, ctx),
+	               .morph_raw = bindings::read(morph, ctx),
+	               .morphable = filter_family_of(ctx, hpf) == deluge::effects::FilterFamily::SVF,
+	               .hpf = hpf},
+	    .span_next = 1};
 }
 
 ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> out, bool hpf) {
@@ -484,15 +487,11 @@ ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> o
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
-	FilterMode mode = FilterMode::OFF;
-	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
-	mode = hpf ? static_cast<FilterMode>(index + kFirstHPFMode)
-	           : (index < kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF);
-	return put_string(model::filter::SpecificFilter(mode).getMorphName(use == ValueTextUse::Label), out);
+	return put(deluge::l10n::filter_morph_name(filter_mode_of(ctx, hpf), use == ValueTextUse::Label), out);
 }
 
 std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
-	if (filter_family(ctx, hpf) != model::filter::FilterFamily::SVF) {
+	if (filter_family_of(ctx, hpf) != deluge::effects::FilterFamily::SVF) {
 		return std::nullopt;
 	}
 	const int32_t shown = hpf ? 50 - value : value;
@@ -529,7 +528,7 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 		return put(last_folder(clip->file_path), out);
 	}
 	const instrument::SoundState* sound =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr) {
 		return ValueText{};
 	}
@@ -629,7 +628,7 @@ std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32
 	return morph_draw(ctx, value, true);
 }
 bool hpf_morph_reversed(const MenuContext& ctx) {
-	return filter_family(ctx, true) == model::filter::FilterFamily::SVF;
+	return filter_family_of(ctx, true) == deluge::effects::FilterFamily::SVF;
 }
 
 namespace {
@@ -660,16 +659,13 @@ ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<cha
 	return source_page_title(ctx, page, out, osc1_type, '2');
 }
 ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
-	// main's `modfx::getModNames()`, indexed by type.
-	static constexpr std::array kNames{String::STRING_FOR_DISABLED,      String::STRING_FOR_FLANGER,
-	                                   String::STRING_FOR_CHORUS,        String::STRING_FOR_PHASER,
-	                                   String::STRING_FOR_STEREO_CHORUS, String::STRING_FOR_WARBLE,
-	                                   String::STRING_FOR_DIMENSION,     String::STRING_FOR_GRAIN};
 	if (page == 0) {
 		return kValueTextFallback;
 	}
 	const auto type = static_cast<size_t>(choice_of(mod_fx_type, ctx, bindings::read(mod_fx_type, ctx)));
-	return type < kNames.size() ? put_string(kNames[type], out) : kValueTextFallback;
+	return type < static_cast<size_t>(deluge::effects::kNumModFXTypes)
+	           ? put(deluge::l10n::mod_fx_name(static_cast<deluge::effects::ModFXType>(type)), out)
+	           : kValueTextFallback;
 }
 
 } // namespace deluge::scenes::menu::nodes

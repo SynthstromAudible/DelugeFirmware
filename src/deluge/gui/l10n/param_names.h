@@ -1,0 +1,90 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+/// @file
+/// @brief The params' display names, in the current language, keyed by the neutral kinds and ids.
+
+#include "effects/words.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/param_kind.h"
+
+#include <cstdint>
+#include <string_view>
+
+namespace deluge::l10n {
+
+/// @brief The display name of a param.
+/// @param kind The param's collection.
+/// @param id   The param's id, as @c instrument::runtime_param_id numbers it (an unpatched param's id starts at 90).
+/// @return The name; "None" for an id the kind does not hold and for a kind with no names.
+[[nodiscard]] std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id);
+
+/// @brief As @c param_name, with the morph params named after what the sound's filter modes make them: the ladder
+///        filters drive and FM where the SVF modes morph.
+/// @param kind The param's collection.
+/// @param id   The param's id.
+/// @param lpf  The low-pass filter's mode.
+/// @param hpf  The high-pass filter's mode.
+/// @return The name.
+[[nodiscard]] std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id, effects::FilterMode lpf,
+                                          effects::FilterMode hpf);
+
+/// @brief The display name of the param at a runtime index.
+/// @param kind  The param's collection.
+/// @param index The param's index in its collection, as the runtime numbers it; an index no param has (a cast
+///              negative one, a patch cable's packed word) names none.
+/// @return The name; "None" where there is none.
+[[nodiscard]] std::string_view param_name_at(plugin::ParamKind kind, uint32_t index);
+
+/// @brief As @c param_name_at, with the morph params named after the filter modes.
+/// @param kind  The param's collection.
+/// @param index The param's index in its collection.
+/// @param lpf   The low-pass filter's mode.
+/// @param hpf   The high-pass filter's mode.
+/// @return The name.
+[[nodiscard]] std::string_view param_name_at(plugin::ParamKind kind, uint32_t index, effects::FilterMode lpf,
+                                             effects::FilterMode hpf);
+
+/// @brief A patched param's short name, as the mod matrix's display shows it (at most ten characters).
+/// @param id The param's id.
+/// @return The name; empty for an id that is no patched param.
+[[nodiscard]] std::string_view patched_param_short_name(plugin::ParamId id);
+
+/// @brief As @c patched_param_short_name, with the morph params named after the filter modes.
+/// @param id  The param's id.
+/// @param lpf The low-pass filter's mode.
+/// @param hpf The high-pass filter's mode.
+/// @return The name.
+[[nodiscard]] std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMode lpf,
+                                                        effects::FilterMode hpf);
+
+/// @brief The short name of the patched param at a runtime index.
+/// @param index The param's index in the patched set.
+/// @return The name; empty for an index no patched param has.
+[[nodiscard]] std::string_view patched_param_short_name_at(uint32_t index);
+
+/// @brief As @c patched_param_short_name_at, with the morph params named after the filter modes.
+/// @param index The param's index in the patched set.
+/// @param lpf   The low-pass filter's mode.
+/// @param hpf   The high-pass filter's mode.
+/// @return The name.
+[[nodiscard]] std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode lpf,
+                                                           effects::FilterMode hpf);
+
+} // namespace deluge::l10n

@@ -246,12 +246,6 @@ LEGACY_PORT_SEAMS = (
     # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
     # legacy types and integers and names no port type.
     "src/deluge/gui/ui/shell_automation_glue.cpp",
-    # The binding's host half. It names the scenes' binding types
-    # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:
-    # the write sink that applies a menu's requests as Edits, and the runtime facts a menu reads (the audio
-    # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
-    # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
-    "src/deluge/gui/ui/shell_bind_host.cpp",
     # The slicer scene's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
     # names no port type, so it is not listed.
     "src/deluge/gui/ui/shell_slice_ops.cpp",
@@ -313,6 +307,12 @@ LEGACY_PORT_SEAMS = (
     # The one declaration of the shared `ModKnobs` (`sharedModKnobs()`), defined in `shell_guest_services.cpp`. Its
     # own header because it names the port's type, which `shell_guest_services.h` must not.
     "src/deluge/gui/ui/shell_guest_knobs.h",
+    # The ports' host half: one file per port the scenes read or write through (`scenes/bind/ports/`), and the one
+    # `host_ports()` built from them. They name the port types because they ARE their implementations on this side of
+    # the wall, and the legacy runtime objects the ports answer from (the audio engine, the card's loads, the UI
+    # modes) because this is the only side that may. The whole directory is the seam, so a port's host file needs no
+    # entry of its own.
+    "src/deluge/gui/ui/shell_host/*",
 )
 
 RULES = [
@@ -438,14 +438,15 @@ RULES = [
         "2026-08-26-ui-toolkit-design.md",
     ),
     (
-        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/** and
-        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) may be included --
-        # never model/, gui/, hid/, or the root headers (definitions*, board_config.h,
-        # board_layout.hpp) that would pull the model layer in by the back door.
+        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/**,
+        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) and midi/** (the
+        # dependency-free MIDI protocol library, whose `midi::DeviceId` a MIDI `UiEvent` carries)
+        # may be included -- never model/, gui/, hid/, or the root headers (definitions*,
+        # board_config.h, board_layout.hpp) that would pull the model layer in by the back door.
         "shell-includes-outside",
         "src/shell/**",
         "include",
-        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
+        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
         "2026-08-26-ui-shell-design.md",
     ),
     (
@@ -471,13 +472,14 @@ RULES = [
     (
         # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
         # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
-        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, and -- being the first UI layer
-        # allowed to reach into the model -- model/**, modulation/**, playback/**, processing/**,
-        # storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the
-        # sole exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not
-        # the trailing catch-all group, unlike shell-includes-outside's `definitions.*`, which
-        # shell must NOT reach): scenes is deliberately the first model-aware UI layer, so the
-        # header that pulls in `params::Kind` and friends is expected, not a back door.
+        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol library),
+        # and -- being the first UI layer allowed to reach into the model -- model/**,
+        # modulation/**, playback/**, processing/**, storage/**, gui/l10n/**, definitions_cxx.hpp.
+        # Never gui/ otherwise (gui/l10n/ is the sole exception), never hid/. `definitions_cxx.hpp`
+        # sits in the allow-list itself (not the trailing catch-all group, unlike
+        # shell-includes-outside's `definitions.*`, which shell must NOT reach): scenes is
+        # deliberately the first model-aware UI layer, so the header that pulls in `params::Kind`
+        # and friends is expected, not a back door.
         #
         # `io/**` is on the list on the argument made for `processing/**` below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
         # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root needs it -- `midiEngine`
@@ -510,7 +512,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|foundation/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

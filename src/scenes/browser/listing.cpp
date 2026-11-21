@@ -17,6 +17,7 @@
 
 #include "scenes/browser/listing.h"
 
+#include "definitions_cxx.hpp" // Availability, Error
 #include "notify/notice_queue.h"
 #include "storage/storage_manager.h"
 

@@ -44,8 +44,8 @@
 /// Shift + a select turn splits the range at its midpoint, after it for a turn up and before it for a turn down
 /// (`plan_range_insert`), and the cursor follows the new range; Shift+SAVE deletes it (`range_delete_press`, reached
 /// through `MenuScene::delete_range_press` from the guest's SAVE arm), the range below taking the gap. Both go to the
-/// sink as their own verbs, which kill the voices and keep the other ranges' samples, as legacy's bodies do. Every
-/// select turn waits out a popup, as `selectEncoderAction` does.
+/// sound writes as their own verbs, which kill the voices and keep the other ranges' samples, as legacy's bodies do.
+/// Every select turn waits out a popup, as `selectEncoderAction` does.
 ///
 /// ## A note under the picker
 ///

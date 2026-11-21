@@ -25,7 +25,8 @@
 ///       item: the two LFO syncs, `arpSyncMenu`, `delaySyncMenu`, `sidechainSyncMenu` and `reverbSidechainSyncMenu`.
 ///       The value is legacy's own menu option index, `SyncLevel::syncTypeAndLevelToMenuOption`
 ///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), over `SyncLevel::size() == NUM_SYNC_VALUES`
-///       (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`). The option
+///       (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`), here
+///       `plugin::kNumCombinedSyncValues`. The option
 ///       *names* are `getNoteLengthName`, which formats from the song's `insideWorldTickMagnitude` at render time
 ///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`) -- dynamic text this generation's interpreter does not
 ///       draw yet, which is why the node carries no `names`.
@@ -40,7 +41,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 
-#include "modulation/sync.h" // NUM_SYNC_VALUES
+#include "plugin-api/types/display_mapping.h" // kMaxCombinedSync
 
 #include <span>
 
@@ -51,9 +52,9 @@ struct MenuContext;
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The full sync-option range, `SyncLevel::size() == NUM_SYNC_VALUES`
-///        (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`) -- what every
-///        `SyncLevel` item but `sidechain::Sync` uses.
-inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
+///        (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`), here
+///        `plugin::kNumCombinedSyncValues` -- what every `SyncLevel` item but `sidechain::Sync` uses.
+inline constexpr IntRange kSyncLevelRange{0, deluge::plugin::kMaxCombinedSync, 1};
 
 /// @brief One LFO page. A macro for the same reason `sound_env.h` uses one -- and because the
 ///        `get`/`set` hooks are plain function pointers, so each LFO needs its own pair. The bodies
@@ -73,16 +74,16 @@ inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
 	    (n)));                                                                                                         \
 	inline constexpr Node lfo##n##_rate =                                                                              \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),                                             \
-	                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::rate_param},    \
+	                           {deluge::plugin::ParamKind::PATCHED, deluge::instrument::runtime_index(rate_param)},    \
 	                           Hint::Knob, nullptr, sid(deluge::l10n::String::rate_title)));                           \
 	inline constexpr const Node* kLfo##n##Children[] = {&lfo##n##_type, &lfo##n##_sync, &lfo##n##_rate};               \
 	inline constexpr Node lfo##n =                                                                                     \
 	    submenu(sid(deluge::l10n::String::STRING_FOR_LFO##n), kLfo##n##Children, Layout::Horizontal)
 
-DELUGE_LFO(1, GLOBAL_LFO_FREQ_1, STRING_FOR_LFO1_RATE);
-DELUGE_LFO(2, LOCAL_LFO_LOCAL_FREQ_1, STRING_FOR_LFO2_RATE);
-DELUGE_LFO(3, GLOBAL_LFO_FREQ_2, STRING_FOR_LFO3_RATE);
-DELUGE_LFO(4, LOCAL_LFO_LOCAL_FREQ_2, STRING_FOR_LFO4_RATE);
+DELUGE_LFO(1, deluge::instrument::param::kLfo1Rate, STRING_FOR_LFO1_RATE);
+DELUGE_LFO(2, deluge::instrument::param::kLfo2Rate, STRING_FOR_LFO2_RATE);
+DELUGE_LFO(3, deluge::instrument::param::kLfo3Rate, STRING_FOR_LFO3_RATE);
+DELUGE_LFO(4, deluge::instrument::param::kLfo4Rate, STRING_FOR_LFO4_RATE);
 
 #undef DELUGE_LFO
 

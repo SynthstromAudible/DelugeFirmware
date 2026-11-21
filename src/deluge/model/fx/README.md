@@ -24,5 +24,5 @@ ParamManager, but don't know anything about settings, UI or the larger applicati
   knobs, a host chain's param block), called by each owner's codec where its file holds them.
 - `chain_params`: the effects params' defaults for a sound, a host chain and an audio clip, from the owners' tables.
 - `effect_reads`: an owner's unpatched effect params read by its table's ids, as the effects take them.
-- `mod_fx_names`: the mod FX types' and knobs' display names. `output_stage_gain`: the output stage's gain constants.
+- `output_stage_gain`: the output stage's gain constants.
 

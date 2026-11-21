@@ -24,7 +24,8 @@
 ///       `custom` node over `kSidechainVolumeItem`. Same treatment as `sound_master.h`'s `vibrato`.
 ///
 /// @note **`sidechain::Sync` overrides `size()` to 10** (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), not
-///       `NUM_SYNC_VALUES`, which is why `sync_level_item` takes its range as an argument.
+///       `NUM_SYNC_VALUES` (`origin/main:src/deluge/model/sync.h`), here `plugin::kNumCombinedSyncValues`, which is why
+///       `sync_level_item` takes its range as an argument.
 ///
 /// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and shows the closest index
 ///       into `attackRateTable` / `releaseRateTable` (`Attack::readCurrentValue` in
@@ -62,7 +63,6 @@ int32_t sidechain_attack_to_menu(int32_t attack);
 int32_t sidechain_attack_from_menu(int32_t menu_value);
 int32_t sidechain_release_to_menu(int32_t release);
 int32_t sidechain_release_from_menu(int32_t menu_value);
-int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level);
 /// @}
 
 /// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()`
@@ -96,11 +96,12 @@ inline constexpr Node sidechain_sync = with_affect_entire(
 // (`UpdatingReverbParams::writeCurrentValue` in
 // `origin/main:src/deluge/gui/menu_item/unpatched_param/updating_reverb_params.h`), which SetParamValue raises for the
 // param.
-inline constexpr Node sidechain_shape = with_column_name(
-    param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
-    sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
+inline constexpr Node sidechain_shape =
+    with_column_name(param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
+                           {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                            deluge::instrument::runtime_index(deluge::instrument::param::kCompressorShape)},
+                           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
+                     sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
 inline constexpr Node sidechain_send =
     with_affect_entire(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,

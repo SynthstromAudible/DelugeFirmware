@@ -5,6 +5,7 @@
 ///        opened over, and the facts the spec and the menu oracle freezer both need to decide what to ask.
 
 #include "gui/ui/menu_view_of.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
@@ -39,6 +40,7 @@
 #include <initializer_list>
 #include <memory>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -389,5 +391,16 @@ struct CableFixture {
 		}
 	}
 };
+
+/// @brief The host's connected MIDI devices (`bind::MidiDevices::connected`), copied out of the port's answer.
+inline std::vector<deluge::midi::DeviceId> listed_devices() {
+	const std::span<const deluge::midi::DeviceId> got = menu::host_ports().midi->connected();
+	return {got.begin(), got.end()};
+}
+
+/// @brief @p device's name, as the host's MIDI devices port answers it.
+inline std::string device_name(deluge::midi::DeviceId device) {
+	return std::string{menu::host_ports().midi->name(device)};
+}
 
 } // namespace deluge::scenes::spec::tables3

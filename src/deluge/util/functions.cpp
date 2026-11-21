@@ -24,6 +24,7 @@
 #include "hid/display/display.h"
 #include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
+#include "music-theory/note_length.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
@@ -900,47 +901,14 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
-	// Given a note length and a tick magnitude, figure out the _note magnitude_
-	int32_t noteMagnitude = -5 - tickMagnitude;
-	uint32_t level = 3;
-
-	while (level < noteLength) {
-		noteMagnitude++;
-		level <<= 1;
-	}
-	return noteMagnitude;
+	return deluge::music::note_magnitude(noteLength, tickMagnitude);
 }
 
 void getNoteLengthNameFromMagnitude(etl::istring& noteLengthBuf, int32_t magnitude, char const* const notesString,
                                     bool clarifyPerColumn) {
-	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
-	uint32_t division = (uint32_t)1 << (0 - magnitude);
-
-	if (magnitude < 0) {
-		deluge::string::appendInt(noteLengthBuf, division);
-		// this is not fully general but since division are always a power of 2, it works out in practice (no need
-		// for "rd")
-		char const* suffix = ((division % 10) == 2) ? "nd" : "th";
-		noteLengthBuf.append(suffix);
-		if (notesString != nullptr) {
-			noteLengthBuf.append(notesString);
-		}
-	}
-	else {
-		uint32_t numBars = (uint32_t)1 << magnitude;
-		deluge::string::appendInt(noteLengthBuf, numBars);
-		if (clarifyPerColumn) {
-			if (numBars == 1) {
-				noteLengthBuf.append(" bar (per column)");
-			}
-			else {
-				noteLengthBuf.append(" bars (per column)");
-			}
-		}
-		else {
-			noteLengthBuf.append("-bar");
-		}
-	}
+	const auto name = deluge::music::note_length_name(
+	    magnitude, notesString != nullptr ? std::string_view{notesString} : std::string_view{}, clarifyPerColumn);
+	noteLengthBuf.append(name.view().data(), name.view().size());
 }
 
 char const* getFileNameFromEndOfPath(char const* filePathChars) {

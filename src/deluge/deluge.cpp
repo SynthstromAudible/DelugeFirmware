@@ -685,7 +685,7 @@ static void deluge_boot(const DelugeBoard* board) {
 	//     settings item, a factory reset, the menu's highlighting setter (`menu::host_highlighting_changed`) and the
 	//     call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
-	//     `RuntimeFacts::flash_cursor` where they draw it.
+	//     `UiFacts::flash_cursor` where they draw it.
 
 	// Number the menu tree. Idempotent (a function-local static), and normally already done by
 	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is

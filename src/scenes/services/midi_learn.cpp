@@ -18,12 +18,12 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
+#include "definitions_cxx.hpp" // GlobalMIDICommand, MidiLearn, IS_A_CC, MIDI_CHANNEL_NONE
+#include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
-#include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
 #include "model/output.h"
-#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -85,7 +85,8 @@ bool global_command_learned(GlobalMIDICommand c) {
 LearnTarget LearnTarget::section(::Song& song, uint8_t section) {
 	// `View::sectionMidiLearnPadPressed`: the song's record holds the command, so the learn edits a
 	// scratch copy of it and commits each change back.
-	g_section_scratch = deluge::bridge::learned_of(deluge::bridge::sectionCommand(song.project.mappings, section));
+	const deluge::project::Mapping* entry = song.project.mappings.find(deluge::project::SectionLaunchTarget{section});
+	g_section_scratch = deluge::bridge::learned_of(entry != nullptr ? entry->source : deluge::project::MidiCommand{});
 	return LearnTarget{.kind = ::MidiLearn::SECTION,
 	                   .thing = &g_section_scratch,
 	                   .mapping = deluge::project::SectionLaunchTarget{section},
@@ -249,11 +250,11 @@ void MidiLearn::thing_pressed(LearnTarget target, bool on) {
 
 // -- The commit ----------------------------------------------------------------------------------
 
-deluge::scenes::bind::WriteSink* MidiLearn::sink() const {
+deluge::scenes::bind::LearnSink* MidiLearn::sink() const {
 	if (sink_ != nullptr) {
 		return sink_;
 	}
-	return song_ != nullptr && menu::host_binds(*song_) ? &menu::host_write_sink() : nullptr;
+	return song_ != nullptr && menu::host_binds(*song_) ? menu::host_ports().learn : nullptr;
 }
 
 void MidiLearn::commit(const ::LearnedMIDI& learned, std::optional<deluge::scenes::bind::LearnInput> input) {
@@ -267,27 +268,28 @@ void MidiLearn::commit(const ::LearnedMIDI& learned, std::optional<deluge::scene
 		}
 		return;
 	}
-	if (deluge::scenes::bind::WriteSink* const to = sink(); to != nullptr) {
+	if (deluge::scenes::bind::LearnSink* const to = sink(); to != nullptr) {
 		(void)to->learn(*pressed_.mapping,
 		                learned.containsSomething() ? std::optional{deluge::bridge::command_of(learned)} : std::nullopt,
 		                input);
 	}
 }
 
-void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t /*velocity*/) {
+void MidiLearn::note_on_received(deluge::midi::DeviceId device, int32_t channel_or_zone, int32_t note,
+                                 int32_t /*velocity*/) {
 	// `View::noteOnReceivedForMidiLearn` (`gui/views/view.cpp`).
 	if (pressed_.kind == ::MidiLearn::NONE) {
 		return;
 	}
 	delete_on_release_ = false; // Something was learned, so the release must not wipe it.
 
-	// A note learned on an input brings its cable's bend ranges and velocity default
+	// A note learned on an input brings its device's bend ranges and velocity default
 	// (`View::noteOnReceivedForMidiLearn`'s `DRUM_INPUT` and `INSTRUMENT_INPUT` arms commit with `inputFromNote`),
 	// which the learn takes with it.
 	std::optional<deluge::scenes::bind::LearnInput> input;
 	switch (pressed_.kind) {
 	case ::MidiLearn::DRUM_INPUT:
-		input = deluge::scenes::bind::LearnInput{.cable = &cable, .channel_or_zone = channel_or_zone};
+		input = deluge::scenes::bind::LearnInput{.device = device, .channel_or_zone = channel_or_zone};
 		break;
 	case ::MidiLearn::PLAY_BUTTON:
 	case ::MidiLearn::RECORD_BUTTON:
@@ -295,7 +297,7 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 		should_save_settings_ = true; // "no break" into the shared write
 		break;
 	case ::MidiLearn::INSTRUMENT_INPUT:
-		input = deluge::scenes::bind::LearnInput{.cable = &cable, .channel_or_zone = channel_or_zone};
+		input = deluge::scenes::bind::LearnInput{.device = device, .channel_or_zone = channel_or_zone};
 		// `clearMelodicInstrumentMonoExpressionIfPossible()` -- not ported, see the class doc.
 		unported_[static_cast<size_t>(UnportedCall::ClearMonoExpression)]++;
 		break;
@@ -311,13 +313,13 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 	// The write every arm makes -- the `default` arm's `commitLearnedThing` for the shared path, and again
 	// inside the `INSTRUMENT_INPUT` arm, which is the same three fields in a different order.
 	::LearnedMIDI learned;
-	learned.cable = &cable;
+	learned.cable = deluge::midi::cable_of(device);
 	learned.channelOrZone = channel_or_zone;
 	learned.noteOrCC = note; // legacy's comment: used for low note in kits
 	commit(learned, input);
 }
 
-void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
+void MidiLearn::cc_received(deluge::midi::DeviceId device, int32_t channel, int32_t cc, int32_t value) {
 	// `View::ccReceivedForMIDILearn` (`gui/views/view.cpp`).
 	if (pressed_.kind == ::MidiLearn::NONE) {
 		return;
@@ -338,7 +340,7 @@ void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int
 		if (current_output_is_midi && learned.channelOrZone == MIDI_CHANNEL_NONE) {
 			// Legacy's comment: but only if the user hasn't already started learning MPE stuff, or
 			// regular note-ons. The learn marks the instrument edited, as `View::ccReceivedForMIDILearn` does.
-			learned.cable = &cable;
+			learned.cable = deluge::midi::cable_of(device);
 			learned.channelOrZone = channel;
 			commit(learned);
 		}
@@ -347,7 +349,7 @@ void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int
 
 	// For everything else, a non-zero CC is a note-on with the CC bias applied.
 	if (value != 0) {
-		note_on_received(cable, channel + IS_A_CC, cc, 127);
+		note_on_received(device, channel + IS_A_CC, cc, 127);
 	}
 }
 
@@ -366,21 +368,22 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	//
 	// In learn mode only, as the dispatchers reach `View` only then; there, a note-on, a CC and a program change are
 	// used up whatever they learned (`View::pcReceivedForMIDILearn` learns nothing), and a pitch bend is never used. A
-	// null `cable` is the "no message" value `UiEvent` documents and is dropped rather than dereferenced.
+	// null device (or one naming no cable) is the "no message" value `UiEvent` documents and is dropped.
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
-	case UiEvent::Kind::MidiProgramChange:
-		if (!active_ || event.cable == nullptr) {
+	case UiEvent::Kind::MidiProgramChange: {
+		if (!active_ || deluge::midi::cable_of(event.device) == nullptr) {
 			return Result::unhandled();
 		}
 		if (event.kind == UiEvent::Kind::MidiNoteOn) {
-			note_on_received(*event.cable, event.channel, event.data1, event.data2);
+			note_on_received(event.device, event.channel, event.data1, event.data2);
 		}
 		else if (event.kind == UiEvent::Kind::MidiCc) {
-			cc_received(*event.cable, event.channel, event.data1, event.data2);
+			cc_received(event.device, event.channel, event.data1, event.data2);
 		}
 		return Result{.handled = true};
+	}
 	case UiEvent::Kind::MidiPitchBend:
 		return Result::unhandled();
 	default:

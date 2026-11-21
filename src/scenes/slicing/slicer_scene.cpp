@@ -3,7 +3,6 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
@@ -15,6 +14,7 @@
 
 #include "gfx/grid/palette.h"
 
+#include "gfx/grid/pad_grid.h"
 #include "model/action/action_logger.h"
 #include "model/sample/sample.h"
 #include "model/sample/waveform_scan.h"
@@ -28,6 +28,10 @@
 #include <utility>
 
 namespace deluge::scenes::slicing {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
@@ -43,7 +47,7 @@ namespace {
 /// marks into `image[4]` (`origin/main:src/deluge/gui/ui/slicer.cpp`). Legacy spells both as the literal 4; on the
 /// shipped 8-row grid that is `kDisplayHeight / 2`, which is also the bound of the squash loop it
 /// wrote as an expression.
-constexpr int32_t kWaveformRowBase = kDisplayHeight / 2;
+constexpr int32_t kWaveformRowBase = kRows / 2;
 
 /// `int32_t x = manualSlicePoints[i].startPos / (sample->lengthInSamples + 0.0) * 16`.
 /// The 16 is legacy's own literal, not `kDisplayWidth`, and the arithmetic is deliberately in
@@ -367,8 +371,12 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	return true;
 }
 
-const bind::RuntimeFacts& SlicerScene::facts() const {
-	return facts_ != nullptr ? *facts_ : menu::host_runtime_facts();
+bind::Ports SlicerScene::ports() const {
+	const bind::Ports& host = menu::host_ports();
+	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
+	        .card = ports_.card != nullptr ? ports_.card : host.card,
+	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui,
+	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound};
 }
 
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
@@ -376,7 +384,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	const bool on = velocity != 0;
 	// `Slicer::padAction`'s press and release arms are the same window -- a main-grid pad in the TOP half, in
 	// MANUAL mode. `kDisplayHeight / 2` is legacy's own expression for the slot grid's four rows.
-	const bool in_window = x < kDisplayWidth && y < kDisplayHeight / 2 && mode_ == Mode::Manual;
+	const bool in_window = x < kMainCols && y < kRows / 2 && mode_ == Mode::Manual;
 
 	if (on && in_window) {
 		// The inverse of the slot layout `render_grid` draws with -- index `i` goes to
@@ -455,7 +463,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
 	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
 	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
-	if (x == kDisplayWidth && on && !facts().auditioning()) {
+	if (x == kMainCols && on && !ports().ui->auditioning()) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
 		}
@@ -664,19 +672,19 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (nav_.sample == nullptr || ops_ == nullptr) {
 		return;
 	}
-	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
 		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
-		if (col < kDisplayWidth) {
-			for (int32_t y = kDisplayHeight - 4; y < kDisplayHeight; y++) {
+		if (col < kMainCols) {
+			for (int32_t y = kRows - 4; y < kRows; y++) {
 				per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
 				                                          .colour = deluge::ui::grid::TickColour::Normal};
 			}
 		}
 	}
-	const bind::FlashCursor cursor = facts().flash_cursor();
+	const bind::FlashCursor cursor = ports().ui->flash_cursor();
 	if (cursor == bind::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
@@ -712,7 +720,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	f.region(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
 		services::paint_columns(main, nav_.renderData, nav_.sample->getFoundValueCentrePoint(),
 		                        nav_.sample->getValueSpan());
 
@@ -725,14 +733,14 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		// averages row pairs into the top half, so every read is of the untouched full-height
 		// render. Done in place that would be wrong -- row 6 reads rows 4 and 5, which rows 0 and 1
 		// have already overwritten -- so the full-height render is snapshotted first.
-		RGB src[kDisplayHeight][kDisplayWidth]{};
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			for (int32_t x = 0; x < kDisplayWidth; x++) {
+		RGB src[kRows][kMainCols]{};
+		for (int32_t y = 0; y < kRows; y++) {
+			for (int32_t x = 0; x < kMainCols; x++) {
 				src[y][x] = main.peek(x, y);
 			}
 		}
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
+		for (int32_t x = 0; x < kMainCols; x++) {
+			for (int32_t yy = 0; yy < kRows / 2; yy++) {
 				(void)main.pad(x, yy + kWaveformRowBase, RGB::average(src[yy * 2][x], src[yy * 2 + 1][x]));
 			}
 		}

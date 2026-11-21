@@ -7,6 +7,7 @@
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls.
 
 #include "deluge-project/mapping_table.h"
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -25,7 +26,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_core.h"
@@ -153,10 +154,10 @@ menu::MenuState on(const menu::Node& node, int16_t at = 0) {
 }
 
 /// @brief How many times @p sink was asked to mark an instrument edited.
-std::ptrdiff_t edited_marks(const deluge::scenes::bind::RecordingSink& sink) {
-	return std::ranges::count_if(sink.gestures, [](const deluge::scenes::bind::GestureRequest& g) {
-		return g.kind == deluge::scenes::bind::GestureRequest::Kind::INSTRUMENT_EDITED;
-	});
+std::ptrdiff_t edited_marks(const deluge::scenes::bind::test::RecordingControlsSink& sink) {
+	using Gesture = deluge::scenes::bind::test::RecordingControlsSink::Gesture;
+	return std::ranges::count_if(sink.gestures,
+	                             [](const Gesture& g) { return g.kind == Gesture::Kind::INSTRUMENT_EDITED; });
 }
 
 } // namespace
@@ -180,10 +181,11 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		deluge::scenes::bind::RecordingSink recording;
+		deluge::scenes::bind::test::RecordingWrites writes;
+		deluge::scenes::bind::test::RecordingControlsSink recording;
 		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
-		ctx.sink = &recording;
-		ctx.controls_sink = &recording;
+		ctx.ports.writes = &writes;
+		ctx.ports.controls_sink = &recording;
 		expect(open_on_guest(nodes::synth_mode, ctx)).to_be_true();
 		select_turn();
 		expect(static_cast<int>(edited_marks(recording))).to_equal(1);
@@ -199,13 +201,12 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		deluge::scenes::bind::RecordingSink recording;
+		deluge::scenes::bind::test::RecordingWrites writes;
 		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
-		ctx.sink = &recording;
-		ctx.controls_sink = nullptr;
+		ctx.ports.writes = &writes;
+		ctx.ports.controls_sink = nullptr;
 		expect(open_on_guest(nodes::synth_mode, ctx)).to_be_true();
 		select_turn();
-		expect(static_cast<int>(edited_marks(recording))).to_equal(0);
 		expect(fx.instrument->editedByUser).to_be_false();
 	});
 
@@ -419,7 +420,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;
-		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
 	});
 

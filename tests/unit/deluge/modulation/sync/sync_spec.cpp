@@ -1,8 +1,5 @@
 #include "modulation/sync.h"
 
-#include "mock_display.h"
-#include "mock_song.h"
-
 #include <utility>
 
 #include "cppspec.hpp"

@@ -7,3 +7,31 @@ set print vtbl on
 set print demangle on
 set demangle-style gnu-v3
 set print sevenbit-strings off
+
+# --- OpenOCD (dbt debug) helpers. Not for the J-Link server: they call
+# --- procedures defined in scripts/debug/openocd/rza1l.cfg.
+
+# Load the RAM-linked image and leave the core at its entry point, ready to
+# `continue`. Same steps as tools/deluge_jlink.py: halt without pulling nRESET,
+# MMU/caches off, VBAR, DMA stopped, load, SVC mode with IRQ/FIQ masked.
+# `dbt gdb` sets $deluge_elf and $deluge_entry, which selects the AHB-AP load
+# (about 2.5x faster); otherwise this falls back to GDB's own `load`.
+define deluge-load
+  if $_isvoid($deluge_elf)
+    monitor deluge_prepare
+    maintenance flush register-cache
+    load
+    set $cpsr = 0x1DF
+  else
+    # The load runs inside one `monitor` command (about 20 s through a
+    # GD32/STM32F103 DAPLink); without a longer timeout GDB drops the reply.
+    set remotetimeout 120
+    eval "monitor deluge_load %s 0x%x", $deluge_elf, $deluge_entry
+    set remotetimeout 2
+    maintenance flush register-cache
+  end
+end
+document deluge-load
+Halt-only reset, prepare the RZ/A1L and load the current ELF into RAM (OpenOCD only).
+Then `continue` to run it. RTT: tools/openocd_rtt.py <elf> in another terminal.
+end

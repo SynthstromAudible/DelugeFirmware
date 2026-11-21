@@ -52,12 +52,12 @@
 
 #include "scenes/menu/context.h"
 
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/node.h"
 
+#include "definitions_cxx.hpp" // kNumSources
 #include "instruments/deluge/state_access.h"
 
 #include "model/settings/runtime_feature_settings.h"
@@ -73,10 +73,10 @@ namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
 std::vector<synth::SourceRange> edited_ranges(const MenuContext& ctx) {
-	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
+	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
 		return {};
 	}
-	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	return state != nullptr
 	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
 	           : std::vector<synth::SourceRange>{};
@@ -111,12 +111,13 @@ bool ensure_first_range(MenuContext& ctx) {
 		// holds. A refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
 		const std::array<synth::SourceRange, 1> first{synth::SourceRange{
 		    .top_note = deluge::instrument::kOpenTopNote, .zone = {.end = deluge::instrument::kUnsetEndPos}}};
-		if (ctx.sink == nullptr
-		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
+		if (ctx.ports.sound_writes == nullptr
+		    || !ctx.ports.sound_writes->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first,
+		                                             {})) {
 			return false;
 		}
 		if (range_count(ctx) == 0) {
-			return true; // a sink that only records the request made nothing to point at
+			return true; // a port that only records the request made nothing to point at
 		}
 	}
 	// The same unambiguous cases `context_for` resolves, re-applied now that a range
@@ -274,13 +275,11 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		ctx.root = MenuContext::Root::Settings;
 	}
 
-	// What a target node binds through: the model, the addresses, and the app's facts and sink, which act on the song
+	// What a target node binds through: the model, the addresses, and the app's ports, which act on the song
 	// it plays: a context over any other song binds nothing through them.
 	ctx.model = &song.project;
 	if (host_binds(song)) {
-		ctx.facts = &host_runtime_facts();
-		ctx.sink = &host_write_sink();
-		ctx.controls_sink = &host_controls_sink();
+		ctx.ports = host_ports();
 	}
 	// An unresolved context (a kit row with no note row) names nothing to edit.
 	if (ctx.resolved && slot) {

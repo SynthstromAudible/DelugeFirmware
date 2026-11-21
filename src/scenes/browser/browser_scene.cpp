@@ -20,6 +20,7 @@
 
 #include "scenes/browser/browser_scene.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, Error, kNumSources
 #include "notify/notice_queue.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
@@ -35,9 +36,9 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
+#include "gfx/grid/pad_grid.h"
 #include "instruments/deluge/state_access.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -56,6 +57,10 @@
 #include <string>
 
 namespace deluge::scenes::browser {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::storage::FileCatalogue;
@@ -160,11 +165,11 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 		const auto found = clips.find(ctx.addresses.clip->clip_id);
 		return found != clips.end() ? std::optional{found->second.file_path} : std::nullopt;
 	}
-	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
+	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
 	    || ctx.source_index >= kNumSources) {
 		return std::nullopt;
 	}
-	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	if (state == nullptr) {
 		return std::nullopt;
 	}
@@ -1436,7 +1441,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
 		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
 		// `qwertyVisible`, acted on by `after_render`.
-		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight});
+		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows});
 	}
 	switch (pads_) {
 	case BrowserPads::Root:
@@ -1450,8 +1455,8 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 		if (id_ == BrowserId::DxSyx) {
 			// `DxSyxBrowser::opened` sets `qwertyVisible = false` and never draws the keys: the pads still type, dark.
-			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kMainCols; x++) {
+				for (int32_t y = 0; y < kRows; y++) {
 					(void)f.pad(x, y, RGB{0, 0, 0});
 				}
 			}
@@ -1495,8 +1500,8 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	// `waveformBasicNavigator.opened()` does.
 	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
 	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
-	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
+	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {
 		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
 		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
@@ -1709,7 +1714,7 @@ Result BrowserScene::after_render() {
 	//    `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
 		hold_deadline_ms_.reset();
-		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
+		if (ctx_.ports.card == nullptr || !ctx_.ports.card->sample_load_in_flight()) {
 			holding_ = false;
 			return long_press();
 		}
@@ -1931,14 +1936,13 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Pad:
 		// A main pad with the keyboard hidden was read by `render_grid` (`reveal_press_`), beneath a context menu too.
-		if (id_ == BrowserId::Sample && event.x < kDisplayWidth
-		    && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
+		if (id_ == BrowserId::Sample && event.x < kMainCols && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
 			Result r;
 			r.handled = true;
 			return r;
 		}
 		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
-		if (id_ == BrowserId::Sample && event.x == kDisplayWidth) {
+		if (id_ == BrowserId::Sample && event.x == kMainCols) {
 			if (event.velocity != 0 && !mode_up()) {
 				return close();
 			}
@@ -2177,8 +2181,8 @@ void BrowserScene::file_deleted(std::string_view path) {
 }
 
 bool BrowserScene::fresh_kit() const {
-	return ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
-	       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
+	return ctx_.source_index == 0 && ctx_.ports.sound != nullptr && ctx_.addresses.slot
+	       && ctx_.ports.sound->kit_takes_whole_folder(*ctx_.addresses.slot);
 }
 
 void BrowserScene::deferred_load_done(bool success) {

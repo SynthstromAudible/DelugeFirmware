@@ -168,12 +168,12 @@ struct MenuRig : DxRig {
 	MenuContext menu_context() {
 		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 	}
-	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), over the keyboard screen when
-	///        @p keyboard_root, and draw it once.
-	void open(const Node& root, bind::WriteSink* sink = nullptr, bool keyboard_root = false) {
+	/// @brief Open the menu on @p root, its sound edits going to @p sound_writes (the app's when null), over the
+	///        keyboard screen when @p keyboard_root, and draw it once.
+	void open(const Node& root, bind::SoundWrites* sound_writes = nullptr, bool keyboard_root = false) {
 		MenuContext ctx = menu_context();
-		if (sink != nullptr) {
-			ctx.sink = sink;
+		if (sound_writes != nullptr) {
+			ctx.ports.sound_writes = sound_writes;
 		}
 		ctx.root_is_keyboard = keyboard_root;
 		(void)menu::assign_node_ids(nodes::kAllRoots);
