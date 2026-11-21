@@ -22,9 +22,9 @@ namespace {
 
 constexpr int64_t kI32Max = std::numeric_limits<int32_t>::max();
 
-/// @brief The view @p start names, made the only way a view is made: by opening it.
+/// @brief The view @p start names, made by the operations that reach it.
 WaveformView view_of(const NavStart& start) {
-	return WaveformView::open(start.length, Window{.scroll = start.scroll, .zoom = start.zoom});
+	return start.view;
 }
 
 oracle::Nav oracle_of(const NavStart& start) {
@@ -40,25 +40,6 @@ std::array<oracle::MarkerColumn, 4> oracle_cols(const std::array<MarkerPin, 4>& 
 	}
 	return cols;
 }
-
-/// @brief Per-row counts of the inputs a domain loop skipped, and the inputs it compared.
-struct Skips {
-	std::array<int64_t, kQuirkCount> per_row{};
-	int64_t compared = 0;
-	int64_t failures = 0;
-	void skip(Quirk q) { per_row[static_cast<size_t>(q)]++; }
-	[[nodiscard]] int64_t of(Quirk q) const { return per_row[static_cast<size_t>(q)]; }
-	bool fail() { return failures++ < 10; }
-	void print(const char* domain) const {
-		std::cout << domain << ": " << compared << " compared";
-		for (size_t q = 0; q < kQuirkCount; q++) {
-			if (per_row[q] != 0) {
-				std::cout << ", " << quirk_name(static_cast<Quirk>(q)) << " skipped " << per_row[q];
-			}
-		}
-		std::cout << "\n";
-	}
-};
 
 /// @brief The pins of a zone at @p v, by column: none for an unset one.
 std::array<MarkerPin, 4> pins_at(const WaveformView& v, std::array<std::optional<int64_t>, 4> columns) {
@@ -188,13 +169,13 @@ describe view_group("view.h", ${
 	});
 	it("zooms every view as the oracle does outside the listed rows", _ {
 		Skips s;
-		for (const NavCase& c : nav_zoom_cases()) {
+		for_each_zoom_case([&](const NavCase& c) {
 			if (const auto q = zoom_quirk(c)) {
 				s.skip(*q);
-				continue;
+				return;
 			}
 			s.compared++;
-			const WaveformView v = view_of({.length = c.length, .scroll = c.scroll, .zoom = c.zoom});
+			const WaveformView& v = c.view;
 			const std::optional<WaveformView> r = v.zoomed(c.offset, c.pins, c.preferred, c.extra_right);
 			oracle::Nav n = oracle_of({.length = c.length, .scroll = c.scroll, .zoom = c.zoom});
 			const std::array<oracle::MarkerColumn, 4> cols = oracle_cols(c.pins);
@@ -208,7 +189,7 @@ describe view_group("view.h", ${
 				          << (r ? r->zoom() : -999) << "} against the oracle's {" << (moved ? n.xScroll : -999) << ", "
 				          << (moved ? n.xZoom : -999) << "}\n";
 			}
-		}
+		});
 		s.print("zoom");
 		expect(s.failures).to_equal(0);
 		for (const Quirk q : {Quirk::Q6, Quirk::Q7, Quirk::Q8, Quirk::Q9, Quirk::Q10}) {
@@ -235,6 +216,10 @@ describe view_group("view.h", ${
 		const auto out = WaveformView::open(long_file, Window{.scroll = 0, .zoom = int64_t{1} << 32})
 		                     .zoomed(-1, {}, std::nullopt, false);
 		expect(out.value().zoom()).to_equal(int64_t{1} << 33);
+		// Zooming out, the oracle's 32-bit limit narrows 2^36 to 0, so it refuses. Zooming in it has no answer: its
+		// power-of-two search stops below 2^31 and reads an uninitialised value.
+		oracle::Nav n{.length = long_file, .xZoom = int64_t{1} << 32};
+		expect(n.zoom(-1, false, nullptr, oracle::kMarkerNone)).to_be_false();
 	});
 	it("Q6: keeps a centre-pinned frame past 2^31 where it was", _ {
 		const int64_t zoom = int64_t{1} << 20;
@@ -274,6 +259,18 @@ describe view_group("view.h", ${
 		const auto wcols = oracle_cols(wp);
 		m.zoom(-1, false, wcols.data(), 3);
 		expect(m.xScroll).to_equal(4);
+		// Unaligned at exactly 0 at zoom 8: the end at column 1 of a zoom-4 view at scroll 8 (frame 16, pin point 2),
+		// zoomed out to 8. The oracle's (0 - 1) / 8 truncates to 0 and rounds up a whole column.
+		const WaveformView z = WaveformView::open(1 << 20, Window{.scroll = 8, .zoom = 4});
+		const std::array<MarkerPin, 4> zp = pins_at(z, {std::nullopt, std::nullopt, std::nullopt, 1});
+		expect(zp[3].position).to_equal(16);
+		const WaveformView zr = z.zoomed(-1, zp, 3, false).value();
+		expect(zr.zoom()).to_equal(8);
+		expect(zr.scroll()).to_equal(0);
+		oracle::Nav o{.length = 1 << 20, .xZoom = 4, .xScroll = 8};
+		const auto zcols = oracle_cols(zp);
+		o.zoom(-1, false, zcols.data(), 3);
+		expect(o.xScroll).to_equal(8);
 	});
 	it("Q9: clamps past 2^32 frames in 64 bits", _ {
 		const uint64_t length = (uint64_t{1} << 32) + 16;
@@ -305,18 +302,29 @@ describe view_group("view.h", ${
 		expect(big.scrolled(1, true, std::nullopt)).to_have_value();
 		oracle::Nav nb{.length = uint64_t{1} << 36, .xZoom = int64_t{1} << 28, .xScroll = int64_t{1} << 30};
 		expect(nb.scroll(1, true, nullptr)).to_be_true();
-		// At zoom 2^58 the view moves right until its last frame would pass the largest int64_t: fifteen columns on,
-		// at 15 * 2^58, the next view's last frame would be 2^63.
+		// At zoom 2^58 the view moves right until its end, one past its last frame, would not fit in an int64_t:
+		// fifteen columns on, at 15 * 2^58, the next view's end would be 2^63.
 		const int64_t huge = int64_t{1} << 58;
 		std::optional<WaveformView> edge = WaveformView::open(uint64_t{1} << 62, Window{.scroll = 0, .zoom = huge});
 		int32_t moves = 0;
-		for (std::optional<WaveformView> next = edge->scrolled(1, true, std::nullopt); next;
+		for (std::optional<WaveformView> next = edge->scrolled(1, true, std::nullopt); next && moves < 64;
 		     next = edge->scrolled(1, true, std::nullopt)) {
 			edge = next;
 			moves++;
 		}
 		expect(moves).to_equal(15);
 		expect(edge->scroll()).to_equal(15 * huge);
+	});
+	it("Q11: moves across 2^31 at zoom 2^28 to its own frame", _ {
+		// The refusal test passes (the wrapped sum is the scroll itself), but the oracle keeps the moved scroll in an
+		// int32_t, so it lands at a wrapped negative frame.
+		const int64_t zoom = int64_t{1} << 28;
+		const WaveformView v = WaveformView::open(uint64_t{1} << 36, Window{.scroll = 7 * zoom, .zoom = zoom});
+		expect(v.scroll()).to_equal(7 * zoom);
+		expect(v.scrolled(1, true, std::nullopt).value().scroll()).to_equal(int64_t{1} << 31);
+		oracle::Nav n{.length = uint64_t{1} << 36, .xZoom = zoom, .xScroll = 7 * zoom};
+		expect(n.scroll(1, true, nullptr)).to_be_true();
+		expect(n.xScroll).to_be_less_than(0);
 	});
 	it("Q12: stops a left scroll at the waveform's start", _ {
 		const WaveformView v = WaveformView::open(1 << 20, Window{.scroll = 3, .zoom = 8});

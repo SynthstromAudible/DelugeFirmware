@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <string_view>
@@ -28,7 +29,8 @@ namespace deluge::sample_view::test {
 /// @brief The library's Fixed-quirks rows.
 enum class Quirk : uint8_t { Q1, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q29 };
 
-inline constexpr size_t kQuirkCount = 16;
+/// @brief How many rows there are: Q29 is the last.
+inline constexpr size_t kQuirkCount = static_cast<size_t>(Quirk::Q29) + 1;
 
 /// @brief The row's id, as the Fixed-quirks table names it.
 [[nodiscard]] constexpr std::string_view quirk_name(Quirk q) {
@@ -36,6 +38,26 @@ inline constexpr size_t kQuirkCount = 16;
 	                                                           "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q29"};
 	return kNames[static_cast<size_t>(q)];
 }
+
+/// @brief Per-row counts of the inputs a domain loop skipped, the inputs it compared, and its failures.
+struct Skips {
+	std::array<int64_t, kQuirkCount> per_row{};
+	int64_t compared = 0;
+	int64_t failures = 0;
+	void skip(Quirk q) { per_row[static_cast<size_t>(q)]++; }
+	[[nodiscard]] int64_t of(Quirk q) const { return per_row[static_cast<size_t>(q)]; }
+	/// @brief Count a failure; true for the first ten, which the loop prints.
+	bool fail() { return failures++ < 10; }
+	void print(const char* domain) const {
+		std::cout << domain << ": " << compared << " compared";
+		for (size_t q = 0; q < kQuirkCount; q++) {
+			if (per_row[q] != 0) {
+				std::cout << ", " << quirk_name(static_cast<Quirk>(q)) << " skipped " << per_row[q];
+			}
+		}
+		std::cout << "\n";
+	}
+};
 
 namespace detail {
 
@@ -56,19 +78,21 @@ namespace detail {
 	if (scroll < 0 || extra) {
 		return std::nullopt;
 	}
-	if (length == 0 || length > std::numeric_limits<uint32_t>::max()) {
-		return Quirk::Q9; // the length narrowed to 32 bits, or 0 - 1 wrapped
-	}
+	// Legacy's limit: the length narrowed to 32 bits (where 0 - 1 wraps), and the limit narrowed to 32 bits.
+	const auto narrowed = static_cast<uint32_t>(length);
+	const int64_t legacy_columns = int64_t{static_cast<uint32_t>(narrowed - 1)} / zoom + 1;
+	const auto legacy_limit = static_cast<int32_t>((legacy_columns - 16) * zoom);
+	// The correct one: the last whole column's scroll, and never below 0.
 	const auto l = static_cast<int64_t>(length);
-	const int64_t columns = (l - 1) / zoom + 1;
+	const int64_t columns = l == 0 ? 0 : (l - 1) / zoom + 1;
 	const int64_t limit = (columns - 16) * zoom;
-	if (detail::outside_int32(limit)) {
-		return Quirk::Q9; // the limit narrowed to 32 bits
+	if (std::min<int64_t>(scroll, legacy_limit) == std::min<int64_t>(scroll, std::max<int64_t>(0, limit))) {
+		return std::nullopt;
 	}
-	if (columns < 16) {
-		return Quirk::Q10; // a narrow waveform's negative limit
+	if (length == 0 || length > std::numeric_limits<uint32_t>::max() || detail::outside_int32(limit)) {
+		return Quirk::Q9; // the length or the limit narrowed to 32 bits, or 0 - 1 wrapped
 	}
-	return std::nullopt;
+	return Quirk::Q10; // a narrow waveform's negative limit
 }
 
 /// @brief The row under which legacy's open differs.

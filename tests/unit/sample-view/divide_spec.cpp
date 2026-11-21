@@ -21,6 +21,9 @@ constexpr int64_t k2Pow53 = int64_t{1} << 53;
 constexpr int64_t kI32Max = std::numeric_limits<int32_t>::max();
 constexpr int64_t kI32Min = std::numeric_limits<int32_t>::min();
 
+// Constant-evaluated, so the float flags never apply to these: the twin (unsafe_math/) leaves them out, so that its
+// run-time cases alone answer for the flags.
+#ifndef DELUGE_SPEC_TWIN
 static_assert(floor_div(-7, 2) == -4);
 static_assert(ceil_div(-7, 2) == -3);
 static_assert(trunc_div(-7, 2) == -3);
@@ -37,6 +40,10 @@ static_assert(trunc_div(kI32Max + 1, 1) == kI32Max + 1);
 static_assert(trunc_div(kI32Min, 3) == kI32Min / 3);
 // A bar's numerator past 2^53 whose double quotient rounds up past a whole number: the fix-up step takes it back.
 static_assert(trunc_div(36028794854703104, 2147483647) == 16777214);
+// Past 2^50 the estimate is refined: INT64_MAX converts to 2^63, which is one past it.
+static_assert(divide(INT64_MAX, 1) == Quotient{INT64_MAX, 0});
+static_assert(divide(-INT64_MAX, 3) == Quotient{-INT64_MAX / 3, -INT64_MAX % 3});
+#endif
 
 /// @brief Bar numerators (multiples of 2^24, exact as doubles though past 2^53) whose double quotient rounds up to the
 ///        next whole number, so that only the fix-up step answers them.
@@ -176,6 +183,20 @@ describe divide_spec_body("divide.h", ${
 		}
 		expect(c.failures).to_equal(0);
 	});
+	it("agrees at the ends of the int64_t range", _ {
+		Checker c;
+		constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+		for (const int64_t a : {kMax, kMax - 1, kMax - 2, kMax >> 1, int64_t{1} << 62, k2Pow53 + 1}) {
+			for (const int64_t b : {int64_t{1}, int64_t{2}, int64_t{3}, int64_t{7}, (int64_t{1} << 13) - 1,
+			                        int64_t{1} << 13, kI32Max, kI32Max + 2, (int64_t{1} << 53) + 1, kMax - 1, kMax}) {
+				c.check(a, b);
+				c.check(-a, b);
+				c.check(a, -b);
+				c.check(-a, -b);
+			}
+		}
+		expect(c.failures).to_equal(0);
+	});
 	it("agrees on 2^20 random pairs below 2^53", _ {
 		Checker c;
 		std::mt19937_64 rng{0x5a3d'1f00'c0de'2026};
@@ -192,6 +213,54 @@ describe divide_spec_body("divide.h", ${
 			if (a / b > -(int64_t{1} << 52) && a / b < (int64_t{1} << 52)) {
 				c.check(a, b);
 				kept++;
+			}
+		}
+		expect(c.failures).to_equal(0);
+	});
+	it("agrees on 2^20 random pairs with a dividend past 2^53, whatever the quotient", _ {
+		Checker c;
+		std::mt19937_64 rng{0x2026'1121'5eed'0053};
+		std::uniform_real_distribution<double> dividend{53.0, 63.0};
+		std::uniform_real_distribution<double> divisor{0.0, 63.0};
+		const auto draw = [&](std::uniform_real_distribution<double>& exponent) {
+			const double m = std::exp2(exponent(rng));
+			// Below 2^63 a double converts exactly; the low bits are then filled at random.
+			const auto high = static_cast<int64_t>(std::min(m, 9.2e18));
+			const int64_t v = std::max<int64_t>(1, high ^ static_cast<int64_t>(rng() & 0xFFFF));
+			return (rng() & 1) != 0 ? v : -v;
+		};
+		for (int64_t n = 0; n < (int64_t{1} << 20); n++) {
+			c.check(draw(dividend), draw(divisor));
+		}
+		expect(c.failures).to_equal(0);
+	});
+	it("agrees on many numerators over one divisor known only at run time", _ {
+		// Shaped like a column read's frame offsets: one zoom, read at run time, divides a run of frames. A compiler
+		// allowed reciprocal math may hoist 1 / zoom out of the loop and multiply; the fix-up step must still answer.
+		Checker c;
+		volatile int64_t laundered = 0;
+		for (const int64_t zoom : {int64_t{3}, int64_t{7}, int64_t{49}, int64_t{1000003}, (int64_t{1} << 28) + 1}) {
+			laundered = zoom;
+			const int64_t b = laundered;
+			std::vector<int64_t> frames;
+			for (int64_t k = 0; k < 4096; k++) {
+				laundered = k * zoom + (k % 3) - 1;
+				const int64_t frame = laundered;
+				frames.push_back(frame);
+			}
+			std::vector<int64_t> quotients(frames.size());
+			for (size_t i = 0; i < frames.size(); i++) {
+				quotients[i] = trunc_div(frames[i], b);
+			}
+			for (size_t i = 0; i < frames.size(); i++) {
+				c.checked++;
+				if (quotients[i] != frames[i] / b) {
+					if (c.failures < 10) {
+						std::cout << "frame " << frames[i] << " / " << b << ": got " << quotients[i] << "\n";
+					}
+					c.failures++;
+				}
+				c.check(frames[i], b);
 			}
 		}
 		expect(c.failures).to_equal(0);

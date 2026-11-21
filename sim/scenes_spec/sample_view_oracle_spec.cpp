@@ -3,6 +3,7 @@
 // the domains the unit specs compare the new types in. A scan whose recorder is growing a take is covered by the unit
 // spec alone: no recorder here constructs without arming a take.
 
+#include "memory/heaps.h"
 #include "model/sample/sample.h"
 #include "model/sample/waveform_navigator.h"
 #include "model/sample/waveform_render_data.h"
@@ -24,9 +25,9 @@
 
 namespace oracle = deluge::sample_view::test::oracle;
 using deluge::sample_view::MarkerPin;
+using deluge::sample_view::test::for_each_zoom_case;
 using deluge::sample_view::test::nav_opens;
 using deluge::sample_view::test::nav_starts;
-using deluge::sample_view::test::nav_zoom_cases;
 using deluge::sample_view::test::NavCase;
 using deluge::sample_view::test::NavOpen;
 using deluge::sample_view::test::NavStart;
@@ -37,7 +38,8 @@ constexpr size_t kClusterSize = 32768;
 constexpr int32_t kNumClusters = 8;
 constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * kNumClusters / 2; // 16-bit mono
 
-/// A loaded-looking sample, for the prelude alone: a scan of no columns reads none of its frames.
+/// A loaded-looking sample, for the prelude alone: a scan of no columns reads none of its frames. Release it with
+/// free_sample().
 Sample* make_sample() {
 	Cluster::set_size(kClusterSize);
 	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
@@ -50,6 +52,12 @@ Sample* make_sample() {
 	s->lengthInSamples = kSampleLength;
 	s->resizeOverviewCache(kNumClusters);
 	return s;
+}
+
+/// Destroy and free a make_sample() sample.
+void free_sample(Sample* s) {
+	s->~Sample();
+	deluge::memory::dealloc(s);
 }
 
 uint8_t pattern(int32_t c) {
@@ -127,6 +135,7 @@ describe sample_view_oracle("the legacy waveform arithmetic's transcription", ${
 				}
 			}
 		}
+		free_sample(sample);
 		std::cout << "prelude: " << compared << " compared\n";
 		expect(failures).to_equal(0);
 	});
@@ -214,7 +223,7 @@ describe sample_view_oracle("the legacy waveform arithmetic's transcription", ${
 				}
 			}
 		}
-		for (const NavCase& c : nav_zoom_cases()) {
+		for_each_zoom_case([&](const NavCase& c) {
 			deluge::sample::WaveformNav nav{};
 			nav.length_samples = c.length;
 			nav.xScroll = c.scroll;
@@ -232,7 +241,7 @@ describe sample_view_oracle("the legacy waveform arithmetic's transcription", ${
 				          << "}: legacy {" << nav.xScroll << ", " << nav.xZoom << "}, the oracle {" << copy.xScroll
 				          << ", " << copy.xZoom << "}\n";
 			}
-		}
+		});
 		expect(failures).to_equal(0);
 	});
 });

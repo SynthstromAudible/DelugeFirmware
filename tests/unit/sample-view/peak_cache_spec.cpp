@@ -103,7 +103,8 @@ describe peak_cache_group("peak_cache.h", ${
 								const PeakRead kept = cache.update({.scroll = s2, .zoom = z2}, l2, growing, nothing);
 								oracle::RenderData data = pattern_data(s, z, kLength);
 								oracle::prelude(data, s2, static_cast<uint64_t>(z2), static_cast<uint64_t>(l2), growing);
-								bool same = cache.window() == Window{.scroll = data.xScroll, .zoom = data.xZoom};
+								bool same = cache.window() == Window{.scroll = data.xScroll, .zoom = data.xZoom}
+								            && cache.valid_length() == data.validLengthSamples;
 								for (int32_t c = 0; c < kColumns; c++) {
 									const bool investigated = data.colStatus[c] == oracle::kInvestigated;
 									const std::optional<Peak> p = kept.column(c).peak();
@@ -135,6 +136,24 @@ describe peak_cache_group("peak_cache.h", ${
 			expect(r.last.count()).to_equal(size_t{kColumns - 1});
 		}
 	});
+	it("slides a whole-column scroll at any zoom, and clears when the scrolls are further apart than an int64_t", _ {
+		const int64_t zoom = int64_t{1} << 50;
+		PeakCache cache;
+		Reader setup{.answer = all_peaks(0)};
+		(void)cache.update({.scroll = 0, .zoom = zoom}, 1000, false, setup);
+		Reader one{};
+		const PeakRead slid = cache.update({.scroll = zoom, .zoom = zoom}, 1000, false, one);
+		expect(slid.column(0)).to_equal(setup.answer.column(1));
+		expect(one.last.count()).to_equal(size_t{1});
+		// At zoom 2^60, from -2^62 to 2^62 + 2^61 is 2^63 + 2^61 frames: past what an int64_t holds.
+		const int64_t wide = int64_t{1} << 60;
+		PeakCache far;
+		Reader far_setup{.answer = all_peaks(0)};
+		(void)far.update({.scroll = -(int64_t{1} << 62), .zoom = wide}, 1000, false, far_setup);
+		Reader again{};
+		(void)far.update({.scroll = (int64_t{1} << 62) + (int64_t{1} << 61), .zoom = wide}, 1000, false, again);
+		expect(again.last.all()).to_be_true();
+	});
 	it("clears on any update, made fresh or forgotten", _ {
 		PeakCache fresh;
 		Reader r{};
@@ -161,7 +180,8 @@ describe peak_cache_group("peak_cache.h", ${
 			const bool want = c >= 2 && c < 12 && pattern(c) != oracle::kInvestigated;
 			expect(r.last.test(static_cast<size_t>(c))).to_equal(want);
 		}
-		// The oracle's scan re-reads a BEYOND column too: it skips only INVESTIGATED ones.
+		// Legacy's scan (find_peaks_per_col) skips only INVESTIGATED columns, so it re-reads a BEYOND one; the oracle's
+		// prelude keeps the BEYOND status that marks it.
 		expect(pattern(3)).to_equal(oracle::kBeyond);
 		expect(r.last.test(3)).to_be_true();
 		PeakCache whole;
@@ -249,7 +269,7 @@ describe peak_cache_group("peak_cache.h", ${
 		expect(read(1, 10).second.all()).to_be_true();
 		expect(read(2, 20).second.all()).to_be_true();
 		expect(set.held()).to_equal(size_t{2});
-		expect(read(1, 99).first.column(0).peak()->max).to_equal(10);
+		expect(read(1, 99).first.column(0).peak().value().max).to_equal(10);
 		expect(read(3, 30).second.all()).to_be_true();
 		expect(read(4, 40).second.all()).to_be_true();
 		expect(set.held()).to_equal(size_t{4});
@@ -258,6 +278,8 @@ describe peak_cache_group("peak_cache.h", ${
 		expect(read(5, 50).second.all()).to_be_true();
 		expect(set.held()).to_equal(size_t{4});
 		expect(read(3, 0).second.none()).to_be_true();
+		expect(read(1, 0).second.none()).to_be_true();
+		expect(read(4, 0).second.none()).to_be_true();
 		expect(read(2, 21).second.all()).to_be_true(); // given up, so read afresh
 	});
 	it("Q29: a waveform read again at its window reads nothing, whichever was read between", _ {

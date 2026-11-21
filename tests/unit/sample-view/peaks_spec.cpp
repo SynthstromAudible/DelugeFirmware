@@ -17,9 +17,8 @@ using namespace deluge::sample_view;
 namespace oracle = deluge::sample_view::test::oracle;
 using deluge::sample_view::test::bar_quirk;
 using deluge::sample_view::test::brightness_quirk;
-using deluge::sample_view::test::kQuirkCount;
 using deluge::sample_view::test::Quirk;
-using deluge::sample_view::test::quirk_name;
+using deluge::sample_view::test::Skips;
 
 namespace {
 
@@ -49,24 +48,6 @@ int32_t oracle_brightness(Peak peak, int32_t max_peak) {
 	return oracle::col_brightness_for_single_row(0, max_peak, data);
 }
 
-/// @brief Per-row counts of the inputs a domain loop skipped, and the inputs it compared.
-struct Skips {
-	std::array<int64_t, kQuirkCount> per_row{};
-	int64_t compared = 0;
-	int64_t failures = 0;
-	void skip(Quirk q) { per_row[static_cast<size_t>(q)]++; }
-	[[nodiscard]] int64_t of(Quirk q) const { return per_row[static_cast<size_t>(q)]; }
-	void print(const char* domain) const {
-		std::cout << domain << ": " << compared << " compared";
-		for (size_t q = 0; q < kQuirkCount; q++) {
-			if (per_row[q] != 0) {
-				std::cout << ", " << quirk_name(static_cast<Quirk>(q)) << " skipped " << per_row[q];
-			}
-		}
-		std::cout << "\n";
-	}
-};
-
 } // namespace
 
 // clang-format off
@@ -90,7 +71,7 @@ describe peaks_group("peaks.h", ${
 						}
 						s.compared++;
 						if (bar_of(peak, centre, span) != oracle_bar(peak, centre, span)) {
-							if (s.failures++ < 10) {
+							if (s.fail()) {
 								std::cout << "bar {" << low << ", " << high << "} centre " << centre << " span " << span
 								          << ": " << bar_of(peak, centre, span).bottom << ".."
 								          << bar_of(peak, centre, span).top << " against the oracle's "
@@ -131,7 +112,7 @@ describe peaks_group("peaks.h", ${
 					}
 					s.compared++;
 					if (single_row_brightness(peak, max_peak) != oracle_brightness(peak, max_peak)) {
-						if (s.failures++ < 10) {
+						if (s.fail()) {
 							std::cout << "brightness {" << low << ", " << high << "} max " << max_peak << ": "
 							          << single_row_brightness(peak, max_peak) << " against the oracle's "
 							          << oracle_brightness(peak, max_peak) << "\n";
@@ -205,8 +186,9 @@ describe peaks_group("peaks.h", ${
 				}
 			}
 		}
-		// At -1 the oracle inverts the bar; at 0 it divides by zero, so there is no oracle there.
-		expect(oracle_bar({.min = -1000, .max = 1000}, 0, -1)).not_().to_equal(centred);
+		// At -1 the oracle negates each end, past the int32_t range, and the narrowing wraps them to a bar 48 pads
+		// tall; at 0 it divides by zero, so there is no oracle there.
+		expect(oracle_bar({.min = -1000, .max = 1000}, 0, -1)).to_equal(Bar{.bottom = -402653184, .top = 402653184});
 	});
 	it("Q16: measures the most negative value, clamps the ratio before narrowing, and draws a silent waveform dark", _ {
 		expect(single_row_brightness({.min = kI32Min, .max = 0}, kI32Max)).to_equal(256);
