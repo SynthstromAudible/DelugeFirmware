@@ -190,5 +190,185 @@ class TableLoading(unittest.TestCase):
             repo.close()
 
 
+RULES = textwrap.dedent(
+    """
+    [[directory]]
+    path = "scenes"
+    target = "src/ui/scenes"
+
+    [[rule]]
+    name = "scenes-reads-outside-bind"
+    files = ["src/scenes/**"]
+    exclude = ["src/scenes/bind/**"]
+    pattern = '^(model|modulation|io|processing|storage|playback)/'
+    shrink_only = true
+    reason = "scenes read the model through bind"
+
+    [[rule]]
+    name = "legacy-includes-ui"
+    files = ["src/deluge/{model,io}/**"]
+    pattern = '^(gui/(?!l10n/)|hid/)'
+    reason = "the model raises notifications"
+
+    [[rule]]
+    name = "dsp-boundary"
+    files = ["src/deluge/dsp-next/**"]
+    pattern = '^(model|memory|util)/'
+    allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
+    reason = "the kernels reach nothing above them"
+    """
+)
+
+
+class CountedRules(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(TABLE + RULES)
+
+    def tearDown(self):
+        self.repo.close()
+
+    def counts(self) -> dict[tuple[str, str], int]:
+        return cl.rule_counts(self.repo.config(), self.repo.root)
+
+    def test_each_matching_include_counts_in_either_spelling(self):
+        self.repo.plant(
+            "src/scenes/menu/planted.cpp",
+            '#include "model/song/song.h"\n#include <storage/flash_storage.h>\n#include "modulation/sync.h"\n',
+        )
+        self.assertEqual(
+            self.counts(),
+            {("src/scenes/menu/planted.cpp", "scenes-reads-outside-bind"): 3},
+        )
+
+    def test_an_excluded_glob_is_not_counted(self):
+        self.repo.plant("src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n')
+        self.assertEqual(self.counts(), {})
+
+    def test_other_families_are_not_counted(self):
+        self.repo.plant(
+            "src/scenes/menu/planted.cpp",
+            '#include "scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/oled/columns.h"\n',
+        )
+        self.assertEqual(self.counts(), {})
+
+    def test_braces_expand_in_a_glob(self):
+        self.repo.plant(
+            "src/deluge/io/midi/planted.cpp",
+            '#include "gui/ui/ui.h"\n#include "gui/l10n/strings.h"\n',
+        )
+        self.repo.plant("src/deluge/storage/planted.cpp", '#include "gui/ui/ui.h"\n')
+        self.assertEqual(
+            self.counts(), {("src/deluge/io/midi/planted.cpp", "legacy-includes-ui"): 1}
+        )
+
+    def test_an_allowed_header_is_not_counted(self):
+        self.repo.plant(
+            "src/deluge/dsp-next/core/planted.h",
+            '#include "util/misc.h"\n#include "memory/memory_allocator_interface.h"\n#include "util/functions.h"\n',
+        )
+        self.assertEqual(
+            self.counts(), {("src/deluge/dsp-next/core/planted.h", "dsp-boundary"): 1}
+        )
+
+    def test_a_commented_out_include_is_not_counted(self):
+        self.repo.plant(
+            "src/scenes/menu/planted.cpp", '// #include "model/song/song.h"\n'
+        )
+        self.assertEqual(self.counts(), {})
+
+
+class CommandLine(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(TABLE + RULES)
+        self.baseline = self.repo.root / "scripts" / "layers_baseline.txt"
+
+    def tearDown(self):
+        self.repo.close()
+
+    def run_main(self, *args: str) -> int:
+        import contextlib
+        import io
+
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            return cl.main(["--repo", str(self.repo.root), *args])
+
+    def plant(self, includes: int, baseline: int) -> None:
+        self.repo.plant(
+            "src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n' * includes
+        )
+        self.baseline.write_text(
+            f"# header\nsrc/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
+        )
+
+    def test_a_count_at_the_baseline_passes(self):
+        self.plant(includes=1, baseline=1)
+        self.assertEqual(self.run_main(), 0)
+
+    def test_a_count_above_the_baseline_fails(self):
+        self.plant(includes=2, baseline=1)
+        self.assertEqual(self.run_main(), 1)
+
+    def test_a_count_with_no_baseline_row_fails(self):
+        self.repo.plant("src/deluge/io/planted.cpp", '#include "hid/x.h"\n')
+        self.baseline.write_text("# header\n")
+        self.assertEqual(self.run_main(), 1)
+
+    def test_a_library_violation_fails(self):
+        self.repo.plant("src/lib/probe.h", '#include "model/song/song.h"\n')
+        self.baseline.write_text("# header\n")
+        self.assertEqual(self.run_main(), 1)
+
+    def test_update_refuses_to_raise_a_shrink_only_count(self):
+        self.plant(includes=2, baseline=1)
+        before = self.baseline.read_text()
+        self.assertEqual(self.run_main("--update"), 1)
+        self.assertEqual(self.baseline.read_text(), before)
+
+    def test_update_lowers_a_count(self):
+        self.plant(includes=1, baseline=2)
+        self.assertEqual(self.run_main("--update"), 0)
+        self.assertIn(
+            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            self.baseline.read_text(),
+        )
+
+    def test_update_may_raise_a_count_that_is_not_shrink_only(self):
+        self.repo.plant(
+            "src/deluge/io/planted.cpp", '#include "hid/x.h"\n#include "hid/y.h"\n'
+        )
+        self.baseline.write_text(
+            "# header\nsrc/deluge/io/planted.cpp\tlegacy-includes-ui\t1\nsrc/deluge\tlegacy-shrinks\t1\n"
+        )
+        self.assertEqual(self.run_main("--update"), 0)
+        self.assertIn(
+            "src/deluge/io/planted.cpp\tlegacy-includes-ui\t2\n",
+            self.baseline.read_text(),
+        )
+
+    def test_update_writes_a_first_baseline_whatever_the_counts(self):
+        self.repo.plant("src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n')
+        self.assertEqual(self.run_main("--update"), 0)
+        self.assertIn(
+            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            self.baseline.read_text(),
+        )
+
+    def test_list_prints_the_counts(self):
+        import contextlib
+        import io
+
+        self.plant(includes=2, baseline=0)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(cl.main(["--repo", str(self.repo.root), "--list"]), 0)
+        self.assertIn(
+            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t2\n",
+            out.getvalue(),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

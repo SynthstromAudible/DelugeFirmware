@@ -28,9 +28,12 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import functools
 import re
+import sys
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 
 import tomllib
@@ -340,3 +343,176 @@ def library_violations(config: Config, repo: Path) -> list[str]:
                 if not ok:
                     found.append(f"{library.name}: {rel_path}:{number}: {line.strip()}")
     return found
+
+
+def glob_match(rel_path: str, pattern: str) -> bool:
+    """fnmatch, after expanding each {a,b} alternative. fnmatch's * crosses "/", so "dir/**" is everything under dir."""
+    match = re.search(r"\{([^}]*)\}", pattern)
+    if match:
+        return any(
+            glob_match(
+                rel_path,
+                pattern[: match.start()] + alternative + pattern[match.end() :],
+            )
+            for alternative in match.group(1).split(",")
+        )
+    return fnmatch(rel_path, pattern)
+
+
+def covers(rule: Rule, rel_path: str) -> bool:
+    return any(glob_match(rel_path, glob) for glob in rule.files) and not any(
+        glob_match(rel_path, glob) for glob in rule.exclude
+    )
+
+
+def direct_count(rule: Rule, pattern: re.Pattern[str], path: Path) -> int:
+    """The includes in @p path, as written, that match the rule's pattern and are not allowed."""
+    count = 0
+    for line in read_lines(path):
+        match = ANY_INCLUDE.match(line)
+        if (
+            match
+            and pattern.search(match.group(1))
+            and match.group(1) not in rule.allow
+        ):
+            count += 1
+    return count
+
+
+def rule_count(
+    config: Config, repo: Path, rule: Rule, pattern: re.Pattern[str], path: Path
+) -> int:
+    return direct_count(rule, pattern, path)
+
+
+def rule_counts(config: Config, repo: Path) -> dict[tuple[str, str], int]:
+    files = [
+        path for root in config.tree.scan_roots for path in source_files(repo, root)
+    ]
+    counts: dict[tuple[str, str], int] = {}
+    for rule in config.rules:
+        pattern = re.compile(rule.pattern)
+        for path in files:
+            rel_path = relative(repo, path)
+            if not covers(rule, rel_path):
+                continue
+            count = rule_count(config, repo, rule, pattern, path)
+            if count:
+                counts[(rel_path, rule.name)] = count
+    return counts
+
+
+def tree_violations(config: Config, repo: Path) -> list[str]:
+    return []
+
+
+def all_counts(config: Config, repo: Path) -> dict[tuple[str, str], int]:
+    return rule_counts(config, repo)
+
+
+def is_shrink_only(config: Config, rule_name: str) -> bool:
+    return any(rule.name == rule_name and rule.shrink_only for rule in config.rules)
+
+
+def reason_of(config: Config, rule_name: str) -> str:
+    return next((rule.reason for rule in config.rules if rule.name == rule_name), "")
+
+
+def load_baseline(path: Path) -> dict[tuple[str, str], int]:
+    counts: dict[tuple[str, str], int] = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if line and not line.startswith("#"):
+                file, rule, count = line.split("\t")
+                counts[(file, rule)] = int(count)
+    return counts
+
+
+def write_baseline(path: Path, counts: dict[tuple[str, str], int]) -> None:
+    path.write_text(
+        "# Include-layer baseline: file<TAB>rule<TAB>count. A count may only fall.\n"
+        + "".join(
+            f"{file}\t{rule}\t{count}\n"
+            for (file, rule), count in sorted(counts.items())
+        )
+    )
+
+
+def explain(config: Config, repo: Path, file: str, rule_name: str) -> list[str]:
+    """Extra lines for a count above its baseline: none for a direct rule."""
+    return []
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="print every count as file<TAB>rule<TAB>count and exit 0",
+    )
+    parser.add_argument(
+        "--update", action="store_true", help="rewrite the baseline from the tree"
+    )
+    parser.add_argument("--repo", type=Path, default=REPO, help=argparse.SUPPRESS)
+    parser.add_argument("--config", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--baseline", type=Path, help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+    repo = args.repo
+    config = load_config(args.config or repo / "scripts" / "layers.toml")
+    baseline_path = args.baseline or repo / "scripts" / "layers_baseline.txt"
+    counts = all_counts(config, repo)
+
+    if args.list:
+        for (file, rule), count in sorted(counts.items()):
+            print(f"{file}\t{rule}\t{count}")
+        return 0
+
+    baseline = load_baseline(baseline_path)
+    if args.update:
+        if baseline_path.exists():
+            grown = sorted(
+                key
+                for key, count in counts.items()
+                if is_shrink_only(config, key[1]) and count > baseline.get(key, 0)
+            )
+            for file, rule in grown:
+                print(
+                    f"{file}: rule '{rule}' count {counts[(file, rule)]} > baseline {baseline.get((file, rule), 0)}, "
+                    "which --update may not raise"
+                )
+            if grown:
+                print(
+                    f"{len(grown)} shrink-only count(s) grew; baseline not written.",
+                    file=sys.stderr,
+                )
+                return 1
+        write_baseline(baseline_path, counts)
+        print(f"wrote {len(counts)} entries to {baseline_path}")
+        return 0
+
+    problems = library_violations(config, repo) + tree_violations(config, repo)
+    for problem in problems:
+        print(problem)
+    grown = 0
+    for (file, rule), count in sorted(counts.items()):
+        allowed = baseline.get((file, rule), 0)
+        if count > allowed:
+            print(
+                f"{file}: rule '{rule}' count {count} > baseline {allowed} ({reason_of(config, rule)})"
+            )
+            for line in explain(config, repo, file, rule):
+                print(f"    {line}")
+            grown += 1
+    if problems or grown:
+        print(
+            f"FAIL: {len(problems)} include or tree violation(s), {grown} count(s) above the baseline. Remove the "
+            "include, or for an agreed move of a count that is not shrink-only, run --update.",
+            file=sys.stderr,
+        )
+        return 1
+    print("OK: every include is where scripts/layers.toml allows it")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
