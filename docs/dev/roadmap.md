@@ -196,8 +196,7 @@ PIC and parity with main.
   not offered.
 - **The division rule's reach.** The legacy code R2c-2 did not rewrite still divides by runtime divisors: the
   renderer's collapse arithmetic, `pad_leds`' `divide_round_negative`, the timeline's `divide_round_negative` and the
-  audio clip scene's bar formatting. Each moves onto `sample-view/divide.h` when its code is rewritten; the R2c-2
-  final verification's division counts list them.
+  audio clip scene's bar formatting. Each moves onto `sample-view/divide.h` when its code is rewritten.
 
 R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
 through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,
