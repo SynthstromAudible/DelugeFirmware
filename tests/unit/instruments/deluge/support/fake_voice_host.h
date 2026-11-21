@@ -62,6 +62,7 @@ private:
 struct FakeHost {
 	using Slot = VoiceSlot<int, FakeKernel>; ///< The part is the voice's id
 	using List = std::vector<Slot*>;
+	using Context = int; ///< Logged with each unassign
 
 	/// Counts exclusions taken and how deep they nest.
 	struct Exclusion {
@@ -86,7 +87,9 @@ struct FakeHost {
 		log.push_back("acquire " + std::to_string(slot->part));
 		return slot;
 	}
-	void unassign(Slot& slot) { log.push_back(seen("unassign", slot)); }
+	void unassign(Slot& slot, Context context) {
+		log.push_back(seen("unassign", slot) + (context != Context{} ? " ctx " + std::to_string(context) : ""));
+	}
 	void release(Slot& slot) noexcept {
 		log.push_back(seen("release", slot));
 		delete &slot;

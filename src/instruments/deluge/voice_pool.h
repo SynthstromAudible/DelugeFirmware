@@ -50,10 +50,17 @@ public:
 	using Slot = H::Slot;
 	using List = H::List;
 	using Exclusion = H::Exclusion;
+	using Context = H::Context;
 
 	/// @brief A pool with no voices, over @p host.
 	/// @param host The host the pool's slots come from and go back to; it outlives the pool.
 	explicit VoicePool(H& host) : host_{&host} {}
+
+	/// @brief Room for @p count voices, so the list never moves while it grows to that many.
+	void reserve(size_t count) { voices_.reserve(count); }
+
+	/// @brief The voices, for the owner's own walk: on the audio tier, or under its own exclusion.
+	[[nodiscard]] const List& list() const { return voices_; }
 
 	/// @brief Adds @p slot, a voice whose note has started, to the voices the render plays.
 	void publish(Slot* slot) {
@@ -62,23 +69,50 @@ public:
 		voices_.push_back(slot);
 	}
 
+	/// @brief Frees @p slot's resources while it stays listed; erase_if() later removes it.
+	/// @param context What the host frees them with.
+	void unassign(Slot& slot, Context context = {}) {
+		const Exclusion excluded;
+		host_->unassign(slot, context);
+	}
+
 	/// @brief Frees the voice at @p it: its resources while it is still listed, then its slot.
+	/// @param context What the host frees its resources with.
 	/// @return The voice after it.
-	List::iterator erase(List::const_iterator it) {
+	List::iterator erase(List::const_iterator it, Context context = {}) {
 		const Exclusion excluded;
 		Slot* slot = *it;
-		host_->unassign(*slot);
+		host_->unassign(*slot, context);
 		host_->note_edit();
 		auto next = voices_.erase(it);
 		host_->release(*slot);
 		return next;
 	}
 
+	/// @brief Removes and frees the slots of the voices @p pred names, in list order, their resources already freed
+	///        by unassign().
+	/// @param pred Called with each slot (`const Slot*`); true removes it.
+	template <class Pred>
+	void erase_if(Pred pred) {
+		const Exclusion excluded;
+		host_->note_edit();
+		// remove_if asks once per voice, in order: each one named is released as it is asked about.
+		auto gone = std::ranges::remove_if(voices_, [&](Slot* slot) {
+			if (!pred(std::as_const(slot))) {
+				return false;
+			}
+			host_->release(*slot);
+			return true;
+		});
+		voices_.erase(gone.begin(), gone.end());
+	}
+
 	/// @brief Frees every voice: each one's resources while all are still listed, then the slots.
-	void kill_all() {
+	/// @param context What the host frees their resources with.
+	void kill_all(Context context = {}) {
 		const Exclusion excluded;
 		for (Slot* slot : voices_) {
-			host_->unassign(*slot);
+			host_->unassign(*slot, context);
 		}
 		host_->note_edit();
 		for (Slot* slot : voices_) {
@@ -88,10 +122,11 @@ public:
 	}
 
 	/// @brief Fast-releases every voice at @p increment, freeing those it stops.
-	void fast_release_all(uint32_t increment) {
+	/// @param context What the host frees a stopped voice's resources with.
+	void fast_release_all(uint32_t increment, Context context = {}) {
 		const Exclusion excluded;
 		for (auto it = voices_.begin(); it != voices_.end();) {
-			it = (*it)->kernel.do_fast_release(increment, host_->clock()) ? it + 1 : erase(it);
+			it = (*it)->kernel.do_fast_release(increment, host_->clock()) ? it + 1 : erase(it, context);
 		}
 	}
 

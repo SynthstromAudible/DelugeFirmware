@@ -58,6 +58,51 @@ describe voice_pool("a sound's voices", ${
 		                                                       "edit depth 2", "release 2 listed 1"});
 	});
 
+	it("hands the context to unassign on erase, kill_all and fast_release_all", _{
+		Rig erased({5, 6});
+		const auto first = erased.pool.read([](const FakeHost::List& voices) { return voices.begin(); });
+		erased.pool.erase(first, 7);
+		expect(erased.host.log.front()).to_equal(std::string{"unassign 0 listed 2 ctx 7"});
+
+		Rig killed({5});
+		killed.pool.kill_all(8);
+		expect(killed.host.log.front()).to_equal(std::string{"unassign 0 listed 1 ctx 8"});
+
+		Rig released({5});
+		released.pool.fast_release_all(256, 9);
+		expect(released.host.log.front()).to_equal(std::string{"unassign 0 listed 1 ctx 9"});
+	});
+
+	it("unassigns a voice that stays listed", _{
+		Rig rig({5, 6});
+		rig.pool.for_each([&](FakeHost::Slot& slot) {
+			if (slot.part == 1) {
+				rig.pool.unassign(slot, 3);
+			}
+		});
+		expect(rig.host.log).to_equal(std::vector<std::string>{"unassign 1 listed 2 ctx 3"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{0, 1});
+	});
+
+	it("erase_if releases what it names without unassigning again, in order", _{
+		Rig rig({5, 6, 7});
+		rig.pool.erase_if([](const FakeHost::Slot* slot) { return slot->part != 1; });
+		expect(rig.host.log).to_equal(
+		    std::vector<std::string>{"edit depth 1", "release 0 listed 3", "release 2 listed 3"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{1});
+	});
+
+	it("reserves room so the list does not move as it grows", _{
+		Rig rig;
+		rig.pool.reserve(4);
+		rig.pool.publish(rig.host.acquire());
+		const FakeHost::Slot* const* before = rig.pool.list().data();
+		for (int32_t i = 0; i < 3; i++) {
+			rig.pool.publish(rig.host.acquire());
+		}
+		expect(rig.pool.list().data()).to_equal(before);
+	});
+
 	it("names the first voice of the highest rating, by a strict comparison", _{
 		Rig rig({5, 9, 9, 3});
 		expect(rig.pool.cull_rating(kPriority, true)).to_equal(std::optional<uint32_t>{9});

@@ -37,9 +37,10 @@ struct MinimalHost {
 	struct Slot {};
 	using List = std::vector<Slot*>;
 	struct Exclusion {};
+	using Context = int;
 	uint32_t next{};
 	Slot* acquire() { return nullptr; }
-	void unassign(Slot& /*slot*/) {}
+	void unassign(Slot& /*slot*/, Context /*context*/) {}
 	void release(Slot& /*slot*/) noexcept {}
 	void admit(uint32_t /*cost*/) {}
 	void voice_starting() {}
