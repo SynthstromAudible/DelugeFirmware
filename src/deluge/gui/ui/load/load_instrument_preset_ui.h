@@ -17,12 +17,15 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/preset_navigation.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/file_item.h"
 
 class Instrument;
 class InstrumentClip;
@@ -32,6 +35,12 @@ class LoadInstrumentPresetUI final : public LoadUI {
 public:
 	LoadInstrumentPresetUI() = default;
 	bool opened() override;
+	void focusRegained() override;
+	void previewTimerCallback();
+	bool prepareForParameterEdit();
+	[[nodiscard]] bool hasPendingPresetLoad() const;
+	void presetNavigationPadReleased();
+	void presetNavigationPadReleaseFinished();
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -55,7 +64,8 @@ public:
 	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink,
-	                                          Clip* displayClip = nullptr);
+	                                          Clip* displayClip = nullptr, bool fromArranger = false,
+	                                          bool replacingWholeOutput = false);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;
@@ -81,17 +91,67 @@ public:
 	bool canDisplayFavourites() override { return true; }
 
 protected:
+	void displayText(bool blinkImmediately = false) override;
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
 	void currentFileChanged(int32_t movementDirection) override;
 
 private:
+	void cancelPendingPreview();
+	void startPresetLoadingIndicator();
+	void stopPresetLoadingIndicator();
+	bool loading_indicator_active_ = false;
+	struct LoadingIndicatorGuard {
+		explicit LoadingIndicatorGuard(LoadInstrumentPresetUI& owner) : ui(&owner) {}
+		LoadInstrumentPresetUI* ui;
+		bool keepActive = false;
+		~LoadingIndicatorGuard() {
+			if (!keepActive) {
+				ui->stopPresetLoadingIndicator();
+			}
+		}
+	};
+	void clearPresetNavigationCursor();
+	void redrawLivePresetName();
+	Error rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate, Clip* targetClip);
+	void cancelPresetNavigation();
+	Error schedulePresetNavigation();
+	[[nodiscard]] deluge::gui::PresetNavigationDecision presetNavigationDecision() const;
+	[[nodiscard]] bool presetNavigationContextMatches() const;
+	static bool presetNavigationReady();
+	static void resumePresetNavigation();
+	PresetNavigationResult loadNavigatedPreset(FileItem* item, Instrument* oldInstrument, Clip* displayClip);
+	struct PendingPresetNavigation : deluge::gui::PresetNavigationContext {
+		TaskID task = -1;
+		bool resuming = false;
+		bool loadSucceeded = false;
+		Error loadError = Error::NONE;
+		double deadline = 0;
+		Instrument* instrument = nullptr;
+		bool doBlink = false;
+		FileItem item;
+		String displayName;
+		String candidateName;
+		String candidateDir;
+	} preset_navigation_;
+	struct {
+		Song* song = nullptr;
+		Instrument* instrument = nullptr;
+		Clip* clip = nullptr;
+		UI* ui = nullptr;
+		Clip* targetClip = nullptr;
+		String sourceName;
+		String dir;
+		String filename;
+	} preset_navigation_cursor_;
+	void loadPendingPreview();
+	bool preview_pending_ = false;
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);
 	void revertToInitialPreset();
 	void exitAction() override;
-	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
+	static bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.

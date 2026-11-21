@@ -40,9 +40,10 @@ class Song;
 
 // FIXME: std::expected<std::pair<bool, FileItem*>, Error>
 struct PresetNavigationResult {
-	FileItem* fileItem;
-	bool loadedFromFile;
-	Error error;
+	FileItem* fileItem = nullptr;
+	bool loadedFromFile = false;
+	Error error = Error::NONE;
+	bool pending = false;
 };
 
 struct Slot {
@@ -85,7 +86,8 @@ public:
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
-	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
+	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY,
+	                                          Instrument* availabilityExemptInstrument = nullptr);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
 	/// @brief Surveys currentDir in one pass for the existing variations of a name.
 	///

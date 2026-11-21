@@ -944,6 +944,7 @@ doNewPress:
 }
 
 void ArrangerView::auditionEnded() {
+	loadInstrumentPresetUI.presetNavigationPadReleased();
 	setNoSubMode();
 	setLedStates();
 
@@ -960,6 +961,7 @@ void ArrangerView::auditionEnded() {
 	}
 
 	view.setActiveModControllableTimelineCounter(currentSong);
+	loadInstrumentPresetUI.presetNavigationPadReleaseFinished();
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -2589,6 +2591,7 @@ void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 }
 
 void ArrangerView::navigateThroughPresets(int32_t offset) {
+	bool auditioning = currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == OutputType::AUDIO) {
 		auto ao = (AudioOutput*)output;
@@ -2596,17 +2599,21 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 		return;
 	}
 
-	endAudition(output);
+	const bool immediate_channel_change = output->type == OutputType::MIDI_OUT || output->type == OutputType::CV;
+	Output* previous_output = output;
+	if (auditioning && immediate_channel_change) {
+		endAudition(output);
+	}
 
-	output = currentSong->navigateThroughPresetsForInstrument(output, offset);
+	output = currentSong->navigateThroughPresetsForInstrument(output, offset, nullptr, true);
 
 	outputsOnScreen[yPressedEffective] = output;
 
-	view.setActiveModControllableTimelineCounter(output->getActiveClip());
-
-	AudioEngine::routineWithClusterLoading();
-
-	beginAudition(output);
+	if (auditioning && (immediate_channel_change || output != previous_output)) {
+		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		AudioEngine::routineWithClusterLoading();
+		beginAudition(output);
+	}
 }
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {

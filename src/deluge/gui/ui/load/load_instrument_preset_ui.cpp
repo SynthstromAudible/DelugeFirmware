@@ -17,12 +17,16 @@
 
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
+#include "deluge.h"
 #include "extern.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -38,6 +42,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
@@ -47,6 +52,10 @@
 
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
+
+namespace {
+constexpr int32_t kPresetPreviewDelayMs = 150;
+}
 
 PLACE_SDRAM_BSS LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
@@ -63,6 +72,9 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 }
 
 bool LoadInstrumentPresetUI::opened() {
+	cancelPresetNavigation();
+	cancelPendingPreview();
+	clearPresetNavigationCursor();
 
 	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
 	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
@@ -90,20 +102,23 @@ bool LoadInstrumentPresetUI::opened() {
 		initialDirPath.set("SYNTHS");
 	}
 
-	switch (instrumentToReplace->type) {
-	case OutputType::MIDI_OUT:
-		initialChannelSuffix = ((MIDIInstrument*)instrumentToReplace)->channelSuffix;
-		// intentional fallthrough to share code with CV case
+	if (instrumentToReplace != nullptr) {
+		switch (instrumentToReplace->type) {
+		case OutputType::MIDI_OUT:
+			initialChannelSuffix =
+			    static_cast<int8_t>(static_cast<MIDIInstrument*>(instrumentToReplace)->channelSuffix);
+			// intentional fallthrough to share code with CV case
 
-	case OutputType::CV:
-		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->getChannel();
-		break;
+		case OutputType::CV:
+			initialChannel = static_cast<int16_t>(static_cast<NonAudioInstrument*>(instrumentToReplace)->getChannel());
+			break;
 
-	// explicit fallthrough cases
-	case OutputType::AUDIO:
-	case OutputType::SYNTH:
-	case OutputType::KIT:
-	case OutputType::NONE:;
+		// explicit fallthrough cases
+		case OutputType::AUDIO:
+		case OutputType::SYNTH:
+		case OutputType::KIT:
+		case OutputType::NONE:;
+		}
 	}
 
 	changedInstrumentForClip = false;
@@ -290,20 +305,15 @@ void LoadInstrumentPresetUI::folderContentsReady(int32_t entryDirection) {
 	currentFileChanged(0);
 }
 
-void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
-	// FileItem* currentFileItem = getCurrentFileItem();
-
-	// if (currentFileItem->instrument != instrumentToReplace) {
-
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	if (loadingSynthToKitRow) {
-		currentInstrumentLoadError = performLoadSynthToKit();
+void LoadInstrumentPresetUI::currentFileChanged(int32_t /*movementDirection*/) {
+	cancelPendingPreview();
+	currentInstrumentLoadError = Error::NONE;
+	FileItem* item = getCurrentFileItem();
+	if ((item != nullptr) && !item->isFolder) {
+		preview_pending_ = true;
+		startPresetLoadingIndicator();
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
 	}
-	else {
-		currentInstrumentLoadError = performLoad();
-	}
-	currentUIMode = UI_MODE_NONE;
-	//}
 }
 
 void LoadInstrumentPresetUI::enterKeyPress() {
@@ -327,21 +337,12 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 	else {
 
-		if (currentInstrumentLoadError != Error::NONE) {
-			if (loadingSynthToKitRow) {
-				currentInstrumentLoadError = performLoadSynthToKit();
-			}
-			else {
-				currentInstrumentLoadError = performLoad();
-			}
+		if (preview_pending_ || currentInstrumentLoadError != Error::NONE) {
+			loadPendingPreview();
 			if (currentInstrumentLoadError != Error::NONE) {
 				display->displayError(currentInstrumentLoadError);
 				return;
 			}
-		}
-
-		if (currentFileItem
-		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
 		}
 
 		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
@@ -438,6 +439,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
+			stopPresetLoadingIndicator();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -516,7 +518,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
-		performLoad();
+		loadPendingPreview();
 	}
 }
 
@@ -857,6 +859,7 @@ addNumber:
 
 // I thiiink you're supposed to check currentFileExists before calling this?
 Error LoadInstrumentPresetUI::performLoad(bool doClone) {
+	LoadingIndicatorGuard indicator_guard{*this};
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
@@ -873,6 +876,8 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 	}
 
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
+
+	startPresetLoadingIndicator();
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -953,10 +958,10 @@ giveUsedError:
 			newInstrument->editedByUser = true;
 		}
 	}
-	display->displayLoadingAnimationText("Loading", false, true);
+	startPresetLoadingIndicator();
 	Error error = newInstrument->loadAllAudioFiles(true);
 
-	display->removeLoadingAnimation();
+	stopPresetLoadingIndicator();
 
 	// If error, most likely because user interrupted sample loading process...
 	if (error != Error::NONE) {
@@ -1033,7 +1038,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-	display->removeWorkingAnimation();
+	stopPresetLoadingIndicator();
 
 	// for the instrument we just loaded, let's check if there's any midi labels we should load
 	if (newInstrument->type == OutputType::MIDI_OUT) {
@@ -1052,6 +1057,7 @@ giveUsedError:
 }
 
 Error LoadInstrumentPresetUI::performLoadSynthToKit() {
+	LoadingIndicatorGuard indicator_guard{*this};
 	FileItem* currentFileItem = getCurrentFileItem();
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
@@ -1070,6 +1076,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::FILE_NOT_SAVED;
 	}
 
+	startPresetLoadingIndicator();
 	SoundDrum* oldDrum = soundDrumToReplace;
 	SoundDrum* newDrum = nullptr;
 	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &newDrum,
@@ -1080,7 +1087,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// The old drum stays in the kit, and alive, until every NoteRow has been moved off it - loading samples can run
 	// the audio routine, and NoteRows in any Clip of this Kit may still be played or rendered in the meantime.
-	display->displayLoadingAnimationText("Loading", false, true);
+	startPresetLoadingIndicator();
 	newDrum->loadAllSamples(true);
 
 	newDrum->drumName = enteredText.get();
@@ -1093,7 +1100,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
 		delugeDealloc(toDealloc);
-		display->removeLoadingAnimation();
+		stopPresetLoadingIndicator();
 		return Error::FILE_CORRUPTED;
 	}
 
@@ -1146,11 +1153,12 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	// browser is open go straight to it
 	view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);
 
-	display->removeLoadingAnimation();
+	stopPresetLoadingIndicator();
 	return Error::NONE;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
+	cancelPendingPreview();
 	revertToInitialPreset();
 	LoadUI::exitAction();
 }
@@ -1161,6 +1169,15 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 	if (x == kDisplayWidth + 1) {
 		if (!showingAuditionPads()) {
 			goto potentiallyExit;
+		}
+		if ((on != 0) && preview_pending_) {
+			if (currentUIMode != UI_MODE_NONE) {
+				return ActionResult::DEALT_WITH;
+			}
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			loadPendingPreview();
 		}
 		if (currentInstrumentLoadError != Error::NONE) {
 			if (on) {
@@ -1461,9 +1478,27 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink,
-                                                                  Clip* displayClip) {
+                                                                  Clip* displayClip, bool fromArranger,
+                                                                  bool replacingWholeOutput) {
 
+	// Resumption enters through the original caller, which has rebuilt its model
+	// stack and recalculated instrument availability. No caller stack survives the wait.
+	if (preset_navigation_.resuming) {
+		auto result = loadNavigatedPreset(&preset_navigation_.item, oldInstrument, displayClip);
+		preset_navigation_.loadSucceeded = result.error == Error::NONE;
+		preset_navigation_.loadError = result.error;
+		return result;
+	}
+	preset_navigation_.loadError = Error::NONE;
+	if (preset_navigation_.task >= 0 && !presetNavigationContextMatches()) {
+		clearPresetNavigationCursor();
+	}
+	cancelPresetNavigation();
+	LoadingIndicatorGuard indicator_guard{*this};
 	AudioEngine::logAction("doPresetNavigation");
+	// This is encoder navigation, not a QWERTY prediction. A keyboard abort
+	// left over from a previous browser visit must not abort every new load.
+	predictionInterrupted = false;
 
 	currentDir.set(&oldInstrument->dirPath);
 	OutputType outputType = oldInstrument->type;
@@ -1473,141 +1508,98 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	String oldNameString; // We only might use this later for temporary storage
 	String newName;
 
-	oldNameString.set(&oldInstrument->name);
-	toReturn.error = oldNameString.concatenate(".XML");
+	// Move from the last displayed candidate while keeping the loaded sound
+	// intact. Own the filename: the catalog is freed before returning.
+	const bool resume_from_candidate =
+	    preset_navigation_cursor_.instrument == oldInstrument && preset_navigation_cursor_.song == currentSong
+	    && preset_navigation_cursor_.clip == getCurrentClip() && preset_navigation_cursor_.ui == getCurrentUI()
+	    && preset_navigation_cursor_.targetClip == displayClip
+	    && (strcmp(preset_navigation_cursor_.sourceName.get(), oldInstrument->name.get()) == 0)
+	    && (strcmp(preset_navigation_cursor_.dir.get(), oldInstrument->dirPath.get()) == 0);
+	if (resume_from_candidate) {
+		oldNameString.set(&preset_navigation_cursor_.filename);
+	}
+	else {
+		oldNameString.set(&oldInstrument->name);
+		toReturn.error = oldNameString.concatenate(".XML");
+	}
+	clearPresetNavigationCursor();
 	if (toReturn.error != Error::NONE) {
 		return toReturn;
 	}
 
-readAgain:
-	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
-readAgainWithSameOffset:
-	toReturn.error =
-	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.get(),
-	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
-
-	if (toReturn.error != Error::NONE) {
-		return toReturn;
+	deluge::gui::PresetNavigationSteps steps(offset);
+	const int32_t direction = steps.direction();
+	bool wrapped = false;
+	bool advanced_since_wrap = false;
+	// Count available candidates, not raw catalog entries. Continue from the
+	// last key on each page, retaining the remaining detents across wraps.
+	while (!steps.finished()) {
+		toReturn.error = readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML,
+		                                        oldNameString.get(), FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION,
+		                                        direction > 0 ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT);
+		if (toReturn.error != Error::NONE) {
+			return toReturn;
+		}
+		toReturn.error = currentSong->addInstrumentsToFileItems(outputType);
+		if (toReturn.error != Error::NONE) {
+			emptyFileItems();
+			return toReturn;
+		}
+		sortFileItems();
+		const int32_t page_count = fileItems.getNumElements();
+		if (page_count == 0) {
+			if (oldNameString.isEmpty() || (wrapped && !advanced_since_wrap)) {
+				toReturn.error = Error::NO_ERROR_BUT_GET_OUT;
+				emptyFileItems();
+				return toReturn;
+			}
+			wrapped = true;
+			advanced_since_wrap = false;
+			oldNameString.clear(); // Wrap to the other end without losing detents.
+			continue;
+		}
+		// Remember the unfiltered page boundary: a page of occupied instruments
+		// must advance to the next page, not wrap and skip later free presets.
+		auto* last = static_cast<FileItem*>(fileItems.getElementAddress(direction > 0 ? page_count - 1 : 0));
+		toReturn.error = oldNameString.set(last->displayName);
+		if (toReturn.error != Error::NONE) {
+			emptyFileItems();
+			return toReturn;
+		}
+		deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION, oldInstrument);
+		const int32_t count = fileItems.getNumElements();
+		for (int32_t index = direction > 0 ? 0 : count - 1; index >= 0 && index < count; index += direction) {
+			auto* candidate = static_cast<FileItem*>(fileItems.getElementAddress(index));
+			const bool available =
+			    deluge::gui::presetInstrumentAvailable(availabilityRequirement, candidate->instrumentAlreadyInSong,
+			                                           false, candidate->instrument, oldInstrument);
+			advanced_since_wrap |= available;
+			if (steps.visit(available)) {
+				toReturn.fileItem = candidate;
+				break;
+			}
+		}
 	}
-
-	AudioEngine::logAction("doPresetNavigation2");
-
-	toReturn.error = currentSong->addInstrumentsToFileItems(outputType);
-	if (toReturn.error != Error::NONE) {
-emptyFileItemsAndReturn:
+	stopPresetLoadingIndicator();
+	if (toReturn.fileItem == nullptr) {
+		toReturn.error = Error::NO_ERROR_BUT_GET_OUT;
 		emptyFileItems();
 		return toReturn;
 	}
-	AudioEngine::logAction("doPresetNavigation3");
 
-	sortFileItems();
-	AudioEngine::logAction("doPresetNavigation4");
+	toReturn.loadedFromFile = false;
 
-	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
-	AudioEngine::logAction("doPresetNavigation5");
-
-	// Now that we've deleted duplicates etc...
-	if (!fileItems.getNumElements()) {
-reachedEnd:
-		// If we've reached one end, try going again from the far other end.
-		if (!oldNameString.isEmpty()) {
-			oldNameString.clear();
-			goto readAgainWithSameOffset;
-		}
-		else {
-noErrorButGetOut:
+	if (toReturn.fileItem->instrument) {
+		view.displayOutputName(toReturn.fileItem->instrument, doBlink, displayClip);
+		// Reversing away from a failed preset can select the still-loaded sound.
+		// Nothing needs replacing (or detaching from the clip) in that case.
+		if (toReturn.fileItem->instrument == oldInstrument) {
+			clearPresetNavigationCursor();
 			toReturn.error = Error::NO_ERROR_BUT_GET_OUT;
 			emptyFileItems();
 			return toReturn;
 		}
-	}
-	else if (fileItems.getNumElements() == 1
-	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) {
-		goto reachedEnd;
-	}
-
-	int32_t i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
-	/*
-	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
-	    if (offset >= 0) i = 0;
-	    else i = fileItems.getNumElements() - 1;
-	    goto doneMoving;
-	}
-	else {
-	    int32_t oldNameLength = strlen(oldNameChars);
-	    FileItem* searchResultItem = (FileItem*)fileItems.getElementAddress(i);
-	    if (memcasecmp(oldNameChars, searchResultItem->displayName, oldNameLength)) {
-notFound:	if (offset < 0) {
-	            i--;
-	            if (i < 0) i += fileItems.getNumElements();
-	        }
-	        goto doneMoving;
-	    }
-	    if (searchResultItem->filenameIncludesExtension) {
-	        if (strrchr(searchResultItem->displayName, '.') != &searchResultItem->displayName[oldNameLength]) goto
-notFound;
-	    }
-	    else {
-	        if (searchResultItem->displayName[oldNameLength] != 0) goto notFound;
-	    }
-	}
-*/
-	int32_t wrapped = 0;
-	if (false) {
-moveAgain:
-		// Move along list
-		i += offset;
-	}
-
-	// If moved left off the start of the list...
-	if (i < 0) {
-		if (numFileItemsDeletedAtStart) {
-			goto readAgain;
-		}
-		else { // Wrap to end
-			wrapped += 1;
-			if (numFileItemsDeletedAtEnd) {
-searchFromOneEnd:
-				oldNameString.clear();
-				D_PRINTLN("reloading and wrap");
-				goto readAgain;
-			}
-			else {
-				i = fileItems.getNumElements() - 1;
-			}
-		}
-	}
-
-	// Or if moved right off the end of the list...
-	else if (i >= fileItems.getNumElements()) {
-		if (numFileItemsDeletedAtEnd) {
-			goto readAgain;
-		}
-		else { // Wrap to start
-			wrapped += 1;
-			if (numFileItemsDeletedAtStart) {
-				goto searchFromOneEnd;
-			}
-			else {
-				i = 0;
-			}
-		}
-	}
-
-doneMoving:
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-
-	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
-	// wrapped is here to prevent an infinite loop
-	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2) {
-		goto moveAgain;
-	}
-
-	toReturn.loadedFromFile = false;
-	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
-
-	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink, displayClip);
 	}
 	else {
 		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
@@ -1623,61 +1615,445 @@ doneMoving:
 		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink, displayClip);
 	}
 
+	if (!toReturn.fileItem->instrumentAlreadyInSong) {
+		startPresetLoadingIndicator();
+	}
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 1 --------------------------");
-
-doPendingPresetNavigation:
-		offset = encoders::select.take();
-
-		if (toReturn.loadedFromFile) {
-			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = nullptr;
-		}
-		goto moveAgain;
+	// Leave queued turns for the encoder task. The owned cursor below lets the
+	// next turn continue from this selection, and resumption yields to that input.
+	if (toReturn.fileItem->instrumentAlreadyInSong) {
+		return loadNavigatedPreset(toReturn.fileItem, oldInstrument, displayClip);
 	}
 
-	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified
-	// that we were looking for "unused" ones only
-	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
-	// if anything other than unused is passed in
-	if (!toReturn.fileItem->instrument) {
-		toReturn.error = StorageManager::loadInstrumentFromFile(
-		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
-		    &newName, &Browser::currentDir);
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-
-		toReturn.loadedFromFile = true;
-
-		if (encoders::select.pending()) {
-			D_PRINTLN("go again 2 --------------------------");
-			goto doPendingPresetNavigation;
-		}
+	// Own the candidate across the delay: Browser's catalog is shared with other
+	// UIs and must not stay live while normal input handling continues.
+	auto& pending = preset_navigation_;
+	pending.item.filename.set(&toReturn.fileItem->filename);
+	toReturn.error = pending.displayName.set(toReturn.fileItem->displayName);
+	if (toReturn.error != Error::NONE) {
+		stopPresetLoadingIndicator();
+		emptyFileItems();
+		return toReturn;
 	}
-
-	// view.displayOutputName(toReturn.fileItem->instrument);
-
-	display->displayLoadingAnimationText("Loading", false, true);
-	int32_t oldUIMode = currentUIMode;
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	toReturn.fileItem->instrument->loadAllAudioFiles(true);
-	currentUIMode = oldUIMode;
-
-	// If user wants to move on...
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 3 --------------------------");
-		goto doPendingPresetNavigation;
+	pending.item.displayName = pending.displayName.get();
+	pending.item.filePointer = toReturn.fileItem->filePointer;
+	pending.item.filenameIncludesExtension = toReturn.fileItem->filenameIncludesExtension;
+	pending.item.isFolder = false;
+	pending.item.instrument = toReturn.fileItem->instrument;
+	pending.item.instrumentAlreadyInSong = false;
+	if (pending.item.instrument != nullptr) {
+		pending.candidateName.set(&pending.item.instrument->name);
+		pending.candidateDir.set(&pending.item.instrument->dirPath);
 	}
-
-	if (isHibernating) {
-		currentSong->removeInstrumentFromHibernationList(toReturn.fileItem->instrument);
+	pending.song = currentSong;
+	pending.ui = getCurrentUI();
+	pending.uiMode = currentUIMode;
+	pending.currentClip = getCurrentClip();
+	pending.selectedClip =
+	    currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW ? sessionView.getClipForLayout() : nullptr;
+	pending.displayClip = displayClip;
+	pending.instrument = oldInstrument;
+	pending.doBlink = doBlink;
+	// Performance View can delegate navigation to Arranger View while remaining the current UI.
+	pending.fromArranger = fromArranger;
+	pending.replacingWholeOutput = replacingWholeOutput;
+	pending.padReleased = false;
+	pending.deadline = getSystemTime() + (kPresetPreviewDelayMs / 1000.0);
+	// The next encoder turn starts from this candidate, even though the original
+	// instrument remains loaded. The same cursor also lets us pass corrupt presets.
+	toReturn.error = rememberPresetNavigationCandidate(oldInstrument, toReturn.fileItem, displayClip);
+	emptyFileItems();
+	toReturn.fileItem = nullptr;
+	if (toReturn.error != Error::NONE) {
+		return toReturn;
 	}
-
+	toReturn.error = schedulePresetNavigation();
+	if (toReturn.error != Error::NONE) {
+		return toReturn;
+	}
+	indicator_guard.keepActive = true;
+	toReturn.pending = true;
 	return toReturn;
+}
+
+PresetNavigationResult LoadInstrumentPresetUI::loadNavigatedPreset(FileItem* item, Instrument* oldInstrument,
+                                                                   Clip* displayClip) {
+	LoadingIndicatorGuard indicator_guard{*this};
+	PresetNavigationResult to_return;
+	to_return.fileItem = item;
+	bool is_hibernating = (to_return.fileItem->instrument != nullptr) && !to_return.fileItem->instrumentAlreadyInSong;
+	String new_name;
+
+	if (to_return.fileItem->instrument == nullptr) {
+		to_return.error = to_return.fileItem->getFilenameWithoutExtension(&new_name);
+		if (to_return.error == Error::NONE) {
+			uint32_t old_ui_mode = currentUIMode;
+			currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
+			to_return.error = StorageManager::loadInstrumentFromFile(
+			    currentSong, nullptr, oldInstrument->type, false, &to_return.fileItem->instrument,
+			    &to_return.fileItem->filePointer, &new_name, &oldInstrument->dirPath);
+			currentUIMode = old_ui_mode;
+		}
+		if (to_return.error != Error::NONE) {
+			rememberPresetNavigationCandidate(oldInstrument, item, displayClip);
+			if (to_return.error == Error::ABORTED_BY_USER && encoders::select.pending()) {
+				to_return.error = Error::NO_ERROR_BUT_GET_OUT;
+			}
+			emptyFileItems();
+			return to_return;
+		}
+		to_return.loadedFromFile = true;
+	}
+
+	startPresetLoadingIndicator();
+	uint32_t old_ui_mode = currentUIMode;
+	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
+	to_return.fileItem->instrument->loadAllAudioFiles(true);
+	currentUIMode = old_ui_mode;
+
+	if (encoders::select.pending()) {
+		rememberPresetNavigationCandidate(oldInstrument, item, displayClip);
+		if (to_return.loadedFromFile) {
+			currentSong->deleteOutput(to_return.fileItem->instrument);
+			to_return.fileItem->instrument = nullptr;
+		}
+		to_return.error = Error::NO_ERROR_BUT_GET_OUT;
+		emptyFileItems();
+		return to_return;
+	}
+
+	if (is_hibernating) {
+		currentSong->removeInstrumentFromHibernationList(to_return.fileItem->instrument);
+	}
+	clearPresetNavigationCursor();
+	return to_return;
+}
+
+void LoadInstrumentPresetUI::displayText(bool blinkImmediately) {
+	const bool restore_loading_indicator = !display->haveOLED() && loading_indicator_active_;
+	if (restore_loading_indicator) {
+		stopPresetLoadingIndicator();
+	}
+	Browser::displayText(blinkImmediately);
+	if (restore_loading_indicator) {
+		// Numeric text redraws replace the display layers, including the loading
+		// animation. Keep its state in sync and reinstall it above the new text.
+		startPresetLoadingIndicator();
+	}
+}
+
+void LoadInstrumentPresetUI::startPresetLoadingIndicator() {
+	if (!loading_indicator_active_) {
+		display->displayLoadingAnimationText("Loading", false, true);
+		loading_indicator_active_ = true;
+		if (display->haveOLED()) {
+			// Show the card immediately; start its motion when the selection
+			// settling delay expires rather than using the usual 350 ms lead-in.
+			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, kPresetPreviewDelayMs);
+		}
+	}
+}
+
+void LoadInstrumentPresetUI::stopPresetLoadingIndicator() {
+	if (loading_indicator_active_) {
+		display->removeLoadingAnimation();
+		loading_indicator_active_ = false;
+	}
+}
+
+void LoadInstrumentPresetUI::cancelPendingPreview() {
+	stopPresetLoadingIndicator();
+	preview_pending_ = false;
+	uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW);
+}
+
+bool LoadInstrumentPresetUI::hasPendingPresetLoad() const {
+	return (getCurrentUI() == this
+	        && (preview_pending_ || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED))
+	       || preset_navigation_.task >= 0 || preset_navigation_.resuming;
+}
+
+bool LoadInstrumentPresetUI::prepareForParameterEdit() {
+	if (hasPendingPresetLoad() && (sdRoutineLock || StorageManager::isDeserializerOpen())) {
+		return false;
+	}
+	// Resolve browser previews before View obtains the parameter/model stack.
+	if (getCurrentUI() == this && preview_pending_) {
+		if (currentUIMode != UI_MODE_NONE || sdRoutineLock) {
+			return false;
+		}
+		loadPendingPreview();
+	}
+	if (getCurrentUI() == this) {
+		if (currentInstrumentLoadError != Error::NONE) {
+			display->displayError(currentInstrumentLoadError);
+			return false;
+		}
+	}
+	if (preset_navigation_.task < 0) {
+		// A knob turn may arrive as several input events. Reject the remaining
+		// detents too after a failed load, until navigation or context changes.
+		if (preset_navigation_.loadError != Error::NONE && preset_navigation_.loadError != Error::NO_ERROR_BUT_GET_OUT
+		    && presetNavigationContextMatches()) {
+			display->displayError(preset_navigation_.loadError);
+			return false;
+		}
+		return true;
+	}
+	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::CANCEL) {
+		cancelPresetNavigation();
+		clearPresetNavigationCursor();
+		redrawLivePresetName();
+		return true; // The new gesture edits the now visibly restored live model.
+	}
+	// Auditioning still prevents replacement. Cancel the selection and restore
+	// the loaded preset's name before editing it instead.
+	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::WAIT) {
+		const bool valid_target = presetNavigationContextMatches();
+		cancelPresetNavigation();
+		clearPresetNavigationCursor();
+		if (valid_target) {
+			view.displayOutputName(preset_navigation_.instrument, preset_navigation_.doBlink,
+			                       preset_navigation_.displayClip);
+		}
+		return true;
+	}
+	// The callback normally runs as a one-shot scheduler task. Remove that task
+	// before invoking it synchronously, so it cannot run again after the edit.
+	removeTask(preset_navigation_.task);
+	resumePresetNavigation();
+	return preset_navigation_.task < 0 && preset_navigation_.loadSucceeded;
+}
+
+void LoadInstrumentPresetUI::focusRegained() {
+	// The base focus redraw replaces numeric display layers directly.
+	stopPresetLoadingIndicator();
+	LoadUI::focusRegained();
+	if (preview_pending_) {
+		startPresetLoadingIndicator();
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
+	}
+}
+
+void LoadInstrumentPresetUI::previewTimerCallback() {
+	if (!preview_pending_ || getCurrentUI() != this) {
+		stopPresetLoadingIndicator();
+		return;
+	}
+	// File parsing services UI timers too. Never start a nested load, or disturb
+	// a long press/context menu. Give queued navigation a chance to run first.
+	if (sdRoutineLock || StorageManager::isDeserializerOpen() || currentUIMode != UI_MODE_NONE
+	    || encoders::select.pending()) {
+		if (currentUIMode != UI_MODE_NONE) {
+			stopPresetLoadingIndicator();
+		}
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
+		return;
+	}
+	loadPendingPreview();
+}
+
+void LoadInstrumentPresetUI::loadPendingPreview() {
+	deluge::gui::performPresetLoad(
+	    preview_pending_, currentUIMode, predictionInterrupted, currentInstrumentLoadError,
+	    [] { uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW); },
+	    [this] { return loadingSynthToKitRow ? performLoadSynthToKit() : performLoad(); });
+}
+
+void LoadInstrumentPresetUI::clearPresetNavigationCursor() {
+	preset_navigation_cursor_.instrument = nullptr;
+	preset_navigation_cursor_.filename.clear();
+	preset_navigation_cursor_.sourceName.clear();
+	preset_navigation_cursor_.dir.clear();
+}
+
+Error LoadInstrumentPresetUI::rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate,
+                                                                Clip* targetClip) {
+	clearPresetNavigationCursor();
+	const Error error = preset_navigation_cursor_.filename.set(candidate->displayName);
+	if (error != Error::NONE) {
+		clearPresetNavigationCursor();
+		return error;
+	}
+	preset_navigation_cursor_.sourceName.set(&origin->name);
+	preset_navigation_cursor_.dir.set(&origin->dirPath);
+	preset_navigation_cursor_.instrument = origin;
+	preset_navigation_cursor_.song = currentSong;
+	preset_navigation_cursor_.clip = getCurrentClip();
+	preset_navigation_cursor_.ui = getCurrentUI();
+	preset_navigation_cursor_.targetClip = targetClip;
+	return Error::NONE;
+}
+
+void LoadInstrumentPresetUI::cancelPresetNavigation() {
+	if (preset_navigation_.task >= 0) {
+		removeTask(preset_navigation_.task);
+		preset_navigation_.task = -1;
+		stopPresetLoadingIndicator();
+	}
+}
+
+Error LoadInstrumentPresetUI::schedulePresetNavigation() {
+	preset_navigation_.task = addConditionalTask(resumePresetNavigation, 20, presetNavigationReady, "preset navigation",
+	                                             RESOURCE_SD | RESOURCE_SD_ROUTINE);
+	if (preset_navigation_.task < 0) {
+		stopPresetLoadingIndicator();
+		clearPresetNavigationCursor();
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
+}
+
+deluge::gui::PresetNavigationDecision LoadInstrumentPresetUI::presetNavigationDecision() const {
+	return preset_navigation_.decision(currentSong, getCurrentUI(), currentUIMode,
+	                                   (currentSong != nullptr) ? getCurrentClip() : nullptr,
+	                                   playbackHandler.recording == RecordingMode::ARRANGEMENT);
+}
+
+void LoadInstrumentPresetUI::presetNavigationPadReleased() {
+	// Capture a genuine release before the caller clears its selection and UI mode.
+	if (preset_navigation_.task >= 0) {
+		preset_navigation_.markPadReleased(presetNavigationContextMatches());
+		stopPresetLoadingIndicator();
+	}
+}
+
+void LoadInstrumentPresetUI::presetNavigationPadReleaseFinished() {
+	if (preset_navigation_.task >= 0 && preset_navigation_.padReleased) {
+		startPresetLoadingIndicator();
+	}
+}
+
+void LoadInstrumentPresetUI::redrawLivePresetName() {
+	if (!display->have7SEG() || currentSong == nullptr) {
+		return;
+	}
+	if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		if (Clip* clip = sessionView.getClipForLayout(); clip != nullptr) {
+			view.displayOutputName(clip->output, false, clip);
+		}
+	}
+	else if (getCurrentUI() == &sessionView || getCurrentUI() == &arrangerView) {
+		sessionView.redrawNumericDisplay();
+	}
+	else if (getCurrentUI() == &performanceView) {
+		performanceView.redrawNumericDisplay();
+	}
+	else if (getCurrentUI() == preset_navigation_.ui && getCurrentClip() != nullptr) {
+		// Use the live clip/output, never the saved target of a cancelled task.
+		view.displayOutputName(getCurrentClip()->output, false, getCurrentClip());
+	}
+}
+
+bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
+	const auto& pending = preset_navigation_;
+	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::CANCEL) {
+		return false;
+	}
+	// Hibernating candidates can be deleted or reused while the task waits.
+	if (pending.item.instrument != nullptr) {
+		if (!isInstrumentInList(pending.item.instrument, currentSong->firstHibernatingInstrument)
+		    || strcmp(pending.item.instrument->name.get(), pending.candidateName.get()) != 0
+		    || strcmp(pending.item.instrument->dirPath.get(), pending.candidateDir.get()) != 0) {
+			return false;
+		}
+	}
+	// Compare against live objects before dereferencing saved pointers.
+	bool instrument_exists = false;
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		if (output == pending.instrument) {
+			instrument_exists = true;
+			break;
+		}
+	}
+	if (!instrument_exists || (strcmp(pending.instrument->name.get(), preset_navigation_cursor_.sourceName.get()) != 0)
+	    || (strcmp(pending.instrument->dirPath.get(), preset_navigation_cursor_.dir.get()) != 0)) {
+		return false;
+	}
+	auto row = arrangerView.yPressedEffective;
+	bool arranger_target_matches =
+	    row >= 0 && row < kDisplayHeight && arrangerView.outputsOnScreen[row] == pending.instrument;
+	Clip* selected_clip =
+	    !pending.padReleased && (pending.selectedClip != nullptr) ? sessionView.getClipForLayout() : nullptr;
+	if (!pending.matchesSelection(selected_clip, arranger_target_matches)) {
+		return false;
+	}
+	Clip* target = (pending.displayClip != nullptr) ? pending.displayClip : pending.selectedClip;
+	if (target != nullptr) {
+		for (Clip* clip : AllClips::everywhere(currentSong)) {
+			if (clip == target) {
+				return clip->output == pending.instrument;
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
+bool LoadInstrumentPresetUI::presetNavigationReady() {
+	// Keep the scheduler's condition cheap. Validate the saved context and check
+	// queued input when the task actually runs, after its resources are available.
+	return !StorageManager::isDeserializerOpen() && !encoders::select.pending()
+	       && getSystemTime() >= loadInstrumentPresetUI.preset_navigation_.deadline
+	       && loadInstrumentPresetUI.presetNavigationDecision() != deluge::gui::PresetNavigationDecision::WAIT;
+}
+
+void LoadInstrumentPresetUI::resumePresetNavigation() {
+	auto& ui = loadInstrumentPresetUI;
+	auto& pending = ui.preset_navigation_;
+	pending.task = -1; // The scheduler removes this one-shot task after it returns.
+	pending.loadSucceeded = false;
+	if (!ui.presetNavigationContextMatches()) {
+		ui.stopPresetLoadingIndicator();
+		ui.clearPresetNavigationCursor();
+		ui.redrawLivePresetName();
+		uiNeedsRendering(getCurrentUI());
+		renderUIsForOled();
+		return;
+	}
+
+	// The scheduler may have latched readiness before an audition pad went down.
+	// Requeue after validating the target, rather than losing the candidate or
+	// replacing the instrument while notes from it are still being auditioned.
+	if (ui.presetNavigationDecision() == deluge::gui::PresetNavigationDecision::WAIT || encoders::select.pending()) {
+		Error error = ui.schedulePresetNavigation();
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		return;
+	}
+
+	pending.resuming = true;
+	// Preserve whole-output replacement even when another UI delegates the navigation.
+	if (pending.destination() == deluge::gui::PresetNavigationDestination::CLIP) {
+		alignas(ModelStackWithTimelineCounter) std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory{};
+		auto* model_stack =
+		    setupModelStackWithTimelineCounter(model_stack_memory.data(), currentSong, pending.displayClip);
+		view.navigateThroughPresetsForInstrumentClip(0, model_stack, pending.doBlink);
+		pending.loadSucceeded = pending.loadSucceeded && pending.displayClip->output == pending.item.instrument;
+		if (pending.loadSucceeded) {
+			view.displayOutputName(pending.displayClip->output, pending.doBlink, pending.displayClip);
+			if (getCurrentUI() == &keyboardScreen) {
+				keyboardScreen.presetChanged();
+			}
+		}
+	}
+	else if (pending.destination() == deluge::gui::PresetNavigationDestination::ARRANGER) {
+		arrangerView.navigateThroughPresets(0);
+	}
+	else {
+		Output* output = currentSong->navigateThroughPresetsForInstrument(pending.instrument, 0, pending.displayClip);
+		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		uiNeedsRendering(getCurrentUI());
+		renderUIsForOled();
+	}
+	pending.resuming = false;
+	if (pending.padReleased) {
+		view.setActiveModControllableTimelineCounter(currentSong);
+		uiNeedsRendering(getCurrentUI());
+		renderUIsForOled();
+	}
 }
