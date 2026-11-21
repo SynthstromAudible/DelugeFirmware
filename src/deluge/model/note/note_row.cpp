@@ -77,6 +77,10 @@ NoteRow::NoteRow(int16_t newY) {
 	exportStem = false;
 }
 
+NoteRow::NoteRow(ForClone /*tag*/) : ignoreNoteOnsBefore_(0) {
+	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — a clone owns no drum-name list.
+}
+
 // Deep copy. Every data member of NoteRow is handled here — audit against note_row.h when adding members:
 //  - value/POD members: copied directly
 //  - notes: a fallible NoteVector deep copy

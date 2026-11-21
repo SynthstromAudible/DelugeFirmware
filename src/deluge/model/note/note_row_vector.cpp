@@ -35,9 +35,10 @@ Error NoteRowVector::cloneFrom(NoteRowVector const& other) {
 	if (!rows.reserveExtra(static_cast<int32_t>(other.size()))) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	for (size_t i = 0; i < other.size(); i++) {
-		(void)rows.insertAt(static_cast<int32_t>(i)); // within the room reserved above: cannot fail
-		if (Error error = rows[i].cloneFrom(other[i]); error != Error::NONE) {
+	for (const NoteRow& source : other) {
+		// Not insertAt(): a default-constructed row draws its colour from the RNG, which a clone must not
+		NoteRow& row = rows.elements_.emplace_back(NoteRow::ForClone{}); // within the room reserved above
+		if (Error error = row.cloneFrom(source); error != Error::NONE) {
 			return error; // rows' destructor frees the rows copied so far
 		}
 	}

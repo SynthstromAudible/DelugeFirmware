@@ -147,6 +147,11 @@ public:
 	NoteRow& operator=(NoteRow&& other) noexcept = default;
 	NoteRow(NoteRow const& other) = delete;
 	NoteRow& operator=(NoteRow const& other) = delete;
+	/// @brief The constructor a clone starts from: every member as its declaration initialises it, as a copy's were,
+	///        and no colour drawn from the RNG (a clone takes its source's, and drawing one would shift every later
+	///        random draw: oscillator phases, the render).
+	struct ForClone {};
+	explicit NoteRow(ForClone /*tag*/);
 	/// @brief Make this freshly constructed row a deep copy of @p other.
 	/// @param other The row to copy.
 	/// @return Error::INSUFFICIENT_RAM when memory runs out; this row is then safe to destroy.
