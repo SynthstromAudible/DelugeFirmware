@@ -31,6 +31,10 @@ public:
 	/// @brief A view opened on a waveform of @p length frames: at @p remembered, with its zoom clamped into
 	///        [1, max_zoom()] and its scroll inside the waveform; or, with none or a zoom of 0 remembered, zoomed all
 	///        the way out from the start.
+	/// @param length     The waveform's frames, at most 2^62: then a view's frames and the column past it, 17 zooms
+	///                   from its scroll, fit in an `int64_t`.
+	/// @param remembered The view last shown on this waveform; none for a waveform not shown before.
+	/// @return The view.
 	[[nodiscard]] static constexpr WaveformView open(uint64_t length, std::optional<Window> remembered);
 	[[nodiscard]] constexpr uint64_t length() const { return length_; } ///< frames
 	[[nodiscard]] constexpr int64_t scroll() const { return scroll_; }  ///< column 0's first frame
@@ -38,6 +42,8 @@ public:
 	/// @brief The window the view's columns cover.
 	[[nodiscard]] constexpr Window window() const { return {.scroll = scroll_, .zoom = zoom_}; }
 	/// @brief The same view over a waveform now @p length frames long.
+	/// @param length The waveform's frames, at most 2^62 (as for open()).
+	/// @return The view, at the same scroll and zoom.
 	[[nodiscard]] constexpr WaveformView with_length(uint64_t length) const { return {length, scroll_, zoom_}; }
 	/// @brief The zoom at which the whole waveform fits: `ceil(length / kColumns)`, and 1 for an empty waveform.
 	[[nodiscard]] constexpr int64_t max_zoom() const;
@@ -63,12 +69,17 @@ public:
 	[[nodiscard]] constexpr std::optional<WaveformView> scrolled(int32_t offset, bool extra_right,
 	                                                             std::optional<int64_t> end_column) const;
 	/// @brief The view moved @p columns whole columns, never before the start.
+	/// @param columns How many columns to move: right when positive. The moved view's end, one past its last frame,
+	///                fits in an `int64_t`.
+	/// @return The moved view.
 	[[nodiscard]] constexpr WaveformView moved(int32_t columns) const {
 		return {length_, std::max<int64_t>(0, scroll_ + zoom_ * columns), zoom_};
 	}
 	/// @brief The view with its scroll clamped inside the waveform: never before the start and, without
 	///        @p extra_right, never so far right that the last column passes the waveform's last whole column. A
 	///        waveform narrower than the view starts at column 0.
+	/// @param extra_right Whether the view may scroll past the waveform's end.
+	/// @return The clamped view.
 	[[nodiscard]] constexpr WaveformView clamped(bool extra_right) const;
 	bool operator==(const WaveformView&) const = default;
 
@@ -89,7 +100,8 @@ struct ShownWaveform {
 };
 
 constexpr int64_t WaveformView::max_zoom() const {
-	return std::max<int64_t>(1, static_cast<int64_t>((length_ + (kColumns - 1)) >> kColumnsLog2));
+	const uint64_t whole = (length_ >> kColumnsLog2) + ((length_ & static_cast<uint64_t>(kColumns - 1)) != 0 ? 1 : 0);
+	return std::max<int64_t>(1, static_cast<int64_t>(whole));
 }
 
 constexpr WaveformView WaveformView::open(uint64_t length, std::optional<Window> remembered) {
@@ -164,7 +176,7 @@ constexpr std::optional<WaveformView> WaveformView::scrolled(int32_t offset, boo
 	if (offset >= 0) {
 		if (extra_right) {
 			if (scroll_ > std::numeric_limits<int64_t>::max() - zoom_ * (kColumns + 1)) {
-				return std::nullopt; // the moved view's last frame would not be a frame
+				return std::nullopt; // the moved view's end, one past its last frame, would not fit in an int64_t
 			}
 			return WaveformView{length_, scroll_ + zoom_, zoom_};
 		}

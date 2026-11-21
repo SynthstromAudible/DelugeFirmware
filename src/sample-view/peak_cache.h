@@ -14,6 +14,7 @@
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <utility>
 
@@ -35,8 +36,8 @@ public:
 	/// @param read         A callable `PeakRead(ColumnMask wanted)` that reads the columns asked for. It is called on
 	///                     every update, with an empty mask when every column is kept, so it can refresh what it owns
 	///                     (a take's running range). Its answers for columns not asked for are ignored.
-	/// @param first        The first column a read may be asked for.
-	/// @param last         One past the last.
+	/// @param first        The first column a read may be asked for; 0 <= @p first <= @p last.
+	/// @param last         One past the last; @p last <= kColumns.
 	/// @return The columns at @p at.
 	// TODO(c++26): take std::function_ref<…> once the device's libstdc++ provides it (arm-none-eabi GCC 16; 15.2.1 does
 	// not).
@@ -47,6 +48,9 @@ public:
 	[[nodiscard]] constexpr const PeakRead& columns() const { return columns_; }
 	/// @brief The window of the last update; none before the first or after a forget.
 	[[nodiscard]] constexpr std::optional<Window> window() const { return window_; }
+	/// @brief The valid length of the last update, which a later update's length is compared with.
+	/// @return The frames the last read saw; 0 before the first update or after a forget.
+	[[nodiscard]] constexpr int64_t valid_length() const { return valid_length_; }
 	bool operator==(const PeakCache&) const = default;
 
 private:
@@ -64,13 +68,19 @@ private:
 template <size_t Capacity>
 class PeakCacheSet {
 public:
-	/// @brief Read @p identity's columns at @p at through its cache (PeakCache::update).
-	/// @param identity The waveform's identity: another file, or a take, has another.
+	/// @brief Read @p identity's columns at @p at through its cache (PeakCache::update), over every column.
+	/// @param identity     The waveform's identity: another file, or a take, has another.
+	/// @param at           The window to read at (PeakCache::update).
+	/// @param valid_length The frames a read sees now (PeakCache::update).
+	/// @param growing      Whether the waveform is a take still being written (PeakCache::update).
+	/// @param read         The reader for the columns the cache lacks (PeakCache::update).
+	/// @return The columns at @p at.
 	// TODO(c++26): take std::function_ref<…> once the device's libstdc++ provides it (arm-none-eabi GCC 16; 15.2.1 does
 	// not).
 	template <typename Read>
 	constexpr PeakRead read(uint64_t identity, Window at, int64_t valid_length, bool growing, Read&& read);
 	/// @brief How many waveforms the set holds.
+	/// @return The count, at most @p Capacity.
 	[[nodiscard]] constexpr size_t held() const;
 
 private:
@@ -90,12 +100,15 @@ constexpr void PeakCache::retarget(Window at, int64_t valid_length, bool growing
 		columns_ = PeakRead{};
 	}
 	else if (at.scroll != window_->scroll) {
-		const int64_t delta = at.scroll - window_->scroll;
-		// Only a scroll of at most kColumns whole columns can slide. The bound keeps delta small enough that the
-		// quotient is exact.
-		const bool near =
-		    at.zoom <= (int64_t{1} << 48) && delta >= -(at.zoom << kColumnsLog2) && delta <= (at.zoom << kColumnsLog2);
-		const std::optional<int64_t> columns = near ? exact_div(delta, at.zoom) : std::nullopt;
+		// Only a scroll of at most kColumns whole columns can slide. Two scrolls further apart than an int64_t holds
+		// clear: no view's zoom (at most 2^58, WaveformView::open) puts kColumns columns that far apart.
+		constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+		const int64_t from = window_->scroll;
+		const bool fits = from < 0 ? at.scroll <= kMax + from : at.scroll >= std::numeric_limits<int64_t>::min() + from;
+		const int64_t reach = at.zoom > (kMax >> kColumnsLog2) ? kMax : at.zoom << kColumnsLog2;
+		const std::optional<int64_t> delta = fits ? std::optional{at.scroll - from} : std::nullopt;
+		const bool near = delta && *delta >= -reach && *delta <= reach;
+		const std::optional<int64_t> columns = near ? exact_div(*delta, at.zoom) : std::nullopt;
 		if (columns && *columns != 0) {
 			slide(*columns);
 		}

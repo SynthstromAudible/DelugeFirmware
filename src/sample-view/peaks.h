@@ -50,10 +50,14 @@ public:
 	/// @brief A column not answered yet: pending.
 	constexpr ColumnRead() = default;
 	/// @brief A column whose peak is @p peak.
+	/// @param peak The column's lowest and highest value.
+	/// @return The answer.
 	[[nodiscard]] static constexpr ColumnRead of(Peak peak) { return ColumnRead{ColumnState::PEAK, peak}; }
 	/// @brief A column a later read may answer.
+	/// @return The answer.
 	[[nodiscard]] static constexpr ColumnRead pending() { return ColumnRead{}; }
 	/// @brief A column with nothing to draw.
+	/// @return The answer.
 	[[nodiscard]] static constexpr ColumnRead past_end() { return ColumnRead{ColumnState::PAST_END, {}}; }
 	/// @brief What the answer is.
 	[[nodiscard]] constexpr ColumnState state() const { return state_; }
@@ -143,11 +147,18 @@ public:
 		read.columns_.fill(ColumnRead::past_end());
 		return read;
 	}
-	/// @brief Column @p column's answer, 0 to kColumns - 1.
+	/// @brief A column's answer.
+	/// @param column The column, 0 to kColumns - 1.
+	/// @return Its answer.
 	[[nodiscard]] constexpr ColumnRead column(int32_t column) const { return columns_[static_cast<size_t>(column)]; }
-	/// @brief Set column @p column's answer.
+	/// @brief Set a column's answer.
+	/// @param column The column, 0 to kColumns - 1.
+	/// @param read   Its answer.
 	constexpr void set(int32_t column, ColumnRead read) { columns_[static_cast<size_t>(column)] = read; }
 	/// @brief Whether a column in [@p first, @p last) is pending, so that a later frame should ask again.
+	/// @param first The first column asked about; 0 <= @p first <= @p last.
+	/// @param last  One past the last; @p last <= kColumns.
+	/// @return Whether one is pending.
 	[[nodiscard]] constexpr bool pending(int32_t first = 0, int32_t last = kColumns) const {
 		for (int32_t c = first; c < last; c++) {
 			if (column(c).state() == ColumnState::PENDING) {
@@ -164,7 +175,10 @@ public:
 		}
 		return n;
 	}
-	/// @brief Column @p column's bar.
+	/// @brief A column's bar.
+	/// @param column The column, 0 to kColumns - 1.
+	/// @param centre The waveform's centre value (bar_of).
+	/// @param span   The waveform's value range per pad (bar_of).
 	/// @return The bar (bar_of); none unless the column holds a peak.
 	[[nodiscard]] constexpr std::optional<Bar> bar(int32_t column, int32_t centre, int32_t span) const {
 		const std::optional<Peak> p = this->column(column).peak();
