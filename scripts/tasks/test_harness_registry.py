@@ -671,7 +671,7 @@ class RegistryVariantTest(unittest.TestCase):
             for h in hr.load_registry(self.ROOT)
             if h.name.startswith("app-asan-")
         }
-        self.assertEqual(len(copies), 7)
+        self.assertEqual(len(copies), 8)
         self.assertTrue(
             all(base and name == f"app-asan-{base}" for name, base in copies.items())
         )

@@ -15,7 +15,11 @@
 //     cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable
 //     collections) must give deep-independent copies: mutating the source after a clone must not reach the clone
 //     (self-checking); and a clone that runs out of memory part-way must report it and leave its source as it was
-//     (its ASan variant checks the part-built clone is freed whole)
+//
+// Gate app-asan-param-clone:
+//     the param-clone gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+//     poisoning: a clone that runs out of memory part-way destroys what it built, so a member freed twice, or read
+//     after the part-built clone is freed, is fatal here
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
