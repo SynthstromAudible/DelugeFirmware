@@ -22,7 +22,7 @@
 namespace deluge::gui::shell_host {
 
 uint64_t waveform_identity(const ::Sample& sample) {
-	return reinterpret_cast<uintptr_t>(&sample);
+	return sample.serial;
 }
 
 namespace {

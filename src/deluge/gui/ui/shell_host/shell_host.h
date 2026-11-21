@@ -20,8 +20,9 @@ class Edit;
 
 namespace deluge::gui::shell_host {
 
-/// @brief The identity a waveform's info carries for @p sample: one per file in memory, another for another file or a
-///        take.
+/// @brief The identity a waveform's info carries for @p sample: its lifetime serial (`Sample::serial`), so another
+/// file,
+///        a take, or a sample constructed later in the same memory has another. Never 0.
 [[nodiscard]] uint64_t waveform_identity(const ::Sample& sample);
 
 /// @brief The host's AudioFacts.

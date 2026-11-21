@@ -44,9 +44,14 @@ constexpr int32_t kNumClusters = 32;
 constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * kNumClusters / 2; // 16-bit mono
 
 /// A sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
-Sample* make_sample(int32_t clusters = kNumClusters) {
+/// @param clusters   How many clusters the sample holds.
+/// @param memory     Where to construct it; fresh memory when null.
+/// @param first_peak Cluster 0's overview peak, in Q8.24 pad units' top byte; cluster i's is `first_peak + 3 * i`.
+Sample* make_sample(int32_t clusters = kNumClusters, void* memory = nullptr, int32_t first_peak = 16) {
 	Cluster::set_size(kClusterSize);
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	if (memory == nullptr) {
+		memory = deluge::memory::alloc_fast(sizeof(Sample));
+	}
 	auto* s = new (memory) Sample();
 	s->byteDepth = 2;
 	s->numChannels = 1;
@@ -60,8 +65,8 @@ Sample* make_sample(int32_t clusters = kNumClusters) {
 	s->resizeOverviewCache(clusters);
 	for (int32_t i = 0; i < clusters; i++) {
 		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + 3 * i));
-		e.max = static_cast<int8_t>(16 + 3 * i);
+		e.min = static_cast<int8_t>(-(first_peak + 3 * i));
+		e.max = static_cast<int8_t>(first_peak + 3 * i);
 		e.investigated = true;
 	}
 	return s;
@@ -398,6 +403,58 @@ describe waveforms("a waveform by its address", ${
 		expect(read.pending()).to_be_false();
 		expect(sample->maxValueFound).to_equal(5 << 24);
 		expect(sample->minValueFound).to_equal(-(5 << 24));
+		audio.clip->recorder = nullptr;
+		currentSong = saved;
+	});
+
+	// A sample freed and another constructed in its memory: the host keys its columns by the sample's lifetime serial,
+	// so the new one is read afresh rather than shown the freed one's kept columns.
+	it("reads every column of a file constructed in a freed file's memory, not the freed file's", _ {
+		void* const memory = deluge::memory::alloc_fast(sizeof(Sample));
+		const Window whole{.scroll = 0, .zoom = kWholeZoom};
+		Sample* const first = make_sample(kNumClusters, memory);
+		RangeHeld held(first);
+		const PeakRead before = menu::host_waveforms().peaks(held.address, whole);
+		held.multisample->sampleHolder.audioFile = nullptr;
+		first->~Sample();
+		Sample* const second = make_sample(kNumClusters, memory, 20); // the same length, other peaks
+		expect(static_cast<void*>(second)).to_equal(memory);
+		held.multisample->sampleHolder.audioFile = second;
+		const PeakRead after = menu::host_waveforms().peaks(held.address, whole);
+		PeakCache fresh;
+		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh);
+		expect(count_of(own, ColumnState::PEAK)).to_equal(16);
+		expect(after).to_equal(own);
+		expect(after).not_().to_equal(before);
+	});
+
+	it("reads every captured column of a take constructed in a freed take's memory, not the freed take's", _ {
+		spec::AudioSongFixture audio = spec::make_audio_clip_song();
+		Song* const saved = currentSong;
+		currentSong = audio.song;
+		const WaveformAddress clip{.kind = WaveformAddress::Kind::AUDIO_CLIP,
+		                           .clip = deluge::project::ClipAddress{audio.clip->id()}};
+		const Window whole{.scroll = 0, .zoom = kWholeZoom};
+		const auto captured = static_cast<uint32_t>(5 * kWholeZoom + kWholeZoom / 2); // into column 5
+		void* const memory = deluge::memory::alloc_fast(sizeof(Sample));
+		auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
+		recorder->numSamplesCaptured = captured;
+		recorder->recordMax = 5 << 24;
+		recorder->recordMin = -(5 << 24);
+		audio.clip->recorder = recorder;
+		Sample* const first = make_sample(kNumClusters, memory);
+		recorder->sample = first;
+		const PeakRead before = menu::host_waveforms().peaks(clip, whole);
+		first->~Sample();
+		Sample* const second = make_sample(kNumClusters, memory, 20); // a take aborted and recorded again
+		expect(static_cast<void*>(second)).to_equal(memory);
+		recorder->sample = second;
+		const PeakRead after = menu::host_waveforms().peaks(clip, whole);
+		PeakCache fresh;
+		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh, recorder);
+		expect(count_of(own, ColumnState::PEAK)).to_equal(5);
+		expect(after).to_equal(own);
+		expect(after).not_().to_equal(before);
 		audio.clip->recorder = nullptr;
 		currentSong = saved;
 	});

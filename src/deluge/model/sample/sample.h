@@ -196,6 +196,11 @@ public:
 	int32_t minValueFound;
 	int32_t maxValueFound;
 
+	/// This object's lifetime serial, taken from one counter when it is constructed: never 0 and never taken again, so
+	/// a sample constructed later in a freed sample's memory has another. A waveform's identity
+	/// (`gui::shell_host::waveform_identity`) is this serial.
+	const uint64_t serial;
+
 	// Background "waveform overview" pre-scan cursor (issue #4460). The next cluster index that the idle
 	// pre-scan should investigate-whole-length, so that zoomed-out single-row rendering finds per-cluster
 	// min/max already cached and never has to load clusters synchronously mid-scroll. Seeded to the first
