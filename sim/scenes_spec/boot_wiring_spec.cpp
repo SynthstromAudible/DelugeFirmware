@@ -40,13 +40,12 @@
 #include "scenes/slicing/slicer_scene.h"
 
 #include "memory/heaps.h"
-#include "model/sample/sample.h"
-#include "sample-view/view.h"
-
 #include "model/model_stack.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "sample-view/view.h"
 #include "storage/flash_storage.h"
 
 #include "support/printers/knob_focus_printer.h"
@@ -459,10 +458,15 @@ describe boot_overlays("the overlays' and the slicer's ports, installed with the
 		sample->numChannels = 1;
 		sample->sampleRate = 44100;
 		sample->lengthInSamples = 16000;
-		const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
-		held.open();
-		// With no ports the scene would read no length, and open at a zoom of 1.
-		expect(scene.x_zoom()).to_equal(deluge::sample_view::WaveformView::open(16000, std::nullopt).zoom());
+		{
+			const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
+			held.open();
+			// With no ports the scene would read no length, and open at a zoom of 1.
+			expect(scene.x_zoom()).to_equal(deluge::sample_view::WaveformView::open(16000, std::nullopt).zoom());
+		}
+		// The host and the preview drum have let it go.
+		sample->~Sample();
+		deluge::memory::dealloc(sample);
 	});
 });
 

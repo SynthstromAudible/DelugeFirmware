@@ -77,6 +77,7 @@
 #include "support/fake_ports.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/slicer_host_open.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -2702,15 +2703,12 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		// The spec's sample has no lease, so a stop's unbind would freeze on it (E220): the open must not unbind.
 		Sample* const sample = make_overview_sample();
-		PreviewHeld held{sample};
-		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
-		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
-		expect(held.range->sampleHolder.audioFile).to_equal(sample);
+		const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/HELD.WAV"};
+		held.open();
+		const auto* range = static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
+		expect(range->sampleHolder.audioFile).to_equal(sample);
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
-		deluge::gui::ui::releaseShellSlicerBeforeClose();
-		deluge::scenes::slicing::slicer_scene().open(std::nullopt);
-		held.range->sampleHolder.filePath.clear();
 	});
 
 	it("drops an open still loading when the slicer opens on the file the preview holds", _ {
@@ -2719,16 +2717,11 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		// An open of another file, its load not yet run: the slicer waits on it.
 		deluge::gui::ui::openShellSlice("SAMPLES/OTHER.WAV");
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_true();
-		Sample* const sample = make_overview_sample();
-		PreviewHeld held{sample};
-		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
-		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
+		const deluge::scenes::spec::SliceHeld held{make_overview_sample(), "SAMPLES/HELD.WAV"};
+		held.open();
 		// The slicer is open on the held file, and nothing is left to land over it.
 		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
-		deluge::gui::ui::releaseShellSlicerBeforeClose();
-		deluge::scenes::slicing::slicer_scene().open(std::nullopt);
-		held.range->sampleHolder.filePath.clear();
 	});
 
 	it("SLICE asks the host for a slice of the selected file and keeps the menu", _ {
