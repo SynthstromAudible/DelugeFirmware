@@ -40,13 +40,13 @@ namespace deluge::gui::shell_host {
 namespace {
 
 using plugin::SettingInfo;
+using project::device_path;
 using project::Feature;
 using project::FeatureInfo;
 using project::FlashCursor;
 using project::ShortcutsVersion;
 using scenes::bind::DeviceWrite;
 using serialization::Value;
-using device_path = project::device_path;
 
 // A CHOICE row's index is the legacy value for these.
 static_assert(std::to_underlying(FlashCursor::FAST) == FLASH_CURSOR_FAST);
@@ -121,42 +121,43 @@ struct FlagHome {
 /// Every such row: the flash settings', the clocks', USB audio's and MIDI's, and the stem export's options, which the
 /// export keeps and nothing saves.
 constexpr std::array<FlagHome, 28> kFlagHomes{{
-    {device_path::kAccessibilityShortcuts, &FlashStorage::accessibilityShortcuts},
-    {device_path::kGridAllowGreenSelection, &FlashStorage::gridAllowGreenSelection},
-    {device_path::kGridEmptyPadsUnarm, &FlashStorage::gridEmptyPadsUnarm},
-    {device_path::kGridEmptyPadsCreateRec, &FlashStorage::gridEmptyPadsCreateRec},
-    {device_path::kUseSharps, &FlashStorage::defaultUseSharps},
-    {device_path::kCpuIndicator, &FlashStorage::highCPUUsageIndicator},
-    {device_path::kRecordMargins, &FlashStorage::audioClipRecordMargins},
-    {device_path::kUseLastClipType, &FlashStorage::defaultUseLastClipType},
-    {device_path::kAutomationInterpolate, &FlashStorage::automationInterpolate},
-    {device_path::kAutomationClear, &FlashStorage::automationClear},
-    {device_path::kAutomationShift, &FlashStorage::automationShift},
-    {device_path::kAutomationNudgeNote, &FlashStorage::automationNudgeNote},
-    {device_path::kAutomationNoAuditionShortcuts, &FlashStorage::automationDisableAuditionPadShortcuts},
-    {device_path::kTriggerInAutoStart, &playbackHandler.analogClockInputAutoStart},
-    {device_path::kTempoMagnitudeMatching, &playbackHandler.tempoMagnitudeMatchingEnabled},
-    {device_path::kUsbDirectMonitoring, &usb_audio::directMonitoring},
-    {device_path::kFollowFeedbackFilter, &midiEngine.midiFollowFeedbackFilter},
-    {device_path::kFollowDisplayParam, &midiEngine.midiFollowDisplayParam},
-    {device_path::kMidiSelectKitRow, &midiEngine.midiSelectKitRow},
-    {device_path::kMidiThru, &midiEngine.midiThru},
-    {device_path::kDifferentiateInputs, &MIDIDeviceManager::differentiatingInputsByDevice},
-    {device_path::kStemNormalize, &stemExport.allowNormalization},
-    {device_path::kStemNormalizeDrums, &stemExport.allowNormalizationForDrums},
-    {device_path::kStemToSilence, &stemExport.exportToSilence},
-    {device_path::kStemSongFx, &stemExport.includeSongFX},
-    {device_path::kStemKitFx, &stemExport.includeKitFX},
-    {device_path::kStemOffline, &stemExport.renderOffline},
-    {device_path::kStemMixdown, &stemExport.exportMixdown},
+    {.path = device_path::kAccessibilityShortcuts, .value = &FlashStorage::accessibilityShortcuts},
+    {.path = device_path::kGridAllowGreenSelection, .value = &FlashStorage::gridAllowGreenSelection},
+    {.path = device_path::kGridEmptyPadsUnarm, .value = &FlashStorage::gridEmptyPadsUnarm},
+    {.path = device_path::kGridEmptyPadsCreateRec, .value = &FlashStorage::gridEmptyPadsCreateRec},
+    {.path = device_path::kUseSharps, .value = &FlashStorage::defaultUseSharps},
+    {.path = device_path::kCpuIndicator, .value = &FlashStorage::highCPUUsageIndicator},
+    {.path = device_path::kRecordMargins, .value = &FlashStorage::audioClipRecordMargins},
+    {.path = device_path::kUseLastClipType, .value = &FlashStorage::defaultUseLastClipType},
+    {.path = device_path::kAutomationInterpolate, .value = &FlashStorage::automationInterpolate},
+    {.path = device_path::kAutomationClear, .value = &FlashStorage::automationClear},
+    {.path = device_path::kAutomationShift, .value = &FlashStorage::automationShift},
+    {.path = device_path::kAutomationNudgeNote, .value = &FlashStorage::automationNudgeNote},
+    {.path = device_path::kAutomationNoAuditionShortcuts,
+     .value = &FlashStorage::automationDisableAuditionPadShortcuts},
+    {.path = device_path::kTriggerInAutoStart, .value = &playbackHandler.analogClockInputAutoStart},
+    {.path = device_path::kTempoMagnitudeMatching, .value = &playbackHandler.tempoMagnitudeMatchingEnabled},
+    {.path = device_path::kUsbDirectMonitoring, .value = &usb_audio::directMonitoring},
+    {.path = device_path::kFollowFeedbackFilter, .value = &midiEngine.midiFollowFeedbackFilter},
+    {.path = device_path::kFollowDisplayParam, .value = &midiEngine.midiFollowDisplayParam},
+    {.path = device_path::kMidiSelectKitRow, .value = &midiEngine.midiSelectKitRow},
+    {.path = device_path::kMidiThru, .value = &midiEngine.midiThru},
+    {.path = device_path::kDifferentiateInputs, .value = &MIDIDeviceManager::differentiatingInputsByDevice},
+    {.path = device_path::kStemNormalize, .value = &stemExport.allowNormalization},
+    {.path = device_path::kStemNormalizeDrums, .value = &stemExport.allowNormalizationForDrums},
+    {.path = device_path::kStemToSilence, .value = &stemExport.exportToSilence},
+    {.path = device_path::kStemSongFx, .value = &stemExport.includeSongFX},
+    {.path = device_path::kStemKitFx, .value = &stemExport.includeKitFX},
+    {.path = device_path::kStemOffline, .value = &stemExport.renderOffline},
+    {.path = device_path::kStemMixdown, .value = &stemExport.exportMixdown},
 }};
 
 /// @brief The keyboard view's sidebar rows: the flash settings hold whether a sidebar glides, and the row whether it
 ///        acts only while held, the other sense (`InvertedToggleBool` in `origin/main:src/deluge/gui/ui/menus.cpp`).
 ///        A store does nothing more.
 constexpr std::array<FlagHome, 2> kGlideHomes{{
-    {device_path::kVelocityMomentary, &FlashStorage::keyboardFunctionsVelocityGlide},
-    {device_path::kModwheelMomentary, &FlashStorage::keyboardFunctionsModwheelGlide},
+    {.path = device_path::kVelocityMomentary, .value = &FlashStorage::keyboardFunctionsVelocityGlide},
+    {.path = device_path::kModwheelMomentary, .value = &FlashStorage::keyboardFunctionsModwheelGlide},
 }};
 
 /// @brief A pad colour's row: which of the flash settings' colour slots it is.
@@ -166,12 +167,12 @@ struct ColourHome {
 };
 /// The six, in the colours page's order.
 constexpr std::array<ColourHome, FlashStorage::NUM_PAD_COLOUR_SLOTS> kColourHomes{{
-    {device_path::kPadColourActive, FlashStorage::PAD_COLOUR_ACTIVE},
-    {device_path::kPadColourStopped, FlashStorage::PAD_COLOUR_STOPPED},
-    {device_path::kPadColourMuted, FlashStorage::PAD_COLOUR_MUTED},
-    {device_path::kPadColourSoloed, FlashStorage::PAD_COLOUR_SOLOED},
-    {device_path::kPadColourFill, FlashStorage::PAD_COLOUR_FILL},
-    {device_path::kPadColourOnce, FlashStorage::PAD_COLOUR_ONCE},
+    {.path = device_path::kPadColourActive, .slot = FlashStorage::PAD_COLOUR_ACTIVE},
+    {.path = device_path::kPadColourStopped, .slot = FlashStorage::PAD_COLOUR_STOPPED},
+    {.path = device_path::kPadColourMuted, .slot = FlashStorage::PAD_COLOUR_MUTED},
+    {.path = device_path::kPadColourSoloed, .slot = FlashStorage::PAD_COLOUR_SOLOED},
+    {.path = device_path::kPadColourFill, .slot = FlashStorage::PAD_COLOUR_FILL},
+    {.path = device_path::kPadColourOnce, .slot = FlashStorage::PAD_COLOUR_ONCE},
 }};
 
 /// @brief An INTEGER row the device holds as one byte, whose store does nothing more.
@@ -181,12 +182,12 @@ struct ByteHome {
 };
 /// Every such row.
 constexpr std::array<ByteHome, 6> kByteHomes{{
-    {device_path::kSwingInterval, &FlashStorage::defaultSwingInterval},
-    {device_path::kBendRange, &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
-    {device_path::kRecordQuantize, &FlashStorage::recordQuantizeLevel},
-    {device_path::kCountIn, &playbackHandler.countInBars},
-    {device_path::kGateMinOffTime, &cvEngine.minGateOffTime},
-    {device_path::kFollowKitRootNote, &midiEngine.midiFollowKitRootNote},
+    {.path = device_path::kSwingInterval, .value = &FlashStorage::defaultSwingInterval},
+    {.path = device_path::kBendRange, .value = &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
+    {.path = device_path::kRecordQuantize, .value = &FlashStorage::recordQuantizeLevel},
+    {.path = device_path::kCountIn, .value = &playbackHandler.countInBars},
+    {.path = device_path::kGateMinOffTime, .value = &cvEngine.minGateOffTime},
+    {.path = device_path::kFollowKitRootNote, .value = &midiEngine.midiFollowKitRootNote},
 }};
 
 /// @brief A default range's end: which of the flash settings' ranges, and which end of it.
@@ -197,12 +198,12 @@ struct EndHome {
 };
 /// The six ends.
 constexpr std::array<EndHome, 6> kEndHomes{{
-    {device_path::kTempoLower, FlashStorage::DEFAULT_RANGE_TEMPO, false},
-    {device_path::kTempoUpper, FlashStorage::DEFAULT_RANGE_TEMPO, true},
-    {device_path::kSwingLower, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, false},
-    {device_path::kSwingUpper, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, true},
-    {device_path::kKeyLower, FlashStorage::DEFAULT_RANGE_KEY, false},
-    {device_path::kKeyUpper, FlashStorage::DEFAULT_RANGE_KEY, true},
+    {.path = device_path::kTempoLower, .slot = FlashStorage::DEFAULT_RANGE_TEMPO, .upper = false},
+    {.path = device_path::kTempoUpper, .slot = FlashStorage::DEFAULT_RANGE_TEMPO, .upper = true},
+    {.path = device_path::kSwingLower, .slot = FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, .upper = false},
+    {.path = device_path::kSwingUpper, .slot = FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, .upper = true},
+    {.path = device_path::kKeyLower, .slot = FlashStorage::DEFAULT_RANGE_KEY, .upper = false},
+    {.path = device_path::kKeyUpper, .slot = FlashStorage::DEFAULT_RANGE_KEY, .upper = true},
 }};
 
 /// @brief Where the home of the row at @p path is among @p homes, or null.
