@@ -7,8 +7,8 @@
 namespace deluge::gui::shell_host {
 namespace {
 
-/// MIDI follow's feedback, over the `midiFollow` engine: each method the engine call `View::sendMidiFollowFeedback`
-/// (`origin/main:src/deluge/gui/views/view.cpp`) makes.
+/// MIDI follow's feedback, over the `midiFollow` engine: each method is one call into the engine that
+/// `View::sendMidiFollowFeedback` (`origin/main:src/deluge/gui/views/view.cpp`) makes.
 class HostMidiFeedback final : public scenes::bind::MidiFeedback {
 public:
 	[[nodiscard]] bool enabled() const override { return midiFollow.isFeedbackEnabled(); }

@@ -31,8 +31,10 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// `src/shell/**` may not include `model/**` (`shell-includes-outside`), and this class is about the song's
-/// records, so it implements the shell's interface from the scenes library, as `GlobalControls` and `MidiLearn` do.
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// (`scripts/check_layer_rules.py`'s `shell-includes-outside` row). The knobs read the song's record (`project::Song`)
+/// and act through the scenes' ports (`scenes/bind/`). So the shell's interface is implemented from inside the scenes
+/// library, which may see both, as `GlobalControls` and `MidiLearn` do.
 ///
 /// @par Who sends gestures here
 ///

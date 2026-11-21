@@ -11,12 +11,13 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// The same reason `ModKnobs` and `GlobalControls` give: `shell::Service` is a shell interface,
-/// but `src/shell/**` may not include `model/**` (`scripts/check_layer_rules.py`'s
-/// `shell-includes-outside` row) and learning *writes the model*: the song's mapping table binds a
-/// section's launch, a clip's or kit row's mute, and a kit row's or track's input, and the device
-/// keeps the PLAY, RECORD and TAP TEMPO commands. Both are written through the installed learn port
-/// (`bind::LearnSink`), and the song's record (`project::Song`) is what a learn reads back.
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// (`scripts/check_layer_rules.py`'s `shell-includes-outside` row), and learning writes through the scenes' ports and
+/// reads the song's record: the song's mapping table binds a section's launch, a clip's or kit row's mute, and a kit
+/// row's or track's input, and the device keeps the PLAY, RECORD and TAP TEMPO commands. Both are written through the
+/// installed learn port (`bind::LearnSink`), and the song's record (`project::Song`) is what a learn reads back. So
+/// the shell's interface is implemented from inside the scenes library, which may see both, as `ModKnobs` and
+/// `GlobalControls` do.
 ///
 /// @par Where this sits in the chain, and the legacy evidence for it
 ///
