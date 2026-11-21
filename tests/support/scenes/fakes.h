@@ -8,7 +8,7 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
-#include "sample-view/peak_cache.h"
+#include "sample-view/peaks.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
@@ -16,6 +16,7 @@
 #include "serialization/value.h"
 
 #include <array>
+#include <bitset>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -545,7 +546,7 @@ struct FakeWaveforms final : Waveforms {
 		WaveformAddress at;                                           ///< where it is
 		WaveformInfo info;                                            ///< what `info` answers
 		std::array<sample_view::Peak, sample_view::kColumns> peaks{}; ///< each column's peak
-		sample_view::ColumnMask pending{};                            ///< columns answered PENDING while reads remain
+		std::bitset<sample_view::kColumns> pending{};                 ///< columns answered PENDING while reads remain
 		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
 		std::optional<int64_t> position;                              ///< what `play_position` answers
 		/// While `info.recording`, the frames the take has written: as on the host, a column that does not end by
