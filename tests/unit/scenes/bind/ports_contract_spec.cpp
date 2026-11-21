@@ -132,6 +132,42 @@ private:
 	test::FakeAudioFacts& audio_;
 };
 
+/// @brief A broken take port: it answers a clip, or a level, with no take held.
+class ChattyTakeActions final : public TakeActions {
+public:
+	ChattyTakeActions(bool clipped, InputLevels levels) : clipped_{clipped}, levels_{levels} {}
+	[[nodiscard]] bool begin(TakeChannels) override { return false; }
+	void end_soon() override {}
+	[[nodiscard]] InputLevels take_levels() override { return levels_; }
+	[[nodiscard]] bool take_clipped() override { return clipped_; }
+	void finish() override {}
+	void orphan() override {}
+
+private:
+	bool clipped_;
+	InputLevels levels_;
+};
+
+/// @brief A broken indicators port: clearing the tick squares starts the transport fake playing.
+class PlayingIndicators final : public Indicators {
+public:
+	explicit PlayingIndicators(test::FakeTransport& transport) : transport_{transport} {}
+	void clear_tick_squares() override { transport_.is_playing = true; }
+
+private:
+	test::FakeTransport& transport_;
+};
+
+/// @brief A broken view port: ending an audition puts a popup up on the UI fake.
+class PopupViewActions final : public ViewActions {
+public:
+	explicit PopupViewActions(test::FakeUiFacts& ui) : ui_{ui} {}
+	void end_audition(AuditionEnd) override { ui_.popup = true; }
+
+private:
+	test::FakeUiFacts& ui_;
+};
+
 } // namespace
 
 // clang-format off
@@ -576,11 +612,23 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.take_actions->begin(TakeChannels::MONO)).to_be_false();
 		expect(p.audio->input_take().has_value()).to_be_false();
 
+		host.take_actions.clipped = true;
+		host.take_actions.levels = {.left = 0.5F, .right = 0.25F};
+		expect(p.take_actions->take_clipped()).to_be_false(); // no take held
+		expect(p.take_actions->take_levels()).to_equal(InputLevels{});
+		expect(contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
+		host.take_actions.calls.clear();
+
 		p.indicators->clear_tick_squares();
 		p.view_actions->end_audition(AuditionEnd::KeyboardWhenAuditioning);
 		expect(host.indicators.tick_clears).to_equal(1);
 		expect(host.view_actions.ends).to_equal(std::vector<AuditionEnd>{AuditionEnd::KeyboardWhenAuditioning});
 		expect(host.order).to_equal(std::vector<std::string_view>{"begin", "begin", "begin", "ticks", "audition"});
+
+		host.transport.is_playing = true;
+		expect(contract::clearing_ticks_keeps_the_transport(*p.indicators, *p.transport)).to_be_true();
+		expect(contract::ending_no_audition_changes_nothing(*p.view_actions, *p.ui)).to_be_true();
+		expect(host.view_actions.ends.size()).to_equal(size_t{4});
 	});
 	it("fails each take case on a port that breaks it", _ {
 		test::FakeHost host;
@@ -593,6 +641,31 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::audio_clock_is_monotonic(BackwardsClock{})).to_be_false();
 		HeldTakeActions held{host.audio};
 		expect(contract::take_calls_without_a_take_do_nothing(held, host.audio)).to_be_false();
+		host.audio.take.reset();
+		ChattyTakeActions clipping{true, {}};
+		expect(contract::take_calls_without_a_take_do_nothing(clipping, host.audio)).to_be_false();
+		ChattyTakeActions loud{false, {.left = 0.5F, .right = 0.F}};
+		expect(contract::take_calls_without_a_take_do_nothing(loud, host.audio)).to_be_false();
+		// Each broken take port keeps the audio port's own case, and a quiet one passes.
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_true();
+		ChattyTakeActions quiet{false, {}};
+		expect(contract::take_calls_without_a_take_do_nothing(quiet, host.audio)).to_be_true();
+	});
+	it("fails the indicators' and the root view's cases on a port that breaks each", _ {
+		test::FakeHost host;
+		PlayingIndicators playing{host.transport};
+		expect(contract::clearing_ticks_keeps_the_transport(playing, host.transport)).to_be_false();
+		PopupViewActions popup{host.ui};
+		expect(contract::ending_no_audition_changes_nothing(popup, host.ui)).to_be_false();
+		// With a note auditioning the case's precondition fails, whatever the port does.
+		host.ui.popup = false;
+		host.ui.auditioning_now = true;
+		expect(contract::ending_no_audition_changes_nothing(host.view_actions, host.ui)).to_be_false();
+		host.ui.auditioning_now = false;
+		// Each broken port keeps the case of the other port, and the recorders pass both.
+		host.transport.is_playing = false;
+		expect(contract::clearing_ticks_keeps_the_transport(host.indicators, host.transport)).to_be_true();
+		expect(contract::ending_no_audition_changes_nothing(host.view_actions, host.ui)).to_be_true();
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;

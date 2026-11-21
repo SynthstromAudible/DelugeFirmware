@@ -567,25 +567,27 @@ struct RecordingTakeActions final : TakeActions {
 		FINISH,       ///< finish
 		ORPHAN,       ///< orphan
 	};
-	std::vector<Kind> calls;                       ///< every call, in order
-	TakeChannels channels{TakeChannels::MONO};     ///< the last begin's channels
-	bool begins{true};                             ///< what `begin` answers
-	InputLevels levels{};                          ///< what `take_levels` answers
-	bool clipped{false};                           ///< what the next `take_clipped` answers; it clears
-	FakeAudioFacts* audio{nullptr};                ///< begin holds a take there, finish and orphan drop it and its path
+	std::vector<Kind> calls;                   ///< every call, in order
+	TakeChannels channels{TakeChannels::MONO}; ///< the last begin's channels
+	bool begins{true};                         ///< what `begin` answers
+	InputLevels levels{};                      ///< what `take_levels` answers while a take is held
+	bool clipped{false};                       ///< what the next `take_clipped` answers while a take is held; it clears
+	FakeAudioFacts* audio{nullptr};            ///< begin holds a take there, finish and orphan drop it and its path
 	std::vector<std::string_view>* order{nullptr}; ///< when set, begin appends "begin" to it
 	[[nodiscard]] bool begin(TakeChannels c) override;
 	void end_soon() override { calls.push_back(Kind::END_SOON); }
 	[[nodiscard]] InputLevels take_levels() override {
 		calls.push_back(Kind::TAKE_LEVELS);
-		return levels;
+		return held() ? levels : InputLevels{};
 	}
 	[[nodiscard]] bool take_clipped() override {
 		calls.push_back(Kind::TAKE_CLIPPED);
-		return std::exchange(clipped, false);
+		return held() && std::exchange(clipped, false);
 	}
 	void finish() override;
 	void orphan() override;
+	/// @brief Whether a take is held: always, with no audio fake to hold it on.
+	[[nodiscard]] bool held() const { return audio == nullptr || audio->take.has_value(); }
 };
 
 /// @brief Indicators that record every call.

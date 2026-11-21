@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -487,14 +488,48 @@ namespace deluge::scenes::bind::contract {
 	return audio.audio_sample_timer() - a < 0x8000'0000U;
 }
 
-/// @brief With no take held, every take call is harmless: the state still reads none afterwards.
+/// @brief With no take held, every take call is harmless: it reports no clip and no level, and the state and path
+///        still read none afterwards.
 [[nodiscard]] inline bool take_calls_without_a_take_do_nothing(TakeActions& takes, const AudioFacts& audio) {
 	takes.end_soon();
-	(void)takes.take_clipped();
-	(void)takes.take_levels();
+	const bool clipped = takes.take_clipped();
+	const InputLevels levels = takes.take_levels();
 	takes.finish();
 	takes.orphan();
-	return !audio.input_take().has_value();
+	return !clipped && levels == InputLevels{} && no_take_reads_nothing(audio);
+}
+
+/// @}
+
+/// @name The indicators' and the root view's cases.
+/// @{
+
+/// @brief Clearing the tick squares changes no fact of the transport.
+[[nodiscard]] inline bool clearing_ticks_keeps_the_transport(Indicators& indicators, const Transport& transport) {
+	const auto facts = [&] {
+		return std::tuple{transport.playing(),      transport.clocks_active(),    transport.recording(),
+		                  transport.metronome_on(), transport.overdubs_pending(), transport.count_in_visual()};
+	};
+	const auto before = facts();
+	indicators.clear_tick_squares();
+	return facts() == before;
+}
+
+/// @brief With nothing auditioning, ending an audition of every kind changes no fact of the UI.
+[[nodiscard]] inline bool ending_no_audition_changes_nothing(ViewActions& view, const UiFacts& ui) {
+	if (ui.auditioning()) {
+		return false;
+	}
+	const auto facts = [&] { return std::tuple{ui.auditioning(), ui.popup_showing(), ui.performance_editing_mode()}; };
+	const auto before = facts();
+	for (const AuditionEnd how : {AuditionEnd::ClipViewWhenAuditioning, AuditionEnd::ClipViewForInstrumentClip,
+	                              AuditionEnd::KeyboardWhenAuditioning}) {
+		view.end_audition(how);
+		if (facts() != before) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /// @}

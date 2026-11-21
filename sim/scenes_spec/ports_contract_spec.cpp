@@ -233,6 +233,14 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			expect(p.audio->audio_sample_timer()).to_equal(AudioEngine::audioSampleTimer);
 			expect(bind::contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
 		}
+		if (p.indicators != nullptr && p.transport != nullptr) {
+			expect(bind::contract::clearing_ticks_keeps_the_transport(*p.indicators, *p.transport)).to_be_true();
+		}
+		if (p.view_actions != nullptr && p.ui != nullptr) {
+			// Nothing auditions between cases.
+			expect(p.ui->auditioning()).to_be_false();
+			expect(bind::contract::ending_no_audition_changes_nothing(*p.view_actions, *p.ui)).to_be_true();
+		}
 		if (p.transport != nullptr) {
 			expect(bind::contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
 			expect(bind::contract::count_in_is_a_count(*p.transport)).to_be_true();
@@ -1393,6 +1401,12 @@ describe take_host("the app's take port, over the sim's inputs", ${
 		SampleRecorder* const held = deluge::gui::shell_host::input_take();
 		expect(held).not_().to_be_null();
 		expect(AudioEngine::foregroundRecorder()).to_equal(held);
+		// Input monitoring follows the published channel.
+		expect(AudioEngine::foregroundRecordingSource())
+		    .to_equal(stereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT);
+		// One take at a time: a second begin is refused and leaves the first held.
+		expect(takes.begin(bind::TakeChannels::MONO)).to_be_false();
+		expect(deluge::gui::shell_host::input_take()).to_equal(held);
 		const std::optional<bind::InputTake> take = audio.input_take();
 		expect(take.has_value()).to_be_true();
 		if (take.has_value()) {
@@ -1400,7 +1414,8 @@ describe take_host("the app's take port, over the sim's inputs", ${
 			expect(take->capturing_data).to_be_true();
 			expect(take->settled).to_be_false();
 		}
-		expect(audio.input_take_path().has_value()).to_equal(held != nullptr && held->sample != nullptr);
+		// The take's sample exists from the begin; its file, and so the path's text, comes with the card routine.
+		expect(audio.input_take_path().has_value()).to_be_true();
 		takes.orphan();
 		expect(deluge::gui::shell_host::input_take()).to_be_null();
 		expect(bind::contract::no_take_reads_nothing(audio)).to_be_true();
