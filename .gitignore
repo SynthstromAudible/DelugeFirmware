@@ -58,3 +58,6 @@ __pycache__/
 # The bring-your-own private song corpus stays out of the repo (fixtures.json and synthetic/ are tracked)
 /tests/golden/songs/*.XML
 /tests/golden/songs/*.xml
+
+# Valgrind core dumps
+vgcore.*
