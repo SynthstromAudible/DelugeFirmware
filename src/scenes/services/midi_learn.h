@@ -12,7 +12,7 @@
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
 /// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
-/// (`scripts/check_layer_rules.py`'s `shell-includes-outside` row), and learning writes through the scenes' ports and
+/// (`scripts/layers.toml`'s `shell-includes-outside` rule), and learning writes through the scenes' ports and
 /// reads the song's record: the song's mapping table binds a section's launch, a clip's or kit row's mute, and a kit
 /// row's or track's input, and the device keeps the PLAY, RECORD and TAP TEMPO commands. Both are written through the
 /// installed learn port (`bind::LearnSink`), and the song's record (`project::Song`) is what a learn reads back. So

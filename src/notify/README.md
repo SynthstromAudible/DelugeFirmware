@@ -94,7 +94,8 @@ separate, unmarked exception: it's the accepted model/UI mixin (spec §1/§5), s
 bracket a synchronous load, and errors on a path that never returns to the tick, stay as direct
 `display->` calls until the shell can tick during `sd_busy` (spec D).
 
-The ratchet (`scripts/check_layer_rules.py`, baseline `scripts/layer_rules_baseline.txt`; wired
-into the `check-layer-rules` pre-commit hook and the `layer_rules` ctest) tracks
-`model-includes-ui`, `model-calls-ui`, `model-calls-display`, `gfx-includes-outside` and
-`notify-is-leaf` per file; a count may only shrink.
+Two ratchets track the direction per file, and a count may only shrink: `scripts/layers.toml`'s
+`model-includes-ui` and `notify-is-leaf` include rules (`scripts/check_layers.py`, baseline
+`scripts/layers_baseline.txt`, which also holds `src/gfx` to the standard library), and
+`scripts/check_layer_rules.py`'s `model-calls-ui` and `model-calls-display` symbol rows (baseline
+`scripts/layer_rules_baseline.txt`).

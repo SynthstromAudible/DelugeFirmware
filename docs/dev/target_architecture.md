@@ -205,9 +205,9 @@ Key prohibitions, stated explicitly because they reverse today's reality:
   `deluge-stream`; wavetable data is passed in as buffers/descriptors.
 - **gfx-* toolkits never include model or views.** They render into
   caller-provided buffers; no globals, no timers, no hardware.
-- **No library except deluge-app includes BSP/HAL headers** (already enforced
-  by `scripts/check_platform_boundary.py`; the same mechanism extends to all
-  the rules above, §9).
+- **No library except deluge-app includes BSP/HAL headers** (enforced by
+  `scripts/check_layers.py`'s `platform-boundary` rule; the same table holds
+  the rules above as they become libraries, §9).
 
 The consumer-owned-interface pattern used for `SampleSource` (defined in dsp,
 implemented by stream) and `Stealable` (defined in alloc, implemented by
@@ -774,10 +774,10 @@ day one of each extraction:
    declared a dependency isn't on the include path; violations fail to
    compile. (Not yet true for `src/deluge/*` directories, which share one
    target.)
-2. **Layer-rule checker with a ratchet.** Extend
-   `scripts/check_platform_boundary.py` into a general checker driven by the
-   §3.1 allowed-dependency table, with a committed baseline of current
-   violation counts per (from, to) pair. CI fails on *increase*; decreases
+2. **Layer-rule checker with a ratchet.** `scripts/check_layers.py` checks
+   the tree against one table, `scripts/layers.toml` (the libraries' allowed
+   dependencies and the counted include rules), with a committed baseline of
+   current counts per (file, rule) in `scripts/layers_baseline.txt`. CI fails on *increase*; decreases
    update the baseline. This lets enforcement start *before* extraction
    finishes — the matrix in §1 is the initial baseline. The same ratchet
    tracks `COOP-READ` markers (§4.2) so the cooperative-section burn-down is

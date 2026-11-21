@@ -85,7 +85,7 @@ constexpr uint16_t sid(String s) {
 
 // ---------------------------------------------------------------------------------------------
 // Small local helpers. `util/` is outside this layer's include allowance
-// (`check_layer_rules.py`'s `scenes-includes-outside`), so the handful of things the legacy
+// (`scripts/layers.toml`'s `scenes-includes-outside`), so the handful of things the legacy
 // browser borrows from it are spelled out here rather than included -- the same call
 // `rename_scene.cpp` and `listing.cpp` both already made.
 

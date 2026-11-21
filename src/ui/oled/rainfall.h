@@ -21,7 +21,7 @@
 /// @brief The Deluge-rain screensaver animation, and the one call that paints it onto a frame.
 ///
 /// It lives here because `deluge::scenes::overlay::ScreensaverScene` draws it, and `src/scenes/**`
-/// may include neither `gui/` nor `hid/` (`scripts/check_layer_rules.py`'s `scenes-includes-gui`
+/// may include neither `gui/` nor `hid/` (`scripts/layers.toml`'s `scenes-includes-gui`
 /// row). `src/ui/oled/` is exactly what it is -- pixels over a frame, no model, no clock (this
 /// animation advances by frame count, never by a wall clock, so the `shell-no-clock` row over
 /// `src/ui/**` is satisfied by construction).

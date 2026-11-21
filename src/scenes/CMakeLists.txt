@@ -14,15 +14,15 @@
 #                           behind no wall this layer may not cross.
 #   version.h            -- `kFirmwareVersionString` (menu/nodes/settings.cpp), a generated header.
 #
-# THIS LIST IS THE AUTHORITY FOR THOSE THREE, and it is enforced by hand. `check_layer_rules.py`'s
-# `scenes-includes-outside` row only matches include paths that contain a `/`, so a root-level
+# THIS LIST IS THE AUTHORITY FOR THOSE THREE, and it is enforced by hand. `scripts/layers.toml`'s
+# `scenes-includes-outside` rule only matches include paths that contain a `/`, so a root-level
 # header -- allowed or not -- is invisible to it; closing that hole needs a stdlib-vs-project
 # discriminator (`<cstdint>` and `<stdint.h>` are both slash-less) that the checker does not have.
 # A fourth root-level include added here must be justified in this comment or it is a violation
 # nothing will catch.
 # (io/** is for the settings root and its resets: `midiEngine` and the MIDI device registry --
 # the follow channels' and the MIDI commands' state -- and `MIDIDeviceManager`'s reset live
-# there, and check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)
+# there, and the model-includes-ui rule in scripts/layers.toml already counts src/deluge/io/ as non-UI.)
 # (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.)
 #
 # Link direction: deluge_scenes links deluge_app (compile-only; see below), never the reverse.

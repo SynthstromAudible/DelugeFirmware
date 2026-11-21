@@ -3,7 +3,7 @@
 The shape every `dsp-next` component takes, and the conventions every component
 follows. `dsp-next` (`src/deluge/dsp-next/`) is the L0 DSP library: freestanding,
 header-first C++23 that may include only `util/`, `definitions*`, Argon, the
-standard library and its own headers (`scripts/check_dsp_boundary.py`). Related:
+standard library and its own headers (`scripts/check_layers.py`'s `dsp-next-boundary` rule). Related:
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md),
 [synth_oscillator_plan.md](synth_oscillator_plan.md).
 

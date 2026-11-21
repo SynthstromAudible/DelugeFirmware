@@ -96,7 +96,7 @@ inline constexpr int32_t kNotFollowing = -1;
 
 /// @brief `divide_round_negative` (`util/functions.cpp`), transcribed.
 ///
-/// Not called through `util/functions.h`: `check_layer_rules.py`'s `scenes-includes-outside` row
+/// Not called through `util/functions.h`: `scripts/layers.toml`'s `scenes-includes-outside` rule
 /// allows this layer no `util/` include, and the whole function is five lines. Divisor must be
 /// positive; rounds towards negative infinity, which is the entire reason `getSquareFromPos` calls
 /// it rather than `/` (its own comment, `timeline_view.cpp`).

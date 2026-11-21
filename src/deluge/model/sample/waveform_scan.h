@@ -26,7 +26,7 @@
 /// `Sample`'s clusters into per-column peaks reads `Sample`, `SampleRecorder` and the card, and
 /// stays outside this module"*. This is that outside. Nothing here draws, and nothing here includes
 /// `gui/` or `hid/`, so `model/sample/waveform_scan.h` is reachable from `src/scenes` where
-/// `gui/waveform/waveform_renderer.h` is not (`check_layer_rules.py`, `scenes-includes-outside`).
+/// `gui/waveform/waveform_renderer.h` is not (`scripts/layers.toml`, `scenes-includes-outside`).
 ///
 /// `WaveformRenderer`'s remaining members -- `renderFullScreen`, `renderAsSingleRow`, `renderOneCol`
 /// and the two collapse-animation entry points -- are thin wrappers over these plus `drawColBar`,

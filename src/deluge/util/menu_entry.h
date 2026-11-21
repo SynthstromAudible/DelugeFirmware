@@ -36,8 +36,8 @@
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
 ///
 /// **One of the gated call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
-/// inside `check_layer_rules.py`'s `NON_UI` glob -- so a `gui/ui/` header there would raise the
-/// `model-includes-ui` ratchet, which may only shrink. Keeping the count level by *displacing*
+/// inside the `model-includes-ui` rule's glob (`scripts/layers.toml`) -- so a `gui/ui/` header there would
+/// raise that ratchet, which may only shrink. Keeping the count level by *displacing*
 /// another `gui/` include trades a dead coupling for a live one and leaves the number saying
 /// nothing changed.
 ///

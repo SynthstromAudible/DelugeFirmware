@@ -23,7 +23,7 @@
 ///
 /// **Why this is in `model/` and not `gui/`.** Every statement below is arithmetic over
 /// `Sample::lengthInSamples`, `xScroll` and `xZoom`; none of it draws. It moved here so the scenes
-/// layer can reach it: `check_layer_rules.py`'s `scenes-includes-outside` row allows `model/` and
+/// layer can reach it: `scripts/layers.toml`'s `scenes-includes-outside` rule allows `model/` and
 /// forbids `gui/`, and `deluge::scenes::marker::MarkerScene` is the second navigator client.
 /// `WaveformBasicNavigator` still exists and now derives from this, keeping legacy's one
 /// `PadLEDs`-driven responsibility -- the zoom *transition animation* -- on the `gui/` side where

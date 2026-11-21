@@ -26,7 +26,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    when a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place
    that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
-   direction: callbacks the app implements and the platform calls. `scripts/check_platform_boundary.py` keeps the
+   direction: callbacks the app implements and the platform calls. `scripts/check_layers.py`'s `platform-boundary` rule keeps the
    app from including platform headers.
 4. **Call context is documented per function.** Each declaration's doc carries the tags of every context it may
    be called from; a function with several tags may be called from each of them. `scripts/check_abi_surface.py

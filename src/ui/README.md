@@ -27,9 +27,9 @@ All three are `STATIC` libraries built as C++26.
 - A widget reads input only through its frame's accessors, never through the snapshot behind it
   (see "The input-consumption contract").
 
-`scripts/check_layer_rules.py` enforces the include rules and the input rule (ctest `layer_rules`,
-pre-commit hook `check-layer-rules`). Its four `src/ui` rows, all held at zero in
-`scripts/layer_rules_baseline.txt`:
+The include rules are `scripts/layers.toml`'s (checked by `scripts/check_layers.py`, ctest `layers`, pre-commit
+hook `layers`) and the input rule is `scripts/check_layer_rules.py`'s (ctest `layer_rules`, pre-commit hook
+`check-layer-rules`). The four `src/ui` rules, all held at zero:
 
 | rule | applies to | forbids |
 |---|---|---|
