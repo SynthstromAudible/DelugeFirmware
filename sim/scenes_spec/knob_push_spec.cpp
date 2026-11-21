@@ -209,7 +209,8 @@ services::PushInputs inputs_of(const Side& side, bool held) {
 	currentSong = side.song;
 	return {.button_held = held,
 	        .clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner),
-	        .board = kDelugeControls};
+	        .board = kDelugeControls,
+	        .ports = &deluge::scenes::menu::host_ports()};
 }
 
 /// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded

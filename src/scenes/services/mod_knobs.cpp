@@ -132,7 +132,10 @@ const effects::EffectStates* ModKnobs::owner_effects() const {
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {
-	return {.button_held = mode_held, .clip_context = is_clip_context(*focus_), .board = board_};
+	return {.button_held = mode_held,
+	        .clip_context = is_clip_context(*focus_),
+	        .board = board_,
+	        .ports = &menu::host_ports()};
 }
 
 bool ModKnobs::owner_stutter_quantized() const {

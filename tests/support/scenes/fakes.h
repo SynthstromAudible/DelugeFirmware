@@ -132,11 +132,12 @@ public:
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
+	bool alternative_delay{false}; ///< what `alt_delay` answers: the alternative delay knobs are on
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot,
 	                                     std::optional<project::ClipAddress> clip) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	[[nodiscard]] bool stutter_active() const override { return false; }
-	[[nodiscard]] bool alt_delay() const override { return false; }
+	[[nodiscard]] bool alt_delay() const override { return alternative_delay; }
 	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
 	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
 	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
