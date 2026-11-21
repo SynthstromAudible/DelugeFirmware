@@ -49,6 +49,7 @@
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/multi_range.h"
@@ -456,9 +457,11 @@ void wireShellGuestServices() {
 	wireShellKitGlobalShortcuts();
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
-	// `scenes-currentSong` row) and which all three services resolve against
-	// (`ModKnobs::set_song`, `GlobalControls::set_song`, `MidiLearn::set_song`).
-	services.learn.set_song(currentSong);
+	// `scenes-currentSong` row) and which the knobs and the global controls resolve against
+	// (`ModKnobs::set_song`, `GlobalControls::set_song`).
+	// The app's ports and the record of the song it plays, which the learn writes through and reads.
+	services.learn.set_ports(&deluge::scenes::menu::host_ports());
+	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
