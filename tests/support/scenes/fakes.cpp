@@ -324,6 +324,20 @@ std::optional<uint8_t> RecordingMidiFeedback::cc_of(project::OwnerPlugin owner, 
 	return at != ccs.end() ? std::optional{std::get<2>(*at)} : std::nullopt;
 }
 
+void RecordingTransportActions::play() {
+	calls.push_back({.kind = Call::Kind::PLAY});
+	if (transport != nullptr) {
+		transport->is_playing = !transport->is_playing;
+	}
+}
+
+void RecordingTransportActions::toggle_metronome() {
+	calls.push_back({.kind = Call::Kind::TOGGLE_METRONOME});
+	if (transport != nullptr) {
+		transport->metronome = !transport->metronome;
+	}
+}
+
 bool RecordingWrites::write(const WriteRequest& request) {
 	requests.push_back(request);
 	return accept;

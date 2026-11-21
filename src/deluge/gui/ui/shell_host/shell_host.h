@@ -60,6 +60,13 @@ namespace deluge::gui::shell_host {
 /// @brief The host's MidiFeedback: MIDI follow's feedback, read and sent through the `midiFollow` engine.
 [[nodiscard]] scenes::bind::MidiFeedback& midi_feedback();
 
+/// @brief The host's Transport: playback, the clocks, recording and the metronome from `playbackHandler`, what undo
+///        allows from `actionLogger`, and the current song's pending overdubs.
+[[nodiscard]] const scenes::bind::Transport& transport();
+
+/// @brief The host's TransportActions: each the call the legacy buttons make, popups included.
+[[nodiscard]] scenes::bind::TransportActions& transport_actions();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///

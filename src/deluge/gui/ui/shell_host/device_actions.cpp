@@ -1,4 +1,5 @@
 #include "gui/ui/shell_host/shell_host.h"
+#include "model/action/action_logger.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::shell_host {
@@ -11,6 +12,7 @@ public:
 		// `View::endMIDILearn` (`origin/main:src/deluge/gui/views/view.cpp`) writes the settings file alone.
 		FlashStorage::writeSettings();
 	}
+	void delete_all_logs() override { actionLogger.deleteAllLogs(); }
 };
 
 } // namespace

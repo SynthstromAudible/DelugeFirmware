@@ -18,6 +18,8 @@
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/track_facts.h"
+#include "scenes/bind/ports/transport.h"
+#include "scenes/bind/ports/transport_actions.h"
 #include "scenes/bind/ports/ui_facts.h"
 #include "scenes/bind/ports/write_sink.h"
 
@@ -33,16 +35,18 @@ struct Ports {
 	const SoundFacts* sound{nullptr};  ///< what a sound's record does not hold: its loads, state, cables and ranges
 	const ClipFacts* clips{nullptr};   ///< what a clip's record does not hold: its play state and view state
 	const TrackFacts* tracks{nullptr}; ///< the song's tracks and what its owners play that their records do not hold
-	const controls::Facts* controls{nullptr}; ///< what the knobs read: live param values, stutter, note tails
-	ClipWrites* clip_writes{nullptr};         ///< where a scene's clip edits go
-	SoundWrites* sound_writes{nullptr};       ///< where a scene's edits of a sound's sources go
-	LearnSink* learn{nullptr};                ///< where a scene's MIDI learns go
-	MidiDevices* midi{nullptr};               ///< the connected MIDI devices and their own settings
-	WriteSink* writes{nullptr};               ///< where a menu's setting, text and automation writes go
-	controls::Sink* controls_sink{nullptr};   ///< where the knobs' writes and an effect setting's exact word go
-	DeviceSettings* device{nullptr};          ///< the device's own settings, by DEVICE row
-	DeviceActions* device_actions{nullptr};   ///< the device's own actions: saving its settings
-	MidiFeedback* midi_feedback{nullptr};     ///< MIDI follow's feedback to a controller
+	const controls::Facts* controls{nullptr};     ///< what the knobs read: live param values, stutter, note tails
+	ClipWrites* clip_writes{nullptr};             ///< where a scene's clip edits go
+	SoundWrites* sound_writes{nullptr};           ///< where a scene's edits of a sound's sources go
+	LearnSink* learn{nullptr};                    ///< where a scene's MIDI learns go
+	MidiDevices* midi{nullptr};                   ///< the connected MIDI devices and their own settings
+	WriteSink* writes{nullptr};                   ///< where a menu's setting, text and automation writes go
+	controls::Sink* controls_sink{nullptr};       ///< where the knobs' writes and an effect setting's exact word go
+	DeviceSettings* device{nullptr};              ///< the device's own settings, by DEVICE row
+	DeviceActions* device_actions{nullptr};       ///< the device's own actions: saving its settings, forgetting undo
+	MidiFeedback* midi_feedback{nullptr};         ///< MIDI follow's feedback to a controller
+	const Transport* transport{nullptr};          ///< the transport's state
+	TransportActions* transport_actions{nullptr}; ///< what the transport is asked to do
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

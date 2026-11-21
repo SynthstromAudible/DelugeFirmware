@@ -73,7 +73,22 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.midi_feedback != nullptr) {
 			expect(bind::contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
 		}
+		expect(p.transport).not_().to_be_null();
+		expect(p.transport_actions).not_().to_be_null();
+		if (p.transport != nullptr) {
+			expect(bind::contract::transport_facts_are_stable(*p.transport)).to_be_true();
+			expect(p.transport->playing()).to_equal(playbackHandler.playbackState != 0);
+			expect(p.transport->metronome_on()).to_equal(playbackHandler.metronomeOn);
+			if (p.transport_actions != nullptr) {
+				// Two toggles, each with its popup, leave the metronome as the other specs found it.
+				expect(bind::contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
+			}
+			if (p.device_actions != nullptr) {
+				expect(bind::contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
+			}
+		}
 		if (p.audio != nullptr) {
+			expect(bind::contract::foreground_recording_is_a_source(*p.audio)).to_be_true();
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 			// The spec process holds the audio routine still, so the engine reads busy here; the port answers as it does.
 			expect(p.audio->audio_busy()).to_equal(AudioEngine::audioBusy());

@@ -243,6 +243,40 @@ namespace deluge::scenes::bind::contract {
 	       && !feedback.cc_of(project::OwnerPlugin::GLOBAL_EFFECTABLE, kNowhere).has_value();
 }
 
+/// @brief The transport's facts are stable across two calls, and its recording is one of the three modes.
+[[nodiscard]] inline bool transport_facts_are_stable(const Transport& t) {
+	const TransportRecording r = t.recording();
+	return t.playing() == t.playing() && t.clocks_active() == t.clocks_active() && r == t.recording()
+	       && t.metronome_on() == t.metronome_on() && t.undo_allowed() == t.undo_allowed()
+	       && t.overdubs_pending() == t.overdubs_pending()
+	       && (r == TransportRecording::OFF || r == TransportRecording::NORMAL || r == TransportRecording::ARRANGEMENT);
+}
+
+/// @brief Each metronome toggle reads back through @p t, and two leave it as found. The host shows its popup twice.
+[[nodiscard]] inline bool metronome_toggles_read_back(TransportActions& actions, const Transport& t) {
+	const bool was = t.metronome_on();
+	actions.toggle_metronome();
+	const bool flipped = t.metronome_on() != was;
+	actions.toggle_metronome();
+	return flipped && t.metronome_on() == was;
+}
+
+/// @brief The foreground recorder's source is one of the four.
+[[nodiscard]] inline bool foreground_recording_is_a_source(const AudioFacts& audio) {
+	const ForegroundRecording f = audio.foreground_recording();
+	return f == ForegroundRecording::UNSET || f == ForegroundRecording::NONE || f == ForegroundRecording::EXTERNAL
+	       || f == ForegroundRecording::INTERNAL;
+}
+
+/// @brief Forgetting the undo history leaves the transport as it was.
+[[nodiscard]] inline bool forgetting_undo_keeps_the_transport(DeviceActions& actions, const Transport& t) {
+	const bool playing = t.playing();
+	const TransportRecording recording = t.recording();
+	const bool metronome = t.metronome_on();
+	actions.delete_all_logs();
+	return t.playing() == playing && t.recording() == recording && t.metronome_on() == metronome;
+}
+
 /// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with
 ///       other specs.
 /// @{

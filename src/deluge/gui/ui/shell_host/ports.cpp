@@ -26,6 +26,8 @@ const bind::Ports& host_ports() {
 	    .device = &gui::shell_host::device_settings(),
 	    .device_actions = &gui::shell_host::device_actions(),
 	    .midi_feedback = &gui::shell_host::midi_feedback(),
+	    .transport = &gui::shell_host::transport(),
+	    .transport_actions = &gui::shell_host::transport_actions(),
 	};
 	return ports;
 }

@@ -5,6 +5,7 @@
 #include "support/printers/controls_printer.h"
 #include "support/printers/learn_input_printer.h"
 #include "support/printers/mapping_printer.h"
+#include "support/printers/transport_action_printer.h"
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
@@ -17,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 using namespace deluge::scenes::bind;
 using device_path = deluge::project::device_path;
@@ -365,6 +367,83 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		// A listed device with no reference fails the case.
 		host.midi.refs.erase(40);
 		expect(contract::connected_devices_have_references(*p.midi)).to_be_false();
+	});
+	it("answers the transport as the spec set it, flips it on PLAY and the metronome toggle, and records every action", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.transport).not_().to_be_null();
+		expect(p.transport_actions).not_().to_be_null();
+		expect(contract::transport_facts_are_stable(*p.transport)).to_be_true();
+		host.transport.clocks = true;
+		host.transport.mode = TransportRecording::ARRANGEMENT;
+		host.transport.undo_ok = true;
+		host.transport.overdubs = true;
+		expect(p.transport->clocks_active()).to_be_true();
+		expect(p.transport->recording()).to_equal(TransportRecording::ARRANGEMENT);
+		expect(p.transport->undo_allowed()).to_be_true();
+		expect(p.transport->overdubs_pending()).to_be_true();
+		expect(contract::transport_facts_are_stable(*p.transport)).to_be_true();
+
+		expect(contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
+		expect(p.transport->playing()).to_be_false();
+		p.transport_actions->play();
+		expect(host.transport.is_playing).to_be_true();
+		p.transport_actions->record();
+		p.transport_actions->tap_tempo(true);
+		p.transport_actions->clear_tempo_automation();
+		p.transport_actions->show_swing_interval();
+		p.transport_actions->show_tempo();
+		p.transport_actions->undo(true);
+		p.transport_actions->begin_output_recording();
+		p.transport_actions->end_recording_soon();
+		p.transport_actions->stop_output_recording_at_loop_end();
+		p.transport_actions->fill(true);
+		using Call = test::RecordingTransportActions::Call;
+		using K = Call::Kind;
+		const std::vector<Call> expected{
+		    {.kind = K::TOGGLE_METRONOME},
+		    {.kind = K::TOGGLE_METRONOME},
+		    {.kind = K::PLAY},
+		    {.kind = K::RECORD},
+		    {.kind = K::TAP_TEMPO, .flag = true},
+		    {.kind = K::CLEAR_TEMPO_AUTOMATION},
+		    {.kind = K::SHOW_SWING_INTERVAL},
+		    {.kind = K::SHOW_TEMPO},
+		    {.kind = K::UNDO, .flag = true},
+		    {.kind = K::BEGIN_OUTPUT_RECORDING},
+		    {.kind = K::END_RECORDING_SOON},
+		    {.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END},
+		    {.kind = K::FILL, .flag = true},
+		};
+		expect(host.transport_actions.calls).to_equal(expected);
+
+		// A recorder with no transport flips nothing, so the read-back case fails on it.
+		test::FakeTransport still;
+		test::RecordingTransportActions unwired;
+		expect(contract::metronome_toggles_read_back(unwired, still)).to_be_false();
+		unwired.play();
+		expect(still.is_playing).to_be_false();
+	});
+	it("answers the foreground recorder's source and resampling as the spec set them, and records forgetting undo", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.audio->foreground_recording()).to_equal(ForegroundRecording::NONE);
+		expect(p.audio->resampling()).to_be_false();
+		for (const ForegroundRecording f : {ForegroundRecording::UNSET, ForegroundRecording::NONE,
+		                                    ForegroundRecording::EXTERNAL, ForegroundRecording::INTERNAL}) {
+			host.audio.foreground = f;
+			expect(p.audio->foreground_recording()).to_equal(f);
+			expect(contract::foreground_recording_is_a_source(*p.audio)).to_be_true();
+		}
+		host.audio.foreground = static_cast<ForegroundRecording>(4);
+		expect(contract::foreground_recording_is_a_source(*p.audio)).to_be_false();
+		host.audio.resample = true;
+		expect(p.audio->resampling()).to_be_true();
+
+		host.transport.is_playing = true;
+		expect(contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
+		expect(host.device_actions.calls).to_equal(
+		    std::vector<test::RecordingDeviceActions::Kind>{test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS});
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;
