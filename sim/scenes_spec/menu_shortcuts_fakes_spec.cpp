@@ -1,0 +1,198 @@
+/// @file
+/// @brief The menu's shortcut pads over the ports' fakes, with a model song of the spec's own and no legacy song behind
+///        the menu: where a SHIFT-held pad lands under each shortcut layout the device fake holds, which source pads
+///        blink for a param the sound fake patches, and the SHIFT overlay following the device fake's
+///        `features/shortcutOverlay` row.
+
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/menu_state.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcuts.h"
+
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/codec.h" // new_synth_state
+#include "instruments/deluge/sound_state.h"
+#include "shell/scene.h"
+#include "synth/modulation/cable.h"
+#include "synth/modulation/patch_source.h"
+
+#include "support/fake_menu_shell.h"
+
+#include "cppspec.hpp"
+
+#include <cstdint>
+#include <initializer_list>
+#include <string>
+#include <utility>
+
+#include "support/spec_main.h"
+
+using namespace deluge::scenes;
+using deluge::project::DevicePath;
+using deluge::project::Feature;
+using deluge::project::ShortcutOverlay;
+using deluge::project::ShortcutsVersion;
+using deluge::scenes::menu::kNoBlink;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::spec::FakeHostRig;
+using deluge::scenes::spec::FakeMenuShell;
+using deluge::synth::PatchSource;
+using deluge::ui::shell::PadRegions;
+using device_path = deluge::project::device_path;
+
+namespace {
+
+namespace nodes = deluge::scenes::menu::nodes;
+
+/// The sample pad that differs between the layouts: interpolation under V3, the sample's end point under V1.
+constexpr uint8_t kSamplePadX = 0, kSamplePadY = 6;
+/// The X source's pad, which only the V3 layout names.
+constexpr uint8_t kXSourcePadX = 14, kXSourcePadY = 7;
+/// The first global LFO's pad, which both layouts name.
+constexpr uint8_t kLfoSourcePadY = 5;
+
+/// @brief Hold @p menu_value in the device fake's row at @p path, as a write through the device port stores it, and
+///        forget the store, so an example sees only the stores the menu makes.
+void hold_device(FakeHostRig& fakes, DevicePath path, int32_t menu_value) {
+	(void)fakes.host.device.write(path, menu_value);
+	fakes.host.device.stores.clear();
+}
+
+/// @brief The synth's first source a loaded sample, so the menu lists the sample's own pages.
+void hold_sample_synth(FakeHostRig& fakes) {
+	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
+	state.sources[0].osc_type = deluge::instrument::OscType::SAMPLE;
+	fakes.hold_synth(state);
+	fakes.host.sound.loaded[FakeHostRig::kSynthSlot.id] = 0b01;
+}
+
+/// @brief One edge of main pad (@p x, @p y), and a tick.
+void pad(FakeMenuShell& r, uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
+	r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(on ? 64 : 0)}, at_ms);
+	r.shell.tick(at_ms + 5);
+}
+
+/// @brief SHIFT held across one press and release of main pad (@p x, @p y).
+void shift_press(FakeMenuShell& r, uint8_t x, uint8_t y, uint32_t at_ms) {
+	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, true, at_ms);
+	r.shell.tick(at_ms + 5);
+	pad(r, x, y, true, at_ms + 10);
+	pad(r, x, y, false, at_ms + 20);
+	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, false, at_ms + 30);
+	r.shell.tick(at_ms + 35);
+}
+
+/// @brief SHIFT down or up, and a tick.
+void shift(FakeMenuShell& r, bool down, uint32_t at_ms) {
+	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, down, at_ms);
+	r.shell.tick(at_ms + 5);
+}
+
+/// @brief The sound fake patching @p sources to the low-pass cutoff.
+void patch_to_cutoff(FakeHostRig& fakes, std::initializer_list<PatchSource> sources) {
+	const auto cutoff = deluge::synth::CableTarget::param(nodes::lpf_freq.bind.param.index);
+	for (const PatchSource source : sources) {
+		fakes.host.sound.cable_list.push_back({.depth = deluge::instrument::cable_depth_of(source, cutoff)});
+	}
+}
+
+/// @brief The source pads @p plan blinks, as "x,y" in column-then-row order.
+std::string blinking_sources(const menu::BlinkPlan& plan) {
+	std::string out;
+	for (uint8_t sx = 0; sx < 2; sx++) {
+		for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+			if (plan.sources[sx][y].freq_mask != kNoBlink) {
+				out += std::to_string(menu::kShortcutCols - 2 + sx) + "," + std::to_string(y) + " ";
+			}
+		}
+	}
+	return out;
+}
+
+} // namespace
+
+// clang-format off
+describe menu_shortcuts_fakes("the menu's shortcut pads over the ports' fakes and a model song", ${
+	it("lands the sample pad on interpolation under the device fake's V3 layout, and names the end point under V1", _ {
+		FakeMenuShell r;
+		hold_sample_synth(r.fakes);
+		hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V3));
+		const MenuContext ctx = r.open_synth(nodes::sound_root);
+		shift_press(r, kSamplePadX, kSamplePadY, 100);
+		expect(menu_scene().focused_value()).to_equal(&nodes::sample0_interpolation);
+
+		// The lookup reads the layout from the device port the context binds, so the fake's V1 moves the pad.
+		hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V1));
+		expect(menu::shortcuts_version(ctx)).to_equal(ShortcutsVersion::V1);
+		expect(menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, kSamplePadX, kSamplePadY))
+		    .to_equal(&nodes::sample0_end);
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+	});
+
+	it("opens the X source's cable from its pad under V3, and swallows the pad under V1, which names no X", _ {
+		for (const ShortcutsVersion version : {ShortcutsVersion::V3, ShortcutsVersion::V1}) {
+			FakeMenuShell r;
+			hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(version));
+			(void)r.open_synth(nodes::lpf_freq);
+			shift_press(r, kXSourcePadX, kXSourcePadY, 100);
+			if (version == ShortcutsVersion::V3) {
+				expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
+				expect(menu_scene().state().walk.patch_source).to_equal(PatchSource::X);
+			}
+			else {
+				expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
+			}
+		}
+	});
+
+	it("blinks the pads of the sources the sound fake patches to the focused param, X only under V3", _ {
+		FakeHostRig fakes;
+		patch_to_cutoff(fakes, {PatchSource::LFO_GLOBAL_1, PatchSource::X});
+		const MenuContext ctx = fakes.synth_context();
+		menu::MenuState st{};
+		st.path[0] = &nodes::lpf_freq;
+
+		hold_device(fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V3));
+		const menu::BlinkPlan v3 = menu::plan_blinks(ctx, st, nodes::lpf_freq);
+		expect(v3.param.valid).to_be_true();
+		expect(blinking_sources(v3)).to_equal(std::string{"14,5 14,7 "});
+		// A patched param's sources flash every fourth cycle.
+		expect(v3.sources[0][kLfoSourcePadY].freq_mask).to_equal(uint8_t{3});
+
+		hold_device(fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V1));
+		const menu::BlinkPlan v1 = menu::plan_blinks(ctx, st, nodes::lpf_freq);
+		expect(blinking_sources(v1)).to_equal(std::string{"14,5 "});
+
+		// With nothing patched, nothing blinks in the source column.
+		fakes.host.sound.cable_list.clear();
+		expect(menu::plan_blinks(ctx, st, nodes::lpf_freq).any_source()).to_be_false();
+	});
+
+	it("shows the SHIFT overlay as the device fake's shortcutOverlay row says, and not at all with it Off", _ {
+		const DevicePath overlay = device_path::feature(Feature::SHORTCUT_OVERLAY);
+		for (const ShortcutOverlay setting : {ShortcutOverlay::MENU_ONLY, ShortcutOverlay::OFF}) {
+			FakeMenuShell r;
+			hold_device(r.fakes, overlay, std::to_underlying(setting));
+			const MenuContext ctx = r.open_synth(nodes::lpf_freq);
+			const bool shown = setting != ShortcutOverlay::OFF;
+			expect(ctx.shortcut_overlay).to_equal(shown);
+			expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
+			shift(r, true, 100);
+			expect(menu_scene().pad_regions()).to_equal(shown ? PadRegions::Main : PadRegions::None);
+			if (shown) {
+				// Every column is greyed under the overlay.
+				expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0xFFFFFFFF});
+			}
+			shift(r, false, 200);
+			expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
+		}
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_shortcuts_fakes_spec, menu_shortcuts_fakes)
