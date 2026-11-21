@@ -1570,6 +1570,90 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_ports(&menu::host_ports());
 	});
 
+	it("on fakes: SYNC_SCALING sets and clears the clip through the installed writes and forgets undo; a refused clip does neither", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+		GlobalControls::ViewState vs;
+		vs.current_ui_is_clip_minder = true;
+		rig.gc.set_view_state(vs);
+		constexpr uint32_t kClip = 7;
+		services::view_state().set_current_view(services::MenuView{.clip = deluge::project::ClipAddress{.clip_id = kClip}});
+		using DeviceKind = bind::test::RecordingDeviceActions::Kind;
+
+		// An arrangement-only clip, then one recording linearly: refused, with neither the write nor the forgetting.
+		host.clips.arrangement_only[kClip] = true;
+		const Result arrangement = rig.press(ButtonId::SyncScaling, true, 47'000);
+		rig.press(ButtonId::SyncScaling, false, 47'005);
+		expect(arrangement.actions.size()).to_equal(size_t{1});
+		host.clips.arrangement_only[kClip] = false;
+		host.clips.recording_linearly[kClip] = true;
+		const Result linear = rig.press(ButtonId::SyncScaling, true, 47'100);
+		rig.press(ButtonId::SyncScaling, false, 47'105);
+		expect(linear.actions.size()).to_equal(size_t{1});
+		expect(host.writes.requests.size()).to_equal(size_t{0});
+		expect(host.device_actions.calls.size()).to_equal(size_t{0});
+		host.clips.recording_linearly[kClip] = false;
+
+		// The set: the song's sync-scaling clip becomes this one, then undo cannot reach past it.
+		rig.press(ButtonId::SyncScaling, true, 47'200);
+		rig.press(ButtonId::SyncScaling, false, 47'205);
+		expect(host.writes.requests.size()).to_equal(size_t{1});
+		expect(host.device_actions.calls).to_equal(std::vector<DeviceKind>{DeviceKind::DELETE_ALL_LOGS});
+
+		// The clear, once the record holds the clip.
+		model.transport.sync_scaling_clip_id = kClip;
+		rig.press(ButtonId::SyncScaling, true, 47'300);
+		rig.press(ButtonId::SyncScaling, false, 47'305);
+		expect(host.writes.requests.size()).to_equal(size_t{2});
+		expect(host.device_actions.calls)
+		    .to_equal(std::vector<DeviceKind>{DeviceKind::DELETE_ALL_LOGS, DeviceKind::DELETE_ALL_LOGS});
+
+		const std::array<int32_t, 2> want{static_cast<int32_t>(kClip), -1};
+		for (size_t i = 0; i < host.writes.requests.size() && i < want.size(); ++i) {
+			const bind::WriteRequest& r = host.writes.requests[i];
+			expect(r.target.kind).to_equal(bind::Target::Kind::MODEL);
+			expect(r.target.path).to_equal(std::string_view{"syncScalingClip"});
+			expect(r.target.group).to_equal(deluge::project::SettingGroupId::SONG);
+			expect(r.menu_value).to_equal(want[i]);
+		}
+		services::view_state().set_current_view(services::MenuView{});
+		rig.gc.set_ports(&menu::host_ports());
+	});
+
+	it("on fakes: SAVE refuses while overdubs are pending, with legacy's own popup string, and opens nothing", _ {
+		release_all_legacy_buttons();
+		GcRig rig;
+		bind::test::FakeHost host;
+		const bind::Ports p = host.ports();
+		rig.gc.set_ports(&p);
+		deluge::project::Song model;
+		rig.gc.set_model(&model);
+
+		host.transport.overdubs = true;
+		rig.press(ButtonId::Save, true, 48'000);
+		const Result refused = rig.press(ButtonId::Save, false, 48'010);
+		expect(refused.actions.size()).to_equal(size_t{1});
+		if (refused.actions.size() == 1) {
+			expect(refused.actions[0].kind).to_equal(ShellAction::Kind::Popup);
+			expect(refused.actions[0].popup_string)
+			    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
+		}
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{0});
+
+		// With none pending the same press opens the saver.
+		host.transport.overdubs = false;
+		rig.press(ButtonId::Save, true, 48'100);
+		const Result plain = rig.press(ButtonId::Save, false, 48'110);
+		expect(plain.actions.size()).to_equal(size_t{0});
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{1});
+		rig.gc.set_ports(&menu::host_ports());
+	});
+
 	it("on fakes: the LEDs follow the transport's playback, recording and metronome", _ {
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -1610,11 +1694,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	it("on fakes: with no set installed, every press is handled as before and nothing is asked", _ {
 		release_all_legacy_buttons();
 		GcRig rig;
-		bind::test::FakeHost host;
-		(void)host.ports();
+		expect(reset_transport(100'000)).to_be_true();
 		rig.gc.set_ports(nullptr);
 		deluge::project::Song model;
 		rig.gc.set_model(&model);
+		const uint8_t playback_before = playbackHandler.playbackState;
+		const bool metronome_before = playbackHandler.metronomeOn;
+		const RecordingMode recording_before = playbackHandler.recording;
 
 		uint32_t t = 46'000;
 		for (const ButtonId b : {ButtonId::Play, ButtonId::Record, ButtonId::TapTempo, ButtonId::TempoEnc, ButtonId::Back,
@@ -1623,9 +1709,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 			rig.press(b, false, t + 50);
 			t += 100;
 		}
-		expect(host.transport_actions.calls.empty()).to_be_true();
-		expect(host.device_actions.calls.empty()).to_be_true();
-		expect(host.writes.requests.empty()).to_be_true();
+		// Nothing reached the app's transport either: no action port means no call through any.
+		expect(playbackHandler.playbackState).to_equal(playback_before);
+		expect(playbackHandler.metronomeOn).to_equal(metronome_before);
+		expect(playbackHandler.recording).to_equal(recording_before);
 		deluge::ui::LedFrame f;
 		rig.gc.leds(f);
 		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
