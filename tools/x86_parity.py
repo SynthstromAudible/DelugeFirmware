@@ -14,7 +14,11 @@ Each parity script (format in tests/harness/README.md) is translated into the ho
   - `load NAME` is expanded into the same Load / pad-keyboard / Select presses emu_parity.py makes;
   - `random_colour X Y` is dropped and that pad is masked to lit/unlit in every .state;
   - an encoder turn of more than MAX_DETENTS detents is split into turns the runner takes;
-  - every MIDI input step (`midi`, `note`, `noteoff`, `cc`, `pc`, `bend`) becomes `midi HEX`.
+  - every MIDI input step (`midi`, `note`, `noteoff`, `cc`, `pc`, `bend`) becomes `midi HEX`;
+  - the steps emu_parity passes over (`board`, `released`, `model`, `notice`) are dropped.
+Each script is first checked as emu_parity checks it (`check_steps`: no unknown command, no snapshot name twice). A
+script that fails the check or cannot be translated, a card that cannot be extracted and a script that names no card
+are reported before anything runs, and each of their legs counts as failed on both sides.
 Each script runs once per card its `# card:` header names. A FAT image (`*.img`) is extracted once with mtools into
 the store's card cache, keyed by the image's mtime; a directory card is used as it stands.
 
@@ -24,6 +28,10 @@ DIR/<side>/logs/ each leg's output, DIR/<side>/results.json each leg's status, a
 sides disagree on. The last line printed is `X86-PARITY legs=<n> ref_failed=<a> test_failed=<b> differ=<c>`, where
 `differ` counts files. The exit code is 0 when all three counts are 0, 2 when a leg failed, else 1.
 
+Each run's virtual budget is its last step plus BUDGET_MARGIN_MS. Its wall-clock deadline is DEADLINE_FLOOR_S plus
+DEADLINE_FACTOR times that budget in seconds: the host app runs faster than real time when the machine is idle, and the
+factor keeps a long script inside its deadline when many legs (-j) and other builds share the machine.
+
 --worktree builds `golden_vt_render` at REV in a detached worktree and prints the binary's path as its last line.
 The store (default .superpowers/ in this checkout) holds the card cache (x86-cards/), the base worktrees (x86-wt/)
 and the base binaries (x86-bin/).
@@ -31,6 +39,7 @@ and the base binaries (x86-bin/).
 
 import argparse
 import concurrent.futures
+import dataclasses
 import filecmp
 import json
 import os
@@ -42,7 +51,7 @@ import time
 from pathlib import Path
 
 import ui_script_cards
-from emu_parity import midi_bytes
+from emu_parity import NOT_INPUT, check_steps, midi_bytes
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -60,9 +69,11 @@ LOAD_KEY_MS = 150
 LOAD_KEY_HOLD_MS = 40
 LOAD_SETTLE_MS = 800
 BUTTON_HOLD_MS = 20
-# Virtual time the app may run past the last step, and wall-clock seconds the scenario may take past it.
+# Virtual time the app may run past the last step.
 BUDGET_MARGIN_MS = 30_000
-DEADLINE_MARGIN_S = 60
+# The wall-clock deadline: this many seconds, plus DEADLINE_FACTOR wall seconds for each virtual second of budget.
+DEADLINE_FLOOR_S = 120
+DEADLINE_FACTOR = 2
 
 MIDI_STEPS = {"midi", "note", "noteoff", "cc", "pc", "bend"}
 # The browser's pad keyboard: (row, keys from column 3).
@@ -95,11 +106,15 @@ def steps_of(script: Path) -> list[tuple[int, str, list[str]]]:
 def translate(script: Path) -> tuple[str, set[tuple[int, int]], int]:
     """The host UI script for the parity script @script, the pads its `random_colour` steps mask, and the time of
     its last step before the appended `quit`."""
+    steps = steps_of(script)
+    check_steps(script, steps)
     lines: list[str] = []
     masked: set[tuple[int, int]] = set()
     last = 0
-    for at, cmd, args in steps_of(script):
+    for at, cmd, args in steps:
         t = at + BOOT_MS
+        if cmd in NOT_INPUT:
+            continue
         if cmd in MIDI_STEPS:
             lines.append(f"{t} midi {midi_bytes(cmd, args).hex()}")
             last = max(last, t)
@@ -112,6 +127,10 @@ def translate(script: Path) -> tuple[str, set[tuple[int, int]], int]:
             lines += [f"{t} button Load down", f"{t + BUTTON_HOLD_MS} button Load up"]
             k = t + LOAD_OPEN_MS
             for ch in name:
+                if ch.upper() not in KEYS:
+                    raise ValueError(
+                        f"{script.name}: `load` cannot type {ch!r} on the pad keyboard"
+                    )
                 x, y = KEYS[ch.upper()]
                 lines += [
                     f"{k} pad {x} {y} down",
@@ -187,25 +206,97 @@ def leg_name(script: Path, card: str) -> str:
     return f"{script.stem}@{ui_script_cards.label(card)}"
 
 
-def run_leg(
-    binary: Path, script: Path, card: str, side_dir: Path, cache: Path
-) -> tuple[str, dict]:
-    """Run @script on @card with @binary, writing its snapshots to @side_dir/got/<leg>/; the leg's name and result."""
-    name = leg_name(script, card)
-    got = side_dir / "got" / name
-    text, masked, last = translate(script)
-    host = side_dir / "scripts" / f"{name}.txt"
+def deadline_s(last_ms: int) -> int:
+    """The wall-clock seconds a run whose last step is at @last_ms may take."""
+    return DEADLINE_FLOOR_S + DEADLINE_FACTOR * (last_ms + BUDGET_MARGIN_MS) // 1000
+
+
+@dataclasses.dataclass
+class Leg:
+    """One script on one card, translated and with its card's tree, or the reason it cannot run."""
+
+    name: str
+    text: str = ""
+    masked: set[tuple[int, int]] = dataclasses.field(default_factory=set)
+    last: int = 0
+    tree: Path | None = None
+    error: str | None = None
+
+
+def why(e: BaseException) -> str:
+    return f"{type(e).__name__}: {e}"
+
+
+def prepare(scripts: list[Path], cache: Path) -> list[Leg]:
+    """Every script's legs, each translated and given its card's tree once, before anything runs. A failure is the
+    leg's error, printed now, so one bad script or card fails its own legs and not the run."""
+    trees: dict[str, Path | str] = {}
+    legs = []
+    for script in scripts:
+        cards = ui_script_cards.cards(script)
+        if not cards:
+            legs.append(
+                Leg(f"{script.stem}@nocard", error="no `# card:` header names a card")
+            )
+            print(
+                f"X86-PARITY-ERROR {script.name}: no `# card:` header names a card",
+                flush=True,
+            )
+            continue
+        try:
+            text, masked, last = translate(script)
+        except Exception as e:  # noqa: BLE001 - any failure is this script's, reported as its legs'
+            text, masked, last, bad = "", set(), 0, why(e)
+            print(f"X86-PARITY-ERROR {script.name}: {bad}", flush=True)
+        else:
+            bad = None
+        for card in cards:
+            if card not in trees:
+                try:
+                    trees[card] = card_tree(card, cache)
+                except Exception as e:  # noqa: BLE001 - a card that cannot be extracted fails the legs on it
+                    trees[card] = why(e)
+                    print(f"X86-PARITY-ERROR card {card}: {trees[card]}", flush=True)
+            tree = trees[card]
+            error = bad or (f"card {card}: {tree}" if isinstance(tree, str) else None)
+            legs.append(
+                Leg(
+                    leg_name(script, card),
+                    text,
+                    masked,
+                    last,
+                    tree if isinstance(tree, Path) else None,
+                    error,
+                )
+            )
+    return legs
+
+
+def run_leg(binary: Path, leg: Leg, side_dir: Path) -> tuple[str, dict]:
+    """Run @leg with @binary, writing its snapshots to @side_dir/got/<leg>/; the leg's name and result. A leg that
+    cannot run, or whose run raises, is a failed leg with the reason as its status."""
+    if leg.error is not None:
+        return leg.name, {"status": f"error: {leg.error}"}
+    try:
+        return leg.name, run_prepared(binary, leg, side_dir)
+    except Exception as e:  # noqa: BLE001 - e.g. a missing binary: this leg failed, the others still run
+        return leg.name, {"status": f"error: {why(e)}"}
+
+
+def run_prepared(binary: Path, leg: Leg, side_dir: Path) -> dict:
+    got = side_dir / "got" / leg.name
+    host = side_dir / "scripts" / f"{leg.name}.txt"
     host.parent.mkdir(parents=True, exist_ok=True)
-    host.write_text(text)
+    host.write_text(leg.text)
     env = dict(
         os.environ,
         UI_SNAPSHOT_MIDI="1",
         GOLDEN_SCENARIO="ui_script",
         UI_SCRIPT=str(host),
         UI_SNAPSHOT_DIR=str(got),
-        UI_CARD=str(card_tree(card, cache)),
-        GOLDEN_VIRTUAL_BUDGET_MS=str(last + BUDGET_MARGIN_MS),
-        GOLDEN_SCENARIO_DEADLINE_S=str(last // 1000 + DEADLINE_MARGIN_S),
+        UI_CARD=str(leg.tree),
+        GOLDEN_VIRTUAL_BUDGET_MS=str(leg.last + BUDGET_MARGIN_MS),
+        GOLDEN_SCENARIO_DEADLINE_S=str(deadline_s(leg.last)),
     )
     t0 = time.monotonic()
     r = subprocess.run(
@@ -219,12 +310,12 @@ def run_leg(
     )
     wall = time.monotonic() - t0
     (side_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (side_dir / "logs" / f"{name}.log").write_text(
+    (side_dir / "logs" / f"{leg.name}.log").write_text(
         f"exit {r.returncode}\n--- stdout\n{r.stdout}\n--- stderr\n{r.stderr}"
     )
-    mask_state(got, masked)
+    mask_state(got, leg.masked)
     ok = r.returncode == 0 and "UI-SCRIPT-RESULT failures=0" in r.stdout
-    return name, {
+    return {
         "status": "ok" if ok else f"exit {r.returncode}",
         "wall_s": round(wall, 2),
         "snapshots": len(list(got.glob("*.state"))) if got.exists() else 0,
@@ -325,14 +416,12 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
 
 
 def run_side(
-    binary: Path, legs: list[tuple[Path, str]], side_dir: Path, cache: Path, jobs: int
+    binary: Path, legs: list[Leg], side_dir: Path, jobs: int
 ) -> dict[str, dict]:
     """Every leg on @binary into @side_dir, with @side_dir/results.json written; each leg's result by name."""
     t0 = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
-        results = dict(
-            pool.map(lambda leg: run_leg(binary, leg[0], leg[1], side_dir, cache), legs)
-        )
+        results = dict(pool.map(lambda leg: run_leg(binary, leg, side_dir), legs))
     side_dir.mkdir(parents=True, exist_ok=True)
     (side_dir / "results.json").write_text(
         json.dumps(
@@ -373,24 +462,22 @@ def main() -> int:
     scripts: list[Path] = []
     for s in a.scripts:
         scripts += sorted(s.glob("*.txt")) if s.is_dir() else [s]
-    legs = [(s, c) for s in scripts for c in ui_script_cards.cards(s)]
     cache = store / "x86-cards"
     cache.mkdir(parents=True, exist_ok=True)
-    # Extract every image once, before the parallel runs.
-    for c in sorted({c for _, c in legs}):
-        card_tree(c, cache)
+    legs = prepare(scripts, cache)
 
     out = a.out.resolve()
-    ref = run_side(a.ref.resolve(), legs, out / "ref", cache, a.j)
-    test = run_side(a.test.resolve(), legs, out / "test", cache, a.j)
+    ref = run_side(a.ref.resolve(), legs, out / "ref", a.j)
+    test = run_side(a.test.resolve(), legs, out / "test", a.j)
     (out / "ref" / "got").mkdir(parents=True, exist_ok=True)
     (out / "test" / "got").mkdir(parents=True, exist_ok=True)
     differ = compare(out / "ref" / "got", out / "test" / "got")
     (out / "diff.txt").write_text("".join(f"{p}\n" for p in differ))
 
-    for s, c in legs:
-        name = leg_name(s, c)
-        print(f"{name} ref={ref[name]['status']} test={test[name]['status']}")
+    for leg in legs:
+        print(
+            f"{leg.name} ref={ref[leg.name]['status']} test={test[leg.name]['status']}"
+        )
     ref_failed = sum(r["status"] != "ok" for r in ref.values())
     test_failed = sum(r["status"] != "ok" for r in test.values())
     print(
