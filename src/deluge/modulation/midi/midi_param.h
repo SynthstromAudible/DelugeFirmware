@@ -18,10 +18,18 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 
 class MIDIParam {
 public:
 	MIDIParam();
+	bool grabValueFromPos(uint32_t pos, int32_t loopLength) {
+		return AutoParamPlayback(param).grabValueFromPos(pos, loopLength);
+	}
+	void clearAutomation() { AutoParamOwnership(param).deleteAutomationBasicForSetup(); }
+	Error readFromFile(Deserializer& reader, int32_t limit) {
+		return AutoParamSetup(param).readFromFile(reader, limit);
+	}
 
 	uint8_t cc;
 	AutoParam param;

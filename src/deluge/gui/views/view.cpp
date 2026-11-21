@@ -73,6 +73,7 @@
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
@@ -944,7 +945,9 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 	// Perform the actual change
-	modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+	AutoParamLiveInput(*modelStackWithParam->autoParam)
+	    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, static_cast<int32_t>(modPos),
+	                                   static_cast<int32_t>(modLength));
 
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		bool noteTailsAllowedAfter =
@@ -1449,7 +1452,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}
 }

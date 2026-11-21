@@ -75,6 +75,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -1659,7 +1660,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+			modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2418,7 +2419,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+		modelStackWithParam->autoParam->automation().shiftHorizontally(offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);
@@ -2664,7 +2665,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// if they want to delete automation
 	else if (is_delete_action) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

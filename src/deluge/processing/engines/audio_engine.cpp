@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "modulation/automation/auto_param_access.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -1941,12 +1942,13 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		// before and after selecting it (issue #1591). The caller has folded in the song and kit output
 		// stages the preview skips; master FX are applied downstream in renderSongFX().
 		PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
-		previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
-		previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+		AutoParamSetup(previewParams->params[params::GLOBAL_VOLUME_POST_FX])
+		    .setCurrentValueBasicForSetup(volume.volumePostFX);
+		AutoParamSetup(previewParams->params[params::LOCAL_VOLUME]).setCurrentValueBasicForSetup(volume.localVolume);
 
 		// setupAsSample() gives the preview drum exactly one patch cable: VELOCITY -> LOCAL_VOLUME.
 		PatchCable& velocityCable = paramManagerForSamplePreview->getPatchCableSet()->patchCables[0];
-		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		AutoParamSetup(velocityCable.param).setCurrentValueBasicForSetup(volume.velocityCableDepth);
 		velocityCable.polarity = volume.velocityCablePolarity;
 
 		// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value

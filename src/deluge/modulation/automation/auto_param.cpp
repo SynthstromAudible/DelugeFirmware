@@ -75,9 +75,9 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 // The main purpose of mayDeleteNodesInLinearRun is so that it can be prevented from happening for MPE recording - even
 // though MPE will normally interpolate for internal synths, we want to preserve the original MIDI as closely as
 // possible in case they later switch it from Synth to MIDI output.
-void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
-                                                     bool shouldLogAction, int32_t livePos,
-                                                     bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void AutoParam::setValueForLiveInput(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t livePos,
+                                     bool mayDeleteNodesInLinearRun, bool doMPEMode) {
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
@@ -482,8 +482,8 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 			}
 		}
 
-		timeSinceOverrideEnd =
-		    AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
+		timeSinceOverrideEnd = static_cast<int32_t>(AudioEngine::audioSampleTimer - renewedOverridingAtTime
+		                                            - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE);
 
 		// If we overrode (turned the knob) less than 0.2s ago and are not recording, then we don't want to obey any
 		// automation at all
@@ -798,19 +798,19 @@ void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, Pa
 	// If automation still overridden (at least to some extent), limit how fast interpolation can occur
 	if (renewedOverridingAtTime) {
 
-		int32_t timeSinceOverridden =
-		    AudioEngine::audioSampleTimer - (uint32_t)renewedOverridingAtTime - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE;
+		auto time_since_overridden = static_cast<int32_t>(AudioEngine::audioSampleTimer - renewedOverridingAtTime
+		                                                  - SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE);
 
 		// If overriding was renewed aaages ago, we can just stop that.
-		if (timeSinceOverridden >= (1 << OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING)) {
+		if (time_since_overridden >= (1 << OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING)) {
 			renewedOverridingAtTime = 0;
 		}
 
 		// Or if still going...
 		else {
-			timeSinceOverridden = std::max(timeSinceOverridden, (int32_t)0);
+			time_since_overridden = std::max(time_since_overridden, (int32_t)0);
 
-			int32_t limit = timeSinceOverridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
+			int32_t limit = time_since_overridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
 			potentiallyOverrideInterpolationIncrement(limit, use_float_interpolation);
 		}
 	}
@@ -956,13 +956,13 @@ bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 	return applyValueIncrement(value_increment);
 }
 
-void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
-                                          int32_t length, bool mayDeleteNodesInLinearRun) {
+void AutoParam::setLiveValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
+                                              int32_t length, bool mayDeleteNodesInLinearRun) {
 	if (length && modelStack->timelineCounterIsSet()) {
 		setValueForRegion(pos, length, value, modelStack);
 	}
 	else {
-		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
+		setValueForLiveInput(value, modelStack, -1, mayDeleteNodesInLinearRun);
 	}
 }
 
@@ -1392,6 +1392,7 @@ void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int3
 
 	if (!startNode || !endNode) {
 		FREEZE_WITH_ERROR("E118");
+		return;
 	}
 
 	if (startNode->value != startValue) {

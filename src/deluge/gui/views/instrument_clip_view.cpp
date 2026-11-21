@@ -75,6 +75,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -1113,7 +1114,7 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 		bool isPatchCable = (modelStack->paramCollection == modelStack->paramManager->getPatchCableSetAllowJibberish());
-		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
+		modelStack->autoParam->automation().copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
 
 		if (copiedParamAutomation.nodes) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_COPIED));
@@ -1372,8 +1373,8 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	// the possibly invalid memory here doesn't accidentally
 	// equal modelStack->paramCollection.
 
-	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
-	                                          &copiedParamAutomation, isPatchCable);
+	modelStackWithAutoParam->autoParam->automation().paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
+	                                                       &copiedParamAutomation, isPatchCable);
 
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_PASTED));
 	if (playbackHandler.isEitherClockActive()) {
@@ -4812,8 +4813,8 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength, action,
-							                  stolenNodeRecord);
+							param->automation().stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
+							                               action, stolenNodeRecord);
 						}
 					}
 
@@ -5008,8 +5009,8 @@ cancelPress:
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
-							                         action, &editPadPresses[i].stolenMPE[m]);
+							param->automation().insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote,
+							                                      loopLength, action, &editPadPresses[i].stolenMPE[m]);
 						}
 					}
 				}
@@ -6840,8 +6841,8 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote, loopLength,
-							                  action, &ntm.stolenMPE[m]);
+							param->automation().stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote,
+							                               loopLength, action, &ntm.stolenMPE[m]);
 						}
 					}
 
@@ -6899,8 +6900,8 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote, loopLength,
-							                         action, &ntm.stolenMPE[m]);
+							param->automation().insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote,
+							                                      loopLength, action, &ntm.stolenMPE[m]);
 						}
 					}
 				}
@@ -8528,7 +8529,7 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][expressionDimension] << 16;
 
-			param->setValueForRegion(view.modPos, view.modLength, newValue, modelStackWithAutoParam);
+			param->automation().setValueForRegion(view.modPos, view.modLength, newValue, modelStackWithAutoParam);
 		}
 
 		dontDeleteNotesOnDepress();

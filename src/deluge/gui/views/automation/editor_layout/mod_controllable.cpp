@@ -24,6 +24,7 @@
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -757,8 +758,9 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			// use default interpolation settings
 			initInterpolation();
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
+			AutoParamLiveInput(*modelStackWithParam->autoParam)
+			    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, static_cast<int32_t>(view.modPos),
+			                                   static_cast<int32_t>(view.modLength));
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
@@ -801,8 +803,8 @@ void AutomationEditorLayoutModControllable::copyAutomation(ModelStackWithAutoPar
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->copy(startPos, endPos, getCopiedParamAutomation(), isPatchCable,
-		                                     modelStackWithParam);
+		modelStackWithParam->autoParam->automation().copy(startPos, endPos, getCopiedParamAutomation(), isPatchCable,
+		                                                  modelStackWithParam);
 
 		if (getCopiedParamAutomation()->nodes) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_COPIED));
@@ -843,8 +845,8 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
-		                                      getCopiedParamAutomation(), isPatchCable);
+		modelStackWithParam->autoParam->automation().paste(startPos, endPos, scaleFactor, modelStackWithParam,
+		                                                   getCopiedParamAutomation(), isPatchCable);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -913,27 +915,27 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
                                                                            int32_t pos, bool reversed) {
 
-	if (!modelStack->autoParam->nodes.getNumElements()) {
+	if (modelStack->autoParam->nodeCount() == 0) {
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
-		rightI = 0;
+	int32_t right_i = modelStack->autoParam->searchNodes(pos + static_cast<int32_t>(!reversed), GREATER_OR_EQUAL);
+	if (right_i >= modelStack->autoParam->nodeCount()) {
+		right_i = 0;
 	}
-	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
+	const ParamNode* right_node = modelStack->autoParam->nodeAt(right_i);
 
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += modelStack->autoParam->nodes.getNumElements();
+	int32_t left_i = right_i - 1;
+	if (left_i < 0) {
+		left_i += modelStack->autoParam->nodeCount();
 	}
-	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
+	const ParamNode* left_node = modelStack->autoParam->nodeAt(left_i);
 
 	if (reversed) {
-		return leftNode->interpolated;
+		return left_node->interpolated;
 	}
 	else {
-		return rightNode->interpolated;
+		return right_node->interpolated;
 	}
 }
 
@@ -970,16 +972,16 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
 	if (squareNodeLeftStart >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
-		                                                 kParamNodeWidth);
+		AutoParamLiveInput(*modelStack->autoParam)
+		    .setLiveValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart, kParamNodeWidth);
 	}
 
 	// create a node to the right with the current interpolation status
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+		AutoParamLiveInput(*modelStack->autoParam)
+		    .setLiveValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart, kParamNodeWidth);
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't
@@ -989,8 +991,10 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// called twice because there was a weird bug where for some reason the first call wasn't taking
 	// effect on one pad (and whatever pad it was changed every time)...super weird...calling twice
 	// fixed it...
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
+	AutoParamLiveInput(*modelStack->autoParam)
+	    .setLiveValuePossiblyForRegion(newValue, modelStack, squareStart, static_cast<int32_t>(squareWidth));
+	AutoParamLiveInput(*modelStack->autoParam)
+	    .setLiveValuePossiblyForRegion(newValue, modelStack, squareStart, static_cast<int32_t>(squareWidth));
 
 	if (!getOnArrangerView()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
@@ -1297,10 +1301,12 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 			// set value for pads in between
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
+			AutoParamLiveInput(*modelStackWithParam->autoParam)
+			    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
+			                                   static_cast<int32_t>(squareWidth));
+			AutoParamLiveInput(*modelStackWithParam->autoParam)
+			    .setLiveValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
+			                                   static_cast<int32_t>(squareWidth));
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();

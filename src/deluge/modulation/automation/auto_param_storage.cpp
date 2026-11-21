@@ -16,13 +16,13 @@
  */
 
 #include "io/debug/log.h"
-#include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_data.h"
 #include "modulation/params/param_node.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <array>
 
-void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride) {
+void AutoParamData::writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride) {
 	std::array<char, 9> buffer_storage{};
 	char* buffer = buffer_storage.data();
 
@@ -53,7 +53,7 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, const int3
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+Error AutoParamData::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
@@ -93,7 +93,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 	return readAutomationFromFile(reader, readAutomationUpToPos);
 }
 
-Error AutoParam::readAutomationFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+Error AutoParamData::readAutomationFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 	const char* hex_chars = nullptr;
 
 	// And now read in the automation
@@ -171,7 +171,7 @@ Error AutoParam::readAutomationFromFile(Deserializer& reader, int32_t readAutoma
 	return Error::NONE;
 }
 
-Error AutoParam::readLegacyAutomationEndpoint(int32_t value, bool interpolated) {
+Error AutoParamData::readLegacyAutomationEndpoint(int32_t value, bool interpolated) {
 	auto* first_node = nodes.getElement(0);
 	if (first_node != nullptr && first_node->pos == 0) {
 		return Error::NONE;
