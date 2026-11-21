@@ -112,7 +112,8 @@ Downward arrows (gui → model) are healthy. The defining problems are the
 
 ## 3. The library map
 
-Seventeen application libraries over `libdeluge`. Leaf-most at the bottom.
+Seventeen application libraries over `libdeluge`. Leaf-most at the bottom. Their directories, and the rules that
+keep each library in its layer, are `code_layout_north_star.md`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
