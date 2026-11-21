@@ -40,6 +40,7 @@ struct VoiceSlot {
 	Kernel kernel;
 	uint32_t order{};         ///< When its note started, counted across every sound's voices
 	bool just_created{false}; ///< The first render call only marks it created
+	bool unassigned{false};   ///< Its resources are freed; the render's sweep takes it out of the list
 };
 
 /// @brief A sound's voices: the only code that changes the list, always with the render excluded.

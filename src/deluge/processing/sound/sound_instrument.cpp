@@ -24,7 +24,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -344,7 +344,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 				voice.kernel.expression_event_smooth(newValue, s);
 			}
 			else {
-				voice.expression_event_immediate(newValue, s);
+				voiceExpressionImmediate(voice, newValue, s);
 			}
 		}
 	});

@@ -57,7 +57,14 @@ namespace deluge::project {
 struct ArpRecord;
 }
 
-class SoundVoice;
+namespace deluge::synth {
+struct BlockValues;
+struct NoteOnEvent;
+struct VoiceBlock;
+struct VoiceRenderArgs;
+} // namespace deluge::synth
+
+struct SoundVoice;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -130,9 +137,11 @@ struct SoundVoiceHost {
 	/// @return It, or null when the pool has no memory.
 	[[nodiscard]] SoundVoice* acquire() const;
 	/// @brief Frees @p voice's resources while it is still listed, its sound's skipping reassessed with @p modelStack.
-	static void unassign(SoundVoice& voice, Context modelStack);
-	/// @brief Destroys @p voice and returns its memory to the engine's pool.
-	static void release(SoundVoice& voice) noexcept;
+	void unassign(SoundVoice& voice, Context modelStack) const;
+	/// @brief Frees @p voice's resources once more, destroys it and returns its memory to the engine's pool.
+	void release(SoundVoice& voice) const noexcept;
+	/// @brief Rebuilds @p voice in place for a steal: its resources freed once more, then built and bound afresh.
+	void renew(SoundVoice& voice) const noexcept;
 	/// @brief Admits a voice costing @p cycles per block, which may cull another sound's voice.
 	static void admit(uint32_t cycles);
 	/// @brief A voice of the sound is about to start: its sidechain hit.
@@ -509,12 +518,52 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 protected:
+	/// @brief An immediate expression change on @p voice: @p voiceLevelValue for dimension @p s, beside the sound's
+	/// monophonic value.
+	void voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s);
 	/// @brief The sound's voices, for its kinds to change in place through the pool.
 	/// @return The pool.
 	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return voicePool_; }
 
 private:
 	friend struct SoundVoiceHost;
+
+	// --- A voice's lifecycle, reading this sound (sound_voices.cpp)
+	/// @brief Binds a new voice's source slots to its ports and to this sound's live inputs.
+	void bindVoice(SoundVoice& voice);
+	/// @brief Frees @p voice's sources and marks it for the render's sweep, then reassesses the skipping status.
+	/// @param modelStack The model stack for the reassess, or null (a song swap has none).
+	void unassignVoice(SoundVoice& voice, ModelStackWithSoundFlags* modelStack);
+	/// @brief The voice's rating in the cull order (higher is culled sooner), for this sound as it is now.
+	[[nodiscard]] uint32_t voiceRating(const SoundVoice& voice) const;
+	/// @brief Starts @p event's note on @p voice.
+	/// @return False if it cannot play and the voice must be unassigned again.
+	bool startVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, const deluge::synth::NoteOnEvent& event,
+	                    uint32_t sampleSyncLength, int32_t ticksLate);
+	/// @brief Moves @p voice's note to another, gliding as the setup says.
+	void changeVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t noteBeforeArp,
+	                     int32_t noteAfterArp, int32_t midiChannel,
+	                     std::span<const int16_t, kNumExpressionDimensions> mpe);
+	/// @brief Recomputes @p voice's phase increments for its note.
+	void calculateVoicePhaseIncrements(SoundVoice& voice, ModelStackWithSoundFlags& flags);
+	/// @brief Releases @p voice's note.
+	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed,
+	                      bool allowReleaseStage = true);
+	/// @brief Randomises @p voice's oscillator phases from the synth's noise.
+	void randomizeVoicePhases(SoundVoice& voice);
+	/// @brief Source @p s's sample zone moved under @p voice's note.
+	/// @return False if the voice must be unassigned now.
+	bool voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
+	/// @brief Renders one block of @p voice.
+	/// @return False once it has ended and must be unassigned.
+	bool renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                 const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
+	                 const deluge::synth::VoiceRenderArgs& args);
+	/// @brief What differs between this sound's voices for @p voice's render.
+	[[nodiscard]] deluge::synth::VoiceBlock voiceBlock(const SoundVoice& voice) const;
+	/// @brief @p voice's sources as this block left them, to the parameter dump (a host render's only).
+	void dumpVoiceSources(const SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                      const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg) const;
 
 	/// @brief Get the voice with the lowest priority
 	/// @return The voice with the lowest priority

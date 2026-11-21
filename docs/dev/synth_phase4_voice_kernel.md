@@ -3,7 +3,7 @@
 > **The model today:** the voice kernel is `synth_voice_lift.md`; the sound's state is the DelugeSynth state
 > (`roadmap.md`, Track A step 3). This plan records the state it was written against.
 
-> Status: **done.** The kernel is `deluge::synth::Voice` in `src/synth/voice/`, held by the app's `SoundVoice`;
+> Status: **done.** The kernel is `deluge::synth::Voice` in `src/synth/voice/`, held in the app's `SoundVoice` slot;
 > `synth_voice_lift.md` describes it as it is. Expands Phase 4 of `synth_untangling_plan.md`; builds on
 > `synth_l1_engine_architecture.md` (the engines the kernel composes, and the next arc) and the Phase-2 data plane
 > (`ControlBlock`, `VoiceParams`).

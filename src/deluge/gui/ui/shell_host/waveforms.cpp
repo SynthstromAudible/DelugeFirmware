@@ -5,7 +5,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -78,8 +78,8 @@ public:
 			sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
 				SoundVoice* newest = nullptr;
 				for (SoundVoice* voice : voices) {
-					if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
-					    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
+					if (voice->part.guides[address.source].audioFileHolder == range->getAudioFileHolder()
+					    && (newest == nullptr || voice->order > newest->order)) {
 						newest = voice;
 					}
 				}
@@ -87,8 +87,8 @@ public:
 				if (newest == nullptr || !newest->kernel.unison_parts[u].slots[address.source].active) {
 					return;
 				}
-				voice_sample = newest->ports(u, address.source).sample.voiceSample();
-				guide = &newest->guides[address.source];
+				voice_sample = newest->part.ports(u, address.source).sample.voiceSample();
+				guide = &newest->part.guides[address.source];
 			});
 		}
 		if (voice_sample == nullptr) {

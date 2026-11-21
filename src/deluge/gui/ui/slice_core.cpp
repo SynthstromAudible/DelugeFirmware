@@ -29,7 +29,7 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/sound_voice.h"
+#include "model/voice/voice_part.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -224,18 +224,18 @@ std::optional<int32_t> SliceCore::play_position() {
 		drum->voicePool().read([&](const SoundVoiceHost::List& voices) {
 			auto valid_voices_view = voices | std::views::filter([&](const SoundVoice* voice) {
 				                         // Ensure correct MultisampleRange.
-				                         return voice->guides[0].audioFileHolder == range->getAudioFileHolder();
+				                         return voice->part.guides[0].audioFileHolder == range->getAudioFileHolder();
 			                         });
 			if (valid_voices_view.empty()) {
 				return;
 			}
-			SoundVoice* voice = *std::ranges::max_element(valid_voices_view, {}, &SoundVoice::order_sounded);
+			SoundVoice* voice = *std::ranges::max_element(valid_voices_view, {}, &SoundVoice::order);
 
 			const int32_t u = drum->config().voicing.unison.count >> 1;
 			deluge::synth::SourceSlot* part = &voice->kernel.unison_parts[u].slots[0];
 			if (part != nullptr && part->active) {
-				voiceSample = voice->ports(u, 0).sample.voiceSample();
-				guide = &voice->guides[target_.sourceIndex];
+				voiceSample = voice->part.ports(u, 0).sample.voiceSample();
+				guide = &voice->part.guides[target_.sourceIndex];
 			}
 		});
 	}

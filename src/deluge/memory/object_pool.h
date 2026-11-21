@@ -121,6 +121,21 @@ public:
 		return {new (obj) T(std::forward<Args>(args)...), &recycle};
 	}
 
+	/// @brief Acquires an object default-initialised, as std::make_unique_for_overwrite builds one: an aggregate's
+	/// members without initialisers are left as the slot's bytes, where acquire() would zero the whole object first.
+	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
+	/// @returns A managed pointer to the acquired object
+	[[nodiscard]] pointer_type acquire_for_overwrite() noexcept(false) {
+		T* obj = try_pop();
+		if (obj == nullptr) {
+			obj = alloc_.allocate(1);
+		}
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+		memset(static_cast<void*>(obj), 0, sizeof(T)); // as acquire(): sim/golden builds only
+#endif
+		return {new (obj) T, &recycle};
+	}
+
 	/// @brief Clears the pool
 	void clear() {
 		while (!objects_.empty()) {
