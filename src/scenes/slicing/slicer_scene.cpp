@@ -101,6 +101,8 @@ void SlicerScene::open(std::optional<SliceFile> file, std::optional<sample_view:
 	// scene's own view. Reopened on the file it already shows, the view is kept: legacy's global is not reset between
 	// two slicer opens on the same file.
 	if (file && file == file_) {
+		// A new showing of the same view: columns an earlier showing gave up on are asked for again.
+		retry_.restart();
 		return;
 	}
 	file_ = std::move(file);
@@ -319,6 +321,9 @@ Result SlicerScene::after_render() {
 	if (std::exchange(landed_, false)) {
 		// `doSlice`'s `exitAndNeverDeleteDrum` closes the slicer with the menu and browser beneath it; the host
 		// closes those two.
+		if (ops_ != nullptr) {
+			ops_->closed();
+		}
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
@@ -473,6 +478,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	if (x == kMainCols && on && !auditioning) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
+			ops_->closed();
 		}
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		(void)r.actions.push_back(
@@ -595,6 +601,9 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 		// `close()`. `Remove` and not `Pop`, for the reason `shell/scene.h`'s note on
 		// `Action::Kind::Pop` gives: a `Popup` this scene itself raised can legally be above it by
 		// the time the router applies the action, and a blind `Pop` would take that instead.
+		if (ops_ != nullptr) {
+			ops_->closed();
+		}
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		return r;

@@ -61,6 +61,11 @@ public:
 		                                                   .on = req.on});
 	}
 	void cancel_audition() override { core_.cancel_audition(); }
+	/// The slicer closed: SLICE names nothing until the next open, which looks its file up again.
+	void closed() override {
+		sample_ = nullptr;
+		play_position_.reset();
+	}
 	/// The position `poll` read this tick: the scene asks while it renders, which walks no voices.
 	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
@@ -152,7 +157,7 @@ public:
 		slicer_scene().open(std::nullopt);
 	}
 
-	/// @return The sample the slicer is open on, or null before an open and after a release.
+	/// @return The sample the slicer is open on, or null before an open, after a close and after a release.
 	[[nodiscard]] ::Sample* sample() const { return sample_; }
 
 	[[nodiscard]] bool slicing() const { return core_.slicing(); }

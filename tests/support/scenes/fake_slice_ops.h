@@ -14,7 +14,7 @@ namespace deluge::scenes::slicing::test {
 
 /// @brief A `SliceOps` that records rather than acts.
 ///
-/// The six calls behind `SliceOps` are the ones this layer may not make (see its docstring); a fake
+/// The calls behind `SliceOps` are the ones this layer may not make (see its docstring); a fake
 /// is how the spec sees *that they were made, with what, and in what order* without a booted audio
 /// engine, a kit, or a card. Everything the scene decides on its own -- the slice table, the modes,
 /// the popup, the gate, the coalescer, the dispatch -- is real.
@@ -31,10 +31,12 @@ struct FakeOps final : SliceOps {
 	std::optional<int32_t> next_play_position{}; ///< what `play_position` answers
 	int32_t play_position_calls = 0;             ///< how many times `play_position` was called
 	int32_t cancel_audition_calls = 0;           ///< how many times `cancel_audition` was called
+	int32_t closed_calls = 0;                    ///< how many times `closed` was called
 	bool accept_commit = true;                   ///< what `begin_commit` answers
 
 	void stop_previewing() override { stop_previewing_calls++; }
 	void cancel_audition() override { cancel_audition_calls++; }
+	void closed() override { closed_calls++; }
 	void kill_voices() override { kill_voices_calls++; }
 	void restore_full_range() override { restore_calls++; }
 	void audition(const PreviewRequest& r) override { auditions.push_back(r); }

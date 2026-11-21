@@ -32,7 +32,8 @@ class Sample;
 namespace deluge::gui::ui {
 
 /// @brief The sample the slicer's host opened it on, which the waveforms port's SLICE address resolves to; null
-///        before an open and once the guest's close has released it (`releaseShellSlicerBeforeClose`).
+///        before an open, once the slicer has closed (`SliceOps::closed`), and once the guest's close has released it
+///        (`releaseShellSlicerBeforeClose`).
 [[nodiscard]] ::Sample* shellSlicedSample();
 
 /// @brief Install the host's `SliceOps` on `SlicerScene`.

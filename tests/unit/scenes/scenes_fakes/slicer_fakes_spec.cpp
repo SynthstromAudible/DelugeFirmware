@@ -86,6 +86,14 @@ Result press(SlicerScene& scene, uint8_t x, uint8_t y) {
 	return scene.handle(UiEvent{.kind = UiEvent::Kind::Pad, .x = x, .y = y, .velocity = 64, .on = true}, ctx);
 }
 
+/// @brief Press the button @p b on @p scene, as the shell hands it a press.
+Result press_button(SlicerScene& scene, deluge::ui::shell::ButtonId b) {
+	const deluge::ui::shell::ButtonSet held{};
+	const deluge::ui::PadMask pads{};
+	const UiContext ctx{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
+	return scene.handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = b}, ctx);
+}
+
 /// @brief Whether @p r removes the scene kind @p kind.
 bool removes(const Result& r, SceneKind kind) {
 	return std::ranges::any_of(r.actions,
@@ -241,6 +249,68 @@ describe slicer_fakes("slicing::SlicerScene over the ports' fakes", ${
 		scene.open(a_wav(), deluge::sample_view::ShownWaveform{.identity = kIdentity, .view = shown});
 		expect(scene.x_zoom()).to_equal(int64_t{200});
 		expect(scene.x_scroll()).to_equal(int64_t{3000});
+	});
+
+	it("reads nothing auditioned, draws no waveform, wipes nothing and plays SLOW with no ports installed", _ {
+		SlicerScene scene;
+		FakeOps ops;
+		scene.set_ops(&ops);
+		scene.open(a_wav());
+		expect(scene.on_enter(SceneId{deluge::scenes::slicing::kSlicerSceneKind, 0})).to_be_true();
+		GridRig bare;
+		render(bare, scene, 0);
+		expect(lit_main_pads(bare)).to_equal(0);
+		// With no waveform the view is one frame a column: the playhead's column is its position.
+		ops.next_play_position = 5;
+		GridRig played;
+		render(played, scene, 10);
+		expect(played.grid.at(5, 7)).not_().to_equal(RGB{});
+		expect(int32_t{played.flashes.count}).to_equal(0);
+	});
+
+	it("tells the host it closed on BACK, on the mute column's exit and on a landed slice, and keeps its file", _ {
+		SlicerScene scene;
+		FakeOps ops;
+		scene.set_ops(&ops);
+		scene.open(a_wav());
+		const Result back = press_button(scene, deluge::ui::shell::ButtonId::Back);
+		expect(removes(back, deluge::scenes::slicing::kSlicerSceneKind)).to_be_true();
+		expect(ops.closed_calls).to_equal(1);
+		expect(scene.has_sample()).to_be_true();
+
+		const Result exit = press(scene, kMuteColumn, 3);
+		expect(removes(exit, deluge::scenes::browser::kBrowserSceneKind)).to_be_true();
+		expect(ops.closed_calls).to_equal(2);
+		expect(scene.has_sample()).to_be_true();
+
+		(void)press_button(scene, deluge::ui::shell::ButtonId::SelectEnc);
+		expect(scene.committing()).to_be_true();
+		expect(ops.closed_calls).to_equal(2);
+		scene.commit_done(true);
+		const Result landed = scene.after_render();
+		expect(removes(landed, deluge::scenes::slicing::kSlicerSceneKind)).to_be_true();
+		expect(ops.closed_calls).to_equal(3);
+		expect(scene.has_sample()).to_be_true();
+	});
+
+	it("asks again for columns an earlier showing gave up on, once reopened on the same file", _ {
+		SlicerHost h;
+		h.entry().pending.set(5);
+		h.entry().pending_reads = 1000;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		for (uint32_t t = 0; t <= deluge::scenes::services::kPeakRetryGiveUpMs; t += deluge::scenes::services::kPeakRetryPollMs) {
+			GridRig rig;
+			render(rig, scene, t);
+		}
+		GridRig waiting;
+		render(waiting, scene, 400);
+		expect(waiting.gate.next_deadline().has_value()).to_be_false();
+		scene.open(a_wav());
+		GridRig reopened;
+		render(reopened, scene, 410);
+		expect(reopened.gate.next_deadline()).to_equal(std::optional<uint32_t>{410 + deluge::scenes::services::kPeakRetryPollMs});
 	});
 });
 

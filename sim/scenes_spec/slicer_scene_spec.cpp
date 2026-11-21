@@ -51,6 +51,7 @@
 /// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
 #include "gui/ui/shell_host/shell_host.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -569,6 +570,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("opens on the file the host bound: the sample's identity and its path", _ {
+		// The host takes the preview drum's file here, as the browser's held-preview door does; the open a card load
+		// binds needs the loader, which a spec process does not run, and is checked in the sample-claim scenario's
+		// slicer legs (`tests/integration/scenarios/sample_claim_scenario.cpp`).
 		Rig r;
 		slicer_scene().open(std::nullopt);
 		r.open();
@@ -581,6 +585,20 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// A guest close releases the host, and the scene holds no file the host has let go.
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
 		expect(slicer_scene().has_sample()).to_be_false();
+	});
+
+	it("names nothing at SLICE once BACK closes it on the app's host, and keeps its file for a reopen", _ {
+		Rig r;
+		deluge::gui::ui::wireShellSliceOps();
+		r.open();
+		r.tick(0);
+		const bind::WaveformAddress slice{.kind = bind::WaveformAddress::Kind::SLICE};
+		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_true();
+		r.back(true, 10);
+		r.settle(10);
+		expect(r.on_stack()).to_be_false();
+		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_false();
+		expect(slicer_scene().has_sample()).to_be_true();
 	});
 
 	it("opens zoomed out on a fresh navigator when the browser shows no preview of the sample", _ {

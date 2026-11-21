@@ -590,7 +590,7 @@ overrides `renderMainPads` only and the sidebar beneath keeps painting. The dire
 because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 * **Everything it does to the audio, the model and the card goes through `SliceOps`**: preview,
-  voices, the playhead walk, restoring the range, and `begin_commit`. The host
+  voices, the playhead walk, restoring the range, `begin_commit`, and the close (`closed`). The host
   (`gui/ui/shell_slice_ops.cpp`) performs them with `gui::ui::SliceCore`, the core legacy's `Slicer`
   drives. The commit is asynchronous: until `SlicerScene::commit_done` the scene refuses buttons and
   pads, then removes itself and the browser closes with it.
@@ -598,7 +598,9 @@ because `scenes-no-root-ui` forbids the whole word `slicer`.
   kit. Either asks the browser host to slice; the host loads the file into the preview drum
   without sounding it, and `BrowserScene::slice_ready` pushes the slicer.
 * **It holds its file as a `SliceFile`, the waveform's identity and its path**, never the sample. The SLICE address
-  resolves through the sample the host opened it on, and to nothing once a guest close has released the host.
+  resolves through the sample the host opened it on, and to nothing once the slicer closes (`SliceOps::closed`: BACK,
+  the mute column's exit, a landed slice) or a guest close releases the host. The scene keeps its file, so a reopen on
+  the same file keeps its view.
 * **It opens on the browser's preview navigator when that shows the same file**
   (`BrowserScene::shown_waveform`), as legacy's slicer draws through `waveformBasicNavigator`, which the preview
   scanned from the audio. **Reopened on the same file, it keeps its navigator**, as legacy's global

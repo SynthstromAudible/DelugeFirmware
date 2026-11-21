@@ -216,6 +216,11 @@ public:
 	/// @brief Forget a held audition, so its load sounds nothing when it lands (enter, X_ENC, Select, BACK).
 	virtual void cancel_audition() {}
 
+	/// @brief The slicer is closing: BACK, the mute column's exit, or a landed slice. The host lets the file go, so
+	///        the waveforms port's SLICE address names nothing until the next open; the scene keeps its file and view,
+	///        which a reopen on the same file draws again.
+	virtual void closed() {}
+
 	/// @return Where the first drum's newest voice on the sliced file is playing, in samples, if one is.
 	virtual std::optional<int32_t> play_position() { return std::nullopt; }
 
