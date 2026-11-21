@@ -34,14 +34,15 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 - Times are milliseconds on the harness clock: the shell's `now_ms` argument at level 2;
   golden_vt_render's virtual clock at level 3 (milliseconds since boot, the clock the app's timers run on).
 - Parsing is one dependency-free unit, `tests/harness/ui_script.{h,cpp}`
-  (`parse_script(string_view) -> FixedVector<Step, 256>`; `Step{at_ms, kind, args}`),
+  (`parse_script(string_view) -> unique_ptr<ScriptResult>`, up to 4096 steps; `Step{at_ms, kind, args}`),
   shared by levels 1-2 and compiled into the host BSP for level 3.
 - Unknown commands are errors, not warnings.
 - MIDI steps, channels 1..16: `note CH NOTE VEL`, `noteoff CH NOTE`, `cc CH NUMBER VALUE`, `pc CH PROGRAM`,
   `bend CH VALUE` (14 bits, 8192 centred), and `midi <hex bytes>` for any other message (e.g.
   `2000 midi 90 3c 64`). `tools/emu_parity.py` sends them to delugemu's DIN MIDI input; on the probe rig
   (`tools/device_parity.py`) they go to the Deluge's USB-MIDI through `amidi` on the probe host.
-  `ui_script.cpp` does not parse them.
+  `ui_script.cpp` parses only `midi HEX`, the bytes as one hex string with no spaces (`2000 midi 903c64`), which
+  golden_vt_render queues on the host's DIN MIDI input; `tools/x86_parity.py` writes every MIDI step that way.
 - Level-3 scripts also run on the real Deluge on the probe rig, through a `rig-harness` image and
   `tools/device_parity.py`, compared with delugemu (`docs/dev/device_benchmarking.md`).
 

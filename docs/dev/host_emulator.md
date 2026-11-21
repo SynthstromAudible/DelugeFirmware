@@ -89,7 +89,12 @@ python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/a02-menu
 
 A snapshot writes `<name>.oled0.pbm` and `<name>.state`; it shows the surface as the app last drew it, so a press due
 in the snapshot's own millisecond shows in the next one. A detent is 4 quadrature edges. Only the Deluge's one panel
-exists here: a script with a `board` step is skipped.
+exists here: a script with a `board` step is skipped. With `UI_SNAPSHOT_MIDI` set, a snapshot also writes
+`<name>.midi`, the DIN MIDI the app sent since the previous snapshot; `GOLDEN_SCENARIO_DEADLINE_S` (default 600) is
+the wall-clock seconds a run may take.
+
+`tools/x86_parity.py --ref BIN --test BIN --out DIR SCRIPT_OR_DIR...` plays the emulator parity scripts on two such
+binaries and lists every snapshot file they disagree on; `--worktree REV` builds a base binary to compare against.
 
 ## Scenes specs
 

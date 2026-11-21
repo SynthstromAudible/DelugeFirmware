@@ -200,8 +200,10 @@ builds only `golden-vt-render`.
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
 | device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
 | ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
+| x86-parity-tool | unit | script | unit | gate | x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on | pr | tooling | ~1s |
 | deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | pr | tooling | ~1s |
 | ui-parity | integration | script | differential | investigative | the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name | manual | tooling | ~20m |
+| x86-parity | integration | script | differential | gate | every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on | manual | tooling | ~1m |
 | ui-parity-card | integration | script | differential | investigative | the content-card parity scripts show the same panels on this image as on main's, in delugemu | manual | tooling | ~5m |
 | ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | manual | tooling | ~90s |
 | ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | manual | tooling | ~3m |
