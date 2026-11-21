@@ -63,13 +63,15 @@ concept voice_kernel = requires(K& kernel, const K& rated, plugin::VoicePriority
 ///
 /// Slots are host memory, constructed by acquire(). The list is the host's type (a vector of slot pointers it reserves,
 /// so it never moves while the render walks it). Exclusion keeps the render out while the list changes; it nests, as
-/// the instrument takes it inside its own, and is free on the audio tier.
+/// the instrument takes it inside its own, and is free on the audio tier. Context is what the host needs to free a
+/// voice's resources (its value-initialised form when the caller has none), handed through the pool's free paths.
 template <class H>
-concept voice_host = requires(H& host, H::Slot& slot, uint32_t cost) {
+concept voice_host = requires(H& host, H::Slot& slot, H::Context context, uint32_t cost) {
 	typename H::List;
 	typename H::Exclusion;
+	requires std::copyable<typename H::Context> && std::default_initializable<typename H::Context>;
 	{ host.acquire() } -> std::same_as<typename H::Slot*>; ///< null when there is no memory
-	{ host.unassign(slot) };                               ///< frees the voice's resources while it is still listed
+	{ host.unassign(slot, context) };                      ///< frees the voice's resources while it is still listed
 	{ host.release(slot) } noexcept;                       ///< destroys the slot and returns its memory
 	{ host.admit(cost) };                                  ///< the budget; may cull another sound's voice
 	{ host.voice_starting() };                             ///< a voice is about to start

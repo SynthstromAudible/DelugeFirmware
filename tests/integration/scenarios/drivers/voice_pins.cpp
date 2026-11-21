@@ -133,13 +133,14 @@ void silenceAll() {
 /// Every sounding voice after step @p step of case @p kase, one line each.
 void listVoices(std::string_view kase, int32_t step) {
 	for (const Synth& synth : g_synths) {
-		const auto& voices = synth.sound->voices();
-		for (size_t i = 0; i < voices.size(); i++) {
-			const SoundVoice& voice = *voices[i];
-			g_lines.push_back(
-			    std::format("{} {} {} {} {} {} {:08x}", kase, step, synth.name, i, voice.kernel.note_code(),
-			                std::to_underlying(voice.kernel.envelope(0).stage()), voice.priority_rating()));
-		}
+		synth.sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
+			for (size_t i = 0; i < voices.size(); i++) {
+				const SoundVoice& voice = *voices[i];
+				g_lines.push_back(
+				    std::format("{} {} {} {} {} {} {:08x}", kase, step, synth.name, i, voice.kernel.note_code(),
+				                std::to_underlying(voice.kernel.envelope(0).stage()), voice.priority_rating()));
+			}
+		});
 	}
 }
 
@@ -196,6 +197,22 @@ void cullCase(std::string_view kase, void (*cull)(size_t), int32_t times) {
 		cull(kBlockFrames);
 		listVoices(kase, step);
 	}
+	renderBlocks(1);
+}
+
+/// One voice on each synth, then two culls within one block: the second passes over the first's still-fading voice,
+/// so it takes another sound's (the cull compares sounds by the voices each would give).
+void acrossCase(std::string_view kase, void (*cull)(size_t)) {
+	silenceAll();
+	for (size_t s = 0; s < kNumSynths; s++) {
+		noteOn(s, static_cast<int32_t>(60 + s));
+		renderBlocks(1);
+	}
+	listVoices(kase, 0);
+	cull(kBlockFrames);
+	listVoices(kase, 1);
+	cull(kBlockFrames);
+	listVoices(kase, 2);
 	renderBlocks(1);
 }
 
@@ -277,12 +294,14 @@ void readersCase() {
 		const Synth* newestSynth = nullptr;
 		const SoundVoice* newest = nullptr;
 		for (const Synth& synth : g_synths) {
-			for (const auto& voice : synth.sound->voices()) {
-				if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
-					newest = voice.get();
-					newestSynth = &synth;
+			synth.sound->voicePool().read([&](const SoundVoiceHost::List& voices) {
+				for (const SoundVoice* voice : voices) {
+					if (newest == nullptr || voice->order_sounded > newest->order_sounded) {
+						newest = voice;
+						newestSynth = &synth;
+					}
 				}
-			}
+			});
 		}
 		g_lines.push_back(newest == nullptr
 		                      ? std::format("readers {} none", step)
@@ -303,13 +322,15 @@ NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 
 /// Every voice of @p sound as the record lists it, for comparing before and after a read.
 std::string voicesOf(const Sound& sound) {
-	std::string text;
-	for (const auto& voice : sound.voices()) {
-		text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
-		                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
-		                    int{voice->just_created});
-	}
-	return text;
+	return sound.voicePool().read([](const SoundVoiceHost::List& voices) {
+		std::string text;
+		for (const SoundVoice* voice : voices) {
+			text += std::format("{} {} {:08x} {};", voice->kernel.note_code(),
+			                    std::to_underlying(voice->kernel.envelope(0).stage()), voice->priority_rating(),
+			                    int{voice->just_created});
+		}
+		return text;
+	});
 }
 
 /// A note-on reads its facts between its voice walk's edits, and reading them before the walk must answer the same.
@@ -417,6 +438,8 @@ int voice_pins_main(int /*argc*/, char** /*argv*/, Io io) {
 	cullCase("kill", &AudioEngine::killOneVoice, 6);
 	cullCase("terminate", &AudioEngine::terminateOneVoice, 8);
 	cullCase("force-release", &AudioEngine::forceReleaseOneVoice, 6);
+	acrossCase("terminate-across", &AudioEngine::terminateOneVoice);
+	acrossCase("force-release-across", &AudioEngine::forceReleaseOneVoice);
 	admitCase();
 	polyLimitCase();
 	reuseCase("mono", PolyphonyMode::MONO);

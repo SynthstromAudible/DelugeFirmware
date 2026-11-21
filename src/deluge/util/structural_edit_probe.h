@@ -18,7 +18,7 @@ enum class StructuralContainer : uint8_t {
 	OUTPUT_LIST,        ///< a song's output list and hibernating-instrument list
 	DRUM_LIST,          ///< a kit's drum list
 	RENDERING_DRUMS,    ///< a kit's drums rendering now (Kit's rendering-drums set)
-	VOICES,             ///< a Sound's active voices (Sound::voices_)
+	VOICES,             ///< a Sound's active voices (Sound::voicePool_)
 	HEAP,               ///< a heap's TLSF step (crates/deluge_alloc: malloc, free, shrink, size, reclaim guard)
 	SLAB,               ///< a cluster-slab slot's claim, clear, pin, unpin or touch
 	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)

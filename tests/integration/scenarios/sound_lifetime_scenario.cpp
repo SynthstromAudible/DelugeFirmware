@@ -221,7 +221,7 @@ bool sound(Sound& s, ModControllable* mc, ArpeggiatorBase* arp, InstrumentClip* 
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, mc, clip, paramManager);
 	s.Sound::noteOn(ms, arp, kNote, zeroMPEValues);
-	if (s.voices().empty()) {
+	if (!s.hasActiveVoices()) {
 		return setupFailed("the sound never sounded");
 	}
 	return true;

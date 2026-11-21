@@ -261,7 +261,7 @@ nightly tier and both `DELUGE_SONG_CORPUS` and `DELUGE_LEGACY_CORPUS` set.
 | Tier invariants | A and C done and merged; cooperative cluster-loading pump removed; `audioRoutineLocked` retired (a tick hold, a re-entry guard and a tier check; 3 `races.txt` rows closed) | B (convert sync callers, then enforce); D (~130 "storage owner" comments); `changeInstrument`'s tick hold waits for M4 |
 | SD streaming | Rust async loader on; loader table-scan dropouts fixed | 12x queue wait under load from the FS lock; hardware ear-check |
 | Rust BSP, hardware | M5 code-complete | Hardware validation; flash-test async-SD and the libdeluge relocations |
-| Live bugs | USB-MIDI misdecode on device (fixed locally, unpushed) | Empty-preset heap corruption; `voices_` cross-tier race; E199 preview cluster; voice-output 2-tap low-pass |
+| Live bugs | USB-MIDI misdecode on device (fixed locally, unpushed) | Empty-preset heap corruption; E199 preview cluster; voice-output 2-tap low-pass |
 | Deferred | Allocator redesign, supervisor and MMU split | Gap docs: libdeluge boundary spec, component catalog, CLAP integration, SVC ABI. Backlog: immediate-mode UI |
 
 ## Merge train

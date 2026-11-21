@@ -354,6 +354,10 @@ DELUGE_STUB_FN(stub_soundInitParams, "_ZN5Sound10initParamsEP12ParamManager")
 DELUGE_STUB_FN(stub_soundSetupAsSample, "_ZN5Sound13setupAsSampleEP23ParamManagerForTimeline")
 DELUGE_STUB_FN(stub_soundCtor, "_ZN5SoundC2Ev")
 DELUGE_STUB_FN(stub_soundNoteDestroyedWithLiveVoices, "_ZN5Sound27noteDestroyedWithLiveVoicesEv")
+// A destroyed drum kills any live voices through its pool's host; the slicer's drums never sound.
+DELUGE_STUB_FN(stub_voiceHostUnassign, "_ZN14SoundVoiceHost8unassignER10SoundVoiceP24ModelStackWithSoundFlags")
+DELUGE_STUB_FN(stub_voiceHostRelease, "_ZN14SoundVoiceHost7releaseER10SoundVoice")
+DELUGE_STUB_FN(stub_voiceHostNoteEdit, "_ZN14SoundVoiceHost9note_editEv")
 DELUGE_STUB_FN(stub_audioEngineRetireDrum, "_ZN11AudioEngine6retireEP9SoundDrum")
 DELUGE_STUB_FN(
     stub_canvasDrawString,

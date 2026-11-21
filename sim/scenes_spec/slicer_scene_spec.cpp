@@ -21,15 +21,15 @@
 /// @par What is NOT covered here, and why
 ///
 ///   * **`Slicer::graphicsRoutine`, the playhead.** Its only interesting
-///     branch needs `Sound::voices()` to report a live voice, which needs a running
+///     branch needs a sound's voice pool to report a live voice, which needs a running
 ///     `AudioEngine`; `support/song_fixture.h` builds a `Song` by direct construction and never
 ///     calls `AudioEngine::init()`, so the only branch a spec can reach is "no voices, no tick
 ///     square", which asserts nothing. The scene does not port it -- see `slicer_scene.h`.
 ///   * **`Slicer::redraw`**, which is empty: a 7SEG-only hook with no body.
 ///   * **`Slicer::padAction`'s "do slice" branch** -- the voice walk, which is
 ///     `graphicsRoutine`'s walk again, needs a live voice for the same reason and is unreachable for
-///     the same reason. `Sound::voices()` reads a private `fast_vector<ActiveVoice>`
-///     (`processing/sound/sound.h`) filled only by `AudioEngine`'s voice pool, and nothing
+///     the same reason. A sound's voices (`Sound::voicePool()`, `processing/sound/sound.h`) come
+///     only from `AudioEngine`'s voice pool, and nothing
 ///     in a spec process boots one. The *arithmetic* it feeds is ported as
 ///     `SlicerScene::add_slice_at` and is compared against main's table for the same taps
 ///     (below); only the source of the number is uncovered.

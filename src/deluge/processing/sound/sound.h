@@ -68,6 +68,7 @@ class ModelStackWithModControllable;
 
 #include "effects/fx_section.h"
 #include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/voice_pool.h"
 #include <optional>
 #include <utility>
 
@@ -112,18 +113,52 @@ enum class VoiceKind : uint8_t {
 };
 inline constexpr size_t kNumVoiceKinds = 4;
 
+class Sound;
+
+/// @brief What a Sound's voice pool draws on: slots from the engine's voice pool, the render kept out by an
+/// AudioExcludedSection, and the model stack a freed voice hands its sound's skipping reassess (null when the caller
+/// has none).
+struct SoundVoiceHost {
+	using Slot = SoundVoice;
+	using List = deluge::fast_vector<SoundVoice*>;
+	using Exclusion = AudioExcludedSection;
+	using Context = ModelStackWithSoundFlags*;
+
+	Sound* sound; ///< The sound whose voices these are
+
+	/// @brief A new voice of the sound from the engine's pool.
+	/// @return It, or null when the pool has no memory.
+	[[nodiscard]] SoundVoice* acquire() const;
+	/// @brief Frees @p voice's resources while it is still listed, its sound's skipping reassessed with @p modelStack.
+	static void unassign(SoundVoice& voice, Context modelStack);
+	/// @brief Destroys @p voice and returns its memory to the engine's pool.
+	static void release(SoundVoice& voice) noexcept;
+	/// @brief Admits a voice costing @p cycles per block, which may cull another sound's voice.
+	static void admit(uint32_t cycles);
+	/// @brief A voice of the sound is about to start: its sidechain hit.
+	void voice_starting() const;
+	/// @brief After an edit of the sound's voices: its skipping reassess.
+	void voices_changed() const;
+	/// @brief The structural-edit probe's note of a voices edit.
+	static void note_edit();
+	/// @brief The engine's voice clock.
+	static deluge::synth::VoiceClock clock();
+};
+
 class Sound : public ModControllable, public virtual Voiced {
 public:
-	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
-
 	Sound();
 	~Sound() override {
-		if (!voices_.empty()) {
+		const bool liveVoices = !voicePool_.empty();
+		if (liveVoices) {
 			noteDestroyedWithLiveVoices();
 		}
 		AudioEngine::sounds.remove(this);
 		deluge::model::releaseDelayMemory(core().delay());
 		deluge::model::endStutterIfStuttering(core());
+		if (liveVoices) {
+			voicePool_.kill_all();
+		}
 	}
 
 	/// @brief The sound's effects after its voices.
@@ -151,9 +186,9 @@ public:
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
-	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
-	///       member's destructor recycles each voice, and ~SoundVoice unassigns it back into this Sound, whose
-	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
+	/// @note A destruction that finds live voices does not survive itself: the destructor's last step kills them,
+	///       and each one's unassign reaches this Sound's reassessRenderSkippingStatus(), which calls the pure virtual
+	///       getArpSettings(). The count is taken first.
 	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();
 
@@ -437,33 +472,32 @@ public:
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
-		AudioExcludedSection section; // the render adds and removes voices
-		return !voices_.empty();
+		return voicePool_.read([](const SoundVoiceHost::List& voices) { return !voices.empty(); });
 	}
 
 	/// @brief Get the number of active voices
-	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
+	[[nodiscard]] size_t numActiveVoices() const {
+		return voicePool_.read([](const SoundVoiceHost::List& voices) { return voices.size(); });
+	}
 
 	/// @brief Immediately ends all active voices
 	void killAllVoices() override;
 
-	/// @brief Get the voice with the lowest priority
-	/// @return The voice with the lowest priority
-	[[nodiscard]] const ActiveVoice& getLowestPriorityVoice() const;
-
-	/// @brief Get the voices for this sound
-	[[nodiscard]] const deluge::fast_vector<ActiveVoice>& voices() const { return voices_; }
+	/// @brief The rating of the voice the host's cull would take from this sound (pool's cull_rating()), or none.
+	/// @param skipCullFading Leaves out voices already fading at the cull rate (terminate and force-release do).
+	[[nodiscard]] std::optional<uint32_t> cullRating(bool skipCullFading) const;
+	/// @brief Culls the voice cullRating() names, freeing it when the cull stops it (pool's cull()).
+	/// @param kind How it is culled.
+	/// @param increment The release increment, for FAST_RELEASE.
+	void cull(deluge::synth::CullKind kind, uint32_t increment = 0);
+	/// @brief The sound's voices, to read through the pool with the render excluded.
+	/// @return The pool.
+	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return voicePool_; }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
 		return voiceCost_.per_block(deluge::audio::kPriorCyclesPerVoiceBlock[static_cast<size_t>(voiceKind())]);
 	}
-
-	/// @brief Releases a given voice from the Sound
-	/// @param voice The voice to release
-	/// @param modelStack The model stack to use for the release
-	/// @param erase Whether to erase the voice from the list of active voices (default: true)
-	void freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack = nullptr, bool erase = true);
 
 	// Voiced overrides
 	bool anyNoteIsOn() override;
@@ -474,7 +508,23 @@ public:
 
 	virtual const char* getName() { return nullptr; }
 
+protected:
+	/// @brief The sound's voices, for its kinds to change in place through the pool.
+	/// @return The pool.
+	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return voicePool_; }
+
 private:
+	friend struct SoundVoiceHost;
+
+	/// @brief Get the voice with the lowest priority
+	/// @return The voice with the lowest priority
+	[[nodiscard]] SoundVoice* getLowestPriorityVoice() const;
+
+	/// @brief Frees @p voice: its resources while it is still listed, then its slot, released before the list shrinks.
+	/// @param voice The voice, one of this sound's.
+	/// @param modelStack The model stack its sound's skipping reassess may need, or null.
+	void freeActiveVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack = nullptr);
+
 	/// @brief Its voices' measured cost per 128-frame block: written by the render, read by a note-on with the render
 	/// excluded.
 	deluge::audio::VoiceCost voiceCost_;
@@ -509,51 +559,30 @@ private:
 
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
-	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
+	/// @brief The sound's effects after its voices; outlives voicePool_, whose teardown reads its delay.
 	deluge::effects::FxSection fxSection_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
 	/// @brief Set by a read whose element held an arpeggiator.
 	bool arp_read_{false};
 
-	/// @brief the list of active voices for this sound
-	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.
-	// Went with a vector instead of a list so that we don't need to always allocate if
-	// we're constantly cycling between a minimum and maximum number of voices.
-	deluge::fast_vector<ActiveVoice> voices_{};
+	/// @brief What the sound's voice pool draws on; declared before it, which holds it.
+	SoundVoiceHost voiceHost_{this};
+	/// @brief The sound's voices. Only the pool edits the list, each edit inside an AudioExcludedSection (free on the
+	/// audio tier, the render walking every Sound's voices) and reported to the structural-edit probe
+	/// (util/structural_edit_probe.h).
+	deluge::instrument::VoicePool<SoundVoiceHost> voicePool_{voiceHost_};
 
-	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit runs
-	// inside an AudioExcludedSection (free on the audio tier) and reports to the structural-edit probe
-	// (util/structural_edit_probe.h).
-	using ActiveVoiceIterator = deluge::fast_vector<ActiveVoice>::iterator;
-	void publishVoice(ActiveVoice voice);
-	template <class Pred>
-	void eraseVoicesIf(Pred pred) {
-		AudioExcludedSection section; // the render walks every Sound's voices
-		noteVoicesEdit();
-		std::erase_if(voices_, pred);
-	}
-	ActiveVoiceIterator eraseVoiceAt(ActiveVoiceIterator it);
-	void clearVoices();
 	static void noteVoicesEdit();
 
-	/// @brief Re-trigger a voice already in voices_ (a MONO/LEGATO reuse, or a stolen voice), which may still be
+	/// @brief Re-trigger a voice already in voicePool_ (a MONO/LEGATO reuse, or a stolen voice), which may still be
 	///        sounding: its envelopes resume from where they are. The caller excludes the render (or is the render
 	///        itself).
-	void retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+	void retriggerVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
 	                    int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
 	                    int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel);
 
-	/// @brief Check if a voice exists in the list of active voices
-	void checkVoiceExists(const ActiveVoice& voice, const char* error) const;
-
 	/// @brief Steals a currently-in-use voice for use by another note
 	/// @return The stolen voice
-	const ActiveVoice& stealOneActiveVoice();
-
-	/// @brief Force a voice to release very quickly - will be almost instant but click-free
-	void terminateOneActiveVoice();
-
-	/// @brief Force a voice to release, or speed up its release if it's already releasing
-	void forceReleaseOneActiveVoice();
+	SoundVoice* stealOneActiveVoice();
 };

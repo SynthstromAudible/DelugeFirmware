@@ -390,7 +390,7 @@ void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
 /// opens the scene therefore erases anything placed before it, on the device as much as here. So the slices go in on
 /// the first tick, after the open.
 ///
-/// They cannot go in as a *gesture* either: the pad arm of `Slicer::padAction` that adds one walks `Sound::voices()`
+/// They cannot go in as a *gesture* either: the pad arm of `Slicer::padAction` that adds one walks a sound's voices
 /// for a live play position, which needs a running `AudioEngine` a spec process has none of --
 /// `slicer_scene_spec.cpp`'s file docstring records that as uncovered and seeds its own table through the same front
 /// door, `SlicerScene::add_slice_at` (the port of `Slicer::padAction`'s manual-slice arm in

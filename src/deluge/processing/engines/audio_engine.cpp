@@ -616,33 +616,38 @@ int audioLogLines[AUDIO_LOG_SIZE];
 int32_t numAudioLogItems = 0;
 #endif
 
+namespace {
+/// The sound whose voice the cull takes: the first with the strictly highest cullRating(), or null when no sound has
+/// a voice to give. The caller holds the render out across this and the sound's cull().
+Sound* soundToCull(const deluge::fast_vector<Sound*>& all, bool skipCullFading) {
+	Sound* best = nullptr;
+	uint32_t bestRating = 0;
+	for (Sound* sound : all) {
+		const std::optional<uint32_t> rating = sound->cullRating(skipCullFading);
+		if (rating.has_value() && (best == nullptr || bestRating < *rating)) {
+			best = sound;
+			bestRating = *rating;
+		}
+	}
+	return best;
+}
+} // namespace
+
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
 /// same render. Will stop an audio clip if there are no voices to kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
-	sounds.walk([&](const auto& sounds) {
-		auto lowest_priority_voices = sounds //<
-		                              | std::views::filter(&Sound::hasActiveVoices)
-		                              | std::views::transform(&Sound::getLowestPriorityVoice);
-		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
-			return a->priority_rating() < b->priority_rating();
-		});
-		// are there any active voices to kill?
-		if (it == lowest_priority_voices.end()) {
+	sounds.walk([&](const auto& all) {
+		AudioExcludedSection section; // the pick and the cull see the same voices
+		Sound* sound = soundToCull(all, false);
+		if (sound == nullptr) {
 			// no active voices found, try to cull an audio clip instead
 			if (currentSong) {
 				currentSong->cullAudioClipVoice();
 			}
-			// return early since there are no active voices to kill
 			return;
 		}
-
-		const Sound::ActiveVoice& voice = *it;
-
-		bool still_rendering = voice->do_immediate_release();
-		if (!still_rendering) {
-			voice->sound.freeActiveVoice(voice);
-		}
+		sound->cull(deluge::synth::CullKind::IMMEDIATE);
 
 		D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 		          getNumVoices(), getNumAudio());
@@ -652,34 +657,15 @@ void killOneVoice(size_t num_samples) {
 /// Force a voice to release very quickly - will be almost instant but not click
 void terminateOneVoice(size_t numSamples) {
 	logAction("terminate");
-	sounds.walk([&](const auto& sounds) {
-		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-
-		if (all_voices.empty()) {
+	sounds.walk([&](const auto& all) {
+		AudioExcludedSection section; // the pick and the cull see the same voices
+		// Voices already fading at the cull rate are passed over, so one already fast-releasing does not absorb every
+		// cull in the window.
+		Sound* sound = soundToCull(all, true);
+		if (sound == nullptr) {
 			return;
 		}
-
-		// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
-		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
-		const Sound::ActiveVoice* best = nullptr;
-		for (const auto& voice : all_voices) {
-			if (voice->kernel.is_cull_fading()) {
-				continue;
-			}
-			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
-				best = &voice;
-			}
-		}
-
-		if (best == nullptr) {
-			return;
-		}
-
-		const Sound::ActiveVoice& voice = *best;
-		bool still_rendering = voice->do_fast_release(2 * kSoftCullIncrement);
-		if (!still_rendering) {
-			voice->sound.freeActiveVoice(voice);
-		}
+		sound->cull(deluge::synth::CullKind::FAST_RELEASE, 2 * kSoftCullIncrement);
 
 		D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 		          getNumVoices(), getNumAudio());
@@ -689,45 +675,21 @@ void terminateOneVoice(size_t numSamples) {
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
 void forceReleaseOneVoice(size_t num_samples) {
 	logAction("force release");
-	sounds.walk([&](const auto& sounds) {
-		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-		if (all_voices.empty()) {
-			return;
-		}
-
+	sounds.walk([&](const auto& all) {
+		AudioExcludedSection section; // the pick and the cull see the same voices
 		// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has
 		// a high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
-		// musical-release tails keep stacking up.
-		const Sound::ActiveVoice* best = nullptr;
-		for (const auto& voice : all_voices) {
-			if (voice->kernel.is_cull_fading()) {
-				continue;
-			}
-			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
-				best = &voice;
-			}
-		}
-
-		if (best == nullptr) {
+		// musical-release tails keep stacking up. A voice fading more slowly than the cull rate stays eligible: its
+		// release is sped up toward that rate, so a slow fade does not linger under load.
+		Sound* sound = soundToCull(all, true);
+		if (sound == nullptr) {
 			return;
 		}
+		sound->cull(deluge::synth::CullKind::SPEED_UP);
 
-		const Sound::ActiveVoice& voice = *best;
-
-		auto stage = voice->kernel.envelope(0).stage();
-		if (stage < Envelope::Stage::FAST_RELEASE) {
-			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-			          getNumVoices(), getNumAudio());
-		}
-		else {
-			D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d",
-			          num_samples, getNumVoices(), getNumAudio());
-		}
-
-		bool still_rendering = voice->speed_up_release();
-		if (!still_rendering) {
-			voice->sound.freeActiveVoice(voice);
-		}
+		D_PRINTLN("force released or sped up the release of 1 voice.  numSamples:  %d. Voices left: %d. Audio clips "
+		          "left: %d",
+		          num_samples, getNumVoices(), getNumAudio());
 	});
 }
 
@@ -738,7 +700,7 @@ int32_t getNumAudio() {
 int32_t getNumVoices() {
 	return sounds.walk([](const auto& all) {
 		return std::transform_reduce(all.cbegin(), all.cend(), 0, std::plus{},
-		                             [](auto sound) { return sound->voices().size(); });
+		                             [](const Sound* sound) { return sound->numActiveVoices(); });
 	});
 }
 
@@ -2149,19 +2111,9 @@ void soundPreview(PreviewVolume const& volume) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-	// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
-	// may have gone a while without an audio routine call, so the first render after this sees a huge
-	// apparent load and culls.
-	//
-	// The ordering matters for a second reason: this runs off the audio tier, and the audio render preempts it on
-	// the InterruptExecutor. With the assignment after the call, the preview voice was cull-eligible for the
-	// whole duration of its own note-on -- and cullVoices -> terminateOneVoice -> freeActiveVoice() erases it
-	// from Sound::voices_ while Sound::noteOn still holds a reference to that element, which is what made the
-	// E199 assertion fire on a voice something else had removed.
-	//
-	// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
-	// is cleared every render, and the race is reachable from any note-on, not just this one); see the
-	// containment note in Sound::Sound().
+	// Set before the note-on: the browser may have gone a while without an audio routine call, so the first render
+	// after this sees a huge apparent load and culls; and the render, which preempts this caller, would otherwise find
+	// the preview's voice cull-eligible as soon as it is published. bypassCulling holds for one render only.
 	bypassCulling = true;
 	sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 }
