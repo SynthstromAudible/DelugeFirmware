@@ -28,13 +28,12 @@
 ///
 /// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose `get`/`set` hooks read and
 /// write the device **`MenuContext::midi_device`** names, through the MIDI devices port (`bind::MidiDevices`). Every
-/// other hook reads a device-wide global (`FlashStorage`, `midiEngine`, `playbackHandler`) or the context's
-/// song/sound. `midi_device` is the one `MenuContext` member `context_for()` never assigns -- the device list publishes
-/// it, through `MenuWalkState::midi_device_choice` and
-/// `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so these five are the first nodes in the tree whose value
-/// depends on a *selection the user made two pages up*. Legacy spells the same dependency as
-/// a read or write through `soundEditor`'s current cable in each of the five `readCurrentValue`/`writeCurrentValue`
-/// pairs.
+/// other settings node reads a DEVICE row through the device port, or the context's song/sound. `midi_device` is the
+/// one `MenuContext` member `context_for()` never assigns -- the device list publishes it, through
+/// `MenuWalkState::midi_device_choice` and `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so these five are
+/// the first nodes in the tree whose value depends on a *selection the user made two pages up*. Legacy spells the same
+/// dependency as a read or write through `soundEditor`'s current cable in each of the five
+/// `readCurrentValue`/`writeCurrentValue` pairs.
 ///
 /// A `ctx.midi_device` naming none (or a device the host does not know) reads 0 and writes nothing. Legacy dereferences
 /// unconditionally, because its own navigation cannot reach the page without `Devices::beginSession` having assigned

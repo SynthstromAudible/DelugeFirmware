@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-19 (the UI's ports in place, with the menu, the other scenes and the cut still to go; Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-19). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-20 (the menu on the UI's ports, with the other scenes and the cut still to go; Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-20). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -97,26 +97,64 @@ keeps the option open to put the UI behind a C ABI.
 scene's context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`,
 `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts` and `controls::Facts`; the write ports are
 `ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; `MidiDevices` carries the per-device
-settings, and a device is a `midi::DeviceId` the host registry maps to its cable. The ports speak `project::`,
+settings, and a device is a `midi::DeviceId` the host registry maps to its cable. The device's own settings are the
+DEVICE setting group (`deluge-project/device_settings.h`), read and written by row through the `DeviceSettings` port
+outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the
+settings root closes, never on a write. The ports speak `project::`,
 `plugin::`, `instrument::`, `effects::`, `controls::` and `midi::` words only. The host's implementations are in
 `src/deluge/gui/ui/shell_host/`; the fakes and the contract cases both run against are in `tests/support/scenes/`.
 The value tables the menu reads (sync and swing, note lengths, filter and mod-FX words,
 reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names) are neutral. Layer rules
 keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
 
-**Gap (measured 2026-11-19, the ratchet now).** 41 scene files outside `bind/` include 115 legacy runtime headers
-(`scenes-reads-outside-bind`). By directory: the menu 19 files / 55 includes, `services/` 6 / 25, `browser/` 4 / 8,
+**Gap (measured 2026-11-20 with `python3 scripts/check_layer_rules.py --list`).** The menu reads and writes through
+the ports: no file under `menu/` includes a legacy runtime header. 22 scene files outside `bind/` include 60
+(`scenes-reads-outside-bind`). By directory: the menu 0 files / 0 includes, `services/` 6 / 25, `browser/` 4 / 8,
 `audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `slicing/` 2 / 4, `overlay/` and `marker/` 2 / 2
-each, `rename/` and `timeline/` 1 / 1 each. Beyond those, 30 scene files include `definitions_cxx.hpp` directly
-outside `bind/`. The common reads left are the legacy `Song`, flash settings, the playback handler and the MIDI
-engine and device manager. `python3 scripts/check_layer_rules.py --list` prints the per-file counts.
+each, `rename/` and `timeline/` 1 / 1 each. Beyond those, 23 scene files outside `bind/` include
+`definitions_cxx.hpp` directly, 6 of them in the menu. The common reads left are the legacy `Song`, the playback
+handler, and the MIDI engine and device manager. `--list` prints the per-file counts.
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` layer rule (`scripts/check_layer_rules.py`), whose per-file baseline in `scripts/layer_rules_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles. R2b: the menu's remaining reads. R2c: the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp`. R2d: the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b). Left: R2c, the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = rack of lanes). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
+
+**R2c carries these from the menu:**
+
+- **The `menu::host_*` hooks** left in `scenes/menu/bind_host.h`, each retired with its callers:
+  - `host_binds`, the only place `::Song` is still declared for the scenes, for `services/` (`mod_knobs`,
+    `midi_learn`, `global_controls`, including the settings root's `context_for` caller) and `audio_clip_scene`;
+  - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
+  - `host_end_audition`, for the menu's sample and name items, the browser and the recorder;
+  - `host_waveforms`, for the menu's relevance, the audio clip view, the marker editor and the browser;
+  - `host_clear_tick_squares`, for the recorder;
+  - `host_grab_tempo` (the audio clip view), and `host_last_sample_path`, `host_release_sample_file`,
+    `host_forget_undo` and `host_favourites` (the browser).
+- **`DeviceActions`**, with the context menu's reset items.
+- **`context_for`'s `host_ports().device` fallback** moves to its callers (production passes `&host_ports()` already),
+  so `menu/context.cpp` links without the app.
+- **`relevance::audio_clip_has_sample`'s waveform read** moves behind a port, with its relevance case on fakes.
+- **`services/midi_learn.cpp`'s direct `midiEngine` read** (the global MIDI commands), with its own ratchet row.
+- **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app. Ten
+  roots name an app symbol themselves; every other menu file outside the driver depends on one of them:
+
+  | Root | What it reaches |
+  | --- | --- |
+  | `context.cpp` | `host_ports()`, the device fallback above |
+  | `relevance.cpp` | `host_waveforms()` |
+  | `nodes/sample.cpp` | `host_end_audition`, and the browser, marker editor and recorder scenes' opens |
+  | `nodes/edit_name.cpp` | `host_end_audition`, and the rename scene's open |
+  | `nodes/dx.cpp`, `nodes/output_items.cpp` | the browser scene's open |
+  | `nodes/context_menu_items.cpp` | the context menu scene's open |
+  | `nodes/settings.cpp` | `scenes::menu_scene()` (the registry, which builds every scene) |
+  | `menu_scene.cpp` | the browser and recorder scenes |
+  | `nodes/note.cpp` | `Iterance` (legacy `sequence/iterance.cpp`) |
+
+  The other scenes' opens count as the app here because those scenes still call `host_*` hooks or legacy code. Once
+  R2c clears them, R2d links the whole menu into the fakes driver.
 
 R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
 through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,

@@ -21,10 +21,9 @@
 ///           and the six `pad_colour_*` (`menu_item::Colour::value`) are DEVICE rows' nodes, which the device port
 ///           reads and writes. `pads/shortcutsVersion` selects a shortcut *layer* of this layer's own tables
 ///           (`menu::shortcuts_version`).
-///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
-///           `batteryMV` is a plain global set from `src/deluge/deluge.cpp`'s main loop, the same one
-///           `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `extern uint16_t batteryMV` reads with its own bare
-///           `extern` -- so they are real, finished `CustomItem`s; see "12-13. Battery and firmware" below.
+///           `battery_level` and `firmware_version` read the UI facts port (`UiFacts::battery_millivolts`,
+///           `UiFacts::firmware_version`), so they are real, finished `CustomItem`s; see "12-13. Battery and
+///           firmware" below.
 ///         * **UI navigation.** `cv_selection` / `gate_selection`
 ///         (`origin/main:src/deluge/gui/menu_item/cv/selection.h`,
 ///           `origin/main:src/deluge/gui/menu_item/gate/selection.h`: `Selection`s whose select press *navigates* to a

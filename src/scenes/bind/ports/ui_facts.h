@@ -1,7 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What a scene reads of the UI around it: modes, popups and display settings.
+/// @brief What a scene reads of the UI around it: audition, popups, the performance view's mode, the battery and the
+///        firmware version.
 
 #include <cstdint>
 #include <string_view>

@@ -685,6 +685,35 @@ and its undo; and `controls::Facts` for live param values. Their vocabulary is `
 
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
+* **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
+  `scenes-reads-outside-bind` rule counts none there). What the menu still asks the app for directly is the set of
+  `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes and the services share.
+
+### The DEVICE setting group
+
+The device's own settings are a setting group, `project::SettingGroupId::DEVICE`, with its own owner
+(`SettingContext::Owner::DEVICE`, `project::DeviceAddress`), so no song reader evaluates a DEVICE row.
+
+* **The rows** are `project::device_table()` (`src/deluge-project/device_settings.{h,cpp}`), with their paths as
+  typed `project::DevicePath` constants there. They cover the defaults, the pads and screen, the recording and
+  sample settings, audio (input monitoring, metronome volume, USB audio), the trigger and MIDI clocks, MIDI and MIDI
+  follow, the CV and gate outputs, the community features (`deluge-project/features.h`), the play cursor, and the stem
+  export's options. A CHOICE row's value is its choice's index; the few rows a scene branches on have a neutral
+  `enum class` (`ShortcutsVersion`, `FlashCursor`, `FavouritesLayout` and `FeedbackAutomation` beside the table,
+  `ShortcutOverlay` beside the features).
+* **A scene reads** a row through `bind::DeviceSettings::read` or `reader()` (`bind/ports/device_settings.h`), or
+  typed through `bind/device_reader.h`; the menu's bindings dispatch DEVICE nodes there without reading
+  `MenuContext::model`. A CHOICE value outside the row's choices reads clamped into them, as a choice widget shows it.
+* **A scene writes** a row through `DeviceSettings::write`, the one place a value is refused, checked against the
+  row. A DEVICE write does not go through `WriteSink` or the edit log: it is not an undoable song edit, and it works
+  with no song.
+* **The host stores them** where the device keeps them, in `gui/ui/shell_host/device_settings.cpp`: the flash
+  settings, the pad controller's play cursor, the community features, the audio engine, USB audio, the playback
+  handler's clocks, the MIDI engine and MIDI follow, MIDI transpose, the CV engine and the stem export. Its `store`
+  does what the legacy item's write did, side effects included, and answers `STORED_FOR_RESTART` for a value that
+  takes effect only after a restart.
+* **A write never saves.** The host saves the whole batch when the settings root closes
+  (`gui::ui::saveSettingsBeforeClose`). The stem export's options are DEVICE rows that nothing saves.
 * **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
   and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
