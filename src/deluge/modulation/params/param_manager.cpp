@@ -20,14 +20,17 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/tick_interpolation.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include <array>
 #include <new>
 
 ParamManager::ParamManager() {
@@ -660,6 +663,113 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
+
+namespace {
+Error resetParameterValue(ParamCollection* collection, ParamCollectionSummary* summary,
+                          ModelStackWithThreeMainThings* model_stack, int32_t id, bool create) {
+	auto* scalar = collection->getClipValueStorage(id);
+	bool existed = scalar != nullptr;
+	if ((scalar != nullptr && scalar->getOffset() == 0
+	     && collection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE)
+	    || (scalar == nullptr && !create)) {
+		return Error::NONE;
+	}
+	auto* stack = collection->getAutoParamFromId(model_stack->addParamCollectionAndId(collection, summary, id), create);
+	if (stack->autoParam == nullptr) {
+		return create ? Error::INSUFFICIENT_RAM : Error::NONE;
+	}
+	scalar = collection->getClipValueStorage(id);
+	if (scalar == nullptr) {
+		return Error::NONE;
+	}
+	int32_t old_value = existed ? stack->autoParam->getCurrentValue() : 0;
+	bool automated = stack->autoParam->isAutomated();
+	scalar->setValue(scalar->getPresetValue());
+	// Do not use the recording-sensitive control setter: this action always
+	// changes the scalar baseline, even while recording or playing.
+	if (collection->getParamKind() == deluge::modulation::params::Kind::MIDI && model_stack->timelineCounterIsSet()
+	    && !static_cast<Clip*>(model_stack->getTimelineCounter())->isActiveOnOutput()) {
+		collection->ParamCollection::notifyParamModifiedInSomeWay(stack, old_value, false, automated, automated);
+	}
+	else {
+		collection->notifyParamModifiedInSomeWay(stack, old_value, false, automated, automated);
+	}
+	return Error::NONE;
+}
+template <typename Reset>
+Error resetPatchCableValues(PatchCableSet* cables, const PatchCablePresetValues& preset, const Reset& reset) {
+	// Reset can delete zero-strength routes and reorder storage. Use stable
+	// route IDs, including routes removed since the preset was loaded.
+	std::array<int32_t, kMaxNumPatchCables * 2> ids_storage{};
+	int32_t* ids = ids_storage.data();
+	int32_t count = 0;
+	for (int32_t c = 0; c < cables->numPatchCables; ++c) {
+		auto& cable = cables->patchCables[c];
+		ids[count++] = PatchCableSet::getParamId(cable.destinationParamDescriptor, cable.from);
+	}
+	for (int32_t c = 0; c < preset.count; ++c) {
+		bool found = false;
+		for (int32_t i = 0; i < count; ++i) {
+			found |= static_cast<uint32_t>(ids[i]) == preset.entries[c].id;
+		}
+		if (!found && (preset.entries[c].value != 0)) {
+			ids[count++] = static_cast<int32_t>(preset.entries[c].id);
+		}
+	}
+	for (int32_t i = 0; i < count; ++i) {
+		Error error = reset(ids[i], *preset.find(ids[i]) != 0);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	return Error::NONE;
+}
+} // namespace
+
+Error ParamManager::resetValuesToPreset(ModelStackWithThreeMainThings* modelStack) {
+	if (modelStack->modControllable == nullptr) {
+		return Error::NONE;
+	}
+	using deluge::modulation::params::Kind;
+	modelStack->modControllable->bindPresetValues(this);
+	for (auto* summary = summaries; summary->paramCollection != nullptr; ++summary) {
+		auto* collection = summary->paramCollection;
+		auto kind = collection->getParamKind();
+		// Expression is not a preset parameter collection.
+		if (kind != Kind::PATCHED && kind != Kind::UNPATCHED_SOUND && kind != Kind::UNPATCHED_GLOBAL
+		    && kind != Kind::MIDI && kind != Kind::PATCH_CABLE) {
+			continue;
+		}
+		auto reset = [&](int32_t id, bool create) {
+			return resetParameterValue(collection, summary, modelStack, id, create);
+		};
+		if (kind == Kind::PATCH_CABLE) {
+			auto* cables = static_cast<PatchCableSet*>(collection);
+			const auto& preset =
+			    static_cast<ModControllableAudio*>(modelStack->modControllable)->getPresetPatchCableValues();
+			Error error = resetPatchCableValues(cables, preset, reset);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		else if (kind == Kind::MIDI) {
+			auto* instrument = static_cast<MIDIInstrument*>(modelStack->modControllable);
+			for (int32_t cc = 0; cc < 256; ++cc) {
+				Error error = reset(cc, instrument->getPresetMidiValue(cc) != 0);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+		}
+		else {
+			auto* set = static_cast<ParamSet*>(collection);
+			for (int32_t id = 0; id < set->getNumParams(); ++id) {
+				reset(id, false);
+			}
+		}
+	}
+	return Error::NONE;
+}
 
 // Playback summaries are maintained by the same notification path that schedules automation.
 int32_t ParamManager::getPatchedValueForRender(int32_t p) {

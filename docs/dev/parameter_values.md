@@ -143,7 +143,21 @@ rendering performance needs separate verification before release.
 
 
 
-## Song baselines
+## Resetting values and song baselines
+
+Sound Actions and Song Actions offer **Reset Param Values**, with the same
+confirmation UI as Reset Settings. Cancel leaves all values untouched. Confirm
+restores the scalar layer to its baseline without changing relative automation
+nodes, the current automation offset, or interpolation state. In a sound menu,
+this applies to the current clip or selected drum's parameter manager; it does
+not reset other clips sharing the output. Song Actions applies only to song
+parameters. This is a parameter-value reset, not a reload of sample files,
+oscillator types, or other preset configuration.
+
+Reset includes MIDI CCs and patch strengths. It removes new unautomated routes
+whose preset strength is zero and recreates missing preset routes when capacity
+permits. Automated routes retain their curves, even with a zero scalar. Expression
+parameters have no preset baseline and are excluded.
 
 The song's `GlobalEffectableForSong` owns its baseline. New songs capture their
 initialized values; loaded songs capture their saved, resolved song scalars after
@@ -158,7 +172,7 @@ song scalar, including edits or resets made during playback. Tempo encoder/tap
 edits apply the effective BPM delta to the scalar, retaining relative automation.
 Tempo undo/redo restores the scalar together with the timer period. Clock-facing
 reads clamp nonpositive automation results to 0.01 BPM without altering stored
-curves. Leaving arrangement playback forces a clock refresh.
+curves. Reset and leaving arrangement playback force a clock refresh.
 Removing tempo automation also refreshes the clock when playback is stopped.
 
 
