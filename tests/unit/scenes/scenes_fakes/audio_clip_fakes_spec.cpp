@@ -152,6 +152,13 @@ Result turn_horizontal(AudioClipScene& scene, int32_t delta) {
 	                    Context{}.get());
 }
 
+/// @brief Turn the select encoder by @p delta detents, shift up.
+Result turn_select(AudioClipScene& scene, int32_t delta) {
+	return scene.handle(
+	    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = EncoderRole::Select, .delta = static_cast<int8_t>(delta)},
+	    Context{}.get());
+}
+
 /// @brief The popup string @p r raises, or 0.
 uint16_t popup_of(const Result& r) {
 	const auto* p = std::ranges::find_if(r.actions, [](const Action& a) { return a.kind == Action::Kind::Popup; });
@@ -266,6 +273,32 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(scene.scrollable_and_zoomable()).to_be_true();
 	});
 
+	it("draws the playhead on the last column while recording linearly with no clock, or to the arrangement, and on "
+	   "the timeline's square otherwise", _ {
+		AudioClipHost h;
+		h.host.clips.playing_at[kClipId] = 48; // the timeline's square 2, at 24 ticks a column
+		h.host.clips.recording_linearly[kClipId] = true;
+		AudioClipScene scene;
+		opened(scene, h);
+		const auto tick_column = [&] {
+			GridRig rig;
+			render(rig, scene, 0);
+			return scene.last_tick_square();
+		};
+		h.host.transport.clocks = false;
+		h.host.transport.arrangement = false;
+		expect(tick_column()).to_equal(15);
+		h.host.transport.clocks = true;
+		h.host.transport.arrangement = true;
+		expect(tick_column()).to_equal(15);
+		h.host.transport.arrangement = false;
+		expect(tick_column()).to_equal(2);
+		// The arrangement's mode alone, with no take recording, keeps the timeline's square.
+		h.host.clips.recording_linearly[kClipId] = false;
+		h.host.transport.arrangement = true;
+		expect(tick_column()).to_equal(2);
+	});
+
 	it("shows the scroll position in bars and beats of the bar the model's transport magnitudes give", _ {
 		AudioClipHost h;
 		AudioClipScene scene;
@@ -314,6 +347,10 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		(void)button(scene, ButtonId::XEnc, false);
 		(void)tap(scene, 15, 2); // the end column: the end marker goes up
 		(void)tap(scene, 5, 2);  // a length edit
+		(void)tap(scene, 5, 2);  // the edge column: the end marker goes down
+		const Result turned = turn_select(scene, 1); // the track's mode
+		expect(std::ranges::any_of(turned.actions, [](const Action& a) { return a.kind == Action::Kind::RepaintAll; }))
+		    .to_be_false();
 		GridRig rig;
 		render(rig, scene, 0);
 		expect(lit_main_pads(rig)).to_equal(0);
@@ -321,9 +358,12 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(h.host.transport_actions.calls.empty()).to_be_true();
 		expect(h.host.clip_writes.calls.empty()).to_be_true();
 		expect(h.host.waveforms.reads.empty()).to_be_true();
-		// And with them installed the same clip plays live.
+		expect(h.host.writes.requests.empty()).to_be_true();
+		// And with them installed the same clip plays live, and the same turn writes the track's mode.
 		scene.set_ports(&h.ports);
 		expect(scene.next_timer()).to_equal(std::optional<uint32_t>{0});
+		(void)turn_select(scene, 1);
+		expect(h.host.writes.requests.size()).to_equal(size_t{1});
 	});
 
 	it("reads the waveform at its AUDIO_CLIP address over the clip's window in samples, and paints it with the "
