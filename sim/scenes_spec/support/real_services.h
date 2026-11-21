@@ -65,7 +65,8 @@ struct RealServices {
 			controls.emplace(shell.stack(), shell.lowering(), *learn);
 			learn->set_ports(&menu::host_ports());
 			learn->set_model(song != nullptr ? &song->project : nullptr);
-			knobs->set_song(song);
+			knobs->set_ports(&menu::host_ports());
+			knobs->set_model(song != nullptr ? &song->project : nullptr);
 			controls->set_ports(&menu::host_ports());
 			controls->set_model(song != nullptr ? &song->project : nullptr);
 			if (mod_target != nullptr && song != nullptr) {
