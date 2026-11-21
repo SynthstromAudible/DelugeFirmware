@@ -4,8 +4,9 @@ Every app script in tests/ui-scripts/app runs on each card its `# card:` header 
 the first, each of its snapshots must match its golden in tests/golden/ui/app; on every further card it must
 reproduce the first card's snapshots. The runner's own self-tests (tests/ui-scripts/selftest) pin what it does with a
 press due in a snapshot's millisecond, a snapshot before the first frame, a script that never quits and a `midi`
-step's input reaching the app. A script with a `board` step needs more panels than the Deluge has and is skipped, named. Under `./dbt test --update ui-scripts`
-each app script's snapshots on its first card are recorded as its golden instead.
+step's input reaching the app. A script with a `board` step needs more panels than the Deluge has and is skipped,
+named. Under `./dbt test --update ui-scripts` each app script's snapshots on its first card are recorded as its golden
+instead.
 
 Gate ui-scripts:
     the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock. Every script in
