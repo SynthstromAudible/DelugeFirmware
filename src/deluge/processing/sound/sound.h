@@ -482,12 +482,13 @@ public:
 	/// @brief Immediately ends all active voices
 	void killAllVoices() override;
 
-	/// @brief Get the voice with the lowest priority
-	/// @return The voice with the lowest priority
-	[[nodiscard]] SoundVoice* getLowestPriorityVoice() const;
-
-	/// @brief Get the voices for this sound
-	[[nodiscard]] const SoundVoiceHost::List& voices() const { return voices_.list(); }
+	/// @brief The rating of the voice the host's cull would take from this sound (pool's cull_rating()), or none.
+	/// @param skipCullFading Leaves out voices already fading at the cull rate (terminate and force-release do).
+	[[nodiscard]] std::optional<uint32_t> cullRating(bool skipCullFading) const;
+	/// @brief Culls the voice cullRating() names, freeing it when the cull stops it (pool's cull()).
+	/// @param kind How it is culled.
+	/// @param increment The release increment, for FAST_RELEASE.
+	void cull(deluge::synth::CullKind kind, uint32_t increment = 0);
 	/// @brief The sound's voices, to read through the pool with the render excluded.
 	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return voices_; }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
@@ -495,12 +496,6 @@ public:
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
 		return voiceCost_.per_block(deluge::audio::kPriorCyclesPerVoiceBlock[static_cast<size_t>(voiceKind())]);
 	}
-
-	/// @brief Releases a given voice from the Sound
-	/// @param voice The voice to release
-	/// @param modelStack The model stack to use for the release
-	/// @param erase Whether to erase the voice from the list of active voices (default: true)
-	void freeActiveVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack = nullptr, bool erase = true);
 
 	// Voiced overrides
 	bool anyNoteIsOn() override;
@@ -517,6 +512,16 @@ protected:
 
 private:
 	friend struct SoundVoiceHost;
+
+	/// @brief Get the voice with the lowest priority
+	/// @return The voice with the lowest priority
+	[[nodiscard]] SoundVoice* getLowestPriorityVoice() const;
+
+	/// @brief Releases a given voice from the Sound
+	/// @param voice The voice to release
+	/// @param modelStack The model stack to use for the release
+	/// @param erase Whether to erase the voice from the list of active voices (default: true)
+	void freeActiveVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack = nullptr, bool erase = true);
 
 	/// @brief Its voices' measured cost per 128-frame block: written by the render, read by a note-on with the render
 	/// excluded.

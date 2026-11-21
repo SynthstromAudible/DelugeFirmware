@@ -3205,6 +3205,14 @@ void Sound::forceReleaseOneActiveVoice() {
 	}
 }
 
+std::optional<uint32_t> Sound::cullRating(bool skipCullFading) const {
+	return voices_.cull_rating(config_.voicing.priority, skipCullFading);
+}
+
+void Sound::cull(deluge::synth::CullKind kind, uint32_t increment) {
+	voices_.cull(config_.voicing.priority, kind, increment);
+}
+
 void Sound::checkVoiceExists(const SoundVoice* voice, const char* error) const {
 	if (std::ranges::find(voices_.list(), voice) == voices_.list().end()) {
 		FREEZE_WITH_ERROR(error);
