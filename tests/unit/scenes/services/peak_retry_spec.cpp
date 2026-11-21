@@ -100,6 +100,12 @@ describe scenes_peak_retry("a view's redraws of a pending waveform", ${
 		expect(retry.after(answering(2), kScrolled, moved + kPeakRetryGiveUpMs - 1)).to_equal(PeakRetry::Next::ASK_AGAIN);
 		expect(retry.after(answering(2), kScrolled, moved + kPeakRetryGiveUpMs)).to_equal(PeakRetry::Next::GIVE_UP);
 	});
+	it("is retrying only the window its last frame read", _ {
+		PeakRetry retry;
+		(void)retry.after(answering(3), kAt, 100);
+		expect(retry.retrying(kAt)).to_be_true();
+		expect(retry.retrying(kScrolled)).to_be_false();
+	});
 	it("with no give-up, asks again for as long as a column is pending", _ {
 		PeakRetry retry{PeakRetry::Patience::UNTIL_ANSWERED};
 		expect(retry.after(answering(3), kAt, 100)).to_equal(PeakRetry::Next::ASK_AGAIN);

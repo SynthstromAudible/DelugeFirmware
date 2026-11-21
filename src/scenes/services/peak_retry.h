@@ -45,6 +45,11 @@ public:
 	}
 	/// @brief Whether a redraw is under way: a read left columns pending since the last restart or complete read.
 	[[nodiscard]] constexpr bool retrying() const { return best_.has_value(); }
+	/// @brief Whether a redraw of @p window is under way: a frame read at another window starts over, so a redraw of
+	///        the last window does not carry to it.
+	[[nodiscard]] constexpr bool retrying(sample_view::Window window) const {
+		return best_.has_value() && window_ == window;
+	}
 	/// @brief Whether it stopped drawing again.
 	[[nodiscard]] constexpr bool gave_up() const { return given_up_; }
 	/// @brief Judge one frame's read of @p window at @p now_ms.

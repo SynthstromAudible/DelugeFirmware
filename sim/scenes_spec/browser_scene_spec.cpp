@@ -1203,6 +1203,32 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
 	});
 
+	it("counts a zoomed view's first frame as no redraw of the last view, and its whole read as no completed redraw", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample(16);
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		for (int32_t i = 16; i < 32; i++) {
+			sample->overviewCacheEntry(static_cast<uint32_t>(i)).investigated = true;
+		}
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		r.horizontal(1); // the zoomed view's first frame, read whole
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
+		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
+		expect(s.redraws - before.redraws).to_equal(0);
+		expect(s.complete - before.complete).to_equal(0);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
 	it("drops a pending redraw when the preview gives its sample up", _ {
 		CleanBrowser clean;
 		ScratchCard card;
