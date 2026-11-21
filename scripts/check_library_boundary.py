@@ -247,6 +247,11 @@ LIBRARIES: dict[str, Library] = {
             "serialization/",
             "music-theory/",
             "foundation/panic.h",
+            # fallible allocation without exceptions, shared with the app (a model container is a TryVector)
+            "foundation/alloc_error.h",
+            "foundation/oom.h",
+            "foundation/fallible_allocator.h",
+            "foundation/try_vector.h",
         ),
     ),
     "controls": Library(
