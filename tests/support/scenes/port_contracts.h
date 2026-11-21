@@ -264,6 +264,26 @@ namespace deluge::scenes::bind::contract {
 	return flipped && t.metronome_on() == was;
 }
 
+/// @brief The navigation is stable across two calls, and a zoom it gives is at least one tick.
+[[nodiscard]] inline bool clip_navigation_is_stable(const ClipFacts& clips) {
+	const std::optional<ClipNavigation> a = clips.clip_navigation();
+	return a == clips.clip_navigation() && (!a || a->x_zoom >= 1);
+}
+
+/// @brief The arrangement mode is stable, and recording to the arrangement implies it.
+[[nodiscard]] inline bool arrangement_mode_is_stable(const Transport& t) {
+	const bool a = t.arrangement_mode();
+	return a == t.arrangement_mode() && (t.recording() != TransportRecording::ARRANGEMENT || a);
+}
+
+/// @brief A tempo grab on a clip that is not an audio clip leaves the transport as it was.
+[[nodiscard]] inline bool grab_tempo_off_an_audio_clip_does_nothing(TransportActions& actions, const Transport& t,
+                                                                    project::ClipAddress not_audio) {
+	const bool playing = t.playing();
+	actions.grab_tempo(not_audio);
+	return t.playing() == playing;
+}
+
 /// @brief The foreground recorder's source is one of the four.
 [[nodiscard]] inline bool foreground_recording_is_a_source(const AudioFacts& audio) {
 	const ForegroundRecording f = audio.foreground_recording();

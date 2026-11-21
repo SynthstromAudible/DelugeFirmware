@@ -1,5 +1,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host/shell_host.h"
+#include "model/clip/audio_clip.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -45,6 +46,12 @@ public:
 	void fill(bool on) override {
 		if (currentSong != nullptr) {
 			currentSong->changeFillMode(on);
+		}
+	}
+	void grab_tempo(project::ClipAddress clip) override {
+		// `AudioClipView::padAction`'s TEMPO_ENC arm (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
+		if (::AudioClip* audio = audio_clip_at(clip)) {
+			playbackHandler.grabTempoFromClip(audio);
 		}
 	}
 };

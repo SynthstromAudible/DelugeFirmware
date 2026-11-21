@@ -107,6 +107,7 @@ struct FakeClipFacts final : ClipFacts {
 	std::map<uint32_t, bool> recording_linearly;   ///< what `clip_recording_linearly` answers, by clip id
 	std::pair<int64_t, int64_t> samples{0, 0};     ///< what `audio_clip_samples` answers for a clip in `audio_clips`
 	std::optional<IsomorphicKeyboard> keyboard;    ///< what `isomorphic_keyboard` answers
+	std::optional<ClipNavigation> navigation;      ///< what `clip_navigation` answers
 	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress clip) const override;
 	[[nodiscard]] bool clip_playing(project::ClipAddress clip) const override;
 	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress clip) const override;
@@ -115,6 +116,7 @@ struct FakeClipFacts final : ClipFacts {
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
 	[[nodiscard]] std::optional<IsomorphicKeyboard> isomorphic_keyboard() const override { return keyboard; }
+	[[nodiscard]] std::optional<ClipNavigation> clip_navigation() const override { return navigation; }
 };
 
 /// @brief TrackFacts a spec sets directly.
@@ -336,6 +338,7 @@ struct FakeTransport final : Transport {
 	bool undo_ok{false};                              ///< what `undo_allowed` answers
 	bool overdubs{false};                             ///< what `overdubs_pending` answers
 	int32_t count_in{0};                              ///< what `count_in_visual` answers
+	bool arrangement{false};                          ///< what `arrangement_mode` answers
 	[[nodiscard]] bool playing() const override { return is_playing; }
 	[[nodiscard]] bool clocks_active() const override { return clocks; }
 	[[nodiscard]] TransportRecording recording() const override { return mode; }
@@ -343,6 +346,7 @@ struct FakeTransport final : Transport {
 	[[nodiscard]] bool undo_allowed() const override { return undo_ok; }
 	[[nodiscard]] bool overdubs_pending() const override { return overdubs; }
 	[[nodiscard]] int32_t count_in_visual() const override { return count_in; }
+	[[nodiscard]] bool arrangement_mode() const override { return arrangement; }
 };
 
 /// @brief TransportActions that records every action, in order. When @ref transport is set, PLAY and the metronome
@@ -364,9 +368,11 @@ struct RecordingTransportActions final : TransportActions {
 			END_RECORDING_SOON,                ///< end_recording_soon
 			STOP_OUTPUT_RECORDING_AT_LOOP_END, ///< stop_output_recording_at_loop_end
 			FILL,                              ///< fill
+			GRAB_TEMPO,                        ///< grab_tempo
 		};
-		Kind kind{Kind::PLAY}; ///< which action it was
-		bool flag{false};      ///< TAP_TEMPO's normal, UNDO's redo, FILL's on
+		Kind kind{Kind::PLAY};       ///< which action it was
+		bool flag{false};            ///< TAP_TEMPO's normal, UNDO's redo, FILL's on
+		project::ClipAddress clip{}; ///< GRAB_TEMPO's clip
 		bool operator==(const Call&) const = default;
 	};
 	std::vector<Call> calls;           ///< every action, in order
@@ -385,6 +391,9 @@ struct RecordingTransportActions final : TransportActions {
 		calls.push_back({.kind = Call::Kind::STOP_OUTPUT_RECORDING_AT_LOOP_END});
 	}
 	void fill(bool on) override { calls.push_back({.kind = Call::Kind::FILL, .flag = on}); }
+	void grab_tempo(project::ClipAddress clip) override {
+		calls.push_back({.kind = Call::Kind::GRAB_TEMPO, .clip = clip});
+	}
 };
 
 /// @brief MidiFeedback a spec sets directly, and every send, in order.

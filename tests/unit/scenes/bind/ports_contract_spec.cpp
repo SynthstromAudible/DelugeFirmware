@@ -168,6 +168,28 @@ private:
 	test::FakeUiFacts& ui_;
 };
 
+/// @brief A broken transport-actions port: a tempo grab starts the transport fake playing, whatever clip it names.
+class PlayingTempoGrab final : public TransportActions {
+public:
+	explicit PlayingTempoGrab(test::FakeTransport& transport) : transport_{transport} {}
+	void play() override {}
+	void record() override {}
+	void tap_tempo(bool) override {}
+	void toggle_metronome() override {}
+	void clear_tempo_automation() override {}
+	void show_swing_interval() override {}
+	void show_tempo() override {}
+	void undo(bool) override {}
+	void begin_output_recording() override {}
+	void end_recording_soon() override {}
+	void stop_output_recording_at_loop_end() override {}
+	void fill(bool) override {}
+	void grab_tempo(deluge::project::ClipAddress) override { transport_.is_playing = true; }
+
+private:
+	test::FakeTransport& transport_;
+};
+
 } // namespace
 
 // clang-format off
@@ -223,6 +245,19 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.clips->clip_playing(deluge::project::ClipAddress{.clip_id = 5})).to_be_true();
 		expect(p.clips->clip_live_pos(deluge::project::ClipAddress{.clip_id = 5})).to_equal(96);
 		expect(contract::unknown_clip_is_silent(*p.clips, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
+	});
+	it("answers the clip navigation as the spec set it, none by default, and holds its contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.clips->clip_navigation().has_value()).to_be_false();
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+		const ClipNavigation set{.x_scroll = 96, .x_zoom = 6, .triplets_on = true, .triplets_level = 8};
+		host.clips.navigation = set;
+		expect(p.clips->clip_navigation()).to_equal(std::optional{set});
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+		// A zoom of no ticks breaks it.
+		host.clips.navigation->x_zoom = 0;
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_false();
 	});
 	it("answers the tracks as the spec set them, and an unknown chain as having no effects", _ {
 		test::FakeHost host;
@@ -519,6 +554,17 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.transport->undo_allowed()).to_be_true();
 		expect(p.transport->overdubs_pending()).to_be_true();
 		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
+		// Recording to the arrangement with the arrangement's mode off breaks the arrangement case.
+		expect(p.transport->arrangement_mode()).to_be_false();
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_false();
+		host.transport.arrangement = true;
+		expect(p.transport->arrangement_mode()).to_be_true();
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+		host.transport.mode = TransportRecording::NORMAL;
+		host.transport.arrangement = false;
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+		host.transport.mode = TransportRecording::ARRANGEMENT;
+		host.transport.arrangement = true;
 
 		expect(contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
 		expect(p.transport->playing()).to_be_false();
@@ -534,6 +580,9 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		p.transport_actions->end_recording_soon();
 		p.transport_actions->stop_output_recording_at_loop_end();
 		p.transport_actions->fill(true);
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(*p.transport_actions, *p.transport,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_true();
 		using Call = test::RecordingTransportActions::Call;
 		using K = Call::Kind;
 		const std::vector<Call> expected{
@@ -550,6 +599,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		    {.kind = K::END_RECORDING_SOON},
 		    {.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END},
 		    {.kind = K::FILL, .flag = true},
+		    {.kind = K::GRAB_TEMPO, .clip = deluge::project::ClipAddress{.clip_id = 9}},
 		};
 		expect(host.transport_actions.calls).to_equal(expected);
 
@@ -559,6 +609,16 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::metronome_toggles_read_back(unwired, still)).to_be_false();
 		unwired.play();
 		expect(still.is_playing).to_be_false();
+
+		// A tempo grab that starts the transport breaks the tempo-grab case; the recorder keeps it.
+		PlayingTempoGrab grabbing{still};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(grabbing, still,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_false();
+		still.is_playing = false;
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(unwired, still,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_true();
 	});
 	it("answers the foreground recorder's source and resampling as the spec set them, and records forgetting undo", _ {
 		test::FakeHost host;

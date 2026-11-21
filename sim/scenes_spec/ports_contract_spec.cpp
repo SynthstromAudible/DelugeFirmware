@@ -34,6 +34,8 @@
 #include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
 #include "music-theory/preset_scales.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
@@ -255,6 +257,9 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			    .to_equal(currentSong != nullptr && currentSong->hasAnyPendingNextOverdubs());
 			expect(p.transport->metronome_on()).to_equal(playbackHandler.metronomeOn);
 			expect(p.transport->count_in_visual()).to_equal(playbackHandler.count_in_visual());
+			expect(p.transport->arrangement_mode()).to_equal(currentPlaybackMode == &arrangement);
+			// The spec process records nothing to the arrangement, so the case's second clause holds trivially here.
+			expect(bind::contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
 			if (p.transport_actions != nullptr) {
 				// Two toggles, each with its popup, leave the metronome as the other specs found it.
 				expect(bind::contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
@@ -301,6 +306,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			// A clip id the default card's song does not hold.
 			expect(bind::contract::unknown_clip_is_silent(*p.clips, deluge::project::ClipAddress{.clip_id = 0xFFFF'FFF0}))
 			    .to_be_true();
+			expect(bind::contract::clip_navigation_is_stable(*p.clips)).to_be_true();
 		}
 		if (p.clip_writes != nullptr) {
 			// A clip id the default card's song does not hold.
@@ -359,6 +365,41 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			           *p.tracks, deluge::project::ChainAddress{deluge::project::ChainAddress::Kind::OUTPUT, 0xFFFF'FFF0}))
 			    .to_be_true();
 		}
+	});
+	it("answers the song's clip navigation, the arrangement's mode, and a tempo grab off an audio clip as nothing", _ {
+		const bind::Ports& p = menu::host_ports();
+		Song* const saved_song = currentSong;
+		PlaybackMode* const saved_mode = currentPlaybackMode;
+		spec::SongFixture synth = spec::make_synth_song(); // made current
+		synth.song->persistentView.xScroll[NAVIGATION_CLIP] = 96;
+		synth.song->persistentView.xZoom[NAVIGATION_CLIP] = 6;
+		synth.song->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = 4242;
+		synth.song->persistentView.xZoom[NAVIGATION_ARRANGEMENT] = 99;
+		synth.song->persistentView.tripletsOn = true;
+		synth.song->persistentView.tripletsLevel = 8;
+		expect(p.clips->clip_navigation())
+		    .to_equal(std::optional{bind::ClipNavigation{.x_scroll = 96, .x_zoom = 6, .triplets_on = true, .triplets_level = 8}});
+		expect(bind::contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+
+		currentPlaybackMode = &arrangement;
+		expect(p.transport->arrangement_mode()).to_be_true();
+		expect(bind::contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+		currentPlaybackMode = &session;
+		expect(p.transport->arrangement_mode()).to_be_false();
+		expect(bind::contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+
+		// The fixture's clip is a synth clip: the grab finds no audio clip, and the tempo stays.
+		const uint64_t tempo = synth.song->project.transport.samples_per_timer_tick_big;
+		expect(bind::contract::grab_tempo_off_an_audio_clip_does_nothing(
+		           *p.transport_actions, *p.transport, deluge::project::ClipAddress{.clip_id = synth.clip->id()}))
+		    .to_be_true();
+		expect(synth.song->project.transport.samples_per_timer_tick_big).to_equal(tempo);
+
+		spec::make_current(nullptr);
+		expect(p.clips->clip_navigation().has_value()).to_be_false();
+		expect(bind::contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+		currentPlaybackMode = saved_mode;
+		spec::make_current(saved_song);
 	});
 	it("keeps the device's settings where the device keeps them, and puts back what it wrote", _ {
 		const bind::Ports& p = menu::host_ports();
