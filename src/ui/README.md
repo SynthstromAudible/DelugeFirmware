@@ -273,7 +273,7 @@ which byte-compares, so a fix changes the port and the oracle together.
 
 ## Known gaps
 
-- The OLED `waveform` widget: it needs the model-side `WaveformRenderData`, so it waits for a
-  sample-view scene. `WaveformState` in `core/state.h` is reserved for it.
+- The OLED `waveform` widget: it would draw a waveform's columns (`sample_view::PeakRead`), and waits
+  for a scene that shows a waveform on the OLED. `WaveformState` in `core/state.h` is reserved for it.
 - Native keyboard layouts and control columns: the legacy `KeyboardLayout`/`ControlColumn`
   classes still render through the `grid/keyboard.h` bridges.

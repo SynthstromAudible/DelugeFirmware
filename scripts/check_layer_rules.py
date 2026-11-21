@@ -96,23 +96,17 @@ STEM_EXPORT_PROCESS_CALLS = (
     "stopStemExportProcess",
     "abortStemExportProcess",
 )
-# The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
-# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global the source really declares.
-# Both were taken from their `extern` declarations, not from memory:
-# `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`) and
-# `extern WaveformBasicNavigator waveformBasicNavigator` (`gui/waveform/waveform_basic_navigator.h`).
+# The `scenes-no-legacy-waveform` row's alternative, named here for the same reason
+# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks it is a global the source really declares, from its
+# `extern` declaration: `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`).
 #
-# `gui/waveform/` is split in two: the *arithmetic* (peak scanning, the scroll/zoom
-# navigator) moved verbatim to `model/sample/waveform_scan.h` and
-# `model/sample/waveform_navigator.h`, where `src/scenes` may reach it, while the *drawing* stayed
-# behind in `gui/waveform/waveform_renderer.h`, which the scenes layer draws for itself through
-# `ui/grid/markers.h`. This row is what keeps the split split. It is a SYMBOL row for the same
-# reason `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a
-# regression would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
-LEGACY_WAVEFORM_GLOBALS = (
-    "waveformRenderer",
-    "waveformBasicNavigator",
-)
+# The waveform's arithmetic (columns, peaks, scroll and zoom) is `src/sample-view/`'s, and its scan is
+# `model/sample/waveform_scan.h`'s, both of which `src/scenes` may reach; the drawing into `PadLEDs`'
+# images stays in `gui/waveform/waveform_renderer.h`, which the scenes layer draws around through
+# `ui/grid/`. This row is what keeps the split split. It is a SYMBOL row for the same reason
+# `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a regression
+# would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
+LEGACY_WAVEFORM_GLOBALS = ("waveformRenderer",)
 # The `FileCatalogue` entry points that DISPATCH a listing -- they read the card, refill or
 # re-order the single shared `FileCatalogue::fileItems`, and so may only be called while the
 # catalogue's single-flight claim is held (`storage/file_catalogue.h`, `claim`/`release`). The

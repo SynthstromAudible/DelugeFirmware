@@ -29,6 +29,15 @@ struct IsomorphicKeyboard {
 	bool operator==(const IsomorphicKeyboard&) const = default;
 };
 
+/// @brief Where the clip view's timeline was left: the song's clip navigation, which every clip view shares.
+struct ClipNavigation {
+	int32_t x_scroll{0};        ///< the first tick shown
+	uint32_t x_zoom{0};         ///< ticks per square
+	bool triplets_on{false};    ///< the triplets view is on
+	uint32_t triplets_level{0}; ///< the triplets view's level, in ticks
+	bool operator==(const ClipNavigation&) const = default;
+};
+
 /// @brief A clip's facts, answered by the host.
 class ClipFacts {
 public:
@@ -51,6 +60,9 @@ public:
 	/// @brief The keyboard screen's isomorphic layout under the menu: its state when the root UI is the keyboard on
 	/// that layout, else none.
 	[[nodiscard]] virtual std::optional<IsomorphicKeyboard> isomorphic_keyboard() const = 0;
+	/// @brief The song's clip navigation: the scroll, the zoom and the triplets view every clip view starts from.
+	/// @return The navigation; none with no song.
+	[[nodiscard]] virtual std::optional<ClipNavigation> clip_navigation() const = 0;
 };
 
 } // namespace deluge::scenes::bind

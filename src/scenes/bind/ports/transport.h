@@ -36,6 +36,8 @@ public:
 	/// @brief The count-in's digit while a recording counts in.
 	/// @return The digit; 0 when no count-in shows.
 	[[nodiscard]] virtual int32_t count_in_visual() const = 0;
+	/// @brief Whether the playback mode is the arrangement's.
+	[[nodiscard]] virtual bool arrangement_mode() const = 0;
 };
 
 } // namespace deluge::scenes::bind

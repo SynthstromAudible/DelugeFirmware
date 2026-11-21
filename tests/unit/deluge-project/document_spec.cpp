@@ -1,5 +1,6 @@
 #include "controls_test_plugins.h"
 #include "deluge-project/document.h"
+#include "deluge-project/song.h"
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
@@ -54,6 +55,14 @@ describe document("the model's parts of a whole song", ${
 		SongDocument b = through_json(a);
 		expect(b).to_equal(a);
 		expect(write_json(encode_song(b, "c1.0.0", deluge::project::test::test_plugins()))).to_equal(write_json(encode_song(a, "c1.0.0", deluge::project::test::test_plugins())));
+	});
+
+	it("resolves a clip it holds through a const song, and none for another id", _ {
+		Song song;
+		DocClip& held = song.clip_structure.getOrCreate(7);
+		const Song& read = song;
+		expect(read.resolveClip(ClipAddress{.clip_id = 7})).to_equal(static_cast<const DocClip*>(&held));
+		expect(read.resolveClip(ClipAddress{.clip_id = 8})).to_be_null();
 	});
 
 	it("reads every record of the song", _ {

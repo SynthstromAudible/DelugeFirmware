@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Moved out of gui/waveform/waveform_renderer.cpp unchanged -- see waveform_scan.h for why.
-
 #include "model/sample/waveform_scan.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
@@ -25,179 +23,74 @@
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_peak_math.h"
-#include "model/sample/waveform_render_data.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 #include "sync/sd_access.h"
 #include <algorithm>
-#include <iterator>
+#include <optional>
 
 namespace deluge::sample {
 
-namespace {
-
-// Slides the cached per-column peak data when the waveform scrolls horizontally by a whole number of
-// columns (fix A, issue #4460). After the shift, new column `i` holds what old column `i + shift` held,
-// so only the columns scrolled freshly into view need re-investigating (marked un-investigated here).
-void shiftRenderCache(WaveformRenderData& data, int32_t shift) {
-	if (shift == 0) {
-		return;
-	}
-	if (std::abs(shift) >= kDisplayWidth) {
-		std::ranges::fill(data.colStatus, COL_STATUS_NOT_INVESTIGATED);
-		return;
+sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sample_view::Window at,
+                                   sample_view::ColumnMask wanted) {
+	if (at.zoom < 1) {
+		return sample_view::PeakRead::all_past_end();
 	}
 
-	auto slide = [shift](auto& array) {
-		if (shift > 0) {
-			std::shift_left(std::begin(array), std::end(array), shift);
-		}
-		else {
-			std::shift_right(std::begin(array), std::end(array), -shift);
-		}
-	};
-	slide(data.colStatus);
-	slide(data.minPerCol);
-	slide(data.maxPerCol);
-
-	// Mark the freshly-exposed columns (left behind by the shift) as needing investigation.
-	if (shift > 0) {
-		std::fill_n(std::end(data.colStatus) - shift, shift, uint8_t{COL_STATUS_NOT_INVESTIGATED});
-	}
-	else {
-		std::fill_n(std::begin(data.colStatus), -shift, uint8_t{COL_STATUS_NOT_INVESTIGATED});
-	}
-}
-
-} // namespace
-
-// Value out of 255
-int32_t col_brightness_for_single_row(int32_t xDisplay, int32_t maxPeakFromZero, const WaveformRenderData* data) {
-
-	int32_t peak1 = std::abs(data->minPerCol[xDisplay]);
-	int32_t peak2 = std::abs(data->maxPerCol[xDisplay]);
-
-	int32_t peakHere = std::max(peak1, peak2);
-
-	if (false && peakHere >= maxPeakFromZero) {
-		D_PRINTLN("peak:  %d  but max:  %d", peakHere, maxPeakFromZero);
-	}
-
-	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
-
-	return std::min<int32_t>(peak16 >> 8, 256); // Max 256 - for now. Looks great and bright.
-	                                            // Must manually limit this, cos if we've ended up with values higher
-	                                            // than our maxPeakFromZero, there'd be trouble otherwise
-}
-
-// Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
-bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples, WaveformRenderData* data,
-                        SampleRecorder* recorder, int32_t xStart, int32_t xEnd) {
-
-	uint64_t numValidSamples;
-	int32_t endClusters;
+	uint64_t num_valid_samples = 0;
+	int32_t endClusters = 0;
 	if (recorder) {
-		numValidSamples = recorder->numSamplesCaptured;
+		num_valid_samples = recorder->numSamplesCaptured;
 		// The overview cache's own physical size, NOT stream().num_clusters(): that count is now
 		// derived from the live recorder's captured-cluster count, which can exceed the (un-grown
 		// during recording) overview cache -- see OverviewCacheEntry's docs. Bounding on the
 		// cache's own size keeps every entry(clusterIndexToDo) index below in-bounds by construction.
-		endClusters = static_cast<int32_t>(sample->overviewCacheSize());
+		endClusters = static_cast<int32_t>(sample.overviewCacheSize());
 	}
 	else {
-		numValidSamples = sample->lengthInSamples;
-		endClusters = sample->getFirstClusterIndexWithNoAudioData();
+		num_valid_samples = sample.lengthInSamples;
+		endClusters = sample.getFirstClusterIndexWithNoAudioData();
 	}
 
-	uint64_t numValidBytes = numValidSamples * sample->byteDepth * sample->numChannels;
+	const uint64_t numValidBytes = num_valid_samples * sample.byteDepth * sample.numChannels;
 
-	bool lengthChanged = static_cast<int64_t>(numValidSamples) != data->validLengthSamples;
-	if (recorder != nullptr) {
-		// During recording the waveform grows every frame. A monotonic append leaves already-investigated
-		// columns valid (the growing edge is re-checked below because only COL_STATUS_INVESTIGATED columns are
-		// skipped), so don't nuke the whole cache each frame just because the length ticked up (#4460).
-		lengthChanged = false;
-	}
-	if (xZoomSamples != data->xZoom || lengthChanged) {
-		// Zoom changed, or (off the record path) the waveform length changed (e.g. sample replaced/shrunk):
-		// nothing is reusable.
-		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
-	}
-	else if (xScrollSamples != data->xScroll) {
-		// Scroll changed but zoom and length didn't. If we moved by a whole number of columns that fits the
-		// display width, the overlapping columns' peaks are still valid - slide them across so only the
-		// newly-exposed columns get re-investigated (fix A, issue #4460). Otherwise fall back to a full
-		// invalidate (this also covers a scroll delta so large the column count wouldn't fit in int32).
-		int64_t deltaSamples = xScrollSamples - data->xScroll;
-		int64_t shiftCols = (deltaSamples % static_cast<int64_t>(xZoomSamples) == 0)
-		                        ? deltaSamples / static_cast<int64_t>(xZoomSamples)
-		                        : 0;
-		if (shiftCols != 0 && shiftCols >= -kDisplayWidth && shiftCols <= kDisplayWidth) {
-			shiftRenderCache(*data, static_cast<int32_t>(shiftCols));
-		}
-		else {
-			std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
-		}
-	}
-
-	data->xScroll = xScrollSamples;
-	data->xZoom = xZoomSamples;
-	data->validLengthSamples = static_cast<int64_t>(numValidSamples);
-
-	bool hadAnyTroubleLoading = false;
+	sample_view::PeakRead read; // every column pending until it is answered
 
 	// One reader for the whole scan (SCAN hint: this is a one-shot whole-sample pass, so it must not evict
-	// the voice's own warm cluster set). Re-seeked per column below; cheap to open even if every column
-	// this pass turns out to be a cache hit (open takes no lease and does no I/O).
-	deluge::sample::SampleFrameReader reader{deluge::sample::source_id_for(*sample), 0, 1, DELUGE_READ_SCAN};
+	// the voice's own warm cluster set). Re-seeked per column below; cheap to open even if no column is
+	// wanted (open takes no lease and does no I/O).
+	deluge::sample::SampleFrameReader reader{deluge::sample::source_id_for(sample), 0, 1, DELUGE_READ_SCAN};
 
-	for (int32_t col = xStart; col < xEnd; col++) {
-
-		if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
+	const auto valid = static_cast<int64_t>(num_valid_samples);
+	const int64_t frame_bytes = int64_t{sample.numChannels} * sample.byteDepth;
+	for (int32_t col = 0; col < sample_view::kColumns; col++) {
+		if (!wanted.test(static_cast<size_t>(col))) {
 			continue;
 		}
-
-		data->colStatus[col] = COL_STATUS_INVESTIGATED; // Default, which we may override below
-
-		int32_t colStartSample = xScrollSamples + col * xZoomSamples;
-		if (colStartSample >= numValidSamples) {
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+		int64_t col_start = at.scroll + int64_t{col} * at.zoom;
+		int64_t col_end = col_start + at.zoom;
+		if (col_start >= valid || col_end <= 0) {
+			read.set(col, sample_view::ColumnRead::past_end()); // outside the waveform: past its end, or wholly before
 			continue;
 		}
-		else if (colStartSample < 0) {
-			colStartSample = 0;
-		}
-
-		int32_t colEndSample = xScrollSamples + (col + 1) * xZoomSamples;
-
-		// If this column extends further right than the end of the waveform...
-		if (colEndSample >= numValidSamples) {
-
-			// If we're still recording, we'll just want to come back and render this one when the waveform has grown to
-			// cover this whole column
-			if (recorder) {
-				data->colStatus[col] = 0;
+		col_start = std::max<int64_t>(col_start, 0); // a column straddling the start reads from frame 0
+		if (col_end >= valid) {
+			if (recorder != nullptr) {
+				// A take still being written: the column is not wholly captured yet.
+				read.set(col, sample_view::ColumnRead::past_end());
 				continue;
 			}
-			colEndSample = numValidSamples;
+			col_end = valid;
 		}
-		else if (colEndSample < 0) {
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
-			continue;
-		}
+		const int64_t col_start_byte = col_start * frame_bytes + sample.audioDataStartPosBytes;
+		const int64_t col_end_byte = col_end * frame_bytes + sample.audioDataStartPosBytes;
 
-		// 64-bit so samples past 2 GB (colStartSample * frameSize) don't overflow (#4460).
-		int64_t colStartByte = static_cast<int64_t>(colStartSample) * sample->numChannels * sample->byteDepth
-		                       + sample->audioDataStartPosBytes;
-		int64_t colEndByte = static_cast<int64_t>(colEndSample) * sample->numChannels * sample->byteDepth
-		                     + sample->audioDataStartPosBytes;
+		int32_t colStartCluster = static_cast<int32_t>(col_start_byte >> Cluster::size_magnitude);
+		int32_t colEndCluster = static_cast<int32_t>(col_end_byte >> Cluster::size_magnitude);
 
-		int32_t colStartCluster = static_cast<int32_t>(colStartByte >> Cluster::size_magnitude);
-		int32_t colEndCluster = static_cast<int32_t>(colEndByte >> Cluster::size_magnitude);
-
-		int32_t clusterIndexToDo;
-		int32_t startByteWithinCluster;
-		int32_t endByteWithinCluster;
+		int32_t clusterIndexToDo = 0;
+		int32_t startByteWithinCluster = 0;
+		int32_t endByteWithinCluster = 0;
 
 		int32_t numClustersSpan = colEndCluster - colStartCluster;
 
@@ -206,14 +99,14 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 		// If both same cluster...
 		if (numClustersSpan == 0) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
-			endByteWithinCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
+			startByteWithinCluster = static_cast<int32_t>(col_start_byte & (Cluster::size - 1));
+			endByteWithinCluster = static_cast<int32_t>(col_end_byte & (Cluster::size - 1));
 		}
 
 		// Special case to make sure we get initial transient (we know there's more than 1 cluster)
-		else if (colStartSample == 0 && colStartByte < (Cluster::size >> 1)) {
+		else if (col_start == 0 && col_start_byte < (Cluster::size >> 1)) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
+			startByteWithinCluster = static_cast<int32_t>(col_start_byte & (Cluster::size - 1));
 			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
 		}
@@ -224,7 +117,7 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 
 			startByteWithinCluster =
 			    firstFrameStartWithinCluster(clusterStartByte(clusterIndexToDo, Cluster::size_magnitude),
-			                                 sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
+			                                 sample.audioDataStartPosBytes, sample.numChannels * sample.byteDepth);
 
 			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
@@ -233,10 +126,10 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 		// If 2 cluster..
 		else if (numClustersSpan == 1) {
 
-			int32_t startByteWithinFirstCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
+			int32_t startByteWithinFirstCluster = static_cast<int32_t>(col_start_byte & (Cluster::size - 1));
 			int32_t bytesInFirstCluster = Cluster::size - startByteWithinFirstCluster;
 
-			int32_t bytesInSecondCluster = static_cast<int32_t>(colEndByte & (Cluster::size - 1));
+			int32_t bytesInSecondCluster = static_cast<int32_t>(col_end_byte & (Cluster::size - 1));
 
 			// If more in first cluster...
 			if (bytesInFirstCluster >= bytesInSecondCluster) {
@@ -249,145 +142,145 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 			else {
 				clusterIndexToDo = colEndCluster;
 
-				startByteWithinCluster = firstFrameStartWithinCluster(
-				    clusterStartByte(clusterIndexToDo, Cluster::size_magnitude), sample->audioDataStartPosBytes,
-				    sample->numChannels * sample->byteDepth);
+				startByteWithinCluster =
+				    firstFrameStartWithinCluster(clusterStartByte(clusterIndexToDo, Cluster::size_magnitude),
+				                                 sample.audioDataStartPosBytes, sample.numChannels * sample.byteDepth);
 
 				endByteWithinCluster = bytesInSecondCluster;
 			}
 		}
 
 		if (clusterIndexToDo >= endClusters) { // Could this actually happen?
-			data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
+			read.set(col, sample_view::ColumnRead::past_end());
 			continue;
 		}
 
-		else if (clusterIndexToDo == endClusters - 1) {
+		if (clusterIndexToDo == endClusters - 1) {
 
-			int32_t limit = lastAudioClusterEndByte(numValidBytes, sample->audioDataStartPosBytes, Cluster::size);
+			int32_t limit = lastAudioClusterEndByte(numValidBytes, sample.audioDataStartPosBytes, Cluster::size);
 
 			if (endByteWithinCluster > limit) {
 				endByteWithinCluster = limit;
 			}
 		}
 
-		OverviewCacheEntry* sampleCluster = &sample->overviewCacheEntry(clusterIndexToDo);
+		OverviewCacheEntry* sampleCluster = &sample.overviewCacheEntry(clusterIndexToDo);
 
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
 		// previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigated) {
-			data->minPerCol[col] = (int32_t)sampleCluster->min << 24;
-			data->maxPerCol[col] = (int32_t)sampleCluster->max << 24;
+			read.set(col, sample_view::ColumnRead::of(
+			                  {.min = (int32_t)sampleCluster->min << 24, .max = (int32_t)sampleCluster->max << 24}));
+			continue;
 		}
 
-		// Otherwise, do our normal investigation
+		// Otherwise, do our normal investigation.
+		// startByteWithinCluster is always frame-grid-aligned (either the column's own masked byte offset, or
+		// firstFrameStartWithinCluster's result), so it maps onto exactly one frame index -- the frame this
+		// column's (or whole-cluster investigation's) read begins at.
+		const int64_t startByteAbs =
+		    clusterStartByte(clusterIndexToDo, Cluster::size_magnitude) + startByteWithinCluster;
+		const auto startFrame = static_cast<uint64_t>(
+		    sample_view::trunc_div(startByteAbs - static_cast<int64_t>(sample.audioDataStartPosBytes), frame_bytes));
+
+		reader.seek(startFrame);
+		DelugeFrameWindow window = reader.window();
+		if (!reader.ok()) {
+			D_PRINTLN("cant read");
+			continue; // pending: a later read asks again
+		}
+
+		// How many whole frames of the intended [startByteWithinCluster, endByteWithinCluster) span the
+		// reader actually made resident. Capped to window.frame_count rather than trusting it outright:
+		// unlike a straight streaming read, this scan deliberately never widens a column's or a whole
+		// cluster's span to include a frame straddling into the next cluster (it always rounds such a span
+		// down rather than reading across the boundary).
+		const int64_t wantedBytes =
+		    endByteWithinCluster > startByteWithinCluster ? int64_t{endByteWithinCluster} - startByteWithinCluster : 0;
+		const auto numFramesToRead = static_cast<uint32_t>(
+		    std::min<int64_t>(sample_view::trunc_div(wantedBytes, frame_bytes), window.frame_count));
+		const auto numBytesToRead = static_cast<uint32_t>(numFramesToRead * frame_bytes);
+
+		// If there are no whole frames to read here (e.g. audio ends very early in the final cluster, or
+		// this column's span collapsed to less than one frame near a cluster boundary), this column has no
+		// valid data: it has nothing to draw (#4460).
+		if (numBytesToRead == 0) {
+			read.set(col, sample_view::ColumnRead::past_end());
+			continue;
+		}
+
+		// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
+		WaveformPeak peak = scanClusterPeak(reinterpret_cast<const char*>(window.frames), 0,
+		                                    static_cast<int32_t>(numBytesToRead), sample.byteDepth, sample.numChannels);
+		int32_t minThisCol = peak.min;
+		int32_t maxThisCol = peak.max;
+
+		// If we just looked at the length of one entire cluster...
+		if (investigatingAWholeCluster) {
+
+			// See if we want to include any previously captured maximums and minimums, which might have looked at
+			// slightly different values
+			int32_t prevMin = (int32_t)sampleCluster->min << 24;
+			int32_t prevMax = (int32_t)sampleCluster->max << 24;
+
+			if (prevMin < minThisCol) {
+				minThisCol = prevMin;
+			}
+			if (prevMax > maxThisCol) {
+				maxThisCol = prevMax;
+			}
+
+			// And mark the overview cache entry as fully investigated (rounding toward 0)
+			sampleCluster->min = toCoarsePeak(minThisCol);
+			sampleCluster->max = toCoarsePeak(maxThisCol);
+			sampleCluster->investigated = true;
+		}
+
+		// Or, if we only looked at a smaller part of a cluster...
 		else {
-			int32_t frameSize = sample->numChannels * sample->byteDepth;
 
-			// startByteWithinCluster is always frame-grid-aligned (either colStartByte/colEndByte's own
-			// masked byte offset, or firstFrameStartWithinCluster's result), so it maps onto exactly one
-			// frame index -- the frame this column's (or whole-cluster investigation's) read begins at.
-			int64_t startByteAbs = clusterStartByte(clusterIndexToDo, Cluster::size_magnitude) + startByteWithinCluster;
-			uint64_t startFrame =
-			    static_cast<uint64_t>(startByteAbs - static_cast<int64_t>(sample->audioDataStartPosBytes)) / frameSize;
+			// Then just contribute to the running record of max and min found
+			int8_t smallMin = toCoarsePeak(minThisCol);
+			int8_t smallMax = toCoarsePeak(maxThisCol);
 
-			reader.seek(startFrame);
-			DelugeFrameWindow window = reader.window();
-			if (!reader.ok()) {
-				D_PRINTLN("cant read");
-				data->colStatus[col] = 0;
-				hadAnyTroubleLoading = true;
-				continue;
+			if (smallMin < sampleCluster->min) {
+				sampleCluster->min = smallMin;
 			}
-
-			// How many whole frames of the intended [startByteWithinCluster, endByteWithinCluster) span the
-			// reader actually made resident. Capped to window.frame_count rather than trusting it outright:
-			// unlike a straight streaming read, this scan deliberately never widens a column's or a whole
-			// cluster's span to include a frame straddling into the next cluster (matching the historical
-			// behaviour here, which always rounded such a span down rather than reading across the boundary).
-			uint32_t wantedBytes = endByteWithinCluster > startByteWithinCluster
-			                           ? static_cast<uint32_t>(endByteWithinCluster - startByteWithinCluster)
-			                           : 0;
-			uint32_t numFramesToRead = std::min(wantedBytes / static_cast<uint32_t>(frameSize), window.frame_count);
-			uint32_t numBytesToRead = numFramesToRead * frameSize;
-
-			// If there are no whole frames to read here (e.g. audio ends very early in the final cluster, or
-			// this column's span collapsed to less than one frame near a cluster boundary), this column has no
-			// valid data. Mark it as having nothing to draw rather than scanning an empty window and caching an
-			// inverted sentinel (min > max), which would render as a spurious bright column (#4460).
-			if (numBytesToRead == 0) {
-				data->colStatus[col] = COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM;
-				continue;
+			if (smallMax > sampleCluster->max) {
+				sampleCluster->max = smallMax;
 			}
-
-			// NOTE: from here on, we read *both* channels (if there are two), counting each one as a "sample"
-			WaveformPeak peak =
-			    scanClusterPeak(reinterpret_cast<const char*>(window.frames), 0, static_cast<int32_t>(numBytesToRead),
-			                    sample->byteDepth, sample->numChannels);
-			int32_t minThisCol = peak.min;
-			int32_t maxThisCol = peak.max;
-
-			// If we just looked at the length of one entire cluster...
-			if (investigatingAWholeCluster) {
-
-				// See if we want to include any previously captured maximums and minimums, which might have looked at
-				// slightly different values
-				int32_t prevMin = (int32_t)sampleCluster->min << 24;
-				int32_t prevMax = (int32_t)sampleCluster->max << 24;
-
-				if (prevMin < minThisCol) {
-					minThisCol = prevMin;
-				}
-				if (prevMax > maxThisCol) {
-					maxThisCol = prevMax;
-				}
-
-				// And mark the overview cache entry as fully investigated (rounding toward 0)
-				sampleCluster->min = toCoarsePeak(minThisCol);
-				sampleCluster->max = toCoarsePeak(maxThisCol);
-				sampleCluster->investigated = true;
-			}
-
-			// Or, if we only looked at a smaller part of a cluster...
-			else {
-
-				// Then just contribute to the running record of max and min found
-				int8_t smallMin = toCoarsePeak(minThisCol);
-				int8_t smallMax = toCoarsePeak(maxThisCol);
-
-				if (smallMin < sampleCluster->min) {
-					sampleCluster->min = smallMin;
-				}
-				if (smallMax > sampleCluster->max) {
-					sampleCluster->max = smallMax;
-				}
-			}
-
-			data->maxPerCol[col] = maxThisCol;
-			data->minPerCol[col] = minThisCol;
 		}
+
+		read.set(col, sample_view::ColumnRead::of({.min = minThisCol, .max = maxThisCol}));
 	}
 
 	if (recorder != nullptr) {
-		sample->maxValueFound = recorder->recordMax;
-		sample->minValueFound = recorder->recordMin;
+		sample.maxValueFound = recorder->recordMax;
+		sample.minValueFound = recorder->recordMin;
 	}
-
-	// Keep a running best for the max and min found for the whole Sample
 	else {
-		for (int32_t col = xStart; col < xEnd; col++) {
-			if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
-				if (data->maxPerCol[col] > sample->maxValueFound) {
-					sample->maxValueFound = data->maxPerCol[col];
-				}
-				if (data->minPerCol[col] < sample->minValueFound) {
-					sample->minValueFound = data->minPerCol[col];
-				}
+		// The columns just read. A column a cache keeps was folded when it was read, and the range only widens.
+		for (int32_t col = 0; col < sample_view::kColumns; col++) {
+			if (!wanted.test(static_cast<size_t>(col))) {
+				continue;
+			}
+			if (const std::optional<sample_view::Peak> p = read.column(col).peak()) {
+				sample.maxValueFound = std::max(sample.maxValueFound, p->max);
+				sample.minValueFound = std::min(sample.minValueFound, p->min);
 			}
 		}
 	}
+	return read;
+}
 
-	return !hadAnyTroubleLoading;
+sample_view::PeakRead find_peaks_per_col(Sample& sample, sample_view::Window at, sample_view::PeakCache& cache,
+                                         SampleRecorder* recorder, int32_t first, int32_t last) {
+	static_assert(sample_view::kColumns == kDisplayWidth);
+	const auto valid =
+	    static_cast<int64_t>(recorder != nullptr ? recorder->numSamplesCaptured : sample.lengthInSamples);
+	return cache.update(
+	    at, valid, recorder != nullptr,
+	    [&](sample_view::ColumnMask wanted) { return read_columns(sample, recorder, at, wanted); }, first, last);
 }
 
 // Background "waveform overview" pre-scan (issue #4460). Investigates one whole cluster the same way
@@ -538,19 +431,6 @@ bool advance_overview_scan(Sample* sample, int32_t maxClusters) {
 	}
 
 	return sample->overviewScanNextCluster < endClusters;
-}
-
-void col_bar_positions(int32_t xDisplay, const WaveformRenderData* data, int32_t* min24, int32_t* max24,
-                       int32_t valueCentrePoint, int32_t valueSpan) {
-	*min24 = ((int64_t)(data->minPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
-	*max24 = ((int64_t)(data->maxPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
-
-	// Ensure we're going to draw at least 1 pixel's width
-	if (*max24 - *min24 < kMaxSampleValue) {
-		int32_t midPoint = (*max24 >> 1) + (*min24 >> 1);
-		*max24 = midPoint + 8388608;
-		*min24 = midPoint - 8388608;
-	}
 }
 
 } // namespace deluge::sample

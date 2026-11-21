@@ -1,9 +1,13 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host/shell_host.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/recording/foreground_recording.h"
 
+#include <optional>
+#include <string>
 #include <utility>
 
 namespace deluge::gui::shell_host {
@@ -56,6 +60,29 @@ public:
 		return ForegroundRecording::UNSET;
 	}
 	[[nodiscard]] bool resampling() const override { return deluge::recording::isCurrentlyResampling(); }
+	[[nodiscard]] std::optional<scenes::bind::InputTake> input_take() const override {
+		// The take `take_actions` holds, not the foreground recorder, which an output recording also publishes to.
+		const ::SampleRecorder* take = shell_host::input_take();
+		if (take == nullptr) {
+			return std::nullopt;
+		}
+		return scenes::bind::InputTake{.capturing = take->numSamplesCaptured > take->minThresholdMargin,
+		                               .threshold = take->startValueThreshold > 0,
+		                               .threshold_level = take->startValueThreshold,
+		                               .capturing_data = take->status == RecorderStatus::CAPTURING_DATA,
+		                               .settled = take->settled(),
+		                               .aborted = take->status == RecorderStatus::ABORTED,
+		                               .card_error = take->hadCardError,
+		                               .channels = take->recordingNumChannels};
+	}
+	[[nodiscard]] std::optional<std::string> input_take_path() const override {
+		const ::SampleRecorder* take = shell_host::input_take();
+		if (take == nullptr || take->sample == nullptr) {
+			return std::nullopt;
+		}
+		return take->sample->filePath;
+	}
+	[[nodiscard]] uint32_t audio_sample_timer() const override { return AudioEngine::audioSampleTimer; }
 };
 
 } // namespace

@@ -46,6 +46,6 @@ inline constexpr int32_t kSamplePositionLineGap = 11;
 ///          (`SampleMarkerEditor::renderOLED`'s `drawChar('h', ...)` and `drawChar('m', ...)`), so any position past a
 ///          minute has its unit letter drawn over its own digits. This draws them at the cursor. See the comment at the
 ///          site; positions under a minute are pixel-identical to legacy.
-void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint32_t sample_rate);
+void sample_position(OledFrame& f, gfx::oled::Rect rect, uint64_t samples, uint32_t sample_rate);
 
 } // namespace deluge::ui::oled

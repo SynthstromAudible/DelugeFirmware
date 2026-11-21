@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "board_layout.hpp"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_clip.h"
 #include "gui/colour/colour.h"
@@ -26,7 +27,6 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
-#include "model/sample/waveform_render_data.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "util/c_string.h"

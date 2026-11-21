@@ -307,8 +307,6 @@ void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Samp
 	range->sampleHolder.audioFile = sample;
 	range->sampleHolder.startPos = 0;
 	range->sampleHolder.endPos = sample->lengthInSamples;
-	range->sampleHolder.waveformViewZoom = 0;
-	range->sampleHolder.waveformViewScroll = 0;
 	deluge::bridge::recordLoadedSound(sound, *f.song);
 }
 

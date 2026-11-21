@@ -1,15 +1,8 @@
-#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/ui.h"
-#include "gui/views/instrument_clip_view.h"
-#include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
-#include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/sample/last_file_path_loaded.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/audio/audio_file_manager.h"
@@ -59,16 +52,6 @@ public:
 
 } // namespace
 
-bool host_binds(const ::Song& song) {
-	return &song == currentSong;
-}
-
-void host_grab_tempo(deluge::project::ClipAddress clip) {
-	if (::AudioClip* audio = gui::shell_host::audio_clip_at(clip)) {
-		playbackHandler.grabTempoFromClip(audio);
-	}
-}
-
 void host_settings_reset() {
 	gui::ui::reapplyLiveSettingsAfterReset();
 }
@@ -91,28 +74,8 @@ void host_forget_undo() {
 	actionLogger.deleteAllLogs();
 }
 
-void host_clear_tick_squares() {
-	PadLEDs::clearTickSquares(true);
-}
-
-void host_end_audition(AuditionEnd how) {
-	switch (how) {
-	case AuditionEnd::ClipViewWhenAuditioning:
-		if (currentUIMode == UI_MODE_AUDITIONING) {
-			instrumentClipView.cancelAllAuditioning();
-		}
-		break;
-	case AuditionEnd::ClipViewForInstrumentClip:
-		if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::INSTRUMENT) {
-			instrumentClipView.cancelAllAuditioning();
-		}
-		break;
-	case AuditionEnd::KeyboardWhenAuditioning:
-		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
-			keyboardScreen.exitAuditionMode();
-		}
-		break;
-	}
+void host_end_audition(bind::AuditionEnd how) {
+	gui::shell_host::view_actions().end_audition(how);
 }
 
 } // namespace deluge::scenes::menu

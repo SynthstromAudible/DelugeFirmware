@@ -1,11 +1,11 @@
 # Level-2 acceptance: `slicing::SlicerScene`, both of its modes.
 #
-# **How the scene gets on the stack:** `RunOptions::initial_scene`, after the fixture calls
-# `slicer_scene().open(sample)`. That is the order main has too -- `SampleBrowser` sets `waveformBasicNavigator` up (in
-# `previewIfPossible`) and *then* opens the UI (`SampleBrowser::enterKeyPress` in
-# `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`; `SlicerScene::open` is the counterpart) -- so the push is
-# the second half of a real door, not a shortcut around one. The scene is `is_root() == false`, so nothing else on the
-# stack is implied by it.
+# **How the scene gets on the stack:** `RunOptions::initial_scene`, after the fixture opens the app's slicer host on a
+# sample the preview drum holds, which opens the scene on it (`gui::ui::openShellSlice`). That is the order main has
+# too -- `SampleBrowser` sets `waveformBasicNavigator` up (in `previewIfPossible`) and *then* opens the UI
+# (`SampleBrowser::enterKeyPress` in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`; `SlicerScene::open` is
+# the counterpart) -- so the push is the second half of a real door, not a shortcut around one. The scene is
+# `is_root() == false`, so nothing else on the stack is implied by it.
 #
 # The fixture seeds three manual slices before the run (`SlicerScene::add_slice_at`, the port of
 # `origin/main:src/deluge/gui/ui/slicer.cpp`), because the gesture that *adds* one is behind main's voice walk, which

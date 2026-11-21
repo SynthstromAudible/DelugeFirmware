@@ -66,7 +66,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		}
 	}
 
-	clip->renderData.xScroll = -1; // Force re-render
+	clip->renderData.forget(); // Force re-render
 
 	filePathToRevertTo = filePathBeforeRevert;
 	endPosToRevertTo = endPosBeforeRevert;

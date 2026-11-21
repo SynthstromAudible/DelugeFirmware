@@ -110,6 +110,7 @@
 /// services).
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -445,8 +446,6 @@ MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample)
 		range->sampleHolder.loopStartPos = 0;
 		range->sampleHolder.loopEndPos = 0;
 		range->sampleHolder.loopLocked = false;
-		range->sampleHolder.waveformViewZoom = 0; // no remembered view -- open zoomed out
-		range->sampleHolder.waveformViewScroll = 0;
 	}
 	// Set field by field: record it as a load does, so the record the scenes read is the source's truth.
 	deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -1321,7 +1320,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// The pad press moved the START marker to column 6's first sample. At the opening zoom
-		// (`WaveformNav::opened` with no remembered view: scroll 0, zoom = max) that is
+		// (`WaveformView::open` with no remembered view: scroll 0, zoom = max) that is
 		// `6 * xZoom` -- computed from the fixture rather than restated, so the assertion is about
 		// the marker landing where the pad was and not about the arithmetic.
 		const int64_t zoom = static_cast<int64_t>(((kSampleLength - 1) >> 4) + 1);
@@ -1361,7 +1360,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// is memory only.
 		uitest::RunOptions opts = opts_for(nodes::sound_root);
 		opts.before_tick = [](uint32_t) {
-			SampleRecorder* rec = recorder::recorder_scene().recorder();
+			SampleRecorder* rec = deluge::gui::shell_host::input_take();
 			if (rec != nullptr && rec->status == RecorderStatus::ABORTED) {
 				(void)rec->cardRoutine();
 			}

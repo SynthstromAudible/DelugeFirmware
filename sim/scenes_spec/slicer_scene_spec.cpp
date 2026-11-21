@@ -50,7 +50,8 @@
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
-#include "model/sample/waveform_scan.h"
+#include "gui/ui/shell_host/shell_host.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -71,6 +72,7 @@
 #include "model/song/song.h"
 #include "storage/cluster/cluster.h"
 
+#include "support/browser_scene_fixtures.h"
 #include "support/fake_ports.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
@@ -172,7 +174,8 @@ struct PadDiff {
 	int32_t first_y = -1;
 };
 
-PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
+template <typename AnyRig>
+PadDiff pad_diff(AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -191,8 +194,8 @@ PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 
 /// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad.
 /// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
-template <typename Self>
-void expect_pads_match(Self& self, Rig& r, std::string_view name) {
+template <typename Self, typename AnyRig>
+void expect_pads_match(Self& self, AnyRig& r, std::string_view name) {
 	const PadDiff d = pad_diff(r, spec::OracleFiles::pads(name));
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
@@ -520,34 +523,88 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(differ).to_equal(0);
 	});
 
-	it("opens on the navigator the browser's preview drew, as main's slicer reads the preview's global", _ {
+	it("opens on the navigator the browser's preview drew, with the columns the preview read", _ {
 		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) opened and scanned for this sample: the columns
-		// are already investigated, so the slicer draws the preview's peaks. A fresh navigator scans again, and on the
-		// device that scan reads the overview cache's coarse peaks.
-		Rig r;
-		deluge::sample::WaveformNav shown{};
-		shown.length_samples = r.sample->lengthInSamples;
-		shown.opened(0, 0);
-		(void)deluge::sample::find_peaks_per_col(r.sample, shown.xScroll, static_cast<uint64_t>(shown.xZoom),
-		                                         &shown.renderData);
+		// are already read, so the slicer draws the preview's peaks. The browser hands the slicer its view, and the
+		// waveforms port keeps a file's columns, so the slicer's first frame is the browser's last; a fresh read would
+		// take the overview cache's peaks, which change under it here.
+		namespace bfx = deluge::scenes::spec::browser_fx;
+		bfx::CleanBrowser clean;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* const sample = sf::make_sample();
+		deluge::scenes::spec::SliceHeld held{sample, sf::kSlicePath};
+		slicer_scene().set_ports(&menu::host_ports());
+		bfx::Rig r;
+		menu::MenuContext ctx = bfx::context_of(f);
+		(void)menu::ensure_first_range(ctx);
+		r.open_and_land(ctx, browser::BrowserId::Sample);
+		browser::browser_scene().preview_settled(true);
+		while (r.clock < 50) {
+			r.step();
+		}
+		const deluge::sample_view::WaveformView view = browser::browser_scene().waveform_view();
+		const deluge::gfx::grid::PadGrid preview = r.fake.grid().grid();
 		for (int32_t i = 0; i < kNumClusters; i++) {
-			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = 0;
 			e.max = 0;
 		}
-		slicer_scene().open(nullptr); // nothing kept from an earlier example
-		slicer_scene().open(r.sample, &shown);
-		r.shell.init(SceneId{kSlicerSceneKind, 0});
-		r.tick(0);
+		held.open();
+		expect(r.shell.stack().push(SceneId{kSlicerSceneKind, 0})).to_be_true();
+		r.step();
+		expect(slicer_scene().x_scroll()).to_equal(view.scroll());
+		expect(slicer_scene().x_zoom()).to_equal(view.zoom());
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const RGB was = preview.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				differ += was == r.fake.grid().grid().at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) ? 0 : 1;
+				lit += was == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit).to_be_greater_than(0);
+		expect(differ).to_equal(0);
 		expect_pads_match(self, r, "slicer_preview_nav");
-		expect(static_cast<int32_t>(slicer_scene().x_zoom())).to_equal(static_cast<int32_t>(shown.xZoom));
+	});
+
+	it("opens on the file the host bound: the sample's identity and its path", _ {
+		// The host takes the preview drum's file here, as the browser's held-preview door does; the open a card load
+		// binds needs the loader, which a spec process does not run, and is checked in the sample-claim scenario's
+		// slicer legs (`tests/integration/scenarios/sample_claim_scenario.cpp`).
+		Rig r;
+		slicer_scene().open(std::nullopt);
+		r.open();
+		const std::optional<deluge::scenes::slicing::SliceFile>& file = slicer_scene().file();
+		expect(file.has_value()).to_be_true();
+		if (file) {
+			expect(file->path).to_equal(r.sample->filePath);
+			expect(file->identity).to_equal(deluge::gui::shell_host::waveform_identity(*r.sample));
+		}
+		// A guest close releases the host, and the scene holds no file the host has let go.
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		expect(slicer_scene().has_sample()).to_be_false();
+	});
+
+	it("names nothing at SLICE once BACK closes it on the app's host, and keeps its file for a reopen", _ {
+		Rig r;
+		deluge::gui::ui::wireShellSliceOps();
+		r.open();
+		r.tick(0);
+		const bind::WaveformAddress slice{.kind = bind::WaveformAddress::Kind::SLICE};
+		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_true();
+		r.back(true, 10);
+		r.settle(10);
+		expect(r.on_stack()).to_be_false();
+		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_false();
+		expect(slicer_scene().has_sample()).to_be_true();
 	});
 
 	it("opens zoomed out on a fresh navigator when the browser shows no preview of the sample", _ {
 		Rig r;
-		slicer_scene().open(nullptr);
-		slicer_scene().open(r.sample, nullptr);
+		slicer_scene().open(std::nullopt);
+		r.open_host();
 		r.shell.init(SceneId{kSlicerSceneKind, 0});
 		r.tick(0);
 		expect_pads_match(self, r, "slicer_fresh_nav");
@@ -882,12 +939,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().set_ops(&ops);
 		deluge::scenes::spec::HeldPorts auditioning;
 		auditioning.ui.auditioning_now = true;
-		slicer_scene().set_ports(auditioning.ports());
+		const bind::Ports held = auditioning.ports();
+		slicer_scene().set_ports(&held);
 		r.open();
 		r.tick(0);
 		r.pad(kDisplayWidth, 3, 64, 10);
 		r.settle(10);
-		slicer_scene().set_ports({});
+		slicer_scene().set_ports(&menu::host_ports());
 		expect(r.on_stack()).to_be_true();
 		expect(ops.stop_previewing_calls).to_equal(0);
 	});

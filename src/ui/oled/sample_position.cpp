@@ -16,12 +16,12 @@ namespace {
 /// only thing either was wanted for. Non-negative only -- every value on this screen is a sample
 /// position or a unit count.
 /// @param number     Value to write.
-/// @param buffer     At least 12 bytes.
+/// @param buffer     At least 21 bytes: the most digits a `uint64_t` has, and the terminator.
 /// @param min_digits Pad with leading zeros to at least this many digits.
 /// @return The number of characters written, not counting the terminator.
-size_t int_to_chars(uint32_t number, char* buffer, int32_t min_digits) {
+size_t int_to_chars(uint64_t number, char* buffer, int32_t min_digits) {
 	size_t digits = 1;
-	for (uint32_t probe = number; probe >= 10; probe /= 10) {
+	for (uint64_t probe = number; probe >= 10; probe /= 10) {
 		digits++;
 	}
 	if (digits < static_cast<size_t>(min_digits)) {
@@ -37,7 +37,7 @@ size_t int_to_chars(uint32_t number, char* buffer, int32_t min_digits) {
 
 } // namespace
 
-void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint32_t sample_rate) {
+void sample_position(OledFrame& f, gfx::oled::Rect rect, uint64_t samples, uint32_t sample_rate) {
 	const int32_t sx = gfx::oled::kTextSpacingX;
 	const int32_t sy = gfx::oled::kTextSpacingY;
 
@@ -62,7 +62,7 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 			minutes = static_cast<uint32_t>(hundredmilliseconds / 6000000);
 			hundredmilliseconds -= static_cast<uint64_t>(minutes) * 6000000;
 
-			char buffer[12];
+			char buffer[21];
 
 			if (minutes >= 60) {
 				hours = minutes / 60;
@@ -139,7 +139,7 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 	f.glyph('(', x, count_y, sx, sy);
 	x += sx;
 
-	char buffer[12];
+	char buffer[21];
 	const size_t length = int_to_chars(samples, buffer, 1);
 	f.glyphs(std::string_view{buffer, length}, x, count_y, sx, sy);
 	x += sx * static_cast<int32_t>(length + 1);

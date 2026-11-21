@@ -18,22 +18,15 @@
 #pragma once
 
 /// @file
-/// @brief The waveform *scan*: turning a `Sample`'s clusters into per-column min/max peaks, and the
-///        two pure derivations a renderer needs from them.
+/// @brief The waveform scan: the legacy column read, which turns a `Sample`'s clusters into each column's peak, and
+///        the legacy views' adapter, which keeps the columns between frames in a `deluge::sample_view::PeakCache`.
 ///
-/// Moved out of `WaveformRenderer` (`gui/waveform/waveform_renderer.cpp`) unchanged. The split is
-/// the one `src/ui/grid/waveform.h` already names in its own header: *"the scan that turns a
-/// `Sample`'s clusters into per-column peaks reads `Sample`, `SampleRecorder` and the card, and
-/// stays outside this module"*. This is that outside. Nothing here draws, and nothing here includes
-/// `gui/` or `hid/`, so `model/sample/waveform_scan.h` is reachable from `src/scenes` where
-/// `gui/waveform/waveform_renderer.h` is not (`scripts/layers.toml`, `scenes-includes-outside`).
-///
-/// `WaveformRenderer`'s remaining members -- `renderFullScreen`, `renderAsSingleRow`, `renderOneCol`
-/// and the two collapse-animation entry points -- are thin wrappers over these plus `drawColBar`,
-/// and stay in `gui/` because they write into a `PadLEDs`-shaped `RGB[][]`.
+/// The scan reads `Sample`, `SampleRecorder` and the card, so it stays out of the neutral `src/sample-view/`, whose
+/// types it answers in. The host's waveforms port reads through `read_columns`, and the session, arranger and audio
+/// clip views through `find_peaks_per_col`. `WaveformRenderer` draws the answers into a `PadLEDs`-shaped `RGB[][]`.
 
 #include "definitions_cxx.hpp"
-#include "model/sample/waveform_render_data.h"
+#include "sample-view/peak_cache.h"
 
 #include <cstdint>
 
@@ -42,58 +35,38 @@ class SampleRecorder;
 
 namespace deluge::sample {
 
-/// @brief Fill in @p data's per-column min/max peaks for columns `[xStart, xEnd)`.
-///
-/// `WaveformRenderer::findPeaksPerCol` (`gui/waveform/waveform_renderer.cpp:263` before the move).
-/// Reuses whatever @p data already holds: an unchanged zoom and a whole-column scroll delta slide
-/// the cache across (issue #4460) rather than re-reading, and a column already marked
-/// `COL_STATUS_INVESTIGATED` is skipped outright.
-///
-/// @warning **This can read the card**, through `deluge::sample::SampleFrameReader`. A caller off
-///          the storage owner must expect a partial result rather than a stall -- that is what the
-///          return value reports.
-///
-/// @param sample         The sample to scan.
-/// @param xScrollSamples Left edge, in samples.
-/// @param xZoomSamples   Samples per column.
-/// @param data           The per-view cache to fill; its `xScroll`/`xZoom`/`validLengthSamples` are
-///                       updated to match this call.
-/// @param recorder       The in-progress recorder writing this sample, or null for a finished file.
-/// @param xStart         First column to consider.
-/// @param xEnd           One past the last column to consider.
-/// @return False if some cluster could not be loaded (often not all of them) -- e.g. because the
-///         call is inside the card routine. The columns that did load are still valid.
-bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples, WaveformRenderData* data,
-                        SampleRecorder* recorder = nullptr, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
+/// @brief Read the columns @p wanted of @p sample at @p at: each column's peak, PAST_END where it lies outside the
+///        frames the sample holds now (for a take still being written, until the take has captured all of it), or
+///        PENDING where a cluster under it could not be read now. Then update the sample's running range: from
+///        @p recorder's while a take is being written, else from the peaks just read. A column a cache keeps was taken
+///        into the range when it was read, and the range only widens.
+/// @param sample   The sample to read.
+/// @param recorder The recorder writing @p sample, or null for a finished file.
+/// @param at       The window. A zoom below 1 answers every column PAST_END.
+/// @param wanted   The columns to read; the others are answered PENDING and are not read.
+/// @return The answers.
+/// @warning This can read the card, through `deluge::sample::SampleFrameReader`. A caller off the storage owner gets
+///          PENDING columns rather than a stall.
+[[nodiscard]] deluge::sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder,
+                                                         deluge::sample_view::Window at,
+                                                         deluge::sample_view::ColumnMask wanted);
 
-/// @brief One column's brightness for the single-row render, normalised against the sample's peak.
-///
-/// `WaveformRenderer::getColBrightnessForSingleRow` (`waveform_renderer.cpp:152` before the move).
-/// @param xDisplay        Column index into @p data.
-/// @param maxPeakFromZero `Sample::getMaxPeakFromZero()`.
-/// @param data            The filled cache.
-/// @return 0..256 inclusive -- the range `ui::grid::kWaveformMaxBrightness` names, and deliberately
-///         one past what a `uint8_t` holds.
-int32_t col_brightness_for_single_row(int32_t xDisplay, int32_t maxPeakFromZero, const WaveformRenderData* data);
-
-/// @brief One column's vertical bar extent, in 8.24 fixed-point pad units.
-///
-/// `WaveformRenderer::getColBarPositions` (`waveform_renderer.cpp:718` before the move), including
-/// its "ensure we're going to draw at least 1 pixel's width" widening -- which `ui::grid::PeakCol`'s
-/// docstring already records as belonging to the scan rather than the render.
-///
-/// @param xDisplay         Column index into @p data.
-/// @param data             The filled cache.
-/// @param[out] min24       Bottom of the bar.
-/// @param[out] max24       Top of the bar.
-/// @param valueCentrePoint `Sample::getFoundValueCentrePoint()`.
-/// @param valueSpan        `Sample::getValueSpan()`.
-void col_bar_positions(int32_t xDisplay, const WaveformRenderData* data, int32_t* min24, int32_t* max24,
-                       int32_t valueCentrePoint, int32_t valueSpan);
+/// @brief The legacy views' scan: @p cache brought to @p at for [@p first, @p last), reading through
+///        @ref read_columns what it lacks.
+/// @param sample   The sample to read.
+/// @param at       The window.
+/// @param cache    The view's columns, kept between frames.
+/// @param recorder The recorder writing @p sample, or null for a finished file.
+/// @param first    The first column to read.
+/// @param last     One past the last.
+/// @return The cache's columns; a column in the range that could not be read now is PENDING.
+deluge::sample_view::PeakRead find_peaks_per_col(Sample& sample, deluge::sample_view::Window at,
+                                                 deluge::sample_view::PeakCache& cache,
+                                                 SampleRecorder* recorder = nullptr, int32_t first = 0,
+                                                 int32_t last = deluge::sample_view::kColumns);
 
 /// @brief Background "waveform overview" pre-scan: investigate one whole cluster's min/max.
 ///
-/// `WaveformRenderer::investigateWholeCluster` (`waveform_renderer.cpp:569` before the move).
 /// Caches the result in the Sample's overview cache entry (int8 + investigated), so the zoomed-out
 /// single-row render path finds it already done and never has to load clusters synchronously while
 /// scrolling.
@@ -105,7 +78,6 @@ bool investigate_whole_cluster(Sample* sample, int32_t clusterIndex);
 
 /// @brief Advance @p sample's background overview pre-scan by up to @p maxClusters clusters.
 ///
-/// `WaveformRenderer::advanceOverviewScan` (`waveform_renderer.cpp:665` before the move).
 /// @param sample      The sample to advance.
 /// @param maxClusters Budget of previously-uninvestigated clusters for this call.
 /// @return True while more clusters remain to scan, false once the whole sample is covered.

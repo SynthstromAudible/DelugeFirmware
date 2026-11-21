@@ -449,7 +449,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	if (id_ == BrowserId::Sample) {
 		// `SampleBrowser::opened`: a held audition ends as the browser opens.
-		menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
+		menu::host_end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
 		// `SampleBrowser::opened`: undo history ends at the browser.
 		menu::host_forget_undo();
 	}
@@ -1498,15 +1498,15 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	// `SampleBrowser::previewIfPossible`'s (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
 	// `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new sample as
 	// `waveformBasicNavigator.opened()` does.
-	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const bind::WaveformAddress preview{.kind = bind::WaveformAddress::Kind::PREVIEW};
+	const std::optional<bind::WaveformInfo> info = menu::host_waveforms().info(preview);
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {
 		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
 		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
 		// dropped with it.
-		redraw_resolved_cols_ = -1;
+		retry_.restart();
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < main_cols; x++) {
 				(void)f.pad(x, y, waveform_shown_[y][x]);
@@ -1519,49 +1519,46 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	if (info->identity != nav_identity_) {
 		first = true;
 		draw_stats_.draws++;
-		redraw_given_up_ = false;
 		nav_identity_ = info->identity;
-		nav_.sample = nullptr;
-		nav_.length_samples = info->length_samples;
-		nav_.opened(0, 0);
-		redraw_resolved_cols_ = -1;
+		view_ = sample_view::WaveformView::open(info->length_samples, std::nullopt);
+		retry_.restart();
 	}
-	bool complete = true;
+	const std::optional<services::WaveformFrame> wf =
+	    services::read_waveform(menu::host_waveforms(), preview, view_.window());
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		complete = services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
+		if (wf) {
+			services::paint_columns(main, wf->read, wf->centre, wf->span);
+		}
 	});
 	for (int32_t y = 0; y < rows; y++) {
 		for (int32_t x = 0; x < main_cols; x++) {
 			waveform_shown_[y][x] = f.peek(x, y);
 		}
 	}
-	if (!first && redraw_resolved_cols_ >= 0) {
-		draw_stats_.redraws++;
-	}
-	if (complete) {
-		if (first || redraw_resolved_cols_ >= 0) {
-			draw_stats_.complete++;
-		}
-		redraw_resolved_cols_ = -1;
-		redraw_given_up_ = false;
+	if (!wf) {
 		return;
 	}
-	// A render the card has not caught up with yet is drawn again as its clusters land, until it
-	// is whole or `kWaveformRedrawGiveUpMs` pass with no column newly resolved.
-	int32_t resolved = 0;
-	for (const uint8_t status : nav_.renderData.colStatus) {
-		resolved += status != COL_STATUS_NOT_INVESTIGATED ? 1 : 0;
+	// A render the card has not caught up with yet is drawn again as its clusters land, until it is whole or
+	// `services::kPeakRetryGiveUpMs` pass with no column newly answered.
+	// A frame at a new view (a scroll or a zoom) is a draw of that view, not a redraw of the last.
+	const bool was_retrying = retry_.retrying(view_.window());
+	if (!first && was_retrying) {
+		draw_stats_.redraws++;
 	}
-	if (resolved > redraw_resolved_cols_) {
-		redraw_resolved_cols_ = resolved;
-		redraw_progress_ms_ = now;
-	}
-	if (static_cast<int32_t>(now - redraw_progress_ms_) < static_cast<int32_t>(kWaveformRedrawGiveUpMs)) {
-		f.grid_gate().request_repaint_after(kListingPollMs, now);
-	}
-	else if (!redraw_given_up_) {
-		redraw_given_up_ = true;
+	switch (retry_.after(wf->read, view_.window(), now)) {
+	case services::PeakRetry::Next::DONE:
+		if (first || was_retrying) {
+			draw_stats_.complete++;
+		}
+		break;
+	case services::PeakRetry::Next::ASK_AGAIN:
+		f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, now);
+		break;
+	case services::PeakRetry::Next::GIVE_UP:
 		draw_stats_.give_ups++;
+		break;
+	case services::PeakRetry::Next::WAIT:
+		break;
 	}
 }
 
@@ -2017,13 +2014,16 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 Result BrowserScene::horizontal_turn(int32_t delta) {
 	Result r;
 	r.handled = true;
-	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || nav_.is_zoomed_in())) {
+	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || view_.zoomed_in())) {
 		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
 		// mode up. Either draws the waveform over whatever the pads showed.
-		if (!holding_ && !backspace_due_ms_.has_value() && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
+		const std::optional<sample_view::WaveformView> moved = holding_ || backspace_due_ms_.has_value() ? std::nullopt
+		                                                       : xenc_held_
+		                                                           ? view_.zoomed(delta, {}, std::nullopt, false)
+		                                                           : view_.scrolled(delta, false, std::nullopt);
+		if (moved) {
+			view_ = *moved;
 			pads_ = BrowserPads::Waveform;
-			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
-			redraw_given_up_ = false;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		}
 		return r;

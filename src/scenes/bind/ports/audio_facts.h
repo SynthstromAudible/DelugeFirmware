@@ -6,6 +6,8 @@
 #include "plugin-api/types/sync.h"
 
 #include <cstdint>
+#include <optional>
+#include <string>
 
 namespace deluge::scenes::bind {
 
@@ -15,6 +17,19 @@ enum class ForegroundRecording : uint8_t {
 	NONE = 1,     ///< nothing
 	EXTERNAL = 2, ///< an input: the mic, line in, balanced or USB audio
 	INTERNAL = 3, ///< the device's own output: the mix, the output, one track's, or an offline stem
+};
+
+/// @brief An input take's state, as the recorder screen reads it on every frame.
+struct InputTake {
+	bool capturing{false};      ///< past the threshold's margin: Recording rather than Waiting
+	bool threshold{false};      ///< a threshold take, which shows the meter
+	float threshold_level{0.F}; ///< the threshold, 0 to 1
+	bool capturing_data{false}; ///< still writing; an end may be asked for
+	bool settled{false};        ///< closed, with no card write still out: it may be finished
+	bool aborted{false};        ///< it ended with nothing to keep
+	bool card_error{false};     ///< the card failed under it
+	uint8_t channels{0};        ///< 1 or 2
+	bool operator==(const InputTake&) const = default;
 };
 
 /// @brief The audio side's live facts, answered by the host.
@@ -40,6 +55,14 @@ public:
 	[[nodiscard]] virtual ForegroundRecording foreground_recording() const = 0;
 	/// @brief Whether the foreground recorder is resampling the device's output.
 	[[nodiscard]] virtual bool resampling() const = 0;
+	/// @brief The input take `TakeActions` holds.
+	/// @return Its state; none when no take is held.
+	[[nodiscard]] virtual std::optional<InputTake> input_take() const = 0;
+	/// @brief The held take's file.
+	/// @return Its path on the card, empty until the take's file is made; none when no take is held.
+	[[nodiscard]] virtual std::optional<std::string> input_take_path() const = 0;
+	/// @brief The audio clock, in frames at the device's rate.
+	[[nodiscard]] virtual uint32_t audio_sample_timer() const = 0;
 };
 
 } // namespace deluge::scenes::bind

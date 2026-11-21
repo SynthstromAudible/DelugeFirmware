@@ -39,7 +39,6 @@ static DelugeLoadMode loadModeFor(int32_t clusterLoadInstruction) {
 SampleHolder::SampleHolder() {
 	startPos = 0;
 	endPos = deluge::instrument::kUnsetEndPos;
-	waveformViewZoom = 0;
 	audioFileType = AudioFileType::SAMPLE;
 }
 
@@ -66,8 +65,6 @@ void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 
 	startPos = other->startPos;
 	endPos = other->endPos;
-	waveformViewScroll = other->waveformViewScroll;
-	waveformViewZoom = other->waveformViewZoom;
 }
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
@@ -185,7 +182,10 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 		}
 	}
 
-	startPlaybackAtByte_ = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
+	// In uint32_t, the width startPlaybackAtByte_ stores: a frame past 2^31 / bytesPerSample has a byte offset past
+	// INT32_MAX, and a signed product would overflow.
+	startPlaybackAtByte_ = ((Sample*)audioFile)->audioDataStartPosBytes
+	                       + static_cast<uint32_t>(startPlaybackAtSample) * static_cast<uint32_t>(bytesPerSample);
 
 	claimClusterReasonsForMarker(clustersForStart_, startPlaybackAtByte_, playDirection, clusterLoadInstruction);
 }

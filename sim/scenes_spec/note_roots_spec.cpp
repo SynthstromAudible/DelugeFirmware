@@ -7,11 +7,14 @@
 /// not here) -- it already owns every other root's row of that same table.
 
 #include "deluge-project/device_settings.h"
+#include "gui/l10n/setting_names.h"
 #include "gui/ui/menu_view_of.h"
+#include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/sound_actions.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 
@@ -232,6 +235,39 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		expect(bridge.fake.set_row_sequence_direction_calls).to_equal(0);
 		expect(static_cast<int32_t>(fx.clip->sequenceDirectionMode))
 		    .to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
+	});
+
+	// The case guards the wiring: the menu reads the row's own table. The table's order is pinned by
+	// `setting_names_spec` (against the legacy menu's options) and the play-direction parity script.
+	it("names the play direction's options as the row's own names: three on a clip, NONE fourth on a note row", _ {
+		const deluge::l10n::SettingNames* names =
+		    deluge::l10n::setting_names(deluge::project::SettingGroupId::NOTE_ROW, "sequenceDirection");
+		expect(names != nullptr).to_equal(true);
+		if (names == nullptr) {
+			return;
+		}
+		expect(names->choices.size()).to_equal(size_t{4});
+		const auto expected = [&](size_t i) {
+			return std::string(deluge::scenes::text_lookup(static_cast<uint16_t>(names->choices[i])));
+		};
+
+		spec::SongFixture fx = spec::make_synth_song();
+		MenuContext ctx = spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
+		std::string_view out[5]{};
+
+		spec::FakeNoteBridgeGuard bridge;
+		bridge.fake.row_sequence_direction_value = false;
+		expect(nodes::sequence_direction_names(ctx, out)).to_equal(size_t{3});
+		for (size_t i = 0; i < 3; ++i) {
+			expect(std::string(out[i])).to_equal(expected(i));
+		}
+
+		ctx.root = MenuContext::Root::NoteRowEditor;
+		bridge.fake.row_sequence_direction_value = true;
+		expect(nodes::sequence_direction_names(ctx, out)).to_equal(size_t{4});
+		for (size_t i = 0; i < 4; ++i) {
+			expect(std::string(out[i])).to_equal(expected(i));
+		}
 	});
 });
 

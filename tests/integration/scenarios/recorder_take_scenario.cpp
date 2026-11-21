@@ -37,6 +37,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -215,7 +216,7 @@ bool takeOver() {
 
 /// The recording's file path, once the recorder has made the file.
 void notePath() {
-	SampleRecorder* recorder = recorder_scene().recorder();
+	SampleRecorder* recorder = deluge::gui::shell_host::input_take();
 	if (recorder != nullptr && recorder->sample != nullptr && !recorder->sample->filePath.empty()) {
 		g_recordingPath = recorder->sample->filePath;
 	}
@@ -384,8 +385,8 @@ void stepMidiTake() {
 	g_recordingShown = g_recordingShown || recorder_scene().capturing();
 	// The render raises the clipping flag and only the recorder's own step lowers it, so a flag seen raised and then
 	// lowered shows that step ran mid-take.
-	if (recorder_scene().recorder() != nullptr) {
-		const bool clipped = recorder_scene().recorder()->recordingClippedRecently;
+	if (deluge::gui::shell_host::input_take() != nullptr) {
+		const bool clipped = deluge::gui::shell_host::input_take()->recordingClippedRecently;
 		g_clipConsumed = g_clipConsumed || (g_clipSeen && !clipped);
 		g_clipSeen = g_clipSeen || clipped;
 	}

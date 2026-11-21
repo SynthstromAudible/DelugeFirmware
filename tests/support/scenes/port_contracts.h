@@ -8,7 +8,10 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
+#include "deluge-project/transport.h"
 #include "plugin-api/types/display_mapping.h"
+#include "sample-view/divide.h"
+#include "sample-view/peaks.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 
@@ -17,6 +20,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -261,6 +265,30 @@ namespace deluge::scenes::bind::contract {
 	return flipped && t.metronome_on() == was;
 }
 
+/// @brief The navigation is stable across two calls, and a zoom it gives is at least one tick.
+[[nodiscard]] inline bool clip_navigation_is_stable(const ClipFacts& clips) {
+	const std::optional<ClipNavigation> a = clips.clip_navigation();
+	return a == clips.clip_navigation() && (!a || a->x_zoom >= 1);
+}
+
+/// @brief The arrangement mode is stable, and recording to the arrangement implies it.
+[[nodiscard]] inline bool arrangement_mode_is_stable(const Transport& t) {
+	const bool a = t.arrangement_mode();
+	return a == t.arrangement_mode() && (t.recording() != TransportRecording::ARRANGEMENT || a);
+}
+
+/// @brief A tempo grab on a clip that is not an audio clip leaves the transport as it was: the song's tempo, which a
+///        grab sets, and whether it plays.
+/// @param record The song's transport record, whose tick length is the tempo a grab writes.
+[[nodiscard]] inline bool grab_tempo_off_an_audio_clip_does_nothing(TransportActions& actions, const Transport& t,
+                                                                    const project::Transport& record,
+                                                                    project::ClipAddress not_audio) {
+	const bool playing = t.playing();
+	const uint64_t tempo = record.samples_per_timer_tick_big;
+	actions.grab_tempo(not_audio);
+	return t.playing() == playing && record.samples_per_timer_tick_big == tempo;
+}
+
 /// @brief The foreground recorder's source is one of the four.
 [[nodiscard]] inline bool foreground_recording_is_a_source(const AudioFacts& audio) {
 	const ForegroundRecording f = audio.foreground_recording();
@@ -399,6 +427,134 @@ namespace deluge::scenes::bind::contract {
 	       && device.read(device_path::kFavouritesLayout) == std::to_underlying(favourites)
 	       && device.read(device_path::kFollowFeedbackAutomation) == std::to_underlying(automation)
 	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0);
+}
+
+/// @}
+
+/// @name The waveforms port's cases.
+/// @{
+
+/// @brief An address nothing is loaded at answers no info, nothing to draw or wait for, and no position.
+[[nodiscard]] inline bool waveforms_unknown_address_reads_nothing(const Waveforms& w, const WaveformAddress& nowhere) {
+	return !w.info(nowhere).has_value()
+	       && w.peaks(nowhere, {.scroll = 0, .zoom = 1}) == sample_view::PeakRead::all_past_end()
+	       && !w.play_position(nowhere).has_value();
+}
+
+/// @brief A window that covers no frames has nothing to draw.
+[[nodiscard]] inline bool waveforms_empty_window_reads_past_end(const Waveforms& w, const WaveformAddress& at) {
+	return w.peaks(at, {.scroll = 0, .zoom = 0}) == sample_view::PeakRead::all_past_end();
+}
+
+/// @brief Over a finished file, a column from the length on is past the end, and a column wholly inside a file of
+///        whole clusters is not: pending means "ask again", never "nothing there".
+[[nodiscard]] inline bool waveforms_columns_follow_the_length(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> info = w.info(at);
+	if (!info || info->recording || info->length_samples == 0) {
+		return false;
+	}
+	const auto length = static_cast<int64_t>(info->length_samples);
+	// Twice the whole-waveform zoom, so about half the columns lie past the end.
+	const int64_t zoom = std::max<int64_t>(1, sample_view::ceil_div(length, sample_view::kColumns) << 1);
+	const sample_view::PeakRead read = w.peaks(at, {.scroll = 0, .zoom = zoom});
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		// Past the end exactly where the column starts at or past the length.
+		const bool past_end = read.column(c).state() == sample_view::ColumnState::PAST_END;
+		if ((int64_t{c} * zoom >= length) != past_end) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// @brief Over a finished file, a column once answered with a peak answers the same peak on the next read, and the
+///        second read has a peak to draw.
+[[nodiscard]] inline bool waveforms_peaks_are_stable(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> info = w.info(at);
+	if (!info || info->recording) {
+		return false;
+	}
+	const sample_view::Window window{
+	    .scroll = 0,
+	    .zoom = std::max<int64_t>(
+	        1, sample_view::ceil_div(static_cast<int64_t>(info->length_samples), sample_view::kColumns))};
+	const sample_view::PeakRead first = w.peaks(at, window);
+	const sample_view::PeakRead second = w.peaks(at, window);
+	bool drawn = false;
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		if (first.column(c).peak() && first.column(c) != second.column(c)) {
+			return false;
+		}
+		drawn = drawn || second.column(c).peak().has_value();
+	}
+	return drawn;
+}
+
+/// @brief Two infos of one waveform agree, and a loaded file's facts are consistent.
+[[nodiscard]] inline bool waveforms_info_is_consistent(const Waveforms& w, const WaveformAddress& at) {
+	const std::optional<WaveformInfo> a = w.info(at);
+	const std::optional<WaveformInfo> b = w.info(at);
+	return a.has_value() && a == b && (a->channels == 1 || a->channels == 2) && a->identity != 0;
+}
+
+/// @}
+
+/// @name The input take's cases.
+/// @{
+
+/// @brief With no take held, a take's state and path read none.
+[[nodiscard]] inline bool no_take_reads_nothing(const AudioFacts& audio) {
+	return !audio.input_take().has_value() && !audio.input_take_path().has_value();
+}
+
+/// @brief The audio clock does not run backwards between two calls.
+[[nodiscard]] inline bool audio_clock_is_monotonic(const AudioFacts& audio) {
+	const uint32_t a = audio.audio_sample_timer();
+	return audio.audio_sample_timer() - a < 0x8000'0000U;
+}
+
+/// @brief With no take held, every take call is harmless: it reports no clip and no level, and the state and path
+///        still read none afterwards.
+[[nodiscard]] inline bool take_calls_without_a_take_do_nothing(TakeActions& takes, const AudioFacts& audio) {
+	takes.end_soon();
+	const bool clipped = takes.take_clipped();
+	const InputLevels levels = takes.take_levels();
+	takes.finish();
+	takes.orphan();
+	return !clipped && levels == InputLevels{} && no_take_reads_nothing(audio);
+}
+
+/// @}
+
+/// @name The indicators' and the root view's cases.
+/// @{
+
+/// @brief Clearing the tick squares changes no fact of the transport.
+[[nodiscard]] inline bool clearing_ticks_keeps_the_transport(Indicators& indicators, const Transport& transport) {
+	const auto facts = [&] {
+		return std::tuple{transport.playing(),      transport.clocks_active(),    transport.recording(),
+		                  transport.metronome_on(), transport.overdubs_pending(), transport.count_in_visual()};
+	};
+	const auto before = facts();
+	indicators.clear_tick_squares();
+	return facts() == before;
+}
+
+/// @brief With nothing auditioning, ending an audition of every kind changes no fact of the UI.
+[[nodiscard]] inline bool ending_no_audition_changes_nothing(ViewActions& view, const UiFacts& ui) {
+	if (ui.auditioning()) {
+		return false;
+	}
+	const auto facts = [&] { return std::tuple{ui.auditioning(), ui.popup_showing(), ui.performance_editing_mode()}; };
+	const auto before = facts();
+	for (const AuditionEnd how : {AuditionEnd::ClipViewWhenAuditioning, AuditionEnd::ClipViewForInstrumentClip,
+	                              AuditionEnd::KeyboardWhenAuditioning}) {
+		view.end_audition(how);
+		if (facts() != before) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /// @}

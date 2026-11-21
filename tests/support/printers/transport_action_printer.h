@@ -32,12 +32,13 @@
 /// a spec linked with others that print the same type must agree with them.
 namespace deluge::scenes::bind::test {
 
-/// @brief Prints a recorded action as its kind's value and its flag, e.g. `{kind 7, flag 1}`.
+/// @brief Prints a recorded action as its kind's value, its flag and its clip's id, e.g. `{kind 7, flag 1, clip 0}`.
 /// @param os   The stream to print to.
 /// @param call The recorded action.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const RecordingTransportActions::Call& call) {
-	return os << "{kind " << static_cast<int>(std::to_underlying(call.kind)) << ", flag " << call.flag << "}";
+	return os << "{kind " << static_cast<int>(std::to_underlying(call.kind)) << ", flag " << call.flag << ", clip "
+	          << call.clip.clip_id << "}";
 }
 
 } // namespace deluge::scenes::bind::test

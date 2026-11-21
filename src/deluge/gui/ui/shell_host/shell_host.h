@@ -12,12 +12,18 @@
 #include <vector>
 
 class AudioClip;
+class SampleRecorder;
+class Sample;
 
 namespace deluge::edits {
 class Edit;
 } // namespace deluge::edits
 
 namespace deluge::gui::shell_host {
+
+/// @brief The identity a waveform's info carries for @p sample: its lifetime serial (`Sample::serial`), so another
+///        file, a take, or a sample constructed later in the same memory has another. Never 0.
+[[nodiscard]] uint64_t waveform_identity(const ::Sample& sample);
 
 /// @brief The host's AudioFacts.
 [[nodiscard]] const scenes::bind::AudioFacts& audio_facts();
@@ -67,7 +73,25 @@ namespace deluge::gui::shell_host {
 /// @brief The host's TransportActions: each the call the legacy buttons make, popups included.
 [[nodiscard]] scenes::bind::TransportActions& transport_actions();
 
-/// @brief Give the overlays the app's ports they read. Idempotent; the boot and every guest open call it.
+/// @brief The host's Waveforms: the samples a song's ranges and audio clips, the browser's preview and the slicer
+///        hold, with the columns read lately kept per sample.
+[[nodiscard]] const scenes::bind::Waveforms& waveforms();
+
+/// @brief The host's TakeActions: the recorder screen's input take, one recorder held from begin to finish or orphan.
+[[nodiscard]] scenes::bind::TakeActions& take_actions();
+
+/// @brief The take `take_actions` holds.
+/// @return The recorder, or null when no take is held.
+[[nodiscard]] ::SampleRecorder* input_take();
+
+/// @brief The host's Indicators: the pads' tick squares, through `PadLEDs`.
+[[nodiscard]] scenes::bind::Indicators& indicators();
+
+/// @brief The host's ViewActions: each the call the legacy opener it names makes on the root view.
+[[nodiscard]] scenes::bind::ViewActions& view_actions();
+
+/// @brief Give the overlays, the slicer and the audio clip scene the app's ports they read. Idempotent; the boot and
+///        every guest open call it.
 void install_scene_ports();
 
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as

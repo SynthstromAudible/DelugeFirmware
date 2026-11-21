@@ -62,23 +62,21 @@
 /// `sim/scenes_spec/timeline_spec.cpp`: the scroll example takes a second detent and lands on page
 /// two, and the zoom examples take a second detent and are then stopped by the max-zoom *delay*
 /// rather than by the mode. `WaveformBasicNavigator::zoom`'s tail
-/// (`gui/waveform/waveform_basic_navigator.cpp`) is the same three steps that end the animation arm of
+/// (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`) is the same three steps that end the animation arm of
 /// `TimelineView::initiateXZoom` (setting `UI_MODE_HORIZONTAL_ZOOM`, `PadLEDs::recordTransitionBegin`,
 /// `PadLEDs::renderZoom`), and contains no wait of its own.
 ///
-/// @par This state is a mirror of `Song`'s, and `adopt`/`publish` are the only place that says so
+/// @par This state starts from the song's clip navigation, which `adopt` takes
 ///
-/// Legacy's authority is `Song::xScroll[NAVIGATION_CLIP]` / `xZoom[NAVIGATION_CLIP]`, which is what
-/// gets written to the song file and what `Clip::renderData` compares against. The scenes layer may
-/// not name `currentSong` (`check_layer_rules.py`'s `scenes-currentSong` row), so the state lives
-/// here and the two functions below are the seam. They are the *only* two places in this layer that
-/// spell `NAVIGATION_CLIP`, deliberately: two root scenes each reaching into the array themselves
-/// would be two places to get the slot wrong.
+/// The authority is the song's clip navigation slot, `Song::xScroll[NAVIGATION_CLIP]` /
+/// `xZoom[NAVIGATION_CLIP]`, which is what gets written to the song file and what `Clip::renderData`
+/// compares against. A scene reads it through its clip-facts port (`bind::ClipFacts::clip_navigation`),
+/// whose host names the slot, and `adopt` copies what that answers: no scene spells the slot itself.
 // clang-format on
 
-#include <cstdint>
+#include "scenes/bind/ports/clip_facts.h"
 
-class Song;
+#include <cstdint>
 
 namespace deluge::scenes::timeline {
 
@@ -173,18 +171,12 @@ struct TimelineState {
 	///       because it is the one place the port is deliberately *not* a transcription.
 	int32_t scroll_before_following = kNotFollowing;
 
-	/// @name The `Song` seam
-	/// @{
-	/// @brief Take scroll, zoom and the triplets settings from @p song's clip navigation slot.
+	/// @brief Take scroll, zoom and the triplets settings from the song's clip navigation.
 	///
 	/// The port of nothing: legacy needs no such call because its state never left `Song`. See the
-	/// file comment for why this layer's did, and why this is the only place that names the slot.
-	/// @param song The song to read.
-	void adopt(const Song& song);
-	/// @brief Write scroll, zoom and the triplets settings back into @p song's clip navigation slot.
-	/// @param song The song to write.
-	void publish(Song& song) const;
-	/// @}
+	/// file comment for where the navigation comes from.
+	/// @param navigation The navigation, as the clip-facts port answers it.
+	void adopt(const bind::ClipNavigation& navigation);
 
 	/// @name Pure arithmetic
 	/// @{

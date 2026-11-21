@@ -116,7 +116,8 @@ SECTIONS {
         __scenes_vtables_start = .;
         *(.rodata._ZTV*6deluge6scenes*)
         __scenes_vtables_end = .;
-        /* The host's port objects and their vtables (`deluge::gui::shell_host`), which only the
+        /* The host's port objects and their vtables (`deluge::gui::shell_host`), the waveforms port's
+         * column caches among them (its object is `constinit`, so `.data`), which only the
          * scenes and the GUI's own code, already here, call through. */
         *(.data.*6deluge3gui10shell_host* .rodata.*6deluge3gui10shell_host*)
         PROVIDE(__sdram_init_end = .);

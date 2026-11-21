@@ -9,6 +9,7 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
+#include "deluge-project/transport.h"
 #include "scenes/bind/device_reader.h"
 
 #include <cppspec.hpp>
@@ -34,6 +35,182 @@ class ForgetfulDeviceSettings final : public DeviceSettings {
 	[[nodiscard]] DeviceWrite store(const deluge::plugin::SettingInfo&, const deluge::serialization::Value&) override {
 		return DeviceWrite::STORED;
 	}
+};
+
+/// @brief The info the failing waveforms fakes answer at every address: a finished mono file of 1000 frames.
+constexpr WaveformInfo kThousandFrames{.length_samples = 1000, .sample_rate = 44100, .channels = 1, .identity = 1};
+
+/// @brief A broken waveforms port: it answers a column past the end PENDING, so a caller would wait for a column that
+///        never comes.
+class EagerWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window at) const override {
+		deluge::sample_view::PeakRead read;
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			if (at.scroll + int64_t{c} * at.zoom < static_cast<int64_t>(kThousandFrames.length_samples)) {
+				read.set(c, deluge::sample_view::ColumnRead::of({.min = -1, .max = 1}));
+			}
+			else {
+				read.set(c, deluge::sample_view::ColumnRead::pending());
+			}
+		}
+		return read;
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+};
+
+/// @brief A broken waveforms port: each read answers every column another peak.
+class FlakyWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		deluge::sample_view::PeakRead read;
+		reads_++;
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			read.set(c, deluge::sample_view::ColumnRead::of({.min = -reads_, .max = reads_}));
+		}
+		return read;
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+	mutable int32_t reads_{0};
+};
+
+/// @brief A broken waveforms port: its info names no waveform (identity 0), so two files could not be told apart.
+class UnnamedWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override {
+		WaveformInfo unnamed = kThousandFrames;
+		unnamed.identity = 0;
+		return unnamed;
+	}
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		return deluge::sample_view::PeakRead::all_past_end();
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+};
+
+/// @brief A broken waveforms port: it answers every column past the end over a loaded file.
+class BlankWaveforms final : public Waveforms {
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
+	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
+	                                                  deluge::sample_view::Window) const override {
+		return deluge::sample_view::PeakRead::all_past_end();
+	}
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
+};
+
+/// @brief A broken audio port: its clock steps back on every read.
+class BackwardsClock final : public AudioFacts {
+	[[nodiscard]] bool audio_inputs_present() const override { return false; }
+	[[nodiscard]] int32_t live_voice_count() const override { return 0; }
+	[[nodiscard]] bool line_in_plugged() const override { return false; }
+	[[nodiscard]] int32_t song_threshold_recording() const override { return 0; }
+	[[nodiscard]] deluge::plugin::SyncType reverb_sidechain_sync_type() const override {
+		return deluge::plugin::SyncType::EVEN;
+	}
+	[[nodiscard]] bool audio_busy() const override { return false; }
+	[[nodiscard]] ForegroundRecording foreground_recording() const override { return ForegroundRecording::NONE; }
+	[[nodiscard]] bool resampling() const override { return false; }
+	[[nodiscard]] std::optional<InputTake> input_take() const override { return std::nullopt; }
+	[[nodiscard]] std::optional<std::string> input_take_path() const override { return std::nullopt; }
+	[[nodiscard]] uint32_t audio_sample_timer() const override { return now_--; }
+	mutable uint32_t now_{1000};
+};
+
+/// @brief A broken take port: its finish leaves a take held on the audio fake, as though it had begun one.
+class HeldTakeActions final : public TakeActions {
+public:
+	explicit HeldTakeActions(test::FakeAudioFacts& audio) : audio_{audio} {}
+	[[nodiscard]] bool begin(TakeChannels) override { return false; }
+	void end_soon() override {}
+	[[nodiscard]] InputLevels take_levels() override { return {}; }
+	[[nodiscard]] bool take_clipped() override { return false; }
+	void finish() override { audio_.take = InputTake{.channels = 1}; }
+	void orphan() override {}
+
+private:
+	test::FakeAudioFacts& audio_;
+};
+
+/// @brief A broken take port: it answers a clip, or a level, with no take held.
+class ChattyTakeActions final : public TakeActions {
+public:
+	ChattyTakeActions(bool clipped, InputLevels levels) : clipped_{clipped}, levels_{levels} {}
+	[[nodiscard]] bool begin(TakeChannels) override { return false; }
+	void end_soon() override {}
+	[[nodiscard]] InputLevels take_levels() override { return levels_; }
+	[[nodiscard]] bool take_clipped() override { return clipped_; }
+	void finish() override {}
+	void orphan() override {}
+
+private:
+	bool clipped_;
+	InputLevels levels_;
+};
+
+/// @brief A broken indicators port: clearing the tick squares starts the transport fake playing.
+class PlayingIndicators final : public Indicators {
+public:
+	explicit PlayingIndicators(test::FakeTransport& transport) : transport_{transport} {}
+	void clear_tick_squares() override { transport_.is_playing = true; }
+
+private:
+	test::FakeTransport& transport_;
+};
+
+/// @brief A broken view port: ending an audition puts a popup up on the UI fake.
+class PopupViewActions final : public ViewActions {
+public:
+	explicit PopupViewActions(test::FakeUiFacts& ui) : ui_{ui} {}
+	void end_audition(AuditionEnd) override { ui_.popup = true; }
+
+private:
+	test::FakeUiFacts& ui_;
+};
+
+/// @brief A broken transport-actions port: a tempo grab starts the transport fake playing, whatever clip it names.
+class PlayingTempoGrab final : public TransportActions {
+public:
+	explicit PlayingTempoGrab(test::FakeTransport& transport) : transport_{transport} {}
+	void play() override {}
+	void record() override {}
+	void tap_tempo(bool) override {}
+	void toggle_metronome() override {}
+	void clear_tempo_automation() override {}
+	void show_swing_interval() override {}
+	void show_tempo() override {}
+	void undo(bool) override {}
+	void begin_output_recording() override {}
+	void end_recording_soon() override {}
+	void stop_output_recording_at_loop_end() override {}
+	void fill(bool) override {}
+	void grab_tempo(deluge::project::ClipAddress) override { transport_.is_playing = true; }
+
+private:
+	test::FakeTransport& transport_;
+};
+
+/// @brief A broken transport-actions port: a tempo grab writes the song's tempo, whatever clip it names.
+class TempoWritingGrab final : public TransportActions {
+public:
+	explicit TempoWritingGrab(deluge::project::Transport& record) : record_{record} {}
+	void play() override {}
+	void record() override {}
+	void tap_tempo(bool) override {}
+	void toggle_metronome() override {}
+	void clear_tempo_automation() override {}
+	void show_swing_interval() override {}
+	void show_tempo() override {}
+	void undo(bool) override {}
+	void begin_output_recording() override {}
+	void end_recording_soon() override {}
+	void stop_output_recording_at_loop_end() override {}
+	void fill(bool) override {}
+	void grab_tempo(deluge::project::ClipAddress) override { record_.samples_per_timer_tick_big += uint64_t{1} << 32; }
+
+private:
+	deluge::project::Transport& record_;
 };
 
 } // namespace
@@ -91,6 +268,19 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.clips->clip_playing(deluge::project::ClipAddress{.clip_id = 5})).to_be_true();
 		expect(p.clips->clip_live_pos(deluge::project::ClipAddress{.clip_id = 5})).to_equal(96);
 		expect(contract::unknown_clip_is_silent(*p.clips, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
+	});
+	it("answers the clip navigation as the spec set it, none by default, and holds its contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.clips->clip_navigation().has_value()).to_be_false();
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+		const ClipNavigation set{.x_scroll = 96, .x_zoom = 6, .triplets_on = true, .triplets_level = 8};
+		host.clips.navigation = set;
+		expect(p.clips->clip_navigation()).to_equal(std::optional{set});
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_true();
+		// A zoom of no ticks breaks it.
+		host.clips.navigation->x_zoom = 0;
+		expect(contract::clip_navigation_is_stable(*p.clips)).to_be_false();
 	});
 	it("answers the tracks as the spec set them, and an unknown chain as having no effects", _ {
 		test::FakeHost host;
@@ -387,6 +577,17 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.transport->undo_allowed()).to_be_true();
 		expect(p.transport->overdubs_pending()).to_be_true();
 		expect(contract::transport_recording_is_a_mode(*p.transport)).to_be_true();
+		// Recording to the arrangement with the arrangement's mode off breaks the arrangement case.
+		expect(p.transport->arrangement_mode()).to_be_false();
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_false();
+		host.transport.arrangement = true;
+		expect(p.transport->arrangement_mode()).to_be_true();
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+		host.transport.mode = TransportRecording::NORMAL;
+		host.transport.arrangement = false;
+		expect(contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
+		host.transport.mode = TransportRecording::ARRANGEMENT;
+		host.transport.arrangement = true;
 
 		expect(contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();
 		expect(p.transport->playing()).to_be_false();
@@ -402,6 +603,10 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		p.transport_actions->end_recording_soon();
 		p.transport_actions->stop_output_recording_at_loop_end();
 		p.transport_actions->fill(true);
+		deluge::project::Transport record{.samples_per_timer_tick_big = uint64_t{20} << 32};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(*p.transport_actions, *p.transport, record,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_true();
 		using Call = test::RecordingTransportActions::Call;
 		using K = Call::Kind;
 		const std::vector<Call> expected{
@@ -418,6 +623,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		    {.kind = K::END_RECORDING_SOON},
 		    {.kind = K::STOP_OUTPUT_RECORDING_AT_LOOP_END},
 		    {.kind = K::FILL, .flag = true},
+		    {.kind = K::GRAB_TEMPO, .clip = deluge::project::ClipAddress{.clip_id = 9}},
 		};
 		expect(host.transport_actions.calls).to_equal(expected);
 
@@ -427,6 +633,21 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::metronome_toggles_read_back(unwired, still)).to_be_false();
 		unwired.play();
 		expect(still.is_playing).to_be_false();
+
+		// A tempo grab that starts the transport, or writes the tempo, breaks the tempo-grab case; the recorder keeps it.
+		PlayingTempoGrab grabbing{still};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(grabbing, still, record,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_false();
+		still.is_playing = false;
+		TempoWritingGrab writing{record};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(writing, still, record,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_false();
+		expect(still.is_playing).to_be_false();
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(unwired, still, record,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_true();
 	});
 	it("answers the foreground recorder's source and resampling as the spec set them, and records forgetting undo", _ {
 		test::FakeHost host;
@@ -448,6 +669,92 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::forgetting_undo_keeps_the_transport(*p.device_actions, *p.transport)).to_be_true();
 		expect(host.device_actions.calls).to_equal(
 		    std::vector<test::RecordingDeviceActions::Kind>{test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS});
+	});
+	it("holds a take from begin to finish or orphan, reads it back on the audio fake, and holds the take contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.take_actions).to_equal(static_cast<TakeActions*>(&host.take_actions));
+		expect(p.indicators).to_equal(static_cast<Indicators*>(&host.indicators));
+		expect(p.view_actions).to_equal(static_cast<ViewActions*>(&host.view_actions));
+		expect(contract::no_take_reads_nothing(*p.audio)).to_be_true();
+		expect(contract::audio_clock_is_monotonic(*p.audio)).to_be_true();
+		expect(contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
+
+		host.take_actions.calls.clear();
+		expect(p.take_actions->begin(TakeChannels::STEREO)).to_be_true();
+		expect(p.audio->input_take()).to_equal(std::optional{InputTake{.channels = 2}});
+		expect(contract::no_take_reads_nothing(*p.audio)).to_be_false();
+		host.take_actions.clipped = true;
+		expect(p.take_actions->take_clipped()).to_be_true();
+		expect(p.take_actions->take_clipped()).to_be_false();
+		p.take_actions->finish();
+		expect(p.audio->input_take().has_value()).to_be_false();
+		expect(p.take_actions->begin(TakeChannels::MONO)).to_be_true();
+		expect(host.take_actions.channels).to_equal(TakeChannels::MONO);
+		p.take_actions->orphan();
+		expect(p.audio->input_take().has_value()).to_be_false();
+		using Kind = test::RecordingTakeActions::Kind;
+		expect(host.take_actions.calls)
+		    .to_equal(std::vector<Kind>{Kind::BEGIN, Kind::TAKE_CLIPPED, Kind::TAKE_CLIPPED, Kind::FINISH,
+		                                Kind::BEGIN, Kind::ORPHAN});
+		host.take_actions.begins = false;
+		expect(p.take_actions->begin(TakeChannels::MONO)).to_be_false();
+		expect(p.audio->input_take().has_value()).to_be_false();
+
+		host.take_actions.clipped = true;
+		host.take_actions.levels = {.left = 0.5F, .right = 0.25F};
+		expect(p.take_actions->take_clipped()).to_be_false(); // no take held
+		expect(p.take_actions->take_levels()).to_equal(InputLevels{});
+		expect(contract::take_calls_without_a_take_do_nothing(*p.take_actions, *p.audio)).to_be_true();
+		host.take_actions.calls.clear();
+
+		p.indicators->clear_tick_squares();
+		p.view_actions->end_audition(AuditionEnd::KeyboardWhenAuditioning);
+		expect(host.indicators.tick_clears).to_equal(1);
+		expect(host.view_actions.ends).to_equal(std::vector<AuditionEnd>{AuditionEnd::KeyboardWhenAuditioning});
+		expect(host.order).to_equal(std::vector<std::string_view>{"begin", "begin", "begin", "ticks", "audition"});
+
+		host.transport.is_playing = true;
+		expect(contract::clearing_ticks_keeps_the_transport(*p.indicators, *p.transport)).to_be_true();
+		expect(contract::ending_no_audition_changes_nothing(*p.view_actions, *p.ui)).to_be_true();
+		expect(host.view_actions.ends.size()).to_equal(size_t{4});
+	});
+	it("fails each take case on a port that breaks it", _ {
+		test::FakeHost host;
+		host.audio.take_path = "SAMPLES/RECORD/REC00001.WAV";
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_false();
+		host.audio.take_path.reset();
+		host.audio.take = InputTake{.channels = 1};
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_false();
+		host.audio.take.reset();
+		expect(contract::audio_clock_is_monotonic(BackwardsClock{})).to_be_false();
+		HeldTakeActions held{host.audio};
+		expect(contract::take_calls_without_a_take_do_nothing(held, host.audio)).to_be_false();
+		host.audio.take.reset();
+		ChattyTakeActions clipping{true, {}};
+		expect(contract::take_calls_without_a_take_do_nothing(clipping, host.audio)).to_be_false();
+		ChattyTakeActions loud{false, {.left = 0.5F, .right = 0.F}};
+		expect(contract::take_calls_without_a_take_do_nothing(loud, host.audio)).to_be_false();
+		// Each broken take port keeps the audio port's own case, and a quiet one passes.
+		expect(contract::no_take_reads_nothing(host.audio)).to_be_true();
+		ChattyTakeActions quiet{false, {}};
+		expect(contract::take_calls_without_a_take_do_nothing(quiet, host.audio)).to_be_true();
+	});
+	it("fails the indicators' and the root view's cases on a port that breaks each", _ {
+		test::FakeHost host;
+		PlayingIndicators playing{host.transport};
+		expect(contract::clearing_ticks_keeps_the_transport(playing, host.transport)).to_be_false();
+		PopupViewActions popup{host.ui};
+		expect(contract::ending_no_audition_changes_nothing(popup, host.ui)).to_be_false();
+		// With a note auditioning the case's precondition fails, whatever the port does.
+		host.ui.popup = false;
+		host.ui.auditioning_now = true;
+		expect(contract::ending_no_audition_changes_nothing(host.view_actions, host.ui)).to_be_false();
+		host.ui.auditioning_now = false;
+		// Each broken port keeps the case of the other port, and the recorders pass both.
+		host.transport.is_playing = false;
+		expect(contract::clearing_ticks_keeps_the_transport(host.indicators, host.transport)).to_be_true();
+		expect(contract::ending_no_audition_changes_nothing(host.view_actions, host.ui)).to_be_true();
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;
@@ -526,6 +833,75 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			.to_equal(static_cast<int>(ShortcutsVersion::V3));
 		expect(read_device_flag(nullptr, battery)).to_be_true();
 		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
+	});
+	it("answers the waveforms as the spec set them, records every read, and holds the waveforms contract", _ {
+		using deluge::sample_view::ColumnRead;
+		using deluge::sample_view::PeakRead;
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.waveforms).to_equal(static_cast<const Waveforms*>(&host.waveforms));
+		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,
+		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, 4}};
+		const WaveformAddress nowhere{.kind = WaveformAddress::Kind::PREVIEW};
+		test::FakeWaveforms::Entry entry{.at = range, .info = kThousandFrames, .position = 250};
+		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			entry.peaks[static_cast<size_t>(c)] = {.min = -c, .max = c};
+		}
+		entry.pending.set(3);
+		entry.pending_reads = 1;
+		host.waveforms.waveforms.push_back(entry);
+
+		expect(host.waveforms.info(range)).to_equal(std::optional{kThousandFrames});
+		expect(host.waveforms.play_position(range)).to_equal(std::optional<int64_t>{250});
+		// Column 3 is pending on the first read alone; at 100 frames a column, columns 10 on lie past the end.
+		const PeakRead first = host.waveforms.peaks(range, {.scroll = 0, .zoom = 100});
+		expect(first.column(3)).to_equal(ColumnRead::pending());
+		expect(first.column(2)).to_equal(ColumnRead::of({.min = -2, .max = 2}));
+		expect(first.column(10)).to_equal(ColumnRead::past_end());
+		const PeakRead second = host.waveforms.peaks(range, {.scroll = 0, .zoom = 100});
+		expect(second.column(3)).to_equal(ColumnRead::of({.min = -3, .max = 3}));
+		// A column wholly before the start is past the end; one straddling it is not.
+		const PeakRead before = host.waveforms.peaks(range, {.scroll = -150, .zoom = 100});
+		expect(before.column(0)).to_equal(ColumnRead::past_end());
+		expect(before.column(1)).to_equal(ColumnRead::of({.min = -1, .max = 1}));
+		expect(host.waveforms.reads.size()).to_equal(size_t{3});
+		if (host.waveforms.reads.size() == 3) {
+			expect(host.waveforms.reads[2])
+			    .to_equal(test::FakeWaveforms::Read{.at = range, .in = {.scroll = -150, .zoom = 100}});
+		}
+
+		expect(contract::waveforms_unknown_address_reads_nothing(host.waveforms, nowhere)).to_be_true();
+		expect(contract::waveforms_empty_window_reads_past_end(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_columns_follow_the_length(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_peaks_are_stable(host.waveforms, range)).to_be_true();
+		expect(contract::waveforms_info_is_consistent(host.waveforms, range)).to_be_true();
+
+		// A take: columns that do not end by the captured frames are past the end, the straddling one too.
+		const WaveformAddress take{.kind = WaveformAddress::Kind::AUDIO_CLIP, .clip = {35}};
+		WaveformInfo recording = kThousandFrames;
+		recording.recording = true;
+		host.waveforms.waveforms.push_back({.at = take, .info = recording, .captured = 550});
+		const PeakRead taken = host.waveforms.peaks(take, {.scroll = 0, .zoom = 100});
+		expect(taken.column(4).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		expect(taken.column(5)).to_equal(ColumnRead::past_end());
+		expect(taken.column(9)).to_equal(ColumnRead::past_end());
+	});
+	it("fails each waveforms case on a port that breaks it", _ {
+		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE};
+		// Eager answers info everywhere, a peak at zoom 0, and PENDING past the end.
+		expect(contract::waveforms_unknown_address_reads_nothing(EagerWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_empty_window_reads_past_end(EagerWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_columns_follow_the_length(EagerWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_peaks_are_stable(FlakyWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_info_is_consistent(UnnamedWaveforms{}, range)).to_be_false();
+		// Nothing drawn inside a loaded file.
+		expect(contract::waveforms_columns_follow_the_length(BlankWaveforms{}, range)).to_be_false();
+		expect(contract::waveforms_peaks_are_stable(BlankWaveforms{}, range)).to_be_false();
+		// Each broken fake keeps the cases it does not break.
+		expect(contract::waveforms_info_is_consistent(EagerWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_peaks_are_stable(EagerWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_empty_window_reads_past_end(BlankWaveforms{}, range)).to_be_true();
+		expect(contract::waveforms_info_is_consistent(BlankWaveforms{}, range)).to_be_true();
 	});
 });
 

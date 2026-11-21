@@ -3,9 +3,11 @@
 #include "board_config.h"
 #include "model/edits/edit.h"
 #include "model/song/song.h"
+#include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 
 namespace deluge::scenes::menu {
 
@@ -30,6 +32,10 @@ const bind::Ports& host_ports() {
 	    .midi_feedback = &gui::shell_host::midi_feedback(),
 	    .transport = &gui::shell_host::transport(),
 	    .transport_actions = &gui::shell_host::transport_actions(),
+	    .waveforms = &gui::shell_host::waveforms(),
+	    .take_actions = &gui::shell_host::take_actions(),
+	    .indicators = &gui::shell_host::indicators(),
+	    .view_actions = &gui::shell_host::view_actions(),
 	};
 	return ports;
 }
@@ -42,6 +48,8 @@ void install_scene_ports() {
 	const scenes::bind::Ports& ports = scenes::menu::host_ports();
 	scenes::overlay::count_in_scene().set_transport(ports.transport);
 	scenes::overlay::screensaver_scene().set_device(ports.device);
+	scenes::slicing::slicer_scene().set_ports(&ports);
+	scenes::audio_clip::audio_clip_scene().set_ports(&ports);
 }
 
 bool applied(edits::Edit& edit) {

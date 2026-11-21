@@ -85,6 +85,10 @@ public:
 	/// @param address The clip's address.
 	/// @return The record, or nullptr if it is not tree-resident.
 	DocClip* resolveClip(const ClipAddress& address);
+	/// @brief A clip's structural record, read through a const song.
+	/// @param address The clip's address.
+	/// @return The record, or nullptr if it is not tree-resident.
+	[[nodiscard]] const DocClip* resolveClip(const ClipAddress& address) const;
 	/// @brief A clip's structural record, created if absent (bound as the clip's authoritative `docClip_` in the Clip
 	/// constructor).
 	/// @param address The clip's address.

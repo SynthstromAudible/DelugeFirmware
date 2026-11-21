@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/shell_host/shell_host.h"
 
 #include "gui/ui/browser_host.h"
 #include "gui/ui/slice_core.h"
@@ -60,6 +61,11 @@ public:
 		                                                   .on = req.on});
 	}
 	void cancel_audition() override { core_.cancel_audition(); }
+	/// The slicer closed: SLICE names nothing until the next open, which looks its file up again.
+	void closed() override {
+		sample_ = nullptr;
+		play_position_.reset();
+	}
 	/// The position `poll` read this tick: the scene asks while it renders, which walks no voices.
 	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
@@ -90,7 +96,9 @@ public:
 				// An earlier open still loading would land over this one.
 				open_load_.cancel();
 				sample_ = sample;
-				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+				const uint64_t identity = gui::shell_host::waveform_identity(*sample);
+				slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+				                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
 				shellSliceReady(true);
 				return;
 			}
@@ -139,13 +147,18 @@ public:
 
 	/// @brief Drop what the guest's close leaves behind: a pending open, the sample the slicer was open on and a held
 	///        audition, which would otherwise land in whatever the next guest edits. A slice that is out cannot be
-	///        dropped; the close is refused while one is (`slicing`).
+	///        dropped; the close is refused while one is (`slicing`). The scene lets its file go too: no slicer shows
+	///        after the close, and a reopen reads afresh.
 	void release() {
 		open_load_.cancel();
 		core_.cancel_audition();
 		sample_ = nullptr;
 		play_position_.reset();
+		slicer_scene().open(std::nullopt);
 	}
+
+	/// @return The sample the slicer is open on, or null before an open, after a close and after a release.
+	[[nodiscard]] ::Sample* sample() const { return sample_; }
 
 	[[nodiscard]] bool slicing() const { return core_.slicing(); }
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
@@ -185,7 +198,9 @@ private:
 		Sample* sample = range != nullptr ? static_cast<Sample*>(range->sampleHolder.audioFile) : nullptr;
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
-			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+			const uint64_t identity = gui::shell_host::waveform_identity(*sample);
+			slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+			                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
 			shellSliceReady(true);
 			return;
 		}
@@ -213,6 +228,10 @@ HostSliceOps& host() {
 }
 
 } // namespace
+
+::Sample* shellSlicedSample() {
+	return host().sample();
+}
 
 void wireShellSliceOps() {
 	slicer_scene().set_ops(&host());

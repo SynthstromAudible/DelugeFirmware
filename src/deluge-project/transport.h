@@ -37,6 +37,12 @@ struct Transport {
 	/// The clip whose length scales the input clock (its durable id), or none. The tick magnitude above follows it.
 	std::optional<uint32_t> sync_scaling_clip_id;
 
+	/// @brief The song's input tick magnitude: the inside-world magnitude with its sync-scaling offset, as
+	///        `Song::getInputTickMagnitude` gives it and the song file's `inputTickMagnitude` stores it.
+	[[nodiscard]] constexpr int32_t input_tick_magnitude() const {
+		return inside_world_tick_magnitude + inside_world_tick_magnitude_offset_from_bpm;
+	}
+
 	/// @brief Equal when the persistent fields are; the reciprocal is derived from the tick length.
 	bool operator==(const Transport& other) const {
 		return samples_per_timer_tick_big == other.samples_per_timer_tick_big

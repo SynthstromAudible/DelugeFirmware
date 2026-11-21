@@ -34,19 +34,25 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/screensaver.h"
+#include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 
+#include "memory/heaps.h"
 #include "model/model_stack.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "sample-view/view.h"
 #include "storage/flash_storage.h"
 
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/project_address_printer.h"
 #include "support/shortcut_layout.h"
+#include "support/slicer_host_open.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -412,7 +418,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 });
 
-describe boot_overlays("the overlays' ports, installed with the services", $ {
+describe boot_overlays("the overlays', the slicer's and the audio clip scene's ports, installed with the services", $ {
 	it("gives the count-in the app's transport: a count-in the playback handler holds shows as its digit", _ {
 		auto& scene = deluge::scenes::overlay::count_in_scene();
 		const int32_t saved = playbackHandler.currentVisualCountForCountIn;
@@ -442,6 +448,45 @@ describe boot_overlays("the overlays' ports, installed with the services", $ {
 		    .to_be_true();
 		expect(scene.mode()).to_equal(deluge::project::ScreensaverMode::BLANK);
 		FlashStorage::screensaverMode = saved;
+	});
+
+	it("gives the slicer the app's ports: it opens over the length the app's waveforms answer at SLICE", _ {
+		auto& scene = deluge::scenes::slicing::slicer_scene();
+		scene.set_ports(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		auto* sample = new (deluge::memory::alloc_fast(sizeof(Sample))) Sample();
+		sample->byteDepth = 2;
+		sample->numChannels = 1;
+		sample->sampleRate = 44100;
+		sample->lengthInSamples = 16000;
+		{
+			const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
+			held.open();
+			// With no ports the scene would read no length, and open at a zoom of 1.
+			expect(scene.x_zoom()).to_equal(deluge::sample_view::WaveformView::open(16000, std::nullopt).zoom());
+		}
+		// The host and the preview drum have let it go.
+		sample->~Sample();
+		deluge::memory::dealloc(sample);
+	});
+
+	it("gives the audio clip scene the app's ports: it opens on the clip navigation the current song holds", _ {
+		auto& scene = deluge::scenes::audio_clip::audio_clip_scene();
+		scene.set_ports(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		Song* const saved = currentSong;
+		spec::AudioSongFixture f = spec::make_audio_clip_song(); // made current
+		f.song->persistentView.xScroll[NAVIGATION_CLIP] = 96;
+		f.song->persistentView.xZoom[NAVIGATION_CLIP] = 6;
+		scene.timeline().x_scroll = 0;
+		scene.timeline().x_zoom = 1;
+		scene.open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
+		// With no ports the scene would read no navigation, and keep the view it had.
+		expect(scene.timeline().x_scroll).to_equal(96);
+		expect(scene.timeline().x_zoom).to_equal(uint32_t{6});
+		scene.open(std::nullopt, nullptr);
+		f.song->setCurrentClip(nullptr);
+		spec::make_current(saved);
 	});
 });
 

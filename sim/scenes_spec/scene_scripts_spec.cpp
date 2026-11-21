@@ -11,7 +11,7 @@
 /// | script | subject | how the scene gets on the stack |
 /// |---|---|---|
 /// | `audio_clip` | `audio_clip::AudioClipScene` | `RunOptions::initial_scene` -- it is a ROOT scene, and a root is what the shell is booted onto |
-/// | `slicer` | `slicing::SlicerScene` | `RunOptions::initial_scene`, after `slicer_scene().open(sample)` -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
+/// | `slicer` | `slicing::SlicerScene` | `RunOptions::initial_scene`, after the app's slicer host opens it on a sample the preview drum holds -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
 /// | `param_popup` | `overlay::ParamPopupScene` **pushed by `services::ModKnobs`** | nothing in the script pushes it: a gold-knob turn reaches the service, and `GuestKnobPresentation::show_value_popup` pushes the scene |
 /// | `screensaver` | `overlay::ScreensaverScene` **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
 /// | `count_in` | `overlay::CountInScene` | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
@@ -154,6 +154,7 @@
 #include "support/card_access.h"
 
 #include "support/real_services.h"
+#include "support/slicer_host_open.h"
 #include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
@@ -307,7 +308,7 @@ using deluge::scenes::spec::RealServices;
 ///
 /// The scenes are process singletons and `run_script` already tears the *stack* down; what it
 /// cannot know about is the model state a fixture pointed them at. `audio_clip_scene().open(std::nullopt,
-/// nullptr)` is `audio_clip_scene_spec.cpp`'s own teardown, and the matrix/pad reset is
+/// nullptr)` and `set_ports(nullptr)` are `audio_clip_scene_spec.cpp`'s own teardown, and the matrix/pad reset is
 /// `slicer_scene_spec.cpp`'s.
 struct SceneReset {
 	uint8_t saved_playback_state = playbackHandler.playbackState;
@@ -321,6 +322,7 @@ struct SceneReset {
 	SceneReset& operator=(const SceneReset&) = delete;
 	~SceneReset() {
 		audio_clip_scene().open(std::nullopt, nullptr);
+		audio_clip_scene().set_ports(nullptr);
 		slicer_scene().set_ops(nullptr);
 		// The transport half, restored in `global_controls_spec.cpp`'s `reset_transport` order and
 		// for its reasons -- `audio_clip.txt` really does press RECORD and PLAY through
@@ -379,12 +381,14 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way main's `SampleBrowser::enterKeyPress` does
-///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
-/// @param sample The sample the scene is opened on.
-/// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
-void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
-	slicer_scene().open(sample);
+/// @brief Open the slicer on @p held's file, the way main's `SampleBrowser::enterKeyPress` does
+///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): through the app's slicer host, which the
+///        waveforms port's SLICE address then resolves through.
+/// @param held The sample in the preview drum; it must outlive the run.
+/// @param ops  The slice boundary; borrowed, and unwired again by `SceneReset`.
+void open_slicer(const deluge::scenes::spec::SliceHeld& held, deluge::scenes::slicing::SliceOps& ops) {
+	slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
+	held.open();
 	slicer_scene().set_ops(&ops);
 }
 
@@ -489,8 +493,7 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 	f.clip->sampleControls.reversed = false;
 	f.clip->recorder = nullptr;
-	f.clip->renderData.xScroll = -1;
-	f.clip->renderData.xZoom = -1;
+	f.clip->renderData.forget();
 	f.clip->activeIfNoSolo = true;
 	f.clip->soloingInSessionMode = false;
 	f.clip->armState = ArmState::OFF;
@@ -527,7 +530,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -553,7 +557,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -575,7 +580,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		ScriptOps ops;
-		open_slicer(make_sample(), ops);
+		const deluge::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
+		open_slicer(held, ops);
 		// A song for the services to be told about. The slicer is not a root scene and is not
 		// showing this clip -- but on the device `View`'s mod target is whatever clip the slicer was
 		// opened *from*, so a service pointed at one is what the hardware actually has here.
@@ -604,7 +610,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		ScriptOps ops;
-		open_slicer(make_sample(), ops);
+		const deluge::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
+		open_slicer(held, ops);
 		spec::SongFixture song = spec::make_synth_song();
 		RealServices svc;
 		svc.song = song.song;
@@ -628,7 +635,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -671,7 +679,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -798,7 +807,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -824,7 +834,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -849,7 +860,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
 		CountInHooks hooks;
@@ -876,7 +888,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
 		CountInHooks hooks;

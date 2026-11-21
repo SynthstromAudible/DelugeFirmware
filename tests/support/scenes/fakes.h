@@ -8,12 +8,15 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
+#include "sample-view/peaks.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
 
+#include <array>
+#include <bitset>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -37,6 +40,9 @@ struct FakeAudioFacts final : AudioFacts {
 	bool busy{false};                                          ///< what `audio_busy` answers
 	ForegroundRecording foreground{ForegroundRecording::NONE}; ///< what `foreground_recording` answers
 	bool resample{false};                                      ///< what `resampling` answers
+	std::optional<InputTake> take;                             ///< what `input_take` answers
+	std::optional<std::string> take_path;                      ///< what `input_take_path` answers
+	uint32_t sample_timer{0};                                  ///< what `audio_sample_timer` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
 	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
@@ -45,6 +51,9 @@ struct FakeAudioFacts final : AudioFacts {
 	[[nodiscard]] bool audio_busy() const override { return busy; }
 	[[nodiscard]] ForegroundRecording foreground_recording() const override { return foreground; }
 	[[nodiscard]] bool resampling() const override { return resample; }
+	[[nodiscard]] std::optional<InputTake> input_take() const override { return take; }
+	[[nodiscard]] std::optional<std::string> input_take_path() const override { return take_path; }
+	[[nodiscard]] uint32_t audio_sample_timer() const override { return sample_timer; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -99,6 +108,7 @@ struct FakeClipFacts final : ClipFacts {
 	std::map<uint32_t, bool> recording_linearly;   ///< what `clip_recording_linearly` answers, by clip id
 	std::pair<int64_t, int64_t> samples{0, 0};     ///< what `audio_clip_samples` answers for a clip in `audio_clips`
 	std::optional<IsomorphicKeyboard> keyboard;    ///< what `isomorphic_keyboard` answers
+	std::optional<ClipNavigation> navigation;      ///< what `clip_navigation` answers
 	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress clip) const override;
 	[[nodiscard]] bool clip_playing(project::ClipAddress clip) const override;
 	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress clip) const override;
@@ -107,6 +117,7 @@ struct FakeClipFacts final : ClipFacts {
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
 	[[nodiscard]] std::optional<IsomorphicKeyboard> isomorphic_keyboard() const override { return keyboard; }
+	[[nodiscard]] std::optional<ClipNavigation> clip_navigation() const override { return navigation; }
 };
 
 /// @brief TrackFacts a spec sets directly.
@@ -308,9 +319,15 @@ struct RecordingDeviceActions final : DeviceActions {
 		SAVE_SETTINGS,   ///< save_settings
 		DELETE_ALL_LOGS, ///< delete_all_logs
 	};
-	std::vector<Kind> calls; ///< every action taken, in order
+	std::vector<Kind> calls;                       ///< every action taken, in order
+	std::vector<std::string_view>* order{nullptr}; ///< when set, delete_all_logs appends "wipe" to it
 	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
-	void delete_all_logs() override { calls.push_back(Kind::DELETE_ALL_LOGS); }
+	void delete_all_logs() override {
+		calls.push_back(Kind::DELETE_ALL_LOGS);
+		if (order != nullptr) {
+			order->push_back("wipe");
+		}
+	}
 };
 
 /// @brief Transport a spec sets directly.
@@ -322,6 +339,7 @@ struct FakeTransport final : Transport {
 	bool undo_ok{false};                              ///< what `undo_allowed` answers
 	bool overdubs{false};                             ///< what `overdubs_pending` answers
 	int32_t count_in{0};                              ///< what `count_in_visual` answers
+	bool arrangement{false};                          ///< what `arrangement_mode` answers
 	[[nodiscard]] bool playing() const override { return is_playing; }
 	[[nodiscard]] bool clocks_active() const override { return clocks; }
 	[[nodiscard]] TransportRecording recording() const override { return mode; }
@@ -329,6 +347,7 @@ struct FakeTransport final : Transport {
 	[[nodiscard]] bool undo_allowed() const override { return undo_ok; }
 	[[nodiscard]] bool overdubs_pending() const override { return overdubs; }
 	[[nodiscard]] int32_t count_in_visual() const override { return count_in; }
+	[[nodiscard]] bool arrangement_mode() const override { return arrangement; }
 };
 
 /// @brief TransportActions that records every action, in order. When @ref transport is set, PLAY and the metronome
@@ -350,9 +369,11 @@ struct RecordingTransportActions final : TransportActions {
 			END_RECORDING_SOON,                ///< end_recording_soon
 			STOP_OUTPUT_RECORDING_AT_LOOP_END, ///< stop_output_recording_at_loop_end
 			FILL,                              ///< fill
+			GRAB_TEMPO,                        ///< grab_tempo
 		};
-		Kind kind{Kind::PLAY}; ///< which action it was
-		bool flag{false};      ///< TAP_TEMPO's normal, UNDO's redo, FILL's on
+		Kind kind{Kind::PLAY};       ///< which action it was
+		bool flag{false};            ///< TAP_TEMPO's normal, UNDO's redo, FILL's on
+		project::ClipAddress clip{}; ///< GRAB_TEMPO's clip
 		bool operator==(const Call&) const = default;
 	};
 	std::vector<Call> calls;           ///< every action, in order
@@ -371,6 +392,9 @@ struct RecordingTransportActions final : TransportActions {
 		calls.push_back({.kind = Call::Kind::STOP_OUTPUT_RECORDING_AT_LOOP_END});
 	}
 	void fill(bool on) override { calls.push_back({.kind = Call::Kind::FILL, .flag = on}); }
+	void grab_tempo(project::ClipAddress clip) override {
+		calls.push_back({.kind = Call::Kind::GRAB_TEMPO, .clip = clip});
+	}
 };
 
 /// @brief MidiFeedback a spec sets directly, and every send, in order.
@@ -441,6 +465,7 @@ struct RecordingWrites final : WriteSink {
 	std::vector<Gesture>
 	    gestures;      ///< every text, default-input-channel, threshold and sidechain-type request, in order
 	bool accept{true}; ///< what each request answers (set_default_audio_input_channel answers nothing)
+	std::vector<std::string_view>* order{nullptr}; ///< when set, write_text appends "name" to it
 	bool write(const WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
@@ -514,6 +539,91 @@ struct RecordingControlsSink final : controls::Sink {
 	bool instrument_edited(const KnobFocus& focus) override;
 };
 
+/// @brief Waveforms a spec sets directly, and every peaks call, in order.
+struct FakeWaveforms final : Waveforms {
+	/// @brief One waveform the fake holds.
+	struct Entry {
+		WaveformAddress at;                                           ///< where it is
+		WaveformInfo info;                                            ///< what `info` answers
+		std::array<sample_view::Peak, sample_view::kColumns> peaks{}; ///< each column's peak
+		std::bitset<sample_view::kColumns> pending{};                 ///< columns answered PENDING while reads remain
+		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
+		std::optional<int64_t> position;                              ///< what `play_position` answers
+		/// While `info.recording`, the frames the take has written: as on the host, a column that does not end by
+		/// then is past the end, the one straddling it too. None reads as `info.length_samples`.
+		std::optional<uint64_t> captured;
+	};
+	mutable std::vector<Entry> waveforms; ///< looked up by address; a read counts its entry's pending reads down
+	/// @brief One recorded `peaks` call.
+	struct Read {
+		WaveformAddress at;     ///< the address
+		sample_view::Window in; ///< the window
+		bool operator==(const Read&) const = default;
+	};
+	mutable std::vector<Read> reads; ///< every `peaks` call, in order
+	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress& address) const override;
+	[[nodiscard]] sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const override;
+	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress& address) const override;
+};
+
+/// @brief TakeActions that records every call, in order, and plays its effect on a FakeAudioFacts' take when set.
+struct RecordingTakeActions final : TakeActions {
+	/// @brief Which call it was.
+	enum class Kind : uint8_t {
+		BEGIN,        ///< begin
+		END_SOON,     ///< end_soon
+		TAKE_LEVELS,  ///< take_levels
+		TAKE_CLIPPED, ///< take_clipped
+		FINISH,       ///< finish
+		ORPHAN,       ///< orphan
+	};
+	std::vector<Kind> calls;                   ///< every call, in order
+	TakeChannels channels{TakeChannels::MONO}; ///< the last begin's channels
+	bool begins{true};                         ///< what `begin` answers
+	InputLevels levels{};                      ///< what `take_levels` answers while a take is held
+	bool clipped{false};                       ///< what the next `take_clipped` answers while a take is held; it clears
+	FakeAudioFacts* audio{nullptr};            ///< begin holds a take there, finish and orphan drop it and its path
+	std::vector<std::string_view>* order{nullptr}; ///< when set, begin appends "begin" to it
+	[[nodiscard]] bool begin(TakeChannels c) override;
+	void end_soon() override { calls.push_back(Kind::END_SOON); }
+	[[nodiscard]] InputLevels take_levels() override {
+		calls.push_back(Kind::TAKE_LEVELS);
+		return held() ? levels : InputLevels{};
+	}
+	[[nodiscard]] bool take_clipped() override {
+		calls.push_back(Kind::TAKE_CLIPPED);
+		return held() && std::exchange(clipped, false);
+	}
+	void finish() override;
+	void orphan() override;
+	/// @brief Whether a take is held: always, with no audio fake to hold it on.
+	[[nodiscard]] bool held() const { return audio == nullptr || audio->take.has_value(); }
+};
+
+/// @brief Indicators that record every call.
+struct RecordingIndicators final : Indicators {
+	int32_t tick_clears{0};                        ///< how many times the tick squares were cleared
+	std::vector<std::string_view>* order{nullptr}; ///< when set, each clear appends "ticks" to it
+	void clear_tick_squares() override {
+		tick_clears++;
+		if (order != nullptr) {
+			order->push_back("ticks");
+		}
+	}
+};
+
+/// @brief ViewActions that record every audition end, in order.
+struct RecordingViewActions final : ViewActions {
+	std::vector<AuditionEnd> ends;                 ///< every end_audition's kind, in order
+	std::vector<std::string_view>* order{nullptr}; ///< when set, each end appends "audition" to it
+	void end_audition(AuditionEnd how) override {
+		ends.push_back(how);
+		if (order != nullptr) {
+			order->push_back("audition");
+		}
+	}
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;                        ///< the audio port's fake
@@ -534,11 +644,24 @@ struct FakeHost {
 	RecordingMidiFeedback midi_feedback;         ///< MIDI follow feedback's fake
 	FakeTransport transport;                     ///< the transport's fake
 	RecordingTransportActions transport_actions; ///< the transport actions' recorder
+	FakeWaveforms waveforms;                     ///< the waveforms' fake
+	RecordingTakeActions take_actions;           ///< the take actions' recorder
+	RecordingIndicators indicators;              ///< the indicators' recorder
+	RecordingViewActions view_actions;           ///< the view actions' recorder
+	/// The wipe, the drum's name, the tick clear, the take's begin and the audition end, in the order they came.
+	std::vector<std::string_view> order;
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
-	///        follow learns in the MIDI devices fake, and the transport actions flip the transport fake.
+	///        follow learns in the MIDI devices fake, the transport actions flip the transport fake, the take actions
+	///        hold their take on the audio fake, and the entry's recorders append to @ref order.
 	[[nodiscard]] Ports ports() {
 		learn.devices = &midi;
 		transport_actions.transport = &transport;
+		take_actions.audio = &audio;
+		device_actions.order = &order;
+		writes.order = &order;
+		indicators.order = &order;
+		take_actions.order = &order;
+		view_actions.order = &order;
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,
@@ -556,7 +679,11 @@ struct FakeHost {
 		        .device_actions = &device_actions,
 		        .midi_feedback = &midi_feedback,
 		        .transport = &transport,
-		        .transport_actions = &transport_actions};
+		        .transport_actions = &transport_actions,
+		        .waveforms = &waveforms,
+		        .take_actions = &take_actions,
+		        .indicators = &indicators,
+		        .view_actions = &view_actions};
 	}
 };
 

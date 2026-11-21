@@ -81,11 +81,11 @@
 /// `AudioClipView::graphicsRoutine` does not walk voices over a live `AudioEngine` to draw the
 /// playhead. The voice walk is `Slicer::graphicsRoutine`'s
 /// (`origin/main:src/deluge/gui/ui/slicer.cpp`, which reads `drum->voices()`); `AudioClipView::graphicsRoutine`
-/// (`audio_clip_view.cpp`) reads `playbackHandler.playbackState`,
-/// `currentSong->isClipActive`, `playbackHandler.ticksLeftInCountIn`,
-/// `playbackHandler.isEitherClockActive()`, `Clip::getCurrentlyRecordingLinearly()` and
-/// `ClipView::getTickSquare()` -- every one of which a spec can drive, and the last of which is
-/// already ported and measured as `timeline::TimelineState::tick_square`. So the
+/// (`audio_clip_view.cpp`) reads whether the clip plays (playback on, the clip active, no count-in), whether a clock
+/// runs, whether the clip records linearly, and `ClipView::getTickSquare()`. The scene reads the first and the third
+/// through its clip-facts port (`clip_playing`, `clip_recording_linearly`), the clocks and the arrangement's mode
+/// through its transport port (`clocks_active`, `arrangement_mode`), and the last is
+/// already ported and measured as `timeline::TimelineState::tick_square`. Every one a spec can drive, so the
 /// playhead ships, painted through `ui::grid::tick_squares` (`ui/grid/columns.h`), and
 /// `sim/scenes_spec/audio_clip_scene_spec.cpp` compares it against legacy's own `graphicsRoutine`
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp`), which
@@ -103,8 +103,9 @@
 /// `scenes-no-frame-primitives`), and nothing names `waveformRenderer` or
 /// `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
-///   * `renderMainPads`' `waveformRenderer.renderFullScreen` ->
-///     `deluge::sample::find_peaks_per_col` + `ui::grid::waveform_full`.
+///   * `renderMainPads`' `waveformRenderer.renderFullScreen` -> the waveforms port's read at the clip's AUDIO_CLIP
+///     address (`services::read_waveform`) + `ui::grid::waveform_full` over its PEAK columns. A frame whose read left
+///     a column pending draws no waveform and asks again, for as long as one is pending (`services::PeakRetry`).
 ///   * the grey region and the two marker columns -> `GridFrame::pad` through the
 ///     main-column region, with the colours resolved here.
 ///   * `renderSidebar`'s black fill -> `ui::grid::sidebar_columns`.
@@ -207,10 +208,10 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
-#include "model/sample/waveform_render_data.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
-#include "scenes/services/waveform_address.h"
+#include "scenes/bind/ports/waveforms.h"
+#include "scenes/services/peak_retry.h"
 #include "ui/grid/columns.h"
 
 #include <array>
@@ -219,10 +220,9 @@
 #include <string>
 #include <string_view>
 
-class Song;
-
 namespace deluge::project {
 struct DocClip;
+class Song;
 } // namespace deluge::project
 
 namespace deluge::scenes::audio_clip {
@@ -263,24 +263,30 @@ inline constexpr deluge::ui::shell::SceneKind kAudioClipSceneKind =
 /// @brief The audio clip view. One instance for the whole application (`scenes/registry.h`).
 class AudioClipScene final : public deluge::ui::shell::Scene {
 public:
-	/// @brief Point the scene at a clip and the song it lives in.
+	/// @brief Point the scene at a clip and the song's record it lives in.
 	///
 	/// The port of nothing inside `AudioClipView`: legacy reads `getCurrentAudioClip()` and
 	/// `currentSong`, two globals this layer may not name (`check_layer_rules.py`'s
-	/// `scenes-currentSong` row), so the two pointers arrive here instead. `MarkerScene::open` and
-	/// `SlicerScene::open` are the same shape and exist for the same reason.
+	/// `scenes-currentSong` row), so the clip's address and the song's record arrive here instead.
+	/// `MarkerScene::open` and `SlicerScene::open` are the same shape and exist for the same reason.
 	///
-	/// Also runs `TimelineState::adopt` (`scenes/timeline/timeline.h`), which is the only place
-	/// this layer spells `NAVIGATION_CLIP`: legacy's scroll and zoom live on `Song`, and adopting
-	/// them here is what makes the port render from the same view legacy does.
+	/// Also runs `TimelineState::adopt` (`scenes/timeline/timeline.h`) over the clip-facts port's
+	/// `clip_navigation()`: legacy's scroll and zoom live on `Song`, and adopting them here is what
+	/// makes the port render from the same view legacy does. With no clip-facts port, or no song
+	/// behind it, the view stays as it was.
 	///
-	/// @param clip The clip to show; nullopt leaves the scene with nothing to draw.
-	/// @param song The song it belongs to, whose view (scroll, zoom, triplets) the scene starts from; null is treated
-	///             as "no clip".
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	/// @param clip_writes Where the scene's clip edits go; the app's when null.
-	void open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
-	          deluge::scenes::bind::WriteSink* sink = nullptr, deluge::scenes::bind::ClipWrites* clip_writes = nullptr);
+	/// @param clip  The clip to show; nullopt leaves the scene with nothing to draw.
+	/// @param model The song's record, which holds the clip's record and its track's rows; null is treated as
+	///              "no clip". Borrowed, not owned; it must outlive the scene's use of it.
+	void open(std::optional<deluge::project::ClipAddress> clip, const deluge::project::Song* model);
+
+	/// @brief Install the ports the scene reads and writes through: the app installs its own at boot
+	///        (`gui::shell_host::install_scene_ports`), a spec the app's or a copy with fakes in it.
+	///
+	/// With none, or a null port, the scene reads no clip fact, no waveform, the SLOW play cursor, not playing and
+	/// no clocks, writes nothing, and `next_timer` reads "not live".
+	/// @param ports The set, or null. Borrowed, not owned; it must outlive the scene's use of it.
+	void set_ports(const deluge::scenes::bind::Ports* ports) { ports_ = ports; }
 
 	/// @name The two marker latches
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h`). They
@@ -447,9 +453,8 @@ private:
 
 	/// @brief `AudioClipView::graphicsRoutine` (`audio_clip_view.cpp`) minus its paint.
 	///
-	/// Called from `render_grid` rather than from `tick`, because its middle arm writes
-	/// `renderData.xScroll = -1` to force the waveform cache to be recomputed, and that
-	/// write has to land before the scan the same frame reads it.
+	/// Called from `render_grid`, before the frame's read, as the main loop runs `UI::graphicsRoutine` before
+	/// `doAnyPendingUIRendering` (`origin/main:src/deluge/deluge.cpp`).
 	/// @return The column for every row, or 255.
 	int32_t compute_tick_square();
 
@@ -464,7 +469,7 @@ private:
 	/// @return Whether the clip records a take linearly now.
 	[[nodiscard]] bool recording_linearly() const;
 	/// @return The clip's waveform address.
-	[[nodiscard]] deluge::scenes::services::WaveformAddress waveform() const;
+	[[nodiscard]] deluge::scenes::bind::WaveformAddress waveform() const;
 	/// @return `getSample()`'s test (`audio_clip_view.cpp`): is there a waveform -- the take while recording
 	///         linearly, otherwise the clip's file?
 	[[nodiscard]] bool has_sample() const;
@@ -474,6 +479,24 @@ private:
 	[[nodiscard]] std::string track_row(deluge::project::SettingGroupId group, std::string_view path) const;
 	/// @return The track's audio mode, an index of `project::kAudioModeWords`.
 	[[nodiscard]] int32_t audio_mode() const;
+	/// @}
+
+	/// @name The installed ports, each null with no set installed or none in it
+	/// @{
+	/// @return The clip facts, or null.
+	[[nodiscard]] const deluge::scenes::bind::ClipFacts* clips() const;
+	/// @return Where the clip edits go, or null.
+	[[nodiscard]] deluge::scenes::bind::ClipWrites* clip_writes() const;
+	/// @return Where the setting writes go, or null.
+	[[nodiscard]] deluge::scenes::bind::WriteSink* writes() const;
+	/// @return The device's settings, or null.
+	[[nodiscard]] const deluge::scenes::bind::DeviceSettings* device() const;
+	/// @return The transport's state, or null.
+	[[nodiscard]] const deluge::scenes::bind::Transport* transport() const;
+	/// @return The transport's actions, or null.
+	[[nodiscard]] deluge::scenes::bind::TransportActions* transport_actions() const;
+	/// @return The waveforms, or null.
+	[[nodiscard]] const deluge::scenes::bind::Waveforms* waveforms() const;
 	/// @}
 
 	/// @name The UI-mode word's three operations, transcribed from `gui/ui/ui.cpp`
@@ -580,18 +603,17 @@ private:
 	void show_bars_and_beats(uint32_t number, bool count_from_one);
 	/// @}
 
-	/// The clip this scene shows, the song whose view it starts from, and where its writes go and its facts come
-	/// from. See `open`.
+	/// The clip this scene shows and the song's record it lives in (see `open`), and the ports `set_ports` installed.
 	/// @{
 	std::optional<deluge::project::ClipAddress> clip_;
-	::Song* song_ = nullptr;
-	deluge::scenes::bind::Ports ports_{};
+	const deluge::project::Song* model_ = nullptr;
+	const deluge::scenes::bind::Ports* ports_ = nullptr;
 	/// @}
 
-	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
-	WaveformRenderData render_{};
-	/// The identity of the waveform render_ holds.
-	uint64_t waveform_identity_ = 0;
+	/// The redraws of a frame whose read left columns pending, with no give-up: `AudioClipView::renderMainPads`
+	/// (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) asks to render again after every scan that could not
+	/// load its clusters. The scene keeps no columns: the waveforms port does.
+	deluge::scenes::services::PeakRetry retry_{deluge::scenes::services::PeakRetry::Patience::UNTIL_ANSWERED};
 
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h`) baked into the state at construction.
@@ -628,7 +650,7 @@ private:
 	/// @brief The flash-cursor setting: the device's `pads/playCursor` row; the factory's Slow, the row's default, with
 	///        no device port.
 	project::FlashCursor flash_cursor() const {
-		return bind::read_device<project::FlashCursor>(ports_.device, project::device_path::kPlayCursor);
+		return bind::read_device<project::FlashCursor>(device(), project::device_path::kPlayCursor);
 	}
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.

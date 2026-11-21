@@ -110,7 +110,7 @@ struct ScratchCard {
 // ---------------------------------------------------------------------------------------------
 // The samples the marker examples open on
 
-/// `WaveformNav::max_zoom()` for a sample of @p num_clusters clusters.
+/// `WaveformView::max_zoom()` for a sample of @p num_clusters clusters.
 int64_t zoom_max(int32_t num_clusters) {
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
 	return static_cast<int64_t>(((length - 1) >> 4) + 1);
@@ -264,8 +264,6 @@ struct SoundRig {
 		range[i]->sampleHolder.loopStartPos = 0;
 		range[i]->sampleHolder.loopEndPos = 0;
 		range[i]->sampleHolder.loopLocked = false;
-		range[i]->sampleHolder.waveformViewZoom = 0;
-		range[i]->sampleHolder.waveformViewScroll = 0;
 	}
 
 	/// @brief The context `SoundEditor::setup` would have resolved for **source 0** -- which is the
@@ -310,8 +308,6 @@ struct ClipRig {
 		song.clip->setSampleFilePath("SAMPLES/OSC_A/A1.WAV");
 		song.clip->sampleHolder.startPos = 0;
 		song.clip->sampleHolder.endPos = sample->lengthInSamples;
-		song.clip->sampleHolder.waveformViewZoom = 0;
-		song.clip->sampleHolder.waveformViewScroll = 0;
 	}
 
 	MenuContext ctx() {
@@ -560,7 +556,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 
 	it("sample1_start opens it on source 1's sample, not source 0's", _ {
 		// The per-source discriminator for this scene. The two samples are 32 and 64 clusters long,
-		// so `WaveformNav::opened` -- which zooms all the way out on a holder with no remembered view
+		// so `WaveformView::open` -- which zooms all the way out on a holder with no remembered view
 		// -- lands on a different `xZoom` for each. A `sample1_start` wired to source 0 opens the
 		// editor, shows a waveform, and reports 32 clusters' zoom.
 		spec::QuietAudio quiet;

@@ -45,6 +45,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_preview.h" // the loader the scenes browser previews through
 #include "gui/ui/browser_host.h"           // shellPreviewer
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
@@ -743,7 +744,12 @@ Sample* residentSample(const char* path) {
 /// never read through, by the browser.
 Sample* drawnSample(const char* path) {
 	Sample* sample = residentSample(path);
-	return deluge::scenes::browser::browser_scene().shown_waveform(sample) != nullptr ? sample : nullptr;
+	return sample != nullptr
+	               && deluge::scenes::browser::browser_scene()
+	                      .shown_waveform(deluge::gui::shell_host::waveform_identity(*sample))
+	                      .has_value()
+	           ? sample
+	           : nullptr;
 }
 
 /// Open the scenes browser on the boot song's first synth clip, as a user opens a source's file selector, and let its

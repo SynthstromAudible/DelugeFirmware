@@ -1,6 +1,7 @@
 #include "gui/ui/shell_host/shell_host.h"
 #include "model/action/action_logger.h"
 #include "model/song/song.h"
+#include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 
 #include <utility>
@@ -13,7 +14,7 @@ static_assert(static_cast<int>(RecordingMode::NORMAL) == std::to_underlying(scen
 static_assert(static_cast<int>(RecordingMode::ARRANGEMENT)
               == std::to_underlying(scenes::bind::TransportRecording::ARRANGEMENT));
 
-/// The transport's state, read from `playbackHandler`, `actionLogger` and the current song.
+/// The transport's state, read from `playbackHandler`, `currentPlaybackMode`, `actionLogger` and the current song.
 class HostTransport final : public scenes::bind::Transport {
 public:
 	[[nodiscard]] bool playing() const override { return playbackHandler.playbackState != 0; }
@@ -36,6 +37,7 @@ public:
 		return currentSong != nullptr && currentSong->hasAnyPendingNextOverdubs();
 	}
 	[[nodiscard]] int32_t count_in_visual() const override { return playbackHandler.count_in_visual(); }
+	[[nodiscard]] bool arrangement_mode() const override { return currentPlaybackMode == &arrangement; }
 };
 
 } // namespace

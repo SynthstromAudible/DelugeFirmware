@@ -35,6 +35,7 @@
 #include "storage/audio/audio_file_manager.h" // audioFileManager (overviewScanAllDone)
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -91,7 +92,18 @@ static int32_t searchPercCacheZones(deluge::vector<SamplePercCacheZone> const& z
 	return static_cast<int32_t>(it - zones.begin()) + comparison;
 }
 
-Sample::Sample() : AudioFile(AudioFileType::SAMPLE) {
+namespace {
+
+/// @brief The next sample's serial. A file is loaded on the app tier and a take is set up by the recorder, so the
+///        counter is atomic.
+uint64_t next_serial() {
+	static std::atomic<uint64_t> counter{0};
+	return counter.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
+} // namespace
+
+Sample::Sample() : AudioFile(AudioFileType::SAMPLE), serial(next_serial()) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;

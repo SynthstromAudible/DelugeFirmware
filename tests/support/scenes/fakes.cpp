@@ -350,6 +350,9 @@ bool RecordingWrites::delete_automation(const project::ParamAddress& address) {
 
 bool RecordingWrites::write_text(const Target& target, const Addresses& where, std::string_view text) {
 	gestures.push_back({.kind = Gesture::Kind::TEXT, .target = target, .where = where, .text = std::string{text}});
+	if (order != nullptr) {
+		order->push_back("name");
+	}
 	return accept;
 }
 
@@ -438,6 +441,85 @@ bool RecordingControlsSink::delete_knob_automation(const project::ParamAddress& 
 bool RecordingControlsSink::instrument_edited(const KnobFocus& focus) {
 	gestures.push_back({.kind = Gesture::Kind::INSTRUMENT_EDITED, .focus = focus});
 	return accept;
+}
+
+namespace {
+
+/// @brief The first entry of @p waveforms at @p address, or null.
+template <typename Entries>
+auto* entry_at(Entries& waveforms, const WaveformAddress& address) {
+	const auto found = std::ranges::find(waveforms, address, &FakeWaveforms::Entry::at);
+	return found != waveforms.end() ? &*found : nullptr;
+}
+
+} // namespace
+
+std::optional<WaveformInfo> FakeWaveforms::info(const WaveformAddress& address) const {
+	const Entry* entry = entry_at(waveforms, address);
+	return entry != nullptr ? std::optional{entry->info} : std::nullopt;
+}
+
+sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sample_view::Window at) const {
+	reads.push_back({.at = address, .in = at});
+	Entry* entry = entry_at(waveforms, address);
+	if (entry == nullptr) {
+		return sample_view::PeakRead::all_past_end();
+	}
+	const bool pending_now = entry->pending_reads > 0;
+	if (pending_now) {
+		entry->pending_reads--;
+	}
+	const auto length = static_cast<int64_t>(entry->info.length_samples);
+	// A take's columns end by its captured frames; a finished file's start before its length.
+	const auto captured = static_cast<int64_t>(entry->captured.value_or(entry->info.length_samples));
+	sample_view::PeakRead read;
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		const int64_t start = at.scroll + int64_t{c} * at.zoom;
+		const bool past = entry->info.recording ? start + at.zoom > captured : start >= length;
+		if (at.zoom < 1 || past || start + at.zoom <= 0) {
+			read.set(c, sample_view::ColumnRead::past_end());
+		}
+		else if (pending_now && entry->pending.test(static_cast<size_t>(c))) {
+			read.set(c, sample_view::ColumnRead::pending());
+		}
+		else {
+			read.set(c, sample_view::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
+		}
+	}
+	return read;
+}
+
+std::optional<int64_t> FakeWaveforms::play_position(const WaveformAddress& address) const {
+	const Entry* entry = entry_at(waveforms, address);
+	return entry != nullptr ? entry->position : std::nullopt;
+}
+
+bool RecordingTakeActions::begin(TakeChannels c) {
+	calls.push_back(Kind::BEGIN);
+	channels = c;
+	if (order != nullptr) {
+		order->push_back("begin");
+	}
+	if (begins && audio != nullptr) {
+		audio->take = InputTake{.channels = static_cast<uint8_t>(c)};
+	}
+	return begins;
+}
+
+void RecordingTakeActions::finish() {
+	calls.push_back(Kind::FINISH);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
+}
+
+void RecordingTakeActions::orphan() {
+	calls.push_back(Kind::ORPHAN);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
 }
 
 } // namespace deluge::scenes::bind::test

@@ -5,8 +5,7 @@
 
 #include "deluge-project/device_settings.h"
 #include "scenes/bind/device_reader.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/bind_host.h"
+#include "scenes/browser/browser_kind.h"
 #include "scenes/services/waveform_paint.h"
 
 #include "ui/grid/columns.h"
@@ -17,9 +16,6 @@
 #include "gfx/grid/palette.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "model/action/action_logger.h"
-#include "model/sample/sample.h"
-#include "model/sample/waveform_scan.h"
 #include "notify/notice_queue.h"
 
 #include <algorithm>
@@ -90,27 +86,30 @@ std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
-void SlicerScene::open(Sample* sample, const deluge::sample::WaveformNav* shown) {
+void SlicerScene::open(std::optional<SliceFile> file, std::optional<sample_view::ShownWaveform> shown) {
 	// `waveformBasicNavigator` as main's `SampleBrowser::previewIfPossible`
-	// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) left it: the preview's view, and the columns it
-	// already read from the audio. A fresh scan would read the overview cache's coarse peaks instead.
-	if (sample != nullptr && shown != nullptr) {
-		nav_ = *shown;
-		nav_.sample = sample;
-		nav_path_ = sample->filePath;
+	// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) left it: the preview's view. The waveforms port
+	// keeps the columns the preview read, by file, so the slicer draws those rather than the overview's coarse peaks.
+	if (file && shown) {
+		view_ = shown->view;
+		file_ = std::move(file);
+		retry_.restart();
 		return;
 	}
 	// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` from
 	// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), onto this
-	// scene's own navigator. Reopened on the sample it already shows, the navigator is kept, render cache and all:
-	// legacy's global is not reset between two slicer opens on the same file.
-	if (sample != nullptr && sample == nav_.sample && sample->filePath == nav_path_) {
+	// scene's own view. Reopened on the file it already shows, the view is kept: legacy's global is not reset between
+	// two slicer opens on the same file.
+	if (file && file == file_) {
+		// A new showing of the same view: columns an earlier showing gave up on are asked for again.
+		retry_.restart();
 		return;
 	}
-	nav_.sample = sample;
-	nav_path_ = sample != nullptr ? sample->filePath : std::string{};
-	if (sample != nullptr) {
-		nav_.opened();
+	file_ = std::move(file);
+	if (file_) {
+		const std::optional<bind::WaveformInfo> info = slice_info();
+		view_ = sample_view::WaveformView::open(info ? info->length_samples : 0, std::nullopt);
+		retry_.restart();
 	}
 }
 
@@ -139,7 +138,9 @@ bool SlicerScene::on_enter(const SceneId& id) {
 }
 
 void SlicerScene::reset_state() {
-	actionLogger.deleteAllLogs();
+	if (auto* d = bind::port_of(ports_, &bind::Ports::device_actions)) {
+		d->delete_all_logs();
+	}
 	num_clips_ = 16;
 	num_manual_slices_ = 1;
 	current_slice_ = 0;
@@ -176,7 +177,7 @@ Result SlicerScene::horizontal_encoder(int32_t offset, bool shift) {
 	// `open()` was handed no sample has nothing to move, so this refuses instead of faulting --
 	// the same survivable-spelling choice `MarkerScene::reverse_remap` makes. Unreachable today:
 	// `render_grid` draws nothing without a sample either.
-	if (mode_ != Mode::Manual || nav_.sample == nullptr) {
+	if (mode_ != Mode::Manual || !file_) {
 		return r;
 	}
 
@@ -196,13 +197,13 @@ Result SlicerScene::horizontal_encoder(int32_t offset, bool shift) {
 	}
 
 	// The negative clamp comes FIRST, which is what makes the comparison on the next
-	// line safe: `lengthInSamples` is unsigned, so a negative `new_pos` would convert to a huge
+	// line safe: the length is unsigned, so a negative `new_pos` would convert to a huge
 	// value and pass the test. Order preserved deliberately.
 	if (new_pos < 0) {
 		new_pos = 0;
 	}
-	if (static_cast<uint64_t>(new_pos) > nav_.sample->lengthInSamples) {
-		new_pos = static_cast<int32_t>(nav_.sample->lengthInSamples);
+	if (static_cast<uint64_t>(new_pos) > view_.length()) {
+		new_pos = static_cast<int32_t>(view_.length());
 	}
 	points_[current_slice_].start_pos = new_pos;
 
@@ -320,6 +321,9 @@ Result SlicerScene::after_render() {
 	if (std::exchange(landed_, false)) {
 		// `doSlice`'s `exitAndNeverDeleteDrum` closes the slicer with the menu and browser beneath it; the host
 		// closes those two.
+		if (ops_ != nullptr) {
+			ops_->closed();
+		}
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
@@ -346,10 +350,10 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	// pass the test. The port cannot reach that: `SliceOps::play_position` returns `nullopt` where legacy has no voice,
 	// and a real play position is never negative. The comparison is spelled with the cast that makes the promotion
 	// visible rather than silent.
-	if (nav_.sample == nullptr) {
+	if (!file_) {
 		return false;
 	}
-	if (static_cast<uint64_t>(static_cast<uint32_t>(sample_pos)) >= nav_.sample->lengthInSamples
+	if (static_cast<uint64_t>(static_cast<uint32_t>(sample_pos)) >= view_.length()
 	    || num_manual_slices_ >= kMaxManualSlices) {
 		return false;
 	}
@@ -373,13 +377,16 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	return true;
 }
 
-bind::Ports SlicerScene::ports() const {
-	const bind::Ports& host = menu::host_ports();
-	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
-	        .card = ports_.card != nullptr ? ports_.card : host.card,
-	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui,
-	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound,
-	        .device = ports_.device != nullptr ? ports_.device : host.device};
+const bind::Waveforms* SlicerScene::waveforms() const {
+	return bind::port_of(ports_, &bind::Ports::waveforms);
+}
+
+std::optional<bind::WaveformInfo> SlicerScene::slice_info() const {
+	const bind::Waveforms* port = waveforms();
+	if (port == nullptr) {
+		return std::nullopt;
+	}
+	return port->info({.kind = bind::WaveformAddress::Kind::SLICE});
 }
 
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
@@ -398,14 +405,14 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 		if (index < num_manual_slices_) {
 			const bool close_popup = current_slice_ != index;
 			current_slice_ = index;
-			if (nav_.sample != nullptr) {
+			if (file_) {
 				// The two arms differ only in where the slice ends: the next slice's
 				// start, or the end of the sample for the last one. A third case cannot arise --
 				// `index < num_manual_slices_` makes `index + 1 > num_manual_slices_` impossible --
 				// so legacy's `else if` is an `else` in effect, and is kept as legacy spells it.
 				const int64_t end = (index + 1 < num_manual_slices_)
 				                        ? static_cast<int64_t>(points_[index + 1].start_pos)
-				                        : static_cast<int64_t>(nav_.sample->lengthInSamples);
+				                        : static_cast<int64_t>(view_.length());
 				preview(PreviewRequest{.start_point = points_[index].start_pos,
 				                       .end_point = end,
 				                       .transpose = points_[index].transpose,
@@ -466,9 +473,12 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
 	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
 	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
-	if (x == kMainCols && on && !ports().ui->auditioning()) {
+	const bind::UiFacts* ui = bind::port_of(ports_, &bind::Ports::ui);
+	const bool auditioning = ui != nullptr && ui->auditioning();
+	if (x == kMainCols && on && !auditioning) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
+			ops_->closed();
 		}
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		(void)r.actions.push_back(
@@ -591,6 +601,9 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 		// `close()`. `Remove` and not `Pop`, for the reason `shell/scene.h`'s note on
 		// `Action::Kind::Pop` gives: a `Popup` this scene itself raised can legally be above it by
 		// the time the router applies the action, and a blind `Pop` would take that instead.
+		if (ops_ != nullptr) {
+			ops_->closed();
+		}
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
 		return r;
@@ -672,14 +685,14 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, handed to
 	// `PadLEDs::setTickSquares` whatever the flash cursor: painted with it Slow, flashed by the PIC with it Fast.
 	playing_ = false;
-	if (nav_.sample == nullptr || ops_ == nullptr) {
+	if (!file_ || ops_ == nullptr) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
-	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
-		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+	if (pos.has_value() && *pos >= view_.scroll()) {
+		const int64_t col = sample_view::floor_div(*pos - view_.scroll(), view_.zoom());
 		if (col < kMainCols) {
 			for (int32_t y = kRows - 4; y < kRows; y++) {
 				per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
@@ -688,8 +701,8 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 	// The device's play cursor; Slow, the row's default, with no device port.
-	const deluge::project::FlashCursor cursor = deluge::scenes::bind::read_device<deluge::project::FlashCursor>(
-	    ports().device, deluge::project::device_path::kPlayCursor);
+	const deluge::project::FlashCursor cursor = bind::read_device<deluge::project::FlashCursor>(
+	    bind::port_of(ports_, &bind::Ports::device), deluge::project::device_path::kPlayCursor);
 	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
@@ -697,7 +710,8 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 }
 
 void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
-	if (nav_.sample == nullptr) {
+	const bind::Waveforms* port = waveforms();
+	if (!file_ || port == nullptr) {
 		return;
 	}
 
@@ -715,19 +729,23 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 	// `visible()` paints nothing and `peek()` returns black, which is exactly what a clipped write
 	// would have left behind, so there is no clamp of this function's own.
 
-	// `renderFullScreen`'s scan (`gui/waveform/waveform_renderer.cpp`), and its early return:
-	// a scan that could not load every cluster leaves the image **untouched** -- it returns before
-	// its own clear. So a failed scan draws nothing here either, which is a divergence from
-	// `MarkerScene` (which ignores the return) and a match for the routine this scene actually
-	// ports.
-	if (!deluge::sample::find_peaks_per_col(nav_.sample, nav_.xScroll, static_cast<uint64_t>(nav_.xZoom),
-	                                        &nav_.renderData)) {
+	// `renderFullScreen`'s scan (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), and its early return:
+	// a scan that could not load every cluster leaves the image **untouched** -- it returns before its own clear.
+	const bind::WaveformAddress slice{.kind = bind::WaveformAddress::Kind::SLICE};
+	const std::optional<services::WaveformFrame> wf = services::read_waveform(*port, slice, view_.window());
+	if (!wf) {
+		return;
+	}
+	// A read with a column the card could not give draws nothing this frame, and the frame after asks again.
+	if (retry_.after(wf->read, view_.window(), f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
+		f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
+	}
+	if (wf->read.pending()) {
 		return;
 	}
 
 	f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
-		services::paint_columns(main, nav_.renderData, nav_.sample->getFoundValueCentrePoint(),
-		                        nav_.sample->getValueSpan());
+		services::paint_columns(main, wf->read, wf->centre, wf->span);
 
 		if (mode_ == Mode::Region) {
 			// The full-screen waveform, and nothing else.
@@ -755,8 +773,8 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		// SIDEBAR column in legacy's image. The region clips it here; see the header for why that
 		// is the behaviour-preserving choice rather than a transcription of the write.
 		for (int32_t i = 0; i < num_manual_slices_; i++) {
-			const int32_t x = static_cast<int32_t>(
-			    points_[i].start_pos / (static_cast<double>(nav_.sample->lengthInSamples) + 0.0) * kSliceMarkColumns);
+			const int32_t x = static_cast<int32_t>(points_[i].start_pos / (static_cast<double>(view_.length()) + 0.0)
+			                                       * kSliceMarkColumns);
 			// `RGB{1, (i == currentSlice) ? 200_u8 : 16_u8, 1}`. The `_u8` literal lives
 			// in `util/misc.h`, which this layer may not include (`scenes-includes-outside`), so
 			// the cast is spelled out -- the same reason `MarkerScene` inlined

@@ -2,7 +2,9 @@
 
 /// @file
 /// @brief What a scene asks the transport to do: the PLAY, RECORD, TAP TEMPO and tempo-encoder actions, undo, the
-///        output recording and fill.
+///        output recording, fill and the tempo grab.
+
+#include "deluge-project/clip_address.h"
 
 namespace deluge::scenes::bind {
 
@@ -37,6 +39,9 @@ public:
 	/// @brief Hold fill mode on or off; nothing with no song.
 	/// @param on Fill on.
 	virtual void fill(bool on) = 0;
+	/// @brief Set the tempo from @p clip's sample length; nothing where it names no audio clip.
+	/// @param clip The clip whose sample length gives the tempo.
+	virtual void grab_tempo(project::ClipAddress clip) = 0;
 };
 
 } // namespace deluge::scenes::bind
