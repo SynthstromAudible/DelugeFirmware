@@ -1203,30 +1203,27 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
 	});
 
-	it("counts a zoomed view's first frame as no redraw of the last view, and its whole read as no completed redraw", _ {
+	it("counts a zoomed view's first frame as a draw of that view, not a redraw of the last", _ {
+		// The zoomed view's columns are finer than the overview's, so its read is pending too; a frame after its first
+		// is its own redraw.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		Sample* sample = make_overview_sample(16);
-		PreviewHeld held(sample);
+		PreviewHeld held(make_overview_sample(16));
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
 		r.button(kXEncX, kXEncY, true, r.clock + 10);
-		for (int32_t i = 16; i < 32; i++) {
-			sample->overviewCacheEntry(static_cast<uint32_t>(i)).investigated = true;
-		}
 		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
-		r.horizontal(1); // the zoomed view's first frame, read whole
-		r.button(kXEncX, kXEncY, false, r.clock + 10);
-		r.step();
+		r.horizontal(1); // the zoomed view's first frame
 		expect(browser_scene().waveform_view().zoomed_in()).to_be_true();
-		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
-		expect(s.redraws - before.redraws).to_equal(0);
-		expect(s.complete - before.complete).to_equal(0);
-		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+		expect(browser_scene().waveform_draw_stats().redraws - before.redraws).to_equal(0);
+		expect(browser_scene().waveform_draw_stats().complete - before.complete).to_equal(0);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step(); // the zoomed view drawn again
+		to_be_at_least(expect(browser_scene().waveform_draw_stats().redraws - before.redraws), 1);
 	});
 
 	it("drops a pending redraw when the preview gives its sample up", _ {
