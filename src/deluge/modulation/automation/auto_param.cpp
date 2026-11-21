@@ -1564,8 +1564,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-void AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
-	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // forwards to the DOM kernel
+Error AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
+	return deluge::error_of(deluge::project::flattenReverse(doc, reverseDirectionWithLength)); // the DOM kernel
 }
 
 // Wait, surely this should be undoable?

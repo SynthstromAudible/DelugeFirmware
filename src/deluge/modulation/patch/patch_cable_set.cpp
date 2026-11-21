@@ -892,12 +892,10 @@ Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_
 		clone->stripAutomation();
 	}
 	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
+		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
 			clone->~PatchCableSet();
 			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+			return error;
 		}
 	}
 	result = clone;
@@ -911,11 +909,15 @@ void PatchCableSet::stripAutomation() {
 	}
 }
 
-void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+Error PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
+		if (Error error = patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
+		    error != Error::NONE) {
+			return error;
+		}
 	}
+	return Error::NONE;
 }
 
 void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomation) {

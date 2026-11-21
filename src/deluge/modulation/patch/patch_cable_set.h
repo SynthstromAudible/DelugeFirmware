@@ -132,7 +132,7 @@ public:
 	                       bool didPingpong, bool mayInterpolate) override;
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void stripAutomation() override;
-	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
+	[[nodiscard]] Error flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);

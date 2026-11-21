@@ -133,7 +133,7 @@ public:
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong) final;
 	void stripAutomation() override;
-	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
+	[[nodiscard]] Error flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	/// Knob positions through the param's mapping kind in its plugin table; STANDARD for a param with none.
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;

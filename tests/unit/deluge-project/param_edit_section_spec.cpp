@@ -50,7 +50,7 @@ std::vector<std::pair<std::string, std::function<void(DocAutoParam&, const DocAu
 	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { deleteNodesWithinRegion(p, 20, 30, kLoop); }},
 	    {"transposeCCValuesToChannelPressure",
 	     [](DocAutoParam& p, const DocAutoParam& /*from*/) { transposeCCValuesToChannelPressure(p); }},
-	    {"flattenReverse", [](DocAutoParam& p, const DocAutoParam& /*from*/) { flattenReverse(p, kLoop); }},
+	    {"flattenReverse", [](DocAutoParam& p, const DocAutoParam& /*from*/) { (void)flattenReverse(p, kLoop); }},
 	    {"trimToLength", [](DocAutoParam& p, const DocAutoParam& /*from*/) { trimToLength(p, 50, kLoop); }},
 	    {"appendParam", [](DocAutoParam& p, const DocAutoParam& source) { appendParam(p, source, kLoop, 0, false); }},
 	    {"nudgeNonInterpolatingNodesAtPos",

@@ -171,12 +171,15 @@ void ParamSet::stripAutomation() {
 	}
 }
 
-void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+Error ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength);
+		if (Error error = params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength); error != Error::NONE) {
+			return error;
+		}
 	}
+	return Error::NONE;
 }
 
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
@@ -538,12 +541,10 @@ Error UnpatchedParamSet::clone(ParamCollection*& result, bool copyAutomation,
 		clone->stripAutomation();
 	}
 	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
+		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
 			clone->~UnpatchedParamSet();
 			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+			return error;
 		}
 	}
 	result = clone;
@@ -570,12 +571,10 @@ Error PatchedParamSet::clone(ParamCollection*& result, bool copyAutomation, int3
 		clone->stripAutomation();
 	}
 	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
+		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
 			clone->~PatchedParamSet();
 			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+			return error;
 		}
 	}
 	result = clone;
@@ -604,12 +603,10 @@ Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
 		clone->stripAutomation();
 	}
 	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
+		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
 			clone->~ExpressionParamSet();
 			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+			return error;
 		}
 	}
 	result = clone;

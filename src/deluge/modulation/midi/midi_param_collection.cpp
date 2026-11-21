@@ -183,12 +183,10 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 		clone->stripAutomation();
 	}
 	else if (reverseDirectionWithLength != 0) {
-		try {
-			clone->flattenReverseAutomation(reverseDirectionWithLength);
-		} catch (deluge::exception&) {
+		if (Error error = clone->flattenReverseAutomation(reverseDirectionWithLength); error != Error::NONE) {
 			clone->~MIDIParamCollection();
 			delugeDealloc(mem);
-			return Error::INSUFFICIENT_RAM;
+			return error;
 		}
 	}
 	result = clone;
@@ -205,11 +203,15 @@ void MIDIParamCollection::stripAutomation() {
 	}
 }
 
-void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+Error MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t i = 0; i < std::ssize(params); i++) {
-		params[i].param.flattenReverse(*docForParam(i), reverseDirectionWithLength);
+		if (Error error = params[i].param.flattenReverse(*docForParam(i), reverseDirectionWithLength);
+		    error != Error::NONE) {
+			return error;
+		}
 	}
+	return Error::NONE;
 }
 
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {

@@ -787,18 +787,20 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p) {
 	set_base(p, (p.current_value >> 1) + (1 << 30));
 }
 
-void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
+std::expected<void, AllocError> flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
 	EditGuard guard{ModelEdit::NODE_KERNEL};
-	auto& nodes = p.nodes;
-	int32_t numNodes = static_cast<int32_t>(nodes.size());
+	const ParamNodeVector& oldNodes = p.nodes;
+	int32_t numNodes = static_cast<int32_t>(oldNodes.size());
 	if (!reverseDirectionWithLength || !numNodes) {
-		return;
+		return {};
 	}
 
-	// Move the owned nodes out, then rebuild them reversed into a fresh buffer.
-	ParamNodeVector oldNodes = std::move(nodes);
-	nodes.clear();
-	(void)nodes.insertAt(0, numNodes);
+	// Rebuild the nodes reversed into a fresh buffer, handed over only once it is whole: if there is no memory for
+	// it, the automation is as it was.
+	ParamNodeVector nodes;
+	if (auto made = nodes.insertAt(0, numNodes); !made) {
+		return made;
+	}
 
 	const ParamNode& rightmostNode = oldNodes[numNodes - 1];
 	int32_t oldNodeToLeftValue = rightmostNode.value;
@@ -829,7 +831,8 @@ void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
 
 		oldNodeToLeftValue = oldNode.value;
 	}
-	// oldNodes frees its deep copy on destruction.
+	p.nodes = std::move(nodes); // the old nodes are freed with the moved-from buffer
+	return {};
 }
 
 void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {

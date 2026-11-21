@@ -117,12 +117,12 @@ public:
 	                     bool shouldPingpong);
 	/// @brief Reverse this param's automation in place (used when flattening a reversed clip on clone).
 	///
-	/// Moves the nodes out and rebuilds them reversed.
+	/// Rebuilds the nodes reversed.
 	///
 	/// @param doc                         The param's node store.
 	/// @param reverseDirectionWithLength  The loop length to reverse within.
-	/// @throws deluge::exception::BAD_ALLOC if the node buffer cannot be re-grown.
-	void flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
+	/// @return Error::INSUFFICIENT_RAM when there is no memory for the rebuilt nodes (they are then unchanged).
+	[[nodiscard]] Error flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);

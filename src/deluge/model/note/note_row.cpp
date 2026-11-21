@@ -133,8 +133,8 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 
 // Post-clone flatten of a reversed sequence. The row was already deep-copied (copy ctor) reverse-agnostically;
 // here we reverse the notes + automation in place (only if this row effectively plays reversed) and collapse
-// the direction mode to OBEY_PARENT. Owned-move semantics: the notes are
-// moved out and rebuilt reversed (no aliasing).
+// the direction mode to OBEY_PARENT. The notes are rebuilt reversed into a fresh buffer that replaces them only once
+// it is whole, so running out of memory leaves the row as it was.
 Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 	int32_t effectiveLength = modelStack->getLoopLength();
 	int32_t numNotes = std::ssize(notes);
@@ -144,17 +144,16 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 
 	if (flatteningReversingNow) {
 		// Reverse the automation (nodes were copied reverse-agnostically by the copy ctor).
-		try {
-			paramManager.flattenReverseAutomation(effectiveLength);
-		} catch (deluge::exception&) {
-			return Error::INSUFFICIENT_RAM;
+		if (Error automation = paramManager.flattenReverseAutomation(effectiveLength); automation != Error::NONE) {
+			return automation;
 		}
 
 		if (numNotes) {
-			// Move the owned notes out, then rebuild them reversed into a fresh buffer.
-			NoteVector oldNotes = std::move(notes);
-			notes.clear();
-			error = deluge::error_of(notes.insertAt(0, numNotes));
+			// Rebuild the notes reversed into a fresh buffer, handed over only once it is whole: if there is no memory
+			// for it, the notes are as they were.
+			NoteVector& oldNotes = notes; // read only
+			NoteVector reversed;
+			error = deluge::error_of(reversed.insertAt(0, numNotes));
 			if (error == Error::NONE) {
 
 				InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -169,7 +168,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						int32_t finalNoteOvershoot = oldNote->pos + oldNote->length - effectiveLength;
 						if (finalNoteOvershoot > 0) {
 							numNotesBesidesWrapping--;
-							Note* newNote = &notes[numNotesBesidesWrapping];
+							Note* newNote = &reversed[numNotesBesidesWrapping];
 							newNote->pos = effectiveLength - finalNoteOvershoot;
 							newNote->setLength(oldNote->getLength());
 							newNote->setProbability(oldNote->getProbability());
@@ -184,7 +183,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						int32_t iNew = numNotesBesidesWrapping - 1 - iOld;
 
 						Note* oldNote = &oldNotes[iOld];
-						Note* newNote = &notes[iNew];
+						Note* newNote = &reversed[iNew];
 
 						int32_t newPos = effectiveLength - oldNote->pos - oldNote->length;
 						newNote->pos = newPos;
@@ -209,7 +208,7 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 							iNew += numNotes;
 						}
 						Note* oldNote = &oldNotes[iOld];
-						Note* newNote = &notes[iNew];
+						Note* newNote = &reversed[iNew];
 
 						int32_t newPos = -oldNote->pos;
 						if (newPos < 0) {
@@ -224,8 +223,8 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 						newNote->setFill(oldNote->getFill());
 					}
 				}
+				notes = std::move(reversed); // the old notes are freed with the moved-from buffer
 			}
-			// oldNotes owns a real deep copy now and frees it on destruction.
 		}
 	}
 

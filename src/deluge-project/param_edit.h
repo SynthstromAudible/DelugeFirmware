@@ -25,6 +25,7 @@
 #include "deluge-project/lane_view.h"
 #include "deluge-project/param_automation.h" // DocAutoParam / ParamNode
 #include <cstdint>
+#include <expected>
 
 namespace deluge::project {
 
@@ -149,7 +150,8 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p);
 /// mirroring positions around the loop and re-deriving each node's value/interpolated flag from its old neighbours.
 /// @param p                          The automation.
 /// @param reverseDirectionWithLength Loop length to reverse within, in ticks.
-void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength);
+/// @return AllocError::OUT_OF_MEMORY when there is no memory for the rebuilt nodes; the automation is then unchanged.
+[[nodiscard]] std::expected<void, AllocError> flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength);
 
 /// @brief Trim the timeline to @p newLength: nodes at or beyond @p newLength are dropped.
 ///

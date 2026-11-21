@@ -1782,8 +1782,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.flattenReverse(*(&apDoc), length);
-				deluge::project::flattenReverse(doc, length);
+				check(ap.flattenReverse(*(&apDoc), length) == Error::NONE,
+				      "flattenReverse: the engine's rebuild succeeds");
+				check(deluge::project::flattenReverse(doc, length).has_value(),
+				      "flattenReverse: the model's rebuild succeeds");
 				check(ap.played() == doc.current_value,
 				      "flattenReverse: current_value untouched, matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "flattenReverse: matches engine oracle");
@@ -1799,8 +1801,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			doc.current_value = 7;
 			setNodeIn(apDoc, 8, 5, true);
 			deluge::project::setNodeAtPos(doc, 8, 5, true);
-			ap.flattenReverse(*(&apDoc), 0);
-			deluge::project::flattenReverse(doc, 0);
+			check(ap.flattenReverse(*(&apDoc), 0) == Error::NONE, "flattenReverse: the engine's rebuild succeeds");
+			check(deluge::project::flattenReverse(doc, 0).has_value(), "flattenReverse: the model's rebuild succeeds");
 			check(ap.played() == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
 			expectDocMatchesEngine(apDoc, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
 		}
