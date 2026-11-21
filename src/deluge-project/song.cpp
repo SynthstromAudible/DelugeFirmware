@@ -128,6 +128,10 @@ DocClip* Song::resolveClip(const ClipAddress& address) {
 	return clip_structure.find(address.clip_id);
 }
 
+const DocClip* Song::resolveClip(const ClipAddress& address) const {
+	return clip_structure.find(address.clip_id);
+}
+
 DocClip& Song::getOrCreateDocClip(const ClipAddress& address) {
 	return clip_structure.getOrCreate(address.clip_id);
 }

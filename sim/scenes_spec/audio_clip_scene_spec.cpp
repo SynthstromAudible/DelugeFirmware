@@ -7,7 +7,7 @@
 ///
 /// Every comparison here runs the same state twice, each side from its own sentinel:
 ///
-///   * the port, through the `Shell` -- `audio_clip_scene().open(clip, song)` and then
+///   * the port, through the `Shell` -- `audio_clip_scene().open(clip, &song->project)` and then
 ///     `Shell::tick`, rendered into `FakeSurfaceSet`;
 ///   * legacy, through **`AudioClipView`'s own public entry points** --
 ///     `renderMainPads`, `renderSidebar`, `renderOLED`, `graphicsRoutine`, `padAction`,
@@ -369,6 +369,8 @@ struct Rig {
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		playbackHandler.playbackState = 0;
 		currentPlaybackMode = &session;
+		// The app's ports, which act on the current song: the fixture's.
+		audio_clip_scene().set_ports(&menu::host_ports());
 	}
 
 	/// @brief Tear the stack down, so `AudioClipScene` -- a process singleton -- never carries state
@@ -378,6 +380,7 @@ struct Rig {
 			shell.stack().pop(SceneKind::Null);
 		}
 		audio_clip_scene().open(std::nullopt, nullptr);
+		audio_clip_scene().set_ports(nullptr);
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		PadLEDs::flashCursor = saved_flash_cursor;
 		playbackHandler.playbackState = saved_playback_state;
@@ -448,7 +451,7 @@ struct Rig {
 
 	/// @brief Open the port's scene on the fixture's clip.
 	void open() {
-		audio_clip_scene().open(address(), f.song);
+		audio_clip_scene().open(address(), &f.song->project);
 		shell.init(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -463,10 +466,8 @@ struct Rig {
 	/// singleton, so an example that leaves a marker up otherwise poisons the next one: the
 	/// end-marker drag example leaves `end_marker_visible_` true and the start-marker example then
 	/// takes the wrong branch of `padAction`.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	/// @param clip_writes Where the scene's clip edits go; the app's when null.
-	void open_scene_only(bind::WriteSink* sink = nullptr, bind::ClipWrites* clip_writes = nullptr) {
-		audio_clip_scene().open(address(), f.song, sink, clip_writes);
+	void open_scene_only() {
+		audio_clip_scene().open(address(), &f.song->project);
 		(void)audio_clip_scene().on_enter(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -1845,7 +1846,12 @@ describe audio_clip_scene_spec_body(
 		        const ModelSnapshot seeded = model_snapshot(r);
 		        bind::test::RecordingWrites recording;
 		        bind::test::RecordingClipWrites clip_writes;
-		        r.open_scene_only(&recording, &clip_writes);
+		        // The app's ports with the two recorders in place of its sinks, kept alive for the case.
+		        bind::Ports held = menu::host_ports();
+		        held.writes = &recording;
+		        held.clip_writes = &clip_writes;
+		        audio_clip_scene().set_ports(&held);
+		        r.open_scene_only();
 		        using Kind = bind::test::RecordingClipWrites::Call::Kind;
 		        using Resize = bind::ResizeKind;
 		        // The last call of a kind: a length change also records the view a redo returns to, after its resize.
@@ -1916,6 +1922,7 @@ describe audio_clip_scene_spec_body(
 		        }
 		        // Only requests: nothing else wrote.
 		        expect(model_snapshot(r)).to_equal(seeded);
+		        audio_clip_scene().set_ports(&menu::host_ports()); // before `held` goes
 	        });
 
 	    it(

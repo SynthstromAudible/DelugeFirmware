@@ -217,6 +217,14 @@ describe setting_groups_owners("the owner setting groups", $ {
 		    .to_equal(std::string{});
 	});
 
+	it("resolves a clip it holds through a const song, and none for another id", _ {
+		Song song;
+		DocClip& held = song.clip_structure.getOrCreate(7);
+		const Song& read = song;
+		expect(read.resolveClip(ClipAddress{.clip_id = 7})).to_equal(static_cast<const DocClip*>(&held));
+		expect(read.resolveClip(ClipAddress{.clip_id = 8})).to_be_null();
+	});
+
 	it("round-trips the clip and clip-value groups through a clip's record", _ {
 		Song song;
 		(void)song.clip_structure.getOrCreate(7);

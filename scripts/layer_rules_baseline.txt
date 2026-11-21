@@ -121,10 +121,8 @@ src/deluge/util/container/list/bidirectional_linked_list.cpp	model-includes-ui	1
 src/deluge/util/functions.cpp	model-includes-ui	2
 src/deluge/util/functions.h	model-calls-ui	1
 src/deluge/util/string.cpp	model-includes-ui	1
-src/scenes/audio_clip/audio_clip_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/browser/browser_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/browser/listing.cpp	scenes-reads-outside-bind	1
 src/scenes/browser/listing.h	scenes-reads-outside-bind	1
 src/scenes/context_menu/context_menu_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/rename/rename_scene.cpp	scenes-reads-outside-bind	1
-src/scenes/timeline/timeline.cpp	scenes-reads-outside-bind	1

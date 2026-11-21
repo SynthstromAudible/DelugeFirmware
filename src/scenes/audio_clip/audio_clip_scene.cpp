@@ -24,7 +24,6 @@
 #include "definitions_cxx.hpp" // kMaxSequenceLength
 #include "gfx/grid/palette.h"
 #include "notify/notice_queue.h"
-#include "scenes/menu/context.h"
 #include "ui/grid/columns.h"
 #include "ui/grid/sidebar.h"
 #include "ui/grid/waveform.h"
@@ -32,20 +31,18 @@
 #include "ui/oled/text.h"
 
 #include "scenes/bind/ports/waveforms.h"
-#include "scenes/menu/bind_host.h"
 
 #include "deluge-project/audio_input.h"
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
 #include "deluge-project/setting_group.h"
+#include "deluge-project/song.h"
 #include "deluge-project/track_kind.h"
+#include "gfx/grid/exp_table.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
-#include "playback/mode/arrangement.h"
-#include "playback/playback_handler.h"
 #include "scenes/services/waveform_paint.h"
 #include "serialization/tree.h"
-#include "storage/flash_storage.h"
 
 #include <algorithm>
 #include <array>
@@ -100,23 +97,17 @@ AudioClipScene& audio_clip_scene() {
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
-void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
-                          deluge::scenes::bind::WriteSink* sink, deluge::scenes::bind::ClipWrites* clip_writes) {
-	clip_ = song != nullptr ? clip : std::nullopt;
-	song_ = song;
-	// The app's ports act on the song it plays; a scene over any other song binds nothing through them.
-	const bool binds = song_ != nullptr && menu::host_binds(*song_);
-	ports_ = binds ? menu::host_ports() : deluge::scenes::bind::Ports{};
-	if (sink != nullptr) {
-		ports_.writes = sink;
-	}
-	if (clip_writes != nullptr) {
-		ports_.clip_writes = clip_writes;
-	}
+void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, const deluge::project::Song* model) {
+	clip_ = model != nullptr ? clip : std::nullopt;
+	model_ = model;
 	retry_.restart();
-	if (song_ != nullptr) {
-		timeline_.adopt(*song_);
-		// `adopt` copies `Song::tripletsOn`, but `supportsTriplets()` is a property of the VIEW
+	if (model_ != nullptr) {
+		if (const deluge::scenes::bind::ClipFacts* c = clips(); c != nullptr) {
+			if (const std::optional<deluge::scenes::bind::ClipNavigation> n = c->clip_navigation()) {
+				timeline_.adopt(*n);
+			}
+		}
+		// `adopt` copies the song's triplets setting, but `supportsTriplets()` is a property of the VIEW
 		// (`audio_clip_view.h` returns false) and is not in the song. Restored after every
 		// adopt, so `in_triplets_view()` answers what `AudioClipView` answers.
 		timeline_.supports_triplets = false;
@@ -124,10 +115,41 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::So
 }
 
 // ---------------------------------------------------------------------------------------------
+// The installed ports
+
+const deluge::scenes::bind::ClipFacts* AudioClipScene::clips() const {
+	return bind::port_of(ports_, &bind::Ports::clips);
+}
+
+deluge::scenes::bind::ClipWrites* AudioClipScene::clip_writes() const {
+	return bind::port_of(ports_, &bind::Ports::clip_writes);
+}
+
+deluge::scenes::bind::WriteSink* AudioClipScene::writes() const {
+	return bind::port_of(ports_, &bind::Ports::writes);
+}
+
+const deluge::scenes::bind::DeviceSettings* AudioClipScene::device() const {
+	return bind::port_of(ports_, &bind::Ports::device);
+}
+
+const deluge::scenes::bind::Transport* AudioClipScene::transport() const {
+	return bind::port_of(ports_, &bind::Ports::transport);
+}
+
+deluge::scenes::bind::TransportActions* AudioClipScene::transport_actions() const {
+	return bind::port_of(ports_, &bind::Ports::transport_actions);
+}
+
+const deluge::scenes::bind::Waveforms* AudioClipScene::waveforms() const {
+	return bind::port_of(ports_, &bind::Ports::waveforms);
+}
+
+// ---------------------------------------------------------------------------------------------
 // What the scene reads: the clip's record, and the facts no record holds
 
 const deluge::project::DocClip* AudioClipScene::doc() const {
-	return clip_ && song_ != nullptr ? song_->project.resolveClip(*clip_) : nullptr;
+	return clip_ && model_ != nullptr ? model_->resolveClip(*clip_) : nullptr;
 }
 
 int32_t AudioClipScene::loop_length() const {
@@ -136,11 +158,13 @@ int32_t AudioClipScene::loop_length() const {
 }
 
 std::optional<deluge::scenes::bind::AudioClipFact> AudioClipScene::fact() const {
-	return clip_ && ports_.clips != nullptr ? ports_.clips->audio_clip(*clip_) : std::nullopt;
+	const deluge::scenes::bind::ClipFacts* c = clips();
+	return clip_ && c != nullptr ? c->audio_clip(*clip_) : std::nullopt;
 }
 
 bool AudioClipScene::recording_linearly() const {
-	return clip_ && ports_.clips != nullptr && ports_.clips->clip_recording_linearly(*clip_);
+	const deluge::scenes::bind::ClipFacts* c = clips();
+	return clip_ && c != nullptr && c->clip_recording_linearly(*clip_);
 }
 
 deluge::scenes::bind::WaveformAddress AudioClipScene::waveform() const {
@@ -150,7 +174,8 @@ deluge::scenes::bind::WaveformAddress AudioClipScene::waveform() const {
 
 bool AudioClipScene::has_sample() const {
 	// `getSample()` (`audio_clip_view.cpp`): the take while recording linearly, else the file.
-	return clip_ && ports_.waveforms != nullptr && ports_.waveforms->info(waveform()).has_value();
+	const deluge::scenes::bind::Waveforms* w = waveforms();
+	return clip_ && w != nullptr && w->info(waveform()).has_value();
 }
 
 std::optional<deluge::project::TrackAddress> AudioClipScene::track() const {
@@ -160,11 +185,11 @@ std::optional<deluge::project::TrackAddress> AudioClipScene::track() const {
 
 std::string AudioClipScene::track_row(deluge::project::SettingGroupId group, std::string_view path) const {
 	const std::optional<deluge::project::TrackAddress> at = track();
-	if (!at || song_ == nullptr) {
+	if (!at || model_ == nullptr) {
 		return {};
 	}
 	const std::optional<deluge::serialization::Value> value =
-	    deluge::project::read_setting(song_->project, {.group = group, .owner = *at}, path);
+	    deluge::project::read_setting(*model_, {.group = group, .owner = *at}, path);
 	return value ? value->str() : std::string{};
 }
 
@@ -267,9 +292,10 @@ uint32_t AudioClipScene::max_zoom() const {
 bool AudioClipScene::scrollable_and_zoomable() const {
 	// `AudioClipView::setupScroll`'s guard (`audio_clip_view.cpp`): `currentlyScrollableAndZoomable`, a take
 	// recorded without the clock (or in the arranger) locks the view.
-	return clip_.has_value()
-	       && !(recording_linearly()
-	            && (!playbackHandler.isEitherClockActive() || currentPlaybackMode == &arrangement));
+	const deluge::scenes::bind::Transport* t = transport();
+	const bool clocks = t != nullptr && t->clocks_active();
+	const bool arrangement = t != nullptr && t->arrangement_mode();
+	return clip_.has_value() && !(recording_linearly() && (!clocks || arrangement));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -375,14 +401,17 @@ uint16_t AudioClipScene::clear_clip() {
 	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus `main`'s
 	// card-routine defer, which the shell answers with `InputLowering::set_sd_busy` rather than
 	// by asking the scene (`shell/scene.h`'s `Action` warning).
-	if (!clip_ || ports_.clip_writes == nullptr) {
+	deluge::scenes::bind::ClipWrites* edits = clip_writes();
+	if (!clip_ || edits == nullptr) {
 		return 0;
 	}
+	// The device's automation-clear row, read once for both the request and the popup.
+	const bool clear = bind::read_device_flag(device(), deluge::project::device_path::kAutomationClear);
 	// `AudioClipView::buttonAction`'s clear, as one request: the clear and its undo step.
-	(void)ports_.clip_writes->clear_clip(*clip_, !FlashStorage::automationClear, true);
+	(void)edits->clear_clip(*clip_, !clear, true);
 	// Legacy's two popups, chosen by the same flag that chose the argument above.
-	const uint16_t popup = FlashStorage::automationClear ? sid(deluge::l10n::String::STRING_FOR_SAMPLE_CLEARED)
-	                                                     : sid(deluge::l10n::String::STRING_FOR_CLIP_CLEARED);
+	const uint16_t popup = clear ? sid(deluge::l10n::String::STRING_FOR_SAMPLE_CLEARED)
+	                             : sid(deluge::l10n::String::STRING_FOR_CLIP_CLEARED);
 	// `AudioClipView::buttonAction`'s `endMarkerVisible = false` and blink-timer unset: the setter
 	// resets the blink state with the marker.
 	set_end_marker_visible(false);
@@ -571,7 +600,9 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 
 	if (ctx.held.has(ButtonId::TempoEnc)) {
 		if (on && clip_) {
-			menu::host_grab_tempo(*clip_);
+			if (deluge::scenes::bind::TransportActions* a = transport_actions()) {
+				a->grab_tempo(*clip_);
+			}
 		}
 		return r;
 	}
@@ -609,10 +640,10 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 			repaint();
 			return r;
 		}
-		if (has_sample() && ports_.clip_writes != nullptr) {
+		if (deluge::scenes::bind::ClipWrites* edits = clip_writes(); has_sample() && edits != nullptr) {
 			const int32_t new_length = (x + 1) * zoom + timeline_.x_scroll;
 			// The end marker and the length, as one request.
-			(void)ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::END, new_length, loop_length());
+			(void)edits->resize_audio_clip(*clip_, ResizeKind::END, new_length, loop_length());
 			repaint();
 		}
 		return r;
@@ -625,10 +656,10 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 			repaint();
 			return r;
 		}
-		if (has_sample() && ports_.clip_writes != nullptr) {
+		if (deluge::scenes::bind::ClipWrites* edits = clip_writes(); has_sample() && edits != nullptr) {
 			const int32_t new_start_ticks = x * zoom + timeline_.x_scroll;
 			// The start marker and the length, as one request.
-			(void)ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::START, new_start_ticks, loop_length());
+			(void)edits->resize_audio_clip(*clip_, ResizeKind::START, new_start_ticks, loop_length());
 			repaint();
 		}
 		return r;
@@ -644,10 +675,10 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 		repaint();
 	}
 	else if (x == start_square
-	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrimFromStartOfAudioClip)
-	                == RuntimeFeatureStateToggle::On) {
-		// Legacy's own "WIP" arm, behind a runtime feature toggle that is off by
-		// default; the port reads the same global.
+	         && bind::read_device_flag(device(), deluge::project::device_path::feature(
+	                                                 deluge::project::Feature::TRIM_FROM_START_OF_AUDIO_CLIP))) {
+		// Legacy's own work-in-progress arm, behind a runtime feature toggle that is on by default
+		// (`project::kFeatures`).
 		set_start_marker_visible(true);
 		set_end_marker_visible(false);
 		repaint();
@@ -674,18 +705,19 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 	// `AudioClipView::selectEncoderAction`'s `else` branch (`audio_clip_view.cpp`): the track's mode, scrolled as
 	// `AudioOutput::scrolledMode` scrolls it, written to the track's record.
 	const std::optional<deluge::project::TrackAddress> at = track();
-	if (!at || ports_.writes == nullptr) {
+	deluge::scenes::bind::WriteSink* sink = writes();
+	if (!at || sink == nullptr) {
 		return false;
 	}
 	constexpr auto kModes = static_cast<int32_t>(std::size(deluge::project::kAudioModeWords));
 	const int32_t mode = std::clamp((audio_mode() + static_cast<int8_t>(offset)) % kModes, 0, kModes - 1);
 	deluge::scenes::bind::Addresses where{};
 	where.track = *at;
-	(void)ports_.writes->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-	                                       .path = "mode",
-	                                       .group = deluge::project::SettingGroupId::AUDIO_INPUT},
-	                            .where = where,
-	                            .menu_value = mode});
+	(void)sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	                              .path = "mode",
+	                              .group = deluge::project::SettingGroupId::AUDIO_INPUT},
+	                   .where = where,
+	                   .menu_value = mode});
 	return true;
 }
 
@@ -698,8 +730,8 @@ Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& 
 	if (no_ui_mode_active() && ctx.shift && !ctx.held.has(ButtonId::YEnc)) {
 		// `main`'s card-routine defer in `AudioClipView::verticalEncoderAction` has no counterpart here (see
 		// `pad_action`).
-		if (clip_ && ports_.clip_writes != nullptr) {
-			(void)ports_.clip_writes->recolour_clip(*clip_, offset);
+		if (deluge::scenes::bind::ClipWrites* edits = clip_writes(); clip_ && edits != nullptr) {
+			(void)edits->recolour_clip(*clip_, offset);
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 		}
 	}
@@ -849,9 +881,9 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 	}
 	// Only a length a clip may have is asked for (`ClipView::changeClipLength`'s two arms).
 	const bool changes = lengthens ? new_length <= static_cast<uint32_t>(kMaxSequenceLength) : new_length > 0;
-	if (changes && ports_.clip_writes != nullptr) {
-		(void)ports_.clip_writes->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
-		                                            static_cast<int32_t>(old_length));
+	if (deluge::scenes::bind::ClipWrites* edits = clip_writes(); changes && edits != nullptr) {
+		(void)edits->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
+		                               static_cast<int32_t>(old_length));
 	}
 	if (changes) {
 		if (lengthens) {
@@ -902,8 +934,8 @@ Result AudioClipScene::edit_clip_length_without_timestretching(int32_t offset) {
 void AudioClipScene::note_undo_scroll() {
 	// `action->xScrollClip[AFTER] = ...` after each length edit: the view scrolled after the change, so the step
 	// learns where a redo returns to now.
-	if (clip_ && ports_.clip_writes != nullptr) {
-		ports_.clip_writes->set_undo_scroll_after(*clip_, timeline_.x_scroll);
+	if (deluge::scenes::bind::ClipWrites* edits = clip_writes(); clip_ && edits != nullptr) {
+		edits->set_undo_scroll_after(*clip_, timeline_.x_scroll);
 	}
 }
 
@@ -926,12 +958,13 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	// firmware's clip belongs to. So this method's only caller in this library is still
 	// `button_action`'s X_ENC+Y_ENC chord, and it is the port's own copy of the verb rather than
 	// the one a menu item reaches.
-	if (!clip_ || ports_.clip_writes == nullptr) {
+	deluge::scenes::bind::ClipWrites* edits = clip_writes();
+	if (!clip_ || edits == nullptr) {
 		return;
 	}
 	const int32_t old_length = loop_length();
 	// A clip with no sample to measure is refused, which legacy reports as no sample.
-	if (!ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::TO_SAMPLE_LENGTH, 0, old_length)) {
+	if (!edits->resize_audio_clip(*clip_, ResizeKind::TO_SAMPLE_LENGTH, 0, old_length)) {
 		deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return;
 	}
@@ -944,10 +977,13 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 	// `TimelineView::displayNumberOfBarsAndBeats`' popup half.
 	// The decomposition is `TimelineState::bars_and_beats`, which records
 	// that legacy's `quantization` and `tooLongText` parameters are read by nothing.
-	if (song_ == nullptr) {
+	if (model_ == nullptr) {
 		return;
 	}
-	const uint32_t one_bar = song_->getBarLength();
+	// `Song::getBarLength`: 96 ticks, by the song's input tick magnitude.
+	const uint32_t one_bar = static_cast<uint32_t>(
+	    deluge::gfx::grid::increase_magnitude(96, model_->transport.inside_world_tick_magnitude
+	                                                  + model_->transport.inside_world_tick_magnitude_offset_from_bpm));
 	if (one_bar == 0) {
 		return;
 	}
@@ -1037,8 +1073,9 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// `gui/ui_timer_manager.cpp`, through `UI::graphicsRoutine`), so its port is "repaint next tick" whenever the
 	// cursor could move. The condition is `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`):
 	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
-	const bool cursor_live = flash_cursor() != project::FlashCursor::OFF && clip_ && ports_.clips != nullptr
-	                         && ports_.clips->clip_playing(*clip_);
+	const deluge::scenes::bind::ClipFacts* c = clips();
+	const bool cursor_live =
+	    flash_cursor() != project::FlashCursor::OFF && clip_ && c != nullptr && c->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1061,17 +1098,21 @@ int32_t AudioClipScene::compute_tick_square() {
 	//
 	// The `UI_MODE_AUDIO_CLIP_COLLAPSING` early return, and the two animation
 	// modes, are `PadLEDs` transitions the port does not carry at all -- see the class docstring.
-	if (!clip_ || ports_.clips == nullptr) {
+	const deluge::scenes::bind::ClipFacts* c = clips();
+	if (!clip_ || c == nullptr) {
 		return deluge::ui::grid::kNoTickSquare;
 	}
 
 	const bool recording = recording_linearly();
+	const deluge::scenes::bind::Transport* t = transport();
+	const bool clocks = t != nullptr && t->clocks_active();
+	const bool arrangement = t != nullptr && t->arrangement_mode();
 	int32_t square = 0;
-	if (!ports_.clips->clip_playing(*clip_)) {
+	if (!c->clip_playing(*clip_)) {
 		// `AudioClipView::graphicsRoutine`'s first arm: no playback, or the clip is not active.
 		square = deluge::ui::grid::kNoTickSquare;
 	}
-	else if (!playbackHandler.isEitherClockActive() || (currentPlaybackMode == &arrangement && recording)) {
+	else if (!clocks || (arrangement && recording)) {
 		// Tempoless or arranger recording.
 		square = kMainCols - 1;
 		// While recording, the `needsRenderingDependingOnSubMode()` call there is a redraw request, which the shell
@@ -1095,8 +1136,7 @@ int32_t AudioClipScene::compute_tick_square() {
 		    .clip_unarmed = fact().value_or(deluge::scenes::bind::AudioClipFact{}).unarmed,
 		    .max_length = max_length(),
 		};
-		const timeline::TimelineState::TickSquare tick =
-		    timeline_.tick_square(ports_.clips->clip_live_pos(*clip_), gates);
+		const timeline::TimelineState::TickSquare tick = timeline_.tick_square(c->clip_live_pos(*clip_), gates);
 		square = tick.square;
 		if (square < 0 || square >= kMainCols) {
 			square = deluge::ui::grid::kNoTickSquare;
@@ -1121,14 +1161,15 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
 	const int32_t tick_col = compute_tick_square();
 
-	const deluge::scenes::bind::Waveforms* waveforms = ports_.waveforms;
+	const deluge::scenes::bind::Waveforms* shown = waveforms();
 	const std::optional<deluge::scenes::bind::WaveformInfo> info =
-	    clip_ && waveforms != nullptr ? waveforms->info(waveform()) : std::nullopt;
+	    clip_ && shown != nullptr ? shown->info(waveform()) : std::nullopt;
 	const std::optional<deluge::scenes::bind::AudioClipFact> clip_fact = fact();
 	// `renderMainPads`' two "just clear the display" arms: no sample, or no clip. The
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
 	// means no waveform, no grey, no markers and (legacy's driver still substitutes) the cursor.
-	if (info && clip_fact && ports_.clips != nullptr) {
+	const deluge::scenes::bind::ClipFacts* facts = clips();
+	if (info && clip_fact && facts != nullptr) {
 		const int32_t scroll = timeline_.x_scroll;
 		const uint32_t zoom = timeline_.x_zoom;
 
@@ -1140,7 +1181,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		    timeline::divide_round_negative(0 - scroll, static_cast<int32_t>(zoom == 0 ? 1 : zoom));
 
 		const auto [scroll_samples, zoom_samples] =
-		    ports_.clips->audio_clip_samples(*clip_, scroll, static_cast<int32_t>(zoom));
+		    facts->audio_clip_samples(*clip_, scroll, static_cast<int32_t>(zoom));
 
 		// `AudioClip::getColour`: the pastel hue its colour offset names.
 		const deluge::project::DocClip* record = doc();
@@ -1163,7 +1204,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again.
 		// `info` came through the port, so the port is here.
 		const std::optional<deluge::scenes::services::WaveformFrame> wf = deluge::scenes::services::read_waveform(
-		    *waveforms, waveform(), deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
+		    *shown, waveform(), deluge::sample_view::Window{.scroll = scroll_samples, .zoom = zoom_samples});
 		if (wf && retry_.after(wf->read, f.now_ms()) == deluge::scenes::services::PeakRetry::Next::ASK_AGAIN) {
 			f.grid_gate().request_repaint_after(deluge::scenes::services::kPeakRetryPollMs, f.now_ms());
 		}

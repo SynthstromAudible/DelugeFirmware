@@ -308,7 +308,7 @@ using deluge::scenes::spec::RealServices;
 ///
 /// The scenes are process singletons and `run_script` already tears the *stack* down; what it
 /// cannot know about is the model state a fixture pointed them at. `audio_clip_scene().open(std::nullopt,
-/// nullptr)` is `audio_clip_scene_spec.cpp`'s own teardown, and the matrix/pad reset is
+/// nullptr)` and `set_ports(nullptr)` are `audio_clip_scene_spec.cpp`'s own teardown, and the matrix/pad reset is
 /// `slicer_scene_spec.cpp`'s.
 struct SceneReset {
 	uint8_t saved_playback_state = playbackHandler.playbackState;
@@ -322,6 +322,7 @@ struct SceneReset {
 	SceneReset& operator=(const SceneReset&) = delete;
 	~SceneReset() {
 		audio_clip_scene().open(std::nullopt, nullptr);
+		audio_clip_scene().set_ports(nullptr);
 		slicer_scene().set_ops(nullptr);
 		// The transport half, restored in `global_controls_spec.cpp`'s `reset_transport` order and
 		// for its reasons -- `audio_clip.txt` really does press RECORD and PLAY through
@@ -529,7 +530,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -555,7 +557,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -632,7 +635,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -675,7 +679,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -802,7 +807,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -828,7 +834,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
 		svc.song = f.song;
@@ -853,7 +860,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
 		CountInHooks hooks;
@@ -880,7 +888,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, f.song);
+		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
 		CountInHooks hooks;

@@ -50,6 +50,7 @@
 /// @note The spec may include `gui/` and `hid/` (it drives the legacy views); the library may not.
 ///       Same rule `marker_scene_spec.cpp` runs under.
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/timeline/timeline.h"
 
 #include "gui/ui/ui.h"
@@ -62,6 +63,7 @@
 #include "model/song/song.h"
 
 #include "support/song_fixture.h"
+#include "support/timeline_publish.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project
 // headers this drags in. See the warning at the top of support/card_access.h.
@@ -188,7 +190,7 @@ struct Rig {
 	///        `supportsTriplets() == false` (`audio_clip_view.h`).
 	[[nodiscard]] TimelineState port() const {
 		TimelineState s;
-		s.adopt(*f.song);
+		s.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = false;
 		return s;
 	}
@@ -197,7 +199,7 @@ struct Rig {
 	///        (`RootUI::supportsTriplets`, `gui/ui/root_ui.h`).
 	[[nodiscard]] TimelineState port_with_triplets() const {
 		TimelineState s;
-		s.adopt(*f.song);
+		s.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = true;
 		return s;
 	}
@@ -961,7 +963,7 @@ describe timeline_spec_body(
 		        r.f.song->persistentView.tripletsLevel = 8;
 
 		        TimelineState port;
-		        port.adopt(*r.f.song);
+		        port.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation());
 		        expect(port.x_scroll).to_equal(96);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(6);
 		        expect(port.triplets_on).to_be_true();
@@ -969,7 +971,7 @@ describe timeline_spec_body(
 
 		        port.x_scroll = 192;
 		        port.x_zoom = 12;
-		        port.publish(*r.f.song);
+		        spec_fixture::publish(port, *r.f.song);
 		        expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(192);
 		        expect(static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP])).to_equal(12);
 		        expect(r.f.song->persistentView.xScroll[NAVIGATION_ARRANGEMENT]).to_equal(4242);

@@ -3,6 +3,7 @@
 #include "board_config.h"
 #include "model/edits/edit.h"
 #include "model/song/song.h"
+#include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
@@ -48,6 +49,7 @@ void install_scene_ports() {
 	scenes::overlay::count_in_scene().set_transport(ports.transport);
 	scenes::overlay::screensaver_scene().set_device(ports.device);
 	scenes::slicing::slicer_scene().set_ports(&ports);
+	scenes::audio_clip::audio_clip_scene().set_ports(&ports);
 }
 
 bool applied(edits::Edit& edit) {

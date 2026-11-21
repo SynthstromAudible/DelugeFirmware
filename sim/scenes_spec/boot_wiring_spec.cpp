@@ -34,6 +34,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/screensaver.h"
+#include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
@@ -417,7 +418,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 });
 
-describe boot_overlays("the overlays' and the slicer's ports, installed with the services", $ {
+describe boot_overlays("the overlays', the slicer's and the audio clip scene's ports, installed with the services", $ {
 	it("gives the count-in the app's transport: a count-in the playback handler holds shows as its digit", _ {
 		auto& scene = deluge::scenes::overlay::count_in_scene();
 		const int32_t saved = playbackHandler.currentVisualCountForCountIn;
@@ -467,6 +468,25 @@ describe boot_overlays("the overlays' and the slicer's ports, installed with the
 		// The host and the preview drum have let it go.
 		sample->~Sample();
 		deluge::memory::dealloc(sample);
+	});
+
+	it("gives the audio clip scene the app's ports: it opens on the clip navigation the current song holds", _ {
+		auto& scene = deluge::scenes::audio_clip::audio_clip_scene();
+		scene.set_ports(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		Song* const saved = currentSong;
+		spec::AudioSongFixture f = spec::make_audio_clip_song(); // made current
+		f.song->persistentView.xScroll[NAVIGATION_CLIP] = 96;
+		f.song->persistentView.xZoom[NAVIGATION_CLIP] = 6;
+		scene.timeline().x_scroll = 0;
+		scene.timeline().x_zoom = 1;
+		scene.open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
+		// With no ports the scene would read no navigation, and keep the view it had.
+		expect(scene.timeline().x_scroll).to_equal(96);
+		expect(scene.timeline().x_zoom).to_equal(uint32_t{6});
+		scene.open(std::nullopt, nullptr);
+		f.song->setCurrentClip(nullptr);
+		spec::make_current(saved);
 	});
 });
 
