@@ -10,6 +10,7 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/semver.cpp
 ../../src/deluge/util/string.cpp
 ../../src/deluge/util/cfunctions.c
+../../src/deluge/util/format_integer.c
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
