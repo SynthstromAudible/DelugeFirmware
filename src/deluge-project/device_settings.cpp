@@ -80,34 +80,35 @@ constexpr auto kCvTransposePaths = output_paths<kCvOutputCount>(device_path::kCv
 constexpr auto kGateModePaths = output_paths<kGateOutputCount>(device_path::kGateMode);
 
 /// The patch cable's polarities, as the cable's own file words name them (`instrument::to_string`).
-constexpr std::array<std::string_view, 2> kPolarityWords{"unipolar", "bipolar"};
+constexpr std::array<std::string_view, 2> kPolarityWords = stored_words<"unipolar", "bipolar">;
 /// The shortcut layouts, in ShortcutsVersion's order.
-constexpr std::array<std::string_view, 2> kShortcutsVersionWords{"v1", "v3"};
+constexpr std::array<std::string_view, 2> kShortcutsVersionWords = stored_words<"v1", "v3">;
 /// The playhead's forms, in FlashCursor's order.
-constexpr std::array<std::string_view, 3> kPlayCursorWords{"fast", "off", "slow"};
+constexpr std::array<std::string_view, 3> kPlayCursorWords = stored_words<"fast", "off", "slow">;
 /// The favourites a browser may show, in FavouritesLayout's order.
-constexpr std::array<std::string_view, 3> kFavouritesLayoutWords{"favourites", "favouritesAndBanks", "off"};
+constexpr std::array<std::string_view, 3> kFavouritesLayoutWords =
+    stored_words<"favourites", "favouritesAndBanks", "off">;
 static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::SLOW) == 2
                   && std::to_underlying(FavouritesLayout::OFF) == 2,
               "an enumerator's value is its choice's index");
 /// The text-entry keyboard's letter layouts.
-constexpr std::array<std::string_view, 3> kTextKeyboardWords{"qwerty", "azerty", "qwertz"};
+constexpr std::array<std::string_view, 3> kTextKeyboardWords = stored_words<"qwerty", "azerty", "qwertz">;
 /// The nine colours a pad setting may take, in the order the pad colours number them.
-constexpr std::array<std::string_view, 9> kPadColourWords{"red",     "green", "blue",  "yellow", "cyan",
-                                                          "magenta", "amber", "white", "pink"};
+constexpr std::array<std::string_view, 9> kPadColourWords =
+    stored_words<"red", "green", "blue", "yellow", "cyan", "magenta", "amber", "white", "pink">;
 /// How a menu marks its selected row.
-constexpr std::array<std::string_view, 3> kHighlightingWords{"full", "partial", "none"};
+constexpr std::array<std::string_view, 3> kHighlightingWords = stored_words<"full", "partial", "none">;
 /// How a new song's session view lays its clips out.
-constexpr std::array<std::string_view, 2> kSessionLayoutWords{"rows", "grid"};
+constexpr std::array<std::string_view, 2> kSessionLayoutWords = stored_words<"rows", "grid">;
 /// The modes the grid view may start in.
-constexpr std::array<std::string_view, 3> kGridModeWords{"selection", "green", "blue"};
+constexpr std::array<std::string_view, 3> kGridModeWords = stored_words<"selection", "green", "blue">;
 /// The layouts a new keyboard view's pads may take: the three a menu offers of the device's seven. A layout past them
 /// reads clamped to the last.
-constexpr std::array<std::string_view, 3> kKeyboardLayoutWords{"isomorphic", "inKey", "piano"};
+constexpr std::array<std::string_view, 3> kKeyboardLayoutWords = stored_words<"isomorphic", "inKey", "piano">;
 /// What the screensaver may show.
-constexpr std::array<std::string_view, 4> kScreensaverWords{"off", "blank", "starscape", "deluge"};
+constexpr std::array<std::string_view, 4> kScreensaverWords = stored_words<"off", "blank", "starscape", "deluge">;
 /// When the sample browser may preview a sample.
-constexpr std::array<std::string_view, 3> kSamplePreviewWords{"off", "conditional", "on"};
+constexpr std::array<std::string_view, 3> kSamplePreviewWords = stored_words<"off", "conditional", "on">;
 
 /// The pad colours' indices among kPadColourWords that the colour rows reset to.
 constexpr int32_t kRed = 0;
@@ -118,22 +119,23 @@ constexpr int32_t kMagenta = 5;
 constexpr int32_t kAmber = 6;
 /// The scales a new song may start in: the preset scales in their own order, then a random one, then none. A user
 /// scale is no default, so it has no choice.
-constexpr std::array<std::string_view, kScaleCount + 2> kScaleWords{
-    "major",     "minor",        "dorian",          "phrygian",       "lydian", "mixolydian",
-    "locrian",   "melodicMinor", "harmonicMinor",   "hungarianMinor", "marva",  "arabian",
-    "wholeTone", "blues",        "pentatonicMinor", "hirajoshi",      "random", "none"};
+constexpr std::array<std::string_view, kScaleCount + 2> kScaleWords =
+    stored_words<"major", "minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian", "melodicMinor",
+                 "harmonicMinor", "hungarianMinor", "marva", "arabian", "wholeTone", "blues", "pentatonicMinor",
+                 "hirajoshi", "random", "none">;
 /// The song the device opens as it starts, in the order the flash setting numbers them.
-constexpr std::array<std::string_view, 4> kStartupSongWords{"blank", "template", "lastOpened", "lastSaved"};
+constexpr std::array<std::string_view, 4> kStartupSongWords =
+    stored_words<"blank", "template", "lastOpened", "lastSaved">;
 /// How a new slice plays its sample, in the order a sample's repeat mode numbers them.
-constexpr std::array<std::string_view, 4> kSliceModeWords{"cut", "once", "loop", "stretch"};
+constexpr std::array<std::string_view, 4> kSliceModeWords = stored_words<"cut", "once", "loop", "stretch">;
 /// How loud a sound starts a threshold recording, in the order the recording mode numbers them.
-constexpr std::array<std::string_view, 4> kThresholdWords{"off", "low", "medium", "high"};
+constexpr std::array<std::string_view, 4> kThresholdWords = stored_words<"off", "low", "medium", "high">;
 /// The kinds of clip a new clip may be, in the order an output's type numbers them.
-constexpr std::array<std::string_view, 5> kNewClipTypeWords{"synth", "kit", "midi", "cv", "audio"};
+constexpr std::array<std::string_view, 5> kNewClipTypeWords = stored_words<"synth", "kit", "midi", "cv", "audio">;
 /// When an input being recorded is heard, in the order the monitoring mode numbers them.
-constexpr std::array<std::string_view, 3> kMonitorModeWords{"smart", "on", "off"};
+constexpr std::array<std::string_view, 3> kMonitorModeWords = stored_words<"smart", "on", "off">;
 /// What the device sends the USB host, in the order the USB output source numbers them.
-constexpr std::array<std::string_view, 2> kUsbOutputSourceWords{"mainMix", "lineIn"};
+constexpr std::array<std::string_view, 2> kUsbOutputSourceWords = stored_words<"mainMix", "lineIn">;
 constexpr int32_t kLeastPpqn = 1;      ///< the fewest trigger-clock pulses a quarter note a menu sets
 constexpr int32_t kGreatestPpqn = 192; ///< the most
 constexpr int32_t kDefaultPpqn = 24;   ///< what the device's settings reset to
@@ -279,16 +281,16 @@ constexpr std::array kAudioAndClockRows{
 };
 
 /// The channels MIDI follow may send its feedback on, in the order the follow feedback's channel type numbers them.
-constexpr std::array<std::string_view, 8> kFeedbackChannelWords{"none",  "a",         "b",         "c",
-                                                                "track", "trackAndA", "trackAndB", "trackAndC"};
+constexpr std::array<std::string_view, 8> kFeedbackChannelWords =
+    stored_words<"none", "a", "b", "c", "track", "trackAndA", "trackAndB", "trackAndC">;
 /// How often MIDI follow may send automation's values, in FeedbackAutomation's order.
-constexpr std::array<std::string_view, 4> kFeedbackAutomationWords{"disabled", "low", "medium", "high"};
+constexpr std::array<std::string_view, 4> kFeedbackAutomationWords = stored_words<"disabled", "low", "medium", "high">;
 static_assert(std::to_underlying(FeedbackAutomation::HIGH) == kFeedbackAutomationWords.size() - 1,
               "an enumerator's value is its choice's index");
 /// How an incoming note may transpose: the two methods a menu offers of the device's three.
-constexpr std::array<std::string_view, 2> kMidiTransposeWords{"inKey", "chromatic"};
+constexpr std::array<std::string_view, 2> kMidiTransposeWords = stored_words<"inKey", "chromatic">;
 /// How a knob's incoming CC may take over its param, in the order the takeover mode numbers them.
-constexpr std::array<std::string_view, 4> kMidiTakeoverWords{"jump", "pickup", "scale", "relative"};
+constexpr std::array<std::string_view, 4> kMidiTakeoverWords = stored_words<"jump", "pickup", "scale", "relative">;
 /// The note a kit's first row answers to under MIDI follow, as MIDI follow's settings reset it.
 constexpr int32_t kResetKitRootNote = 36;
 
@@ -309,9 +311,9 @@ constexpr std::array kMidiRows{
 
 /// A gate's modes, in the order the gate's mode numbers them: every gate's two triggers, and the special mode of the
 /// clock's gate and of the run's.
-constexpr std::array<std::string_view, 2> kGateModeWords{"vTrig", "sTrig"};
-constexpr std::array<std::string_view, 3> kClockGateModeWords{"vTrig", "sTrig", "clock"};
-constexpr std::array<std::string_view, 3> kRunGateModeWords{"vTrig", "sTrig", "run"};
+constexpr std::array<std::string_view, 2> kGateModeWords = stored_words<"vTrig", "sTrig">;
+constexpr std::array<std::string_view, 3> kClockGateModeWords = stored_words<"vTrig", "sTrig", "clock">;
+constexpr std::array<std::string_view, 3> kRunGateModeWords = stored_words<"vTrig", "sTrig", "run">;
 static_assert(kClockGateOutput < kGateOutputCount && kRunGateOutput < kGateOutputCount
               && kClockGateOutput != kRunGateOutput);
 

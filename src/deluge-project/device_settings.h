@@ -131,6 +131,51 @@ inline constexpr size_t kRunGateOutput = 2;   ///< the gate that can carry the r
 inline constexpr size_t kClockGateOutput = 3; ///< the gate that can carry the clock
 /// @}
 
+/// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
+/// image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
+
+/// @brief A row's path or a choice's word, held as text the table's views point into.
+/// @tparam N The most characters the text can have.
+template <size_t N>
+struct FixedPath {
+	std::array<char, N> text{}; ///< the text's characters, then unused room
+	size_t size{0};             ///< how many characters of `text` it is
+
+	constexpr FixedPath() = default;
+	/// @brief The text of @p literal, without its NUL.
+	consteval FixedPath(const char (&literal)[N + 1]) { append(std::string_view{literal, N}); } // NOLINT
+
+	/// @brief Adds @p c at the end; there must be room left.
+	constexpr void append(char c) { text[size++] = c; }
+	/// @brief Adds @p part at the end; it must fit in the room left.
+	constexpr void append(std::string_view part) {
+		for (const char c : part) {
+			append(c);
+		}
+	}
+	/// @brief The text, as a view of this one's characters.
+	[[nodiscard]] constexpr std::string_view view() const { return {text.data(), size}; }
+};
+
+template <size_t N>
+FixedPath(const char (&)[N]) -> FixedPath<N - 1>;
+
+/// The one stored copy of @p Text. A string literal's text goes to the image's merged strings, which stay in SRAM;
+/// this is an object of this namespace, so the device image keeps it in SDRAM with the tables that point to it.
+template <FixedPath Text>
+inline constexpr FixedPath kStoredText = Text;
+
+/// @brief @p Text, as a view of its one stored copy (`kStoredText`).
+template <FixedPath Text>
+inline constexpr std::string_view stored_text = kStoredText<Text>.view();
+
+/// @brief The words of a CHOICE row, in value order, each a view of its one stored copy (`kStoredText`).
+template <FixedPath... Words>
+inline constexpr std::array<std::string_view, sizeof...(Words)> stored_words{stored_text<Words>...};
+
+} // namespace menu_tables
+
 struct device_path;
 
 /// @brief The path of a DEVICE row the table holds. Only `device_path` makes one, from its own constants, so a path a
@@ -154,184 +199,184 @@ private:
 ///        built, that the table holds a row at each.
 struct device_path {
 	/// Whether a note's name uses a sharp or a flat: BOOL, 1 for sharps.
-	static constexpr DevicePath kUseSharps{"defaults/useSharps"};
+	static constexpr DevicePath kUseSharps{stored_text<"defaults/useSharps">};
 	/// The polarity a new patch cable takes: CHOICE over the patch cable's two polarities, unipolar then bipolar.
-	static constexpr DevicePath kPatchCablePolarity{"defaults/patchCablePolarity"};
+	static constexpr DevicePath kPatchCablePolarity{stored_text<"defaults/patchCablePolarity">};
 	/// The least tempo a new song draws its tempo from: INTEGER, beats a minute.
-	static constexpr DevicePath kTempoLower{"defaults/tempo/lower"};
+	static constexpr DevicePath kTempoLower{stored_text<"defaults/tempo/lower">};
 	/// The greatest tempo a new song draws its tempo from: INTEGER, beats a minute.
-	static constexpr DevicePath kTempoUpper{"defaults/tempo/upper"};
+	static constexpr DevicePath kTempoUpper{stored_text<"defaults/tempo/upper">};
 	/// The least swing a new song draws its swing from: INTEGER, percent.
-	static constexpr DevicePath kSwingLower{"defaults/swing/lower"};
+	static constexpr DevicePath kSwingLower{stored_text<"defaults/swing/lower">};
 	/// The greatest swing a new song draws its swing from: INTEGER, percent.
-	static constexpr DevicePath kSwingUpper{"defaults/swing/upper"};
+	static constexpr DevicePath kSwingUpper{stored_text<"defaults/swing/upper">};
 	/// The first key a new song draws its key from: INTEGER, semitones above C.
-	static constexpr DevicePath kKeyLower{"defaults/key/lower"};
+	static constexpr DevicePath kKeyLower{stored_text<"defaults/key/lower">};
 	/// The last key a new song draws its key from: INTEGER, semitones above C.
-	static constexpr DevicePath kKeyUpper{"defaults/key/upper"};
+	static constexpr DevicePath kKeyUpper{stored_text<"defaults/key/upper">};
 	/// A new song's tick resolution: INTEGER, the power of two that multiplies 96 ticks a quarter note.
-	static constexpr DevicePath kMagnitude{"defaults/magnitude"};
+	static constexpr DevicePath kMagnitude{stored_text<"defaults/magnitude">};
 	/// A new song's swing interval: INTEGER, a sync level, named against the magnitude row.
-	static constexpr DevicePath kSwingInterval{"defaults/swingInterval"};
+	static constexpr DevicePath kSwingInterval{stored_text<"defaults/swingInterval">};
 	/// A new song's scale: CHOICE over the preset scales, then random, then none.
-	static constexpr DevicePath kScale{"defaults/scale"};
+	static constexpr DevicePath kScale{stored_text<"defaults/scale">};
 	/// The velocity a new instrument plays at: INTEGER, 1 to 127.
-	static constexpr DevicePath kVelocity{"defaults/velocity"};
+	static constexpr DevicePath kVelocity{stored_text<"defaults/velocity">};
 	/// A new MIDI or CV instrument's pitch-bend range: INTEGER, semitones.
-	static constexpr DevicePath kBendRange{"defaults/bendRange"};
+	static constexpr DevicePath kBendRange{stored_text<"defaults/bendRange">};
 	/// The metronome's volume: INTEGER, in the menu's steps.
-	static constexpr DevicePath kMetronomeVolume{"defaults/metronomeVolume"};
+	static constexpr DevicePath kMetronomeVolume{stored_text<"defaults/metronomeVolume">};
 	/// The song the device opens as it starts: CHOICE, blank, template, last opened, last saved.
-	static constexpr DevicePath kStartupSong{"defaults/startupSong"};
+	static constexpr DevicePath kStartupSong{stored_text<"defaults/startupSong">};
 	/// How a new slice plays its sample: CHOICE, cut, once, loop, stretch.
-	static constexpr DevicePath kSliceMode{"defaults/sliceMode"};
+	static constexpr DevicePath kSliceMode{stored_text<"defaults/sliceMode">};
 	/// Whether a pad lights while the CPU is near its limit: BOOL.
-	static constexpr DevicePath kCpuIndicator{"defaults/cpuIndicator"};
+	static constexpr DevicePath kCpuIndicator{stored_text<"defaults/cpuIndicator">};
 	/// How long a press is held to count as a hold: INTEGER, twentieths of a second.
-	static constexpr DevicePath kHoldTime{"defaults/holdTime"};
+	static constexpr DevicePath kHoldTime{stored_text<"defaults/holdTime">};
 	/// What a recording is quantised to: INTEGER, a sync level named against a magnitude of one.
-	static constexpr DevicePath kRecordQuantize{"defaults/recordQuantize"};
+	static constexpr DevicePath kRecordQuantize{stored_text<"defaults/recordQuantize">};
 	/// Whether an audio clip recorded from an outside input keeps margins past its loop's ends: BOOL.
-	static constexpr DevicePath kRecordMargins{"defaults/recordMargins"};
+	static constexpr DevicePath kRecordMargins{stored_text<"defaults/recordMargins">};
 	/// How loud a sound starts a threshold recording: CHOICE, off, low, medium, high.
-	static constexpr DevicePath kThresholdRecording{"defaults/thresholdRecording"};
+	static constexpr DevicePath kThresholdRecording{stored_text<"defaults/thresholdRecording">};
 	/// The kind of clip a new clip is: CHOICE, synth, kit, MIDI, CV, audio.
-	static constexpr DevicePath kNewClipType{"defaults/newClipType"};
+	static constexpr DevicePath kNewClipType{stored_text<"defaults/newClipType">};
 	/// Whether a new clip takes the kind the last one had instead: BOOL.
-	static constexpr DevicePath kUseLastClipType{"defaults/useLastClipType"};
+	static constexpr DevicePath kUseLastClipType{stored_text<"defaults/useLastClipType">};
 	/// Whether the automation editor interpolates between its steps: BOOL.
-	static constexpr DevicePath kAutomationInterpolate{"defaults/automation/interpolate"};
+	static constexpr DevicePath kAutomationInterpolate{stored_text<"defaults/automation/interpolate">};
 	/// Whether a clear outside the automation editor leaves a clip's automation, clearing its notes alone: BOOL.
-	static constexpr DevicePath kAutomationClear{"defaults/automation/clear"};
+	static constexpr DevicePath kAutomationClear{stored_text<"defaults/automation/clear">};
 	/// Whether a shift outside the automation editor leaves a clip's automation where it is: BOOL.
-	static constexpr DevicePath kAutomationShift{"defaults/automation/shift"};
+	static constexpr DevicePath kAutomationShift{stored_text<"defaults/automation/shift">};
 	/// Whether a note's nudge leaves the automation where it is: BOOL.
-	static constexpr DevicePath kAutomationNudgeNote{"defaults/automation/nudgeNote"};
+	static constexpr DevicePath kAutomationNudgeNote{stored_text<"defaults/automation/nudgeNote">};
 	/// Whether the automation editor's shortcuts are off while a pad auditions: BOOL.
-	static constexpr DevicePath kAutomationNoAuditionShortcuts{"defaults/automation/noAuditionShortcuts"};
+	static constexpr DevicePath kAutomationNoAuditionShortcuts{stored_text<"defaults/automation/noAuditionShortcuts">};
 	/// The grid's shortcut layout: CHOICE over ShortcutsVersion.
-	static constexpr DevicePath kShortcutsVersion{"pads/shortcutsVersion"};
+	static constexpr DevicePath kShortcutsVersion{stored_text<"pads/shortcutsVersion">};
 	/// How a playhead is shown on the pads: CHOICE over FlashCursor.
-	static constexpr DevicePath kPlayCursor{"pads/playCursor"};
+	static constexpr DevicePath kPlayCursor{stored_text<"pads/playCursor">};
 	/// Which letter layout the text-entry keyboard on the pads uses: CHOICE, QWERTY, AZERTY, QWERTZ.
-	static constexpr DevicePath kTextKeyboardLayout{"pads/textKeyboardLayout"};
+	static constexpr DevicePath kTextKeyboardLayout{stored_text<"pads/textKeyboardLayout">};
 	/// The colour a playing clip's pad shows: CHOICE over the nine pad colours, red, green, blue, yellow, cyan,
 	/// magenta, amber, white, pink.
-	static constexpr DevicePath kPadColourActive{"pads/colour/active"};
+	static constexpr DevicePath kPadColourActive{stored_text<"pads/colour/active">};
 	/// The colour a stopped clip's pad shows: CHOICE over the nine pad colours.
-	static constexpr DevicePath kPadColourStopped{"pads/colour/stopped"};
+	static constexpr DevicePath kPadColourStopped{stored_text<"pads/colour/stopped">};
 	/// The colour a muted track's pad shows: CHOICE over the nine pad colours.
-	static constexpr DevicePath kPadColourMuted{"pads/colour/muted"};
+	static constexpr DevicePath kPadColourMuted{stored_text<"pads/colour/muted">};
 	/// The colour a soloed track's pad shows: CHOICE over the nine pad colours.
-	static constexpr DevicePath kPadColourSoloed{"pads/colour/soloed"};
+	static constexpr DevicePath kPadColourSoloed{stored_text<"pads/colour/soloed">};
 	/// The colour a fill clip's pad shows: CHOICE over the nine pad colours.
-	static constexpr DevicePath kPadColourFill{"pads/colour/fill"};
+	static constexpr DevicePath kPadColourFill{stored_text<"pads/colour/fill">};
 	/// The colour a clip set to play once shows: CHOICE over the nine pad colours.
-	static constexpr DevicePath kPadColourOnce{"pads/colour/once"};
+	static constexpr DevicePath kPadColourOnce{stored_text<"pads/colour/once">};
 	/// Whether the accessibility shortcuts are on: BOOL.
-	static constexpr DevicePath kAccessibilityShortcuts{"ui/accessibilityShortcuts"};
+	static constexpr DevicePath kAccessibilityShortcuts{stored_text<"ui/accessibilityShortcuts">};
 	/// How a menu marks its selected row: CHOICE, full inversion, partial inversion, no inversion.
-	static constexpr DevicePath kMenuHighlighting{"ui/menuHighlighting"};
+	static constexpr DevicePath kMenuHighlighting{stored_text<"ui/menuHighlighting">};
 	/// How a new song's session view lays its clips out: CHOICE, rows, grid.
-	static constexpr DevicePath kSessionLayout{"ui/sessionLayout"};
+	static constexpr DevicePath kSessionLayout{stored_text<"ui/sessionLayout">};
 	/// The mode the grid view starts in: CHOICE, selection, green, blue.
-	static constexpr DevicePath kGridActiveMode{"ui/grid/activeMode"};
+	static constexpr DevicePath kGridActiveMode{stored_text<"ui/grid/activeMode">};
 	/// Whether the grid's green mode selects a clip too: BOOL.
-	static constexpr DevicePath kGridAllowGreenSelection{"ui/grid/allowGreenSelection"};
+	static constexpr DevicePath kGridAllowGreenSelection{stored_text<"ui/grid/allowGreenSelection">};
 	/// Whether pressing an empty grid pad unarms the clips: BOOL.
-	static constexpr DevicePath kGridEmptyPadsUnarm{"ui/grid/emptyPadsUnarm"};
+	static constexpr DevicePath kGridEmptyPadsUnarm{stored_text<"ui/grid/emptyPadsUnarm">};
 	/// Whether pressing an empty grid pad creates a clip and records into it: BOOL.
-	static constexpr DevicePath kGridEmptyPadsCreateRec{"ui/grid/emptyPadsCreateRec"};
+	static constexpr DevicePath kGridEmptyPadsCreateRec{stored_text<"ui/grid/emptyPadsCreateRec">};
 	/// The layout a new keyboard view's pads take: CHOICE, isomorphic, in key, piano.
-	static constexpr DevicePath kKeyboardLayout{"ui/keyboardLayout"};
+	static constexpr DevicePath kKeyboardLayout{stored_text<"ui/keyboardLayout">};
 	/// Whether the keyboard view's velocity sidebar acts only while held: BOOL.
-	static constexpr DevicePath kVelocityMomentary{"ui/keyboard/velocityMomentary"};
+	static constexpr DevicePath kVelocityMomentary{stored_text<"ui/keyboard/velocityMomentary">};
 	/// Whether the keyboard view's mod-wheel sidebar acts only while held: BOOL.
-	static constexpr DevicePath kModwheelMomentary{"ui/keyboard/modwheelMomentary"};
+	static constexpr DevicePath kModwheelMomentary{stored_text<"ui/keyboard/modwheelMomentary">};
 	/// Which favourites a browser shows: CHOICE over FavouritesLayout.
-	static constexpr DevicePath kFavouritesLayout{"ui/favouritesLayout"};
+	static constexpr DevicePath kFavouritesLayout{stored_text<"ui/favouritesLayout">};
 	/// How bright the pads light: INTEGER, the level 0 to 25, which a menu shows four times over. A device with no
 	/// saved settings holds 0, which no menu turn sets.
-	static constexpr DevicePath kPadBrightness{"ui/padBrightness"};
+	static constexpr DevicePath kPadBrightness{stored_text<"ui/padBrightness">};
 	/// What the screensaver shows: CHOICE, off, blank, starscape, the Deluge's.
-	static constexpr DevicePath kScreensaverMode{"ui/screensaver/mode"};
+	static constexpr DevicePath kScreensaverMode{stored_text<"ui/screensaver/mode">};
 	/// How long the device waits for input before the screensaver shows: INTEGER, minutes.
-	static constexpr DevicePath kScreensaverTimeout{"ui/screensaver/timeout"};
+	static constexpr DevicePath kScreensaverTimeout{stored_text<"ui/screensaver/timeout">};
 	/// When the sample browser previews a sample: CHOICE, never, while the song is not playing, always.
-	static constexpr DevicePath kSamplePreview{"ui/samplePreview"};
+	static constexpr DevicePath kSamplePreview{stored_text<"ui/samplePreview">};
 	/// How many bars a recording counts in before it starts: INTEGER, 0 for none.
-	static constexpr DevicePath kCountIn{"recording/countIn"};
+	static constexpr DevicePath kCountIn{stored_text<"recording/countIn">};
 	/// When an input being recorded is heard through the outputs: CHOICE, smart, on, off.
-	static constexpr DevicePath kMonitorMode{"recording/monitorMode"};
+	static constexpr DevicePath kMonitorMode{stored_text<"recording/monitorMode">};
 	/// Whether the device offers itself as a USB audio interface, from its next start: BOOL.
-	static constexpr DevicePath kUsbAudioEnabled{"usbAudio/enabled"};
+	static constexpr DevicePath kUsbAudioEnabled{stored_text<"usbAudio/enabled">};
 	/// Whether audio from the USB host is mixed straight into the outputs: BOOL.
-	static constexpr DevicePath kUsbDirectMonitoring{"usbAudio/directMonitoring"};
+	static constexpr DevicePath kUsbDirectMonitoring{stored_text<"usbAudio/directMonitoring">};
 	/// What the device sends the USB host: CHOICE, the main mix or the line input.
-	static constexpr DevicePath kUsbOutputSource{"usbAudio/outputSource"};
+	static constexpr DevicePath kUsbOutputSource{stored_text<"usbAudio/outputSource">};
 	/// How many trigger-clock input pulses make a quarter note: INTEGER.
-	static constexpr DevicePath kTriggerInPpqn{"clock/triggerIn/ppqn"};
+	static constexpr DevicePath kTriggerInPpqn{stored_text<"clock/triggerIn/ppqn">};
 	/// Whether a trigger-clock input pulse starts playback: BOOL.
-	static constexpr DevicePath kTriggerInAutoStart{"clock/triggerIn/autoStart"};
+	static constexpr DevicePath kTriggerInAutoStart{stored_text<"clock/triggerIn/autoStart">};
 	/// How many trigger-clock output pulses make a quarter note: INTEGER.
-	static constexpr DevicePath kTriggerOutPpqn{"clock/triggerOut/ppqn"};
+	static constexpr DevicePath kTriggerOutPpqn{stored_text<"clock/triggerOut/ppqn">};
 	/// Whether the device sends MIDI clock: BOOL.
-	static constexpr DevicePath kMidiClockOut{"clock/midiOut"};
+	static constexpr DevicePath kMidiClockOut{stored_text<"clock/midiOut">};
 	/// Whether the device follows an incoming MIDI clock: BOOL.
-	static constexpr DevicePath kMidiClockIn{"clock/midiIn"};
+	static constexpr DevicePath kMidiClockIn{stored_text<"clock/midiIn">};
 	/// Whether an incoming clock's tempo is doubled or halved to sit near the song's: BOOL.
-	static constexpr DevicePath kTempoMagnitudeMatching{"clock/tempoMagnitudeMatching"};
+	static constexpr DevicePath kTempoMagnitudeMatching{stored_text<"clock/tempoMagnitudeMatching">};
 	/// Whether a stem export normalizes each stem but a drum's: BOOL.
-	static constexpr DevicePath kStemNormalize{"stemExport/normalize"};
+	static constexpr DevicePath kStemNormalize{stored_text<"stemExport/normalize">};
 	/// Whether a stem export normalizes each drum's stem: BOOL.
-	static constexpr DevicePath kStemNormalizeDrums{"stemExport/normalizeDrums"};
+	static constexpr DevicePath kStemNormalizeDrums{stored_text<"stemExport/normalizeDrums">};
 	/// Whether a stem export runs each stem on until it falls silent: BOOL.
-	static constexpr DevicePath kStemToSilence{"stemExport/toSilence"};
+	static constexpr DevicePath kStemToSilence{stored_text<"stemExport/toSilence">};
 	/// Whether a stem export renders the song's effects into each stem: BOOL.
-	static constexpr DevicePath kStemSongFx{"stemExport/songFx"};
+	static constexpr DevicePath kStemSongFx{stored_text<"stemExport/songFx">};
 	/// Whether a stem export renders a kit's effects into each drum's stem: BOOL.
-	static constexpr DevicePath kStemKitFx{"stemExport/kitFx"};
+	static constexpr DevicePath kStemKitFx{stored_text<"stemExport/kitFx">};
 	/// Whether a stem export renders faster than real time, with no audio out: BOOL.
-	static constexpr DevicePath kStemOffline{"stemExport/offline"};
+	static constexpr DevicePath kStemOffline{stored_text<"stemExport/offline">};
 	/// Whether a stem export renders the whole mix as one stem: BOOL.
-	static constexpr DevicePath kStemMixdown{"stemExport/mixdown"};
+	static constexpr DevicePath kStemMixdown{stored_text<"stemExport/mixdown">};
 	/// The note a kit's first row answers to under MIDI follow: INTEGER, a MIDI note 0 to 127.
-	static constexpr DevicePath kFollowKitRootNote{"midiFollow/kitRootNote"};
+	static constexpr DevicePath kFollowKitRootNote{stored_text<"midiFollow/kitRootNote">};
 	/// Which channels MIDI follow sends its feedback on: CHOICE, none, channel A, B or C, the track's channel, or the
 	/// track's with channel A, B or C.
-	static constexpr DevicePath kFollowFeedbackChannel{"midiFollow/feedback/channel"};
+	static constexpr DevicePath kFollowFeedbackChannel{stored_text<"midiFollow/feedback/channel">};
 	/// How often MIDI follow sends the values automation plays: CHOICE over FeedbackAutomation.
-	static constexpr DevicePath kFollowFeedbackAutomation{"midiFollow/feedback/automation"};
+	static constexpr DevicePath kFollowFeedbackAutomation{stored_text<"midiFollow/feedback/automation">};
 	/// Whether MIDI follow ignores a CC that arrives within a second of the feedback it sent for that CC: BOOL.
-	static constexpr DevicePath kFollowFeedbackFilter{"midiFollow/feedback/filter"};
+	static constexpr DevicePath kFollowFeedbackFilter{stored_text<"midiFollow/feedback/filter">};
 	/// Whether a followed CC shows the param it moves on the display: BOOL.
-	static constexpr DevicePath kFollowDisplayParam{"midiFollow/displayParam"};
+	static constexpr DevicePath kFollowDisplayParam{stored_text<"midiFollow/displayParam">};
 	/// Whether a note a kit receives selects the kit's row it plays: BOOL.
-	static constexpr DevicePath kMidiSelectKitRow{"midi/selectKitRow"};
+	static constexpr DevicePath kMidiSelectKitRow{stored_text<"midi/selectKitRow">};
 	/// Whether the MIDI input is sent on to the MIDI outputs: BOOL.
-	static constexpr DevicePath kMidiThru{"midi/thru"};
+	static constexpr DevicePath kMidiThru{stored_text<"midi/thru">};
 	/// How an incoming note transposes the clips MIDI transposes: CHOICE, in key or chromatic. The device may hold a
 	/// third method no menu offers, which reads clamped to chromatic.
-	static constexpr DevicePath kMidiTranspose{"midi/transpose"};
+	static constexpr DevicePath kMidiTranspose{stored_text<"midi/transpose">};
 	/// How a knob's incoming CC takes over its param: CHOICE, jump, pick up, scale, relative.
-	static constexpr DevicePath kMidiTakeover{"midi/takeover"};
+	static constexpr DevicePath kMidiTakeover{stored_text<"midi/takeover">};
 	/// Whether a learned MIDI input answers only the device it was learned from: BOOL.
-	static constexpr DevicePath kDifferentiateInputs{"midi/differentiateInputs"};
+	static constexpr DevicePath kDifferentiateInputs{stored_text<"midi/differentiateInputs">};
 	/// How long a gate output stays off between two notes at least, in tenths of a millisecond: INTEGER.
-	static constexpr DevicePath kGateMinOffTime{"gate/minOffTime"};
+	static constexpr DevicePath kGateMinOffTime{stored_text<"gate/minOffTime">};
 	/// The pattern of each CV output's volts-per-octave rows: INTEGER, in hundredths of a volt, 0 for Hz/V. The `*` is
 	/// the output's index.
-	static constexpr std::string_view kCvVoltsPerOctave = "cv/*/voltsPerOctave";
+	static constexpr std::string_view kCvVoltsPerOctave = stored_text<"cv/*/voltsPerOctave">;
 	/// The pattern of each CV output's transpose rows: INTEGER, in cents (a hundred a semitone). The `*` is the
 	/// output's index.
-	static constexpr std::string_view kCvTranspose = "cv/*/transpose";
+	static constexpr std::string_view kCvTranspose = stored_text<"cv/*/transpose">;
 	/// The pattern of each gate output's mode rows: CHOICE, V-trigger, S-trigger, then the clock on the clock's gate
 	/// and the run signal on the run's. The `*` is the output's index.
-	static constexpr std::string_view kGateMode = "gate/*/mode";
+	static constexpr std::string_view kGateMode = stored_text<"gate/*/mode">;
 	/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
-	static constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
+	static constexpr std::string_view kDisabledScalePrefix = stored_text<"defaults/scales/disabled/">;
 	/// The first part of each community feature's path; the name the feature file writes it under follows it.
-	static constexpr std::string_view kFeaturePrefix = "features/";
+	static constexpr std::string_view kFeaturePrefix = stored_text<"features/">;
 
 	/// @brief The BOOL row that says whether preset scale @p scale is disabled by default.
 	/// @param scale A preset scale's index.
@@ -362,29 +407,6 @@ struct device_path {
 	/// @return The row's path, `features/` then the name the feature file writes it under.
 	[[nodiscard]] static constexpr DevicePath feature(Feature f);
 };
-
-inline namespace menu_tables {
-
-/// @brief A row path built when the image is, as text the table's views point into.
-/// @tparam N The most characters the path can have.
-template <size_t N>
-struct FixedPath {
-	std::array<char, N> text{}; ///< the path's characters, then unused room
-	size_t size{0};             ///< how many characters of `text` it is
-
-	/// @brief Adds @p c at the end; there must be room left.
-	constexpr void append(char c) { text[size++] = c; }
-	/// @brief Adds @p part at the end; it must fit in the room left.
-	constexpr void append(std::string_view part) {
-		for (const char c : part) {
-			append(c);
-		}
-	}
-	/// @brief The path, as a view of this one's text.
-	[[nodiscard]] constexpr std::string_view view() const { return {text.data(), size}; }
-};
-
-} // namespace menu_tables
 
 /// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
 /// image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
