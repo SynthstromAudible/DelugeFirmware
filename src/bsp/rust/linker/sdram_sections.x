@@ -50,10 +50,6 @@ SECTIONS {
         __scenes_bss_start = .;
         *(.bss.*6deluge6scenes*)
         __scenes_bss_end = .;
-        /* The waveforms port's host object and its column caches, which only the UI tier reads (the scenes'
-         * draws and the legacy views on the same tier). Matched by the accessor's mangled name, so a rename returns
-         * it to SRAM. */
-        *(.bss.*6deluge3gui10shell_host9waveforms*)
         __sdram_bss_end = .;
     } > SDRAM
 } INSERT BEFORE .bss;
