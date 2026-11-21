@@ -389,11 +389,10 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(bind::contract::arrangement_mode_is_stable(*p.transport)).to_be_true();
 
 		// The fixture's clip is a synth clip: the grab finds no audio clip, and the tempo stays.
-		const uint64_t tempo = synth.song->project.transport.samples_per_timer_tick_big;
 		expect(bind::contract::grab_tempo_off_an_audio_clip_does_nothing(
-		           *p.transport_actions, *p.transport, deluge::project::ClipAddress{.clip_id = synth.clip->id()}))
+		           *p.transport_actions, *p.transport, synth.song->project.transport,
+		           deluge::project::ClipAddress{.clip_id = synth.clip->id()}))
 		    .to_be_true();
-		expect(synth.song->project.transport.samples_per_timer_tick_big).to_equal(tempo);
 
 		spec::make_current(nullptr);
 		expect(p.clips->clip_navigation().has_value()).to_be_false();

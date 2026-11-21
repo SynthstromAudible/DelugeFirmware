@@ -9,6 +9,7 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
+#include "deluge-project/transport.h"
 #include "scenes/bind/device_reader.h"
 
 #include <cppspec.hpp>
@@ -188,6 +189,28 @@ public:
 
 private:
 	test::FakeTransport& transport_;
+};
+
+/// @brief A broken transport-actions port: a tempo grab writes the song's tempo, whatever clip it names.
+class TempoWritingGrab final : public TransportActions {
+public:
+	explicit TempoWritingGrab(deluge::project::Transport& record) : record_{record} {}
+	void play() override {}
+	void record() override {}
+	void tap_tempo(bool) override {}
+	void toggle_metronome() override {}
+	void clear_tempo_automation() override {}
+	void show_swing_interval() override {}
+	void show_tempo() override {}
+	void undo(bool) override {}
+	void begin_output_recording() override {}
+	void end_recording_soon() override {}
+	void stop_output_recording_at_loop_end() override {}
+	void fill(bool) override {}
+	void grab_tempo(deluge::project::ClipAddress) override { record_.samples_per_timer_tick_big += uint64_t{1} << 32; }
+
+private:
+	deluge::project::Transport& record_;
 };
 
 } // namespace
@@ -580,7 +603,8 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		p.transport_actions->end_recording_soon();
 		p.transport_actions->stop_output_recording_at_loop_end();
 		p.transport_actions->fill(true);
-		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(*p.transport_actions, *p.transport,
+		deluge::project::Transport record{.samples_per_timer_tick_big = uint64_t{20} << 32};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(*p.transport_actions, *p.transport, record,
 		                                                           deluge::project::ClipAddress{.clip_id = 9}))
 		    .to_be_true();
 		using Call = test::RecordingTransportActions::Call;
@@ -610,13 +634,18 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		unwired.play();
 		expect(still.is_playing).to_be_false();
 
-		// A tempo grab that starts the transport breaks the tempo-grab case; the recorder keeps it.
+		// A tempo grab that starts the transport, or writes the tempo, breaks the tempo-grab case; the recorder keeps it.
 		PlayingTempoGrab grabbing{still};
-		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(grabbing, still,
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(grabbing, still, record,
 		                                                           deluge::project::ClipAddress{.clip_id = 9}))
 		    .to_be_false();
 		still.is_playing = false;
-		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(unwired, still,
+		TempoWritingGrab writing{record};
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(writing, still, record,
+		                                                           deluge::project::ClipAddress{.clip_id = 9}))
+		    .to_be_false();
+		expect(still.is_playing).to_be_false();
+		expect(contract::grab_tempo_off_an_audio_clip_does_nothing(unwired, still, record,
 		                                                           deluge::project::ClipAddress{.clip_id = 9}))
 		    .to_be_true();
 	});

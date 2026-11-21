@@ -8,6 +8,7 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
+#include "deluge-project/transport.h"
 #include "plugin-api/types/display_mapping.h"
 #include "sample-view/divide.h"
 #include "sample-view/peaks.h"
@@ -276,12 +277,16 @@ namespace deluge::scenes::bind::contract {
 	return a == t.arrangement_mode() && (t.recording() != TransportRecording::ARRANGEMENT || a);
 }
 
-/// @brief A tempo grab on a clip that is not an audio clip leaves the transport as it was.
+/// @brief A tempo grab on a clip that is not an audio clip leaves the transport as it was: the song's tempo, which a
+///        grab sets, and whether it plays.
+/// @param record The song's transport record, whose tick length is the tempo a grab writes.
 [[nodiscard]] inline bool grab_tempo_off_an_audio_clip_does_nothing(TransportActions& actions, const Transport& t,
+                                                                    const project::Transport& record,
                                                                     project::ClipAddress not_audio) {
 	const bool playing = t.playing();
+	const uint64_t tempo = record.samples_per_timer_tick_big;
 	actions.grab_tempo(not_audio);
-	return t.playing() == playing;
+	return t.playing() == playing && record.samples_per_timer_tick_big == tempo;
 }
 
 /// @brief The foreground recorder's source is one of the four.
