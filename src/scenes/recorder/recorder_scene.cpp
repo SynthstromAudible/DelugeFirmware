@@ -133,8 +133,11 @@ bool RecorderScene::setup_recording() {
 	// plugged in, mono otherwise. The take port begins it and publishes it as the foreground recording in one step.
 	const bool stereo = ctx_.ports.audio != nullptr && ctx_.ports.audio->audio_inputs_present();
 	bind::TakeActions* const t = takes();
-	armed_ = t != nullptr && t->begin(stereo ? bind::TakeChannels::STEREO : bind::TakeChannels::MONO);
-	if (t != nullptr && !armed_) {
+	// A take is begun only where the scene can read it back, or nothing would ever finish it; without either port
+	// the entry fails silently.
+	const bool can_take = t != nullptr && ctx_.ports.audio != nullptr;
+	armed_ = can_take && t->begin(stereo ? bind::TakeChannels::STEREO : bind::TakeChannels::MONO);
+	if (can_take && !armed_) {
 		// `display->displayError(Error::INSUFFICIENT_RAM); return false;`.
 		notify::notice_error_code(static_cast<int16_t>(Error::INSUFFICIENT_RAM));
 	}

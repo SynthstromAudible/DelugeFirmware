@@ -241,9 +241,9 @@ public:
 	/// @{
 	/// @return Is a take held -- i.e. is the scene between `on_enter` and the sample landing?
 	bool recording() const { return armed_; }
-	/// @return Has the take started? Legacy's `updatedRecordingStatus`, read rather than cached:
-	///         `numSamplesCaptured > minThresholdMargin`, since a threshold take holds its pre-roll before the input
-	///         passes the threshold.
+	/// @return Has the take started? Legacy's `updatedRecordingStatus`, read rather than cached: reads
+	///         `InputTake::capturing`, past the threshold's margin, since a threshold take holds its pre-roll before
+	///         the input passes the threshold.
 	bool capturing() const;
 	/// @return Is this a threshold take -- the song's threshold mode was on as the take was armed? Legacy's
 	///         `isThresholdRecording`: the recorder keeps the threshold it was given after the input has passed it.
@@ -254,7 +254,7 @@ public:
 
 private:
 	/// @brief `AudioRecorder::setupRecordingToFile`, through `TakeActions::begin`; sets `armed_`.
-	/// @return False when no take could begin (legacy's `INSUFFICIENT_RAM` arm, or no take port).
+	/// @return False when no take could begin (legacy's `INSUFFICIENT_RAM` arm, or no take or audio port).
 	bool setup_recording();
 	/// @brief The held take's state.
 	/// @return None with no take held or no audio port.

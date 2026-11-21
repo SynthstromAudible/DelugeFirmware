@@ -1953,9 +1953,29 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		MenuContext c = r.ctx();
 		c.ports = {};
 		expect(r.enter(c)).to_be_false();
-		expect(r.host.order).to_equal(std::vector<std::string_view>{});
+		expect(r.scene.recording()).to_be_false();
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+	});
+
+	it("with no take port, wipes, names, clears and ends the audition, then refuses with no error", _ {
+		recorder_fakes::FakesRig r;
+		MenuContext c = r.kit_ctx();
+		c.ports.take_actions = nullptr;
+		expect(r.enter(c)).to_be_false();
+		expect(r.host.order).to_equal(std::vector<std::string_view>{"wipe", "name", "ticks", "audition"});
+		expect(r.scene.recording()).to_be_false();
+		expect(r.scene.next_timer().has_value()).to_be_false();
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+	});
+
+	it("with no audio port to read a take back, begins none, and refuses with no error", _ {
+		recorder_fakes::FakesRig r;
+		MenuContext c = r.ctx();
+		c.ports.audio = nullptr;
+		expect(r.enter(c)).to_be_false();
 		expect(r.host.take_actions.calls).to_equal(std::vector<TakeCall>{});
 		expect(r.scene.recording()).to_be_false();
+		expect(r.scene.next_timer().has_value()).to_be_false();
 		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
 	});
 });
