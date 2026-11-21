@@ -8,5 +8,7 @@ endif()
 set(_scenes ${DELUGE_REPO_ROOT}/src/scenes)
 deluge_specs_driver(services_fakes_specs TREES host
   SOURCES ${_scenes}/services/midi_learn.cpp
+          ${_scenes}/overlay/count_in_scene.cpp
+          ${_scenes}/overlay/screensaver_scene.cpp
           ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
-  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell)
+  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell deluge_ui_oled)

@@ -43,6 +43,7 @@
 /// (`Screensaver::consumeFrameDirty` in `hid/display/screensaver.h`, `OLED::sendMainImage` in `hid/display/oled.cpp`,
 /// whose port is the shell's `RepaintGate`). Counted as uncovered.
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/overlay/screensaver_scene.h"
 #include "scenes/registry.h"
 
@@ -248,12 +249,14 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 	return out;
 }
 
-/// @brief Set the one setting both sides read (`FlashStorage::screensaverMode`,
-///        `storage/flash_storage.h`) and leave the legacy screensaver deactivated.
+/// @brief Set the one setting both sides read (`FlashStorage::screensaverMode`, `storage/flash_storage.h`, which the
+///        host device port answers the scene's mode row from) and leave the legacy screensaver deactivated. It installs
+///        that port on the scene, because the specs share a process and cannot rely on the boot wiring having run.
 void set_mode(::ScreensaverMode mode) {
 	LegacyScreensaver::noteActivity(); // `Screensaver::noteActivity` (`hid/display/screensaver.cpp`): deactivate if
 	                                   // showing.
 	FlashStorage::screensaverMode = mode;
+	screensaver_scene().set_device(deluge::scenes::menu::host_ports().device);
 }
 
 } // namespace
@@ -485,12 +488,17 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(scene.next_timer().has_value()).to_be_true();
 		expect(*scene.next_timer()).to_equal(kFrameIntervalMs);
 
-		// `isAnimated` (`hid/display/screensaver.cpp`): STARSCAPE and DELUGE only.
+		// `isAnimated` (`hid/display/screensaver.cpp`): STARSCAPE and DELUGE only. The scene reads the mode on its
+		// tick, so each change is ticked before the question.
 		FlashStorage::screensaverMode = ::ScreensaverMode::STARSCAPE;
+		r.tick(0);
+		expect(scene.mode()).to_equal(deluge::project::ScreensaverMode::STARSCAPE);
 		expect(scene.next_timer().has_value()).to_be_true();
 		FlashStorage::screensaverMode = ::ScreensaverMode::BLANK;
+		r.tick(1);
 		expect(scene.next_timer().has_value()).to_be_false();
 		FlashStorage::screensaverMode = ::ScreensaverMode::OFF;
+		r.tick(2);
 		expect(scene.next_timer().has_value()).to_be_false();
 	});
 

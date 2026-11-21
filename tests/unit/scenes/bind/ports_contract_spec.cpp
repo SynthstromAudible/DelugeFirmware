@@ -374,6 +374,10 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.transport).not_().to_be_null();
 		expect(p.transport_actions).not_().to_be_null();
 		expect(contract::transport_facts_are_stable(*p.transport)).to_be_true();
+		expect(contract::count_in_is_a_count(*p.transport)).to_be_true();
+		host.transport.count_in = 3;
+		expect(p.transport->count_in_visual()).to_equal(3);
+		expect(contract::count_in_is_a_count(*p.transport)).to_be_true();
 		host.transport.clocks = true;
 		host.transport.mode = TransportRecording::ARRANGEMENT;
 		host.transport.undo_ok = true;

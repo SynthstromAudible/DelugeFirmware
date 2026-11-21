@@ -26,6 +26,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/ui.h"
@@ -474,6 +475,9 @@ void wireShellGuestServices() {
 
 	// The browser's host: what the browser scene asks to load, claim, import, slice, delete or preview.
 	wireShellBrowserHost();
+
+	// The ports the overlays read: the count-in's transport and the screensaver's device settings.
+	deluge::gui::shell_host::install_scene_ports();
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a

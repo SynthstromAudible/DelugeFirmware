@@ -320,12 +320,14 @@ struct FakeTransport final : Transport {
 	bool metronome{false};                            ///< what `metronome_on` answers
 	bool undo_ok{false};                              ///< what `undo_allowed` answers
 	bool overdubs{false};                             ///< what `overdubs_pending` answers
+	int32_t count_in{0};                              ///< what `count_in_visual` answers
 	[[nodiscard]] bool playing() const override { return is_playing; }
 	[[nodiscard]] bool clocks_active() const override { return clocks; }
 	[[nodiscard]] TransportRecording recording() const override { return mode; }
 	[[nodiscard]] bool metronome_on() const override { return metronome; }
 	[[nodiscard]] bool undo_allowed() const override { return undo_ok; }
 	[[nodiscard]] bool overdubs_pending() const override { return overdubs; }
+	[[nodiscard]] int32_t count_in_visual() const override { return count_in; }
 };
 
 /// @brief TransportActions that records every action, in order. When @ref transport is set, PLAY and the metronome

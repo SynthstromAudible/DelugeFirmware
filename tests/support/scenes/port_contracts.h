@@ -252,6 +252,11 @@ namespace deluge::scenes::bind::contract {
 	       && (r == TransportRecording::OFF || r == TransportRecording::NORMAL || r == TransportRecording::ARRANGEMENT);
 }
 
+/// @brief The count-in shows no negative digit.
+[[nodiscard]] inline bool count_in_is_a_count(const Transport& t) {
+	return t.count_in_visual() >= 0;
+}
+
 /// @brief Each metronome toggle reads back through @p t, and two leave it as found. The host shows its popup twice.
 [[nodiscard]] inline bool metronome_toggles_read_back(TransportActions& actions, const Transport& t) {
 	const bool was = t.metronome_on();

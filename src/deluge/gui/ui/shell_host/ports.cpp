@@ -4,6 +4,8 @@
 #include "model/edits/edit.h"
 #include "model/song/song.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/overlay/count_in_scene.h"
+#include "scenes/overlay/screensaver_scene.h"
 
 namespace deluge::scenes::menu {
 
@@ -35,6 +37,12 @@ const bind::Ports& host_ports() {
 } // namespace deluge::scenes::menu
 
 namespace deluge::gui::shell_host {
+
+void install_scene_ports() {
+	const scenes::bind::Ports& ports = scenes::menu::host_ports();
+	scenes::overlay::count_in_scene().set_transport(ports.transport);
+	scenes::overlay::screensaver_scene().set_device(ports.device);
+}
 
 bool applied(edits::Edit& edit) {
 	edits::Context ctx{*currentSong, currentSong->project};

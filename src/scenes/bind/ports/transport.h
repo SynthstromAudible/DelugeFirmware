@@ -1,7 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What a scene reads of the transport: playback, the clocks, recording, the metronome and what undo allows.
+/// @brief What a scene reads of the transport: playback, the clocks, recording, the metronome, the count-in and what
+///        undo allows.
 
 #include <cstdint>
 
@@ -32,6 +33,9 @@ public:
 	/// @brief Whether any session clip waits to overdub at its next launch, which a song save refuses; false with no
 	/// song.
 	[[nodiscard]] virtual bool overdubs_pending() const = 0;
+	/// @brief The count-in's digit while a recording counts in.
+	/// @return The digit; 0 when no count-in shows.
+	[[nodiscard]] virtual int32_t count_in_visual() const = 0;
 };
 
 } // namespace deluge::scenes::bind

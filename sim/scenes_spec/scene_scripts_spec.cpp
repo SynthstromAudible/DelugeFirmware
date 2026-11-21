@@ -99,17 +99,18 @@
 ///     the overlay over it on the first tick (`CountInHooks`), which is what the missing wiring
 ///     will do. Written down rather than dressed up as a gesture: no user gesture reaches this
 ///     scene, and inventing one would be a push no user could perform.
-///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of
-///     `playbackHandler.count_in_visual()`, and the only writer of that number is `PlaybackHandler::actionSwungTick`'s
-///     count-in branch, which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that
-///     reason; `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same
-///     stand-in. The script's own header carries the schedule, so the golden is still readable against something
-///     written down.
+///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of the host transport
+///     port's `count_in_visual()`, which reads `playbackHandler.count_in_visual()`, and the only writer of that number
+///     is `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine`.
+///     `count_in_spec.cpp` writes the field directly for that reason; `count_in.txt` does the same through
+///     `RunOptions::before_tick`, which is the level-2 shape of the same stand-in. The script's own header carries the
+///     schedule, so the golden is still readable against something written down.
 ///
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/audio_clip/audio_clip_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -354,11 +355,15 @@ struct ScriptOps final : deluge::scenes::slicing::SliceOps {
 	std::optional<int32_t> play_position() override { return std::nullopt; }
 };
 
-/// @brief Save and restore `FlashStorage::screensaverMode`, the one setting the screensaver scene
-///        reads. `screensaver_scene_spec.cpp`'s `set_mode`, as a guard.
+/// @brief Save and restore `FlashStorage::screensaverMode`, which the host device port answers the screensaver
+///        scene's mode row from. `screensaver_scene_spec.cpp`'s `set_mode`, as a guard; it installs the host's device
+///        port on the scene, because the specs share a process and cannot rely on the boot wiring having run.
 struct SavedScreensaverMode {
 	::ScreensaverMode saved = FlashStorage::screensaverMode;
-	explicit SavedScreensaverMode(::ScreensaverMode mode) { FlashStorage::screensaverMode = mode; }
+	explicit SavedScreensaverMode(::ScreensaverMode mode) {
+		FlashStorage::screensaverMode = mode;
+		overlay::screensaver_scene().set_device(deluge::scenes::menu::host_ports().device);
+	}
 	~SavedScreensaverMode() { FlashStorage::screensaverMode = saved; }
 	SavedScreensaverMode(const SavedScreensaverMode&) = delete;
 	SavedScreensaverMode& operator=(const SavedScreensaverMode&) = delete;
@@ -409,7 +414,8 @@ std::function<void(uint32_t)> slicer_seed() {
 }
 
 /// @brief The `RunOptions::before_tick` hook both count-in scripts run under: push the overlay on
-///        the first tick, then walk `playbackHandler.count_in_visual()` down on a schedule.
+///        the first tick, then walk `playbackHandler.count_in_visual()` down on a schedule. It installs the host's
+///        transport port on the scene, which reads that count.
 ///
 /// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands in for wiring that
 /// does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which `count_in_scene.h` says outright. The schedule
@@ -424,7 +430,7 @@ std::function<void(uint32_t)> slicer_seed() {
 struct CountInHooks {
 	Shell* shell = nullptr;
 
-	CountInHooks() = default;
+	CountInHooks() { overlay::count_in_scene().set_transport(deluge::scenes::menu::host_ports().transport); }
 	CountInHooks(const CountInHooks&) = delete;
 	CountInHooks& operator=(const CountInHooks&) = delete;
 

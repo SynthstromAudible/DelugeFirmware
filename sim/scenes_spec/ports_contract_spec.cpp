@@ -77,8 +77,10 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.transport_actions).not_().to_be_null();
 		if (p.transport != nullptr) {
 			expect(bind::contract::transport_facts_are_stable(*p.transport)).to_be_true();
+			expect(bind::contract::count_in_is_a_count(*p.transport)).to_be_true();
 			expect(p.transport->playing()).to_equal(playbackHandler.playbackState != 0);
 			expect(p.transport->metronome_on()).to_equal(playbackHandler.metronomeOn);
+			expect(p.transport->count_in_visual()).to_equal(playbackHandler.count_in_visual());
 			if (p.transport_actions != nullptr) {
 				// Two toggles, each with its popup, leave the metronome as the other specs found it.
 				expect(bind::contract::metronome_toggles_read_back(*p.transport_actions, *p.transport)).to_be_true();

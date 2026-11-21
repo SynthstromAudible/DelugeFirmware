@@ -13,8 +13,9 @@
 /// here exactly as a real count-in tick would leave it. Legacy is driven through
 /// `display->displayPopup(buffer, 0, true, 255, 2)` -- `drain_notifications` (`notify_drain.cpp`)'s own call, with
 /// `buffer` formatted from the same sentinel via `intToString` -- and the port through
-/// its own `tick()`, which reads `playbackHandler.count_in_visual()` itself; neither side is
-/// computed from the other's state.
+/// its own `tick()`, which reads the host's transport port (`bind::Transport::count_in_visual`, answered from the
+/// same field); neither side is computed from the other's state. Each `Rig` installs that port on the scene, because
+/// the specs share a process and cannot rely on the boot wiring having run.
 ///
 /// The one gap: `drain_notifications` (`notify_drain.cpp`)'s masked `UI_MODE_RECORD_COUNT_IN` clear has no port to
 /// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/scenes` may never
@@ -39,17 +40,14 @@
 /// @par Why every render is quiet-ticked at `kCountInPollMs`, not driven by a `show()` call
 ///
 /// `CountInScene` has no caller in the input pipeline (see the class doc) -- its `tick()` polls
-/// `playbackHandler.count_in_visual()` itself, and `next_timer()` is what makes the shell call
-/// `tick()` (and, when the poll finds a change, re-render) with no input at all. An early version
-/// of this scene and this spec drove a `show(int32_t)` parameter directly, the way
-/// `ParamPopupScene::show()` is driven; that version's own spec caught the mistake, because
-/// `Shell::tick`'s OLED step only renders a surface whose gate reports `needs_frame()`, and calling
-/// `show()` from outside the input pipeline, with no repaint request of any kind, left that gate
-/// unarmed after the first render -- every subsequent call rendered the *previous* digit's stale
-/// pixels. Every example below therefore advances the mock clock by at least `kCountInPollMs`
+/// the transport port itself, and `next_timer()` is what makes the shell call
+/// `tick()` (and, when the poll finds a change, re-render) with no input at all. `Shell::tick`'s OLED step only
+/// renders a surface whose gate reports `needs_frame()`, so a change with no tick after it is never drawn. Every
+/// example below therefore advances the mock clock by at least `kCountInPollMs`
 /// between a sentinel change and the render it expects to see, exactly as
 /// `recorder_scene_spec.cpp`'s own quiet-tick examples advance by `kRecorderPollMs`.
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/registry.h"
 
@@ -131,7 +129,9 @@ struct Rig {
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p) {}
+	    : profile(p), fake(board, p) {
+		count_in_scene().set_transport(menu::host_ports().transport);
+	}
 
 	void open() { shell.init(SceneId{kCountInSceneKind, 0}); }
 	void tick(uint32_t at) { shell.tick(at); }

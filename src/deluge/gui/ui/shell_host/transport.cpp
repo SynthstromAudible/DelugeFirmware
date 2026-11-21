@@ -35,6 +35,7 @@ public:
 	[[nodiscard]] bool overdubs_pending() const override {
 		return currentSong != nullptr && currentSong->hasAnyPendingNextOverdubs();
 	}
+	[[nodiscard]] int32_t count_in_visual() const override { return playbackHandler.count_in_visual(); }
 };
 
 } // namespace
