@@ -40,11 +40,16 @@ enum class CullKind : uint8_t {
 	SPEED_UP,     ///< Released, or its release sped up.
 };
 
-/// @brief What a note-on reads of its sound as the note arrives, beside its voices.
+/// @brief What a note-on or note-off reads of its sound as the note arrives, beside its voices.
 struct NoteFacts {
 	bool note_tails_allowed{};               ///< Some active source sustains, so a released note keeps sounding
 	std::array<bool, 2> source_active_now{}; ///< Each source sounds at the current settings
 	bool fm{};                               ///< The sound's engine is FM
+	/// As note_tails_allowed, but a one-shot sample with a loop end counts as sustaining
+	bool note_tails_counting_loops{};
+	bool arpeggiating{}; ///< The sound's arpeggiator is on
+	/// A released note falls back to one still held: LEGATO or MONO, not a drum, and note_tails_counting_loops
+	bool falls_back{};
 	bool operator==(const NoteFacts&) const = default; ///< Field by field
 };
 

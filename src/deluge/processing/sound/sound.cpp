@@ -877,6 +877,24 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
+deluge::synth::NoteFacts Sound::noteFacts(ModelStackWithSoundFlags* modelStack) {
+	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
+	const ArpeggiatorSettings* arpSettings = getArpSettings();
+	deluge::synth::NoteFacts facts{
+	    .note_tails_allowed = allowNoteTails(modelStack, true),
+	    .fm = getSynthMode() == SynthMode::FM,
+	    .note_tails_counting_loops = allowNoteTails(modelStack),
+	    .arpeggiating = arpSettings != nullptr && arpSettings->mode != ArpMode::OFF,
+	};
+	facts.falls_back =
+	    (config_.voicing.polyphony == PolyphonyMode::LEGATO || config_.voicing.polyphony == PolyphonyMode::MONO)
+	    && !isDrum() && facts.note_tails_counting_loops;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		facts.source_active_now[s] = isSourceActiveCurrently(s, paramManager);
+	}
+	return facts;
+}
+
 // Re-trigger a voice already in voicePool_ (see the declaration for the contract).
 void Sound::retriggerVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
                            int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
@@ -918,28 +936,25 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		nonPolyphonic.emplace();
 	}
 
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
-
 	// If not polyphonic, stop any notes which are releasing, now
 	if (!voicePool_.empty() && config_.voicing.polyphony != PolyphonyMode::POLY) [[unlikely]] {
+		const deluge::synth::NoteFacts facts = noteFacts(modelStack);
 		for (auto it = voicePool_.list().begin(); it != voicePool_.list().end();) {
 			SoundVoice* voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
 			if (config_.voicing.polyphony != PolyphonyMode::MONO
-			    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE && allowNoteTails(modelStack, true)) {
+			    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE && facts.note_tails_allowed) {
 				voiceForLegato = voice;
 				break;
 			}
 
 			// If FM, or no active sources are samples, or still sounding after fast-release, unassign
 			bool needs_unassign = //<
-			    getSynthMode() == SynthMode::FM
-			    || std::ranges::any_of(std::views::iota(0, kNumSources),
-			                           [&](int32_t s) {
-				                           return isSourceActiveCurrently(s, paramManager)
-				                                  && oscType(s) != OscType::SAMPLE;
-			                           })
+			    facts.fm
+			    || std::ranges::any_of(
+			        std::views::iota(0, kNumSources),
+			        [&](int32_t s) { return facts.source_active_now[s] && oscType(s) != OscType::SAMPLE; })
 			    || (voice->kernel.envelope(0).stage() != Envelope::Stage::FAST_RELEASE
 			        && !voice->kernel.do_fast_release(kSoftCullIncrement, AudioEngine::voiceClock()));
 

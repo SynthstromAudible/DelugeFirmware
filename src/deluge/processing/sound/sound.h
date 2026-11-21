@@ -528,6 +528,11 @@ protected:
 private:
 	friend struct SoundVoiceHost;
 
+	/// @brief What a note-on or note-off reads of this sound beside its voices, read once.
+	/// @param modelStack The note's model stack.
+	/// @return The facts.
+	[[nodiscard]] deluge::synth::NoteFacts noteFacts(ModelStackWithSoundFlags* modelStack);
+
 	// --- A voice's lifecycle, reading this sound (sound_voices.cpp)
 	/// @brief Binds a new voice's source slots to its ports and to this sound's live inputs.
 	void bindVoice(SoundVoice& voice);

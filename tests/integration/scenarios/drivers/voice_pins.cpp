@@ -320,8 +320,15 @@ void readersCase() {
 /// The facts a note-on reads of @p sound beside its voices, as it answers them now through a note-on's model stack.
 NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	NoteFacts facts{.note_tails_allowed = sound.allowNoteTails(stackFor(memory, sound, clip)->addSoundFlags(), true),
-	                .fm = sound.getSynthMode() == SynthMode::FM};
+	ModelStackWithSoundFlags* modelStack = stackFor(memory, sound, clip)->addSoundFlags();
+	const ArpeggiatorSettings* arp = sound.getArpSettings();
+	NoteFacts facts{.note_tails_allowed = sound.allowNoteTails(modelStack, true),
+	                .fm = sound.getSynthMode() == SynthMode::FM,
+	                .note_tails_counting_loops = sound.allowNoteTails(modelStack),
+	                .arpeggiating = arp != nullptr && arp->mode != ArpMode::OFF};
+	const PolyphonyMode mode = sound.config().voicing.polyphony;
+	facts.falls_back = (mode == PolyphonyMode::LEGATO || mode == PolyphonyMode::MONO) && !sound.isDrum()
+	                   && facts.note_tails_counting_loops;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		facts.source_active_now[s] = sound.isSourceActiveCurrently(s, &clip.paramManager);
 	}
