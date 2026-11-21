@@ -54,6 +54,12 @@ namespace deluge::gui::shell_host {
 ///        controller's play cursor), each stored with the side effects its menu item has. Nothing is saved on a write.
 [[nodiscard]] scenes::bind::DeviceSettings& device_settings();
 
+/// @brief The host's DeviceActions: the device's own actions, each the legacy call it names.
+[[nodiscard]] scenes::bind::DeviceActions& device_actions();
+
+/// @brief The host's MidiFeedback: MIDI follow's feedback, read and sent through the `midiFollow` engine.
+[[nodiscard]] scenes::bind::MidiFeedback& midi_feedback();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///

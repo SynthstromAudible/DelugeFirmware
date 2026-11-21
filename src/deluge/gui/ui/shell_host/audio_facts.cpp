@@ -29,6 +29,7 @@ public:
 	[[nodiscard]] plugin::SyncType reverb_sidechain_sync_type() const override {
 		return AudioEngine::reverbSidechainSettings.sync_type;
 	}
+	[[nodiscard]] bool audio_busy() const override { return AudioEngine::audioBusy(); }
 };
 
 } // namespace

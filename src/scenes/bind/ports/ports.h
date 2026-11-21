@@ -10,9 +10,11 @@
 #include "scenes/bind/ports/card_facts.h"
 #include "scenes/bind/ports/clip_facts.h"
 #include "scenes/bind/ports/clip_writes.h"
+#include "scenes/bind/ports/device_actions.h"
 #include "scenes/bind/ports/device_settings.h"
 #include "scenes/bind/ports/learn_sink.h"
 #include "scenes/bind/ports/midi_devices.h"
+#include "scenes/bind/ports/midi_feedback.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/track_facts.h"
@@ -39,6 +41,8 @@ struct Ports {
 	WriteSink* writes{nullptr};               ///< where a menu's setting, text and automation writes go
 	controls::Sink* controls_sink{nullptr};   ///< where the knobs' writes and an effect setting's exact word go
 	DeviceSettings* device{nullptr};          ///< the device's own settings, by DEVICE row
+	DeviceActions* device_actions{nullptr};   ///< the device's own actions: saving its settings
+	MidiFeedback* midi_feedback{nullptr};     ///< MIDI follow's feedback to a controller
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {
@@ -46,5 +50,14 @@ struct Ports {
 	}
 	bool operator==(const Ports&) const = default;
 };
+
+/// @brief One port of an installed set, through a set that may not be installed.
+/// @param ports  The set, or null when none is installed.
+/// @param member The slot, as `&Ports::audio`.
+/// @return The port, or null when no set is installed or the set has none.
+template <typename Port>
+[[nodiscard]] constexpr Port* port_of(const Ports* ports, Port* Ports::* member) {
+	return ports != nullptr ? ports->*member : nullptr;
+}
 
 } // namespace deluge::scenes::bind

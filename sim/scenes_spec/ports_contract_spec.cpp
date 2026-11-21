@@ -68,8 +68,15 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.writes).not_().to_be_null();
 		expect(p.controls_sink).not_().to_be_null();
 		expect(p.device).not_().to_be_null();
+		expect(p.device_actions).not_().to_be_null();
+		expect(p.midi_feedback).not_().to_be_null();
+		if (p.midi_feedback != nullptr) {
+			expect(bind::contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
+		}
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
+			// The spec process holds the audio routine still, so the engine reads busy here; the port answers as it does.
+			expect(p.audio->audio_busy()).to_equal(AudioEngine::audioBusy());
 			expect(bind::contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 			expect(p.audio->line_in_plugged()).to_equal(AudioEngine::lineInPluggedIn);
 			if (p.writes != nullptr) {
@@ -128,6 +135,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			// DIN is always listed on the default card's rig.
 			expect(p.midi->connected().empty()).to_be_false();
 			expect(bind::contract::connected_devices_are_known(*p.midi)).to_be_true();
+			expect(bind::contract::connected_devices_have_references(*p.midi)).to_be_true();
 			expect(bind::contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
 			if (p.learn != nullptr && !p.midi->connected().empty()) {
 				expect(bind::contract::learns_read_back(*p.learn, *p.midi, p.midi->connected().front())).to_be_true();

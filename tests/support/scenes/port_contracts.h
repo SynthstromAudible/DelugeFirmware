@@ -6,6 +6,8 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/midi_command.h"
+#include "deluge-project/owner_plugin.h"
+#include "deluge-project/param_address.h"
 #include "plugin-api/types/display_mapping.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
@@ -164,6 +166,18 @@ namespace deluge::scenes::bind::contract {
 	return !midi.settings(midi::DeviceId{}).has_value();
 }
 
+/// @brief Every connected device has a reference, DIN's names the DIN port, and no device names none.
+[[nodiscard]] inline bool connected_devices_have_references(const MidiDevices& midi) {
+	for (const midi::DeviceId d : midi.connected()) {
+		if (!midi.reference(d).has_value()) {
+			return false;
+		}
+	}
+	const std::optional<project::MidiDeviceRef> din = midi.reference(midi::kDin);
+	return din.has_value() && din->port == project::MidiDeviceRef::Port::DIN
+	       && !midi.reference(midi::DeviceId{}).has_value();
+}
+
 /// @brief A write to no device is refused.
 [[nodiscard]] inline bool write_to_no_device_is_refused(MidiDevices& midi) {
 	return !midi.write(midi::DeviceId{}, MidiDeviceSettings{.send_clock = true});
@@ -218,6 +232,15 @@ namespace deluge::scenes::bind::contract {
 	const bool channel_kept = midi.follow_input(kInput) == with_channel;
 	learns.learn_follow(kInput, input_was);
 	return kept && channel_kept && midi.follow_input(kInput) == input_was;
+}
+
+/// @brief The feedback's facts are stable across two calls, and a param no CC can follow has no CC.
+[[nodiscard]] inline bool feedback_facts_are_stable(const MidiFeedback& feedback) {
+	constexpr project::ParamTarget kNowhere = project::engine_target(0xFFFF'FF00);
+	return feedback.enabled() == feedback.enabled()
+	       && feedback.global_effectable_context() == feedback.global_effectable_context()
+	       && !feedback.cc_of(project::OwnerPlugin::INSTRUMENT, kNowhere).has_value()
+	       && !feedback.cc_of(project::OwnerPlugin::GLOBAL_EFFECTABLE, kNowhere).has_value();
 }
 
 /// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with

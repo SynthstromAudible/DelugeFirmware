@@ -4,6 +4,7 @@
 /// @brief The MIDI devices the menu lists, their names, and the settings each keeps for itself.
 
 #include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
 #include "midi/device_id.h"
 
 #include <array>
@@ -69,6 +70,10 @@ public:
 	/// @param device The device.
 	/// @return Its settings; none for a device the host does not know.
 	[[nodiscard]] virtual std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const = 0;
+	/// @brief How a song names @p device: a built-in port, or a hosted USB device by its name and USB ids.
+	/// @param device The device.
+	/// @return Its reference; none for a device the host does not know, or one a song cannot name.
+	[[nodiscard]] virtual std::optional<project::MidiDeviceRef> reference(midi::DeviceId device) const = 0;
 	/// @brief Make @p settings @p device's. The host applies what changed: an output's MPE zones are announced to the
 	///        device, the smallest zones are recounted, and the devices are marked to be saved. Settings equal to the
 	///        device's own change nothing, and the write applies nothing.

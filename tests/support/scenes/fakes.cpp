@@ -2,7 +2,11 @@
 
 #include "deluge-project/device_settings.h"
 
+#include <algorithm>
 #include <array>
+#include <optional>
+#include <string>
+#include <tuple>
 
 namespace deluge::scenes::bind::test {
 
@@ -281,6 +285,11 @@ std::optional<MidiDeviceSettings> FakeMidiDevices::settings(midi::DeviceId devic
 	return at != kept.end() ? std::optional{at->second} : std::nullopt;
 }
 
+std::optional<project::MidiDeviceRef> FakeMidiDevices::reference(midi::DeviceId device) const {
+	const auto at = refs.find(device.value);
+	return at != refs.end() ? std::optional{at->second} : std::nullopt;
+}
+
 bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& settings) {
 	writes.emplace_back(device, settings);
 	const auto at = kept.find(device.value);
@@ -305,6 +314,14 @@ void FakeMidiDevices::connect(midi::DeviceId device, std::string_view device_nam
 	list.push_back(device);
 	names.insert_or_assign(device.value, std::string{device_name});
 	kept.insert_or_assign(device.value, MidiDeviceSettings{});
+	refs.insert_or_assign(device.value, project::MidiDeviceRef{.port = project::MidiDeviceRef::Port::HOSTED,
+	                                                           .name = std::string{device_name}});
+}
+
+std::optional<uint8_t> RecordingMidiFeedback::cc_of(project::OwnerPlugin owner, project::ParamTarget target) const {
+	const auto at = std::ranges::find_if(
+	    ccs, [&](const auto& entry) { return std::get<0>(entry) == owner && std::get<1>(entry) == target; });
+	return at != ccs.end() ? std::optional{std::get<2>(*at)} : std::nullopt;
 }
 
 bool RecordingWrites::write(const WriteRequest& request) {

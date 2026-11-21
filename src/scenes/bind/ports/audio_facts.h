@@ -26,6 +26,8 @@ public:
 	/// @brief The sync type of the reverb's sidechain. The engine holds it only at run time, with no saved record, so
 	/// the host owns it.
 	[[nodiscard]] virtual plugin::SyncType reverb_sidechain_sync_type() const = 0;
+	/// @brief Whether the audio routine is running now, when a flash write must wait.
+	[[nodiscard]] virtual bool audio_busy() const = 0;
 };
 
 } // namespace deluge::scenes::bind

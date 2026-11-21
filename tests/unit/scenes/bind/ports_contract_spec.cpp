@@ -12,6 +12,9 @@
 
 #include <cppspec.hpp>
 
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -306,6 +309,62 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		// A sink that keeps nothing fails the read-back case.
 		host.learn.devices = nullptr;
 		expect(contract::learns_read_back(host.learn, host.midi, deluge::midi::kDin)).to_be_false();
+	});
+	it("reads one port through an installed set or none, and holds the device actions', feedback's and references' contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(port_of(nullptr, &Ports::audio)).to_be_null();
+		expect(port_of(&p, &Ports::audio)).to_equal(p.audio);
+		expect(port_of(&p, &Ports::device_actions)).to_equal(p.device_actions);
+
+		expect(p.device_actions).not_().to_be_null();
+		p.device_actions->save_settings();
+		expect(host.device_actions.calls.size()).to_equal(size_t{1});
+		if (host.device_actions.calls.size() == 1) {
+			expect(host.device_actions.calls[0]).to_equal(test::RecordingDeviceActions::Kind::SAVE_SETTINGS);
+		}
+
+		expect(p.audio->audio_busy()).to_be_false();
+		host.audio.busy = true;
+		expect(p.audio->audio_busy()).to_be_true();
+
+		expect(p.midi_feedback).not_().to_be_null();
+		expect(contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
+		const deluge::project::ParamTarget followed = deluge::project::engine_target(7);
+		host.midi_feedback.ccs.emplace_back(deluge::project::OwnerPlugin::INSTRUMENT, followed, uint8_t{74});
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, followed)).to_equal(std::optional<uint8_t>{74});
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE, followed).has_value()).to_be_false();
+		expect(p.midi_feedback->cc_of(deluge::project::OwnerPlugin::INSTRUMENT, deluge::project::engine_target(8)).has_value())
+		    .to_be_false();
+		expect(contract::feedback_facts_are_stable(*p.midi_feedback)).to_be_true();
+		host.midi_feedback.on = true;
+		host.midi_feedback.global_context = true;
+		expect(p.midi_feedback->enabled()).to_be_true();
+		expect(p.midi_feedback->global_effectable_context()).to_be_true();
+		p.midi_feedback->send(74, -64);
+		p.midi_feedback->send_all(true);
+		using FeedbackCall = test::RecordingMidiFeedback::Call;
+		expect(host.midi_feedback.calls.size()).to_equal(size_t{2});
+		if (host.midi_feedback.calls.size() == 2) {
+			expect(host.midi_feedback.calls[0].kind).to_equal(FeedbackCall::Kind::SEND);
+			expect(host.midi_feedback.calls[0].cc).to_equal(uint8_t{74});
+			expect(host.midi_feedback.calls[0].knob_pos).to_equal(-64);
+			expect(host.midi_feedback.calls[1].kind).to_equal(FeedbackCall::Kind::SEND_ALL);
+			expect(host.midi_feedback.calls[1].automation).to_be_true();
+		}
+
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_true();
+		host.midi.connect(deluge::midi::DeviceId{40}, "Hosted");
+		const std::optional<deluge::project::MidiDeviceRef> hosted = p.midi->reference(deluge::midi::DeviceId{40});
+		expect(hosted.has_value()).to_be_true();
+		if (hosted) {
+			expect(hosted->port).to_equal(deluge::project::MidiDeviceRef::Port::HOSTED);
+			expect(hosted->name).to_equal(std::string{"Hosted"});
+		}
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_true();
+		// A listed device with no reference fails the case.
+		host.midi.refs.erase(40);
+		expect(contract::connected_devices_have_references(*p.midi)).to_be_false();
 	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;

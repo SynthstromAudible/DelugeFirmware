@@ -11,6 +11,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/project_bridge/midi_command.h"
 
 #include <cstddef>
 #include <optional>
@@ -114,6 +115,14 @@ public:
 			return std::nullopt;
 		}
 		return settings_of(*cable);
+	}
+
+	[[nodiscard]] std::optional<project::MidiDeviceRef> reference(midi::DeviceId device) const override {
+		::MIDICable* const cable = midi::cable_of(device);
+		if (cable == nullptr) {
+			return std::nullopt;
+		}
+		return bridge::reference_of(*cable);
 	}
 
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override {

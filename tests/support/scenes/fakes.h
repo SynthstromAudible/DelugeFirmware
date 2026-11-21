@@ -5,6 +5,9 @@
 
 #include "controls/sink.h"
 #include "deluge-project/device_settings.h"
+#include "deluge-project/midi_command.h"
+#include "deluge-project/owner_plugin.h"
+#include "deluge-project/param_address.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
@@ -31,11 +34,13 @@ struct FakeAudioFacts final : AudioFacts {
 	bool line_in{false};                                     ///< what `line_in_plugged` answers
 	int32_t threshold{0};                                    ///< what `song_threshold_recording` answers
 	plugin::SyncType sidechain_type{plugin::SyncType::EVEN}; ///< what `reverb_sidechain_sync_type` answers
+	bool busy{false};                                        ///< what `audio_busy` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
 	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
 	[[nodiscard]] int32_t song_threshold_recording() const override { return threshold; }
 	[[nodiscard]] plugin::SyncType reverb_sidechain_sync_type() const override { return sidechain_type; }
+	[[nodiscard]] bool audio_busy() const override { return busy; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -273,19 +278,63 @@ struct FakeMidiDevices final : MidiDevices {
 	std::vector<std::pair<midi::DeviceId, MidiDeviceSettings>> writes;   ///< every write, in order, known or not
 	std::map<project::GlobalCommand, LearnedBinding> globals;            ///< what `global_command` answers
 	std::map<project::FollowInput, LearnedBinding> follows;              ///< what `follow_input` answers
+	/// What `reference` answers, by handle.
+	std::map<uint32_t, project::MidiDeviceRef> refs{{midi::kDin.value, {.port = project::MidiDeviceRef::Port::DIN}}};
 	[[nodiscard]] std::span<const midi::DeviceId> connected() const override { return list; }
 	[[nodiscard]] std::string_view name(midi::DeviceId device) const override;
 	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override;
+	[[nodiscard]] std::optional<project::MidiDeviceRef> reference(midi::DeviceId device) const override;
 	/// @brief Records the write, and keeps @p settings when @p device is in @ref kept.
 	/// @return Whether @p device is in @ref kept.
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 	[[nodiscard]] std::optional<LearnedBinding> global_command(project::GlobalCommand command) const override;
 	[[nodiscard]] std::optional<LearnedBinding> follow_input(project::FollowInput input) const override;
-	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, and kept
-	///        with default settings, so a learn from it is kept.
+	/// @brief Know @p device as well: listed after the devices already connected, called @p device_name, kept with
+	///        default settings, so a learn from it is kept, and referred to as a hosted device of that name.
 	/// @param device      The device that connects.
 	/// @param device_name What `name` answers for it.
 	void connect(midi::DeviceId device, std::string_view device_name);
+};
+
+/// @brief DeviceActions that records every action, in order.
+struct RecordingDeviceActions final : DeviceActions {
+	/// @brief Which action it was.
+	enum class Kind : uint8_t {
+		SAVE_SETTINGS, ///< save_settings
+	};
+	std::vector<Kind> calls; ///< every action taken, in order
+	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
+};
+
+/// @brief MidiFeedback a spec sets directly, and every send, in order.
+struct RecordingMidiFeedback final : MidiFeedback {
+	/// @brief One recorded send.
+	struct Call {
+		/// @brief Which send it was.
+		enum class Kind : uint8_t {
+			SEND,     ///< send
+			SEND_ALL, ///< send_all
+		};
+		Kind kind{Kind::SEND};  ///< which send it was
+		uint8_t cc{0};          ///< SEND's CC
+		int32_t knob_pos{0};    ///< SEND's knob position
+		bool automation{false}; ///< SEND_ALL's automation flag
+		bool operator==(const Call&) const = default;
+	};
+	bool on{false};             ///< what `enabled` answers
+	bool global_context{false}; ///< what `global_effectable_context` answers
+	/// The CCs `cc_of` answers, by owner plugin and param; any other answers none.
+	std::vector<std::tuple<project::OwnerPlugin, project::ParamTarget, uint8_t>> ccs;
+	std::vector<Call> calls; ///< every send, in order
+	[[nodiscard]] bool enabled() const override { return on; }
+	[[nodiscard]] bool global_effectable_context() const override { return global_context; }
+	[[nodiscard]] std::optional<uint8_t> cc_of(project::OwnerPlugin owner, project::ParamTarget target) const override;
+	void send(uint8_t cc, int32_t knob_pos) override {
+		calls.push_back({.kind = Call::Kind::SEND, .cc = cc, .knob_pos = knob_pos});
+	}
+	void send_all(bool automation) override {
+		calls.push_back({.kind = Call::Kind::SEND_ALL, .automation = automation});
+	}
 };
 
 /// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in
@@ -400,20 +449,22 @@ struct RecordingControlsSink final : controls::Sink {
 
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;                ///< the audio port's fake
-	FakeCardFacts card;                  ///< the card port's fake
-	FakeUiFacts ui;                      ///< the UI port's fake
-	FakeSoundFacts sound;                ///< the sound port's fake
-	FakeClipFacts clips;                 ///< the clip port's fake
-	FakeTrackFacts tracks;               ///< the track port's fake
-	FakeControlFacts controls;           ///< the knobs' port's fake
-	RecordingClipWrites clip_writes;     ///< the clip port's recorder
-	RecordingSoundWrites sound_writes;   ///< the sound port's recorder
-	RecordingLearnSink learn;            ///< the learn port's recorder
-	FakeMidiDevices midi;                ///< the MIDI devices port's fake
-	RecordingWrites writes;              ///< the menu writes' recorder
-	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
-	FakeDeviceSettings device;           ///< the device settings' fake
+	FakeAudioFacts audio;                  ///< the audio port's fake
+	FakeCardFacts card;                    ///< the card port's fake
+	FakeUiFacts ui;                        ///< the UI port's fake
+	FakeSoundFacts sound;                  ///< the sound port's fake
+	FakeClipFacts clips;                   ///< the clip port's fake
+	FakeTrackFacts tracks;                 ///< the track port's fake
+	FakeControlFacts controls;             ///< the knobs' port's fake
+	RecordingClipWrites clip_writes;       ///< the clip port's recorder
+	RecordingSoundWrites sound_writes;     ///< the sound port's recorder
+	RecordingLearnSink learn;              ///< the learn port's recorder
+	FakeMidiDevices midi;                  ///< the MIDI devices port's fake
+	RecordingWrites writes;                ///< the menu writes' recorder
+	RecordingControlsSink controls_sink;   ///< the knobs' writes' recorder
+	FakeDeviceSettings device;             ///< the device settings' fake
+	RecordingDeviceActions device_actions; ///< the device actions' recorder
+	RecordingMidiFeedback midi_feedback;   ///< MIDI follow feedback's fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
 	///        follow learns in the MIDI devices fake.
 	[[nodiscard]] Ports ports() {
@@ -431,7 +482,9 @@ struct FakeHost {
 		        .midi = &midi,
 		        .writes = &writes,
 		        .controls_sink = &controls_sink,
-		        .device = &device};
+		        .device = &device,
+		        .device_actions = &device_actions,
+		        .midi_feedback = &midi_feedback};
 	}
 };
 

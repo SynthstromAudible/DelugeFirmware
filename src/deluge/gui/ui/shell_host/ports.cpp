@@ -24,6 +24,8 @@ const bind::Ports& host_ports() {
 	    .writes = &gui::shell_host::edit_sink(),
 	    .controls_sink = &gui::shell_host::edit_sink(),
 	    .device = &gui::shell_host::device_settings(),
+	    .device_actions = &gui::shell_host::device_actions(),
+	    .midi_feedback = &gui::shell_host::midi_feedback(),
 	};
 	return ports;
 }
