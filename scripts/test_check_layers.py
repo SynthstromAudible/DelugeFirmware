@@ -370,5 +370,100 @@ class CommandLine(unittest.TestCase):
         )
 
 
+SYNTH_RULE = textwrap.dedent(
+    """
+    [[directory]]
+    path = "synth"
+    target = "src/synth"
+
+    [[rule]]
+    name = "synth-boundary"
+    files = ["src/synth/**"]
+    pattern = '^(model|gui|util|deluge-project)/'
+    allow = ["util/misc.h", "deluge-project/drum_type.h"]
+    transitive = true
+    reason = "the synth reaches no app layer, directly or through another header"
+    """
+)
+
+
+class TransitiveRules(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(TABLE + SYNTH_RULE)
+
+    def tearDown(self):
+        self.repo.close()
+
+    def reached(self, rel: str) -> dict[str, list[str]]:
+        config = self.repo.config()
+        rule = config.rules[0]
+        return cl.reaches(config, self.repo.root, rule, self.repo.root / rel)
+
+    def test_a_header_reached_through_an_intermediate_is_counted_with_its_chain(self):
+        self.repo.plant(
+            "src/deluge/util/functions.h", '#include "gui/colour/colour.h"\n'
+        )
+        self.repo.plant("src/deluge/gui/colour/colour.h", "#pragma once\n")
+        self.repo.plant("src/synth/voice/unison.h", '#include "util/functions.h"\n')
+        self.assertEqual(
+            self.reached("src/synth/voice/unison.h"),
+            {"util/functions.h": ["util/functions.h"]},
+        )
+
+    def test_an_allowed_header_is_followed_and_what_it_reaches_counts(self):
+        self.repo.plant("src/deluge/util/misc.h", '#include "model/song/song.h"\n')
+        self.repo.plant("src/deluge/model/song/song.h", "#pragma once\n")
+        self.repo.plant("src/synth/voice/unison.h", '#include "util/misc.h"\n')
+        self.assertEqual(
+            self.reached("src/synth/voice/unison.h"),
+            {"model/song/song.h": ["util/misc.h", "model/song/song.h"]},
+        )
+
+    def test_a_clean_chain_through_the_synth_counts_nothing(self):
+        self.repo.plant("src/synth/a.h", '#include "synth/b.h"\n')
+        self.repo.plant(
+            "src/synth/b.h",
+            '#include "util/misc.h"\n#include "deluge-project/drum_type.h"\n',
+        )
+        self.repo.plant("src/deluge/util/misc.h", "#pragma once\n")
+        self.repo.plant("src/deluge-project/drum_type.h", "#pragma once\n")
+        self.assertEqual(self.reached("src/synth/a.h"), {})
+
+    def test_an_unresolved_forbidden_include_is_counted_as_written(self):
+        self.repo.plant("src/synth/a.h", '#include "gui/missing.h"\n')
+        self.assertEqual(
+            self.reached("src/synth/a.h"), {"gui/missing.h": ["gui/missing.h"]}
+        )
+
+    def test_an_include_cycle_terminates(self):
+        self.repo.plant("src/synth/a.h", '#include "synth/b.h"\n')
+        self.repo.plant("src/synth/b.h", '#include "synth/a.h"\n')
+        self.assertEqual(self.reached("src/synth/a.h"), {})
+
+    def test_the_count_is_the_number_of_headers_reached(self):
+        self.repo.plant("src/synth/a.h", '#include "gui/x.h"\n#include "model/y.h"\n')
+        self.assertEqual(
+            cl.rule_counts(self.repo.config(), self.repo.root),
+            {("src/synth/a.h", "synth-boundary"): 2},
+        )
+
+    def test_a_failure_prints_the_chain(self):
+        import contextlib
+        import io
+
+        self.repo.plant(
+            "src/deluge/util/functions.h", '#include "gui/colour/colour.h"\n'
+        )
+        self.repo.plant("src/synth/voice/unison.h", '#include "synth/voice/x.h"\n')
+        self.repo.plant("src/synth/voice/x.h", '#include "util/functions.h"\n')
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(cl.main(["--repo", str(self.repo.root)]), 1)
+        self.assertIn(
+            "util/functions.h   (via synth/voice/x.h -> util/functions.h)",
+            out.getvalue(),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

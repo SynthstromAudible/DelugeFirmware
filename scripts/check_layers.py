@@ -379,10 +379,78 @@ def direct_count(rule: Rule, pattern: re.Pattern[str], path: Path) -> int:
     return count
 
 
+def quoted_includes(path: Path) -> list[str]:
+    return [
+        match.group(1)
+        for line in read_lines(path)
+        if (match := QUOTED_INCLUDE.match(line))
+    ]
+
+
+def resolve(repo: Path, config: Config, including: Path, quoted: str) -> Path | None:
+    """The file a quoted include names: beside @p including first, then under each include root in order."""
+    for candidate in (
+        including.parent / quoted,
+        *(repo / root / quoted for root in config.tree.include_roots),
+    ):
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def reaches(
+    config: Config, repo: Path, rule: Rule, start: Path
+) -> dict[str, list[str]]:
+    """Each forbidden header @p start reaches through quoted includes, with the chain of includes that reached it.
+
+    A forbidden header is recorded and not followed. An include that resolves to no file is judged as written. A file
+    outside every include root (a vendor header on its own -I) is not followed.
+    """
+    pattern = re.compile(rule.pattern)
+
+    def forbidden(logical: str) -> bool:
+        return bool(pattern.search(logical)) and logical not in rule.allow
+
+    found: dict[str, list[str]] = {}
+    visited = {start.resolve()}
+    queue: list[tuple[Path, list[str]]] = [(start, [])]
+    while queue:
+        current, chain = queue.pop()
+        for quoted in quoted_includes(current):
+            resolved = resolve(repo, config, current, quoted)
+            if resolved is None:
+                if forbidden(quoted):
+                    found.setdefault(quoted, [*chain, quoted])
+                continue
+            logical = logical_of(repo, config, resolved)
+            if logical is None:
+                continue
+            if forbidden(logical):
+                found.setdefault(logical, [*chain, logical])
+                continue
+            if resolved not in visited:
+                visited.add(resolved)
+                queue.append((resolved, [*chain, logical]))
+    return found
+
+
 def rule_count(
     config: Config, repo: Path, rule: Rule, pattern: re.Pattern[str], path: Path
 ) -> int:
+    if rule.transitive:
+        return len(reaches(config, repo, rule, path))
     return direct_count(rule, pattern, path)
+
+
+def explain(config: Config, repo: Path, file: str, rule_name: str) -> list[str]:
+    """Extra lines for a count above its baseline: a transitive rule names each header reached and how."""
+    rule = next((rule for rule in config.rules if rule.name == rule_name), None)
+    if rule is None or not rule.transitive:
+        return []
+    return [
+        f"{header}   (via {' -> '.join(chain)})"
+        for header, chain in sorted(reaches(config, repo, rule, repo / file).items())
+    ]
 
 
 def rule_counts(config: Config, repo: Path) -> dict[tuple[str, str], int]:
@@ -436,11 +504,6 @@ def write_baseline(path: Path, counts: dict[tuple[str, str], int]) -> None:
             for (file, rule), count in sorted(counts.items())
         )
     )
-
-
-def explain(config: Config, repo: Path, file: str, rule_name: str) -> list[str]:
-    """Extra lines for a count above its baseline: none for a direct rule."""
-    return []
 
 
 def main(argv: list[str] | None = None) -> int:
