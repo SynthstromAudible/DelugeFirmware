@@ -575,8 +575,9 @@ transcription of legacy's.
 `timeline::TimelineState` is the state and pure arithmetic of legacy's `TimelineView` →
 `ClipNavigationTimelineView` → `ClipView` chain: a plain aggregate a root scene owns, not a scene.
 `timeline.h` has the symbol-by-symbol split. One `TimelineState` is one of `Song`'s two navigation
-slots; `adopt`/`publish` are the only functions that name `NAVIGATION_CLIP`. **Every horizontal turn
-clears the linear-recording restore point** (`stop_following()`), including one the gates refuse —
+slots; `adopt` takes it from the clip-facts port's `clip_navigation()`, whose host alone names
+`NAVIGATION_CLIP`. **Every horizontal turn clears the linear-recording restore point**
+(`stop_following()`), including one the gates refuse —
 it is the first statement of `ClipNavigationTimelineView::horizontalEncoderAction` — and a shift
 length edit does not. The `PadLEDs` scroll and zoom animations are not carried.
 
@@ -703,9 +704,9 @@ for live param values. Their vocabulary is `project::` addresses, `plugin::` ids
 * **A service or an overlay holds a non-owning pointer** the host installs, as a context holds its `Ports`: each
   service takes `set_ports` and `set_model` (the song's record), and each overlay the one port it reads
   (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices` installs them at
-  boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the overlays' and the slicer's
-  (`SlicerScene::set_ports`). A specification installs fakes over its own model and keeps them alive while the service
-  runs. No service calls `host_ports()` or `host_binds()`.
+  boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the overlays', the slicer's
+  (`SlicerScene::set_ports`) and the audio clip scene's (`AudioClipScene::set_ports`). A specification installs fakes
+  over its own model and keeps them alive while the service runs. No service calls `host_ports()`.
 * **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
   recording, no clocks, metronome off, count 0, undo not allowed and no overdubs; `AudioFacts` reads no foreground
   source, not resampling and not busy; `MidiDevices` knows no device, so `MidiLearn` leaves MIDI events unhandled;
@@ -717,8 +718,7 @@ for live param values. Their vocabulary is `project::` addresses, `plugin::` ids
 * **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
   `scenes-reads-outside-bind` rule counts none there). What the menu asks the app for directly is the set of
   `menu::host_*` hooks in `menu/bind_host.h`, which the other scenes share. The four services (`global_controls`,
-  `midi_learn`, `mod_knobs` and `knob_push`) and the two overlays count none either; `host_binds` is left for the
-  audio clip scene alone. The waveform files under `services/` (`waveform_paint.{h,cpp}` and `waveforms.h`)
+  `midi_learn`, `mod_knobs` and `knob_push`) and the two overlays count none either. The waveform files under `services/` (`waveform_paint.{h,cpp}` and `waveforms.h`)
   count 4 includes, which go with the remaining scenes' reads.
 
 ### The DEVICE setting group

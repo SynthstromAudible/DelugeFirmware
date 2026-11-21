@@ -14,18 +14,10 @@
 #include <string>
 #include <string_view>
 
-class Song;
-
 namespace deluge::scenes::menu {
 
-/// @brief Whether @p song is the song the app plays: the audio clip scene's guard over a song the app's ports do not
-///        act on.
-bool host_binds(const ::Song& song);
 /// @brief The app's ports, which every scene's context takes; valid for the program's life.
 [[nodiscard]] const deluge::scenes::bind::Ports& host_ports();
-/// @brief Set the song's tempo from the audio clip @p clip's length, as a held tempo encoder and a pad do: a command to
-///        the running transport, which no record holds.
-void host_grab_tempo(deluge::project::ClipAddress clip);
 
 /// @brief A flash, community-features or full reset ran: the app re-applies, on the guest and the open menu, the reset
 ///        settings main reads live.
