@@ -241,7 +241,7 @@ void SoundVoiceHost::release(SoundVoice& voice) const noexcept {
 void SoundVoiceHost::renew(SoundVoice& voice) const noexcept {
 	sound->unassignVoice(voice, nullptr);
 	std::destroy_at(&voice);
-	::new (static_cast<void*>(&voice)) SoundVoice; // default-initialised, as a stolen voice was rebuilt: not zeroed
+	::new (static_cast<void*>(&voice)) SoundVoice; // default-initialised, not zeroed
 	sound->bindVoice(voice);
 }
 

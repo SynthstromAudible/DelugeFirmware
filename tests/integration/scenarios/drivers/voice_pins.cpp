@@ -318,6 +318,8 @@ void readersCase() {
 }
 
 /// The facts a note-on reads of @p sound beside its voices, as it answers them now through a note-on's model stack.
+/// Read here from the sound's own queries, not through Sound::noteFacts: the pin is a second reader that the note
+/// path's copy has to agree with.
 NoteFacts factsOf(Sound& sound, InstrumentClip& clip) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = stackFor(memory, sound, clip)->addSoundFlags();

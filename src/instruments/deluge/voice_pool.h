@@ -267,6 +267,7 @@ public:
 	requires synth::note_host<H>
 	std::optional<HeldNote> note_off(const Config& config, const synth::NoteFacts& facts, int32_t note_code,
 	                                 bool all_notes, std::optional<HeldNote> held, Context context) {
+		const Exclusion excluded; // releases and glides act on voices the render plays
 		const bool falls_back = !facts.arpeggiating && facts.falls_back && held.has_value();
 		for (Slot* voice : voices_) {
 			if ((voice->kernel.note_code() != note_code && !all_notes) || voice->kernel.releasing()) {
@@ -297,6 +298,10 @@ private:
 
 	/// @brief A non-POLY note-on's walk: the first voice to glide, else the first to unassign and reuse, the rest of
 	///        those freed.
+	/// @param config The sound's config.
+	/// @param facts What the note-on reads of the sound.
+	/// @param context What the host frees a discarded voice with.
+	/// @return The voices found.
 	template <class Config>
 	Found find_reusable(const Config& config, const synth::NoteFacts& facts, Context context) {
 		Found found;
@@ -324,6 +329,10 @@ private:
 
 	/// @brief Whether a non-POLY note-on takes @p voice over: FM, or an active source that is not a sample, or still
 	///        sounding after a fast release (asked only when neither, and only of a voice not already in one).
+	/// @param voice The voice, listed.
+	/// @param config The sound's config.
+	/// @param facts What the note-on reads of the sound.
+	/// @return True when the voice is to be unassigned.
 	template <class Config>
 	bool needs_unassign(Slot& voice, const Config& config, const synth::NoteFacts& facts) {
 		const auto plays_non_sample = [&](size_t s) {
@@ -336,6 +345,12 @@ private:
 	}
 
 	/// @brief Re-triggers @p voice, whose envelopes resume from where they are; a failed note frees it.
+	/// @param voice The voice, listed, its sources unassigned.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param event The note, its envelope reset cleared.
+	/// @param sample_sync_length A time-stretched sample's sync length.
+	/// @param ticks_late How late the note starts, in ticks.
+	/// @param context What the host prepares and frees with.
 	template <class Config>
 	void retrigger(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
 	               int32_t ticks_late, Context context) {
@@ -350,6 +365,11 @@ private:
 	}
 
 	/// @brief With no memory for a new voice, starts the note on the sound's highest voice, rebuilt in place.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param event The note.
+	/// @param sample_sync_length A time-stretched sample's sync length.
+	/// @param ticks_late How late the note starts, in ticks.
+	/// @param context What the host reassesses, prepares and frees with.
 	/// @return False when the sound has no voice to take.
 	template <class Config>
 	bool restart_highest(const Config& config, const H::Event& event, uint32_t sample_sync_length, int32_t ticks_late,
@@ -372,6 +392,12 @@ private:
 
 	/// @brief Starts the note on @p voice, new and not listed, then lists it: past the voice limit with the highest
 	///        voice fast-released, else admitted at its cost; a failed note releases it unlisted.
+	/// @param voice The voice, from the host's acquire().
+	/// @param config The sound's config, handed to the kernel.
+	/// @param event The note.
+	/// @param sample_sync_length A time-stretched sample's sync length.
+	/// @param ticks_late How late the note starts, in ticks.
+	/// @param context What the host prepares and reassesses with.
 	template <class Config>
 	void start_new(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
 	               int32_t ticks_late, Context context) {
@@ -398,6 +424,12 @@ private:
 	}
 
 	/// @brief The kernel's note-on on @p voice inside the host's bracket: its order, its setup, the note-on, the dump.
+	/// @param voice The voice.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param event The note.
+	/// @param sample_sync_length A time-stretched sample's sync length.
+	/// @param ticks_late How late the note starts, in ticks.
+	/// @param context What the host prepares with.
 	/// @return Whether the note started.
 	template <class Config>
 	bool start(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
@@ -413,6 +445,8 @@ private:
 	}
 
 	/// @brief Frees @p voice as the cull does: its resources, then its slot while it is still listed.
+	/// @param voice The voice, listed.
+	/// @param context What the host frees its resources with.
 	void free(Slot& voice, Context context) {
 		host_->unassign(voice, context);
 		erase_if([&](const Slot* listed) { return listed == &voice; });

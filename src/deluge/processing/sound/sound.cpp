@@ -877,6 +877,9 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
+static_assert(std::tuple_size_v<decltype(deluge::synth::NoteFacts::source_active_now)> == kNumSources,
+              "a note's facts name each source");
+
 deluge::synth::NoteFacts Sound::noteFacts(ModelStackWithSoundFlags* modelStack) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
 	const ArpeggiatorSettings* arpSettings = getArpSettings();

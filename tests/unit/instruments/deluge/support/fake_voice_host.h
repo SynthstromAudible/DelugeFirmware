@@ -167,6 +167,7 @@ struct FakeHost {
 	bool acquire_fails{};     ///< acquire() answers null: no memory
 	bool starts{true};        ///< Each new voice's note_on() answer
 	int32_t prepared_depth{}; ///< The exclusion depth the last prepare() ran at
+	int32_t released_depth{}; ///< The exclusion depth the last prepare_release() ran at
 	uint32_t next_order{};    ///< next_voice_order()'s counter
 	uint32_t cycle_count{};   ///< cycles() steps by 5 each call
 	FakeNoise noise_stream{}; ///< noise()
@@ -206,14 +207,21 @@ struct FakeHost {
 	}
 	void renew(Slot& slot) noexcept {
 		log.push_back(seen("renew", slot));
-		slot.kernel = FakeKernel{.log = &log};
+		slot.kernel = FakeKernel{.starts = starts, .log = &log};
 	}
-	uint32_t next_voice_order() { return next_order++; }
-	uint32_t cycles() { return cycle_count += 5; }
+	uint32_t next_voice_order() {
+		log.push_back("order " + std::to_string(next_order));
+		return next_order++;
+	}
+	uint32_t cycles() {
+		log.push_back("cycles");
+		return cycle_count += 5;
+	}
 	void note_started(Slot& slot) { log.push_back("started " + std::to_string(slot.part)); }
 	FakeNoise& noise() { return noise_stream; }
 	static uint32_t steal_increment() { return 128; }
 	FakeRelease prepare_release(Slot& slot, Context /*context*/, bool tails) {
+		released_depth = Exclusion::depth;
 		log.push_back("prepare_release " + std::to_string(slot.part));
 		return {.tails = tails};
 	}
