@@ -71,28 +71,6 @@ void hold_sample_synth(FakeHostRig& fakes) {
 	fakes.host.sound.loaded[FakeHostRig::kSynthSlot.id] = 0b01;
 }
 
-/// @brief One edge of main pad (@p x, @p y), and a tick.
-void pad(FakeMenuShell& r, uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
-	r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(on ? 64 : 0)}, at_ms);
-	r.shell.tick(at_ms + 5);
-}
-
-/// @brief SHIFT held across one press and release of main pad (@p x, @p y).
-void shift_press(FakeMenuShell& r, uint8_t x, uint8_t y, uint32_t at_ms) {
-	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, true, at_ms);
-	r.shell.tick(at_ms + 5);
-	pad(r, x, y, true, at_ms + 10);
-	pad(r, x, y, false, at_ms + 20);
-	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, false, at_ms + 30);
-	r.shell.tick(at_ms + 35);
-}
-
-/// @brief SHIFT down or up, and a tick.
-void shift(FakeMenuShell& r, bool down, uint32_t at_ms) {
-	r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, down, at_ms);
-	r.shell.tick(at_ms + 5);
-}
-
 /// @brief The sound fake patching @p sources to the low-pass cutoff.
 void patch_to_cutoff(FakeHostRig& fakes, std::initializer_list<PatchSource> sources) {
 	const auto cutoff = deluge::synth::CableTarget::param(nodes::lpf_freq.bind.param.index);
@@ -123,15 +101,17 @@ describe menu_shortcuts_fakes("the menu's shortcut pads over the ports' fakes an
 		hold_sample_synth(r.fakes);
 		hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V3));
 		const MenuContext ctx = r.open_synth(nodes::sound_root);
-		shift_press(r, kSamplePadX, kSamplePadY, 100);
+		r.shift_pad(kSamplePadX, kSamplePadY, 100);
 		expect(menu_scene().focused_value()).to_equal(&nodes::sample0_interpolation);
 
-		// The lookup reads the layout from the device port the context binds, so the fake's V1 moves the pad.
+		// The lookup reads the layout from the device port the context binds, so the fake's V1 moves the pad. V1 is
+		// checked at the lookup rather than pressed: every cell only V1 has is a sample marker item, and landing on one
+		// opens `MarkerScene`, which reads the host's ports and waveforms rather than the fakes.
 		hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(ShortcutsVersion::V1));
 		expect(menu::shortcuts_version(ctx)).to_equal(ShortcutsVersion::V1);
 		expect(menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, kSamplePadX, kSamplePadY))
 		    .to_equal(&nodes::sample0_end);
-		expect(r.fakes.host.device.stores.empty()).to_be_true();
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{0});
 	});
 
 	it("opens the X source's cable from its pad under V3, and swallows the pad under V1, which names no X", _ {
@@ -139,7 +119,7 @@ describe menu_shortcuts_fakes("the menu's shortcut pads over the ports' fakes an
 			FakeMenuShell r;
 			hold_device(r.fakes, device_path::kShortcutsVersion, std::to_underlying(version));
 			(void)r.open_synth(nodes::lpf_freq);
-			shift_press(r, kXSourcePadX, kXSourcePadY, 100);
+			r.shift_pad(kXSourcePadX, kXSourcePadY, 100);
 			if (version == ShortcutsVersion::V3) {
 				expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 				expect(menu_scene().state().walk.patch_source).to_equal(PatchSource::X);
@@ -182,13 +162,13 @@ describe menu_shortcuts_fakes("the menu's shortcut pads over the ports' fakes an
 			const bool shown = setting != ShortcutOverlay::OFF;
 			expect(ctx.shortcut_overlay).to_equal(shown);
 			expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
-			shift(r, true, 100);
+			r.shift(true, 100);
 			expect(menu_scene().pad_regions()).to_equal(shown ? PadRegions::Main : PadRegions::None);
 			if (shown) {
 				// Every column is greyed under the overlay.
 				expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0xFFFFFFFF});
 			}
-			shift(r, false, 200);
+			r.shift(false, 200);
 			expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 		}
 	});

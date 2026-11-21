@@ -10,9 +10,10 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
 
-#include "deluge-project/device_settings.h"
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
+#include "deluge-project/param_address.h"
 #include "midi/device_id.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
@@ -25,7 +26,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <variant>
 #include <vector>
 
 #include "support/spec_main.h"
@@ -35,7 +35,7 @@ using deluge::project::GlobalCommand;
 using deluge::project::MappingTarget;
 using deluge::project::OwnerParamTarget;
 using deluge::scenes::bind::LearnedBinding;
-using deluge::scenes::menu::MenuContext;
+using deluge::scenes::spec::FakeHostRig;
 using deluge::scenes::spec::FakeMenuShell;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::UiEvent;
@@ -47,8 +47,6 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 /// A hosted device, which the MIDI devices fake learns of in `connect_hosted`.
 constexpr deluge::midi::DeviceId kHosted = deluge::midi::kFirstHosted;
-/// LEARN's matrix button (`kMatrix`, `shell/profiles/deluge.cpp`).
-constexpr uint8_t kLearnX = 7, kLearnY = 0;
 
 /// @brief The MIDI devices fake knowing the hosted device as well as DIN.
 void connect_hosted(FakeMenuShell& r) {
@@ -67,6 +65,14 @@ bool offer_while_learning(const UiEvent& event) {
 	const bool used = menu_scene().handle(event, ui).handled;
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
 	return used;
+}
+
+/// @brief The knob target the synth's low-pass cutoff page learns onto: the synth output's controls, the cutoff's
+///        engine param. Spelled from the page and the rig, not from the menu's own learn target.
+OwnerParamTarget cutoff_target() {
+	return OwnerParamTarget{
+	    .owner = {.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = FakeHostRig::kSynthOutputId},
+	    .param = deluge::project::engine_target(nodes::lpf_freq.bind.param.index)};
 }
 
 /// @brief The calls of @p kind the learn fake recorded.
@@ -89,14 +95,14 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 		connect_hosted(r);
 		(void)r.open_synth(nodes::lpf_freq);
 		const std::optional<OwnerParamTarget> target = menu_scene().learn_target();
-		expect(target.has_value()).to_be_true();
+		expect(target).to_equal(std::optional{cutoff_target()});
 		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
 		                                    .device = kHosted}))
 		    .to_be_true();
 		const std::vector<Call> knobs = calls_of(r, Call::Kind::LEARN_KNOB);
 		expect(knobs.size()).to_equal(size_t{1});
-		if (knobs.size() == 1 && target) {
-			expect(knobs[0].target).to_equal(std::optional<MappingTarget>{*target});
+		if (knobs.size() == 1) {
+			expect(knobs[0].target).to_equal(std::optional<MappingTarget>{cutoff_target()});
 			expect(knobs[0].device.value).to_equal(kHosted.value);
 			expect(knobs[0].which_knob).to_equal(74);
 			expect(knobs[0].midi_channel).to_equal(2);
@@ -131,7 +137,7 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 		expect(offer_while_learning(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .channel = 1, .data1 = 60,
 		                                    .data2 = 100, .device = deluge::midi::kDin}))
 		    .to_be_true();
-		expect(r.fakes.host.learn.calls.empty()).to_be_true();
+		expect(r.fakes.host.learn.calls.size()).to_equal(size_t{0});
 	});
 
 	it("learns a note-on onto a global command, carrying the device the note came from", _ {
@@ -148,34 +154,27 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 			expect(globals[0].global).to_equal(GlobalCommand::PLAY);
 			expect(globals[0].binding).to_equal(std::optional{want});
 		}
-		expect(calls_of(r, Call::Kind::LEARN).empty()).to_be_true();
+		expect(calls_of(r, Call::Kind::LEARN).size()).to_equal(size_t{0});
 		expect(r.fakes.host.midi.global_command(GlobalCommand::PLAY)).to_equal(std::optional{want});
 	});
 
 	it("unlearns the focused param's knob on SHIFT + LEARN as a learn of no command", _ {
 		FakeMenuShell r;
 		(void)r.open_synth(nodes::lpf_freq);
-		const std::optional<OwnerParamTarget> target = menu_scene().learn_target();
-		expect(target.has_value()).to_be_true();
-		if (!target) {
-			return;
-		}
+		const OwnerParamTarget target = cutoff_target();
+		expect(menu_scene().learn_target()).to_equal(std::optional{target});
 		// The song has a knob on the param, so there is something to forget.
 		(void)r.fakes.model.mappings.learn(deluge::project::Mapping{
-		    .source = deluge::project::MidiCommand{.channel_or_zone = 2, .note_or_cc = 74}, .target = *target});
-		r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, true, 100);
-		r.shell.tick(105);
-		r.press(kLearnX, kLearnY, 110);
-		r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, false, 130);
-		r.shell.tick(135);
+		    .source = deluge::project::MidiCommand{.channel_or_zone = 2, .note_or_cc = 74}, .target = target});
+		r.shift_learn(100);
 		const std::vector<Call> learns = calls_of(r, Call::Kind::LEARN);
 		expect(learns.size()).to_equal(size_t{1});
 		if (learns.size() == 1) {
-			expect(learns[0].target).to_equal(std::optional<MappingTarget>{*target});
-			expect(learns[0].command.has_value()).to_be_false();
-			expect(learns[0].input.has_value()).to_be_false();
+			expect(learns[0].target).to_equal(std::optional<MappingTarget>{target});
+			expect(learns[0].command).not_().to_have_value();
+			expect(learns[0].input).not_().to_have_value();
 		}
-		expect(calls_of(r, Call::Kind::LEARN_KNOB).empty()).to_be_true();
+		expect(calls_of(r, Call::Kind::LEARN_KNOB).size()).to_equal(size_t{0});
 	});
 
 	it("unlearns a global command on SHIFT + LEARN as a learn of no binding", _ {
@@ -183,18 +182,14 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 		r.fakes.host.midi.globals.insert_or_assign(
 		    GlobalCommand::TAP, LearnedBinding{.device = deluge::midi::kDin, .channel_or_zone = 1, .note_or_cc = 40});
 		(void)r.open_settings(nodes::midi_command_tap);
-		r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, true, 100);
-		r.shell.tick(105);
-		r.press(kLearnX, kLearnY, 110);
-		r.button(FakeMenuShell::kShiftX, FakeMenuShell::kShiftY, false, 130);
-		r.shell.tick(135);
+		r.shift_learn(100);
 		const std::vector<Call> globals = calls_of(r, Call::Kind::LEARN_GLOBAL);
 		expect(globals.size()).to_equal(size_t{1});
 		if (globals.size() == 1) {
 			expect(globals[0].global).to_equal(GlobalCommand::TAP);
-			expect(globals[0].binding.has_value()).to_be_false();
+			expect(globals[0].binding).not_().to_have_value();
 		}
-		expect(r.fakes.host.midi.global_command(GlobalCommand::TAP).has_value()).to_be_false();
+		expect(r.fakes.host.midi.global_command(GlobalCommand::TAP)).not_().to_have_value();
 	});
 });
 // clang-format on

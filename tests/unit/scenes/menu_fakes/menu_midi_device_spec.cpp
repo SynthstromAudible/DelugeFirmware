@@ -46,7 +46,7 @@ describe menu_midi_device("scenes::menu::nodes -- a MIDI device's settings", ${
 		host.midi.kept[deluge::midi::kDin.value].send_clock = true;
 		expect(nodes::get_device_send_clock(ctx)).to_equal(0);
 		nodes::set_device_send_clock(ctx, 1);
-		expect(host.midi.writes.empty()).to_be_true();
+		expect(host.midi.writes.size()).to_equal(size_t{0});
 	});
 });
 // clang-format on

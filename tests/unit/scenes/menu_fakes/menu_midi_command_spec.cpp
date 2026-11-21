@@ -70,14 +70,14 @@ describe menu_midi_command("scenes::menu::nodes::MidiCommandItem -- a global com
 		FakeHost host;
 		const MenuContext ctx = context_over(host);
 		expect(nodes::kMidiCommandPlayItem.learn_note_on(ctx, kHosted, 3, 60)).to_be_false();
-		expect(host.learn.calls.empty()).to_be_true();
+		expect(host.learn.calls.size()).to_equal(size_t{0});
 	});
 
 	it("learns a CC in the CC band, and nothing from its zero-valued release", _ {
 		FakeHost host;
 		const MenuContext ctx = context_over(host);
 		expect(nodes::kMidiCommandRecordItem.learn_cc(ctx, deluge::midi::kDin, 2, 20, 0)).to_be_false();
-		expect(host.learn.calls.empty()).to_be_true();
+		expect(host.learn.calls.size()).to_equal(size_t{0});
 		expect(nodes::kMidiCommandRecordItem.learn_cc(ctx, deluge::midi::kDin, 2, 20, 127)).to_be_true();
 		const LearnedBinding cc{.device = deluge::midi::kDin,
 		                        .channel_or_zone = static_cast<uint8_t>(deluge::project::kFirstCcChannel + 2),
@@ -89,7 +89,7 @@ describe menu_midi_command("scenes::menu::nodes::MidiCommandItem -- a global com
 		FakeHost host;
 		const MenuContext ctx = context_over(host);
 		expect(nodes::kMidiCommandFillItem.learn_program_change(ctx, deluge::midi::kDin, 0, 5)).to_be_false();
-		expect(host.learn.calls.empty()).to_be_true();
+		expect(host.learn.calls.size()).to_equal(size_t{0});
 		expect(nodes::kMidiCommandTapItem.learn_program_change(ctx, deluge::midi::kDin, 0, 5)).to_be_true();
 		const LearnedBinding pc{
 		    .device = deluge::midi::kDin, .channel_or_zone = deluge::project::kFirstProgramChangeChannel, .note_or_cc = 5};
@@ -105,9 +105,9 @@ describe menu_midi_command("scenes::menu::nodes::MidiCommandItem -- a global com
 		if (host.learn.calls.size() == 2) {
 			expect(host.learn.calls[1].kind).to_equal(Call::Kind::LEARN_GLOBAL);
 			expect(host.learn.calls[1].global).to_equal(GlobalCommand::UNDO);
-			expect(host.learn.calls[1].binding.has_value()).to_be_false();
+			expect(host.learn.calls[1].binding).not_().to_have_value();
 		}
-		expect(host.midi.global_command(GlobalCommand::UNDO).has_value()).to_be_false();
+		expect(host.midi.global_command(GlobalCommand::UNDO)).not_().to_have_value();
 	});
 });
 // clang-format on

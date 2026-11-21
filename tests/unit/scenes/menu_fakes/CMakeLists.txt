@@ -9,7 +9,6 @@ endif()
 set(_menu ${DELUGE_REPO_ROOT}/src/scenes/menu)
 set(_l10n ${DELUGE_REPO_ROOT}/src/deluge/gui/l10n)
 deluge_specs_driver(menu_fakes_specs TREES host
-  NEON
   SOURCES ${_menu}/note_bridge.cpp
           ${_menu}/nodes/actions.cpp
           ${_menu}/nodes/dx_algorithms.cpp
@@ -20,5 +19,4 @@ deluge_specs_driver(menu_fakes_specs TREES host
           ${DELUGE_REPO_ROOT}/src/scenes/l10n_bridge.cpp
           ${_l10n}/l10n.cpp
           ${_l10n}/g_english.cpp
-  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_host_chain
-  INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)
+  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_host_chain)

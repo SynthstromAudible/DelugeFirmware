@@ -30,10 +30,10 @@ describe menu_dx_tables("scenes::menu::dx -- the parameter page's pad layout", $
 			const int16_t index = param % dx::kOperatorParams;
 			const std::optional<dx::Pad> pad = dx::param_pad(param);
 			if (index >= kFirstScaling && index <= kLastScaling) {
-				expect(pad.has_value()).to_be_false();
+				expect(pad).not_().to_have_value();
 				continue;
 			}
-			expect(pad.has_value()).to_be_true();
+			expect(pad).to_have_value();
 			if (pad) {
 				expect(dx::pad_param(pad->x, pad->y)).to_equal(std::optional<int16_t>{param});
 				round_trips++;

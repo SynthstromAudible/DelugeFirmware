@@ -43,6 +43,7 @@ struct FakeMenuShell {
 	static constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 	static constexpr uint8_t kBackX = 7, kBackY = 1;
 	static constexpr uint8_t kShiftX = 8, kShiftY = 0;
+	static constexpr uint8_t kLearnX = 7, kLearnY = 0;
 	static constexpr uint8_t kSynthX = 5, kSynthY = 0;
 	static constexpr uint8_t kKitX = 5, kKitY = 1;
 	static constexpr uint8_t kCrossScreenX = 6, kCrossScreenY = 2;
@@ -130,6 +131,39 @@ struct FakeMenuShell {
 		shell.tick(at_ms + 5);
 		button(x, y, false, at_ms + 10);
 		shell.tick(at_ms + 15);
+	}
+	/// @brief One edge of main pad (@p x, @p y), and the tick that settles it.
+	/// @param x     The pad's column.
+	/// @param y     The pad's row.
+	/// @param on    True for the press, false for the release.
+	/// @param at_ms When the edge arrives; the tick follows at @p at_ms + 5.
+	void pad(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(on ? 64 : 0)}, at_ms);
+		shell.tick(at_ms + 5);
+	}
+	/// @brief SHIFT down or up, and the tick that settles it.
+	/// @param down  True to press SHIFT, false to release it.
+	/// @param at_ms When the edge arrives; the tick follows at @p at_ms + 5.
+	void shift(bool down, uint32_t at_ms) {
+		button(kShiftX, kShiftY, down, at_ms);
+		shell.tick(at_ms + 5);
+	}
+	/// @brief SHIFT held across one press and release of main pad (@p x, @p y): a shortcut or patching-source press.
+	/// @param x     The pad's column.
+	/// @param y     The pad's row.
+	/// @param at_ms When SHIFT goes down; the pad's edges follow at + 10 and + 20, SHIFT's release at + 30.
+	void shift_pad(uint8_t x, uint8_t y, uint32_t at_ms) {
+		shift(true, at_ms);
+		pad(x, y, true, at_ms + 10);
+		pad(x, y, false, at_ms + 20);
+		shift(false, at_ms + 30);
+	}
+	/// @brief SHIFT held across a press of LEARN: the menu's unlearn of the focused item.
+	/// @param at_ms When SHIFT goes down; LEARN's press follows at + 10 and SHIFT's release at + 30.
+	void shift_learn(uint32_t at_ms) {
+		shift(true, at_ms);
+		press(kLearnX, kLearnY, at_ms + 10);
+		shift(false, at_ms + 30);
 	}
 	/// @brief Press and release the select encoder, as `press` does.
 	/// @param at_ms When the press arrives.
