@@ -21,7 +21,7 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
-#include "definitions_cxx.hpp" // OutputType, kMaxSequenceLength
+#include "definitions_cxx.hpp" // kMaxSequenceLength
 #include "gfx/grid/palette.h"
 #include "notify/notice_queue.h"
 #include "scenes/menu/context.h"
@@ -36,6 +36,7 @@
 
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
+#include "deluge-project/track_kind.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "model/sample/waveform_scan.h"
@@ -50,12 +51,6 @@
 #include <array>
 #include <span>
 #include <utility>
-
-// `util/functions.h` is not reachable from this layer (`check_layer_rules.py`'s
-// `scenes-includes-outside` row lists no `util/`), and this is the one free function in it the OLED
-// page needs. Declared rather than included -- the spelling `menu/nodes/output_items.cpp` already
-// uses for the same symbol.
-char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 namespace deluge::scenes::audio_clip {
 
@@ -1297,7 +1292,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	// `name_empty = out->name.empty()`.
 	const bool name_is_empty = name.empty();
 	deluge::ui::oled::OutputNameData data{
-	    .type_text = getOutputTypeName(OutputType::AUDIO, channel),
+	    .type_text = project::track_kind_name(project::TrackKind::AUDIO, channel),
 	    .name = name,
 	    .slot = 0,
 	    .sub_slot = -1,
