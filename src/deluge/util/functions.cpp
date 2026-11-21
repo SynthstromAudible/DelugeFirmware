@@ -1833,8 +1833,8 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 		return false;
 	}
 
-	int32_t dotPos = (uint32_t)dotAddress - (uint32_t)fileName;
-	if (dotPos < prefixLength + 3) {
+	auto dot_pos = static_cast<int32_t>(dotAddress - fileName);
+	if (dot_pos < prefixLength + 3) {
 		return false;
 	}
 
