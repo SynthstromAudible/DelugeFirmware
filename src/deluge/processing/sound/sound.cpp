@@ -895,155 +895,26 @@ deluge::synth::NoteFacts Sound::noteFacts(ModelStackWithSoundFlags* modelStack) 
 	return facts;
 }
 
-// Re-trigger a voice already in voicePool_ (see the declaration for the contract).
-void Sound::retriggerVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
-                           int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
-                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-                           int32_t fromMIDIChannel) {
-	deluge::dsp::Q<31> envelopePositions[kNumEnvelopes];
-	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		envelopePositions[e] = voice->kernel.envelope(e).output_level();
-	}
-	if (sideChainSendLevel != 0) [[unlikely]] {
-		AudioEngine::registerSideChainHit(sideChainSendLevel);
-	}
-	if (deluge::bench::render_profile::timed_note_on([&] {
-		    return startVoiceNote(
-		        *voice, *modelStack,
-		        noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, false, fromMIDIChannel, mpeValues),
-		        sampleSyncLength, ticksLate);
-	    })) {
-		for (int32_t e = 0; e < kNumEnvelopes; e++) {
-			voice->kernel.envelope(e).resume_attack(envelopePositions[e]);
-		}
-	}
-	else {
-		this->freeActiveVoice(voice, modelStack);
-	}
-}
-
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
-	SoundVoice* voiceToReuse = nullptr;
-	SoundVoice* voiceForLegato = nullptr;
-
 	// Not polyphonic: finding a voice to reuse or glide, and re-triggering it, all act on voices the render is playing,
-	// so that whole path runs with the render excluded (free on the audio tier). A polyphonic note-on builds its new
-	// voice with the render running and only publishes it excluded, below.
+	// so that whole path runs with the render excluded (free on the audio tier), through to the note's MIDI out. A
+	// polyphonic note-on builds its new voice with the render running and only publishes it excluded.
 	std::optional<AudioExcludedSection> nonPolyphonic;
 	if (config_.voicing.polyphony != PolyphonyMode::POLY) {
 		nonPolyphonic.emplace();
 	}
 
-	// If not polyphonic, stop any notes which are releasing, now
-	if (!voicePool_.empty() && config_.voicing.polyphony != PolyphonyMode::POLY) [[unlikely]] {
-		const deluge::synth::NoteFacts facts = noteFacts(modelStack);
-		for (auto it = voicePool_.list().begin(); it != voicePool_.list().end();) {
-			SoundVoice* voice = *it;
-			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
-			// voice
-			if (config_.voicing.polyphony != PolyphonyMode::MONO
-			    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE && facts.note_tails_allowed) {
-				voiceForLegato = voice;
-				break;
-			}
-
-			// If FM, or no active sources are samples, or still sounding after fast-release, unassign
-			bool needs_unassign = //<
-			    facts.fm
-			    || std::ranges::any_of(
-			        std::views::iota(0, kNumSources),
-			        [&](int32_t s) { return facts.source_active_now[s] && oscType(s) != OscType::SAMPLE; })
-			    || (voice->kernel.envelope(0).stage() != Envelope::Stage::FAST_RELEASE
-			        && !voice->kernel.do_fast_release(kSoftCullIncrement, AudioEngine::voiceClock()));
-
-			if (needs_unassign) {
-				if (voiceToReuse != nullptr) {
-					// already found a voice we can reuse, discard the rest
-					it = voicePool_.erase(it, modelStack);
-					continue; // `it` increment happened on the line above, immediately continue the loop
-				}
-				voice->kernel.unassign_sources(config_.voicing.unison.count, false);
-				voiceToReuse = voice;
-			}
-			it++;
-		}
-	}
-
-	if (config_.voicing.polyphony == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
-		changeVoiceNote(*voiceForLegato, *modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
-		                mpeSpan(mpeValues));
-	}
-	else if (voiceToReuse != nullptr) [[unlikely]] {
-		retriggerVoice(voiceToReuse, modelStack, noteCodePreArp, noteCodePostArp, velocity, mpeValues, sampleSyncLength,
-		               ticksLate, samplesLate, fromMIDIChannel);
-	}
-	else {
-		// A new voice. Built here, where no Sound's voicePool_ holds it: the render can neither render nor cull it, so
-		// no reference into voicePool_ is held across the note-on (a cull erasing or moving that slot mid-note-on is
-		// what fires E199).
-		SoundVoice* voice = voiceHost_.acquire();
-		if (voice == nullptr) {
-			// No memory for another voice: start this note as a new note on one of this Sound's own voices, as the
-			// voice limit's steal does. That voice is in voicePool_ and the render plays it, so all of it runs with the
-			// render excluded.
-			AudioExcludedSection section;
-			if (voicePool_.empty()) {
-				return; // nothing to take: the note cannot play
-			}
-			SoundVoice* stolen = this->stealOneActiveVoice();
-			reassessRenderSkippingStatus(modelStack);
-			randomizeVoicePhases(*stolen);
-			if (sideChainSendLevel != 0) [[unlikely]] {
-				AudioEngine::registerSideChainHit(sideChainSendLevel);
-			}
-			if (!deluge::bench::render_profile::timed_note_on([&] {
-				    return startVoiceNote(*stolen, *modelStack,
-				                          noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
-				                                      fromMIDIChannel, mpeValues),
-				                          sampleSyncLength, ticksLate);
-			    })) {
-				this->freeActiveVoice(stolen, modelStack);
-			}
-		}
-		else {
-			randomizeVoicePhases(*voice);
-			if (sideChainSendLevel != 0) [[unlikely]] {
-				AudioEngine::registerSideChainHit(sideChainSendLevel);
-			}
-			const uint32_t noteOnStart = deluge_cycle_count();
-			const bool started = deluge::bench::render_profile::timed_note_on([&] {
-				return startVoiceNote(*voice, *modelStack,
-				                      noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
-				                                  fromMIDIChannel, mpeValues),
-				                      sampleSyncLength, ticksLate);
-			});
-			const uint32_t noteOnCycles = deluge_cycle_count() - noteOnStart;
-			if (started) {
-				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
-				AudioExcludedSection section;
-				auto countsTowardLimit = [](const SoundVoice* v) { return !v->kernel.is_cull_fading(); };
-				if (std::ranges::count_if(voicePool_.list(), countsTowardLimit) >= config_.voicing.max_voices) {
-					// A voice for a voice, so the block's cost stays: a 128-sample (~2.9 ms) fade, as a faster one
-					// reads as a pop on sustained material when a low voice limit makes every note-on steal.
-					cull(deluge::synth::CullKind::FAST_RELEASE, kSoftCullIncrement);
-				}
-				else {
-					// The note-on's own cycles count only when it ran in the render, against the block it ran in;
-					// elsewhere the render may have preempted it, and its reading would hold whole blocks.
-					const uint32_t noteOn = deluge_in_audio_context() ? noteOnCycles : 0;
-					AudioEngine::admitVoice(predictedVoiceCycles() + noteOn);
-				}
-				voicePool_.publish(voice);
-				reassessRenderSkippingStatus(modelStack);
-			}
-			else {
-				// Never listed: the render never saw it. The note-on still runs to its end below (portamento's last
-				// note, MIDI out).
-				voiceHost_.release(*voice);
-			}
-		}
+	// The facts are read only by a non-polyphonic sound's walk over its voices
+	const deluge::synth::NoteFacts facts = config_.voicing.polyphony != PolyphonyMode::POLY && !voicePool_.empty()
+	                                           ? noteFacts(modelStack)
+	                                           : deluge::synth::NoteFacts{};
+	if (!voicePool_.note_on(
+	        config_, facts,
+	        noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true, fromMIDIChannel, mpeValues),
+	        sampleSyncLength, ticksLate, modelStack)) {
+		return; // no memory, and no voice of this sound's to take: the note cannot play
 	}
 
 	lastNoteCode = noteCodePostArp; // Store for porta. We store that at both note-on and note-off.
@@ -3096,37 +2967,12 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	return false;
 }
 
-void Sound::freeActiveVoice(SoundVoice* voice, ModelStackWithSoundFlags* modelStack) {
-	voicePool_.unassign(*voice, modelStack);
-	voicePool_.erase_if([voice](const SoundVoice* listed) { return listed == voice; });
-}
-
 void Sound::killAllVoices() {
 	AudioExcludedSection section; // the reverse flag and the voices change together: the render reads both
 	// Reset invertReversed flag so all voices get its reverse settings back to normal
 	invertReversed = false;
 
 	voicePool_.kill_all();
-}
-
-SoundVoice* Sound::getLowestPriorityVoice() const {
-	// By priority rating, not by pointer: an address order would depend on heap layout.
-	return *std::ranges::max_element(voicePool_.list(), [this](const SoundVoice* a, const SoundVoice* b) {
-		return voiceRating(*a) < voiceRating(*b);
-	});
-}
-
-SoundVoice* Sound::stealOneActiveVoice() {
-	if (voicePool_.empty()) {
-		FREEZE_WITH_ERROR("ENOV");
-	};
-	SoundVoice* voice = this->getLowestPriorityVoice();
-
-	/// Reconstruct the voice
-	voicePool_.unassign(*voice);
-	voiceHost_.renew(*voice);
-
-	return voice;
 }
 
 std::optional<uint32_t> Sound::cullRating(bool skipCullFading) const {

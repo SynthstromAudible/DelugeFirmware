@@ -18,12 +18,15 @@
 #pragma once
 
 #include "instruments/deluge/voice_pool.h"
+#include "instruments/deluge/words.h"
 #include "plugin-api/types/voice_priority.h"
 #include "synth/voice/voice_clock.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -34,12 +37,73 @@
 
 namespace deluge::instrument::test {
 
-/// @brief A kernel whose rating and cull fade are set, and that stops after a set number of releases.
+/// @brief The sound's config as the pool's note path reads it.
+struct FakeConfig {
+	struct {
+		PolyphonyMode polyphony{PolyphonyMode::POLY};
+		uint8_t max_voices{8};
+		plugin::VoicePriority priority{plugin::VoicePriority::MEDIUM};
+		struct {
+			int32_t count{1};
+		} unison;
+	} voicing;
+	struct Source {
+		OscType osc_type{OscType::SAMPLE};
+	};
+	std::array<Source, 2> sources{};
+};
+
+/// @brief A note-on as the pool hands it to the kernel.
+struct FakeEvent {
+	int32_t note_before_arp{};
+	int32_t note_after_arp{};
+	int32_t midi_channel{};
+	bool reset_envelopes{};
+	std::span<const int16_t, 3> mpe;
+};
+
+/// @brief The setup a fake host prepares: the note it was prepared for.
+struct FakeSetup {
+	int32_t note{};
+};
+
+/// @brief The noise the kernel draws from; only passed through.
+struct FakeNoise {};
+
+/// @brief A kernel whose rating, cull fade and release stage are set, that stops after a set number of releases, and
+/// that logs its note path calls into its host's log.
 struct FakeKernel {
 	uint32_t rating{};
 	bool fading{};
 	int32_t releases_to_stop{1}; ///< Each release counts one down; at 0 the voice has stopped
 	std::string last_release;    ///< The kind of the last release asked of it
+	bool in_release{};           ///< releasing()
+	bool in_fast_release{};      ///< fast_releasing()
+	bool starts{true};           ///< What note_on() returns
+	std::array<int32_t, 2> levels{};
+	std::vector<std::string>* log{}; ///< The host's log, set by acquire()
+
+	[[nodiscard]] bool releasing() const { return in_release; }
+	[[nodiscard]] bool fast_releasing() const { return in_fast_release; }
+	[[nodiscard]] std::array<int32_t, 2> envelope_levels() const { return levels; }
+	void resume_attack(const std::array<int32_t, 2>& from) {
+		note("resume " + std::to_string(from[0]) + " " + std::to_string(from[1]));
+	}
+	bool note_on(const FakeSetup& setup, const FakeConfig& /*config*/, const FakeEvent& event,
+	             synth::VoiceClock /*clock*/, size_t count, FakeNoise& /*noise*/) {
+		note("note_on " + std::to_string(setup.note) + " reset " + std::to_string(int{event.reset_envelopes})
+		     + " count " + std::to_string(count));
+		return starts;
+	}
+	void change_note(const FakeSetup& setup, const FakeConfig& /*config*/, int32_t before, int32_t after,
+	                 int32_t channel, std::span<const int16_t, 3> /*mpe*/) {
+		note("change " + std::to_string(setup.note) + " " + std::to_string(before) + " " + std::to_string(after)
+		     + " ch " + std::to_string(channel));
+	}
+	void randomize_osc_phases(const FakeConfig& /*config*/, FakeNoise& /*noise*/) { note("randomize"); }
+	void unassign_sources(int32_t num_unison, bool deleting_song) {
+		note("unassign_sources " + std::to_string(num_unison) + " " + std::to_string(int{deleting_song}));
+	}
 
 	[[nodiscard]] uint32_t priority_rating(plugin::VoicePriority /*priority*/, size_t /*count*/) const {
 		return rating;
@@ -56,6 +120,11 @@ private:
 		last_release = std::move(kind);
 		return --releases_to_stop > 0;
 	}
+	void note(std::string line) {
+		if (log != nullptr) {
+			log->push_back(std::move(line));
+		}
+	}
 };
 
 /// @brief A host that allocates slots from the heap and logs each call, with the voices it saw listed.
@@ -63,6 +132,9 @@ struct FakeHost {
 	using Slot = VoiceSlot<int, FakeKernel>; ///< The part is the voice's id
 	using List = std::vector<Slot*>;
 	using Context = int; ///< Logged with each unassign
+	using Config = FakeConfig;
+	using Event = FakeEvent;
+	using Noise = FakeNoise;
 
 	/// Counts exclusions taken and how deep they nest.
 	struct Exclusion {
@@ -81,9 +153,21 @@ struct FakeHost {
 	std::function<size_t()> listed; ///< How many voices the pool lists, logged with each call
 	uint32_t next_tick{};
 	int32_t next_id{};
+	bool acquire_fails{};     ///< acquire() answers null: no memory
+	bool starts{true};        ///< Each new voice's note_on() answer
+	int32_t prepared_depth{}; ///< The exclusion depth the last prepare() ran at
+	uint32_t next_order{};    ///< next_voice_order()'s counter
+	uint32_t cycle_count{};   ///< cycles() steps by 5 each call
+	FakeNoise noise_stream{}; ///< noise()
 
 	Slot* acquire() {
+		if (acquire_fails) {
+			log.push_back("acquire none");
+			return nullptr;
+		}
 		auto* slot = new Slot{.part = next_id++};
+		slot->kernel.log = &log;
+		slot->kernel.starts = starts;
 		log.push_back("acquire " + std::to_string(slot->part));
 		return slot;
 	}
@@ -96,9 +180,33 @@ struct FakeHost {
 	}
 	void admit(uint32_t cost) { log.push_back("admit " + std::to_string(cost)); }
 	void voice_starting() { log.push_back("starting"); }
-	void voices_changed() { log.push_back("changed"); }
+	void voices_changed(Context context) { log.push_back("changed ctx " + std::to_string(context)); }
 	void note_edit() { log.push_back("edit depth " + std::to_string(Exclusion::depth)); }
 	synth::VoiceClock clock() { return synth::VoiceClock{&next_tick}; }
+
+	FakeSetup prepare(Slot& slot, Context /*context*/, const FakeEvent& event, uint32_t /*length*/, int32_t /*late*/) {
+		prepared_depth = Exclusion::depth;
+		log.push_back("prepare " + std::to_string(slot.part) + " note " + std::to_string(event.note_after_arp));
+		return {.note = event.note_after_arp};
+	}
+	FakeSetup prepare_change(Slot& slot, Context /*context*/, int32_t note) {
+		log.push_back("prepare_change " + std::to_string(slot.part) + " note " + std::to_string(note));
+		return {.note = note};
+	}
+	void renew(Slot& slot) noexcept {
+		log.push_back(seen("renew", slot));
+		slot.kernel = FakeKernel{.log = &log};
+	}
+	uint32_t next_voice_order() { return next_order++; }
+	uint32_t cycles() { return cycle_count += 5; }
+	void note_started(Slot& slot) { log.push_back("started " + std::to_string(slot.part)); }
+	FakeNoise& noise() { return noise_stream; }
+	static uint32_t steal_increment() { return 128; }
+	template <class Fn>
+	bool timed(Fn&& fn) {
+		log.push_back("timed");
+		return std::forward<Fn>(fn)();
+	}
 
 private:
 	std::string seen(std::string_view what, const Slot& slot) const {

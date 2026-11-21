@@ -20,6 +20,8 @@
 /// (voice_setup.h) and hands it over, and the host the sound's voice pool draws on.
 
 #include "io/debug/log.h"
+#include "libdeluge/clock.h"
+#include "libdeluge/system.h"
 #include "memory/stack_guard.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -35,7 +37,6 @@
 #include <memory>
 #include <new>
 
-using deluge::synth::NoteOnEvent;
 using deluge::synth::SourceSlot;
 
 namespace params = deluge::modulation::params;
@@ -58,32 +59,6 @@ void Sound::bindVoice(SoundVoice& voice) {
 
 uint32_t Sound::voiceRating(const SoundVoice& voice) const {
 	return voice.kernel.priority_rating(config_.voicing.priority, numActiveVoices());
-}
-
-// Returns false if fail and we need to unassign again
-bool Sound::startVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, const NoteOnEvent& event,
-                           uint32_t sampleSyncLength, int32_t ticksLate) {
-	checkStack("Sound::startVoiceNote");
-	voice.order = lastSoundOrder++;
-
-	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
-	const deluge::synth::NoteSetup setup =
-	    note_setup_for(voice, *this, paramManager, flags, event.note_after_arp, sampleSyncLength, ticksLate, false);
-
-	// The samples' ports play this note's source through this voice's guides
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (getSynthMode() != SynthMode::FM && oscType(s) == OscType::SAMPLE && voice.part.guides[s].audioFileHolder) {
-			for (int32_t u = 0; u < config_.voicing.unison.count; u++) {
-				voice.part.ports(u, s).sample.bind(&config_.sources[s], &voice.part.guides[s]);
-			}
-		}
-	}
-
-	const bool started =
-	    voice.kernel.note_on(setup, config_, event, AudioEngine::voiceClock(), numActiveVoices(), deluge::synth_noise);
-	deluge::param_dump::note_on(this, &voice);
-	deluge::param_dump::plane(GLOBALITY_LOCAL, this, &voice, voice.kernel.param_final_values());
-	return started;
 }
 
 void Sound::changeVoiceNote(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t noteBeforeArp,
@@ -115,10 +90,6 @@ void Sound::releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramMa
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
-}
-
-void Sound::randomizeVoicePhases(SoundVoice& voice) {
-	voice.kernel.randomize_osc_phases(config_, deluge::synth_noise);
 }
 
 void Sound::voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s) {
@@ -277,8 +248,8 @@ void SoundVoiceHost::renew(SoundVoice& voice) const noexcept {
 	sound->bindVoice(voice);
 }
 
-void SoundVoiceHost::admit(uint32_t cycles) {
-	AudioEngine::admitVoice(cycles);
+void SoundVoiceHost::admit(uint32_t cycles) const {
+	AudioEngine::admitVoice(sound->predictedVoiceCycles() + (deluge_in_audio_context() ? cycles : 0));
 }
 
 void SoundVoiceHost::voice_starting() const {
@@ -287,8 +258,8 @@ void SoundVoiceHost::voice_starting() const {
 	}
 }
 
-void SoundVoiceHost::voices_changed() const {
-	sound->reassessRenderSkippingStatus(nullptr);
+void SoundVoiceHost::voices_changed(Context modelStack) const {
+	sound->reassessRenderSkippingStatus(modelStack);
 }
 
 void SoundVoiceHost::note_edit() {
@@ -297,4 +268,50 @@ void SoundVoiceHost::note_edit() {
 
 deluge::synth::VoiceClock SoundVoiceHost::clock() {
 	return AudioEngine::voiceClock();
+}
+
+deluge::synth::NoteSetup SoundVoiceHost::prepare(SoundVoice& voice, Context modelStack, const Event& event,
+                                                 uint32_t sampleSyncLength, int32_t ticksLate) const {
+	checkStack("SoundVoiceHost::prepare");
+	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
+	deluge::synth::NoteSetup setup = note_setup_for(voice, *sound, paramManager, *modelStack, event.note_after_arp,
+	                                                sampleSyncLength, ticksLate, false);
+
+	// The samples' ports play this note's source through this voice's guides
+	const deluge::synth::SoundConfig& config = sound->config();
+	for (int32_t s = 0; s < kNumSources; s++) {
+		if (sound->getSynthMode() != SynthMode::FM && sound->oscType(s) == OscType::SAMPLE
+		    && voice.part.guides[s].audioFileHolder) {
+			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
+				voice.part.ports(u, s).sample.bind(&config.sources[s], &voice.part.guides[s]);
+			}
+		}
+	}
+	return setup;
+}
+
+deluge::synth::NoteSetup SoundVoiceHost::prepare_change(SoundVoice& voice, Context modelStack, int32_t note) const {
+	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
+	return note_setup_for(voice, *sound, paramManager, *modelStack, note, 0, 0, true);
+}
+
+uint32_t SoundVoiceHost::next_voice_order() {
+	return lastSoundOrder++;
+}
+
+uint32_t SoundVoiceHost::cycles() {
+	return deluge_cycle_count();
+}
+
+void SoundVoiceHost::note_started(SoundVoice& voice) const {
+	deluge::param_dump::note_on(sound, &voice);
+	deluge::param_dump::plane(GLOBALITY_LOCAL, sound, &voice, voice.kernel.param_final_values());
+}
+
+SoundVoiceHost::Noise& SoundVoiceHost::noise() {
+	return deluge::synth_noise;
+}
+
+uint32_t SoundVoiceHost::steal_increment() {
+	return kSoftCullIncrement;
 }

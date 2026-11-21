@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "instruments/deluge/words.h"
 #include "plugin-api/types/voice_priority.h"
 #include "synth/voice/voice_host.h"
 
@@ -24,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ranges>
 #include <utility>
 
 /// @file
@@ -202,20 +204,187 @@ public:
 			break;
 		}
 		if (!going) {
-			host_->unassign(slot, Context{});
-			erase_if([&](const Slot* listed) { return listed == &slot; });
+			free(slot, Context{});
 		}
 	}
 
+	/// @brief A note-on's voice half: a MONO or LEGATO sound's reuse or glide of a voice it plays, else a new voice,
+	///        the voice limit's steal and the budget's admit; with no memory, one of the sound's own voices restarted.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param facts What the note reads of the sound; read only when the sound is not POLY and has voices.
+	/// @param event The note, handed to the kernel; its envelope reset is set here.
+	/// @param sample_sync_length A time-stretched sample's sync length.
+	/// @param ticks_late How late the note starts, in ticks.
+	/// @param context What the host reassesses and frees with.
+	/// @return False when the note cannot sound at all (no memory, and no voice of the sound's to take).
+	template <class Config>
+	requires synth::note_host<H>
+	bool note_on(const Config& config, const synth::NoteFacts& facts, H::Event event, uint32_t sample_sync_length,
+	             int32_t ticks_late, Context context) {
+		const bool poly = config.voicing.polyphony == PolyphonyMode::POLY;
+		std::optional<Exclusion> non_poly; // reuse and glide act on voices the render plays
+		if (!poly) {
+			non_poly.emplace();
+		}
+		const Found found = poly || voices_.empty() ? Found{} : find_reusable(config, facts, context);
+		if (config.voicing.polyphony == PolyphonyMode::LEGATO && found.legato != nullptr) {
+			found.legato->kernel.change_note(host_->prepare_change(*found.legato, context, event.note_after_arp),
+			                                 config, event.note_before_arp, event.note_after_arp, event.midi_channel,
+			                                 event.mpe);
+			return true;
+		}
+		if (found.reuse != nullptr) {
+			event.reset_envelopes = false;
+			retrigger(*found.reuse, config, event, sample_sync_length, ticks_late, context);
+			return true;
+		}
+		event.reset_envelopes = true;
+		Slot* voice = host_->acquire();
+		if (voice == nullptr) {
+			return restart_highest(config, event, sample_sync_length, ticks_late, context);
+		}
+		start_new(*voice, config, event, sample_sync_length, ticks_late, context);
+		return true;
+	}
+
 private:
+	/// @brief What a non-POLY note-on's walk found: a voice to re-trigger, or a voice to glide.
+	struct Found {
+		Slot* reuse{};  ///< A voice whose sources were unassigned, to re-trigger
+		Slot* legato{}; ///< A voice not releasing, for a LEGATO sound to glide
+	};
+
+	/// @brief A non-POLY note-on's walk: the first voice to glide, else the first to unassign and reuse, the rest of
+	///        those freed.
+	template <class Config>
+	Found find_reusable(const Config& config, const synth::NoteFacts& facts, Context context) {
+		Found found;
+		for (auto it = voices_.begin(); it != voices_.end();) {
+			Slot& voice = **it;
+			if (config.voicing.polyphony != PolyphonyMode::MONO && !voice.kernel.releasing()
+			    && facts.note_tails_allowed) {
+				found.legato = &voice;
+				break;
+			}
+			if (!needs_unassign(voice, config, facts)) {
+				++it;
+				continue;
+			}
+			if (found.reuse != nullptr) {
+				it = erase(it, context); // already found a voice to reuse: discard the rest
+				continue;
+			}
+			voice.kernel.unassign_sources(config.voicing.unison.count, false);
+			found.reuse = &voice;
+			++it;
+		}
+		return found;
+	}
+
+	/// @brief Whether a non-POLY note-on takes @p voice over: FM, or an active source that is not a sample, or still
+	///        sounding after a fast release (asked only when neither, and only of a voice not already in one).
+	template <class Config>
+	bool needs_unassign(Slot& voice, const Config& config, const synth::NoteFacts& facts) {
+		const auto plays_non_sample = [&](size_t s) {
+			return facts.source_active_now[s] && config.sources[s].osc_type != OscType::SAMPLE;
+		};
+		return facts.fm
+		       || std::ranges::any_of(std::views::iota(size_t{0}, facts.source_active_now.size()), plays_non_sample)
+		       || (!voice.kernel.fast_releasing()
+		           && !voice.kernel.do_fast_release(host_->steal_increment(), host_->clock()));
+	}
+
+	/// @brief Re-triggers @p voice, whose envelopes resume from where they are; a failed note frees it.
+	template <class Config>
+	void retrigger(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
+	               int32_t ticks_late, Context context) {
+		const auto levels = voice.kernel.envelope_levels();
+		host_->voice_starting();
+		if (start(voice, config, event, sample_sync_length, ticks_late, context)) {
+			voice.kernel.resume_attack(levels);
+		}
+		else {
+			free(voice, context);
+		}
+	}
+
+	/// @brief With no memory for a new voice, starts the note on the sound's highest voice, rebuilt in place.
+	/// @return False when the sound has no voice to take.
+	template <class Config>
+	bool restart_highest(const Config& config, const H::Event& event, uint32_t sample_sync_length, int32_t ticks_late,
+	                     Context context) {
+		const Exclusion excluded; // the steal plays a voice the render plays
+		if (voices_.empty()) {
+			return false;
+		}
+		Slot& stolen = *highest(config.voicing.priority, false);
+		host_->unassign(stolen, Context{});
+		host_->renew(stolen);
+		host_->voices_changed(context);
+		stolen.kernel.randomize_osc_phases(config, host_->noise());
+		host_->voice_starting();
+		if (!start(stolen, config, event, sample_sync_length, ticks_late, context)) {
+			free(stolen, context);
+		}
+		return true;
+	}
+
+	/// @brief Starts the note on @p voice, new and not listed, then lists it: past the voice limit with the highest
+	///        voice fast-released, else admitted at its cost; a failed note releases it unlisted.
+	template <class Config>
+	void start_new(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
+	               int32_t ticks_late, Context context) {
+		voice.kernel.randomize_osc_phases(config, host_->noise());
+		host_->voice_starting();
+		const uint32_t began = host_->cycles();
+		const bool started = start(voice, config, event, sample_sync_length, ticks_late, context);
+		const uint32_t spent = host_->cycles() - began;
+		if (!started) {
+			host_->release(voice); // never listed: the render never saw it
+			return;
+		}
+		const Exclusion excluded; // the limit, the push and the skipping status in one step the render cannot split
+		const auto counts = [](const Slot* listed) { return !listed->kernel.is_cull_fading(); };
+		if (std::ranges::count_if(voices_, counts) >= config.voicing.max_voices) {
+			// A voice for a voice, so the block's cost stays
+			cull(config.voicing.priority, synth::CullKind::FAST_RELEASE, host_->steal_increment());
+		}
+		else {
+			host_->admit(spent);
+		}
+		publish(&voice);
+		host_->voices_changed(context);
+	}
+
+	/// @brief The kernel's note-on on @p voice inside the host's bracket: its order, its setup, the note-on, the dump.
+	/// @return Whether the note started.
+	template <class Config>
+	bool start(Slot& voice, const Config& config, const H::Event& event, uint32_t sample_sync_length,
+	           int32_t ticks_late, Context context) {
+		return host_->timed([&] {
+			voice.order = host_->next_voice_order();
+			const auto setup = host_->prepare(voice, context, event, sample_sync_length, ticks_late);
+			const bool started =
+			    voice.kernel.note_on(setup, config, event, host_->clock(), voices_.size(), host_->noise());
+			host_->note_started(voice);
+			return started;
+		});
+	}
+
+	/// @brief Frees @p voice as the cull does: its resources, then its slot while it is still listed.
+	void free(Slot& voice, Context context) {
+		host_->unassign(voice, context);
+		erase_if([&](const Slot* listed) { return listed == &voice; });
+	}
+
 	/// @brief The first voice of the highest rating, by a strict comparison, as the host's cull compares.
 	/// @param priority The sound's voice priority.
 	/// @param skip_cull_fading Leaves out voices already fading at the cull rate.
 	/// @return The voice, or null when none qualifies.
-	[[nodiscard]] const Slot* highest(plugin::VoicePriority priority, bool skip_cull_fading) const {
-		const Slot* best = nullptr;
+	[[nodiscard]] Slot* highest(plugin::VoicePriority priority, bool skip_cull_fading) const {
+		Slot* best = nullptr;
 		uint32_t best_rating = 0;
-		for (const Slot* slot : voices_) {
+		for (Slot* slot : voices_) {
 			if (skip_cull_fading && slot->kernel.is_cull_fading()) {
 				continue;
 			}

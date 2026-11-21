@@ -44,7 +44,7 @@ struct MinimalHost {
 	void release(Slot& /*slot*/) noexcept {}
 	void admit(uint32_t /*cost*/) {}
 	void voice_starting() {}
-	void voices_changed() {}
+	void voices_changed(Context /*context*/) {}
 	void note_edit() {}
 	VoiceClock clock() { return VoiceClock{&next}; }
 };
