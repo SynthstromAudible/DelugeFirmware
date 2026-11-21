@@ -56,6 +56,14 @@ enum class FlashCursor : uint8_t {
 	SLOW = 2, ///< the factory default: the playhead's pixel is substituted in the rendered image
 };
 
+/// @brief What the screensaver shows: the `ui/screensaver/mode` row.
+enum class ScreensaverMode : uint8_t {
+	OFF = 0,       ///< nothing: the screensaver never starts
+	BLANK = 1,     ///< a blank screen
+	STARSCAPE = 2, ///< the starfield
+	DELUGE = 3,    ///< the falling rain, and the default
+};
+
 /// @brief Which favourites a browser shows beside its files: the `ui/favouritesLayout` row.
 enum class FavouritesLayout : uint8_t {
 	FAVOURITES = 0,           ///< the favourites row alone, and the default

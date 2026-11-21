@@ -105,7 +105,7 @@ constexpr std::array<std::string_view, 3> kGridModeWords = stored_words<"selecti
 /// The layouts a new keyboard view's pads may take: the three a menu offers of the device's seven. A layout past them
 /// reads clamped to the last.
 constexpr std::array<std::string_view, 3> kKeyboardLayoutWords = stored_words<"isomorphic", "inKey", "piano">;
-/// What the screensaver may show.
+/// What the screensaver may show, in ScreensaverMode's order.
 constexpr std::array<std::string_view, 4> kScreensaverWords = stored_words<"off", "blank", "starscape", "deluge">;
 /// When the sample browser may preview a sample.
 constexpr std::array<std::string_view, 3> kSamplePreviewWords = stored_words<"off", "conditional", "on">;
@@ -252,7 +252,7 @@ constexpr std::array kPadsAndScreenRows{
                          .stored_min = 0,
                          .stored_max = kBrightestPadLevel},
                 .default_value = kBrightestPadLevel},
-    choice(device_path::kScreensaverMode, kScreensaverWords, 3),
+    choice(device_path::kScreensaverMode, kScreensaverWords, std::to_underlying(ScreensaverMode::DELUGE)),
     integer(device_path::kScreensaverTimeout, 1, 60, 5),
     choice(device_path::kSamplePreview, kSamplePreviewWords, 1),
 };

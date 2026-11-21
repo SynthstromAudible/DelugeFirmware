@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace deluge::project;
@@ -86,6 +87,30 @@ describe device_settings("the DEVICE setting group", ${
 			if (row != nullptr) {
 				expect(row->kind).to_equal(want.kind);
 				expect(row->default_value).to_equal(want.default_value);
+			}
+		}
+	});
+
+	it("offers the screensaver's modes in ScreensaverMode's order, and defaults to the Deluge's", _ {
+		using Mode = deluge::project::ScreensaverMode;
+		const SettingInfo* row = deluge::plugin::find_setting(device_table(), device_path::kScreensaverMode);
+		expect(row).not_().to_be_null();
+		if (row == nullptr) {
+			return;
+		}
+		expect(row->kind).to_equal(SettingKind::CHOICE);
+		expect(row->default_value).to_equal(static_cast<int32_t>(std::to_underlying(Mode::DELUGE)));
+		struct Choice {
+			Mode mode;
+			std::string_view word;
+		};
+		const Choice choices[] = {
+		    {Mode::OFF, "off"}, {Mode::BLANK, "blank"}, {Mode::STARSCAPE, "starscape"}, {Mode::DELUGE, "deluge"}};
+		expect(row->choices.size()).to_equal(std::size(choices));
+		for (const Choice& want : choices) {
+			const size_t index = std::to_underlying(want.mode);
+			if (index < row->choices.size()) {
+				expect(std::string{row->choices[index]}).to_equal(std::string{want.word});
 			}
 		}
 	});
