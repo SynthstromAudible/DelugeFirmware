@@ -41,17 +41,19 @@ size_t sequence_direction_names(const MenuContext& ctx, std::span<std::string_vi
 	// (obey-parent), shows only when an individual note row was resolved.
 	const deluge::l10n::SettingNames* names =
 	    deluge::l10n::setting_names(deluge::project::SettingGroupId::NOTE_ROW, "sequenceDirection");
+	// The row is in the table (`note_roots_spec` asserts it, four choices), so a null answer is a missing row and
+	// the item lists nothing.
 	if (names == nullptr) {
 		return 0;
 	}
 	constexpr size_t kClipChoices = 3;
 	size_t n = 0;
-	for (size_t i = 0; i < kClipChoices && i < names->choices.size() && n < out.size(); ++i) {
+	for (size_t i = 0; i < kClipChoices && n < out.size(); ++i) {
 		out[n++] = deluge::scenes::text_lookup(sid(names->choices[i]));
 	}
 	bool from_note_row = false;
 	(void)bindings::read_sequence_direction(ctx, &from_note_row);
-	if (from_note_row && names->choices.size() > kClipChoices && n < out.size()) {
+	if (from_note_row && n < out.size()) {
 		out[n++] = deluge::scenes::text_lookup(sid(names->choices[kClipChoices]));
 	}
 	return n;
