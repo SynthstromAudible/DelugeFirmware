@@ -403,6 +403,51 @@ describe voice_pool("a sound's voices", ${
 		arp.pool.note_off(config(PolyphonyMode::MONO), arpeggiating, 60, false, held(), kContext);
 		expect(arp.host.log).to_equal(Log{"prepare_release 0", "note_off tails 1 stage 1", "released 0"});
 	});
+
+	it("renders a voice only after its first call, which marks it created, reading the sources once per voice", _{
+		Rig rig({5});
+		const auto render = [&] {
+			return rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{}, FakeArgs{}, kContext);
+		};
+		expect(render()).to_equal(uint32_t{0});
+		expect(rig.host.log).to_equal(Log{"sources 0", "timed_voice 0", "edit depth 1"});
+		rig.host.log.clear();
+		expect(render()).to_equal(uint32_t{1});
+		expect(rig.host.log).to_equal(
+		    Log{"sources 1", "timed_voice 1", "voice_block 0", "render sources 1", "rendered 0", "edit depth 1"});
+	});
+
+	it("takes a note-off a created voice ignored once note tails are allowed, before its render", _{
+		Rig rig({5, 6});
+		rig.pool.for_each([](FakeHost::Slot& slot) {
+			slot.just_created = true;
+			slot.kernel.ignored_note_off = slot.part == 0;
+		});
+		rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{}, FakeArgs{}, kContext);
+		expect(rig.host.log.front()).to_equal(std::string{"sources 0"});
+		rig.host.log.clear();
+		rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{.note_tails_allowed = true}, FakeArgs{},
+		                kContext);
+		expect(rig.host.log).to_equal(Log{"prepare_release 0", "note_off tails 1 stage 1", "released 0", "sources 2",
+		                                  "timed_voice 1", "voice_block 0", "render sources 2", "rendered 0",
+		                                  "sources 3", "timed_voice 1", "voice_block 1", "render sources 3",
+		                                  "rendered 1", "edit depth 1"});
+	});
+
+	it("unassigns a voice that ends while it is listed, and sweeps it after every voice has rendered", _{
+		Rig rig({5, 6});
+		rig.pool.for_each([](FakeHost::Slot& slot) {
+			slot.just_created = true;
+			slot.kernel.keeps = slot.part != 0;
+		});
+		expect(rig.pool.render(FakeControl{}, config(PolyphonyMode::POLY), FakeValues{}, FakeArgs{}, kContext))
+		    .to_equal(uint32_t{2});
+		expect(rig.host.log).to_equal(Log{"sources 0", "timed_voice 1", "voice_block 0", "render sources 0",
+		                                  "rendered 0", "unassign 0 listed 2 ctx 7", "sources 1", "timed_voice 1",
+		                                  "voice_block 1", "render sources 1", "rendered 1", "edit depth 1",
+		                                  "release 0 listed 2"});
+		expect(rig.ids()).to_equal(std::vector<int32_t>{1});
+	});
 });
 // clang-format on
 

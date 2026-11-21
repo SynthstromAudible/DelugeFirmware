@@ -84,28 +84,9 @@ void Sound::voiceReleased() {
 	}
 }
 
-void Sound::releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed) {
-	voice.kernel.note_off(prepareVoiceRelease(voice, paramManager, noteTailsAllowed), true, AudioEngine::voiceClock());
-	voiceReleased();
-}
-
 void Sound::voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s) {
 	voice.kernel.expression_event_immediate(monophonicExpressionValues[s - util::to_underlying(PatchSource::X)],
 	                                        voiceLevelValue, s);
-}
-
-bool Sound::renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
-                        const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
-                        const deluge::synth::VoiceRenderArgs& args) {
-	if (!voice.just_created) {
-		voice.just_created = true;
-		return true;
-	}
-	checkStack("Sound::renderVoice");
-	const bool keep = voice.kernel.render(controlBlock, config, cfg, voiceBlock(voice), args);
-	deluge::param_dump::plane(GLOBALITY_LOCAL, this, &voice, voice.kernel.param_final_values());
-	dumpVoiceSources(voice, controlBlock, config, cfg);
-	return keep;
 }
 
 void Sound::dumpVoiceSources(const SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
@@ -156,7 +137,6 @@ deluge::synth::VoiceBlock Sound::voiceBlock(const SoundVoice& voice) const {
 // Unusually, modelStack may be null: unassigning every voice on a song swap has none.
 void Sound::unassignVoice(SoundVoice& voice, ModelStackWithSoundFlags* modelStack) {
 	voice.kernel.unassign_sources(config_.voicing.unison.count, false);
-	voice.unassigned = true;
 	voiceUnassigned(modelStack);
 }
 
@@ -326,3 +306,28 @@ void SoundVoiceHost::note_released(SoundVoice& /*voice*/) const {
 void SoundVoiceHost::last_note(int32_t note) const {
 	sound->lastNoteCode = note;
 }
+
+deluge::synth::VoiceBlock SoundVoiceHost::voice_block(SoundVoice& voice) const {
+	return sound->voiceBlock(voice);
+}
+
+uint32_t SoundVoiceHost::sources_changed() const {
+	return sound->sourcesChanged.load(std::memory_order_acquire);
+}
+
+void SoundVoiceHost::voice_rendered(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+                                    const deluge::synth::SoundConfig& config,
+                                    const deluge::synth::BlockValues& values) const {
+	deluge::param_dump::plane(GLOBALITY_LOCAL, sound, &voice, voice.kernel.param_final_values());
+	sound->dumpVoiceSources(voice, controlBlock, config, values);
+}
+
+#if defined(DELUGE_STREAM_BENCH)
+void SoundVoiceHost::countVoice(uint32_t cycles, bool renders) const {
+	const auto kind = static_cast<size_t>(sound->voiceKind());
+	deluge::bench::render_profile::g_totals.voice_render += cycles;
+	++deluge::bench::render_profile::g_totals.voice_blocks;
+	deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += cycles;
+	deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += renders ? benchFrames : 0;
+}
+#endif

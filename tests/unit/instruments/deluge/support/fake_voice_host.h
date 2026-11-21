@@ -70,6 +70,22 @@ struct FakeSetup {
 /// @brief The noise the kernel draws from; only passed through.
 struct FakeNoise {};
 
+/// @brief The block values the pool's render reads.
+struct FakeValues {
+	bool note_tails_allowed{};
+};
+
+/// @brief The render arguments the pool hands each voice.
+struct FakeArgs {
+	uint32_t sources_changed{};
+};
+
+/// @brief The matrix block the pool passes through.
+struct FakeControl {};
+
+/// @brief What a fake host builds for one voice's render.
+struct FakeVoiceBlock {};
+
 /// @brief The release a fake host prepares: whether note tails were allowed.
 struct FakeRelease {
 	bool tails{};
@@ -87,9 +103,17 @@ struct FakeKernel {
 	bool starts{true};           ///< What note_on() returns
 	std::array<int32_t, 2> levels{};
 	int32_t note{};                  ///< note_code()
+	bool ignored_note_off{};         ///< previously_ignored_note_off()
+	bool keeps{true};                ///< What render() returns
 	std::vector<std::string>* log{}; ///< The host's log, set by acquire()
 
 	[[nodiscard]] int32_t note_code() const { return note; }
+	[[nodiscard]] bool previously_ignored_note_off() const { return ignored_note_off; }
+	bool render(const FakeControl& /*control*/, const FakeConfig& /*config*/, const FakeValues& /*values*/,
+	            const FakeVoiceBlock& /*block*/, const FakeArgs& args) {
+		logged("render sources " + std::to_string(args.sources_changed));
+		return keeps;
+	}
 	[[nodiscard]] bool releasing() const { return in_release; }
 	void note_off(const FakeRelease& release, bool allow_release_stage, synth::VoiceClock /*clock*/) {
 		logged("note_off tails " + std::to_string(int{release.tails}) + " stage "
@@ -168,6 +192,7 @@ struct FakeHost {
 	bool starts{true};        ///< Each new voice's note_on() answer
 	int32_t prepared_depth{}; ///< The exclusion depth the last prepare() ran at
 	int32_t released_depth{}; ///< The exclusion depth the last prepare_release() ran at
+	uint32_t next_sources{};  ///< sources_changed()'s counter
 	uint32_t next_order{};    ///< next_voice_order()'s counter
 	uint32_t cycle_count{};   ///< cycles() steps by 5 each call
 	FakeNoise noise_stream{}; ///< noise()
@@ -227,6 +252,23 @@ struct FakeHost {
 	}
 	void note_released(Slot& slot) { log.push_back("released " + std::to_string(slot.part)); }
 	void last_note(int32_t note) { log.push_back("last_note " + std::to_string(note)); }
+	FakeVoiceBlock voice_block(Slot& slot) {
+		log.push_back("voice_block " + std::to_string(slot.part));
+		return {};
+	}
+	uint32_t sources_changed() {
+		log.push_back("sources " + std::to_string(next_sources));
+		return next_sources++;
+	}
+	void voice_rendered(Slot& slot, const FakeControl& /*control*/, const FakeConfig& /*config*/,
+	                    const FakeValues& /*values*/) {
+		log.push_back("rendered " + std::to_string(slot.part));
+	}
+	template <class Fn>
+	bool timed_voice(Fn&& fn, bool renders) {
+		log.push_back("timed_voice " + std::to_string(int{renders}));
+		return std::forward<Fn>(fn)();
+	}
 	template <class Fn>
 	bool timed(Fn&& fn) {
 		log.push_back("timed");

@@ -1821,53 +1821,24 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		const deluge::synth::matrix::MatrixBlock controlBlock = matrixBlock(*paramManager, PresetGather::ROUTED);
 
 #if defined(DELUGE_STREAM_BENCH)
-		const auto kind = static_cast<size_t>(voiceKind());
+		voiceHost_.benchFrames = sound_mono.size();
 #endif
 		const uint32_t voicesStart = deluge_cycle_count();
-		uint32_t voicesRendered = 0;
-		for (auto it = voicePool_.list().begin(); it != voicePool_.list().end();) {
-			SoundVoice* voice = *it;
-
-			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
-			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previously_ignored_note_off() && blockValues.note_tails_allowed) {
-				releaseVoiceNote(*voice, paramManager, blockValues.note_tails_allowed);
-			}
-			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
-#if defined(DELUGE_STREAM_BENCH)
-			const uint32_t t0 = deluge::bench::render_profile::cycles();
-#endif
-			// A voice's first render call (just_created not yet set) only marks it created and renders nothing: only
-			// the calls after it count toward the voices' cost.
-			const bool renders = voice->just_created;
-			voicesRendered += renders ? 1 : 0;
-			bool stillGoing = renderVoice(*voice, controlBlock, config_, blockValues,
-			                              {
-			                                  .buffer = sound_mono.data(),
-			                                  .num_samples = static_cast<int32_t>(sound_mono.size()),
-			                                  .sound_in_stereo = voice_rendered_in_stereo,
-			                                  .pan_at_voice_level = applyingPanAtVoiceLevel,
-			                                  .sources_changed = voiceSourcesChanged,
-			                                  .pitch_adjust = pitchAdjust,
-			                                  .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
-			                                                    spareRenderingBuffer[2], spareRenderingBuffer[3]},
-			                                  .filter_scratch = deluge::render::filter_scratch(),
-			                                  .sync_scratch = deluge::render::osc_sync_scratch(),
-			                                  .noise = &deluge::synth_noise,
-			                              });
-#if defined(DELUGE_STREAM_BENCH)
-			const uint32_t voiceCycles = deluge::bench::render_profile::cycles() - t0;
-			deluge::bench::render_profile::g_totals.voice_render += voiceCycles;
-			++deluge::bench::render_profile::g_totals.voice_blocks;
-			deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += voiceCycles;
-			deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += renders ? sound_mono.size() : 0;
-#endif
-			if (!stillGoing) {
-				voicePool_.unassign(*voice, modelStackWithSoundFlags);
-			}
-			++it;
-		}
-		voicePool_.erase_if([](const SoundVoice* voice) { return voice->unassigned; });
+		const uint32_t voicesRendered =
+		    voicePool_.render(controlBlock, config_, blockValues,
+		                      deluge::synth::VoiceRenderArgs{
+		                          .buffer = sound_mono.data(),
+		                          .num_samples = static_cast<int32_t>(sound_mono.size()),
+		                          .sound_in_stereo = voice_rendered_in_stereo,
+		                          .pan_at_voice_level = applyingPanAtVoiceLevel,
+		                          .pitch_adjust = pitchAdjust,
+		                          .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
+		                                            spareRenderingBuffer[2], spareRenderingBuffer[3]},
+		                          .filter_scratch = deluge::render::filter_scratch(),
+		                          .sync_scratch = deluge::render::osc_sync_scratch(),
+		                          .noise = &deluge::synth_noise,
+		                      },
+		                      modelStackWithSoundFlags);
 		voiceCost_.add_render(deluge_cycle_count() - voicesStart,
 		                      voicesRendered * static_cast<uint32_t>(sound_mono.size()));
 

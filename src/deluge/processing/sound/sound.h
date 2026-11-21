@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
+#include "memory/stack_guard.h"
 #include "model/fx/channel_setup.h"
 #include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
@@ -190,6 +191,36 @@ struct SoundVoiceHost {
 	void note_released(SoundVoice& voice) const;
 	/// @brief A LEGATO fall-back's note, which the next glide starts from.
 	void last_note(int32_t note) const;
+	// --- The render (synth::render_host)
+	/// @brief What differs between the sound's voices for @p voice's render.
+	[[nodiscard]] deluge::synth::VoiceBlock voice_block(SoundVoice& voice) const;
+	/// @brief The patch sources whose values changed since the last block, read once per voice.
+	[[nodiscard]] uint32_t sources_changed() const;
+	/// @brief After @p voice's render: the parameter dump's plane and sources.
+	void voice_rendered(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                    const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& values) const;
+	/// @brief Runs @p fn, one voice's render answering whether the voice goes on, inside the stream bench's voice
+	/// counters; a voice that @p renders (past its first call) checks the stack first.
+	template <class Fn>
+	bool timed_voice(Fn&& fn, bool renders) const {
+#if defined(DELUGE_STREAM_BENCH)
+		const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
+		if (renders) {
+			checkStack("SoundVoiceHost::timed_voice");
+		}
+		const bool going = std::forward<Fn>(fn)();
+#if defined(DELUGE_STREAM_BENCH)
+		countVoice(deluge::bench::render_profile::cycles() - t0, renders);
+#endif
+		return going;
+	}
+#if defined(DELUGE_STREAM_BENCH)
+	uint32_t benchFrames{}; ///< The block's frames, for the bench's per-kind frame count
+	/// @brief Adds one voice's render, of @p cycles, to the stream bench's totals.
+	void countVoice(uint32_t cycles, bool renders) const;
+#endif
+
 	/// @brief Runs @p fn, a note-on answering whether it started, inside the stream bench's note-on bracket.
 	template <class Fn>
 	static bool timed(Fn&& fn) {
@@ -591,16 +622,9 @@ private:
 	prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
 	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
 	void voiceReleased();
-	/// @brief Releases @p voice's note.
-	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
 	/// @brief Source @p s's sample zone moved under @p voice's note.
 	/// @return False if the voice must be unassigned now.
 	bool voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
-	/// @brief Renders one block of @p voice.
-	/// @return False once it has ended and must be unassigned.
-	bool renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
-	                 const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
-	                 const deluge::synth::VoiceRenderArgs& args);
 	/// @brief What differs between this sound's voices for @p voice's render.
 	[[nodiscard]] deluge::synth::VoiceBlock voiceBlock(const SoundVoice& voice) const;
 	/// @brief @p voice's sources as this block left them, to the parameter dump (a host render's only).

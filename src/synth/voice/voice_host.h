@@ -114,4 +114,17 @@ concept note_host = requires(H& host, H::Slot& slot, H::Context context, const H
 	{ host.last_note(note) };
 };
 
+/// @brief What a host gives the pool's render besides note_host: each voice's per-block inputs and what follows its
+/// render. voice_block() builds what differs between the sound's voices; sources_changed() is loaded once per voice;
+/// timed_voice() runs one voice's render inside the host's bench counters, told whether it renders. The pool also
+/// calls voice_rendered(slot, control, config, values) after a voice's render (the parameter dump); its argument types
+/// are the render's own, so the concept cannot name it and the call checks it.
+template <class H>
+concept render_host = requires(H& host, H::Slot& slot, bool renders, bool (*render)()) {
+	requires note_host<H>;
+	{ host.voice_block(slot) };
+	{ host.sources_changed() } -> std::same_as<uint32_t>;
+	{ host.timed_voice(render, renders) } -> std::same_as<bool>;
+};
+
 } // namespace deluge::synth
