@@ -17,10 +17,10 @@ namespace deluge::scenes::spec {
 /// where there is no record.
 /// @param slot The slot.
 /// @return The ranges.
-inline std::vector<instrument::RangeState> first_ranges(project::SlotAddress slot) {
+inline std::vector<deluge::synth::SourceRange> first_ranges(project::SlotAddress slot) {
 	const instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
 	return state != nullptr ? instrument::source_ranges(*state, instrument::SourceId::A)
-	                        : std::vector<instrument::RangeState>{};
+	                        : std::vector<deluge::synth::SourceRange>{};
 }
 
 } // namespace deluge::scenes::spec

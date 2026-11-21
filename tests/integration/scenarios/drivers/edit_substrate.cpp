@@ -687,15 +687,15 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting sample{*slot, "osc1/type", Value::makeScalar("sample")};
 	check(deluge::edits::apply(ctx, sample) == Error::NONE, "ranges: osc1 plays samples");
 	sound.getOrCreateFirstRange(0);
-	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
+	std::vector<deluge::synth::SourceRange> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	check(ranges.size() == 1, "ranges: one range");
 	if (ranges.size() != 1) {
 		return;
 	}
 
-	ranges[0].start_pos = 100;
-	ranges[0].end_pos = 900;
-	ranges[0].transpose = 5;
+	ranges[0].zone.start = 100;
+	ranges[0].zone.end = 900;
+	ranges[0].tuning.transpose = 5;
 	deluge::edits::SetSourceRanges zone{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, zone) == Error::NONE, "ranges: an in-place zone is applied");
 	auto* holder = &static_cast<MultisampleRange*>(sound.sourceResources[0].ranges.getElement(0))->sampleHolder;
@@ -721,12 +721,12 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	      "ranges: a refused list leaves the runtime's file");
 	auto longer = ranges;
 	longer.insert(longer.begin(),
-	              {deluge::instrument::RangeState{.top_note = 30}, deluge::instrument::RangeState{.top_note = 40}});
+	              {deluge::synth::SourceRange{.top_note = 30}, deluge::synth::SourceRange{.top_note = 40}});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: two ranges more at once is refused");
 	// A range added above the open top note, but below it in pitch: out of order, refused before the runtime takes it
 	auto unordered = ranges;
-	unordered.push_back(deluge::instrument::RangeState{.top_note = 40, .end_pos = deluge::instrument::kUnsetEndPos});
+	unordered.push_back(deluge::synth::SourceRange{.top_note = 40, .zone = {.end = deluge::instrument::kUnsetEndPos}});
 	const auto heldBefore = std::ssize(sound.sourceResources[0].ranges);
 	deluge::edits::SetSourceRanges insertOutOfOrder{*slot, 0, unordered};
 	check(deluge::edits::apply(ctx, insertOutOfOrder) != Error::NONE
@@ -747,7 +747,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	}
 	deluge::edits::recordRanges(sound, 0);
 	ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
-	ranges[2].end_pos = 700;
+	ranges[2].zone.end = 700;
 	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, legacy) == Error::NONE, "ranges: a change beside a duplicate top note is taken");
 	ranges[0].top_note = 70;
@@ -758,7 +758,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting saw{*slot, "osc1/type", Value::makeScalar("saw")};
 	check(deluge::edits::apply(ctx, saw) == Error::NONE, "ranges: osc1 becomes a saw");
 	ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
-	ranges[2].start_pos = 123;
+	ranges[2].zone.start = 123;
 	deluge::edits::SetSourceRanges hidden{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, hidden) == Error::NONE
 	          && static_cast<MultisampleRange*>(sound.sourceResources[0].ranges.getElement(2))->sampleHolder.startPos
@@ -817,7 +817,7 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	(void)sound.getOrCreateFirstRange(0); // a range the runtime holds and the record has recorded
 	deluge::instrument::sound_effects(*sound.state_).compressor.threshold = 12345; // the sound's effects come with it
 	// A square oscillator keeps its range for a switch back: the recall holds it
-	const deluge::synth::SampleRange* buffer = sound.state().recall.slots[0].ranges.data();
+	const deluge::synth::SourceRange* buffer = sound.state().recall.slots[0].ranges.data();
 	ctx.song.addOutput(synth);
 	const deluge::instrument::SoundState* record =
 	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeSynth>();
@@ -825,7 +825,7 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	      "handover: adoption moves the sound's own state into its record");
 	check(deluge::instrument::sound_effects(*record).compressor.threshold == 12345,
 	      "handover: the record holds the sound's effects");
-	const deluge::synth::SampleRange* held = record->recall.slots[0].ranges.data();
+	const deluge::synth::SourceRange* held = record->recall.slots[0].ranges.data();
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
 	check(&sound.state() != record && sound.state().recall.slots[0].ranges.data() == held,
 	      "handover: a record that goes moves the state back");

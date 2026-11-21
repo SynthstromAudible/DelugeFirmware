@@ -42,7 +42,7 @@ public:
 
 	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the type
 	/// now) their zones and tuning, which a type change and back keeps.
-	[[nodiscard]] std::vector<deluge::instrument::RangeState> heldRanges() const;
+	[[nodiscard]] std::vector<deluge::synth::SourceRange> heldRanges() const;
 
 	/// @brief Whether the note last set up on this sample source plays against the record's direction (the
 	/// arpeggiator's reverse step); cleared when a voice of the sound releases.

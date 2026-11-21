@@ -43,7 +43,8 @@ void ensure_init_patch(SourceState& source) {
 
 /// Slot @p source set to @p type: ranges of the other kind keep only their top notes (one open range where there are
 /// none), otherwise the slot takes @p held; a DX7 slot without a patch gains the init voice.
-void apply_osc_type(SourceState& source, OscType type, std::span<const RangeState> held, bool held_are_wavetable) {
+void apply_osc_type(SourceState& source, OscType type, std::span<const synth::SourceRange> held,
+                    bool held_are_wavetable) {
 	source.osc_type = type;
 	const bool plays_ranges = type == OscType::SAMPLE || type == OscType::WAVETABLE;
 	if (plays_ranges && held_are_wavetable != (type == OscType::WAVETABLE)) {
@@ -55,7 +56,10 @@ void apply_osc_type(SourceState& source, OscType type, std::span<const RangeStat
 		}
 	}
 	else {
-		source.ranges.assign(held.begin(), held.end());
+		source.ranges.clear();
+		for (const synth::SourceRange& range : held) {
+			source.ranges.push_back(range_state_of(range));
+		}
 	}
 	if (type == OscType::DX7) {
 		ensure_init_patch(source);
@@ -98,7 +102,7 @@ SoundState switch_engine(SoundState state, SynthMode mode) {
 	return state;
 }
 
-SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
+SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const synth::SourceRange> held,
                          bool held_are_wavetable) {
 	edit_slot(state, slot_index(id),
 	          [&](SlotEdit& edit) { apply_osc_type(edit.source, type, held, held_are_wavetable); });

@@ -61,7 +61,7 @@ extern int32_t auditionNoteCount;
 extern int32_t lastAuditionOn;
 
 /// The ranges the most recent `bridge::applyRanges()` was handed: what the slicer's zone edits ask the drum to play.
-extern std::vector<deluge::instrument::RangeState> lastAppliedRanges;
+extern std::vector<deluge::synth::SourceRange> lastAppliedRanges;
 
 /// Rebuild the fake kit/drum/sample world and zero the counters. Call at the top of every spec.
 void resetSlicerEnv();

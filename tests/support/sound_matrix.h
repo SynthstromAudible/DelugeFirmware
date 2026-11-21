@@ -70,8 +70,9 @@ inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument
 		detail::put(s, detail::osc(i, "cents"), "-7");
 		detail::put(s, detail::osc(i, "loopMode"), std::to_string(std::to_underlying(SampleRepeatMode::LOOP)));
 		detail::put(s, detail::osc(i, "reversed"), "1");
-		std::vector<RangeState> ranges{{.top_note = 40, .file_path = "SAMPLES/A.WAV", .start_pos = 10, .end_pos = 900},
-		                               {.top_note = 127, .file_path = "SAMPLES/B.WAV", .end_pos = 400, .transpose = 2}};
+		std::vector<deluge::synth::SourceRange> ranges{
+		    {.top_note = 40, .file_path = "SAMPLES/A.WAV", .zone = {.start = 10, .end = 900}},
+		    {.top_note = 127, .file_path = "SAMPLES/B.WAV", .zone = {.end = 400}, .tuning = {.transpose = 2}}};
 		s = with_ranges(std::move(s), id, std::move(ranges));
 		s = with_dx_patch(std::move(s), id,
 		                  DxPatchState{.params = kDx7InitVoice, .engine_mode = 2, .random_detune = 3});
@@ -128,9 +129,10 @@ inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds
 
 	SoundState sample = with_kind(SoundState{}, SourceId::A, OscType::SAMPLE);
 	set(sample, "osc1/loopMode", "1"); // ONCE
-	sample = with_ranges(std::move(sample), SourceId::A,
-	                     {RangeState{.top_note = 60, .file_path = "SAMPLES/a.wav", .end_pos = 100},
-	                      RangeState{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .end_pos = 200}});
+	sample = with_ranges(
+	    std::move(sample), SourceId::A,
+	    {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/a.wav", .zone = {.end = 100}},
+	     deluge::synth::SourceRange{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .zone = {.end = 200}}});
 	states.emplace_back("ranged sample", sample);
 
 	DxPatchState patch{.engine_mode = 2, .random_detune = 5};
@@ -140,7 +142,7 @@ inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds
 
 	SoundState wavetable = with_kind(SoundState{}, SourceId::A, OscType::WAVETABLE);
 	wavetable = with_ranges(std::move(wavetable), SourceId::A,
-	                        {RangeState{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}});
+	                        {deluge::synth::SourceRange{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}});
 	set(wavetable, "osc2/oscillatorSync", "1");
 	states.emplace_back("wavetable", wavetable);
 

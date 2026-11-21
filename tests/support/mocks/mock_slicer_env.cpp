@@ -116,7 +116,7 @@ namespace deluge::test {
 LoadAnswer loadAnswer = LoadAnswer::Loaded;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
-std::vector<deluge::instrument::RangeState> lastAppliedRanges;
+std::vector<deluge::synth::SourceRange> lastAppliedRanges;
 
 void resetSlicerEnv() {
 	loadAnswer = LoadAnswer::Loaded;
@@ -144,7 +144,7 @@ void resetSlicerEnv() {
 	// first range is.
 	static deluge::instrument::SoundState record;
 	record = deluge::instrument::with_ranges(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
-	                                         {deluge::instrument::RangeState{}});
+	                                         {deluge::synth::SourceRange{}});
 	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
@@ -417,10 +417,10 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
 ::Sound* soundAt(::Song& /*song*/, deluge::project::SlotAddress /*address*/) {
 	return nullptr;
 }
-std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& /*source*/) {
+std::vector<deluge::synth::SourceRange> rangesOf(const ::SourceResources& /*source*/) {
 	return {};
 }
-Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& ranges) {
+Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::synth::SourceRange>& ranges) {
 	deluge::test::lastAppliedRanges = ranges;
 	return Error::NONE;
 }

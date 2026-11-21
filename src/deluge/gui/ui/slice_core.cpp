@@ -131,12 +131,12 @@ void SliceCore::sound_audition(const AuditionTarget& target) {
 	if (target.on) {
 		SoundDrum* drum = (SoundDrum*)getCurrentKit()->firstDrum;
 		(void)drum->getOrCreateFirstRange(0);
-		(void)deluge::edits::editRange(*drum, 0, 0, [&](deluge::instrument::RangeState& range) {
-			range.start_pos = target.startPoint;
+		(void)deluge::edits::editRange(*drum, 0, 0, [&](deluge::synth::SourceRange& range) {
+			range.zone.start = target.startPoint;
 			if (target.endPoint != -1) {
-				range.end_pos = target.endPoint;
+				range.zone.end = target.endPoint;
 			}
-			range.transpose = static_cast<int16_t>(target.transpose);
+			range.tuning.transpose = static_cast<int16_t>(target.transpose);
 		});
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -201,10 +201,10 @@ bool SliceCore::restore_full_range() {
 	if (sample == nullptr) {
 		return false;
 	}
-	(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
-		range.start_pos = 0;
-		range.end_pos = sample->lengthInSamples;
-		range.transpose = 0;
+	(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::synth::SourceRange& range) {
+		range.zone.start = 0;
+		range.zone.end = sample->lengthInSamples;
+		range.tuning.transpose = 0;
 	});
 	return true;
 }
@@ -298,10 +298,10 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 			for (int32_t i = 0; i < pending_.sliceCount; i++) {
 				SoundDrum* soundDrum = static_cast<SoundDrum*>(kit->getDrumFromIndex(i));
 				(void)soundDrum->getOrCreateFirstRange(0);
-				(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
-					range.start_pos = pending_.manualPoints[i].startPos;
-					range.end_pos = (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
-					range.transpose = static_cast<int16_t>(pending_.manualPoints[i].transpose);
+				(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::synth::SourceRange& range) {
+					range.zone.start = pending_.manualPoints[i].startPos;
+					range.zone.end = (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
+					range.tuning.transpose = static_cast<int16_t>(pending_.manualPoints[i].transpose);
 				});
 			}
 		}
@@ -375,9 +375,9 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		// The Edit claims the clusters of a zone it moves; a zone already in place is claimed here
 		const bool zoneMoves =
 		    firstRange->sampleHolder.startPos != 0 || firstRange->sampleHolder.endPos != nextDrumStart;
-		(void)deluge::edits::editRange(*firstDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
-			range.start_pos = 0;
-			range.end_pos = nextDrumStart;
+		(void)deluge::edits::editRange(*firstDrum, 0, 0, [&](deluge::synth::SourceRange& range) {
+			range.zone.start = 0;
+			range.zone.end = nextDrumStart;
 		});
 		if (!zoneMoves) {
 			firstRange->sampleHolder.claimClusterReasons(firstDrum->playsReversed(0), CLUSTER_ENQUEUE);

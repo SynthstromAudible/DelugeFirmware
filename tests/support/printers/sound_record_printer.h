@@ -69,22 +69,22 @@ inline std::ostream& operator<<(std::ostream& os, const VaState& s) {
 	return os << "{va, pitch " << s.pitch << ", shape " << std::to_underlying(s.shape) << "}";
 }
 
-/// @brief Prints a wavetable range.
-inline std::ostream& operator<<(std::ostream& os, const WavetableRange& r) {
-	return os << std::format("{{top_note {}, file \"{}\"}}", r.top_note, r.file_path);
+/// @brief Prints a source range, its zone in samples.
+inline std::ostream& operator<<(std::ostream& os, const SourceRange& r) {
+	return os << std::format("{{top_note {}, file \"{}\", start {}, end {}, loop_start {}, loop_end {}, tuning ",
+	                         r.top_note, r.file_path, r.zone.start, r.zone.end, r.zone.loop_start, r.zone.loop_end)
+	          << r.tuning << "}";
 }
 
 /// @brief Prints a wavetable oscillator's state.
 inline std::ostream& operator<<(std::ostream& os, const WavetableState& s) {
-	os << "{wavetable, pitch " << s.pitch << ", ranges ";
-	return deluge::test::printers::print_list(os, std::span{s.ranges}) << "}";
-}
-
-/// @brief Prints a sample range, its zone in samples.
-inline std::ostream& operator<<(std::ostream& os, const SampleRange& r) {
-	return os << std::format("{{top_note {}, file \"{}\", start {}, end {}, loop_start {}, loop_end {}, tuning ",
-	                         r.top_note, r.file_path, r.zone.start, r.zone.end, r.zone.loop_start, r.zone.loop_end)
-	          << r.tuning << "}";
+	os << "{wavetable, pitch " << s.pitch << ", ranges [";
+	// A wavetable's range is its note and its file
+	for (size_t i = 0; i < s.ranges.size(); i++) {
+		os << (i == 0 ? "" : " ")
+		   << std::format("{{top_note {}, file \"{}\"}}", s.ranges[i].top_note, s.ranges[i].file_path);
+	}
+	return os << "]}";
 }
 
 /// @brief Prints how a sample plays.
@@ -167,14 +167,6 @@ inline std::ostream& operator<<(std::ostream& os, const LfoState& l) {
 } // namespace deluge::synth
 
 namespace deluge::instrument {
-
-/// @brief Prints a range in the instrument's range form.
-inline std::ostream& operator<<(std::ostream& os, const RangeState& r) {
-	return os << std::format("{{top_note {}, file \"{}\", start {}, end {}, loop_start {}, loop_end {}, transpose {}, "
-	                         "cents {}}}",
-	                         r.top_note, r.file_path, r.start_pos, r.end_pos, r.loop_start_pos, r.loop_end_pos,
-	                         r.transpose, r.cents);
-}
 
 /// @brief Prints what a sound plays, every component's state.
 inline std::ostream& operator<<(std::ostream& os, const ComposedState& s) {

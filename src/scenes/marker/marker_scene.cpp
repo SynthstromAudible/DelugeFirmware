@@ -130,12 +130,12 @@ deluge::instrument::SourceId MarkerScene::source_id() const {
 	return static_cast<deluge::instrument::SourceId>(where_.source);
 }
 
-std::optional<deluge::instrument::RangeState> MarkerScene::range_state() const {
+std::optional<deluge::synth::SourceRange> MarkerScene::range_state() const {
 	const deluge::instrument::SoundState* sound = sound_state();
 	if (sound == nullptr) {
 		return std::nullopt;
 	}
-	const std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(*sound, source_id());
+	const std::vector<deluge::synth::SourceRange> ranges = deluge::instrument::source_ranges(*sound, source_id());
 	return where_.range < ranges.size() ? std::optional{ranges[where_.range]} : std::nullopt;
 }
 
@@ -154,14 +154,14 @@ MarkerScene::Zone MarkerScene::zone() const {
 		return {.start = static_cast<uint64_t>(audio_clip_row("startSamplePos")),
 		        .end = static_cast<uint64_t>(audio_clip_row("endSamplePos"))};
 	}
-	const std::optional<deluge::instrument::RangeState> range = range_state();
+	const std::optional<deluge::synth::SourceRange> range = range_state();
 	if (!range) {
 		return {};
 	}
-	return {.start = range->start_pos,
-	        .end = range->end_pos,
-	        .loop_start = range->loop_start_pos,
-	        .loop_end = range->loop_end_pos};
+	return {.start = range->zone.start,
+	        .end = range->zone.end,
+	        .loop_start = range->zone.loop_start,
+	        .loop_end = range->zone.loop_end};
 }
 
 bool MarkerScene::reversed() const {
@@ -416,44 +416,44 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	if (sound == nullptr) {
 		return;
 	}
-	const std::vector<deluge::instrument::RangeState> held = deluge::instrument::source_ranges(*sound, source_id());
+	const std::vector<deluge::synth::SourceRange> held = deluge::instrument::source_ranges(*sound, source_id());
 	if (where_.range >= held.size()) {
 		return;
 	}
-	std::vector<deluge::instrument::RangeState> ranges{held.begin(), held.end()};
-	deluge::instrument::RangeState& range = ranges[where_.range];
+	std::vector<deluge::synth::SourceRange> ranges{held.begin(), held.end()};
+	deluge::synth::SourceRange& range = ranges[where_.range];
 	const bool locked = loop_locked();
-	const uint32_t loop_length = range.loop_end_pos - range.loop_start_pos;
+	const uint32_t loop_length = range.zone.loop_end - range.zone.loop_start;
 	if (which == MarkerType::START) {
-		range.start_pos = value;
+		range.zone.start = value;
 	}
 	else if (which == MarkerType::LOOP_START) {
 		if (locked) {
 			const uint32_t intended_end = value + loop_length;
-			if (uint64_t{intended_end} <= range.end_pos) {
-				range.loop_start_pos = value;
-				range.loop_end_pos = intended_end;
+			if (uint64_t{intended_end} <= range.zone.end) {
+				range.zone.loop_start = value;
+				range.zone.loop_end = intended_end;
 			}
 		}
 		else {
-			range.loop_start_pos = value;
+			range.zone.loop_start = value;
 		}
 	}
 	else if (which == MarkerType::LOOP_END) {
 		if (locked) {
 			const int32_t intended_start = static_cast<int32_t>(value - loop_length);
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.start_pos) {
-				range.loop_end_pos = value;
-				range.loop_start_pos = intended_start;
+			if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.zone.start) {
+				range.zone.loop_end = value;
+				range.zone.loop_start = intended_start;
 			}
 		}
 		else {
-			range.loop_end_pos = value;
+			range.zone.loop_end = value;
 		}
 	}
 	else if (which == MarkerType::END) {
-		range.end_pos = value;
+		range.zone.end = value;
 	}
 	(void)ctx_.sink->write_ranges(where_.slot, where_.source, ranges,
 	                              {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});

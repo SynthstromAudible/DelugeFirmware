@@ -2709,7 +2709,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 		const bool wavetable = type == OscType::WAVETABLE;
 		source.ranges.clear();
 		(void)source.ranges.changeType(wavetable ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange));
-		for (const deluge::instrument::RangeState& range : deluge::instrument::source_ranges(state, id)) {
+		for (const deluge::synth::SourceRange& range : deluge::instrument::source_ranges(state, id)) {
 			MultiRangeArray::RangeVariant variant =
 			    wavetable ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
 			              : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
@@ -2718,12 +2718,12 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 			built->getAudioFileHolder()->filePath = range.file_path;
 			if (!wavetable) {
 				auto* holder = static_cast<SampleHolderForVoice*>(built->getAudioFileHolder());
-				holder->startPos = range.start_pos;
-				holder->endPos = range.end_pos;
-				holder->loopStartPos = range.loop_start_pos;
-				holder->loopEndPos = range.loop_end_pos;
-				holder->transpose = range.transpose;
-				holder->cents = range.cents;
+				holder->startPos = range.zone.start;
+				holder->endPos = range.zone.end;
+				holder->loopStartPos = range.zone.loop_start;
+				holder->loopEndPos = range.zone.loop_end;
+				holder->transpose = range.tuning.transpose;
+				holder->cents = range.tuning.cents;
 			}
 			if (Error error = source.ranges.insertVariant(std::ssize(source.ranges), std::move(variant));
 			    error != Error::NONE) {

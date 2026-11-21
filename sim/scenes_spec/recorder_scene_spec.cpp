@@ -187,7 +187,7 @@ struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
 	void knob_absolute(const deluge::project::OwnerParamTarget&, const deluge::project::MidiCommand&) override {}
 	bool delete_automation(const deluge::project::ParamAddress&) override { return false; }
 	bool write_text(const bind::Target&, const bind::Addresses&, std::string_view) override { return false; }
-	bool write_ranges(deluge::project::SlotAddress, uint8_t, std::span<const deluge::instrument::RangeState>,
+	bool write_ranges(deluge::project::SlotAddress, uint8_t, std::span<const deluge::synth::SourceRange>,
 	                  bind::RangesCause) override {
 		return false;
 	}
@@ -656,7 +656,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
-			const std::vector<deluge::instrument::RangeState> ranges =
+			const std::vector<deluge::synth::SourceRange> ranges =
 			    deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A);
 			expect(deluge::instrument::source_type(*state, deluge::instrument::SourceId::A)).to_equal(OscType::SAMPLE);
 			expect(ranges.empty()).to_be_false();

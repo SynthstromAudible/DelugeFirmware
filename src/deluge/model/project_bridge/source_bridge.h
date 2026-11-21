@@ -33,7 +33,7 @@ namespace deluge::bridge {
 ///
 /// @param source The runtime source.
 /// @return The source's ranges.
-[[nodiscard]] std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& source);
+[[nodiscard]] std::vector<deluge::synth::SourceRange> rangesOf(const ::SourceResources& source);
 
 /// @brief Make source @p s of @p sound play @p ranges, changing ranges in place: top notes, a sample range's zone,
 /// loop points, transpose and cents (kept by sample ranges whatever the source's type). When they equal the source's
@@ -47,7 +47,7 @@ namespace deluge::bridge {
 /// @return Error::UNSPECIFIED when the list has another length or another file in any range (assigning a file is its
 /// gesture's own load), or a top note it moves does not rise between its neighbours; Error::INSUFFICIENT_RAM when a
 /// first range could not be made.
-Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges);
+Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::synth::SourceRange>& ranges);
 
 /// @brief Source @p source's DX7 patch as the record holds it, or nullopt when it has none.
 ///

@@ -86,6 +86,14 @@ inline std::string text_of(const std::optional<serialization::Value>& value) {
 	return serialization::write_json(doc);
 }
 
+/// A range as the reference has always printed it: the file's fields, flat.
+inline std::string range_text(const synth::SourceRange& r) {
+	return std::format(
+	    "{{top_note {}, file \"{}\", start {}, end {}, loop_start {}, loop_end {}, transpose {}, cents {}}}",
+	    r.top_note, r.file_path, r.zone.start, r.zone.end, r.zone.loop_start, r.zone.loop_end, r.tuning.transpose,
+	    r.tuning.cents);
+}
+
 inline std::string readers_text(const in::SoundState& state) {
 	std::ostringstream os;
 	os << "mode " << std::to_underlying(in::synth_mode(state));
@@ -93,8 +101,13 @@ inline std::string readers_text(const in::SoundState& state) {
 		os << " | slot " << in::slot_index(id) << " type " << std::to_underlying(in::source_type(state, id))
 		   << " tuning " << in::source_tuning(state, id) << " playback " << in::sample_playback(state, id)
 		   << " ranges ";
-		const std::vector<in::RangeState> ranges = in::source_ranges(state, id);
-		test::printers::print_list(os, std::span{ranges}) << " patch ";
+		os << '[';
+		const char* separator = "";
+		for (const synth::SourceRange& r : in::source_ranges(state, id)) {
+			os << separator << range_text(r);
+			separator = " ";
+		}
+		os << "] patch ";
 		if (const in::DxPatchState* patch = in::dx_patch(state, id)) {
 			os << *patch;
 		}
@@ -293,7 +306,7 @@ inline std::string change_to_text(const in::SoundState& state) {
 	                             in::OscType::WAVETABLE, in::OscType::SAMPLE,  in::OscType::DX7,
 	                             in::OscType::INPUT_L,   in::OscType::INPUT_R, in::OscType::INPUT_STEREO};
 	for (const in::SourceId id : {in::SourceId::A, in::SourceId::B}) {
-		const std::vector<in::RangeState> ranges = in::source_ranges(sound, id);
+		const std::vector<synth::SourceRange> ranges = in::source_ranges(sound, id);
 		for (const in::OscType type : kinds) {
 			for (const bool wavetable : {false, true}) {
 				answers.push_back({std::format("switch_source {} {} {}", in::slot_index(id), std::to_underlying(type),

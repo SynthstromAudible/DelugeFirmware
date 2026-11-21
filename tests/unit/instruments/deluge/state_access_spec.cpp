@@ -18,7 +18,8 @@ SoundState sample_on_b() {
 	s = deluge::test::with_kind(s, SourceId::B, OscType::SAMPLE);
 	deluge::test::set(s, "osc2/loopMode", "2"); // LOOP
 	deluge::test::set(s, "osc2/reversed", "1");
-	return with_ranges(std::move(s), SourceId::B, {{.top_note = 60, .file_path = "SAMPLES/A.WAV", .end_pos = 100}});
+	return with_ranges(std::move(s), SourceId::B,
+	                   {{.top_note = 60, .file_path = "SAMPLES/A.WAV", .zone = {.end = 100}}});
 }
 
 /// Whether slot @p id reads the same in @p a and @p b: its type, tuning, playback, ranges and DX7 patch.

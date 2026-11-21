@@ -265,7 +265,7 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
 			(void)deluge::edits::apply(ctx, dx);
 		}
-		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sourceResources[s]);
+		if (std::vector<deluge::synth::SourceRange> held = rangesOf(sound.sourceResources[s]);
 		    !std::ranges::equal(held, deluge::instrument::source_ranges(sound.state(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
 			(void)deluge::edits::apply(ctx, ranges);

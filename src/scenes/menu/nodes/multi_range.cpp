@@ -266,7 +266,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		}
 		else if (state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
 			// The edge arm of `MultiRange::selectEncoderAction`: one note per turn, issued as one ranges write.
-			std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
+			std::vector<deluge::synth::SourceRange> ranges = ranges_of(ctx);
 			if (index >= 0 && index < std::ssize(ranges)) {
 				step_range_edge(ranges, index, state.edit_edge, t);
 				if (ctx.sink != nullptr && ctx.addresses.slot) {
@@ -279,7 +279,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			// The Shift arm of `MultiRange::selectEncoderAction`: a range inserted beside the current one, which the
 			// cursor moves to.
 			list_state.freeze_cursor = true;
-			const std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
+			const std::vector<deluge::synth::SourceRange> ranges = ranges_of(ctx);
 			if (const std::optional<RangeInsert> plan = plan_range_insert(ranges, index, t); !plan) {
 				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 			}
@@ -364,7 +364,7 @@ deluge::ui::shell::Result MultiRangeItem::handle(const deluge::ui::shell::UiEven
 	return {}; // every input the picker owns is read in `render`
 }
 
-std::optional<RangeInsert> plan_range_insert(std::span<const deluge::instrument::RangeState> ranges, int32_t index,
+std::optional<RangeInsert> plan_range_insert(std::span<const deluge::synth::SourceRange> ranges, int32_t index,
                                              int32_t offset) {
 	const auto count = static_cast<int32_t>(ranges.size());
 	if (index < 0 || index >= count) {
@@ -385,7 +385,7 @@ std::optional<RangeInsert> plan_range_insert(std::span<const deluge::instrument:
 	return RangeInsert{.at = index, .top_note = mid, .previous_top = std::nullopt}; // before
 }
 
-std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument::RangeState> ranges, int32_t index) {
+std::optional<RangeDelete> plan_range_delete(std::span<const deluge::synth::SourceRange> ranges, int32_t index) {
 	const auto count = static_cast<int32_t>(ranges.size());
 	if (count <= 1 || index < 0 || index >= count) { // nothing to delete
 		return std::nullopt;
@@ -422,7 +422,7 @@ void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_DELETED));
 }
 
-int32_t range_for_note(std::span<const deluge::instrument::RangeState> ranges, int32_t note) {
+int32_t range_for_note(std::span<const deluge::synth::SourceRange> ranges, int32_t note) {
 	const auto count = static_cast<int32_t>(ranges.size());
 	for (int32_t i = 0; i < count; i++) {
 		if (ranges[static_cast<size_t>(i)].top_note >= note) {
@@ -437,7 +437,7 @@ bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note) {
 	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
 		return false;
 	}
-	const std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
+	const std::vector<deluge::synth::SourceRange> ranges = ranges_of(ctx);
 	if (ranges.size() <= 1) {
 		return false;
 	}
@@ -479,16 +479,16 @@ deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t inde
 	return current == away ? RangeEdge::Off : current;
 }
 
-void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_t index,
-                     deluge::ui::oled::RangeEdge edge, int32_t offset) {
+void step_range_edge(std::vector<deluge::synth::SourceRange>& ranges, int32_t index, deluge::ui::oled::RangeEdge edge,
+                     int32_t offset) {
 	using deluge::ui::oled::RangeEdge;
 	const auto count = static_cast<int32_t>(ranges.size());
 	if (index < 0 || index >= count) {
 		return;
 	}
-	const auto at = [&](int32_t i) -> deluge::instrument::RangeState& { return ranges[static_cast<size_t>(i)]; };
+	const auto at = [&](int32_t i) -> deluge::synth::SourceRange& { return ranges[static_cast<size_t>(i)]; };
 	if (edge == RangeEdge::Left && index >= 1) {
-		deluge::instrument::RangeState& lower = at(index - 1);
+		deluge::synth::SourceRange& lower = at(index - 1);
 		if (offset >= 0) {
 			const int32_t maximum = index < count - 1 ? at(index).top_note - 1 : 127;
 			if (lower.top_note < maximum) {
@@ -503,7 +503,7 @@ void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_
 		}
 	}
 	else if (edge == RangeEdge::Right) {
-		deluge::instrument::RangeState& current = at(index);
+		deluge::synth::SourceRange& current = at(index);
 		if (offset >= 0) {
 			const int32_t maximum = index < count - 2 ? at(index + 1).top_note - 1 : 126;
 			if (current.top_note < maximum) {

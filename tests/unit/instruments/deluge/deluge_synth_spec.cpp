@@ -111,7 +111,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 		    {"osc1 transpose", [](SoundState& s) { test::set(s, "osc1/transpose", "2"); }, Part::SOURCE_A_TUNING},
 		    {"osc2 reversed", [](SoundState& s) { test::set(s, "osc2/reversed", "1"); }, Part::SOURCE_B_PLAYBACK},
 		    {"osc2 ranges", [](SoundState& s) {
-			    std::vector<RangeState> ranges = source_ranges(s, SourceId::B);
+			    std::vector<deluge::synth::SourceRange> ranges = source_ranges(s, SourceId::B);
 			    ranges.push_back({.top_note = 60});
 			    s = with_ranges(std::move(s), SourceId::B, std::move(ranges));
 		    }, Part::SOURCE_B_RANGES},

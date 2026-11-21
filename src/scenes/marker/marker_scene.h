@@ -102,8 +102,11 @@
 #include <string>
 #include <string_view>
 
+namespace deluge::synth {
+struct SourceRange;
+} // namespace deluge::synth
+
 namespace deluge::instrument {
-struct RangeState;
 struct SoundState;
 enum class SourceId : uint8_t;
 } // namespace deluge::instrument
@@ -274,7 +277,7 @@ private:
 	/// @brief The edited source's slot; meaningful where sound_state() is not null.
 	deluge::instrument::SourceId source_id() const;
 	/// @brief The edited range's record, or null.
-	std::optional<deluge::instrument::RangeState> range_state() const;
+	std::optional<deluge::synth::SourceRange> range_state() const;
 	/// @brief An integer row of the audio clip's record, or 0 where it has none.
 	/// @param path The row's path.
 	int64_t audio_clip_row(std::string_view path) const;

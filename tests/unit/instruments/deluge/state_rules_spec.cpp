@@ -14,10 +14,10 @@ using deluge::effects::FilterMode;
 namespace {
 
 /// Three sample ranges, as a sample oscillator plays them.
-std::vector<RangeState> three_samples() {
-	return {{.top_note = 48, .file_path = "A.WAV", .end_pos = 100},
-	        {.top_note = 60, .file_path = "B.WAV", .end_pos = 200},
-	        {.top_note = kOpenTopNote, .file_path = "C.WAV", .end_pos = 300}};
+std::vector<deluge::synth::SourceRange> three_samples() {
+	return {{.top_note = 48, .file_path = "A.WAV", .zone = {.end = 100}},
+	        {.top_note = 60, .file_path = "B.WAV", .zone = {.end = 200}},
+	        {.top_note = kOpenTopNote, .file_path = "C.WAV", .zone = {.end = 300}}};
 }
 
 } // namespace
@@ -61,21 +61,21 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		SoundState s = deluge::test::with_kind(SoundState{}, SourceId::A, OscType::SAMPLE);
 		s = with_ranges(std::move(s), SourceId::A, three_samples());
 		const SoundState wt = switch_source(s, SourceId::A, OscType::WAVETABLE, three_samples(), false);
-		const std::vector<RangeState> ranges = source_ranges(wt, SourceId::A);
+		const std::vector<deluge::synth::SourceRange> ranges = source_ranges(wt, SourceId::A);
 		expect(source_type(wt, SourceId::A)).to_equal(OscType::WAVETABLE);
 		expect(ranges.size()).to_equal(size_t{3});
-		expect(ranges[1]).to_equal(RangeState{.top_note = 60});
+		expect(ranges[1]).to_equal(deluge::synth::SourceRange{.top_note = 60});
 	});
 
 	it("gives a slot left with no ranges one open range", _ {
 		const SoundState s = switch_source(SoundState{}, SourceId::B, OscType::SAMPLE, {}, true);
-		const std::vector<RangeState> ranges = source_ranges(s, SourceId::B);
+		const std::vector<deluge::synth::SourceRange> ranges = source_ranges(s, SourceId::B);
 		expect(ranges.size()).to_equal(size_t{1});
 		expect(ranges[0].top_note).to_equal(kOpenTopNote);
 	});
 
 	it("takes the ranges the slot plays when their kind stays", _ {
-		const std::vector<RangeState> held = three_samples();
+		const std::vector<deluge::synth::SourceRange> held = three_samples();
 		const SoundState s = switch_source(SoundState{}, SourceId::A, OscType::SAMPLE, held, false);
 		expect(source_ranges(s, SourceId::A)).to_equal(held);
 	});

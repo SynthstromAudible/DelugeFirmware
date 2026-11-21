@@ -618,9 +618,9 @@ void checkLiveZoneMove() {
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
 		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
 		const size_t sounding = synth->numActiveVoices();
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sourceResources[0]);
-		if (ranges[0].start_pos + 1000 < ranges[0].end_pos) {
-			ranges[0].start_pos += 1000;
+		std::vector<deluge::synth::SourceRange> ranges = deluge::bridge::rangesOf(synth->sourceResources[0]);
+		if (ranges[0].zone.start + 1000 < ranges[0].zone.end) {
+			ranges[0].zone.start += 1000;
 		}
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetSourceRanges edit{*address, 0, ranges};

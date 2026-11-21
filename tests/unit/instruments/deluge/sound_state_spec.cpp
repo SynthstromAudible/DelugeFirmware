@@ -15,9 +15,9 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 		SoundState a;
 		SoundState b;
 		expect(a).to_equal(b);
-		b = with_ranges(std::move(b), SourceId::B, {RangeState{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
+		b = with_ranges(std::move(b), SourceId::B, {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
 		expect(a).not_().to_equal(b);
-		a = with_ranges(std::move(a), SourceId::B, {RangeState{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
+		a = with_ranges(std::move(a), SourceId::B, {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
 		a = with_dx_patch(std::move(a), SourceId::A, DxPatchState{});
 		expect(a).not_().to_equal(b);
 		b = with_dx_patch(std::move(b), SourceId::A, DxPatchState{});

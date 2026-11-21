@@ -68,38 +68,17 @@ SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
 	return sample != nullptr ? sample->playback : memory_of(state, id).playback;
 }
 
-std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
+const std::vector<synth::SourceRange>& source_ranges(const SoundState& state, SourceId id) noexcept {
 	const synth::SlotState& kind = kind_of(state, id);
-	std::vector<RangeState> ranges;
 	if (const auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
-		ranges.reserve(wavetable->ranges.size());
-		for (const synth::WavetableRange& r : wavetable->ranges) {
-			ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
-		}
-		return ranges;
+		return wavetable->ranges;
 	}
 	const auto* sample = std::get_if<synth::SampleState>(&kind);
-	const std::vector<synth::SampleRange>& held = sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
-	ranges.reserve(held.size());
-	for (const synth::SampleRange& r : held) {
-		ranges.push_back(range_state_of(r));
-	}
-	return ranges;
+	return sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
 }
 
-bool same_ranges(const SoundState& a, const SoundState& b, SourceId id) {
-	const auto* wa = std::get_if<synth::WavetableState>(&kind_of(a, id));
-	const auto* wb = std::get_if<synth::WavetableState>(&kind_of(b, id));
-	if (wa != nullptr && wb != nullptr) {
-		return wa->ranges == wb->ranges;
-	}
-	if (wa == nullptr && wb == nullptr) {
-		const auto* sa = std::get_if<synth::SampleState>(&kind_of(a, id));
-		const auto* sb = std::get_if<synth::SampleState>(&kind_of(b, id));
-		return (sa != nullptr ? sa->ranges : memory_of(a, id).ranges)
-		       == (sb != nullptr ? sb->ranges : memory_of(b, id).ranges);
-	}
-	return source_ranges(a, id) == source_ranges(b, id); // a wavetable's and a sample's, compared as the file has them
+bool same_ranges(const SoundState& a, const SoundState& b, SourceId id) noexcept {
+	return source_ranges(a, id) == source_ranges(b, id);
 }
 
 const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
@@ -155,22 +134,20 @@ synth::LfoState lfo(const SoundState& state, size_t index) noexcept {
 	return pair[index / 2];
 }
 
-SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
+SoundState with_ranges(SoundState state, SourceId id, std::vector<synth::SourceRange> ranges) {
 	synth::SlotState* kind = slot_kind_of(state, slot_index(id));
 	if (auto* wavetable = kind != nullptr ? std::get_if<synth::WavetableState>(kind) : nullptr) {
-		wavetable->ranges.clear();
-		for (const RangeState& r : ranges) {
-			wavetable->ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
+		// A wavetable's range is its note and its file
+		for (synth::SourceRange& r : ranges) {
+			r.zone = {};
+			r.tuning = {};
 		}
+		wavetable->ranges = std::move(ranges);
 		return state;
 	}
 	// A sample's ranges are its own; any other kind's are the ones the slot keeps for a sample
 	auto* sample = kind != nullptr ? std::get_if<synth::SampleState>(kind) : nullptr;
-	std::vector<synth::SampleRange>& held = sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
-	held.clear();
-	for (const RangeState& r : ranges) {
-		held.push_back(sample_range_of(r));
-	}
+	(sample != nullptr ? sample->ranges : memory_of(state, id).ranges) = std::move(ranges);
 	return state;
 }
 

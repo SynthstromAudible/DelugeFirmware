@@ -431,7 +431,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(g.slot).to_equal(*r.ctx().addresses.slot);
 		expect(g.source).to_equal(0);
 		expect(g.ranges.size()).to_equal(size_t{1});
-		expect(static_cast<int32_t>(g.ranges[0].start_pos)).to_equal(kZoomMax);
+		expect(static_cast<int32_t>(g.ranges[0].zone.start)).to_equal(kZoomMax);
 		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
 		                                           .marker = static_cast<int8_t>(MarkerType::START)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
@@ -511,8 +511,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
-		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
-		const std::vector<deluge::instrument::RangeState> first =
+		const std::vector<deluge::synth::SourceRange> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
+		const std::vector<deluge::synth::SourceRange> first =
 		    deluge::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();

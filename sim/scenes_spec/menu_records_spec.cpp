@@ -148,9 +148,9 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(*ctx.addresses.slot);
-		const std::vector<deluge::instrument::RangeState> ranges =
+		const std::vector<deluge::synth::SourceRange> ranges =
 		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
-		                     : std::vector<deluge::instrument::RangeState>{};
+		                     : std::vector<deluge::synth::SourceRange>{};
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(ranges.empty()).to_be_false();

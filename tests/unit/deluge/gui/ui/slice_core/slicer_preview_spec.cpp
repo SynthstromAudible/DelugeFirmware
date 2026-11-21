@@ -83,9 +83,9 @@ describe slicer_preview_group("slicer preview", ${
 		probe.graphicsRoutine(); // the held load lands, and the slice sounds
 		expect(deluge::test::lastAppliedRanges.size()).to_equal(size_t{1});
 		if (deluge::test::lastAppliedRanges.size() == 1) {
-			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].start_pos)).to_equal(int64_t{1000});
-			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].end_pos)).to_equal(int64_t{5000});
-			expect(int{deluge::test::lastAppliedRanges[0].transpose}).to_equal(3);
+			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].zone.start)).to_equal(int64_t{1000});
+			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].zone.end)).to_equal(int64_t{5000});
+			expect(int{deluge::test::lastAppliedRanges[0].tuning.transpose}).to_equal(3);
 		}
 	});
 

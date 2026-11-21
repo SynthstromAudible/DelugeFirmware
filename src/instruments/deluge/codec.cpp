@@ -117,7 +117,7 @@ void append(Value& to, const Value& from) {
 // The components' entries: each writes its own keys.
 
 /// A sample range's file, tuning and zone, into @p map.
-void sample_range_entry(Value& map, const synth::SampleRange& range) {
+void sample_range_entry(Value& map, const synth::SourceRange& range) {
 	map.set("fileName", text(range.file_path));
 	if (range.tuning.transpose != 0) {
 		map.set("transpose", number(range.tuning.transpose));

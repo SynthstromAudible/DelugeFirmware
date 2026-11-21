@@ -34,6 +34,41 @@
 
 namespace deluge::instrument {
 
+/// @brief A source's key-split range as the file lays it out, ordered by `top_note` (the highest MIDI note it covers).
+/// A wavetable range uses only `top_note` and `file_path`.
+struct RangeState {
+	int16_t top_note{0};
+	std::string file_path;      ///< the sample's path on the card
+	uint64_t start_pos{0};      ///< in samples
+	uint64_t end_pos{0};        ///< in samples
+	uint32_t loop_start_pos{0}; ///< in samples; 0 = none
+	uint32_t loop_end_pos{0};   ///< in samples; 0 = none
+	int16_t transpose{0};       ///< semitones
+	int8_t cents{0};
+	bool operator==(const RangeState&) const = default;
+};
+
+/// @brief A record range from the file's layout.
+[[nodiscard]] inline synth::SourceRange source_range_of(const RangeState& r) {
+	return {
+	    .top_note = r.top_note,
+	    .file_path = r.file_path,
+	    .zone = {.start = r.start_pos, .end = r.end_pos, .loop_start = r.loop_start_pos, .loop_end = r.loop_end_pos},
+	    .tuning = {.transpose = r.transpose, .cents = r.cents}};
+}
+
+/// @brief A record range in the file's layout.
+[[nodiscard]] inline RangeState range_state_of(const synth::SourceRange& r) {
+	return {.top_note = r.top_note,
+	        .file_path = r.file_path,
+	        .start_pos = r.zone.start,
+	        .end_pos = r.zone.end,
+	        .loop_start_pos = r.zone.loop_start,
+	        .loop_end_pos = r.zone.loop_end,
+	        .transpose = r.tuning.transpose,
+	        .cents = r.tuning.cents};
+}
+
 /// @brief One of a sound's two sources.
 struct SourceState {
 	OscType osc_type{OscType::SQUARE};

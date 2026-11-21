@@ -28,7 +28,7 @@
 
 namespace deluge::bridge {
 
-std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& source) {
+std::vector<deluge::synth::SourceRange> rangesOf(const ::SourceResources& source) {
 	return source.heldRanges();
 }
 
@@ -38,17 +38,17 @@ namespace {
 /// there is no such range. With @p fileless, only a range holding no file counts (a new range has none). Ranges alike
 /// in file and zone (empty new ones) are told apart by their top notes, of which only the extra one's lower neighbour
 /// may have moved; failing that, by file and zone alone.
-std::optional<size_t> extraAt(const std::vector<deluge::instrument::RangeState>& shorter,
-                              const std::vector<deluge::instrument::RangeState>& longer, bool fileless) {
-	const auto same = [](const deluge::instrument::RangeState& a, const deluge::instrument::RangeState& b) {
-		return a.file_path == b.file_path && a.start_pos == b.start_pos && a.end_pos == b.end_pos
-		       && a.loop_start_pos == b.loop_start_pos && a.loop_end_pos == b.loop_end_pos;
+std::optional<size_t> extraAt(const std::vector<deluge::synth::SourceRange>& shorter,
+                              const std::vector<deluge::synth::SourceRange>& longer, bool fileless) {
+	const auto same = [](const deluge::synth::SourceRange& a, const deluge::synth::SourceRange& b) {
+		return a.file_path == b.file_path && a.zone.start == b.zone.start && a.zone.end == b.zone.end
+		       && a.zone.loop_start == b.zone.loop_start && a.zone.loop_end == b.zone.loop_end;
 	};
 	const auto find = [&](bool by_top) -> std::optional<size_t> {
 		for (size_t at = 0; at < longer.size(); at++) {
 			bool rest = !fileless || longer[at].file_path.empty();
 			for (size_t i = 0; rest && i < shorter.size(); i++) {
-				const deluge::instrument::RangeState& other = longer[i < at ? i : i + 1];
+				const deluge::synth::SourceRange& other = longer[i < at ? i : i + 1];
 				rest = same(shorter[i], other) && (!by_top || i + 1 == at || shorter[i].top_note == other.top_note);
 			}
 			if (rest) {
@@ -65,8 +65,8 @@ std::optional<size_t> extraAt(const std::vector<deluge::instrument::RangeState>&
 
 /// Whether @p ranges can replace @p now in place: the same length, each range keeping its file, and the top notes in
 /// order wherever one moves or is @p added (two ranges a malformed file left on one top note stand).
-bool takes(const std::vector<deluge::instrument::RangeState>& now,
-           const std::vector<deluge::instrument::RangeState>& ranges, std::optional<size_t> added = std::nullopt) {
+bool takes(const std::vector<deluge::synth::SourceRange>& now, const std::vector<deluge::synth::SourceRange>& ranges,
+           std::optional<size_t> added = std::nullopt) {
 	if (now.size() != ranges.size()) {
 		return false;
 	}
@@ -86,9 +86,9 @@ bool takes(const std::vector<deluge::instrument::RangeState>& now,
 
 } // namespace
 
-Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges) {
+Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::synth::SourceRange>& ranges) {
 	::SourceResources& source = sound.sourceResources[s];
-	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
+	const std::vector<deluge::synth::SourceRange> now = rangesOf(source);
 	if (now == ranges) {
 		sound.recordHeldRanges(s); // a gesture changed the runtime itself and records the result
 		return Error::NONE;
@@ -105,7 +105,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	if (ranges.size() == now.size() + 1) {
 		if (const std::optional<size_t> at = extraAt(now, ranges, true)) {
 			// Judged before anything changes: the list as it will be once the range is in
-			std::vector<deluge::instrument::RangeState> next = now;
+			std::vector<deluge::synth::SourceRange> next = now;
 			next.insert(next.begin() + static_cast<std::ptrdiff_t>(*at), ranges[*at]);
 			if (!takes(next, ranges, *at)) {
 				return Error::UNSPECIFIED;
@@ -125,7 +125,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	}
 	if (ranges.size() + 1 == now.size()) {
 		if (const std::optional<size_t> gone = extraAt(ranges, now, false)) {
-			std::vector<deluge::instrument::RangeState> next = now;
+			std::vector<deluge::synth::SourceRange> next = now;
 			next.erase(next.begin() + static_cast<std::ptrdiff_t>(*gone));
 			if (!takes(next, ranges)) {
 				return Error::UNSPECIFIED;
@@ -147,15 +147,15 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 				continue; // a wavetable range has no zone; sample ranges keep theirs whatever the type
 			}
 			SampleHolderForVoice& holder = static_cast<MultisampleRange*>(range)->sampleHolder;
-			const bool zoneMoved = holder.startPos != ranges[i].start_pos || holder.endPos != ranges[i].end_pos
-			                       || holder.loopStartPos != ranges[i].loop_start_pos
-			                       || holder.loopEndPos != ranges[i].loop_end_pos;
-			holder.startPos = ranges[i].start_pos;
-			holder.endPos = ranges[i].end_pos;
-			holder.loopStartPos = ranges[i].loop_start_pos;
-			holder.loopEndPos = ranges[i].loop_end_pos;
-			holder.transpose = ranges[i].transpose;
-			holder.setCents(ranges[i].cents);
+			const bool zoneMoved = holder.startPos != ranges[i].zone.start || holder.endPos != ranges[i].zone.end
+			                       || holder.loopStartPos != ranges[i].zone.loop_start
+			                       || holder.loopEndPos != ranges[i].zone.loop_end;
+			holder.startPos = ranges[i].zone.start;
+			holder.endPos = ranges[i].zone.end;
+			holder.loopStartPos = ranges[i].zone.loop_start;
+			holder.loopEndPos = ranges[i].zone.loop_end;
+			holder.transpose = ranges[i].tuning.transpose;
+			holder.setCents(ranges[i].tuning.cents);
 			if (zoneMoved && holder.audioFile != nullptr && sound.oscType(s) == OscType::SAMPLE) {
 				moved.push_back(&holder);
 			}

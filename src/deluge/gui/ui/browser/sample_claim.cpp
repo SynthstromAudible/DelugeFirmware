@@ -447,9 +447,9 @@ bool SampleClaim::stepDecideSample() {
 		// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
 		(void)deluge::edits::editRange(*current_.target.sound, current_.target.sourceIndex,
 		                               static_cast<size_t>(current_.target.rangeIndex),
-		                               [](deluge::instrument::RangeState& range) {
-			                               range.transpose = 0;
-			                               range.cents = 0;
+		                               [](deluge::synth::SourceRange& range) {
+			                               range.tuning.transpose = 0;
+			                               range.tuning.cents = 0;
 		                               });
 	}
 
