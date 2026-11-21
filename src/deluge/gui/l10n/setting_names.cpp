@@ -798,7 +798,8 @@ constexpr std::array<Entry, 230> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
-    // The DEVICE rows' paths share their one stored copy with the rows themselves (`project::kStoredText`).
+    // A DEVICE row named by a `device_path` constant shares its one stored copy with the row (`project::kStoredText`);
+    // the built feature, CV and gate paths keep their own copy here, in the same SDRAM table.
     Entry{SettingGroupId::DEVICE, project::stored_text<"clock/midiIn">, &kMidiClockInNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"clock/midiOut">, &kMidiClockOutNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"clock/tempoMagnitudeMatching">, &kTempoMagnitudeMatchingNames},
