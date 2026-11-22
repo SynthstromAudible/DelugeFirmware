@@ -1,6 +1,6 @@
 # Host builds on macOS / Apple Silicon
 
-The host build of the C++ app (`sim/`, which `./dbt sim` and the Embassy host harnesses link) can build natively on
+The host build of the C++ app (`src/platform/host/`, which `./dbt sim` and the Embassy host harnesses link) can build natively on
 macOS as 64-bit (Apple Silicon → arm64 with native NEON; Intel Mac → x86-64 with SIMDe). The CMake **auto-detects**
 macOS — no flags or toolchain file needed. The 64-bit core was proven on x86-64 Linux first.
 
@@ -30,7 +30,7 @@ argon, etl and SIMDe (Intel only) are fetched automatically (FetchContent).
 `./dbt sim` and `./dbt test` build the tree themselves (`build/host-app`). To build the libraries alone:
 
 ```sh
-cmake -B build-sim-mac -S sim -G Ninja
+cmake -B build-sim-mac -S src/platform/host -G Ninja
 cmake --build build-sim-mac --target deluge_app deluge_scenarios
 ```
 

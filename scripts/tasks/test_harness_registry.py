@@ -636,7 +636,7 @@ class GoldenTreeTest(unittest.TestCase):
                     "docs/golden/a.json",
                     "tests/integration/checks/a.sha256",
                     "src/a.state",
-                    "src/bsp/rust/harness/golden_vt_render/src/main.rs",
+                    "tests/harness/golden_vt_render/src/main.rs",
                     "tests/golden/README.md",
                 ]
             ),
@@ -1047,7 +1047,7 @@ class BuildsTest(unittest.TestCase):
     def _configured_tree(self, root, tree, extra=""):
         (root / tree).mkdir(parents=True)
         (root / tree / "CMakeCache.txt").write_text(
-            f"CMAKE_HOME_DIRECTORY:INTERNAL={root / 'sim'}\n"
+            f"CMAKE_HOME_DIRECTORY:INTERNAL={root / 'src/platform/host'}\n"
             "CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++\n" + extra
         )
 
@@ -1061,7 +1061,7 @@ class BuildsTest(unittest.TestCase):
 
     def test_existing_tree_without_the_define_reconfigures(self):
         root = Path(tempfile.mkdtemp())
-        (root / "sim").mkdir()
+        (root / "src/platform/host").mkdir(parents=True)
         self._configured_tree(root, tb.HOST_APP_TREE)
         steps = tb.products(root)["host-app"].steps(root)
         self.assertEqual([s.what for s in steps], ["configure", "build"])
@@ -1069,7 +1069,7 @@ class BuildsTest(unittest.TestCase):
 
     def test_tree_with_the_define_does_not_reconfigure(self):
         root = Path(tempfile.mkdtemp())
-        (root / "sim").mkdir()
+        (root / "src/platform/host").mkdir(parents=True)
         self._configured_tree(
             root, tb.HOST_APP_TREE, "DELUGE_VERSION_FROM_GIT:BOOL=OFF\n"
         )

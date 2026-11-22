@@ -11,7 +11,10 @@ them. This compares what an address names instead of its value, so that what rem
   index of the instruction it lands on;
 - an address in a literal-pool word, or built by a `movw`/`movt` pair, becomes ADDR<symbol> when it falls inside a
   sized symbol, and ADDR when it falls in a loaded segment but in no symbol (merged string literals);
-- a pc-relative load or adr loses its offset (its pool word is compared where it sits);
+- a pc-relative load or adr into the function names the literal it reads by its index, as a branch names its
+  target, so a load moved between two literals of the function is a change (the pool words are compared where they
+  sit); one that reads another function's pool names that function and the offset; an adr in ARM code (by the `$a`
+  mapping symbols) is placed by ARM's pc + 8, in Thumb code by pc + 4;
 - the linker's trap fill between functions is dropped.
 A value outside every loaded segment is a constant and compares as is, as does every other immediate.
 
@@ -59,6 +62,36 @@ behind one anchor can compare clean. When a name's set of places differs between
 new image pairs with the base (`#?`), so every copy shows as removed and added and every reference to one as changed: a
 false positive at worst, but no copy is paired by a guess. The same holds when the anchor symbol itself changes its key.
 
+rustc and LLVM uniquify a Rust internal function that would clash as `name.N`, with N counted across the image, so a
+change anywhere renumbers it. Such a code symbol is read as `name.0`, and when several are, they are twins as above:
+named by their places, never merged, and a reference moved between them is a change. The symbol left unsuffixed keeps
+its name, and a data symbol's `.N` (a global split into its parts) and other suffixes (`.constprop.0`) keep their text.
+A Rust name keyed by its mangled text drops its crates' hashes (`Cs6NFbV2PXKjr_` before `22deluge_platform_device`),
+because a moved crate changes its own hash and the hashes of the crates that depend on it; the crate names stay, so one
+generic's instances from two crates stay apart. The hashes are found by a pattern on the raw text, which can also
+rewrite identifier bytes that look like one; that can only make a key differ between images (a false positive), as two
+symbols at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may
+share a key: a reference to either is the same, so an alias set that regroups between the images still pairs.
+
+Data is compared too. Every sized symbol whose bytes a loaded, non-executable section holds (.rodata, .data, the SDRAM
+content inflated from .sdram_init_pack), other than functions and local labels (`.str.N`, `.Lanon.…`, whose names do not
+last), is an object, keyed like functions (renames, aliases, twins); `.init_array` (and any `.fini_array`) is an object
+of its own, an ordered list of functions. Each 4-byte-aligned word that holds an address reads as what it points at: a
+symbol's start (`<f>+1` for a Thumb function), a place inside a named object (`<table>+offset`, a vtable's slots among
+them), the C string that starts there, or a Rust `&str`'s text (as long as the word after it says); any other word
+compares raw, as do the bytes around the aligned words. Two words match when what they read as matches, or, when neither
+reads as a symbol's start, a function or a string, when their raw values do: a value that only looks like an address (a
+sample, a character table) keeps its value while the object it would point into moves. What no sized symbol covers
+(string literals and Rust's format templates, panic locations, a Rust trait object's vtable, exception tables) is text
+that compare_strings compares, and words that shift with that text; there only the words that point at a symbol's start
+or a function are compared, each run of them keyed by the nearest named symbol before it and its ordinal there. So
+vtables, dispatch tables, pointer tables, `.init_array` and the function pointers of unnamed vtables are gated. Not
+compared: the other words of unsymbolled data (a trait vtable's size and alignment, a panic location's line and column),
+the unwind tables (.ARM.exidx, .sdram_exidx: offsets that follow the layout), and anything not loaded (.bss). A pointer
+into another object's interior that is retargeted to the place that now sits at its old address keeps its value, and so
+compares clean; a pointer to a symbol's start, a function or a string cannot. Data objects that differ, appear or go are
+reported as `data changed`, `data added` and `data removed`, and count toward the exit status.
+
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
 moves to another group is a change; a call to it names it by the least of its names.
@@ -84,7 +117,7 @@ OLD::f beside a moved NEW::f reads both as one name, so they keep their raw name
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
                              [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
-                             [--cxxfilt llvm-cxxfilt] [--show N] [--diff NAME ...]
+                             [--cxxfilt llvm-cxxfilt] [--objcopy llvm-objcopy] [--show N] [--diff NAME ...]
 """
 
 from __future__ import annotations
@@ -95,6 +128,7 @@ import difflib
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -117,15 +151,22 @@ SYMBOL = re.compile(r"<([^<>]+)>")
 LTO_SUFFIX = re.compile(r"\.llvm\.\d+")
 WORD = re.compile(r"^\.word\s+0x([0-9a-f]{8})$")
 PC_RELATIVE = re.compile(r"\[pc, #-?\w+\]")
+# The literal a pc-relative load reads, as objdump's annotation names it.
+LITERAL = re.compile(
+    r"\[pc, #-?\w+\].*@ 0x([0-9a-f]+)(?:\s+<([^<>+]+)(\+0x[0-9a-f]+)?>)?"
+)
 ADR = re.compile(r"^(adr\S*\s+\w+), #-?\w+")
 MOV_HALF = re.compile(r"^(mov[wt])(\S*) (\w+), #0x([0-9a-f]+)$")
 UNCONDITIONAL_BRANCH = re.compile(r"^(?:b(?:\.w)?\s|bx\s|pop(?:\.w)?\s+\{.*\bpc\})")
 LOCAL_TARGET = re.compile(r"<\.(\d+)>")
 # Mnemonics whose first operand is read, not written.
 NO_WRITE = re.compile(r"^(?:str|cmp|cmn|tst|teq|b|push|vst|vcmp|it|pld)")
-# lld fills the gaps between functions with 0xd4: `bmi .-0x54` as Thumb, `ldrble sp, [r4], #1236` as ARM. The fill's
-# length follows the layout, so a function's trailing fill is dropped.
-PADDING = re.compile(r"^\s*(?:bmi\s.*@ imm = #-0x58|ldrble\s+sp, \[r4\], #1236)\s*$")
+# lld fills the gaps between functions with 0xd4: `bmi .-0x54` as Thumb, `ldrble sp, [r4], #1236` as ARM, and
+# `.word 0xd4d4d4d4` after a literal pool, where objdump prints data. The fill's length follows the layout, so a
+# function's trailing fill is dropped. A literal pool whose last real word is 0xd4d4d4d4 loses that word too.
+PADDING = re.compile(
+    r"^\s*(?:bmi\s.*@ imm = #-0x58|ldrble\s+sp, \[r4\], #1236|\.word\s+0xd4d4d4d4)\s*$"
+)
 
 
 def keep(name: str) -> str:
@@ -295,12 +336,41 @@ def canonical(demangled: str, local: bool = False) -> str:
     return name + suffix
 
 
-def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
+def normalise(
+    line: str,
+    rename=keep,
+    classify=low_ram,
+    local=None,
+    alias=None,
+    address: int | None = None,
+    arm: bool = False,
+) -> str:
     """One disassembled instruction with its raw bytes, annotations and pc-relative offsets removed. A target in the
     function goes through @p local (address -> its instruction index); any other goes through @p alias (address -> the
     name of a body several symbols share) or, without one, @p rename. A literal word that @p classify names an address
-    becomes that name."""
+    becomes that name. A pc-relative load names the literal it reads (its annotation's address) by its index in the
+    function, `[pc, <.k>]`, and an `adr` at @p address its target (Align(pc, 4) + its immediate, pc being @p address +
+    4 in Thumb code and + 8 in @p arm code) the same way, so a load moved between two literals of one function is a
+    change. A load from another function's pool names that function and the offset, `[pc, <f>+0x8]`."""
+    literal = LITERAL.search(line)
     text = RAW_BYTES.sub("", ANNOTATION.sub("", line.strip()))
+    pool = None
+    if literal and local is not None:
+        index = local(int(literal.group(1), 16))
+        if index is not None:
+            pool = f".{index}"
+    if literal and pool is None and local is not None and literal.group(2):
+        offset = f"+{literal.group(3)[1:]}" if literal.group(3) else ""
+        pool = f"{rename(LTO_SUFFIX.sub('', literal.group(2)))}>{offset}"
+    adr = ADR.match(text)
+    if adr and local is not None and address is not None:
+        immediate = re.match(r"^adr\S*\s+\w+, #(-?(?:0x[0-9a-f]+|\d+))", text)
+        if immediate:
+            index = local(
+                ((address + (8 if arm else 4)) & ~3) + int(immediate.group(1), 0)
+            )
+            if index is not None:
+                return " ".join(f"{adr.group(1)} <.{index}>".split())
 
     def target(m: re.Match) -> str:
         if local is not None:
@@ -322,7 +392,12 @@ def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) 
         ),
         text,
     )
-    text = PC_RELATIVE.sub("[pc]", text)
+    if pool is None:
+        text = PC_RELATIVE.sub("[pc]", text)
+    elif pool.startswith("."):
+        text = PC_RELATIVE.sub(f"[pc, <{pool}>]", text)
+    else:
+        text = PC_RELATIVE.sub(f"[pc, <{pool}]", text)
     text = ADR.sub(r"\1", text)
     text = " ".join(text.split())
     word = WORD.match(text)
@@ -416,7 +491,11 @@ def mask_address_halves(body: list[str], classify=low_ram) -> list[str]:
 
 
 def functions(
-    disassembly: str, rename=keep, classify=low_ram, alias=None
+    disassembly: str,
+    rename=keep,
+    classify=low_ram,
+    alias=None,
+    arm=lambda address: False,
 ) -> dict[str, tuple[str, ...]]:
     """Each function's normalised instructions, keyed by its name passed through @p rename, or by its @p alias (see
     aliases()) when its address has one. Addresses go through @p classify. A key names one body: one listed twice at
@@ -444,11 +523,12 @@ def functions(
     least = {address: names[0] for address, names in (alias or {}).items()}
     result = {}
     for name, (_, body) in found.items():
-        while body and PADDING.match(body[-1][1]):
+        while body and PADDING.match(RAW_BYTES.sub("", body[-1][1].strip())):
             body.pop()
         index = {address: i for i, (address, _) in enumerate(body)}
         lines = [
-            normalise(text, rename, classify, index.get, least) for _, text in body
+            normalise(text, rename, classify, index.get, least, address, arm(address))
+            for address, text in body
         ]
         result[name] = tuple(mask_address_halves(lines, classify))
     return result
@@ -652,12 +732,43 @@ def nm_symbols(nm_text: str) -> list[tuple[int, int, str]]:
     return found
 
 
+# A Rust v0 crate root's disambiguator (`Cs6NFbV2PXKjr_` before `22deluge_platform_device`).
+RUST_CRATE_HASH = re.compile(r"Cs[0-9a-zA-Z]+_(?=\d)")
+# A Rust function's name as rustc and LLVM uniquify it in an image: `name.N`, N counted across the image.
+UNIQUIFIED = re.compile(r"^(_R[^.]*\.)\d+$")
+
+
+def uniquified(nm_text: str) -> set[str]:
+    """The Rust functions (code symbols, `t`/`T`) of @p nm_text named `name.N`. The number tells nothing about which
+    function it is (a change elsewhere renumbers it), so every such name is read as `name.0`, and two of them are
+    twins, told apart by their places. The symbol LLVM left unsuffixed stays `name`: it often sits beside a copy, where
+    a shared anchor could not tell the two apart. A data symbol's `.N` (a global split into its parts) and other
+    suffixes (`.constprop.0`) are not uniquifiers and keep their text."""
+    found = set()
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if (
+            len(fields) >= 3
+            and fields[-2] in ("t", "T")
+            and UNIQUIFIED.match(fields[-1])
+        ):
+            found.add(fields[-1])
+    return found
+
+
+def stem(name: str, copies: set[str]) -> str:
+    """@p name without its ThinLTO suffix and, when it is one of @p copies (uniquified()), its `.N` read as `.0`."""
+    name = LTO_SUFFIX.sub("", name)
+    return UNIQUIFIED.match(name).group(1) + "0" if name in copies else name
+
+
 def twin_places(nm_text: str, sections=()) -> dict[str, dict[int, tuple[str, int]]]:
-    """For each name that several symbols of an image share once `.llvm.<hash>` is dropped, each copy's place by its
-    address: the nearest symbol before it in its section that is no twin (its anchor, `^` when none), and its ordinal
-    among the copies behind that anchor."""
+    """For each name that several symbols of an image share once `.llvm.<hash>` and a uniquifier's `.N` are dropped,
+    each copy's place by its address: the nearest symbol before it in its section that is no twin (its anchor, `^`
+    when none), and its ordinal among the copies behind that anchor."""
+    copies = uniquified(nm_text)
     symbols = [
-        (a & ~1, size, LTO_SUFFIX.sub("", n))
+        (a & ~1, size, stem(n, copies))
         for a, size, n in nm_symbols(nm_text)
         if not n.startswith("$")
     ]
@@ -710,7 +821,8 @@ def number_twins(
     @p mapping (`nm --special-syms`) or @p nm_text mark the code. An `adr` that lands in no copy of the twin it names is
     an error."""
     places = twin_places(nm_text, sections)
-    if not places:
+    copies = uniquified(nm_text)
+    if not places and not copies:
         return nm_text, disassembly
     unpairable = {
         name
@@ -725,22 +837,22 @@ def number_twins(
         if n.split(".")[0] in ("$a", "$t")
     )
     for address, size, name in nm_symbols(nm_text):
-        plain = LTO_SUFFIX.sub("", name)
+        plain = stem(name, copies)
         if plain in places:
             extents.setdefault(plain, []).append((address & ~1, max(size, 1)))
 
     def numbered(name: str, address: int) -> str:
-        plain = LTO_SUFFIX.sub("", name)
+        plain = stem(name, copies)
         place = places.get(plain, {}).get(address & ~1)
         if place is None:
-            return name
+            return plain if LTO_SUFFIX.sub("", name) in copies else name
         mark = "?" if plain in moved else side if plain in unpairable else ""
         return f"{plain}#{mark}{place[1]}~{place[0]}"
 
     def adr(m: re.Match) -> str:
-        plain = LTO_SUFFIX.sub("", m.group(4))
+        plain = stem(m.group(4), copies)
         if plain not in places:
-            return m.group(0)
+            return f"{m.group(1)}<{numbered(m.group(4), 0)}{m.group(5)}>"
         pc = int(m.group(2), 16)
         mode = next((kind for start, kind in reversed(modes) if start <= pc), "t")
         target = ((pc + (8 if mode == "a" else 4)) & ~3) + int(m.group(3), 0)
@@ -795,6 +907,30 @@ def moved_twins(
     )
 
 
+def place_names(
+    cxxfilt: str, nm_texts: list[str], sections: list, renames=keep, mangled=keep
+):
+    """A rename for moved_twins(): each twin name and anchor of @p nm_texts by its renamed mangled text without Rust
+    crate hashes and its full renamed demangled text, as demangler() keys a name it must tell apart from another of
+    the same text (overloads stay apart), so that a place survives a crate's hash or a namespace changing."""
+    names = sorted(
+        {
+            n
+            for nm_text, found in zip(nm_texts, sections)
+            for name, copies in twin_places(nm_text, found).items()
+            for n in (name, *(anchor for anchor, _ in copies.values()))
+        }
+    )
+    plain = run([cxxfilt], "\n".join(names)).splitlines() if names else []
+    table = {
+        n: mangled(n)
+        if p == n
+        else f"{RUST_CRATE_HASH.sub('Cs_', mangled(n))} | {renames(p)}"
+        for n, p in zip(names, plain)
+    }
+    return lambda name: table.get(name, name)
+
+
 def demangler(
     cxxfilt: str,
     texts: list[str],
@@ -839,7 +975,12 @@ def demangler(
     table = {}
     for raw, m, target, plain in zip(names, split, targets, demangled):
         if not m:
-            by_mangled[raw] = stems[raw]
+            # A Rust crate's hash follows its metadata, so a moved crate changes it and every hash that depends on
+            # it; the crate's name stays.
+            rust = stems[raw].startswith("_R")
+            by_mangled[raw] = (
+                RUST_CRATE_HASH.sub("Cs_", stems[raw]) if rust else stems[raw]
+            )
         else:
             by_mangled[raw] = m.group(1) + (mangled or keep)(target) + m.group(3)
         if plain == target:
@@ -862,11 +1003,11 @@ def demangler(
             )
         else:
             table[raw] = m.group(1) + plain + m.group(3)
-    owns = [
-        sorted(symbol_names(i)) for i in (images if images is not None else [texts])
-    ]
+    own_texts = images if images is not None else [texts]
+    owns = [sorted(symbol_names(i)) for i in own_texts]
+    places = [addresses(i) for i in own_texts]
     singles = [[raw for raw in own if not twins[raw]] for own in owns]
-    final = settle(table, by_mangled, singles)
+    final = settle(table, [by_mangled], singles, places)
     # A twin's number names its anchor by the anchor's key, so it follows a rename as the anchor does.
     for raw, twin in twins.items():
         if twin:
@@ -874,37 +1015,64 @@ def demangler(
             table[raw] += number
             by_mangled[raw] += number
             final[raw] = table[raw]
-    final = settle(final, by_mangled, owns)
+    final = settle(final, [by_mangled], owns, places)
     return lambda name: final.get(name, name)
 
 
 def settle(
-    keys: dict[str, str], by_mangled: dict[str, str], owns: list[list[str]]
+    keys: dict[str, str],
+    fallbacks: list[dict[str, str]],
+    owns: list[list[str]],
+    places: list[dict[str, int]],
 ) -> dict[str, str]:
-    """@p keys with every key that several names of one image (@p owns) hold replaced by those names' @p by_mangled
-    keys, and any still shared by the raw names, which are distinct, so every key of an image names one symbol."""
+    """@p keys with every key that several symbols of one image (@p owns, at @p places) hold replaced, for those
+    symbols, by their next key in @p fallbacks, and after the last by their raw names, which are distinct, so every
+    key of an image names one symbol. Names at one address (folded aliases) are one symbol: a reference to either is
+    the same, so they may share a key."""
     final = dict(keys)
-    for own in owns:
-        for group in shared(own, keys):
-            for raw in group:
-                final[raw] = by_mangled[raw]
+    level = dict.fromkeys(keys, 0)
     settled = False
     while not settled:
         settled = True
-        for own in owns:
-            for group in shared(own, final):
+        for own, at in zip(owns, places):
+            for group in shared(own, final, at):
                 for raw in group:
                     if final[raw] != raw:
-                        final[raw], settled = raw, False
+                        level[raw] += 1
+                        final[raw] = (
+                            fallbacks[level[raw] - 1][raw]
+                            if level[raw] <= len(fallbacks)
+                            else raw
+                        )
+                        settled = False
     return final
 
 
-def shared(names: list[str], key: dict[str, str]) -> list[list[str]]:
-    """The groups of @p names that one @p key holds several of."""
+def shared(names: list[str], key: dict[str, str], at=None) -> list[list[str]]:
+    """The groups of @p names that one @p key holds for several symbols: names that @p at (name -> address) places at
+    one address are one symbol."""
     holders: dict[str, list[str]] = {}
     for name in names:
         holders.setdefault(key[name], []).append(name)
-    return [group for group in holders.values() if len(group) > 1]
+    at = at or {}
+    return [
+        group
+        for group in holders.values()
+        if len({at.get(name, ("unplaced", name)) for name in group}) > 1
+    ]
+
+
+def addresses(texts: list[str]) -> dict[str, int]:
+    """The address of each symbol the `nm -S` listings among @p texts define, without ThinLTO suffixes."""
+    found = {}
+    for text in texts:
+        for line in text.splitlines():
+            if NM_LINE.match(line):
+                fields = line.split()
+                found.setdefault(
+                    LTO_SUFFIX.sub("", fields[-1]), int(fields[0], 16) & ~1
+                )
+    return found
 
 
 # A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`.
@@ -959,6 +1127,312 @@ def classifier(segments_text: str, nm_sized: str, rename=keep):
     return classify
 
 
+# Sections that hold no objects to compare: the packed SDRAM image (its content is read inflated) and unwind tables,
+# whose entries are offsets that follow the layout.
+# Sections that are lists of function pointers, compared in order (the static constructors' order is theirs).
+POINTER_ARRAYS = ("INIT_ARRAY", "FINI_ARRAY", "PREINIT_ARRAY")
+UNREAD_SECTIONS = re.compile(r"^\.(?:sdram_init_pack|ARM\.ex(?:idx|tab)|sdram_exidx)")
+SECTION_HEADER = re.compile(
+    r"\]\s+(\S+)\s+(\S+)\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)\s+[0-9a-f]+\s+([A-Z]*)"
+)
+
+
+def arm_code(mapping: str):
+    """Whether an address holds ARM code, by the `$a`/`$t` mapping symbols of @p mapping (`nm --special-syms`); code
+    before any mapping symbol is Thumb."""
+    modes = sorted(
+        (a, n[1]) for a, _, n in nm_symbols(mapping) if n.split(".")[0] in ("$a", "$t")
+    )
+    starts = [a for a, _ in modes]
+
+    def arm(address: int) -> bool:
+        i = bisect.bisect_right(starts, address) - 1
+        return i >= 0 and modes[i][1] == "a"
+
+    return arm
+
+
+def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, bytes]]:
+    """The loaded, non-executable content of @p elf (`readelf -SW` in @p sections_text) as (address, bytes): each
+    PROGBITS section with the A flag and without X, and the SDRAM content inflated from `.sdram_init_pack` at
+    `.sdram_init`'s address."""
+    import compare_strings
+
+    found = []
+    sdram_at = None
+    sdram_exidx = None
+    for line in sections_text.splitlines():
+        m = SECTION_HEADER.search(line)
+        if not m:
+            continue
+        name, kind, address, flags = (
+            m.group(1),
+            m.group(2),
+            int(m.group(3), 16),
+            m.group(5),
+        )
+        if name == ".sdram_init":
+            sdram_at = address
+        if name == ".sdram_exidx":
+            sdram_exidx = address
+        if kind in POINTER_ARRAYS and int(m.group(4), 16):
+            found.append((address, compare_strings.section(objcopy, elf, name), name))
+        if (
+            kind == "PROGBITS"
+            and "A" in flags
+            and "X" not in flags
+            and address
+            and not UNREAD_SECTIONS.match(name)
+        ):
+            if name == ".sdram_init":
+                continue
+            found.append((address, compare_strings.section(objcopy, elf, name)))
+    if sdram_at is not None:
+        content = compare_strings.sdram(objcopy, elf)
+        if sdram_exidx is not None and sdram_at <= sdram_exidx < sdram_at + len(
+            content
+        ):
+            content = content[
+                : sdram_exidx - sdram_at
+            ]  # its unwind table: offsets that follow the layout
+        if content:
+            found.append((sdram_at, content))
+    return found
+
+
+def data_objects(
+    nm_text: str, blobs: list[tuple[int, bytes]], segments_text: str, rename=keep
+) -> dict[str, tuple]:
+    """Each sized data object of @p nm_text whose bytes @p blobs hold, keyed by its name through @p rename, as its
+    words, each as (its raw value, what it reads as; see compare_data()); each pointer array (`.init_array`), keyed by
+    its section; and the pointer runs of unsymbolled data (see the module's description). A 4-byte-aligned word that
+    holds an address inside a LOAD segment reads as what it points at: `<symbol>+0` at a symbol's start, `<function>+1`
+    at a Thumb function (sized or not), `<object>+offset` inside a named object, the text of the C string that starts
+    there (merged string literals have no name that lasts), or a Rust `&str`'s text. Any other word compares raw, as do
+    the bytes around the aligned words. Code symbols (`t`/`T`/`w`/`W`, and `?` inside the SDRAM code range) are
+    functions, compared as such. Two objects under one key are an error, as two bodies are in functions()."""
+    loads = []
+    for line in segments_text.splitlines():
+        fields = line.split()
+        if fields[:1] == ["LOAD"] and int(fields[5], 16):
+            loads.append((int(fields[2], 16), int(fields[2], 16) + int(fields[5], 16)))
+    symbols = []
+    text_range = {}
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if len(fields) == 4 and re.fullmatch(r"[0-9a-f]+", fields[0]):
+            symbols.append(
+                (int(fields[0], 16) & ~1, int(fields[1], 16), fields[2], fields[3])
+            )
+        if fields and fields[-1] in ("__sdram_text_start", "__sdram_text_end"):
+            text_range[fields[-1]] = int(fields[0], 16)
+    sdram_text = (
+        text_range.get("__sdram_text_start", 0),
+        text_range.get("__sdram_text_end", 0),
+    )
+    starting: dict[int, list[str]] = {}
+    for address, _, _, name in symbols:
+        if not name.startswith("$"):
+            starting.setdefault(address, []).append(name)
+
+    arrays = [
+        (entry[0], entry[1], entry[2]) for entry in blobs if len(entry) > 2 and entry[2]
+    ]
+    blobs = [(entry[0], entry[1]) for entry in blobs if len(entry) == 2 or not entry[2]]
+
+    def content(address: int, size: int) -> bytes | None:
+        for base, blob in blobs:
+            if base <= address and address + size <= base + len(blob):
+                return blob[address - base : address - base + size]
+        return None
+
+    def text(address: int) -> str | None:
+        """The C string at @p address if one starts there (a NUL or nothing loaded before it)."""
+        for base, blob in blobs:
+            if base <= address < base + len(blob):
+                offset = address - base
+                if offset and blob[offset - 1] != 0:
+                    return None
+                end = blob.find(b"\x00", offset)
+                run = blob[offset : end if end >= 0 else len(blob)]
+                return (
+                    run.decode("ascii") if all(0x20 <= b <= 0x7E for b in run) else None
+                )
+        return None
+
+    def named(address: int) -> str | None:
+        names = [n for n in starting.get(address, []) if not n.startswith(".")]
+        return min(rename(LTO_SUFFIX.sub("", n)) for n in names) if names else None
+
+    sized = sorted(
+        (a, a + size, name)
+        for a, size, _, name in symbols
+        if size and not name.startswith("$")
+    )
+    starts = [a for a, _, _ in sized]
+
+    def holder(value: int) -> tuple[int, int, str] | None:
+        """The sized symbol that holds @p value, the nearest that starts at or before it."""
+        i = bisect.bisect_right(starts, value) - 1
+        held = [
+            entry
+            for entry in sized[max(0, i - 7) : i + 1]
+            if entry[0] <= value < entry[1]
+        ]
+        return max(held) if held else None
+
+    def loaded(value: int) -> bool:
+        return any(lo <= value < hi for lo, hi in loads)
+
+    def token(value: int, after: int | None = None) -> str:
+        """@p value read as what it points at; @p after is the word after it, a `&str`'s length if it is one."""
+        if not loaded(value):
+            return f"{value:08x}"
+        for target, offset in ((value, 0), (value - 1, 1)):
+            name = named(target)
+            if name is not None:
+                return f"<{name}>+{offset}"
+        held = holder(value)
+        if held is not None and not held[2].startswith("."):
+            return f"<{named(held[0])}>+{value - held[0]}"
+        string = text(value)
+        if string is not None:
+            return f"<{string!r}>"
+        # A Rust `&str` into a block of string literals packed without NULs: its text, as long as its length says.
+        if after is not None and 0 < after <= 4096:
+            body = content(value, after)
+            if body is not None and all(0x20 <= b <= 0x7E for b in body):
+                return f"<{body.decode('ascii')!r}>"
+        return f"{value:08x}"
+
+    def read(address: int, body: bytes) -> tuple:
+        """@p body, loaded at @p address, as words (see data_objects())."""
+        values = [
+            struct.unpack_from("<I", body, at)[0]
+            for at in range(-address % 4, len(body) - 3, 4)
+        ]
+        words = []
+        head = -address % 4
+        if head:
+            words.append((body[:head].hex(),) * 2)
+        at = head
+        for i, value in enumerate(values):
+            words.append(
+                (
+                    f"{value:08x}",
+                    token(value, values[i + 1] if i + 1 < len(values) else None),
+                )
+            )
+            at += 4
+        if at < len(body):
+            words.append((body[at:].hex(),) * 2)
+        return tuple(words)
+
+    def is_object(size: int, kind: str, name: str, address: int) -> bool:
+        if not size or kind in "tTwW" or name.startswith((".", "$")):
+            return False
+        return not (kind == "?" and sdram_text[0] <= address < sdram_text[1])
+
+    objects: dict[str, tuple] = {}
+    placed: dict[str, int] = {}
+    for address, size, kind, name in symbols:
+        if not is_object(size, kind, name, address):
+            continue
+        body = content(address, size)
+        if body is None:
+            continue
+        key = rename(LTO_SUFFIX.sub("", name))
+        if key in objects and placed[key] != address:
+            raise ValueError(f"two data objects are named {key}")
+        placed[key] = address
+        objects[key] = read(address, body)
+    for address, body, name in arrays:
+        objects[name] = read(address, body)
+    # What no sized symbol covers: padding, string literals and Rust's format templates, panic locations, a Rust
+    # trait object's vtable, an exception table. Its text is compare_strings' (the moved paths in it differ by
+    # design), and its other words shift with that text, so only the aligned words that point at a symbol's start
+    # or a function are kept; each run of them, keyed by the nearest named symbol before it and its ordinal there,
+    # is compared as an object.
+    covered = sorted(
+        (a, a + size)
+        for a, size, kind, name in symbols
+        if size and not name.startswith((".", "$"))
+    )
+    covered.append((sdram_text[0], sdram_text[1]))
+    anchors = sorted(
+        (a, name)
+        for a, _, _, name in symbols
+        if not name.startswith((".", "$", "GCC_except_table"))
+    )
+    anchor_starts = [a for a, _ in anchors]
+    counts: dict[str, int] = {}
+
+    for base, blob in blobs:
+        cursor = base
+        end = base + len(blob)
+        spans = []
+        for start, stop in sorted(c for c in covered if c[1] > base and c[0] < end):
+            if start > cursor:
+                spans.append((cursor, min(start, end)))
+            cursor = max(cursor, stop)
+        if cursor < end:
+            spans.append((cursor, end))
+        for start, stop in spans:
+            run: list[tuple] = []
+            run_at = None
+            first = start + (-start % 4)
+            for at in [*range(first, stop - 3, 4), None]:
+                keep = False
+                if at is not None:
+                    word = blob[at - base : at - base + 4]
+                    value = struct.unpack("<I", word)[0]
+                    after = blob[at - base + 4 : at - base + 8]
+                    reading = token(
+                        value,
+                        struct.unpack("<I", after)[0] if len(after) == 4 else None,
+                    )
+                    keep = reading.endswith((">+0", ">+1"))
+                if keep:
+                    if run_at is None:
+                        run_at = at
+                    run.append((f"{value:08x}", reading))
+                    continue
+                if run:
+                    i = bisect.bisect_right(anchor_starts, run_at) - 1
+                    anchor = (
+                        rename(LTO_SUFFIX.sub("", anchors[i][1])) if i >= 0 else "^"
+                    )
+                    ordinal = counts.get(anchor, 0)
+                    counts[anchor] = ordinal + 1
+                    objects[f"(after {anchor} #{ordinal})"] = tuple(run)
+                run, run_at = [], None
+    return objects
+
+
+def strong(reading: str) -> bool:
+    """Whether @p reading (data_objects()) names a symbol's start, a Thumb function or a string: what a word reads as
+    only by being that pointer."""
+    return reading.endswith((">+0", ">+1")) or reading.startswith(("<'", '<"'))
+
+
+def compare_data(
+    base: dict[str, tuple], new: dict[str, tuple]
+) -> tuple[list[str], list[str], list[str]]:
+    """The changed, added and removed data objects (data_objects()). Two words match when what they read as matches (a
+    pointer keeps its target while its value moves), or when their raw values match and neither reads as a symbol's
+    start, a function or a string (a value that only looks like an address, a sample or a character table, keeps its
+    value while the object it would point into moves)."""
+
+    def alike(a: tuple, b: tuple) -> bool:
+        return len(a) == len(b) and all(
+            x[1] == y[1] or (x[0] == y[0] and not strong(x[1]) and not strong(y[1]))
+            for x, y in zip(a, b)
+        )
+
+    changed = sorted(n for n in base.keys() & new.keys() if not alike(base[n], new[n]))
+    return changed, sorted(new.keys() - base.keys()), sorted(base.keys() - new.keys())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -969,6 +1443,9 @@ def main() -> int:
     parser.add_argument("--nm", default="llvm-nm")
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
+    parser.add_argument(
+        "--objcopy", default="llvm-objcopy", help="the objcopy that reads loaded data"
+    )
     parser.add_argument(
         "--gnu-cxxfilt",
         default=GNU_CXXFILT,
@@ -1000,19 +1477,28 @@ def main() -> int:
     read = []
     for which in (args.base, args.new):
         nm = run([args.nm, "-S", "-n", "--defined-only", which])
-        sections = sections_of(run([args.readelf, "-SW", which]))
+        sections_text = run([args.readelf, "-SW", which])
+        sections = sections_of(sections_text)
         mapping = run([args.nm, "-n", "--special-syms", "--defined-only", which])
         mapping = "".join(
             line for line in mapping.splitlines(keepends=True) if " $" in line
         )
-        read.append((which, nm, sections, mapping))
-    moved = moved_twins(
-        read[0][1], read[1][1], read[0][2], read[1][2], mangled_renamer(pairs)
+        read.append((which, nm, sections, mapping, sections_text))
+    places = place_names(
+        args.cxxfilt,
+        [read[0][1], read[1][1]],
+        [read[0][2], read[1][2]],
+        namespace_renamer(pairs),
+        mangled_renamer(pairs),
     )
+    moved = moved_twins(read[0][1], read[1][1], read[0][2], read[1][2], places)
     images = []
-    for (which, nm, sections, mapping), twins_moved, side in zip(
+    datas = []
+    arms = []
+    for (which, nm, sections, mapping, sections_text), twins_moved, side in zip(
         read, (frozenset(), moved), "!?"
     ):
+        datas.append(loaded_data(args.objcopy, which, sections_text))
         nm, disassembly = number_twins(
             nm,
             disassemble(args.objdump, which, nm),
@@ -1022,6 +1508,7 @@ def main() -> int:
             side,
         )
         images.append((disassembly, nm, run([args.readelf, "-lW", which])))
+        arms.append(arm_code(mapping))
     rename = demangler(
         args.cxxfilt,
         [text for image in images for text in image[:2]],
@@ -1031,21 +1518,39 @@ def main() -> int:
         shutil.which(args.gnu_cxxfilt),
     )
     base, new = (
-        functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
-        for dis, nm, segments in images
+        functions(
+            dis, rename, classifier(segments, nm, rename), aliases(nm, rename), arm
+        )
+        for (dis, nm, segments), arm in zip(images, arms)
+    )
+    base_data, new_data = (
+        data_objects(nm, blobs, segments, rename)
+        for (_, nm, segments), blobs in zip(images, datas)
     )
     changed, added, removed = compare(base, new)
-    for kind, names in (("changed", changed), ("added", added), ("removed", removed)):
+    data_changed, data_added, data_removed = compare_data(base_data, new_data)
+    for kind, names in (
+        ("changed", changed),
+        ("added", added),
+        ("removed", removed),
+        ("data changed", data_changed),
+        ("data added", data_added),
+        ("data removed", data_removed),
+    ):
         print(f"{kind}: {len(names)}")
         for name in names[: args.show]:
             print(f"  {name}")
     for name in args.diff:
         print(f"== {name}")
-        before = list(base.get(name, ()))
-        after = list(new.get(name, ()))
+        before = list(base.get(name, [w[1] for w in base_data.get(name, ())]))
+        after = list(new.get(name, [w[1] for w in new_data.get(name, ())]))
         for line in difflib.unified_diff(before, after, lineterm="", n=1):
             print(line)
-    return 1 if changed or added or removed else 0
+    return (
+        1
+        if changed or added or removed or data_changed or data_added or data_removed
+        else 0
+    )
 
 
 if __name__ == "__main__":

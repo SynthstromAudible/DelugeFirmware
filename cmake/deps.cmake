@@ -1,7 +1,7 @@
 # Every third-party dependency the firmware, the host sim and the tests fetch, pinned in one place.
 #
 # Declaring is all this does: each tree calls FetchContent_MakeAvailable for what it uses. FetchContent keeps the
-# first declaration of a name, so nothing downstream can re-pin one. crates/deluge_sample_convert/build.rs fetches
+# first declaration of a name, so nothing downstream can re-pin one. src/storage/sample/convert/build.rs fetches
 # argon and SIMDe itself and must name the same revisions.
 include_guard(GLOBAL)
 include(FetchContent)
@@ -21,7 +21,7 @@ FetchContent_Declare(argon
         GIT_REPOSITORY https://github.com/stellar-aria/argon
         GIT_TAG 8ad157c1dd3ccc31490a6e9ab5474c1d73b130e4
 )
-# NEON intrinsics on non-ARM hosts: argon's <arm/neon.h> and sim/compat's <arm_neon.h> resolve into it.
+# NEON intrinsics on non-ARM hosts: argon's <arm/neon.h> and src/platform/host/compat's <arm_neon.h> resolve into it.
 FetchContent_Declare(simde
         GIT_REPOSITORY https://github.com/simd-everywhere/simde
         GIT_TAG v0.8.4-rc3

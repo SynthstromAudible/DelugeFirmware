@@ -56,7 +56,7 @@ build_one "${SRC3}" "${BIN3}" & p3=$!
 # from cmake/deps.cmake is cloned into build-harness-deps/.
 ETL_INCLUDE="$(ls -d "${REPO_ROOT}"/build/host-app/_deps/etl-src/include "${REPO_ROOT}"/build/*/_deps/etl-src/include \
     "${REPO_ROOT}"/build*/_deps/etl-src/include \
-    "${REPO_ROOT}"/sim/build/_deps/etl-src/include 2>/dev/null | head -1 || true)"
+    "${REPO_ROOT}"/src/platform/host/build/_deps/etl-src/include 2>/dev/null | head -1 || true)"
 if [ -z "${ETL_INCLUDE}" ]; then
     ETL_TAG="$(awk '/GIT_REPOSITORY https:\/\/github.com\/ETLCPP\/etl/ { found = 1 } found && /GIT_TAG/ { print $2; exit }' \
         "${REPO_ROOT}/cmake/deps.cmake")"

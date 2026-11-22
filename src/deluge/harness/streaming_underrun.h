@@ -26,7 +26,7 @@
 /// needs isn't ready yet.
 ///
 /// Compiled where `DELUGE_UNDERRUN_COUNTERS` is 1: every x86 build off this tree (`DELUGE_HOST`, see
-/// `sim/CMakeLists.txt`) and the device's stream-bench image (`DELUGE_STREAM_BENCH`), never the shipping
+/// `src/platform/host/CMakeLists.txt`) and the device's stream-bench image (`DELUGE_STREAM_BENCH`), never the shipping
 /// firmware. Every call site (`model/voice/voice_sample.cpp`, `model/sample/sample_low_level_reader.cpp`) is
 /// itself wrapped in `#if DELUGE_UNDERRUN_COUNTERS` (not just relying on these being no-ops), so a shipping
 /// build doesn't even see the calls -- behaviour there is unaffected.

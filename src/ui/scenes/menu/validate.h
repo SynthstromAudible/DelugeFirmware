@@ -138,14 +138,14 @@ enum class Flag : uint16_t {
 /// distinct items, every one of them real**. The cap is pinned exactly one above that count: it is
 /// a ratchet against the escape hatch growing unnoticed, not a claim that any smaller number was
 /// achievable. A cap sitting further above the count would be that many bespoke items an
-/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 62
+/// inattentive table could add for free. `tests/integration/ui/scenes/shortcuts_spec.cpp` asserts the exact 62
 /// separately, so a table that adds a custom node has to say so in two places.
 inline constexpr size_t kMaxCustomNodes = 63;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
-/// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
+/// against the live tree by `tests/integration/ui/scenes/shortcuts_spec.cpp`.
 inline constexpr size_t kShippedCustomNodes = 62;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
@@ -162,7 +162,7 @@ inline constexpr size_t kShippedCustomNodes = 62;
 ///   * `specific_output_selector` -- the audio clip's `TRACK` picker, a page over the song's output
 ///     list rather than a file browser.
 ///
-/// **This must stay 0.** `sim/scenes_spec/output_items_spec.cpp` asserts it three ways -- this
+/// **This must stay 0.** `tests/integration/ui/scenes/output_items_spec.cpp` asserts it three ways -- this
 /// constant, a strict `validate_tree` over `kAllRoots` reporting no `PlaceholderCustom`, and a walk
 /// of every reachable `Kind::Custom` node -- and there is no `ValidateOptions` field that could
 /// stand the rule down. A table that adds a placeholder fails there rather than hiding inside a
@@ -183,7 +183,7 @@ struct ValidateOptions {
 	/// anything when @p roots is the whole tree: pointed at a subtree (a few roots,
 	/// the sound root on its own, the settings root minus one page) it reports every shortcut cell
 	/// in every *other* root's table, which says nothing about the subtree under test. A caller
-	/// validating part of the tree sets this; `sim/scenes_spec/shortcuts_spec.cpp` runs the sweep
+	/// validating part of the tree sets this; `tests/integration/ui/scenes/shortcuts_spec.cpp` runs the sweep
 	/// over `nodes::kAllRoots`, where it is a real check.
 	bool skip_shortcut_sweep = false;
 };

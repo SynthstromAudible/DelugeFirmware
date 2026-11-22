@@ -60,8 +60,9 @@ uint16_t assigned_node_ids();
 ///     wired. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`): `FlashStorage::readSettings`
 ///     fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item reaches that) and the settings
 ///     item writes the row through the device port. Covered by
-///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
-///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
+///     `tests/integration/ui/scenes/boot_wiring_spec.cpp`; the setting's own behaviour is
+///     `tests/integration/ui/scenes/tables_3_spec.cpp`'s `tables_4_items` group and `shortcuts_spec.cpp`'s
+///     `SHORTCUTS_VERSION_1 layer` group.
 ///
 ///   * **`ShellConfig::screensaver_idle_ms` (`ui/shell/shell.h`).** The screensaver's timeout and its off switch,
 ///     `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes *
@@ -88,8 +89,8 @@ uint16_t assigned_node_ids();
 ///     it owns the three, seats them over `shellHostUI`'s own shell, and re-seeds what they borrow
 ///     from legacy (`currentSong`, `View`'s active mod controllable and mod region, and the two
 ///     `ViewState` blocks) at boot and on every guest open.
-///     `sim/scenes_spec/scene_scripts_spec.cpp` is the level-2 demonstration of the setter and
-///     `sim/scenes_spec/boot_wiring_spec.cpp` asserts the real installation.
+///     `tests/integration/ui/scenes/scene_scripts_spec.cpp` is the level-2 demonstration of the setter and
+///     `tests/integration/ui/scenes/boot_wiring_spec.cpp` asserts the real installation.
 ///
 /// Nothing else in `src/ui/scenes` is in this position: every other setting the menu tree edits is read
 /// and written through the same `FlashStorage` / `runtimeFeatureSettings` / `midiEngine` global the
@@ -105,7 +106,7 @@ menu::MenuScene& menu_scene();
 
 // (No `rename_scene()` forwarder here, deliberately. `rename::rename_scene()` already is the
 // singleton accessor, and a same-named function in this namespace would be ambiguous with it for
-// every consumer that writes `using namespace deluge::ui::scenes;` -- which every spec in `sim/scenes_spec`
+// every consumer that writes `using namespace deluge::ui::scenes;` -- which every spec in `tests/integration/ui/scenes`
 // does. `scene_registry()` below calls the real one.)
 
 /// @brief The application's scene table, viewing storage this library owns.

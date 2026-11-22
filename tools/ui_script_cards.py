@@ -3,7 +3,7 @@
 A script names each card it runs on, one line each, before its first step:
 
     # card: tests/fixtures/card                      a directory in this repository
-    # card: tests/fixtures/card-dx-no-folder.card    a card manifest (src/bsp/rust/src/storage/card_manifest.rs)
+    # card: tests/fixtures/card-dx-no-folder.card    a card manifest (src/platform/device/src/storage/card_manifest.rs)
     # card: content/sweep-bare.img                   a content card: a directory or FAT image in the content-card
                                                      directory (DELUGE_CONTENT_CARDS, default .superpowers/emu-card)
 
@@ -75,7 +75,7 @@ def label(card: str) -> str:
 
 def tree(card: Path, out: Path, repo: Path = REPO) -> Path:
     """`card` as files: a card manifest built into `out` (replacing whatever is there) by the BSP's `card-manifest`
-    tool; anything else, a directory or an image, as it stands. cargo runs in src/bsp/rust, whose rust-toolchain.toml
+    tool; anything else, a directory or an image, as it stands. cargo runs in src/platform/device, whose rust-toolchain.toml
     chooses the toolchain; its first run builds the BSP's host library."""
     if card.suffix != ".card":
         return card
@@ -92,7 +92,7 @@ def tree(card: Path, out: Path, repo: Path = REPO) -> Path:
             str(card.resolve()),
             str(out.resolve()),
         ],
-        cwd=repo / "src/bsp/rust",
+        cwd=repo / "src/platform/device",
         check=True,
     )
     return out

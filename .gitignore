@@ -34,8 +34,8 @@ __pycache__
 .deluge_hex_key
 **/target*/
 /deluge_host_out.wav
-/sim/build/
-/sim/deluge_host_out.wav
+/src/platform/host/build/
+/src/platform/host/deluge_host_out.wav
 
 # Local Claude Code config / skills (not shared)
 .claude/
@@ -49,8 +49,8 @@ docs/superpowers/
 tools/__pycache__/
 __pycache__/
 
-# Local deluge-sdk path override for the Rust BSP (see src/bsp/rust/local-sdk.toml)
-/src/bsp/rust/local-sdk.toml
+# Local deluge-sdk path override for the Rust BSP (see src/platform/device/local-sdk.toml)
+/src/platform/device/local-sdk.toml
 
 # Stems golden_vt_render copies out of its card image when GOLDEN_STEM_OUT is unset
 /golden_stems/

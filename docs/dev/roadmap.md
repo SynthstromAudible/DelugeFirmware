@@ -110,7 +110,7 @@ DEVICE setting group (`project/device_settings.h`), read and written by row thro
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the settings
 root closes, never on a write. The ports speak `project::`, `plugin::`, `instruments::classic::`, `effects::`, `ui::controls::`,
 `midi::` and `views::waveform::` words only. The host's implementations are in `src/deluge/gui/ui/shell_host/`; the fakes
-and the contract cases both run against are in `tests/support/scenes/`. The value tables the menu reads (sync and swing,
+and the contract cases both run against are in `tests/support/ui/scenes/`. The value tables the menu reads (sync and swing,
 note lengths, filter and mod-FX words, reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names)
 are neutral. Layer rules keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
 

@@ -8,7 +8,7 @@
 include_roots = ["src/deluge", "src"]
 legacy = "src/deluge"
 # The trees the rules' globs are matched over: the firmware and the specs and tests that drive it.
-scan_roots = ["src", "sim", "tests"]
+scan_roots = ["src", "tests"]
 # The files at the src/ root. Each is dissolved into its owner.
 root_files = [
     "CMakeLists.txt",
@@ -24,10 +24,6 @@ root_files = [
 [[directory]]
 path = "OSLikeStuff"
 target = "retires with the Embassy scheduler; what remains goes to src/platform"
-
-[[directory]]
-path = "bsp"
-target = "src/platform/device"
 
 [[directory]]
 path = "deluge"
@@ -58,10 +54,16 @@ path = "midi"
 path = "music"
 
 [[directory]]
+path = "platform"
+
+[[directory]]
 path = "plugin"
 
 [[directory]]
 path = "serialization"
+
+[[directory]]
+path = "storage"
 
 [[directory]]
 path = "synth"

@@ -4,7 +4,7 @@
 // Wiring a fully manager-backed, byte-producing reader asset here would mean
 // replicating chunk_residency.cpp's/async_fill.cpp's real Sample/StreamedChunk machinery inside a
 // host test -- disproportionate to this task (the reader crate's OWN test suite already proves
-// window()/advance()/lease correctness exhaustively; see crates/deluge_sample_reader/src/reader.rs's
+// window()/advance()/lease correctness exhaustively; see src/storage/sample/reader/src/reader.rs's
 // `mod tests`, 20+ cases including boundary straddle and degrade paths). Instead this exercises the
 // bridge's real, linked lifecycle over an asset with NO registered fill-context -- `Reader::open`
 // still runs for real (calls the real, linked `deluge_sample_reader_open`), but resolves `ok() ==

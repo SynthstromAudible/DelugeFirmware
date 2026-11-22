@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-ROOTS = ("tests", "sim/scenes_spec")
+ROOTS = ("tests",)
 SUFFIXES = (".cpp", ".h", ".hpp", ".inc")
 COMPARISONS = ("==", "!=", "<", ">", "<=", ">=")
 KINDS = {

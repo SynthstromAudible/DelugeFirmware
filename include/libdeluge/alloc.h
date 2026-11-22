@@ -21,7 +21,7 @@
 /// a BSP region from libdeluge/memory.h; in tests, a malloc'd arena). Placement
 /// (fast SRAM vs slow SDRAM) is a property of *which heap* — there is no
 /// allocMaxSpeed/allocLowSpeed split. Hand-written for now; cbindgen-generated
-/// later. Must stay in sync with crates/deluge_alloc/src/lib.rs.
+/// later. Must stay in sync with src/base/alloc/src/lib.rs.
 #ifndef LIBDELUGE_ALLOC_H
 #define LIBDELUGE_ALLOC_H
 
@@ -91,7 +91,7 @@ typedef bool (*DelugeReclaimFn)(void* ctx, size_t bytes_needed);
 /// Register `cb` as `heap`'s reclaim hook, called with `ctx`. [task]
 void deluge_heap_register_reclaim(DelugeHeap* heap, DelugeReclaimFn cb, void* ctx) DELUGE_NOEXCEPT;
 
-/// @brief One heap step's critical section (crates/deluge_alloc/src/section.rs).
+/// @brief One heap step's critical section (src/base/alloc/src/section.rs).
 ///
 /// `enter` masks unless the caller is the audio render, and returns whether it did; `exit` unmasks;
 /// `note` reports each step (kind 0 = heap, 1 = slab) to the app's probe. Register once at boot,

@@ -17,7 +17,7 @@
 
 /// libdeluge/streaming_fill.h — the sample-streaming fill queue.
 ///
-/// The Rust async fill task (deluge-bsp-rust's `streaming_loader.rs`, over `deluge_sample_fill`'s
+/// The Rust async fill task (deluge_platform_device's `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
 /// `native_begin`/`native_finish`) resolves each queued chunk's read geometry into a
 /// `StreamingFillDescriptor`, performs the read, then converts/stitches/publishes. This header
 /// carries the queue's entry points (wake, enqueue a chunk, drain, drained?) and the per-asset
@@ -48,15 +48,15 @@ extern "C" {
 ///
 /// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called by the Rust residency code right after it enqueues a chunk on the loader queue: a reservation's
-/// unfilled clusters (`deluge_sample_reader`'s `reservation.rs`) and a region acquire's miss
-/// (`deluge_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
+/// unfilled clusters (`deluge_storage_sample_reader`'s `reservation.rs`) and a region acquire's miss
+/// (`deluge_storage_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
 void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 
 /// @brief Enqueue a chunk for filling, and return immediately. [task]
 ///
 /// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
 /// inside the executor's poll -- requests the fill and returns to its own loop. The range reader's
-/// fill route (deluge_sample_reader's `reader.rs`) is one such caller.
+/// fill route (deluge_storage_sample_reader's `reader.rs`) is one such caller.
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
 /// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
 void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing) DELUGE_NOEXCEPT;
@@ -74,7 +74,7 @@ bool deluge_streaming_queue_drained(void) DELUGE_NOEXCEPT;
 /// @brief Per-asset geometry the native Rust fill task reads directly.
 ///
 /// Registered by `deluge_streaming_set_fill_context` at sample-load, and read back through
-/// `deluge_sample_fill::fill_context_for(asset)` by `native_begin`/`native_finish`: the fill resolves
+/// `deluge_storage_sample_fill::fill_context_for(asset)` by `native_begin`/`native_finish`: the fill resolves
 /// a queued chunk's descriptor from this table natively, with no C++ upcall. Carries the same
 /// geometry the old `deluge::audio::stream::begin_fill` used to read off `Sample`/`Cluster` per
 /// chunk, snapshotted once per asset instead.

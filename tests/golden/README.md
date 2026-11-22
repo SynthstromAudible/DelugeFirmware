@@ -15,10 +15,10 @@ C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/go
 | `instrument/` | the instrument's answers about every sound of the engine × oscillator-kind matrix, hashed per sound and family (`record_reference.tsv`) | `tests/unit/instruments/classic/composed_state_spec.cpp` | `unit` |
 | `ui/shell/` | the shell's popup and overlay panels | the shell specs | `unit` |
 | `ui/widgets/` | the UI widgets' panels and grid states | the ui specs | `unit` |
-| `ui/shell/<script>/` | each level-2 script's snapshots (`tests/ui-scripts/shell/`) | `expect_script_goldens`, in the unit specs and `sim/scenes_spec` | `unit`, `ui-scenes-spec` |
-| `ui/menu/`, `ui/scenes/` | the menu's and scenes' panels | `sim/scenes_spec` | `ui-scenes-spec` |
+| `ui/shell/<script>/` | each level-2 script's snapshots (`tests/ui-scripts/shell/`) | `expect_script_goldens`, in the unit specs and `tests/integration/ui/scenes` | `unit`, `ui-scenes-spec` |
+| `ui/menu/`, `ui/scenes/` | the menu's and scenes' panels | `tests/integration/ui/scenes` | `ui-scenes-spec` |
 | `ui/app/<script>/` | each level-3 app script's snapshots (`tests/ui-scripts/app/`) | `tests/integration/checks/ui_scripts.py` | `ui-scripts` |
-| `ui/menu_oracle/` | upstream `main`'s menu answers (below) | `sim/scenes_spec/support/oracle_table.h`, `oracle_files.h` | nothing: rows change by hand to follow `main` |
+| `ui/menu_oracle/` | upstream `main`'s menu answers (below) | `tests/integration/ui/scenes/support/oracle_table.h`, `oracle_files.h` | nothing: rows change by hand to follow `main` |
 | `render/` | the synth golden masters' presets (`presets/`, made by `presets/make_corpus.py`) and their records (`presets.json`); the render-song generator (`songs/make_render_song.py`) and its records (`songs.json`); synthetic wavetables (`wavetable_pins/`); `compare_renders.py`, which compares two sets of renders | `render_preset.py`, `render_song.py`, `render_card_cache.py`, `streaming_margin.py`, `param_dump.py`, `tools/audible_window/compare.py`, `load_policy.card`, the dsp band-builder and FFT specs, `engine_settings_run.py`, `upgrade_run.py` | `golden-synth` (`presets.json`), each render-song entry (`songs.json`) |
 | `songs/` | save(load(song)) hashes (`fixtures.json`) and the committed synthetic songs (`synthetic/`) | `songs_run.py`, `upgrade_run.py`, `model_decode_diff_run.py`, `model_equality_synthetic` | `song-roundtrip` |
 | `presets/` | save(load(preset)) hashes (`fixtures.json`) | `presets_run.py`, `upgrade_run.py` | `preset-roundtrip` |
@@ -35,11 +35,11 @@ accepts any `tests/**/*_records.h` there by its name.
 ## Menu reference tables (`ui/menu_oracle/`)
 
 Upstream `main`'s menu answers, one row per answer, which the menu's scenes specs check it against
-(`sim/scenes_spec/support/oracle_table.h` reads them; every spec that reads a table also checks it asked every
+(`tests/integration/ui/scenes/support/oracle_table.h` reads them; every spec that reads a table also checks it asked every
 row). A row is `path<TAB>column<TAB>values…`: the path names what answered (a menu node by its child positions
 under its root, a setting case, a shortcut cell), the column the question, the values the answer. `pixels/` holds
 panels as PBM, `pads/` the main grid's pad images: eight lines from the top row (y = 7) down, each sixteen `r,g,b`
-triples separated by spaces (`sim/scenes_spec/support/oracle_files.h` reads both, and a spec that reads them checks it
+triples separated by spaces (`tests/integration/ui/scenes/support/oracle_files.h` reads both, and a spec that reads them checks it
 read every file under its own prefix).
 
 Fields are raw bytes: only tab, newline and backslash are escaped, so a glyph byte such as the flat sign (0x81 in

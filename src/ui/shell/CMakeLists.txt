@@ -5,7 +5,7 @@ add_library(deluge_ui_shell STATIC profile.cpp surfaces.cpp board_surfaces.cpp s
 target_include_directories(deluge_ui_shell PUBLIC ${SHARED_INCLUDE})
 # <libdeluge/...> boundary headers. Spelled relative to this file (not ${CMAKE_SOURCE_DIR}/include,
 # which only resolves to the repo's include/ when this is built from the top-level project --
-# the tests/ and sim/ projects each have their own, different CMAKE_SOURCE_DIR). Mirrors
+# the tests/ and src/platform/host/ projects each have their own, different CMAKE_SOURCE_DIR). Mirrors
 # tests/spec_alloc/CMakeLists.txt and its siblings, which need the same headers from inside the
 # tests project.
 target_include_directories(deluge_ui_shell PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../../../include)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Rebuild a golden fixture's project tree (SONGS/…, SAMPLES/…) from the Deluge backup corpus into
-# $DELUGE_GOLDEN_DIR/<fixture>_proj. src/bsp/rust/src/storage/sd_image.rs runs this when a scenario's fixture tree
+# $DELUGE_GOLDEN_DIR/<fixture>_proj. src/platform/device/src/storage/sd_image.rs runs this when a scenario's fixture tree
 # is absent.
 #
 # Env:

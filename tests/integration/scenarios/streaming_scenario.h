@@ -18,7 +18,7 @@
 #pragma once
 
 /// @brief Host-only C-ABI bridge for the streaming-underrun harness (the Rust/Embassy
-///        `host_app` BSP, `src/bsp/rust/src/runtime/host/scenario.rs`).
+///        `host_app` BSP, `src/platform/device/src/runtime/host/scenario.rs`).
 ///
 /// Lets the harness drive a REAL song load, REAL playback, and a REAL concurrent output
 /// recording headlessly — the exact application entry points a user's LOAD/PLAY/RECORD
@@ -26,7 +26,7 @@
 /// layer. None of it changes their behaviour; every function is a thin, direct call into
 /// existing production code.
 ///
-/// @note `DELUGE_HOST`-only (see sim/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
+/// @note `DELUGE_HOST`-only (see src/platform/host/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
 ///       compiled into every x86 host build (the Rust Embassy `host_app` and its
 ///       harnesses), never into the ARM device firmware. Called by the Rust host runtime's streaming scenario
 ///       (`scenario.rs`) and by the `stem_export` scenario (`stem_export_scenario.cpp`).

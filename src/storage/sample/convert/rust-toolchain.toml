@@ -1,0 +1,5 @@
+# This crate's toolchain: no directory above it has a rust-toolchain.toml. crates/rust-toolchain.toml's, minus its
+# extra `targets`, which this host-only crate does not need.
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "clippy", "rustfmt"]

@@ -1,4 +1,4 @@
-//! Host end-to-end fill: read → convert → stitch → publish over a real `deluge_resource` manager,
+//! Host end-to-end fill: read → convert → stitch → publish over a real `deluge_storage_resource` manager,
 //! checked against the C++ reference.
 //!
 //! The fill orchestration (resolve geometry, read, gather neighbours, `finish_convert_stitch`,
@@ -11,16 +11,16 @@
 use core::ffi::c_void;
 use core::ptr;
 
-use deluge_resource::{
+use deluge_storage_resource::{
     BACKING_HEAP, DelugeResource, deluge_resource_create, deluge_resource_define_asset,
     deluge_resource_mark_ready, deluge_resource_release, deluge_resource_request,
     deluge_resource_set_construct, deluge_resource_try_acquire,
 };
 
-use deluge_sample_fill::fill_logic;
+use deluge_storage_sample_fill::fill_logic;
 use fill_logic::{FillGeometry, NeighbourView, begin, finish_convert_stitch};
 
-// Host stand-ins for the C-ABI symbols `deluge_resource` calls. Each test is single-threaded with
+// Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls. Each test is single-threaded with
 // no audio ISR, so no-ops are correct.
 #[unsafe(no_mangle)]
 extern "C" fn ENTER_CRITICAL_SECTION() {}

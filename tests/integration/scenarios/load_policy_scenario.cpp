@@ -313,10 +313,10 @@ bool checkSampleBuildAbandon() {
 	//  (b) A leak that drops the lease but never actually destroys the object (e.g. abandon() calls removeReason() but
 	//      not destroyAudioFileObject()): the chunk sits adopted but UNLEASED, so it stays evictable, and
 	//      deluge_resource_adopt's own table-full path silently reclaims it via evict_lowest()
-	//      (`crates/deluge_resource/src/manager.rs`) when room is needed. The crash loop above would then never fail --
+	//      (`src/storage/resource/src/manager.rs`) when room is needed. The crash loop above would then never fail --
 	//      begin() just keeps succeeding as old leaked chunks get quietly evicted to make room -- so it is blind to
 	//      this shape. evict_lowest() DOES bump `DelugeResourceStats. evictions`
-	//      (`crates/deluge_resource/src/manager.rs`) even though the deliberate evict_chunk() a correct abandon() goes
+	//      (`src/storage/resource/src/manager.rs`) even though the deliberate evict_chunk() a correct abandon() goes
 	//      through does not -- so a correct run should see zero evictions here (nothing in this test creates real
 	//      memory pressure), and a stats reset immediately before the loop plus an `evictions == 0` assertion
 	//      immediately after catches shape (b) without needing a live chunk-count query the public C ABI doesn't

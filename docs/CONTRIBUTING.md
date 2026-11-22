@@ -114,7 +114,7 @@ When introducing a new feature or behavior modification that should be toggleabl
      1. A row of `tests/ui-scripts/parity/DIFFERENCES.md` with the next free number, saying what `main` lacks, its status `accepted` with who accepted it, and `tables_3` `settings/11/N` as its evidence.
      2. That row's number in `tests/golden/README.md`'s list of rows that differ from `main` on purpose ("Menu reference tables").
      3. Port-only rows in `tables_3.tsv`, written as for a setting `main` has but from the scenes' node, with the `kids` row raised by one.
-     4. A pin in `sim/scenes_spec/support/known_differences.h`, which names each excused node by identity and their number by count, so a difference that is fixed, or one added without its pin, turns a spec red. Add the node to `port_only_setting` and raise `kPortOnlySettings` by one. The first such setting adds both, in a `@name` group of their own, in the shape of `shortcut_name_is_placeholder` and `kShortcutPlaceholderNameCells`:
+     4. A pin in `tests/integration/ui/scenes/support/known_differences.h`, which names each excused node by identity and their number by count, so a difference that is fixed, or one added without its pin, turns a spec red. Add the node to `port_only_setting` and raise `kPortOnlySettings` by one. The first such setting adds both, in a `@name` group of their own, in the shape of `shortcut_name_is_placeholder` and `kShortcutPlaceholderNameCells`:
 
        ```cpp
        /// @brief Community Features nodes `main`'s menu does not have: their `tables_3` rows are the port's own, each an

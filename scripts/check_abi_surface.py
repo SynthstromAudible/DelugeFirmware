@@ -6,10 +6,10 @@
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
-``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
-dependency outside this repository instead, and each of its functions counts as defined only when an
-``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function nobody
-calls keeps nothing alive.
+``src/platform/device/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in
+``EXTERNAL`` is defined by a dependency outside this repository instead, and each of its functions counts as defined
+only when an ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function
+nobody calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
@@ -17,7 +17,8 @@ function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test
 Callers are counted by name, per area:
 - ``app``: ``src/deluge`` and ``src/OSLikeStuff``;
 - ``tests``: ``tests/``, excluding the mocks' own definitions;
-- ``rust``: ``src/bsp/rust`` and ``crates``, excluding the definitions.
+- ``rust``: ``src/platform/device/src``, ``tests/harness`` and the crates workspace's member and excluded
+  directories, excluding the definitions.
 
 Comments are ignored.
 
@@ -33,8 +34,12 @@ Usage:
 
 import argparse
 import re
+import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h"))
@@ -132,21 +137,65 @@ def not_noexcept(headers: list[Path] = HEADERS) -> list[str]:
     return missing
 
 
+def fetched_vendor(repo: Path) -> Callable[[Path], bool]:
+    """A predicate for untracked files under a `third_party/` directory: a cache a build fetched, not project code."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=repo, capture_output=True, check=False
+    )
+    tracked = (
+        set(result.stdout.decode().split("\0")) if result.returncode == 0 else set()
+    )
+
+    def skip(path: Path) -> bool:
+        rel = path.relative_to(repo)
+        return "third_party" in rel.parts and rel.as_posix() not in tracked
+
+    return skip
+
+
 def source_files(*roots: str, suffixes: tuple[str, ...]) -> list[Path]:
     files = []
+    vendored = fetched_vendor(ROOT)
     for root in roots:
         for path in (ROOT / root).rglob("*"):
             if (
                 path.suffix in suffixes
                 and "target" not in path.parts
+                and not vendored(path)
                 and path.is_file()
             ):
                 files.append(path)
     return files
 
 
+CRATES = ROOT / "crates"
+
+
+def workspace_members() -> dict[Path, str]:
+    """Every member of the crates workspace, by resolved directory, mapped to its package name. The members are
+    listed in `crates/Cargo.toml`, as paths relative to it, so a crate may live outside `crates/`."""
+    members = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]["members"]
+    found: dict[Path, str] = {}
+    for member in members:
+        directory = (CRATES / member).resolve()
+        manifest = tomllib.loads((directory / "Cargo.toml").read_text())
+        found[directory] = manifest["package"]["name"].replace("-", "_")
+    return found
+
+
+def workspace_excluded() -> list[Path]:
+    """The directories the crates workspace excludes, resolved. They are scanned for callers like the members, but
+    no pin reaches them."""
+    workspace = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]
+    return [(CRATES / e).resolve() for e in workspace.get("exclude", [])]
+
+
+MEMBERS = workspace_members()
 RUST = source_files(
-    "src/bsp/rust/src", "src/bsp/rust/harness", "crates", suffixes=(".rs",)
+    "src/platform/device/src",
+    "tests/harness",
+    *(d.relative_to(ROOT).as_posix() for d in (*MEMBERS, *workspace_excluded())),
+    suffixes=(".rs",),
 )
 CXX_APP = source_files(
     "src/deluge", "src/OSLikeStuff", suffixes=(".c", ".cpp", ".h", ".hpp")
@@ -181,14 +230,13 @@ ABI_PIN = re.compile(r"abi_pin!\s*\(\s*(?:in\s+([\w:]+)\s*:)?([^)]*)\)", re.DOTA
 # defines it, which differ only when the C name isn't a legal Rust identifier (a keyword). `local_name` then
 # spells the C name as a raw identifier (`r#yield`), so stripping the `r#` recovers it.
 ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
-BSP_SRC = ROOT / "src" / "bsp" / "rust" / "src"
-HARNESS = ROOT / "src" / "bsp" / "rust" / "harness"
-CRATES = ROOT / "crates"
+BSP_SRC = ROOT / "src" / "platform" / "device" / "src"
+HARNESS = ROOT / "tests" / "harness"
 # Headers whose functions a dependency defines outside this repository, by the crate name `abi/pins.rs` pins them
 # `in`. Its source is not here to scan, so the pin, which checks each function against the header, stands for the
 # definition: a function with no pin into the crate is reported undefined.
 EXTERNAL: dict[str, str] = {
-    # deluge-sdk's `deluge-audio-format`, at the pin in src/bsp/rust/Cargo.toml.
+    # deluge-sdk's `deluge-audio-format`, at the pin in src/platform/device/Cargo.toml.
     "audio_format.h": "deluge_audio_format",
 }
 # `extern "C" { ... }` (optionally `unsafe`): an import block, as opposed to `extern "C" fn`, a definition.
@@ -196,20 +244,18 @@ EXTERN_BLOCK = re.compile(r'\bextern\s+"C"\s*\{')
 EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
-# `src/bsp/rust/src` and `src/bsp/rust/harness`, whose pins sit beside what they pin, or the crate's directory name for `crates/<dir>/src`,
-# which `abi/pins.rs` pins through the `in path:` form.
+# `src/platform/device/src` and `tests/harness`, whose pins sit beside what they pin, or the crate's package name for
+# a crates-workspace member's `src`, which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
 
 def crate_names() -> dict[str, Scope]:
-    """Every name `src/bsp/rust/src` can spell an in-tree crate by, mapped to that crate's scope: the crate's own
-    name, and any `alias = { package = "crate" ... }` rename in `src/bsp/rust/Cargo.toml`."""
+    """Every name `src/platform/device/src` can spell an in-tree crate by, mapped to that crate's scope: the crate's own
+    name, and any `alias = { package = "crate" ... }` rename in `src/platform/device/Cargo.toml`."""
     names: dict[str, Scope] = {}
-    for manifest in CRATES.glob("*/Cargo.toml"):
-        package = re.search(r'(?m)^name\s*=\s*"([^"]+)"', manifest.read_text())
-        if package:
-            names[package.group(1).replace("-", "_")] = manifest.parent.name
-    cargo = (ROOT / "src" / "bsp" / "rust" / "Cargo.toml").read_text()
+    for package in MEMBERS.values():
+        names[package] = package
+    cargo = (ROOT / "src" / "platform" / "device" / "Cargo.toml").read_text()
     for alias, package in re.findall(
         r'(?m)^([\w-]+)\s*=\s*\{[^}\n]*package\s*=\s*"([^"]+)"', cargo
     ):
@@ -223,20 +269,19 @@ def scope_of(path: Path) -> Scope | None:
     """The scope a pin must name to check an item in `path`, or None for a file no pin reaches."""
     if path.is_relative_to(BSP_SRC) or path.is_relative_to(HARNESS):
         return path.relative_to(ROOT).as_posix()
-    if path.is_relative_to(CRATES):
-        parts = path.relative_to(CRATES).parts
-        if len(parts) > 2 and parts[1] == "src":
-            return parts[0]
+    for directory, package in MEMBERS.items():
+        if path.is_relative_to(directory / "src"):
+            return package
     return None
 
 
 def pinned() -> dict[str, set[Scope]]:
-    """Every C name pinned by an `abi_pin!` in `src/bsp/rust/src` or `src/bsp/rust/harness`, with the scope each pin checks. A plain or
-    rename pin checks the item in scope at the invocation: the definition or import in its own file. The
-    `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
-    scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is
-    pinned apart from the BSP's definition, and a pin of the import alone leaves the definition unchecked and
-    reported. Likewise a pin beside the host definition does not cover the device one in another file."""
+    """Every C name pinned by an `abi_pin!` in `src/platform/device/src` or `tests/harness`, with the scope each pin
+    checks. A plain or rename pin checks the item in scope at the invocation: the definition or import in its own file.
+    The `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
+    scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is pinned
+    apart from the BSP's definition, and a pin of the import alone leaves the definition unchecked and reported.
+    Likewise a pin beside the host definition does not cover the device one in another file."""
     crates = crate_names()
     names: dict[str, set[Scope]] = {}
     for path in RUST:
@@ -377,7 +422,7 @@ def main() -> int:
         for name in names:
             for scope, kind in sorted(items.get(name, ())):
                 if scope not in pins.get(name, ()):
-                    where = scope if "/" in scope else f"crates/{scope}"
+                    where = scope if "/" in scope else f"crate {scope}"
                     unpinned.append(name)
                     print(f"unpinned: {name} ({kind} in {where})")
     missing = untagged() if args.tags else []

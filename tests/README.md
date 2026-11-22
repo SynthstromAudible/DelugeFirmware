@@ -34,6 +34,7 @@ builds only `golden-vt-render`.
 | upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | pr | storage | ~30s |
 | load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | pr | app | ~10s |
 | load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | nightly | app | ~1m |
+| audio-format-corpus | component | cargo | differential | gate | the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set) | pr | unit | ~20s |
 | region-fill-differential | component | cargo | differential | gate | the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference | pr | storage | ~1m |
 | region-read-differential | component | cargo | differential | gate | the sample range-reader must resolve the same frames as the chunk-payload oracle | pr | storage | ~1m |
 | region-source-differential | component | cargo | differential | gate | the region cursor must resolve a chunk's payload, not its header, over real streamed backing | pr | storage | ~1m |
@@ -75,7 +76,7 @@ builds only `golden-vt-render`.
 | stale-ui | integration | scenario | property | gate | a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty | pr | app | ~5s |
 | ui-scripts | integration | scenario | regression | gate | the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock | pr | app | ~1m |
 | ui-menu-dump | integration | scenario | regression | gate | the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json | pr | app | ~2s |
-| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (sim/scenes_spec) pass on golden_vt_render, one file per process from the app's own init, each on its card | pr | app | ~10s |
+| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card | pr | app | ~10s |
 | load-cancel | integration | scenario | property | gate | a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load | pr | app | ~5s |
 | ui-timer-deadline | integration | scenario | property | gate | the "ui routine" job runs the UI timers at their deadlines instead of polling | pr | app | ~1m |
 | idle-job-rates | integration | scenario | property | gate | an idle app runs each job only as often as it has work | pr | app | ~5s |
@@ -148,7 +149,7 @@ builds only `golden-vt-render`.
 | unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
-| sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
+| sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |
 | param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime | pr | model | ~1s |
 | param-target-check | integration | scenario | unit | gate | the host names params by target | pr | model | ~1s |
@@ -184,7 +185,7 @@ builds only `golden-vt-render`.
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
 | setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
-| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
+| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | pr | tooling | ~1s |
 | spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
@@ -197,6 +198,7 @@ builds only `golden-vt-render`.
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
+| compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
 | device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
@@ -228,7 +230,7 @@ builds only `golden-vt-render`.
 
 Placement follows coupling to the BSP source tree, not language or purpose.
 
-- **`tests/component/differential/`** — harnesses whose subject is a `crates/` library or
+- **`tests/component/differential/`** — harnesses whose subject is a Rust library crate under `src/` or
   `cc`-compiled application C++, rather than the BSP itself.
 
   One of these, `fs_differential`, also uses the BSP: its `tests/efatfs_core.rs` drives the BSP
@@ -236,13 +238,14 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   here because its subject is the `embedded-fatfs` stack (deluge-sdk's published fork), not the BSP.
 - **`tests/component/stress/`, `tests/component/dsp-diff/`** — standalone C++ rigs with their own `run.sh`, deliberately
   not ctest-driven.
-- **`src/bsp/rust/harness/`** — harnesses built on the BSP library. `golden_vt_render` runs the
-  BSP under its own executor and virtual clock, so it lives beside the BSP it drives.
+- **`tests/harness/golden_vt_render/`, `tests/harness/preemptive_race_tsan/`** — harnesses built on the BSP
+  library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
+  host app through `src/platform/host/link`. `src/platform/device/HOST_HARNESS.md` documents both.
 
 Three constraints keep these as separate Cargo packages rather than one
 workspace, and they are worth knowing before adding a tenth:
 
-1. `[patch.crates-io]` is workspace-global. Only `src/bsp/rust/Cargo.toml`
+1. `[patch.crates-io]` is workspace-global. Only `src/platform/device/Cargo.toml`
    carries the embassy fork patch; a workspace spanning it and the host clock
    harnesses would force the fork onto them silently.
 2. `embassy-time`'s `std` and `mock-driver` features both emit
@@ -260,7 +263,7 @@ itself, so none can run against a stale one.
 
 | Product | Tree | What it is |
 | --- | --- | --- |
-| `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `sim/`; nothing links here |
+| `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `src/platform/host/`; nothing links here |
 | `golden-vt-render` | `build/cargo-harness` | the Embassy host harness binary every scenario gate runs; its `build.rs` archives `build/host-app`'s objects |
 
 A ctest entry's own tree (`build/test-host`, `build/test-arm`, `build/test-ubsan`) is configured and built by its
@@ -331,7 +334,7 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 `tests/unit/<path>/` holds the specs for `src/<path>/`: a top-level library's specs are in its directory
 (`tests/unit/effects/`, `tests/unit/ui/widgets/`), a library nested in another has its own (`tests/unit/ui/scenes/bind/`), and the
 app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
-path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
+path: `tests/unit/harness/` for `tests/harness/`,
 `tests/unit/integration/scenarios/support/` for the scenarios' shared support. A spec whose stand-ins cannot share a
 driver with its neighbours' (an `IN_UNIT_TESTS` world, a deserializer stack) gets a driver of its own in a directory
 named for its subject file, `tests/unit/<path>/<subject stem>/` (`tests/unit/deluge/modulation/sync/` for
@@ -417,7 +420,7 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
    settings, and `OwnClock` when it drives the app's machines as a BSP task does, one tick per virtual millisecond,
    rather than as interaction-tier entries. golden_vt_render applies all of them and runs any row by name, so nothing
    on the Rust side changes. A card of the scenario's own is a manifest beside it,
-   `integration/scenarios/<name>.card`, in the format `src/bsp/rust/src/storage/card_manifest.rs` documents.
+   `integration/scenarios/<name>.card`, in the format `src/platform/device/src/storage/card_manifest.rs` documents.
    A row on the song-corpus fixture (`kCorpusFixture`) makes its tests local-only: each entry that runs it must
    require `song-corpus` (a registry unit test checks this, and golden_vt_render refuses the card otherwise).
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print

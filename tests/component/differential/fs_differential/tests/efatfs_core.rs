@@ -8,7 +8,7 @@
 use aligned::{Aligned, A4};
 use block_device_adapters::BufStream;
 use block_device_driver::BlockDevice;
-use deluge_bsp_rust::storage::efatfs::portable::{self as efatfs_core, HandleTable};
+use deluge_platform_device::storage::efatfs::portable::{self as efatfs_core, HandleTable};
 use embassy_futures::block_on;
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
 use fs_differential::{efatfs::EFatFs, ram_disk::RamDisk};

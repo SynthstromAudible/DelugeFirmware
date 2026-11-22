@@ -206,6 +206,21 @@ job = "app"
 runtime_s = 60
 
 [[harness]]
+name = "audio-format-corpus"
+path = "tests/component/differential/audio_format_corpus"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set)"
+build = ["cargo", "build", "--tests"]
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+job = "unit"
+runtime_s = 20
+
+[[harness]]
 name = "region-fill-differential"
 path = "tests/component/differential/region_fill_differential"
 level = "component"
@@ -311,7 +326,7 @@ runtime_s = 300
 # `dbt test`; revisit if a synthetic corpus fixture is ever built.
 [[harness]]
 name = "preemptive-race-tsan"
-path = "src/bsp/rust/harness/preemptive_race_tsan"
+path = "tests/harness/preemptive_race_tsan"
 level = "integration"
 runner = "script"
 kind = "sanitizer"
@@ -800,7 +815,7 @@ runtime_s = 2
 name = "ui-scenes-spec"
 template = "scenario"
 kind = "regression"
-gates = "the scenes' specs (sim/scenes_spec) pass on golden_vt_render, one file per process from the app's own init, each on its card"
+gates = "the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card"
 scenario = "scenes_spec"
 check = "tests/integration/checks/scenes_spec.py"
 markers = ["SCENES-SPEC"]
@@ -1379,7 +1394,7 @@ runtime_s = 20
 
 [[harness]]
 name = "bsp-host"
-path = "src/bsp/rust"
+path = "src/platform/device"
 level = "unit"
 runner = "cargo"
 kind = "unit"
@@ -1394,12 +1409,12 @@ runtime_s = 30
 
 [[harness]]
 name = "sample-convert"
-path = "crates/deluge_sample_convert"
+path = "src/storage/sample/convert"
 level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles"
+gates = "deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles"
 run = ["cargo", "test"]
 requires = ["cargo", "clang", "arm-none-eabi-gcc"]
 tier = "pr"
@@ -1765,7 +1780,7 @@ level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds"
+gates = "no per-directory support/ folder under tests/ holds a path tests/support/ also holds"
 run = ["python3", "scripts/check_test_support_names.py"]
 tier = "pr"
 job = "tooling"
@@ -1860,7 +1875,7 @@ template = "unittest"
 path = "tools"
 gates = "the machine-code comparison of two images names what an address points at instead of its value"
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
-requires = ["llvm-cxxfilt"]
+requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
 
 [[harness]]
 name = "relocate-selftest"
@@ -1868,6 +1883,14 @@ template = "unittest"
 path = "tools"
 gates = "a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move"
 run = ["python3", "-m", "unittest", "test_relocate"]
+
+[[harness]]
+name = "compare-strings-selftest"
+template = "unittest"
+path = "tools"
+gates = "the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change"
+run = ["python3", "-m", "unittest", "test_compare_strings"]
+requires = ["llvm-objcopy"]
 
 [[harness]]
 name = "stream-bench-parser"

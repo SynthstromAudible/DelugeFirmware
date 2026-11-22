@@ -1,0 +1,21 @@
+# The cached-asset resource manager behind `deluge_resource.h`. A `no_std` rlib with no panic
+# handler and no global allocator (the reclaim hook must never re-enter the manager); backing
+# memory comes from `deluge_base_alloc`.
+[package]
+name = "deluge_storage_resource"
+workspace = "../../../crates"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_storage_resource"
+crate-type = ["rlib"]
+
+[dependencies]
+deluge_base_alloc = { path = "../../base/alloc" }
+
+[dev-dependencies]
+proptest = "1"
+critical-section = { version = "1", features = ["std"] }

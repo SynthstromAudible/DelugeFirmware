@@ -16,52 +16,52 @@ repos:
         types_or: [c, c++]
   - repo: local
     hooks:
-      # Rust has two separate workspaces (crates/ and src/bsp/rust/); cargo fmt
-      # is per-manifest, so each needs its own hook. --check only (no rewrite) to
+      # Rust has several separate Cargo roots (crates/, src/platform/device/, src/storage/sample/convert/, the
+      # harnesses); cargo fmt is per-manifest, so each needs its own hook. --check only (no rewrite) to
       # match the other formatters' fail-and-report behaviour in this file.
       - id: cargo-fmt-crates
         name: rustfmt (crates)
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^crates/(?!deluge_sample_convert/).*\.rs$
+        files: ^(crates/|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/).*\.rs$
         pass_filenames: false
       - id: cargo-fmt-sample-convert
-        # deluge_sample_convert is a production dependency of the Rust BSP, but
+        # deluge_storage_sample_convert is a production dependency of the Rust BSP, but
         # it's deliberately excluded from the crates/ workspace (build.rs
         # cc-compiles app C++ and it has a std test harness, so it can't share
         # the workspace's no_std/panic=abort profiles). `cargo fmt --all` above
         # happens to still reach it today, incidentally, because a workspace
-        # member (deluge_sample_fill) path-deps on it -- but that's not
+        # member (deluge_storage_sample_fill) path-deps on it -- but that's not
         # deliberate coverage: drop that dependency and it silently stops being
         # checked. Give it its own hook against its own manifest instead, same
         # as the BSP/harness split below.
-        name: rustfmt (deluge_sample_convert)
-        entry: cargo fmt --manifest-path crates/deluge_sample_convert/Cargo.toml --check --
+        name: rustfmt (deluge_storage_sample_convert)
+        entry: cargo fmt --manifest-path src/storage/sample/convert/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^crates/deluge_sample_convert/.*\.rs$
+        files: ^src/storage/sample/convert/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-bsp
         name: rustfmt (bsp)
-        entry: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check --
+        entry: cargo fmt --manifest-path src/platform/device/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^src/bsp/rust/(?!harness/).*\.rs$
+        files: ^src/platform/device/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-harness
         name: rustfmt (harness)
-        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
+        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml src/platform/host/link/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
         language: system
         types: [rust]
-        files: ^(tests/component/differential/|src/bsp/rust/harness/).*\.rs$
+        files: ^(tests/component/differential/|tests/harness/|src/platform/host/link/).*\.rs$
         pass_filenames: false
       - id: check-abi-surface
         name: every declared libdeluge function has a definition, a signature pin, a context tag and DELUGE_NOEXCEPT
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme
@@ -81,7 +81,7 @@ repos:
         entry: python3 scripts/check_layers.py
         language: system
         pass_filenames: false
-        files: ^(src/|sim/|tests/|include/|scripts/(check_layers\.py|layers\.toml|layers_baseline\.txt|test_check_layers\.py))
+        files: ^(src/|tests/|include/|scripts/(check_layers\.py|layers\.toml|layers_baseline\.txt|test_check_layers\.py))
       - id: clang-tidy
         name: clang-tidy on the changed lines of the libraries
         description: dsp-next, synth, effects, the instrument, plugin, serialization and controls meet .clang-tidy on every line a commit changes
@@ -105,7 +105,7 @@ repos:
           ARMv7 address that is not word-aligned; declare the buffer alignas(ModelStackWithAutoParam)
         entry: '^(?!.*alignas).*\b(char|std::byte|uint8_t)\s+\w+\s*\[MODEL_STACK_MAX_SIZE'
         language: pygrep
-        files: ^(src|sim|tests)/.*\.(h|hpp|cpp|c)$
+        files: ^(src|tests)/.*\.(h|hpp|cpp|c)$
       - id: setting-menus
         name: no gesture sets a sound's instrument state or a song setting without its Edit
         description: no gesture under src/deluge/gui or src/ui/scenes calls a setter, a record reseed or writes a field a setting Edit owns
@@ -115,19 +115,19 @@ repos:
         files: ^(src/deluge/gui/|src/ui/scenes/|scripts/check_setting_menus\.py)
       - id: test-support-names
         name: no per-directory support/ file shadows tests/support/
-        description: a file under a support/ folder in tests/ or sim/ never has a path tests/support/ also has
+        description: a file under a support/ folder in tests/ never has a path tests/support/ also has
         entry: python3 scripts/check_test_support_names.py
         language: system
         pass_filenames: false
-        files: ^(tests/|sim/|scripts/check_test_support_names\.py)
+        files: ^(tests/|scripts/check_test_support_names\.py)
       - id: check-layer-rules
         name: UI layer-rule ratchet
         description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)
         entry: python3 scripts/check_layer_rules.py
         language: system
         pass_filenames: false
-        # Its rows cover the legacy tree, the toolkit, the shell, the scenes, and (two of them) sim/ and tests/.
-        files: ^(src/deluge/|src/ui/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        # Its rows cover all of src/ (the legacy tree, the toolkit, the shell, the scenes, the host build) and tests/.
+        files: ^(src/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
         description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
@@ -151,7 +151,7 @@ repos:
         entry: python3 scripts/check_spec_comparisons.py --staged
         language: system
         pass_filenames: false
-        files: ^(tests/|sim/scenes_spec/).*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
+        files: ^tests/.*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
 # - repo: local
 
 #   hooks:

@@ -378,7 +378,7 @@ public:
 	///
 	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's header
 	///       defines `context` as a macro (`#define context self.context`), so a member of that
-	///       name is unusable from every spec in `sim/scenes_spec` -- which is precisely where this
+	///       name is unusable from every spec in `tests/integration/ui/scenes` -- which is precisely where this
 	///       accessor is meant to be read.
 	const MenuContext& menu_context() const { return ctx_; }
 

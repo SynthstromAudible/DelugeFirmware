@@ -14,7 +14,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 	//
 	// Each override routes the message through the guest's chain as one `UiEvent` and answers with the chain's
 	// answer, falling back to the base `UI` answer (legacy's learn mode reaching `View`) when nothing in the chain
-	// used it. What the menu and `services::MidiLearn` do with the event is `sim/scenes_spec`'s.
+	// used it. What the menu and `services::MidiLearn` do with the event is `tests/integration/ui/scenes`'s.
 
 	it("each learn offer routes one event carrying the message, and falls back to the base answer", _ {
 		Rig r;
@@ -70,7 +70,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 	// `SoundEditor` forwards a button, a turn and its own exit to `instrumentClipView` while a note mode is on
 	// (`SoundEditor::buttonAction`, `SoundEditor::horizontalEncoderAction`, `SoundEditor::verticalEncoderAction` and
 	// `SoundEditor::exitCompletely` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`). What the forward decides is
-	// `sim/scenes_spec/note_mode_spec.cpp`'s; what these pin is the guest's half, against fakes that answer whatever an
+	// `tests/integration/ui/scenes/note_mode_spec.cpp`'s; what these pin is the guest's half, against fakes that answer whatever an
 	// example sets: a value is returned and nothing is fed, `std::nullopt` feeds exactly as before, and the tick is
 	// armed only while the guest is current.
 

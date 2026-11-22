@@ -278,7 +278,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		// song and `View`'s mod target can both have moved since the last one, and an unseeded
 		// `ModKnobs` blanks the mod LEDs and both knob indicator rings rather than doing nothing.
 		// What the three installed objects actually are is asserted where they can be built:
-		// `sim/scenes_spec/boot_wiring_spec.cpp`.
+		// `tests/integration/ui/scenes/boot_wiring_spec.cpp`.
 		Rig r;
 		expect(fakelegacyui::service_wirings).to_equal(0);
 		expect(r.open()).to_be_true();

@@ -1,0 +1,34 @@
+# The sample range-reader C ABI (`libdeluge/sample_reader.h`): raw-PCM frame ranges of a sample
+# for non-voice consumers (pitch detect, waveform, wavetable build). The non-voice twin of
+# `deluge_storage_sample_source`.
+#
+# Kept separate from `deluge_storage_sample_fill` because it depends on `deluge_storage_resource` directly (for the
+# typed `Lease`), which `deluge_storage_sample_fill` deliberately avoids.
+#
+# A plain `no_std` rlib with no `#[panic_handler]`: the final artifact provides one.
+[package]
+name = "deluge_storage_sample_reader"
+workspace = "../../../../crates"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_storage_sample_reader"
+crate-type = ["rlib"]
+
+[dependencies]
+deluge_storage_resource = { path = "../../resource" }
+# `native_fill` supplies the fill primitives this crate's synchronous fill composes; production
+# code needs it, not only tests.
+deluge_storage_sample_fill = { path = "../fill", features = ["native_fill"] }
+
+[dev-dependencies]
+deluge_base_alloc = { path = "../../../base/alloc" }
+critical-section = { version = "1", features = ["std"] }
+
+[features]
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on; the crate's own
+## tests leave it off, since the exports call symbols only a final link provides.
+c_abi = []

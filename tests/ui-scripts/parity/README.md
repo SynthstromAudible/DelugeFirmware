@@ -118,7 +118,7 @@ the 0 moves nothing and the 64 that follows is the first absolute move.
 synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN bytes
 of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so the
 script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is pinned
-by `tests/unit/ui/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the
+by `tests/unit/ui/controls/follow_spec.cpp` and `tests/integration/ui/scenes/midi_follow_spec.cpp`. No script sends a pitch bend (the
 runner has no bend verb) or unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI
 differences (D164, D165 in `DIFFERENCES.md`) are pinned by specs.
 

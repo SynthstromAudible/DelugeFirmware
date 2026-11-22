@@ -14,13 +14,33 @@ or adds a new (file, rule) pair, fails.
 
 import argparse
 import re
+import subprocess
 import sys
+from collections.abc import Callable
 from fnmatch import fnmatch
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "scripts" / "layer_rules_baseline.txt"
 SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
+
+
+def fetched_vendor(repo: Path) -> Callable[[Path], bool]:
+    """A predicate for untracked files under a `third_party/` directory: a cache a build fetched, not project code."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=repo, capture_output=True, check=False
+    )
+    tracked = (
+        set(result.stdout.decode().split("\0")) if result.returncode == 0 else set()
+    )
+
+    def skip(path: Path) -> bool:
+        rel = path.relative_to(repo)
+        return "third_party" in rel.parts and rel.as_posix() not in tracked
+
+    return skip
+
+
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
 
 # The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
@@ -399,13 +419,6 @@ RULES = [
     ),
     (
         "no-legacy-effects-owners",
-        "sim/**",
-        "symbol",
-        r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
-        "2026-11-13-controls-layer-design.md",
-    ),
-    (
-        "no-legacy-effects-owners",
         "tests/**",
         "symbol",
         r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
@@ -430,13 +443,6 @@ RULES = [
     ),
     (
         "mod-controllable-bridge-only",
-        "sim/**",
-        "symbol",
-        r"\bvalueChangedEnoughToMatter\b",
-        "2026-11-18-instrument-events-design.md",
-    ),
-    (
-        "mod-controllable-bridge-only",
         "tests/**",
         "symbol",
         r"\bvalueChangedEnoughToMatter\b",
@@ -447,13 +453,6 @@ RULES = [
         # what they serve. One row per tree: the checker matches one glob per row.
         "no-global-effectable-table",
         "src/**",
-        "symbol",
-        r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
-        "2026-11-15-effect-param-tables-design.md",
-    ),
-    (
-        "no-global-effectable-table",
-        "sim/**",
         "symbol",
         r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
         "2026-11-15-effect-param-tables-design.md",
@@ -861,13 +860,14 @@ def count_file(path: Path) -> dict[str, int]:
 
 # The trees the rules are counted over: the firmware, and the specs and tests that drive it (only
 # `no-legacy-effects-owners` and `mod-controllable-bridge-only` have rows outside `src/`).
-SCAN_ROOTS = ("src", "sim", "tests")
+SCAN_ROOTS = ("src", "tests")
 
 
 def current() -> dict[tuple[str, str], int]:
     out = {}
+    vendored = fetched_vendor(REPO)
     for p in sorted(p for root in SCAN_ROOTS for p in (REPO / root).rglob("*")):
-        if p.suffix in SUFFIXES and p.is_file():
+        if p.suffix in SUFFIXES and p.is_file() and not vendored(p):
             for rule, n in count_file(p).items():
                 out[(str(p.relative_to(REPO)), rule)] = n
     return out
@@ -913,11 +913,12 @@ def audit_symbols() -> int:
     """
     bad = 0
     total = 0
+    vendored = fetched_vendor(REPO)
     for rule, names, root in AUDITED_SYMBOLS:
         haystack = "\n".join(
             p.read_text(encoding="utf-8", errors="replace")
             for p in sorted((REPO / root).rglob("*"))
-            if p.suffix in SUFFIXES and p.is_file()
+            if p.suffix in SUFFIXES and p.is_file() and not vendored(p)
         )
         for sym in names:
             total += 1
@@ -940,15 +941,16 @@ def audit_service_scope() -> int:
     `Service` subclass is covered by the row's scope, not whether the class is correct. A new
     service in a directory the row cannot see is exactly the failure it catches.
 
-    Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` and
-    `sim/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
+    Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` derive from
+    `Service` too and are intentionally out of the ratchet -- a spec claiming
     the OLED is how the OLED branch gets covered at all (`tests/unit/ui/shell/flush_spec.cpp`).
     """
     frm = next(f for name, f, *_ in RULES if name == SERVICE_ROW)
     bad = 0
     found = 0
+    vendored = fetched_vendor(REPO)
     for p in sorted((REPO / "src").rglob("*")):
-        if p.suffix not in SUFFIXES or not p.is_file():
+        if p.suffix not in SUFFIXES or not p.is_file() or vendored(p):
             continue
         text = p.read_text(encoding="utf-8", errors="replace")
         if not any(

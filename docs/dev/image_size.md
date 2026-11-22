@@ -10,7 +10,7 @@ it leaves over becomes the internal heap. Measured on 2026-10-11 at `10e2f7133`.
 - **Section sizes:** `llvm-size -A -d build/RelWithDebInfo/deluge.elf`.
 - **Headroom:** the SRAM heap, `__sram_heap_end - __sram_heap_start` (`0x202EB000`, the RTT reserve, minus the start).
   The heap starts where the image's boot-only tail does (see [Applied](#applied)), and rza1l-hal ASSERTs at link time
-  that it is not negative; `src/bsp/rust/linker/sdram_sections.x` ASSERTs that it is at least `__sram_heap_floor`
+  that it is not negative; `src/platform/device/linker/sdram_sections.x` ASSERTs that it is at least `__sram_heap_floor`
   (100 KiB). The heap fills at boot whatever its size (`alloc_fast` falls back to SDRAM), so the floor guards speed,
   not memory: 110,448 B at `6797876da`. The audit below predates that layout: there, the HAL started the heap at the image end rounded
   up to 64 KB, the image had to end at or below `0x202E0000`, and headroom was `0x202E0000 - __exidx_end`.
@@ -167,7 +167,7 @@ Read off the linker scripts and the image's symbols. The load-copy item is built
   Cold code (menus, browsers, song load/save) could move there. Code moved to SDRAM costs SRAM only between the
   bootloader's copy and the boot's, so the move frees its steady-state bytes. Copying from memory-mapped SPI flash
   (`0x18000000`, cached) at boot would take it out of the bootloader's copy entirely.
-- **Data that could move to SDRAM:** about 47 KB of `deluge_bsp_rust::channel` task pools and staging buffers (cold,
+- **Data that could move to SDRAM:** about 47 KB of `deluge_platform_device::channel` task pools and staging buffers (cold,
   not DMA targets; same treatment as `EFATFS_ARENA`), and the efatfs `HANDLES` table (10 KB of `.data`). Reverb's
   128 KB of delay lines is a bench question: random-access taps through the L2.
 
@@ -195,7 +195,7 @@ streaming), so it is moved function rather than language overhead:
 | Subsystem | Size |
 |---|---:|
 | Filesystem: `embedded_fatfs` (~50 KB, most of it instantiated over the SD block device), the efatfs layer (54 KB, of which 13 KB is `.data` handle tables) and the file channels (`file_bytes`, `file_stream`, `file_directory`, `file_prefix`, ~28 KB) | 139 KB |
-| Sample streaming and the resource manager (`deluge_sample_*`, `deluge_resource`, audio loader, streaming loader) | 45 KB, of which 12 KB is the `.data` `REGISTRY` |
+| Sample streaming and the resource manager (`deluge_storage_sample_*`, `deluge_storage_stream`, `deluge_storage_resource`, audio loader, streaming loader) | 45 KB, of which 12 KB is the `.data` `REGISTRY` |
 | `compiler_builtins`: libm, memcpy, 64-bit division. It serves the C++ app: its `sinf`, `powf`, `expf` and the rest resolve here through 12-byte thunks, and newlib's libm is not linked | 20 KB |
 | USB and MIDI | 17 KB |
 | Runtime, executor and boot | 15 KB |
@@ -374,7 +374,7 @@ unless marked measured.
     - `chords.cpp`'s 3.8 KB of static initialisation, which could be `constexpr`.
 11. **Static destructors, ~6 KB.** 302 `__dtor_` thunks and 305 `atexit` registrations (`-fno-use-cxa-atexit`) for
     globals that are never destroyed. Use `-fno-c++-static-destructors`.
-12. **Streaming statics to SDRAM, ~45 KB.** `deluge_sample_source::abi::POOL` (28 KB) and the sample-stream
+12. **Streaming statics to SDRAM, ~45 KB.** `deluge_storage_sample_source::abi::POOL` (28 KB) and the sample-stream
     `REGISTRY` (12 KB), plus `streaming_fill_task::POOL` and `app_task::POOL` (4.4 KB, which the channel pattern
     misses). Check whether the render path walks them, then bench.
 

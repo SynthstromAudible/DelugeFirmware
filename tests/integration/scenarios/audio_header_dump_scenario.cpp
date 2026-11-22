@@ -17,7 +17,8 @@
 
 /// @file
 /// @brief The C++ oracle for the `deluge_audio_format` corpus differential
-/// (crates/deluge_rust/tests/audio_format_corpus.rs), run as `GOLDEN_SCENARIO=audio_header_dump`.
+/// (tests/component/differential/audio_format_corpus/tests/audio_format_corpus.rs), run as
+/// `GOLDEN_SCENARIO=audio_header_dump`.
 ///
 /// Reads host filesystem paths from stdin, one per line, until EOF, and prints one line for each:
 /// `AUDIO-HEADER ` then `dumpAudioHeaderAsJson()`'s JSON (scenarios/audio_header_dump.h). The prefix lets the

@@ -31,7 +31,9 @@ from __future__ import annotations
 import argparse
 import functools
 import re
+import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
@@ -230,7 +232,7 @@ def load_config(path: Path) -> Config:
     tree = Tree(
         include_roots=tuple(t.get("include_roots", ("src/deluge", "src"))),
         legacy=t.get("legacy", "src/deluge"),
-        scan_roots=tuple(t.get("scan_roots", ("src", "sim", "tests"))),
+        scan_roots=tuple(t.get("scan_roots", ("src", "tests"))),
         directories=tuple(d["path"] for d in raw.get("directory", [])),
         root_files=tuple(t.get("root_files", ())),
     )
@@ -266,11 +268,32 @@ def load_config(path: Path) -> Config:
     return Config(tree, libraries, rules)
 
 
+def fetched_vendor(repo: Path) -> Callable[[Path], bool]:
+    """A predicate for untracked files under a `third_party/` directory: a cache a build fetched, not project code."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=repo, capture_output=True, check=False
+    )
+    tracked = (
+        set(result.stdout.decode().split("\0")) if result.returncode == 0 else set()
+    )
+
+    def skip(path: Path) -> bool:
+        rel = path.relative_to(repo)
+        return "third_party" in rel.parts and rel.as_posix() not in tracked
+
+    return skip
+
+
 def source_files(repo: Path, root: str) -> list[Path]:
     base = repo / root
     if not base.is_dir():
         return []
-    return sorted(p for p in base.rglob("*") if p.is_file() and p.suffix in SUFFIXES)
+    vendored = fetched_vendor(repo)
+    return sorted(
+        p
+        for p in base.rglob("*")
+        if p.is_file() and p.suffix in SUFFIXES and not vendored(p)
+    )
 
 
 @functools.cache

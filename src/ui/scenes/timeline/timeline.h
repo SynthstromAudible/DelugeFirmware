@@ -59,7 +59,7 @@
 /// runs that animation to completion in a spec process.
 ///
 /// **Clearing that mode by hand does buy the next detent here.** Measured, in
-/// `sim/scenes_spec/timeline_spec.cpp`: the scroll example takes a second detent and lands on page
+/// `tests/integration/ui/scenes/timeline_spec.cpp`: the scroll example takes a second detent and lands on page
 /// two, and the zoom examples take a second detent and are then stopped by the max-zoom *delay*
 /// rather than by the mode. `WaveformBasicNavigator::zoom`'s tail
 /// (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`) is the same three steps that end the animation arm of
@@ -374,7 +374,7 @@ struct TimelineState {
 	///          the restore is skipped exactly when the remembered scroll happens to equal the
 	///          current zoom, and performed when it equals the current scroll -- where legacy
 	///          plainly meant to skip it. Ported faithfully and asserted on both sides in
-	///          `sim/scenes_spec/timeline_spec.cpp`, because a port whose job is to agree with
+	///          `tests/integration/ui/scenes/timeline_spec.cpp`, because a port whose job is to agree with
 	///          legacy may not quietly disagree with it. Recorded in `src/ui/scenes/README.md`'s
 	///          "Defects this port found in shipping firmware"; fixing it means
 	///          one change against both sides and both spec expectations at once.

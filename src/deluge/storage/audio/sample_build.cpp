@@ -174,7 +174,7 @@ static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 /// Map a byte crossing the ABI to `Error` by number (see the static_asserts above). An out-of-range
 /// byte degrades to `Error::UNSPECIFIED` rather than producing an invalid enum value via
 /// `static_cast` -- the same fail-safe direction `raw_data_format_from_u8`
-/// (crates/deluge_sample_fill/src/fill_logic.rs) takes for the analogous RawDataFormat byte below.
+/// (src/storage/sample/fill/src/fill_logic.rs) takes for the analogous RawDataFormat byte below.
 ///
 /// Declared in audio_load_abi.h rather than kept file-local: the C++ collector that consumes
 /// `DelugeAudioLoadResult::error` needs exactly this mapping, and a second copy of it is a second
@@ -444,7 +444,7 @@ Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {
 		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
 	}
 	try {
-		// SampleStream::open_read_stream owns the deluge_sample_stream registry handle (a DIFFERENT
+		// SampleStream::open_read_stream owns the deluge_storage_stream registry handle (a DIFFERENT
 		// handle space from whatever efatfs handle the loader used to read/parse the header) and its
 		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
 		return live->sample->stream().open_read_stream(path);

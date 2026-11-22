@@ -19,7 +19,7 @@ here="$(cd "$(dirname "$0")" && pwd)"; tree="$here/tree"; out="${1:-$here}"
 big="$(mktemp)"; huge="$(mktemp)"; trap 'rm -f "$big" "$huge"' EXIT
 head -c 1048576 /dev/zero | tr '\0' '\125' > "$big"
 python3 -c "import sys; sys.stdout.buffer.write(bytes((i>>9)&0xff for i in range(67108864)))" > "$huge"
-# FAT32: >= 2.5 GB / 32 KB clusters (matches src/bsp/rust/src/sd_image.rs)
+# FAT32: >= 2.5 GB / 32 KB clusters (matches src/platform/device/src/storage/sd_image.rs)
 truncate -s 2560M "$out/fat32.img"
 mformat -F -c 64 -i "$out/fat32.img" ::
 mcopy -s -i "$out/fat32.img" "$tree"/* ::

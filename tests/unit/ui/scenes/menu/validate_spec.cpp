@@ -3,9 +3,9 @@
 ///
 /// Pure: no model, no `Song`, no `gui/`. The real tables live behind `deluge_ui_scenes`, which this
 /// host suite deliberately never builds (`tests/trees/host/CMakeLists.txt`); `validate_tree` over the
-/// real roots is `sim/scenes_spec/tables_1_spec.cpp`'s job, where a real `MenuContext` can
+/// real roots is `tests/integration/ui/scenes/tables_1_spec.cpp`'s job, where a real `MenuContext` can
 /// be resolved, and the real shortcut tables are cross-checked in
-/// `sim/scenes_spec/shortcuts_spec.cpp`. What is checked here is the rule engine itself -- one fake
+/// `tests/integration/ui/scenes/shortcuts_spec.cpp`. What is checked here is the rule engine itself -- one fake
 /// tree that breaks four rules at once, and one that breaks none -- with the shortcut lookup the
 /// `ShortcutToNothing` rule sweeps supplied by `tests/unit/ui/scenes/menu/support/fake_shortcuts.h`.
 
@@ -459,7 +459,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 // clang-format on
 
 /// Two `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
-/// with `add_specs` instead -- as `sim/scenes_spec/menu_scene_spec.cpp` does.
+/// with `add_specs` instead -- as `tests/integration/ui/scenes/menu_scene_spec.cpp` does.
 int validate_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv).add_specs(scenes_validate, scenes_validate_rules).exec().is_success()
 	           ? EXIT_SUCCESS

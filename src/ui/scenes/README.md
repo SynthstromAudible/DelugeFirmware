@@ -87,7 +87,7 @@ nothing.
 
 ## Building and testing
 
-`src/CMakeLists.txt` and `sim/CMakeLists.txt` add this directory after `deluge_app`, because
+`src/CMakeLists.txt` and `src/platform/host/CMakeLists.txt` add this directory after `deluge_app`, because
 `deluge_ui_scenes` compiles against it. The link is `$<COMPILE_ONLY:deluge_app>` (a real link of an
 OBJECT library would archive all of `deluge_app` into this one), so **every consumer of
 `deluge_ui_scenes` must link `deluge_app` itself**. The Rust BSP's build archives both into the
@@ -97,7 +97,7 @@ firmware.
 |---|---|
 | `tests/unit/ui/scenes/menu/`, `tests/unit/ui/scenes/services/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
 | `tests/unit/ui/scenes/bind/` | `deluge_ui_scenes_bind` against a `project::Song` with no engine runtime |
-| `sim/scenes_spec/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
+| `tests/integration/ui/scenes/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
 | `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `./dbt test --update ui-menu-dump` regenerates it |
 
 Nothing under `src/ui/scenes` depends on a spec tree existing.
@@ -109,7 +109,7 @@ Nothing under `src/ui/scenes` depends on a spec tree existing.
 `l10n::getView`, and `error_lookup` is a hand-kept copy of `getErrorMessage(Error)`'s switch
 (`hid/` cannot be called from here). `scenes::deluge_profile()` is the shell's profile copied
 field-for-field with those two filled in. **The application and every scenes spec pass
-`scenes::deluge_profile()`**, never the shell's; `sim/scenes_spec/profile_spec.cpp` asserts every
+`scenes::deluge_profile()`**, never the shell's; `tests/integration/ui/scenes/profile_spec.cpp` asserts every
 other field stays identical to the shell's copy.
 
 ## The menu tree (`menu/`)
@@ -240,7 +240,7 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
 count of one. The shipped tree has **62** custom nodes behind 62 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **63**, one above: a ratchet,
+`tests/integration/ui/scenes/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **63**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 
@@ -519,7 +519,7 @@ over it — `request()`, `poll()` on later ticks, `take_result()`.
   leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim.
 
 The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tier's own stack;
-`sim/scenes_spec/listing_spec.cpp` installs a deferring dispatcher to observe the in-flight state.
+`tests/integration/ui/scenes/listing_spec.cpp` installs a deferring dispatcher to observe the in-flight state.
 
 ### The sample marker editor (`marker/`)
 
@@ -573,7 +573,7 @@ opened on the item alone (the drum creator's) leaves the menu.
 `ParamPopupScene` (the mod-encoder value popup) and `CountInScene` are input-transparent grid
 overlays. `ScreensaverScene` is the drawing half of legacy's `Screensaver`; the policy half (idle
 deadline, wake on input, the inhibitors) is `shell::Screensaver`. `Rainfall` and `Starfield` live in
-`ui/widgets/oled/`, and `sim/scenes_spec/support/oracle_*` compare them frame by frame against a
+`ui/widgets/oled/`, and `tests/integration/ui/scenes/support/oracle_*` compare them frame by frame against a
 transcription of legacy's.
 
 ### The timeline state (`timeline/`)
@@ -799,7 +799,7 @@ The device's own settings are a setting group, `project::SettingGroupId::DEVICE`
   takes effect only after a restart.
 * **A write never saves.** The host saves the whole batch when the settings root closes
   (`gui::ui::saveSettingsBeforeClose`). The stem export's options are DEVICE rows that nothing saves.
-* **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
+* **The specs' side** is `tests/support/ui/scenes/` (`deluge_ui_scenes_fakes`): one fake per port, the recording write ports,
   and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
 ## Repaint and timers
@@ -881,11 +881,11 @@ stack cites by line hundreds of times.
 | defect | severity | where it is recorded |
 |---|---|---|
 | **`Slicer` declares 432 bytes of stack it never touches, twice.** `renderMainPads`' REGION arm declares `RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth]` and renders into the caller's `image`; `buttonAction`'s BACK arm declares the same array and renders into `PadLEDs::image`. Both are uninitialised, unread and unwritten — 8 × 18 × 3 bytes each on a small UI stack — the residue of the MANUAL arm, the one place the array is used. Harmless as written; nothing to port. | cosmetic / stack pressure | this row; `slicing/slicer_scene.cpp`'s `button_action` BACK comment |
-| **`Slicer::selectEncoderAction`'s slice-count wrap fires only on an exact hit.** The REGION arm is `numClips += offset; if (numClips == 257) numClips = 2; else if (numClips == 1) numClips = 256;` — equality, and `offset` is whole detents, so a fast turn steps over both ends: 256 + 2 is 258, and from the opening 16 a single −20 turn lands on **−4**, which the page shows and nothing re-checks before `doSlice`. The port reproduces it, including the `int16_t` width. | user-visible, not a crash | `slicing/slicer_scene.cpp`'s `select_encoder`; the "steps past the wrap" and "drive the REGION count negative" examples in `sim/scenes_spec/slicer_scene_spec.cpp` |
+| **`Slicer::selectEncoderAction`'s slice-count wrap fires only on an exact hit.** The REGION arm is `numClips += offset; if (numClips == 257) numClips = 2; else if (numClips == 1) numClips = 256;` — equality, and `offset` is whole detents, so a fast turn steps over both ends: 256 + 2 is 258, and from the opening 16 a single −20 turn lands on **−4**, which the page shows and nothing re-checks before `doSlice`. The port reproduces it, including the `int16_t` width. | user-visible, not a crash | `slicing/slicer_scene.cpp`'s `select_encoder`; the "steps past the wrap" and "drive the REGION count negative" examples in `tests/integration/ui/scenes/slicer_scene_spec.cpp` |
 | **Use-after-free in `main`'s `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only then clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO, and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the priority-0 audio task — which runs on the **preemptive** executor — tests that pair and dereferences the recorder. The `recorder != nullptr` check does not help: the pointer is non-null and freed. The port clears the channel first, then the pointer, then frees, with a compiler barrier between the stores. Every take ends that way: the pair has one writer, `AudioEngine::setForegroundRecording`, and `deluge::recording`'s `finishRecording` clears through it before it frees; `main` still frees first. | **crash / memory corruption** | `AudioEngine::setForegroundRecording`'s contract; `processing/recording/foreground_recording.cpp`'s `finishRecording` |
 | **`View::modButtonAction` dereferences a pointer its sibling null-checks.** `ModControllable::getModKnobMode()` returns null for a controllable without mod-knob banks; `View::getModKnobMode` tests it, while `modButtonAction` reads `*activeModControllableModelStack.modControllable->getModKnobMode()` unguarded on a press outside the clip-minder views. `CVInstrument` is the one active mod controllable that keeps the null default, so the case is a mod button pressed while a CV track's knobs are the target. Established by reading, not reproduced. Here `knobFocusFromStack` maps a CV track to no focus, and `ModKnobs::section_button` returns on that empty focus, so the press changes nothing where `main` faults. | **crash (null dereference)** | `gui/views/knob_focus_from_stack.cpp`'s `knobFocusFromStack`; `services/mod_knobs.cpp`'s `section_button` |
 | **`View::setKnobIndicatorLevel` reads an uninitialised `int32_t`.** `knobPos` is assigned when the param has an `autoParam`, when `paramId == 255`, and when the descriptor is not just a param, and left unassigned on the fourth path — no `autoParam`, `paramId != 255`, `(paramId & 0x0000FF00) == 0x0000FF00` — then passed to `indicator_leds::setKnobIndicatorLevel`, which lights the gold knob's column from whatever was on the stack. The port declares nothing for that knob, which leaves the column as it was (the shell's rule for an undeclared indicator). | undefined behaviour; a wrong indicator | `services/mod_knobs.cpp`'s `indicator_level`; `services/mod_target.h`'s `ModIndicatorInfo` |
-| **`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an auto-extending linear recording restores the remembered scroll only `if (newXScroll != …xZoom[NAVIGATION_CLIP])`; the guard's purpose — skip a restore that moves nothing — needs `xScroll`. So the restore is skipped whenever the remembered scroll equals the current zoom (the view stays where the follow pushed it), and performed when it equals the current scroll (a redraw, and a scroll popup, for a move of zero). Reached whenever a linear recording auto-extends past the right edge and stops. Established by driving legacy's `getTickSquare` from both sides; the port reproduces it. | user-visible, not a crash | `timeline/timeline.h`'s `tick_square` warning; `timeline/timeline.cpp`'s file comment; `sim/scenes_spec/timeline_spec.cpp` |
+| **`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an auto-extending linear recording restores the remembered scroll only `if (newXScroll != …xZoom[NAVIGATION_CLIP])`; the guard's purpose — skip a restore that moves nothing — needs `xScroll`. So the restore is skipped whenever the remembered scroll equals the current zoom (the view stays where the follow pushed it), and performed when it equals the current scroll (a redraw, and a scroll popup, for a move of zero). Reached whenever a linear recording auto-extends past the right edge and stops. Established by driving legacy's `getTickSquare` from both sides; the port reproduces it. | user-visible, not a crash | `timeline/timeline.h`'s `tick_square` warning; `timeline/timeline.cpp`'s file comment; `tests/integration/ui/scenes/timeline_spec.cpp` |
 | **`AudioClipView::setClipLengthEqualToSampleLength`'s "NO SAMPLE" arm is dead, and the live arm misleads.** The guard tests `audioClip.guide.audioFileHolder`, which `AudioClip`'s constructor points permanently at its own member, so the `else` is unreachable. With no sample loaded the taken arm adjusts by `getLoopLengthAtSystemSampleRate`, which falls back to the clip's own loop length, and tells the user "CLIP LENGTH ADJUSTED" over a change of zero. `MenuAction::SetClipLengthToSampleLength` calls the same method, so the menu reaches it too. | user-visible, not a crash | this row |
 
 ## Divergences from `main`
@@ -911,7 +911,7 @@ What a user can see differ from `main` today, beyond the features below that the
 `main` is the truth the scenes match (read with `git show origin/main:<path>`); every way they differ is a
 `tests/ui-scripts/parity/DIFFERENCES.md` row, fixed or accepted. A feature-level `main` behaviour the scenes lag is
 listed here, and the specs over the frozen legacy rows pin each divergence by identity
-(`sim/scenes_spec/support/known_differences.h`), so porting it fails that spec until the pin goes.
+(`tests/integration/ui/scenes/support/known_differences.h`), so porting it fails that spec until the pin goes.
 
 | `main` | gap | what porting it takes |
 |---|---|---|

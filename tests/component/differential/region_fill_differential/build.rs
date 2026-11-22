@@ -5,14 +5,14 @@
 //!
 //! `convert_cluster_data` is a header-only template, so its instantiation lands in
 //! `harness_shim.cpp.o`. The non-template `convert_word` and `stitch_boundaries` are left undefined
-//! here and resolve from `deluge_sample_convert`'s already-compiled `convert.cpp.o`/`stitch.cpp.o`:
+//! here and resolve from `deluge_storage_sample_convert`'s already-compiled `convert.cpp.o`/`stitch.cpp.o`:
 //! its `cc` link directives reach every downstream binary (it declares no `links` key). Compiling
 //! `convert.cpp`/`stitch.cpp` here too would put a second definition of those symbols in the same
 //! link and fail with duplicate symbols.
 //!
 //! # argon and SIMDe
 //!
-//! The include paths for argon and SIMDe point at `deluge_sample_convert`'s fetched `third_party/`
+//! The include paths for argon and SIMDe point at `deluge_storage_sample_convert`'s fetched `third_party/`
 //! cache. That crate is a normal dependency, so its build script has run (and fetched the pinned
 //! copies) before this one; it exports no `DEP_*` variable, hence the plain path.
 use std::path::PathBuf;
@@ -28,30 +28,30 @@ fn main() {
     let src = repo.join("src");
     let src_deluge = src.join("deluge");
     let include = repo.join("include");
-    let sim_compat = repo.join("sim/compat");
+    let sim_compat = repo.join("src/platform/host/compat");
 
     let shim_cpp = manifest.join("cpp/harness_shim.cpp");
     println!("cargo:rerun-if-changed={}", shim_cpp.display());
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Reused from deluge_sample_convert's fetch; see the module doc.
+    // Reused from deluge_storage_sample_convert's fetch; see the module doc.
     let sample_convert_dir = manifest
-        .join("../../../../crates/deluge_sample_convert")
+        .join("../../../../src/storage/sample/convert")
         .canonicalize()
-        .expect("resolve deluge_sample_convert dir");
+        .expect("resolve deluge_storage_sample_convert dir");
     let argon_inc = sample_convert_dir.join("third_party/argon/include");
     let simde_root = sample_convert_dir.join("third_party/simde");
     assert!(
         argon_inc.join("argon.hpp").is_file(),
-        "deluge_sample_convert's fetched argon cache not found at {} — expected deluge_sample_convert's \
+        "deluge_storage_sample_convert's fetched argon cache not found at {} — expected deluge_storage_sample_convert's \
          build.rs to have fetched it first (it's this crate's normal dependency, built before this \
-         script runs). Try `cargo build` from crates/deluge_sample_convert/ first if invoking this \
+         script runs). Try `cargo build` from src/storage/sample/convert/ first if invoking this \
          crate in isolation somehow skipped that.",
         argon_inc.display()
     );
     assert!(
         simde_root.join("simde/arm/neon.h").is_file(),
-        "deluge_sample_convert's fetched SIMDe cache not found at {}",
+        "deluge_storage_sample_convert's fetched SIMDe cache not found at {}",
         simde_root.display()
     );
 

@@ -240,4 +240,4 @@ empty but for a `.keep`, `SAMPLES/` with a `.keep` and `TONE.WAV` (`scripts/make
 boot when they are missing, so they are committed: the card is a fixed point and a run only reads it.
 
 The cards that differ from it by one file are card manifests over it (`tests/fixtures/card-<name>.card`, the format
-in `src/bsp/rust/src/storage/card_manifest.rs`): `base tests/fixtures/card` and the one difference.
+in `src/platform/device/src/storage/card_manifest.rs`): `base tests/fixtures/card` and the one difference.

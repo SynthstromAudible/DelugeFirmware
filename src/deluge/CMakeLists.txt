@@ -67,7 +67,7 @@ endif()
 # deluge_app: the PORTABLE application. It links only the portable libraries and
 # the <libdeluge/...> boundary headers — no HAL and no BSP. The boundary's
 # deluge_* functions are undefined symbols here, resolved when the Rust BSP links
-# the app (src/bsp/rust/build/, on the device and on the host).
+# the app (src/platform/device/build/, on the device and on the host).
 # scripts/check_layers.py's platform-boundary rule keeps HAL and BSP includes out of the app.
 # ---------------------------------------------------------------------------
 # An OBJECT library (not STATIC): its object files embed directly into whichever
@@ -108,7 +108,7 @@ target_include_directories(deluge_app PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
     ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
-    ${CMAKE_SOURCE_DIR}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
+    ${CMAKE_SOURCE_DIR}/src/storage/resource/include # deluge_resource.h (Rust resource manager C ABI)
 )
 
 target_link_libraries(deluge_app PUBLIC
@@ -214,5 +214,5 @@ endif(ENABLE_MATRIX_DEBUG)
 
 # NB: deluge_app deliberately references no executable — it is a self-contained,
 # platform-agnostic app library that the Rust BSP links, on the device (from
-# src/CMakeLists.txt's tree) and on the host (from sim/CMakeLists.txt's).
+# src/CMakeLists.txt's tree) and on the host (from src/platform/host/CMakeLists.txt's).
 

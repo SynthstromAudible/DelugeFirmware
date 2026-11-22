@@ -17,7 +17,7 @@ is on the device), and the BSP's host arms talk to deluge-sdk's desktop simulato
 
 | On the device | In the emulator |
 |---|---|
-| The PIC (pads, buttons, LEDs, gold knobs) | `src/bsp/rust/src/sim_panel.rs`'s virtual PIC: the pad framebuffer, scrolls and LEDs the simulator draws; pad and button presses come back as PIC bytes |
+| The PIC (pads, buttons, LEDs, gold knobs) | `src/platform/device/src/sim_panel.rs`'s virtual PIC: the pad framebuffer, scrolls and LEDs the simulator draws; pad and button presses come back as PIC bytes |
 | The OLED | Each frame goes to the window |
 | The encoders | Turns land as quadrature edges, two a detent |
 | The codec | `sim_panel::render_block`: a block is rendered whenever the simulator's audio output has room, so the audio device paces the app in real time |
@@ -26,18 +26,18 @@ is on the device), and the BSP's host arms talk to deluge-sdk's desktop simulato
 
 The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-simulator` with its `link` module, and
 the `deluge_bsp::host_panel` hook the BSP's peripherals call on the host), so any program on the Deluge's hardware
-can use them. This repository keeps its glue: the `sim` feature of `src/bsp/rust` (`sim_panel.rs`, the panel behind
+can use them. This repository keeps its glue: the `sim` feature of `src/platform/device` (`sim_panel.rs`, the panel behind
 `deluge_bsp::host_panel`, adapted from deluge-sdk's own; `main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s
-`drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/bsp/rust/src/memory_card.rs`, which
+`drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/platform/device/src/storage/memory_card.rs`, which
 golden_vt_render uses too.
 
 ## Building
 
 `dbt sim` builds the C++ app's host objects in `build/host-app` (clang, the tree the gates use), then
-`cargo build --release --features sim` in `src/bsp/rust`. `--no-build` runs the last build.
+`cargo build --release --features sim` in `src/platform/device`. `--no-build` runs the last build.
 
 While the deluge-sdk revision this repository pins lacks the simulator, the build needs a sibling `../deluge-sdk`
-checkout on that branch and `src/bsp/rust/local-sdk.toml` pointing at it; `dbt sim` uses the override when the file
+checkout on that branch and `src/platform/device/local-sdk.toml` pointing at it; `dbt sim` uses the override when the file
 exists and leaves `Cargo.lock` as it found it.
 
 ## The card
@@ -99,7 +99,7 @@ binaries and lists every snapshot file they disagree on; `--worktree REV` builds
 
 ## Scenes specs
 
-The scenes' CppSpec files (`sim/scenes_spec`) link into the host app and run on `golden_vt_render`, one file per
+The scenes' CppSpec files (`tests/integration/ui/scenes`) link into the host app and run on `golden_vt_render`, one file per
 process, from the app's own init, as the `ui-scenes-spec` gate does. A file's card is installed before boot: the
 fixture card unless `tests/integration/checks/scenes_spec_cards.txt` names another (`none` for no card). To run one by
 hand, or list them:

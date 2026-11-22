@@ -1,12 +1,12 @@
 // tests/unit/deluge/model/sample/sample_peek_spec.cpp
 //
-// deluge_sample_peek over a REAL, linked deluge_resource manager (unlike
+// deluge_sample_peek over a REAL, linked deluge_storage_resource manager (unlike
 // sample_reader_bridge_spec.cpp's deliberately-unregistered-asset scenario): this drives the
 // manager C ABI directly (deluge_resource_request/_mark_ready) to build one resident-and-ready
 // cluster, one resident-but-not-ready cluster, and one never-touched (absent) cluster, then
 // asserts deluge_sample_peek's contract against all three. The frame->cluster mapping and
 // window/advance/degrade logic already have exhaustive coverage in the reader crate's own test
-// suite (crates/deluge_sample_reader/src/reader.rs's `mod tests`); this spec exists to prove the
+// suite (src/storage/sample/reader/src/reader.rs's `mod tests`); this spec exists to prove the
 // C-ABI wiring end to end, including the manager-handle resolution `mock_streaming_fill.cpp`'s
 // `set_active_manager` now makes settable.
 #include "mock_streaming_fill.h"
@@ -35,7 +35,7 @@ constexpr uint32_t kFramesPerCluster = kClusterSize / kStride; // 32
 // seeded `payload == backing` stand-in would leave peek reading its pointer out of payload bytes.
 // Mirrors the Rust reader crate's own `real_chunk_construct`/`BACKING_SIZE` harness (reader.rs).
 //
-// `+ 7` is the trailing slack `deluge_sample_fill::native_finish` always touches; rounded up to a
+// `+ 7` is the trailing slack `deluge_storage_sample_fill::native_finish` always touches; rounded up to a
 // 16-byte multiple to match the slab's slot alignment. Derived from the real offset rather than a
 // hand-rounded literal, so this never drifts out of sync with `StreamedChunk`'s own layout.
 inline uint32_t backing_size() {

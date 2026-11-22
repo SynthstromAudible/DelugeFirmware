@@ -277,7 +277,7 @@ other. Also owns the legacy-name alias tables (§7.3).
 
 **deluge-stream** — audio-context storage: cluster cache, sample streaming,
 SD read scheduling, resource-manager `Source`/`materialize`/`on_evict` wiring (`Stealable` is fully
-retired -- see `crates/deluge_resource`). Split from `deluge-files` because the two halves have
+retired -- see `src/storage/resource`). Split from `deluge-files` because the two halves have
 opposite realtime contracts (blocking-allowed vs audio-safe), which today share a directory and
 a god-object. Implemented via `include/libdeluge/stream_io.h`.
 
@@ -756,7 +756,7 @@ allocator friendliness; dynamic sizing is only needed for plugin modules.
 | gfx-7seg | text snapshots (4 chars + dot bits) | no |
 | grid-views / display views | state in → framebuffer snapshot out | no |
 | ui-shell | event-script integration tests: inject pads/buttons/encoders, assert on three framebuffers | no |
-| whole app | host-sim BSP (run, capture, inject); **replay**: recorded/flight-recorder logs ⇒ bit-identical audio + framebuffers; generated logs for soak/fuzz | sim exists (`sim/`, `build-sim*`); replay invariant per §4.5 |
+| whole app | host-sim BSP (run, capture, inject); **replay**: recorded/flight-recorder logs ⇒ bit-identical audio + framebuffers; generated logs for soak/fuzz | sim exists (`src/platform/host/`, `build-sim*`); replay invariant per §4.5 |
 
 The sim drops from "the only way to test anything" to the integration layer
 of a pyramid. Debug/sim builds additionally arm the runtime enforcement

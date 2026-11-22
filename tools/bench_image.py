@@ -8,10 +8,10 @@ Usage:
 Builds `./dbt build RelWithDebInfo` with `-DDELUGE_STREAM_BENCH=ON` (or OFF with --no-bench) and any
 --define and with each --features cargo feature on the device BSP, then copies build/RelWithDebInfo/deluge.elf
 to --out. With --sdk, the build's SDK path
-override (src/bsp/rust/local-sdk.toml, gitignored) is pointed at PATH for this build only, e.g. a
+override (src/platform/device/local-sdk.toml, gitignored) is pointed at PATH for this build only, e.g. a
 worktree of an SDK branch not yet pushed.
 
-Whatever happens, afterwards: local-sdk.toml and src/bsp/rust/Cargo.lock are restored byte for byte
+Whatever happens, afterwards: local-sdk.toml and src/platform/device/Cargo.lock are restored byte for byte
 (a build through the override rewrites the lock's SDK entries; restoring what was there, not what is
 committed, keeps a deliberate uncommitted lock update), and the bench option is configured back to
 what build/CMakeCache.txt had.
@@ -30,8 +30,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 CACHE = REPO / "build" / "CMakeCache.txt"
-LOCAL_SDK = REPO / "src" / "bsp" / "rust" / "local-sdk.toml"
-CARGO_LOCK = REPO / "src" / "bsp" / "rust" / "Cargo.lock"
+LOCAL_SDK = REPO / "src" / "platform" / "device" / "local-sdk.toml"
+CARGO_LOCK = REPO / "src" / "platform" / "device" / "Cargo.lock"
 ELF = REPO / "build" / "RelWithDebInfo" / "deluge.elf"
 # The override's paths, relative to the directory cargo resolves them from (see local-sdk.toml).
 SDK_PREFIX = "../../../deluge-sdk/"

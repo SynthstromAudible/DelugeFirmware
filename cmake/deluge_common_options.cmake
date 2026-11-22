@@ -2,10 +2,10 @@
 #
 # Included by every CMake project that builds Deluge sources, so the same flags apply to the same targets everywhere:
 #
-#   * the device build   (top-level CMakeLists.txt        -> src/deluge, src/ui/gfx, src/ui, src/base/notify)
-#   * the host-sim build (sim/CMakeLists.txt              -> the same subdirectories, plus sim glue)
-#   * the host tests     (tests/trees/host/CMakeLists.txt -> src/ui/gfx, src/ui, src/ui/shell, src/base/notify)
-#   * the test trees     (tests/support/cmake/libs.cmake  -> the standalone src/ libraries, src/deluge/dsp-next and
+#   * the device build   (top-level CMakeLists.txt         -> src/deluge, src/ui/gfx, src/ui, src/base/notify)
+#   * the host-sim build (src/platform/host/CMakeLists.txt -> the same subdirectories, plus sim glue)
+#   * the host tests     (tests/trees/host/CMakeLists.txt  -> src/ui/gfx, src/ui, src/ui/shell, src/base/notify)
+#   * the test trees     (tests/support/cmake/libs.cmake   -> the standalone src/ libraries, src/deluge/dsp-next and
 #                         src/synth: host, ARM and UBSan)
 #
 # MAINTAINER_MODE and the C/C++ standard variables live here too because the generator
@@ -15,7 +15,7 @@
 #   include(${REPO_ROOT}/cmake/deluge_common_options.cmake)
 #
 # It appends, so a project that has already put something in DELUGE_COMMON_COMPILE_OPTIONS
-# (sim/CMakeLists.txt seeds -fsigned-char) keeps it.
+# (src/platform/host/CMakeLists.txt seeds -fsigned-char) keeps it.
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 

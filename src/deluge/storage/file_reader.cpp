@@ -455,7 +455,7 @@ void StorageManager::releaseDocumentStaging() {
 // where the region is a fixed host array the linker never moves.
 //
 // These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
-// from the boot's zeroing of [__sdram_bss_start, __sdram_bss_end) (src/bsp/rust/src/boot_mem.rs,
+// from the boot's zeroing of [__sdram_bss_start, __sdram_bss_end) (src/platform/device/src/boot_mem.rs,
 // init_sdram_memory) -- nothing else zeroes them. If
 // that memset is ever dropped again (it has been deleted once before), the first emplace() here would
 // see a garbage-engaged optional, destroy a garbage XMLDeserializer, and hand its garbage

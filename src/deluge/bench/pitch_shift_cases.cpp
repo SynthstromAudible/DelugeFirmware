@@ -105,7 +105,7 @@ constexpr uint32_t hash32(uint32_t x) {
 	return x ^ (x >> 16);
 }
 
-/// The harness's percussive test signal on one channel at frame @p n (src/bsp/rust/src/audio/host.rs).
+/// The harness's percussive test signal on one channel at frame @p n (src/platform/device/src/audio/host.rs).
 constexpr int32_t percussive_channel(uint32_t n, const std::array<uint32_t, 5>& periods, uint32_t seed) {
 	const uint32_t period = periods[(n / 4096) % 5];
 	const int32_t saw = static_cast<int32_t>(((n % 4096) % period) * (UINT32_MAX / period)) >> 1;

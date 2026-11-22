@@ -189,7 +189,7 @@ void reapplyLiveSettingsAfterReset();
 /// `StemExport::exportRoutine`. An example that let the real arm reach `startStemExportProcess` would therefore
 /// change global transport and UI state inside the assertion, for an export that nothing in a spec is driving.
 ///
-/// So the fan-out is named, and `sim/scenes_spec/menu_actions_spec.cpp` drives it directly from each
+/// So the fan-out is named, and `tests/integration/ui/scenes/menu_actions_spec.cpp` drives it directly from each
 /// of the root UIs legacy names. The dispatcher's own arm is still covered end to end, but only down
 /// the branch where this returns `std::nullopt` -- which is legacy's own no-op and the one branch
 /// that starts nothing.

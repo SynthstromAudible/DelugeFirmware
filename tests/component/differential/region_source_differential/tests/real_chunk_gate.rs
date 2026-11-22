@@ -1,9 +1,9 @@
 //! Payload-offset gate: the region cursor (`SampleSource<ManagerResidency>`) over a real
-//! `deluge_resource` manager whose chunks are real `StreamedChunk`s.
+//! `deluge_storage_resource` manager whose chunks are real `StreamedChunk`s.
 //!
 //! A streamed chunk's payload sits at a non-zero offset from its manager backing, behind the
 //! `StreamedChunk` header. Payloads are seeded with `make_ramp` through
-//! `deluge_sample_fill::chunk::payload`, so a cursor that reads from the backing pointer instead
+//! `deluge_storage_sample_fill::chunk::payload`, so a cursor that reads from the backing pointer instead
 //! (as `ManagerPin::payload()` once did) sees header bytes and fails the ramp comparison. A fake
 //! backing with `payload == backing` cannot catch that.
 //!
@@ -14,18 +14,18 @@ use core::ffi::c_void;
 use std::ptr;
 use std::sync::Mutex;
 
-use deluge_resource::value::COST_IO;
-use deluge_resource::{
+use deluge_storage_resource::value::COST_IO;
+use deluge_storage_resource::{
     deluge_resource_create, deluge_resource_define_asset, deluge_resource_lease_count_by_slot,
     deluge_resource_mark_ready, deluge_resource_release, deluge_resource_request,
     deluge_resource_set_construct, deluge_resource_try_acquire, manager::BACKING_HEAP,
     DelugeResource,
 };
-use deluge_sample_source::cursor::{RegionOut, RegionState, SampleSource};
-use deluge_sample_source::geometry::Geometry;
-use deluge_sample_source::manager_residency::ManagerResidency;
+use deluge_storage_sample_source::cursor::{RegionOut, RegionState, SampleSource};
+use deluge_storage_sample_source::geometry::Geometry;
+use deluge_storage_sample_source::manager_residency::ManagerResidency;
 
-// `deluge_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
+// `deluge_storage_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
 // dependency crates' own `#[cfg(test)]` stubs are compiled out here, so this binary supplies them.
 // `deluge_in_interrupt` is always false, so masking is really exercised.
 mod host_critical_section_stubs {
@@ -90,12 +90,12 @@ extern "C" fn deluge_streaming_signal_fill() {}
 /// `abi.rs`; present in case that code is linked in. Never called.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_sample_stream_asset_id(
-    _stream_backing: *mut deluge_sample_source::abi::DelugeStreamBacking,
+    _stream_backing: *mut deluge_storage_sample_source::abi::DelugeStreamBacking,
 ) -> u32 {
     0
 }
 
-/// Construct callback forwarding to `deluge_sample_fill::chunk::deluge_streaming_chunk_construct`,
+/// Construct callback forwarding to `deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct`,
 /// the one production uses for streamed sample chunks.
 ///
 /// Needed only because `ConstructFn` takes `dest: *mut u8` and the target takes `*mut c_void`;
@@ -109,7 +109,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
     // upholds for this callback.
     unsafe {
-        deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+        deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
             ctx,
             owner,
             index,
@@ -124,7 +124,7 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 const CLUSTER_SIZE: u32 = 64;
 const CHUNK_CAP: u32 = 32; // ample for this gate's handful of indices
 
-/// A real `deluge_resource` manager over a test heap, with one asset whose `construct` places a
+/// A real `deluge_storage_resource` manager over a test heap, with one asset whose `construct` places a
 /// real streamed chunk (payload at `backing + payload_offset`) at each slab slot.
 struct ChunkHarness {
     handle: *mut DelugeResource,
@@ -160,7 +160,7 @@ impl ChunkHarness {
             deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         let payload_offset =
-            deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
+            deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
         let backing_size = payload_offset + CLUSTER_SIZE as usize + 7; // + kTrailingSlackBytes
 
         ChunkHarness {
@@ -189,7 +189,7 @@ impl ChunkHarness {
         };
         // SAFETY: `ptr` is a resident `StreamedChunk` backing; the accessor returns its
         // `CLUSTER_SIZE`-byte payload.
-        let payload = unsafe { deluge_sample_fill::chunk::payload(ptr as *mut c_void) };
+        let payload = unsafe { deluge_storage_sample_fill::chunk::payload(ptr as *mut c_void) };
         let ramp = region_source_differential::make_ramp(index, CLUSTER_SIZE as usize);
         // SAFETY: `payload` is valid for `CLUSTER_SIZE` writable bytes; `ramp` is that long.
         unsafe { ptr::copy_nonoverlapping(ramp.as_ptr(), payload, CLUSTER_SIZE as usize) };

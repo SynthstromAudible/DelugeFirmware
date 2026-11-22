@@ -105,7 +105,7 @@ HOST_APP_TARGETS = [
     "deluge_base_notify",
     "deluge_ui_scenes",
     "deluge_ui_level3",
-    "deluge_scenes_spec",
+    "deluge_ui_scenes_spec",
 ]
 
 
@@ -137,7 +137,7 @@ class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             # clang, because the firmware ships built with it: the host renders the golden masters record must take
             # the same code generation.
             steps.append(
@@ -146,7 +146,7 @@ class HostApp(Product):
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
@@ -168,14 +168,14 @@ class HostAppAsan(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ASAN_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             steps.append(
                 Step(
                     "configure",
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
@@ -198,19 +198,19 @@ class HostAppArm(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ARM_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             steps.append(
                 Step(
                     "configure",
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
                         "Ninja",
-                        f"-DCMAKE_TOOLCHAIN_FILE={root / 'sim/arm-linux-toolchain.cmake'}",
+                        f"-DCMAKE_TOOLCHAIN_FILE={root / 'src/platform/host/arm-linux-toolchain.cmake'}",
                         *TEST_TREE_DEFINES,
                     ],
                     root,
@@ -233,7 +233,7 @@ class GoldenVtRenderArm(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release", "--target", ARM_TARGET],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ARM_TREE),
                     # The GCC cross driver only links: the objects are clang's.
@@ -252,7 +252,7 @@ class GoldenVtRender(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release"],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {"DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_TREE)},
             )
         ]
@@ -269,7 +269,7 @@ class GoldenVtRenderAsan(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release", "--features", "asan"],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
                     "CARGO_TARGET_DIR": str(root / ASAN_TARGET_SUBDIR),

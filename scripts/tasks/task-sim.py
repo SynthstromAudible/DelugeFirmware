@@ -18,7 +18,7 @@ import util
 
 test_builds = importlib.import_module("test_builds")
 
-RUST_BSP_DIR = Path("src/bsp/rust")
+RUST_BSP_DIR = Path("src/platform/device")
 BINARY = RUST_BSP_DIR / "target" / "release" / "deluge-rust"
 
 

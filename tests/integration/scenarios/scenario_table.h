@@ -73,7 +73,8 @@ struct ScenarioCard {
 		/// `arg` may add, after a '|', what to use when the variable is unset: a repo-relative directory or manifest,
 		/// or `corpus` for the corpus fixture. Without one the variable is required.
 		FromEnv,
-		/// The card manifest at the repo-relative path `arg` (format: src/bsp/rust/src/storage/card_manifest.rs).
+		/// The card manifest at the repo-relative path `arg` (format:
+		/// src/platform/device/src/storage/card_manifest.rs).
 		Manifest,
 		/// golden_vt_render's Rust card builder named `arg`, for a card whose contents depend on the run's
 		/// environment.

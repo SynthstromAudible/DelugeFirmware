@@ -861,7 +861,7 @@ void deluge_scenario_path_operations_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	// No direct call to smSysex::handleNextSysEx() here, deliberately: this harness's `app_loop` task
-	// (src/bsp/rust/src/app_loop.rs) already drives the real job, and `sysex_queue_drains` (below)
+	// (src/platform/device/src/app_loop.rs) already drives the real job, and `sysex_queue_drains` (below)
 	// exists to prove THAT path -- a message queued via sysexReceived must make the job ask for its
 	// own run, or nothing would ever process it. A direct call here would make every request below
 	// pass even with that self-request deleted, which is exactly the regression this gate exists to

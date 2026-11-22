@@ -31,37 +31,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
-name = "deluge_alloc"
+name = "deluge_base_alloc"
 version = "0.1.0"
 
 [[package]]
-name = "deluge_resource"
+name = "deluge_storage_resource"
 version = "0.1.0"
 dependencies = [
- "deluge_alloc",
+ "deluge_base_alloc",
 ]
 
 [[package]]
-name = "deluge_sample_convert"
+name = "deluge_storage_sample_convert"
 version = "0.1.0"
 dependencies = [
  "cc",
 ]
 
 [[package]]
-name = "deluge_sample_fill"
+name = "deluge_storage_sample_fill"
 version = "0.1.0"
 dependencies = [
- "deluge_sample_convert",
+ "deluge_storage_sample_convert",
  "embassy-sync",
 ]
 
 [[package]]
-name = "deluge_sample_source"
+name = "deluge_storage_sample_source"
 version = "0.1.0"
 dependencies = [
- "deluge_resource",
- "deluge_sample_fill",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
 ]
 
 [[package]]
@@ -135,10 +135,10 @@ name = "region-source-differential"
 version = "0.1.0"
 dependencies = [
  "critical-section",
- "deluge_alloc",
- "deluge_resource",
- "deluge_sample_fill",
- "deluge_sample_source",
+ "deluge_base_alloc",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
+ "deluge_storage_sample_source",
 ]
 
 [[package]]

@@ -63,7 +63,7 @@ DBT must always be run from the _root directory_ of the repository. The remainde
 
 ### DBT Build Targets
 
-These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (`release` by default). It builds the C++ application with CMake and links it with the Rust BSP (`src/bsp/rust`) through cargo.
+These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (`release` by default). It builds the C++ application with CMake and links it with the Rust BSP (`src/platform/device`) through cargo.
 
 The image is staged in a subdirectory named after the configuration (e.g. `build/Release/deluge.elf`, with `.bin` and `.hex` beside it).
 

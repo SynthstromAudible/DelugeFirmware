@@ -158,7 +158,7 @@ void SlicerScene::on_resume() {
 	// A popup this scene raises is a shell scene, where legacy's is a display overlay that never reaches `closeUI`;
 	// `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an `input_transparent()` popup never
 	// holds it, so a popup coming and going leaves the slice table alone. A real scene closing above the slicer gets
-	// legacy's reset. Both are asserted in `sim/scenes_spec/slicer_scene_spec.cpp`.
+	// legacy's reset. Both are asserted in `tests/integration/ui/scenes/slicer_scene_spec.cpp`.
 	if (ops_ != nullptr) {
 		ops_->cancel_audition();
 	}

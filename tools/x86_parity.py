@@ -408,13 +408,15 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
     sys.path.insert(0, str(root / "scripts" / "tasks"))
     import test_builds
 
+    # A base from before the host build moved still has it at sim/.
+    host_root = "src/platform/host" if (root / "src/platform/host").is_dir() else "sim"
     tree = root / "build" / "host-app"
     if not (tree / "build.ninja").exists():
         subprocess.run(
             [
                 "cmake",
                 "-S",
-                "sim",
+                host_root,
                 "-B",
                 str(tree),
                 "-G",
@@ -433,9 +435,14 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
         env=env,
         check=True,
     )
+    golden_dir = (
+        "tests/harness/golden_vt_render"
+        if (root / "tests/harness/golden_vt_render").is_dir()
+        else "src/bsp/rust/harness/golden_vt_render"
+    )
     subprocess.run(
         ["cargo", "build", "--release", "--locked"],
-        cwd=root / "src/bsp/rust/harness/golden_vt_render",
+        cwd=root / golden_dir,
         env=dict(
             env,
             DELUGE_HOSTAPP_BUILD_DIR=str(tree),

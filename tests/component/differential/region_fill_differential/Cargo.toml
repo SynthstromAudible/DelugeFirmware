@@ -12,15 +12,15 @@ license = "GPL-3.0-or-later"
 # Supplies the compiled `convert_word`/`stitch_boundaries` objects `cpp/harness_shim.cpp` links
 # against, and the argon/SIMDe cache build.rs includes. build.rs must not recompile them (duplicate
 # symbols).
-deluge_sample_convert = { path = "../../../../crates/deluge_sample_convert" }
+deluge_storage_sample_convert = { path = "../../../../src/storage/sample/convert" }
 
 [dev-dependencies]
 # A real resource manager and the test heap it is built over.
-deluge_resource = { path = "../../../../crates/deluge_resource" }
-fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
+deluge_storage_resource = { path = "../../../../src/storage/resource" }
+fs_alloc = { package = "deluge_base_alloc", path = "../../../../src/base/alloc" }
 # `native_fill` enables `native_begin`/`native_finish`, which `tests/native_finish_glue.rs` drives.
-deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill", features = ["native_fill"] }
-# `deluge_sample_fill`'s `FILL_CONTEXTS` uses a `CriticalSectionRawMutex`, which needs a registered
+deluge_storage_sample_fill = { path = "../../../../src/storage/sample/fill", features = ["native_fill"] }
+# `deluge_storage_sample_fill`'s `FILL_CONTEXTS` uses a `CriticalSectionRawMutex`, which needs a registered
 # `critical-section` implementation at link time.
 critical-section = { version = "1", features = ["std"] }
 

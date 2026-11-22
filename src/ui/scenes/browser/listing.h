@@ -112,7 +112,7 @@
 /// **The shipped dispatcher is inline.** `deluge::ui::scenes::run_inline` (`ui/scenes/run_inline.h`)
 /// runs the op on the caller's stack before returning, so with the default dispatcher `request()`
 /// returns with the state already `Ready` and no poll ever observes `InFlight`.
-/// `sim/scenes_spec/listing_spec.cpp` therefore installs its own deferring dispatcher (see
+/// `tests/integration/ui/scenes/listing_spec.cpp` therefore installs its own deferring dispatcher (see
 /// `Dispatch` below) to exercise the state machine's ordering: dispatch returns, the caller polls,
 /// the op runs later. That models the *ordering* a deferred dispatch gives, and nothing else. **No
 /// spec exercises concurrency across this seam: not preemption, not memory visibility between two

@@ -4,7 +4,7 @@
 # `src/` pushes `kCountInSceneKind`: `grep -rn kCountInSceneKind src/` finds the registry entry and
 # the scene's own `Action::Kind::Remove`, and nothing else. The scene's own header says so plainly
 # ("whatever pushes it can push-and-forget"), and the application does not push it yet. So this
-# script boots onto `AudioClipScene` and `sim/scenes_spec/scene_scripts_spec.cpp` pushes the overlay
+# script boots onto `AudioClipScene` and `tests/integration/ui/scenes/scene_scripts_spec.cpp` pushes the overlay
 # over it on the first tick, as that wiring will. It is written down here rather than
 # dressed up as a gesture, because no user gesture reaches this scene today.
 #

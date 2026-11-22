@@ -27,11 +27,11 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|arm64|aarch64)$")
 endif()
 
 # Link `target` against argon. A host with a real <arm_neon.h> needs nothing more. Any other host reaches NEON through
-# SIMDe, set up the way the host sim sets it up (sim/CMakeLists.txt), so a spec exercises the same backend the
-# golden renders through: sim/compat's <arm_neon.h> shim, SIMDe's root for <simde/arm/neon.h> and its simde/
-# subdirectory for argon's bare <arm/neon.h>. On Linux the tree is -m32, where SIMDe's native path pulls in
-# AVX512/FMA headers that do not parse in 32-bit mode, and the portable fallback is what the golden captures were
-# made against, so SIMDE_NO_NATIVE selects it.
+# SIMDe, set up the way the host sim sets it up (src/platform/host/CMakeLists.txt), so a spec exercises the same backend
+# the golden renders through: src/platform/host/compat's <arm_neon.h> shim, SIMDe's root for <simde/arm/neon.h> and its
+# simde/ subdirectory for argon's bare <arm/neon.h>. On Linux the tree is -m32, where SIMDe's native path pulls in
+# AVX512/FMA headers that do not parse in 32-bit mode, and the portable fallback is what the golden captures were made
+# against, so SIMDE_NO_NATIVE selects it.
 function(deluge_test_neon target)
   target_link_libraries(${target} PRIVATE argon)
   if(DELUGE_TEST_NEON_NATIVE)
@@ -40,7 +40,7 @@ function(deluge_test_neon target)
   FetchContent_MakeAvailable(simde)
   FetchContent_GetProperties(simde)
   target_include_directories(${target} PRIVATE
-    ${DELUGE_REPO_ROOT}/sim/compat
+    ${DELUGE_REPO_ROOT}/src/platform/host/compat
     ${simde_SOURCE_DIR}
     ${simde_SOURCE_DIR}/simde
   )

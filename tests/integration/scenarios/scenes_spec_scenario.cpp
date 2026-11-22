@@ -16,9 +16,10 @@
  */
 
 /// @file
-/// @brief One scenes spec file (`SCENES_SPEC`, its id under sim/scenes_spec) run once, from the app-init hook, so
-/// before boot installs a root UI, on the card `SCENES_SPEC_CARD` names. Prints `SCENES-SPEC <id> exit=<n>`; fails when
-/// the file's entry returned non-zero. `SCENES_SPEC=--list` prints every id as `SCENES-SPEC-ID <id>` and exits.
+/// @brief One scenes spec file (`SCENES_SPEC`, its id under tests/integration/ui/scenes) run once, from the app-init
+/// hook, so before boot installs a root UI, on the card `SCENES_SPEC_CARD` names. Prints `SCENES-SPEC <id> exit=<n>`;
+/// fails when the file's entry returned non-zero. `SCENES_SPEC=--list` prints every id as `SCENES-SPEC-ID <id>` and
+/// exits.
 
 #include "scenarios/support/scenario_declare.h"
 

@@ -1,6 +1,6 @@
 # Level 3: **the acceptance test for the menu.** The ui-scripts gate (`tests/integration/checks/ui_scripts.py`) runs
 # it on the fixture card, where every snapshot must match the golden. A card that still stores a menu setting this
-# firmware does not have boots the same menu: `sim/scenes_spec/stale_menu_setting_spec.cpp` pins that, and the
+# firmware does not have boots the same menu: `tests/integration/ui/scenes/stale_menu_setting_spec.cpp` pins that, and the
 # settings channel's SC-UNKNOWN check pins that the stored entry survives a write.
 #
 # **The run does not mutate its input**, which matters because a test that edits its input is not reproducible. The

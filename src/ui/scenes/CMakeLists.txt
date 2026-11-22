@@ -154,7 +154,7 @@ target_include_directories(deluge_ui_scenes PUBLIC
 # model/modulation/playback/storage from.
 #
 # $<COMPILE_ONLY:deluge_app> (CMake >= 3.27 -- both cmake_minimum_required floors that build this
-# file were raised to 3.27 for exactly this, see CMakeLists.txt and sim/CMakeLists.txt): deluge_app
+# file were raised to 3.27 for exactly this, see CMakeLists.txt and src/platform/host/CMakeLists.txt): deluge_app
 # is an OBJECT library, and a real (non-COMPILE_ONLY) PUBLIC link of an OBJECT library into a
 # STATIC library archives its ENTIRE object closure into the consumer: a real link here makes
 # libdeluge_ui_scenes.a a full second copy of deluge_app (~70 MB device, ~146 MB sim).
@@ -164,7 +164,7 @@ target_include_directories(deluge_ui_scenes PUBLIC
 #
 # Consequence: deluge_ui_scenes does not provide deluge_app's actual symbols to whatever links it.
 # EVERY CONSUMER OF deluge_ui_scenes MUST ALSO LINK deluge_app ITSELF to get those symbols --
-# deluge_scenes_spec already does this (sim/scenes_spec/CMakeLists.txt: `deluge_ui_scenes deluge_app
+# deluge_ui_scenes_spec already does this (tests/integration/ui/scenes/CMakeLists.txt: `deluge_ui_scenes deluge_app
 # deluge_scheduler ...`), and so do deluge_host's and the firmware device build's link lines --
 # a fact about those link lines, not a guarantee `COMPILE_ONLY` provides.
 # deluge_ui_scenes_bind: what a menu node edits, bound to the model's records and the engines' descriptors.

@@ -119,21 +119,23 @@ jobs:
         with:
           workspaces: |
             crates
-            src/bsp/rust
+            src/platform/device
+            tests/component/differential/audio_format_corpus
             tests/component/differential/fs_differential
             tests/component/differential/region_fill_differential
             tests/component/differential/region_read_differential
             tests/component/differential/region_source_differential
 
-      # deluge_sample_convert is outside the crates/ workspace, so each step names it too. Every cargo runs from its
-      # crate's directory: rustup picks the toolchain from the working directory's rust-toolchain.toml, not the
+      # deluge_storage_sample_convert is outside the crates/ workspace, so each step names it too. Every cargo runs from
+      # its crate's directory: rustup picks the toolchain from the working directory's rust-toolchain.toml, not the
       # manifest's, and the repository root has none, so a --manifest-path run from the root gets the runner's stable.
       - name: rustfmt
         run: |
           (cd crates && cargo fmt --all --check)
-          (cd src/bsp/rust && cargo fmt --check)
-          (cd crates/deluge_sample_convert && cargo fmt --check)
-          for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
+          (cd src/platform/device && cargo fmt --check)
+          (cd src/storage/sample/convert && cargo fmt --check)
+          for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml \
+              src/platform/host/link/Cargo.toml; do
             (cd "$(dirname "$m")" && cargo fmt --check)
           done
 
@@ -141,7 +143,8 @@ jobs:
       - name: clippy
         run: |
           (cd crates && cargo clippy --all-targets -- -D warnings)
-          (cd crates/deluge_sample_convert && cargo clippy --all-targets -- -D warnings)
+          (cd src/storage/sample/convert && cargo clippy --all-targets -- -D warnings)
+          (cd src/platform/host/link && cargo clippy --all-targets -- -D warnings)
           for m in tests/component/differential/*/Cargo.toml; do
             echo "== $m"
             (cd "$(dirname "$m")" && cargo clippy --all-targets -- -D warnings)
@@ -154,7 +157,7 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: |
-          for m in crates/Cargo.toml crates/deluge_sample_convert/Cargo.toml src/bsp/rust/Cargo.toml \
+          for m in crates/Cargo.toml src/storage/sample/convert/Cargo.toml src/platform/device/Cargo.toml \
                    tests/component/differential/*/Cargo.toml; do
             echo "== $m"
             (cd "$(dirname "$m")" && cargo doc --workspace --no-deps --document-private-items)
@@ -501,7 +504,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: toolchain
-          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/platform/device/rust-toolchain.toml') }}
 
       - name: Compare sizes
         if: steps.baseline.outputs.found == 'true'

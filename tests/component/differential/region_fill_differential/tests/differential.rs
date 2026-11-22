@@ -5,7 +5,7 @@
 //! Byte-identity cases cover every `RawDataFormat`, the SIMD-prefix/scalar-tail boundary, a short
 //! last cluster and misaligned mid-stream neighbours. Non-vacuity cases perturb the Rust output and
 //! require the comparison to fail.
-use deluge_sample_fill::fill_logic;
+use deluge_storage_sample_fill::fill_logic;
 use fill_logic::{ConvertState as RustState, FillGeometry, NeighbourView, finish_convert_stitch};
 use region_fill_differential::cpp_ref::{
     self, ConvertState as CppState, Geometry as CppGeometry, Neighbour as CppNeighbour,

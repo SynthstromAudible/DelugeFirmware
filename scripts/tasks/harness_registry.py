@@ -70,6 +70,8 @@ PROBES = {
     "qemu-arm": "apt install qemu-user",
     "llvm-objdump": "install llvm (llvm-objdump disassembles the fixed-point codegen probe)",
     "llvm-cxxfilt": "install llvm (llvm-cxxfilt demangles the symbols the codegen comparison keys by)",
+    "llvm-objcopy": "install llvm (llvm-objcopy reads the loaded data the codegen and string comparisons compare)",
+    "llvm-readelf": "install llvm (llvm-readelf lists the sections and segments the image comparisons read)",
     "arm-linux-gnueabihf-gcc": (
         "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
     ),
@@ -853,11 +855,15 @@ def probe(requirement: str, root: Path) -> bool:
             return shutil.which("llvm-objdump") is not None
         case "llvm-cxxfilt":
             return shutil.which("llvm-cxxfilt") is not None
+        case "llvm-objcopy":
+            return shutil.which("llvm-objcopy") is not None
+        case "llvm-readelf":
+            return shutil.which("llvm-readelf") is not None
         case "arm-linux-gnueabihf-gcc":
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
         case "arm-none-eabi-gcc":
-            # Where deluge_sample_convert's build.rs looks for the device compiler.
+            # Where deluge_storage_sample_convert's build.rs looks for the device compiler.
             base = Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root)
             return (
                 base / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"

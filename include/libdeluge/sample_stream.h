@@ -20,7 +20,7 @@
 /// Also the streaming-asset lookups: the resource manager a sample's chunks are leased from, a
 /// stream's asset id, and where a streamed chunk's payload sits in its slot.
 ///
-/// A fixed-capacity table of open efatfs streaming handles (`deluge_sample_stream` Rust crate),
+/// A fixed-capacity table of open efatfs streaming handles (`deluge_storage_stream` Rust crate),
 /// each pairing an efatfs read handle with the resource-manager asset id + geometry a caller
 /// supplies once known, registering the asset's `DelugeStreamingFillContext`
 /// (`streaming_fill.h`) with the resource manager itself the moment both are present. Handles are
@@ -67,7 +67,7 @@ uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) DELU
 
 /// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
 ///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
-///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill). [task]
+///        + Cluster::size + trailing guard. Rust-owned (deluge_storage_sample_fill). [task]
 uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
 
 /// @brief The geometry a stream slot needs to register its asset's fill-context.
@@ -123,7 +123,7 @@ void deluge_sample_stream_set_geometry(DelugeHandle handle, DelugeSampleStreamGe
 /// Named `_get_` (not the plain `deluge_sample_stream_asset_id` its handle-based sibling setter's
 /// naming would suggest): this header also declares the UNRELATED
 /// `deluge_sample_stream_asset_id(DelugeStreamBacking*)` (the `SampleStream`-keyed accessor
-/// `sample_stream.cpp` defines and `deluge_sample_source::abi` consumes) — reusing that exact name
+/// `sample_stream.cpp` defines and `deluge_storage_sample_source::abi` consumes) — reusing that exact name
 /// here for a different signature would be a duplicate-symbol link error the moment both crates
 /// link into the same binary.
 /// @param handle A handle previously returned by deluge_sample_stream_open.

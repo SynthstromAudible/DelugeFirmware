@@ -17,7 +17,8 @@
 
 #pragma once
 
-// Relative: sim/scenes_spec includes this header with only the tests/ root on its include path, not tests/integration.
+// Relative: tests/integration/ui/scenes includes this header with only the tests/ root on its include path, not
+// tests/integration.
 #include "integration/scenarios/support/scenario_declare.h"
 
 #include <cstdint>

@@ -80,9 +80,9 @@ namespace {
 /// **producing** side: `PerformEditorItem::render` leaves `MenuTick::render_resp.entered` set so
 /// `after_render`'s leaf arm ascends, and files no request at all
 /// (`PerformEditorItem::render`). That is what `MenuActionRequest::arg`'s "never `DISABLED`" promise is made of, and
-/// `sim/scenes_spec/menu_actions_spec.cpp`'s "goes up a level on DISABLED and files nothing" example is what pins it.
-/// So this branch is unreachable through every real path, and is defence in depth rather than behaviour -- and, being
-/// unreachable, it is the one line here no example can redden.
+/// `tests/integration/ui/scenes/menu_actions_spec.cpp`'s "goes up a level on DISABLED and files nothing" example is
+/// what pins it. So this branch is unreachable through every real path, and is defence in depth rather than behaviour
+/// -- and, being unreachable, it is the one line here no example can redden.
 ///
 /// Ignoring rather than asserting, deliberately: the only assert on the device is
 /// `FREEZE_WITH_ERROR`, a hard hang, and hanging the instrument over a menu press would be a worse

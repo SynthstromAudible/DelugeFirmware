@@ -24,7 +24,7 @@ TABLE = textwrap.dedent(
     [tree]
     include_roots = ["src/deluge", "src"]
     legacy = "src/deluge"
-    scan_roots = ["src", "sim", "tests"]
+    scan_roots = ["src", "tests"]
     root_files = ["CMakeLists.txt"]
 
     [[directory]]

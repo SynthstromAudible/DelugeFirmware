@@ -61,9 +61,7 @@ src/                      directories and CMakeLists.txt only
     files/                browse, load and save, the settings store
     stream/               sample streaming (crate)
     resource/             the resource manager (crate)
-    sample/               sample readers, conversion and the sample-owned waveform peak index (crates)
-    fs/                   the FAT filesystem (crate)
-    block_device/         block-device driver and adapters (crates)
+    sample/               convert/, fill/, reader/, source/ (crates) and the sample-owned waveform peak index
   ui/                     deluge::ui
     gfx/                  oled/, grid/, seg7/: pure drawing
     widgets/              core/, oled/, grid/: the immediate-mode toolkit, namespaces
@@ -78,7 +76,7 @@ src/                      directories and CMakeLists.txt only
     companion/            the SysEx companion protocol
   platform/
     device/               the binary linking the app to deluge-sdk
-    host/                 the host BSP build and its compat headers
+    host/                 the host BSP build and its compat headers; link/ is the host-link build support (crate)
   deluge/                 LEGACY: shrinks to zero, then is deleted
 tests/                    mirrors src/: a library at src/<path> is tested under tests/<level>/<path>
 ```
@@ -139,13 +137,16 @@ the `src/*.h` row); the paths in the left column are the pre-relocation ones.
 | `src/shell`, `src/controls`, `src/scenes` | `ui/shell/`, `ui/controls/`, `ui/scenes/` |
 | `crates/deluge_alloc` | `base/alloc/` |
 | `crates/deluge_resource` | `storage/resource/` |
-| `crates/deluge_sample_*` | `storage/stream/`, `storage/sample/` |
-| `crates/embedded-fatfs` | `storage/fs/` |
-| `crates/block-device-*` | `storage/block_device/` |
-| `crates/deluge_rust` | split by what each module serves |
+| `crates/deluge_sample_stream` | `storage/stream/` |
+| `crates/deluge_sample_{convert,fill,reader,source}` | `storage/sample/{convert,fill,reader,source}/` |
+| `crates/embedded-fatfs` | none: deluge-sdk's crates.io fork (`deluge-embedded-fatfs`) |
+| `crates/block-device-*` | none: deluge-sdk's crates.io forks (`deluge-block-device-adapters`, `block-device-driver`) |
+| `crates/deluge_rust` | `tests/trees/host/rust/` (test support) |
 | `src/gsl`, `src/lib` | `third_party/gsl/`, `third_party/printf/` |
 | `src/bsp/rust` | `platform/device/` |
+| `src/bsp/rust/harness` | `tests/harness/` |
 | `sim` | `platform/host/` |
+| `sim/scenes_spec` | `tests/integration/ui/scenes/` |
 | `src/OSLikeStuff` | retires with the Embassy scheduler; what remains goes to `platform/` |
 | `src/*.h`, `src/*.hpp` (board config and layout, `definitions*`, the NEON shim, `mem_functions.h`) | dissolved into their owners: `ui/shell/` profiles, `platform/`, `third_party/`, `base/` |
 
@@ -192,8 +193,8 @@ The legacy tree's destinations:
 7. **`src/deluge` only shrinks.** A ratchet on its file count refuses additions; code leaves it only by rewrite into
    its destination; only `app/` includes it.
 8. **Rust crates live in their layer.** Each crate's directory holds its `Cargo.toml`; the root `Cargo.toml` is a
-   workspace over `src/**`. A crate is named `deluge_<path>`, and C++ reaches it only through the C header in its
-   own directory.
+   workspace over `src/**` (until the Cargo roots merge, `crates/` holds the workspace root of the library crates). A
+   crate is named `deluge_<path>`, and C++ reaches it only through the C header in its own directory.
 9. **Tests mirror sources** under `tests/<level>/`; the registry (`tests/registry.toml`) names them by path.
 10. **C++23 or later outside `src/deluge`**, and every library has a README stating its rules.
 
@@ -206,7 +207,9 @@ the top-level and shadowing checks, with today's directories grandfathered in. N
 becomes the enforced one.
 
 **Step 2: the relocation pass.** The clean C++ libraries are at their paths, each with the namespace its path calls
-for. The Rust crates and the platform directories (`crates/*`, `src/bsp/rust`, `sim`) are the remaining relocation.
+for. The Rust crates and the platform directories are at their paths too. Two items remain, each its own task:
+merging the Cargo roots into one workspace, and rule 8's C header in its own directory for the crates that publish
+through `include/libdeluge/`.
 
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.
@@ -224,6 +227,5 @@ legacy tree.
 ## Open
 
 - The instruments' names, `classic` and `modern`, are working names.
-- `crates/deluge_rust`'s modules each go where they serve; the split is decided when the crate is next touched.
 - Whether `fixed_point` belongs in `base/` or stays in `dsp/core/`: `base/` if a non-audio library (the project's
   values, the knob math) needs it, as `target_architecture.md` §3.2 has it.
