@@ -332,7 +332,7 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 `tests/unit/<path>/` holds the specs for `src/<path>/`: a top-level library's specs are in its directory
 (`tests/unit/effects/`, `tests/unit/ui/widgets/`), a library nested in another has its own (`tests/unit/ui/scenes/bind/`), and the
 app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
-path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
+path: `tests/unit/harness/` for `tests/harness/`,
 `tests/unit/integration/scenarios/support/` for the scenarios' shared support. A spec whose stand-ins cannot share a
 driver with its neighbours' (an `IN_UNIT_TESTS` world, a deserializer stack) gets a driver of its own in a directory
 named for its subject file, `tests/unit/<path>/<subject stem>/` (`tests/unit/deluge/modulation/sync/` for

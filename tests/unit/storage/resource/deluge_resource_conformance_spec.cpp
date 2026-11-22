@@ -12,7 +12,7 @@ constexpr size_t kChunk = 64 * 1024;
 constexpr size_t kSmallHeap = 256 * 1024; // ~3 chunks → forces eviction
 
 // clang-format off
-describe deluge_resource_conformance("deluge_resource (Rust cache) conformance", $ {
+describe deluge_resource_conformance("resource manager (Rust cache) conformance", $ {
 	it("materializes a chunk and serves cache hits from the same pointer", _{
 		ResourceFixture f;
 		expect(f.valid()).to_be_true();
