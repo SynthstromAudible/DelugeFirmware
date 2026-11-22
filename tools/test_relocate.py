@@ -1,0 +1,200 @@
+# Copyright © 2026 Synthstrom Audible Limited
+#
+# This file is part of The Synthstrom Audible Deluge Firmware.
+# Licensed under the GNU General Public License v3 or later; see LICENSE.
+"""Tests for relocate.py: what a move must rewrite, and what it must leave alone.
+
+Gate relocate-selftest:
+    a library move respells exactly the includes the compiler resolves into the moved directory, rewrites its path
+    tokens, namespaces and target names in every tracked text file, moves its unit tests with it, and refuses a move
+    the legacy include root would make ambiguous
+"""
+
+from __future__ import annotations
+
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import relocate
+
+
+class Repo:
+    def __init__(self, files: dict[str, str]):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        for rel, text in files.items():
+            path = self.root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=self.root, check=True)
+
+    def read(self, rel: str) -> str:
+        return (self.root / rel).read_text()
+
+    def close(self) -> None:
+        self._tmp.cleanup()
+
+
+FILES = {
+    "src/deluge/model/song.cpp": '#include "scenes/menu/menu.h"\n#include "model/song.h"\n',
+    "src/deluge/model/song.h": "#pragma once\n",
+    "src/scenes/menu/menu.h": "#pragma once\nnamespace deluge::scenes::menu {\nstruct Menu {};\n}\n",
+    "src/scenes/menu/menu.cpp": '#include "menu.h"\n#include "scenes/menu/menu.h"\n// see `scenes/menu/menu.h` and src/scenes/menu/menu.h\n',
+    "src/scenes/CMakeLists.txt": "add_library(deluge_scenes STATIC menu/menu.cpp)\n",
+    "src/shell/shell.cpp": (
+        "#include <scenes/menu/menu.h>\n"
+        "deluge::scenes::menu::Menu m;\n"
+        "::deluge::scenes::menu::Menu n;\n"
+        "int deluge_scenes_count;\n"
+    ),
+    "src/CMakeLists.txt": "add_subdirectory(scenes)\nadd_subdirectory(scenes/bind)\n",
+    "sim/CMakeLists.txt": "add_subdirectory(${REPO_ROOT}/src/scenes ${CMAKE_BINARY_DIR}/scenes)\ntarget_link_libraries(x deluge_scenes deluge_scenes_bind)\n",
+    "scripts/layers.toml": 'root = "src/scenes/bind"\nprefix = "scenes/bind/"\npattern = \'^(?!scenes/|shell/)\'\n',
+    "tests/unit/scenes/menu_spec.cpp": '#include "scenes/menu/menu.h"\n',
+    "docs/dev/code_layout_north_star.md": "| `src/scenes` | `ui/scenes/` |\n",
+    "docs/dev/other.md": "The scenes live in `src/scenes/`; a reviewer reads `scenes/menu/menu.h`. Not `myscenes/x` nor `foo/scenes/x`.\n",
+}
+
+
+class Moves(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(FILES)
+        relocate.apply(
+            self.repo.root,
+            moves=[("scenes", "ui/scenes")],
+            namespaces=[("deluge::scenes", "deluge::ui::scenes")],
+            targets=[("deluge_scenes", "deluge_ui_scenes")],
+        )
+
+    def tearDown(self):
+        self.repo.close()
+
+    def test_the_directory_and_its_unit_tests_move(self):
+        self.assertTrue((self.repo.root / "src/ui/scenes/menu/menu.h").is_file())
+        self.assertFalse((self.repo.root / "src/scenes").exists())
+        self.assertTrue(
+            (self.repo.root / "tests/unit/ui/scenes/menu_spec.cpp").is_file()
+        )
+
+    def test_an_include_resolving_into_the_move_is_respelled_in_either_bracket(self):
+        self.assertIn(
+            '#include "ui/scenes/menu/menu.h"',
+            self.repo.read("src/deluge/model/song.cpp"),
+        )
+        self.assertIn(
+            "#include <ui/scenes/menu/menu.h>", self.repo.read("src/shell/shell.cpp")
+        )
+        self.assertIn(
+            '#include "ui/scenes/menu/menu.h"',
+            self.repo.read("tests/unit/ui/scenes/menu_spec.cpp"),
+        )
+
+    def test_an_include_resolving_elsewhere_is_left(self):
+        self.assertIn(
+            '#include "model/song.h"', self.repo.read("src/deluge/model/song.cpp")
+        )
+
+    def test_a_relative_include_inside_the_move_is_left(self):
+        self.assertIn(
+            '#include "menu.h"', self.repo.read("src/ui/scenes/menu/menu.cpp")
+        )
+
+    def test_path_tokens_are_rewritten_in_comments_and_text_files(self):
+        self.assertIn(
+            "see `ui/scenes/menu/menu.h` and src/ui/scenes/menu/menu.h",
+            self.repo.read("src/ui/scenes/menu/menu.cpp"),
+        )
+        self.assertEqual(
+            self.repo.read("src/CMakeLists.txt"),
+            "add_subdirectory(scenes)\nadd_subdirectory(ui/scenes/bind)\n",
+        )
+        self.assertIn(
+            "${REPO_ROOT}/src/ui/scenes ${CMAKE_BINARY_DIR}/scenes",
+            self.repo.read("sim/CMakeLists.txt"),
+        )
+        self.assertEqual(
+            self.repo.read("scripts/layers.toml"),
+            'root = "src/ui/scenes/bind"\nprefix = "ui/scenes/bind/"\npattern = \'^(?!ui/scenes/|shell/)\'\n',
+        )
+        self.assertEqual(
+            self.repo.read("docs/dev/other.md"),
+            "The scenes live in `src/ui/scenes/`; a reviewer reads `ui/scenes/menu/menu.h`. Not `myscenes/x` nor `foo/scenes/x`.\n",
+        )
+
+    def test_the_north_star_is_never_rewritten(self):
+        self.assertEqual(
+            self.repo.read("docs/dev/code_layout_north_star.md"),
+            "| `src/scenes` | `ui/scenes/` |\n",
+        )
+
+    def test_namespaces_are_renamed_where_qualified(self):
+        self.assertIn(
+            "namespace deluge::ui::scenes::menu {",
+            self.repo.read("src/ui/scenes/menu/menu.h"),
+        )
+        shell = self.repo.read("src/shell/shell.cpp")
+        self.assertIn("deluge::ui::scenes::menu::Menu m;", shell)
+        self.assertIn("::deluge::ui::scenes::menu::Menu n;", shell)
+
+    def test_targets_are_renamed_as_whole_words(self):
+        sim = self.repo.read("sim/CMakeLists.txt")
+        self.assertIn("deluge_ui_scenes deluge_scenes_bind", sim)
+        self.assertIn(
+            "add_library(deluge_ui_scenes STATIC",
+            self.repo.read("src/ui/scenes/CMakeLists.txt"),
+        )
+        self.assertIn("int deluge_scenes_count;", self.repo.read("src/shell/shell.cpp"))
+
+
+class Refusals(unittest.TestCase):
+    def test_a_move_the_legacy_root_shadows_is_refused(self):
+        repo = Repo(
+            {
+                "src/deluge/storage/a.h": "",
+                "src/storage/b.h": "",
+                "src/x.cpp": '#include "storage/b.h"\n',
+            }
+        )
+        try:
+            with self.assertRaises(relocate.Refused):
+                relocate.apply(
+                    repo.root,
+                    moves=[("storage", "base/storage")],
+                    namespaces=[],
+                    targets=[],
+                )
+            self.assertTrue((repo.root / "src/storage/b.h").is_file())
+            self.assertEqual(repo.read("src/x.cpp"), '#include "storage/b.h"\n')
+        finally:
+            repo.close()
+
+    def test_a_move_onto_an_existing_path_is_refused(self):
+        repo = Repo({"src/a/x.h": "", "src/b/a/y.h": ""})
+        try:
+            with self.assertRaises(relocate.Refused):
+                relocate.apply(
+                    repo.root, moves=[("a", "b/a")], namespaces=[], targets=[]
+                )
+        finally:
+            repo.close()
+
+
+class DryRun(unittest.TestCase):
+    def test_plan_changes_nothing_on_disk(self):
+        repo = Repo(FILES)
+        try:
+            changes = relocate.plan(repo.root, [("scenes", "ui/scenes")], [], [])
+            self.assertIn("src/deluge/model/song.cpp", changes)
+            self.assertEqual(
+                repo.read("src/deluge/model/song.cpp"),
+                FILES["src/deluge/model/song.cpp"],
+            )
+        finally:
+            repo.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

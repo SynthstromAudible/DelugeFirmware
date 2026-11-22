@@ -1862,6 +1862,13 @@ gates = "the machine-code comparison of two images names what an address points 
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
 
 [[harness]]
+name = "relocate-selftest"
+template = "unittest"
+path = "tools"
+gates = "a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move"
+run = ["python3", "-m", "unittest", "test_relocate"]
+
+[[harness]]
 name = "stream-bench-parser"
 template = "unittest"
 path = "tools"

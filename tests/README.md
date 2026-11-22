@@ -196,6 +196,7 @@ builds only `golden-vt-render`.
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
+| relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
 | device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
