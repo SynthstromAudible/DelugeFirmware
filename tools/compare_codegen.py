@@ -47,8 +47,8 @@ a verdict.
 With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images. Pairs are
 tried in order and the first whose OLD matches wins; an OLD that is a prefix of its own NEW
 (`deluge::ui=deluge::ui::widgets::core`) needs an identity pair for NEW first
-(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. A rename can make an unmoved OLD::f and a moved NEW::f one name; the move
-gate's old-spelling grep covers that.
+(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. A rename can make an unmoved
+OLD::f and a moved NEW::f one name; the move gate's old-spelling grep covers that.
 
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
@@ -337,9 +337,9 @@ def mangled_renamer(pairs: list[tuple[str, str]]):
     not under another namespace). Where a pair keeps its first component, the rest is also renamed behind `S_`, but only
     in a name that starts with that component, because only there is `S_` known to stand for it. A reference through
     another substitution (`S0_`) to the same namespace is not recognised: the name then compares as different, never as
-    the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace (either spelling) each
-    reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The reduction can make two
-    names of one image equal, which demangler() detects."""
+    the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace (either spelling)
+    each reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The reduction can make
+    two names of one image equal, which demangler() detects."""
 
     def run_of(components: list[str]) -> str:
         return "".join(f"{len(c)}{c}" for c in components)
@@ -431,12 +431,12 @@ def symbol_names(texts: list[str]) -> set[str]:
 
 def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images=None):
     """A rename that maps every mangled symbol in @p texts to its canonical() demangled name, with @p renames (see
-    namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer, a static
-    guard's destructor) is renamed through the mangled part and keeps its prefix and suffix. A veneer is named by its
-    target's canonical name; any other wrapped name keeps the whole demangled text, which tells apart what canonical()
-    would cut (`(anonymous namespace)`, a local `f()::scene`). A mangled name the demangler cannot read goes through
-    @p mangled (mangled_renamer()). @p images holds each image's own texts: if two names of one image reach the same
-    key that way, they keep their raw names instead, since renaming would merge them."""
+    namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer, a
+    static guard's destructor) is renamed through the mangled part and keeps its prefix and suffix. A veneer is named by
+    its target's canonical name; any other wrapped name keeps the whole demangled text, which tells apart what
+    canonical() would cut (`(anonymous namespace)`, a local `f()::scene`). A mangled name the demangler cannot read goes
+    through @p mangled (mangled_renamer()). @p images holds each image's own texts: if two names of one image reach the
+    same key that way, they keep their raw names instead, since renaming would merge them."""
     names = sorted(symbol_names(texts))
     split = [WRAPPED.match(n) for n in names]
     targets = [m.group(2) if m else n for m, n in zip(split, names)]

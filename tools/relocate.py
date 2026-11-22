@@ -176,7 +176,10 @@ def comment_mask(text: str) -> list[bool]:
 
 
 def bare_spelling(rel: str) -> str:
-    """Where `OLD/` names a path or layer in a file: "all" (prose, CMake, checker data), "comments" (C-family) or "none"."""
+    """Where `OLD/` names a path or layer in a file.
+
+    Returns "all" (prose, CMake, checker data), "comments" (C-family) or "none".
+    """
     path = Path(rel)
     if path.suffix in C_FAMILY:
         return "comments"

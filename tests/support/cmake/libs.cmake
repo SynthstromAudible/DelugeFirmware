@@ -24,8 +24,8 @@ endif()
 # The standalone engine libraries, which the host and the ARM tree both test: serialization, music, the plugin
 # contract and its types, the effects, the host chains' table, the classic instrument, the project model and the
 # host's waveform cache; the controls and the waveform view are added here only off the host tree, which gets them
-# through src/ui. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app fails
-# the tree's build.
+# through src/ui. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app
+# fails the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/music ${_deluge_libs}/music EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin/types ${_deluge_libs}/plugin-types EXCLUDE_FROM_ALL)
