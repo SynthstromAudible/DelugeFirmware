@@ -412,10 +412,11 @@ class WrappedNames(unittest.TestCase):
                 [f"10 <{old}>:\n10 <{new}>:\n"],
                 namespace_renamer(pair),
                 mangled_renamer(pair),
+                [[f"10 <{old}>:\n"], [f"10 <{new}>:\n"]],
             )
         self.assertEqual(rename(old), rename(new))
 
-    def test_a_component_run_is_renamed_only_where_a_component_starts(self):
+    def test_a_component_run_is_renamed_to_the_new_spelling(self):
         rename = mangled_renamer(
             [("deluge::instrument", "deluge::instruments::classic")]
         )
@@ -426,10 +427,6 @@ class WrappedNames(unittest.TestCase):
         self.assertNotEqual(
             rename("_ZN6deluge10instrument1fEv"),
             rename("_ZN6deluge10instrumenx1fEv"),
-        )
-        self.assertNotEqual(
-            rename("_ZN7xdeluge10instrument1fEv"),
-            "_ZN7xdeluge11instruments7classic1fEv",
         )
 
     def test_two_different_lambdas_stay_distinct(self):
@@ -460,11 +457,11 @@ class FoldedAliases(unittest.TestCase):
             f"20002000 <gamma>:\n20002000:      \t{gamma}\n"
         )
 
-    def test_a_folded_body_is_named_by_its_least_alias_in_both_images(self):
+    def test_two_images_that_print_different_aliases_compare_identical(self):
         table = aliases(self.NM)
         one = functions(self.image("alpha"), alias=table)
         two = functions(self.image("beta"), alias=table)
-        self.assertEqual(sorted(one), ["alpha", "gamma"])
+        self.assertEqual(sorted(one), ["alpha", "beta", "gamma"])
         self.assertEqual(compare(one, two), ([], [], []))
 
     def test_without_the_table_the_printed_alias_decides(self):
@@ -489,14 +486,127 @@ class FoldedAliases(unittest.TestCase):
         self.assertEqual(compare(one, two), ([], [], []))
         self.assertIn("bl <alpha>", one["caller"][0])
 
+    def test_a_function_that_changes_folding_group_is_a_change(self):
+        # z is neither group's least name, so only its own entry shows the body it now has.
+        nm = (
+            "20001000 00000004 T a_false\n20001000 00000004 T b_false\n"
+            "20001000 00000004 T z\n"
+            "20002000 00000004 T a_true\n20002000 00000004 T c_true\n"
+        )
+        base = (
+            "20001000 <a_false>:\n20001000:      \tmovs\tr0, #0x0\n\n"
+            "20002000 <a_true>:\n20002000:      \tmovs\tr0, #0x1\n"
+        )
+        new_nm = (
+            "20001000 00000004 T a_false\n20001000 00000004 T b_false\n"
+            "20002000 00000004 T a_true\n20002000 00000004 T c_true\n"
+            "20002000 00000004 T z\n"
+        )
+        base_f = functions(base, alias=aliases(nm))
+        new_f = functions(base, alias=aliases(new_nm))
+        self.assertEqual(compare(base_f, new_f), (["z"], [], []))
+
     def test_symbols_of_unknown_type_fold_too(self):
         # llvm-nm prints `?` for the symbols of a section it cannot classify, such as the packed SDRAM code.
         nm = "0c210fb0 00000008 ? alpha\n0c210fb0 00000008 ? beta\n"
-        self.assertEqual(aliases(nm), {0x0C210FB0: "alpha"})
+        self.assertEqual(aliases(nm), {0x0C210FB0: ("alpha", "beta")})
 
     def test_aliases_are_named_through_the_rename(self):
         table = aliases(self.NM, lambda n: {"alpha": "zeta"}.get(n, n))
-        self.assertEqual(table, {0x20001000: "beta"})
+        self.assertEqual(table, {0x20001000: ("beta", "zeta")})
+
+
+class WrappedNameKeys(unittest.TestCase):
+    PAIR: ClassVar[list[tuple[str, str]]] = [("deluge::gfx", "deluge::ui::gfx")]
+
+    def names(self, table, listings, images=None):
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt(table)):
+            return demangler(
+                "cxxfilt",
+                listings,
+                namespace_renamer(self.PAIR),
+                mangled_renamer(self.PAIR),
+                *([images] if images else []),
+            )
+
+    def test_two_guard_destructors_for_different_locals_stay_distinct(self):
+        a = "__dtor__ZZN6deluge3gfx1fEvE5scene"
+        b = "__dtor__ZZN6deluge3gfx1fEvE4list"
+        table = {
+            a[7:]: "deluge::gfx::f()::scene",
+            b[7:]: "deluge::gfx::f()::list",
+        }
+        rename = self.names(table, [f"10 <{a}>:\n10 <{b}>:\n"])
+        self.assertNotEqual(rename(a), rename(b))
+        self.assertIn("(", rename(a))
+
+    def test_data_in_an_anonymous_namespace_keeps_its_name(self):
+        a = "__const._ZN6deluge3gfx12_GLOBAL__N_11aE.x"
+        b = "__const._ZN6deluge3gfx12_GLOBAL__N_11bE.x"
+        table = {
+            a[8:-2]: "deluge::gfx::(anonymous namespace)::a",
+            b[8:-2]: "deluge::gfx::(anonymous namespace)::b",
+        }
+        rename = self.names(table, [f"10 <{a}>:\n10 <{b}>:\n"])
+        self.assertNotEqual(rename(a), rename(b))
+
+    def test_names_that_differ_only_in_a_back_reference_stay_distinct(self):
+        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        listing = f"10 <{a}>:\n10 <{b}>:\n"
+        rename = self.names({}, [listing])
+        self.assertNotEqual(rename(a), rename(b))
+        caller = "20 <caller>:\n20:      \tbl\t0x10 <{}> @ imm = #0x0\n"
+        base = functions(caller.format(a), rename)
+        new = functions(caller.format(b), rename)
+        self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_collapsing_is_judged_per_image(self):
+        # The same pair of spellings in two images, one name each, is a rename, not a collision.
+        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        rename = self.names(
+            {}, [f"10 <{a}>:\n", f"10 <{b}>:\n"], [[f"10 <{a}>:\n"], [f"10 <{b}>:\n"]]
+        )
+        self.assertEqual(rename(a), rename(b))
+
+
+class MangledRenames(unittest.TestCase):
+    def test_a_component_inside_a_longer_identifier_is_left(self):
+        rename = mangled_renamer(
+            [("deluge::instrument", "deluge::instruments::classic")]
+        )
+        # `ab6deluge` is one nine-character component, followed by `instrument`.
+        self.assertEqual(
+            rename("_ZN9ab6deluge10instrument1fEv"), "_ZN9ab6deluge10instrument1fEv"
+        )
+
+    def test_a_namespace_nested_in_another_is_left(self):
+        rename = mangled_renamer(
+            [("deluge::instrument", "deluge::instruments::classic")]
+        )
+        self.assertEqual(
+            rename("_ZN3abc6deluge10instrument1fEv"), "_ZN3abc6deluge10instrument1fEv"
+        )
+
+    def test_an_operator_of_a_renamed_namespace_is_renamed(self):
+        rename = mangled_renamer([("deluge::gfx", "deluge::ui::gfx")])
+        self.assertEqual(
+            rename("_ZN6deluge3gfxplERKS0_"), rename("_ZN6deluge2ui3gfxplERKS0_")
+        )
+
+    def test_a_substitution_is_renamed_only_where_it_stands_for_the_namespaces_head(
+        self,
+    ):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        # S_ is `foo` here, so `S_6scenes` is foo::scenes.
+        self.assertEqual(
+            rename("_ZN3foo3barENS_6scenes1XE"), "_ZN3foo3barENS_6scenes1XE"
+        )
+        self.assertEqual(
+            rename("_ZN6deluge3barENS_6scenes1XE"),
+            rename("_ZN6deluge3barENS_2ui6scenes1XE"),
+        )
 
 
 if __name__ == "__main__":
