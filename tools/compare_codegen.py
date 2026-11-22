@@ -318,14 +318,20 @@ def demangler(cxxfilt: str, texts: list[str], renames=None):
             if NM_LINE.match(line)
         }
     )
-    demangled = run([cxxfilt], "\n".join(names)).splitlines()
+    # A linker veneer is named for the function it reaches, so it follows that function's rename.
+    split = [VENEER.match(n) for n in names]
+    targets = [m.group(2) if m else n for m, n in zip(split, names)]
+    demangled = run([cxxfilt], "\n".join(targets)).splitlines()
     table = {
-        mangled: canonical(renames(plain) if renames else plain)
-        for mangled, plain in zip(names, demangled)
+        mangled: (m.group(1) if m else "")
+        + canonical(renames(plain) if renames else plain)
+        for mangled, m, plain in zip(names, split, demangled)
     }
     return lambda name: table.get(name, name)
 
 
+# `__Thumbv7ABSLongThunk__ZN…`: the veneer kind, then the mangled name of its target.
+VENEER = re.compile(r"^__(\w*Thunk)_(_Z.*)$")
 NM_LINE = re.compile(r"^[0-9a-f]{8} [0-9a-f]{8} [a-zA-Z] \S+$")
 
 

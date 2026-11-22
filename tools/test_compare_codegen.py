@@ -23,6 +23,7 @@ from compare_codegen import (
     canonical,
     classifier,
     compare,
+    demangler,
     disassemble,
     functions,
     mask_address_halves,
@@ -315,6 +316,45 @@ class DisassembleTest(unittest.TestCase):
         self.assertEqual(
             compare(functions(TWO_SECTIONS), functions(changed)), (["gui"], [], [])
         )
+
+
+class VeneerNames(unittest.TestCase):
+    OLD = "__Thumbv7ABSLongThunk__ZN6deluge3gfx1fEv"
+    NEW = "__Thumbv7ABSLongThunk__ZN6deluge2ui3gfx1fEv"
+    OTHER = "__Thumbv7ABSLongThunk__ZN6deluge3gfx1gEv"
+    PLAIN = "_ZN6deluge3gfx1fEv"
+
+    def names(self):
+        table = {
+            "_ZN6deluge3gfx1fEv": "deluge::gfx::f()",
+            "_ZN6deluge2ui3gfx1fEv": "deluge::ui::gfx::f()",
+            "_ZN6deluge3gfx1gEv": "deluge::gfx::g()",
+        }
+
+        def fake(tool, stdin=None):
+            return "\n".join(table[n] for n in stdin.splitlines()) + "\n"
+
+        listing = "".join(
+            f"10 <{n}>:\n" for n in (self.OLD, self.NEW, self.OTHER, self.PLAIN)
+        )
+        with mock.patch.object(compare_codegen, "run", fake):
+            return demangler(
+                "cxxfilt",
+                [listing],
+                namespace_renamer([("deluge::gfx", "deluge::ui::gfx")]),
+            )
+
+    def test_a_veneer_follows_its_targets_rename(self):
+        rename = self.names()
+        self.assertEqual(rename(self.OLD), rename(self.NEW))
+        self.assertTrue(rename(self.OLD).startswith("Thumbv7ABSLongThunk"))
+
+    def test_veneers_to_different_targets_stay_distinct(self):
+        rename = self.names()
+        self.assertNotEqual(rename(self.OLD), rename(self.OTHER))
+
+    def test_a_plain_symbol_is_not_given_a_veneer_prefix(self):
+        self.assertEqual(self.names()(self.PLAIN), "deluge::ui::gfx::f")
 
 
 if __name__ == "__main__":
