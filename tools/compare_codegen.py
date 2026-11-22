@@ -38,8 +38,13 @@ target's canonical name; the other wrapped names name data that belongs to what 
 demangled text, as a local does. A name keyed by its mangled text (those above, and a name the demangler cannot read)
 has the renamed namespaces applied to that text, on component boundaries, and its substitution references (`S0_`)
 reduced to `S_`, because their indexes shift with the names. If two such names of one image end up equal that way, both
-keep their raw names. A reference the text rules do not recognise compares as a difference. A body that several symbols
-file under one key (two promoted locals whose names differ only in `.llvm.<hash>`) is compared as a set of bodies.
+keep their raw names. A reference the text rules do not recognise compares as a difference.
+
+Two symbols of one image can also share a name outright: two modules' statics or anonymous-namespace symbols, and
+promoted locals whose names differ only in `.llvm.<hash>`. Such names are numbered `#0`, `#1`, … in address order within
+each image (number_twins()), so a reference moved from one to the other is a change. If the copies trade places in the
+layout between the images, or a copy is added or removed before another, the numbers move with them, and those symbols
+and their references show as changed: a false positive.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -387,20 +392,24 @@ def mask_address_halves(body: list[str], classify=low_ram) -> list[str]:
 
 def functions(
     disassembly: str, rename=keep, classify=low_ram, alias=None
-) -> dict[str, list[tuple[str, ...]]]:
+) -> dict[str, tuple[str, ...]]:
     """Each function's normalised instructions, keyed by its name passed through @p rename, or by its @p alias (see
-    aliases()) when its address has one; the bodies of the functions that share a key, sorted. Addresses go through
-    @p classify."""
-    found: dict[str, list[list[tuple[int, str]]]] = {}
+    aliases()) when its address has one. Addresses go through @p classify. A key names one body: one listed twice at
+    its address (a section disassembled twice) is read once, and two bodies under one key are an error, because
+    comparing them as one would hide a reference moved between them."""
+    found: dict[str, tuple[int, list[tuple[int, str]]]] = {}
     current: list[tuple[int, str]] | None = None
     for line in disassembly.splitlines():
         header = HEADER.match(line)
         if header:
-            current = []
-            for name in (alias or {}).get(int(header.group(1), 16)) or (
+            current, start = [], int(header.group(1), 16)
+            for name in (alias or {}).get(start) or (
                 rename(LTO_SUFFIX.sub("", header.group(2))),
             ):
-                found.setdefault(name, []).append(current)
+                if name not in found:
+                    found[name] = (start, current)
+                elif found[name][0] != start:
+                    raise ValueError(f"two bodies are named {name}")
             continue
         insn = INSN.match(line)
         if insn and current is not None:
@@ -409,22 +418,19 @@ def functions(
             current = None
     least = {address: names[0] for address, names in (alias or {}).items()}
     result = {}
-    for name, bodies in found.items():
-        normalised = []
-        for body in bodies:
-            while body and PADDING.match(body[-1][1]):
-                body.pop()
-            index = {address: i for i, (address, _) in enumerate(body)}
-            lines = [
-                normalise(text, rename, classify, index.get, least) for _, text in body
-            ]
-            normalised.append(tuple(mask_address_halves(lines, classify)))
-        result[name] = sorted(normalised)
+    for name, (_, body) in found.items():
+        while body and PADDING.match(body[-1][1]):
+            body.pop()
+        index = {address: i for i, (address, _) in enumerate(body)}
+        lines = [
+            normalise(text, rename, classify, index.get, least) for _, text in body
+        ]
+        result[name] = tuple(mask_address_halves(lines, classify))
     return result
 
 
 def compare(
-    base: dict[str, list], new: dict[str, list]
+    base: dict[str, tuple], new: dict[str, tuple]
 ) -> tuple[list[str], list[str], list[str]]:
     """The changed, added and removed function names."""
     changed = sorted(n for n in base.keys() & new.keys() if base[n] != new[n])
@@ -579,6 +585,63 @@ def symbol_names(texts: list[str]) -> set[str]:
     }
 
 
+# A function's header in a disassembly, and an address with the symbol it falls in.
+TWIN_HEADER = re.compile(r"^([0-9a-f]+) <([^<>]+)>:$", re.MULTILINE)
+TWIN_TARGET = re.compile(r"0x([0-9a-f]+)(\s+)<([^<>+]+)((?:\+0x[0-9a-f]+)?)>")
+
+
+def number_twins(nm_text: str, disassembly: str) -> tuple[str, str]:
+    """@p nm_text (an `nm` listing) and @p disassembly with every name that several symbols of the image share, once
+    ThinLTO's `.llvm.<hash>` is dropped, numbered `#0`, `#1`, … in address order: two modules' statics, or anonymous
+    namespace symbols, of one name are then two keys, so a reference that moves from one to the other is a change. A
+    disassembly's name is placed by its address (less its `+0x…` offset). Mapping symbols (`$t`, `$d`) are left."""
+    starts: dict[str, set[int]] = {}
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if (
+            len(fields) < 3
+            or fields[-1].startswith("$")
+            or not re.fullmatch(r"[0-9a-f]+", fields[0])
+        ):
+            continue
+        starts.setdefault(LTO_SUFFIX.sub("", fields[-1]), set()).add(
+            int(fields[0], 16) & ~1
+        )
+    index = {
+        name: {address: i for i, address in enumerate(sorted(addresses))}
+        for name, addresses in starts.items()
+        if len(addresses) > 1
+    }
+    if not index:
+        return nm_text, disassembly
+
+    def numbered(name: str, address: int) -> str:
+        plain = LTO_SUFFIX.sub("", name)
+        at = index.get(plain, {}).get(address & ~1)
+        return name if at is None else f"{plain}#{at}"
+
+    lines = []
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if len(fields) >= 3 and re.fullmatch(r"[0-9a-f]+", fields[0]):
+            line = line[: line.rindex(fields[-1])] + numbered(
+                fields[-1], int(fields[0], 16)
+            )
+        lines.append(line)
+    disassembly = TWIN_HEADER.sub(
+        lambda m: f"{m.group(1)} <{numbered(m.group(2), int(m.group(1), 16))}>:",
+        disassembly,
+    )
+    disassembly = TWIN_TARGET.sub(
+        lambda m: (
+            f"0x{m.group(1)}{m.group(2)}<"
+            f"{numbered(m.group(3), int(m.group(1), 16) - int(m.group(4)[3:] or '0', 16))}{m.group(4)}>"
+        ),
+        disassembly,
+    )
+    return "\n".join(lines) + ("\n" if nm_text.endswith("\n") else ""), disassembly
+
+
 def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images=None):
     """A rename that maps every mangled symbol in @p texts to its key: its canonical() demangled name, with @p renames
     (see namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer,
@@ -644,8 +707,9 @@ def shared(names: list[str], key: dict[str, str]) -> list[list[str]]:
     return [group for group in holders.values() if len(group) > 1]
 
 
-# A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`.
-WRAPPED = re.compile(r"^(.*?)(_Z[\w$]+)((?:\.\w[\w.]*)?)$")
+# A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`, and
+# number_twins()'s `#N`.
+WRAPPED = re.compile(r"^(.*?)(_Z[\w$]+)((?:\.\w[\w.]*)?(?:#\d+)?)$")
 # A substitution reference in a mangled name: `S_`, `S0_`, `SK_`.
 SUBSTITUTION = re.compile(r"S[0-9A-Z]*_")
 NM_LINE = re.compile(r"^[0-9a-f]{8} [0-9a-f]{8} [a-zA-Z?] \S+$")
@@ -726,13 +790,8 @@ def main() -> int:
     images = []
     for which in (args.base, args.new):
         nm = run([args.nm, "-S", "-n", "--defined-only", which])
-        images.append(
-            (
-                disassemble(args.objdump, which, nm),
-                nm,
-                run([args.readelf, "-lW", which]),
-            )
-        )
+        nm, disassembly = number_twins(nm, disassemble(args.objdump, which, nm))
+        images.append((disassembly, nm, run([args.readelf, "-lW", which])))
     pairs = []
     for spec in args.rename:
         old, sep, new = spec.partition("=")
@@ -757,8 +816,8 @@ def main() -> int:
             print(f"  {name}")
     for name in args.diff:
         print(f"== {name}")
-        before = [line for body in base.get(name, []) for line in (*body, "--")]
-        after = [line for body in new.get(name, []) for line in (*body, "--")]
+        before = list(base.get(name, ()))
+        after = list(new.get(name, ()))
         for line in difflib.unified_diff(before, after, lineterm="", n=1):
             print(line)
     return 1 if changed or added or removed else 0

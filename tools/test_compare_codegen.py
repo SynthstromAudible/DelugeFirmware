@@ -36,6 +36,7 @@ from compare_codegen import (
     mask_address_halves,
     namespace_renamer,
     normalise,
+    number_twins,
 )
 
 
@@ -194,7 +195,8 @@ class ClassifierTest(unittest.TestCase):
 REAL_IMAGE = os.path.join(
     os.path.dirname(__file__), "..", "build", "RelWithDebInfo", "deluge.elf"
 )
-# A device image's defined symbols, mangled (`llvm-nm --defined-only`, names only, sorted, deduplicated).
+# A device image's defined symbols, mangled, in address order (`llvm-nm -n --defined-only`, names only, every symbol
+# listed, so names that two symbols share appear twice).
 NAMES_FIXTURE = os.path.join(
     os.path.dirname(__file__), "testdata", "compare_codegen_names.txt"
 )
@@ -294,14 +296,22 @@ def is_own_signature_of(key: str, name: str) -> bool:
     return False
 
 
-def shared_keys(mangled: list[str], cxxfilt: str) -> dict[str, list[str]]:
-    """The keys the tool gives (demangler(), as for one image) that several of @p mangled's symbols share, each with
-    those symbols (without their ThinLTO suffixes)."""
-    listing = "".join(f"00000000 00000000 T {n}\n" for n in mangled)
-    rename = demangler(cxxfilt, [listing], mangled=mangled_renamer([]))
+def shared_keys(names: list[str], cxxfilt: str) -> dict[str, list[str]]:
+    """The keys the tool gives one image whose symbols are @p names in address order (what number_twins() and then
+    demangler() make of them) that several of its symbols share, each with those symbols."""
+    nm = "".join(
+        f"{4 * i:08x} 00000004 t {n}\n"
+        for i, n in enumerate(names)
+        if not n.startswith("$")
+    )
+    nm, _ = number_twins(nm, "")
+    rename = demangler(cxxfilt, [nm], mangled=mangled_renamer([]))
     groups: dict[str, list[str]] = {}
-    for raw in sorted({compare_codegen.LTO_SUFFIX.sub("", n) for n in mangled}):
-        groups.setdefault(rename(raw), []).append(raw)
+    for line in nm.splitlines():
+        name = line.split()[-1]
+        groups.setdefault(rename(compare_codegen.LTO_SUFFIX.sub("", name)), []).append(
+            f"{line.split()[0]} {name}"
+        )
     return {k: v for k, v in groups.items() if len(v) > 1}
 
 
@@ -487,19 +497,17 @@ class CanonicalTest(unittest.TestCase):
                 "the fixture test holds the property for a checked-in image"
             )
         listing = subprocess.run(
-            ["llvm-nm", "--defined-only", REAL_IMAGE],
+            ["llvm-nm", "-n", "--defined-only", REAL_IMAGE],
             capture_output=True,
             text=True,
             check=True,
         ).stdout
         self.assert_no_two_symbols_share_a_key(
-            sorted(
-                {
-                    line.split()[-1]
-                    for line in listing.splitlines()
-                    if len(line.split()) == 3
-                }
-            )
+            [
+                line.split()[-1]
+                for line in listing.splitlines()
+                if len(line.split()) == 3
+            ]
         )
 
     def test_the_oracle_rejects_what_must_not_share_a_key(self):
@@ -572,22 +580,18 @@ class CompareTest(unittest.TestCase):
             compare(functions(base, rename), functions(new, rename)), ([], [], [])
         )
 
-    def test_overloads_compare_as_a_set_of_bodies(self):
+    def test_two_bodies_under_one_key_are_refused(self):
+        # Overloads get a key each (demangler()); a rename that still gives two bodies one key would hide a call
+        # moved between them, so it is an error rather than a set to compare.
         plain = {"_Z1fi": "f", "_Z1fj": "f"}
         rename = lambda name: plain.get(name, name)
         one = "10 <_Z1fi>:\n10:\tadd\tr0, r0, r1\n\n20 <_Z1fj>:\n20:\tsub\tr0, r0, r1\n"
-        swapped = (
-            one.replace("add", "SWAP").replace("sub", "add").replace("SWAP", "sub")
-        )
-        self.assertEqual(
-            compare(functions(one, rename), functions(swapped, rename)), ([], [], [])
-        )
-        self.assertEqual(
-            compare(
-                functions(one, rename), functions(one.replace("sub", "rsb"), rename)
-            )[0],
-            ["f"],
-        )
+        with self.assertRaises(ValueError):
+            functions(one, rename)
+
+    def test_a_body_listed_twice_at_its_address_is_read_once(self):
+        twice = "10 <f>:\n10:\tbx\tlr\n\n10 <f>:\n10:\tbx\tlr\n"
+        self.assertEqual(functions(twice), {"f": ("bx lr",)})
 
 
 SDRAM_NM = """\
@@ -635,6 +639,80 @@ class MainTest(unittest.TestCase):
         ):
             self.assertEqual(compare_codegen.main(), 0)
         self.assertIn(mock.call("changed: 0"), printed.call_args_list)
+
+
+class SameNamedSymbols(unittest.TestCase):
+    """Two symbols of one image with one name (promoted statics whose names differ only in `.llvm.<hash>`, or static
+    and anonymous-namespace symbols of two modules) are told apart by their order in the image."""
+
+    SEGMENTS = "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n"
+    DEMANGLED: ClassVar[dict[str, str]] = {
+        "_ZL1k": "k",
+        "_ZN12_GLOBAL__N_14flagEb": "(anonymous namespace)::flag(bool)",
+    }
+
+    def run_main(self, images: dict[str, tuple[str, str]]) -> tuple[int, list]:
+        """main() over fake images: path -> (disassembly, `nm -S -n` listing)."""
+
+        def fake(tool, stdin=None):
+            if tool[0] == "cxxfilt":
+                return (
+                    "\n".join(self.DEMANGLED.get(n, n) for n in stdin.splitlines())
+                    + "\n"
+                )
+            disassembly, nm = images[tool[-1]]
+            return {"objdump": disassembly, "nm": nm, "readelf": self.SEGMENTS}[tool[0]]
+
+        argv = ["compare_codegen.py", *images, "--objdump", "objdump", "--nm", "nm"]
+        argv += ["--readelf", "readelf", "--cxxfilt", "cxxfilt"]
+        with (
+            mock.patch.object(compare_codegen, "run", fake),
+            mock.patch.object(compare_codegen.sys, "argv", argv),
+            mock.patch("builtins.print") as printed,
+        ):
+            return compare_codegen.main(), printed.call_args_list
+
+    def promoted(self, first: str, second: str, word: str) -> tuple[str, str]:
+        nm = (
+            "20001000 00000018 T foo\n"
+            f"20251190 00000010 d _ZL1k.llvm.{first}\n"
+            f"20251200 00000010 d _ZL1k.llvm.{second}\n"
+        )
+        return SAMPLE.replace("0x20251190", word), nm
+
+    def test_a_pointer_retargeted_between_two_promoted_statics_is_a_change(self):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.promoted("111", "222", "0x20251190"),
+                "b.elf": self.promoted("333", "444", "0x20251200"),
+            }
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("changed: 1"), printed)
+
+    def test_the_same_layout_under_other_hashes_is_identical(self):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.promoted("111", "222", "0x20251190"),
+                "b.elf": self.promoted("333", "444", "0x20251190"),
+            }
+        )
+        self.assertEqual(status, 0)
+        self.assertIn(mock.call("changed: 0"), printed)
+
+    def test_a_call_retargeted_between_two_modules_statics_is_a_change(self):
+        flag = "_ZN12_GLOBAL__N_14flagEb"
+        listing = (
+            f"10 <{flag}>:\n10:\tbx\tlr\n\n14 <{flag}>:\n14:\tmovs\tr0, #0x1\n\n"
+            "20 <caller>:\n20:      \tbl\t0x{} <" + flag + "> @ imm = #0x0\n"
+        )
+        nm = f"00000010 00000004 t {flag}\n00000014 00000004 t {flag}\n00000020 00000004 T caller\n"
+        status, printed = self.run_main(
+            {"a.elf": (listing.format(10), nm), "b.elf": (listing.format(14), nm)}
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("changed: 1"), printed)
+        self.assertIn(mock.call("  caller"), printed)
 
 
 class DisassembleTest(unittest.TestCase):
