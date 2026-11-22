@@ -70,26 +70,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge_resource"
-version = "0.1.0"
-dependencies = [
- "critical-section",
- "deluge_base_alloc",
- "proptest",
-]
-
-[[package]]
 name = "deluge_rust"
 version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge-audio-format",
  "deluge_base_alloc",
- "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",
  "deluge_sample_source",
  "deluge_sample_stream",
+ "deluge_storage_resource",
 ]
 
 [[package]]
@@ -114,8 +105,8 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge_base_alloc",
- "deluge_resource",
  "deluge_sample_fill",
+ "deluge_storage_resource",
 ]
 
 [[package]]
@@ -124,8 +115,8 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge_base_alloc",
- "deluge_resource",
  "deluge_sample_fill",
+ "deluge_storage_resource",
 ]
 
 [[package]]
@@ -135,6 +126,15 @@ dependencies = [
  "critical-section",
  "deluge_sample_fill",
  "embassy-sync",
+]
+
+[[package]]
+name = "deluge_storage_resource"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
+ "proptest",
 ]
 
 [[package]]

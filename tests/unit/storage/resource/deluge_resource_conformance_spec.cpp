@@ -3,7 +3,7 @@
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
-// The Rust resource manager (crates/deluge_resource) driven through its C ABI
+// The Rust resource manager (src/storage/resource) driven through its C ABI
 // (deluge_resource.h) from C++ — the same cache invariants the Rust unit tests
 // assert, validated across the FFI boundary apples-to-apples with how the firmware
 // will call it. See docs/dev/resource_manager.md.

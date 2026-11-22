@@ -8,7 +8,7 @@
 //!
 //! # The synthetic sample
 //!
-//! Each case builds a [`ChunkHarness`]: a real slab-backed `deluge_resource` manager with real
+//! Each case builds a [`ChunkHarness`]: a real slab-backed `deluge_storage_resource` manager with real
 //! streamed chunks. Each cluster's payload is seeded with [`ramp`], then every cluster is passed
 //! through `deluge_sample_fill::native_finish` in index order, so the real stitch publishes each
 //! cluster's head into its predecessor's 7-byte trailing slack, which frames straddling a cluster
@@ -21,10 +21,6 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use deluge_resource::{
-    BACKING_SLAB, deluge_resource_create, deluge_resource_define_asset, deluge_resource_request,
-    deluge_resource_set_construct, deluge_resource_set_slab,
-};
 use deluge_sample_fill::{FillContext, deluge_streaming_set_fill_context};
 use deluge_sample_reader::abi::{
     DelugeFrameWindow, deluge_sample_read, deluge_sample_reader_advance,
@@ -32,11 +28,15 @@ use deluge_sample_reader::abi::{
     deluge_sample_reader_seek, deluge_sample_reader_window,
 };
 use deluge_sample_reader::reader::ReadHint;
+use deluge_storage_resource::{
+    BACKING_SLAB, deluge_resource_create, deluge_resource_define_asset, deluge_resource_request,
+    deluge_resource_set_construct, deluge_resource_set_slab,
+};
 
 use region_read_differential::mapping::{self, Geometry as MapGeo};
 use region_read_differential::ramp;
 
-// Host stand-ins for the C-ABI symbols `deluge_resource` calls. Each test is single-threaded with
+// Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls. Each test is single-threaded with
 // no audio ISR, so no-ops are correct.
 #[unsafe(no_mangle)]
 extern "C" fn ENTER_CRITICAL_SECTION() {}

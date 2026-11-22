@@ -44,15 +44,15 @@ racing tiers; its trailing index groups the sites by shared state. Every open si
   are object-lifetime races (freed with no handover from the render), not field races.
 - **The debug log buffer** — `printf`'s `_out_buffer`.
 
-One unguarded path that no run has reported: `Manager::release_asset` (`crates/deluge_resource/src/manager.rs`)
+One unguarded path that no run has reported: `Manager::release_asset` (`src/storage/resource/src/manager.rs`)
 skips the masked access B1's fix applies everywhere else in `Manager`, so it is sound only while no other tier
 touches that asset's chunks during teardown.
 
 ## Fixed
 
-- **B1 — `deluge_resource::Manager` chunk table: unsynchronized `Cell<ChunkSlot>`.** Audio's lease release raced the
+- **B1 — `deluge_storage_resource::Manager` chunk table: unsynchronized `Cell<ChunkSlot>`.** Audio's lease release raced the
   loader's `loader_next` on the same slot, able to lose a lease count and evict a playing cluster. Every `Manager`
-  access now goes through `crates/deluge_resource/src/sync.rs`'s `Masked` guard (`m_get`/`m_set`/`m_rmw`), which
+  access now goes through `src/storage/resource/src/sync.rs`'s `Masked` guard (`m_get`/`m_set`/`m_rmw`), which
   masks on every context except the audio render. Fixed: `a04e1a2d5`, `521a01d65`, `c1fc2b1cf`, `41ef30dcd`,
   `ac3cfeb78`.
 - **B2 — recorder cluster table reallocated under a concurrent reader.** Now `SampleRecorder::bufferTable_`, a

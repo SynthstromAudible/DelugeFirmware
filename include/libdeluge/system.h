@@ -112,8 +112,8 @@ inline void deluge_audio_exclude_exit(bool entered) noexcept {
 /// @brief RAII asymmetric critical section: enters iff the caller is NOT the audio render
 /// (`!deluge_in_audio_context()`).
 ///
-/// The C++ twin of the resource manager's `deluge_resource::sync::Masked`. Guard every change to a structure the
-/// audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
+/// The C++ twin of the resource manager's `deluge_storage_resource::sync::Masked`. Guard every change to a structure
+/// the audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
 /// context, so nothing can change the structure mid-walk; every other context masks for its window. On host,
 /// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
 /// audio thread's walks from another thread's changes. Its depth is deluge_audio_excluded_depth().

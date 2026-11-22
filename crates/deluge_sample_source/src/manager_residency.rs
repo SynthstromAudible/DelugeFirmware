@@ -1,9 +1,9 @@
-//! The production [`Residency`] provider, over the `deluge_resource` manager.
+//! The production [`Residency`] provider, over the `deluge_storage_resource` manager.
 
 use crate::residency::{Get, RegionPin, Residency};
 use core::ffi::c_void;
-use deluge_resource::facade::{Lease, Resource};
-use deluge_resource::DelugeResource;
+use deluge_storage_resource::facade::{Lease, Resource};
+use deluge_storage_resource::DelugeResource;
 
 // Provided by the BSP (`storage::streaming_loader`); by a stub below in this crate's tests.
 unsafe extern "C" {
@@ -17,7 +17,7 @@ mod host_streaming_stubs {
     extern "C" fn deluge_streaming_signal_fill() {}
 }
 
-/// The production residency provider, over the `deluge_resource` facade.
+/// The production residency provider, over the `deluge_storage_resource` facade.
 ///
 /// `Ready` is a cache hit (`acquire_leased`); `Loading` is a fresh or in-flight reservation, queued
 /// for the streaming loader, which fills it; `Unavailable` is an index out of range or a manager
@@ -35,7 +35,7 @@ impl ManagerResidency {
     ///
     /// # Safety
     ///
-    /// `handle` must be a live `deluge_resource` handle for this provider's whole life (a boot
+    /// `handle` must be a live `deluge_storage_resource` handle for this provider's whole life (a boot
     /// singleton in production).
     pub unsafe fn new(
         handle: *mut DelugeResource,
@@ -140,8 +140,8 @@ mod tests {
     extern crate std;
 
     use core::ffi::c_void;
-    use deluge_resource::value::COST_IO;
-    use deluge_resource::DelugeResource;
+    use deluge_storage_resource::value::COST_IO;
+    use deluge_storage_resource::DelugeResource;
     use std::vec::Vec;
 
     const CLUSTER_SIZE: usize = 16;
@@ -195,7 +195,7 @@ mod tests {
         let h = unsafe { deluge_base_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };
+        let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
         assert!(!handle.is_null());
         handle
     }
@@ -205,19 +205,23 @@ mod tests {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the callbacks
         // have the required C-ABI signature.
         let asset = unsafe {
-            deluge_resource::deluge_resource_define_asset(
+            deluge_storage_resource::deluge_resource_define_asset(
                 h,
                 core::ptr::null_mut(),
                 Some(mock_materialize),
                 None,
                 core::ptr::null_mut(),
                 COST_IO,
-                deluge_resource::manager::BACKING_HEAP,
+                deluge_storage_resource::manager::BACKING_HEAP,
             )
         };
         // SAFETY: `h`/`asset` are live/valid per the call above.
         unsafe {
-            deluge_resource::deluge_resource_set_construct(h, asset, Some(make_ramp_construct));
+            deluge_storage_resource::deluge_resource_set_construct(
+                h,
+                asset,
+                Some(make_ramp_construct),
+            );
         }
         asset
     }
@@ -226,22 +230,23 @@ mod tests {
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; `try_acquire`/`mark_ready` are the same
         // FFI-safe C-ABI calls the facade wraps.
-        let ptr = unsafe { deluge_resource::deluge_resource_try_acquire(h, asset, index) };
+        let ptr = unsafe { deluge_storage_resource::deluge_resource_try_acquire(h, asset, index) };
         let ptr = if ptr.is_null() {
             // Not resident yet (no in-flight `request`): reserve it first.
             // SAFETY: `h`/`asset` are live/valid.
-            let p =
-                unsafe { deluge_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE) };
+            let p = unsafe {
+                deluge_storage_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE)
+            };
             assert!(!p.is_null(), "reserve for mark-ready failed");
             p
         } else {
             ptr
         };
         // SAFETY: `h`/`ptr` are live/valid per the calls above.
-        unsafe { deluge_resource::deluge_resource_mark_ready(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_mark_ready(h, ptr) };
         // Drop the lease taken above so it does not skew later acquires.
         // SAFETY: `h`/`ptr` are live/valid.
-        unsafe { deluge_resource::deluge_resource_release(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_release(h, ptr) };
     }
 
     #[test]

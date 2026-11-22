@@ -15,7 +15,7 @@
 //!
 //! `acquire_ex` runs on the audio tier; `close` runs on the audio tier (a pooled reader reopened
 //! for a new sample) or in thread mode (voice teardown). Every slot access, including the
-//! `prefetch_index` sidecar, is therefore wrapped in `deluge_resource::sync::Masked`, the same
+//! `prefetch_index` sidecar, is therefore wrapped in `deluge_storage_resource::sync::Masked`, the same
 //! asymmetric critical section the manager's tables use: it masks everywhere except the audio
 //! context, which is already atomic with respect to the others.
 //!
@@ -28,7 +28,7 @@
 use crate::geometry::{resident_bytes_for, Geometry};
 use crate::residency::{Get, RegionPin, Residency};
 use core::cell::Cell;
-use deluge_resource::sync::{m_get, Masked};
+use deluge_storage_resource::sync::{m_get, Masked};
 
 /// A region's residency, mirroring `DelugeRegionState`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -73,7 +73,7 @@ impl<R: Residency> SampleSource<R> {
     }
 
     /// Replaces a slot's pin under the mask, dropping the outgoing one inside the same window. The
-    /// non-`Copy` counterpart of `deluge_resource::sync::m_set`.
+    /// non-`Copy` counterpart of `deluge_storage_resource::sync::m_set`.
     fn set_slot(slot: &Cell<Option<R::Pin>>, v: Option<R::Pin>) {
         let _m = Masked::enter();
         slot.set(v);
@@ -296,8 +296,8 @@ mod tests {
     extern crate std;
 
     use core::ffi::c_void;
-    use deluge_resource::value::COST_IO;
-    use deluge_resource::DelugeResource;
+    use deluge_storage_resource::value::COST_IO;
+    use deluge_storage_resource::DelugeResource;
     use std::vec::Vec;
 
     const CLUSTER_SIZE: usize = 16;
@@ -352,10 +352,10 @@ mod tests {
         };
         assert!(!slab.is_null());
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, CHUNK_CAP) };
+        let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, CHUNK_CAP) };
         assert!(!handle.is_null());
         // SAFETY: `handle`/`slab` are both live, over the same heap.
-        unsafe { deluge_resource::deluge_resource_set_slab(handle, slab) };
+        unsafe { deluge_storage_resource::deluge_resource_set_slab(handle, slab) };
         handle
     }
 
@@ -364,19 +364,23 @@ mod tests {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the callback
         // has the required C-ABI signature.
         let asset = unsafe {
-            deluge_resource::deluge_resource_define_asset(
+            deluge_storage_resource::deluge_resource_define_asset(
                 h,
                 core::ptr::null_mut(),
                 None,
                 None,
                 core::ptr::null_mut(),
                 COST_IO,
-                deluge_resource::manager::BACKING_SLAB,
+                deluge_storage_resource::manager::BACKING_SLAB,
             )
         };
         // SAFETY: `h`/`asset` are live/valid per the call above.
         unsafe {
-            deluge_resource::deluge_resource_set_construct(h, asset, Some(real_chunk_construct));
+            deluge_storage_resource::deluge_resource_set_construct(
+                h,
+                asset,
+                Some(real_chunk_construct),
+            );
         }
         asset
     }
@@ -387,11 +391,12 @@ mod tests {
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; these are the same FFI-safe C-ABI calls the
         // facade wraps.
-        let ptr = unsafe { deluge_resource::deluge_resource_try_acquire(h, asset, index) };
+        let ptr = unsafe { deluge_storage_resource::deluge_resource_try_acquire(h, asset, index) };
         let ptr = if ptr.is_null() {
             // SAFETY: `h`/`asset` are live/valid.
-            let p =
-                unsafe { deluge_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE) };
+            let p = unsafe {
+                deluge_storage_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE)
+            };
             assert!(!p.is_null(), "reserve for mark-ready failed");
             p
         } else {
@@ -407,9 +412,9 @@ mod tests {
             }
         }
         // SAFETY: `h`/`ptr` are live/valid per the calls above.
-        unsafe { deluge_resource::deluge_resource_mark_ready(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_mark_ready(h, ptr) };
         // SAFETY: `h`/`ptr` are live/valid.
-        unsafe { deluge_resource::deluge_resource_release(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_release(h, ptr) };
     }
 
     /// The sum of live lease counts across the manager's chunk table: the lease-balance oracle.
@@ -418,7 +423,7 @@ mod tests {
             // SAFETY: `h` is a live handle; `lease_count_by_slot` tolerates any
             // slot index (returns 0 out of range), per its own doc.
             .map(|slot| unsafe {
-                deluge_resource::deluge_resource_lease_count_by_slot(h, slot) as u64
+                deluge_storage_resource::deluge_resource_lease_count_by_slot(h, slot) as u64
             })
             .sum()
     }

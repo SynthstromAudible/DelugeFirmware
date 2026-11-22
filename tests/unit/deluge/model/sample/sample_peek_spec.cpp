@@ -1,6 +1,6 @@
 // tests/unit/deluge/model/sample/sample_peek_spec.cpp
 //
-// deluge_sample_peek over a REAL, linked deluge_resource manager (unlike
+// deluge_sample_peek over a REAL, linked deluge_storage_resource manager (unlike
 // sample_reader_bridge_spec.cpp's deliberately-unregistered-asset scenario): this drives the
 // manager C ABI directly (deluge_resource_request/_mark_ready) to build one resident-and-ready
 // cluster, one resident-but-not-ready cluster, and one never-touched (absent) cluster, then

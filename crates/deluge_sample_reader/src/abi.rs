@@ -193,10 +193,10 @@ mod tests {
     use super::*;
     use crate::host_streaming_stubs::{set_active_manager, TEST_LOCK};
     use crate::reader::UNKNOWN_LENGTH_SENTINEL;
-    use deluge_resource::facade::Resource;
-    use deluge_resource::value::COST_IO;
-    use deluge_resource::DelugeResource;
     use deluge_sample_fill::{deluge_streaming_set_fill_context, FillContext};
+    use deluge_storage_resource::facade::Resource;
+    use deluge_storage_resource::value::COST_IO;
+    use deluge_storage_resource::DelugeResource;
     extern crate std;
     use core::ffi::c_void;
     use std::vec::Vec;
@@ -267,23 +267,23 @@ mod tests {
         let h = unsafe { deluge_base_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };
+        let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
         assert!(!handle.is_null());
         // SAFETY: `handle` is live. No materialize callback: these tests only `Resource::request`.
         let asset = unsafe {
-            deluge_resource::deluge_resource_define_asset(
+            deluge_storage_resource::deluge_resource_define_asset(
                 handle,
                 core::ptr::null_mut(),
                 None,
                 None,
                 core::ptr::null_mut(),
                 COST_IO,
-                deluge_resource::manager::BACKING_HEAP,
+                deluge_storage_resource::manager::BACKING_HEAP,
             )
         };
         // SAFETY: `handle` and `asset` are live.
         unsafe {
-            deluge_resource::deluge_resource_set_construct(
+            deluge_storage_resource::deluge_resource_set_construct(
                 handle,
                 asset,
                 Some(real_chunk_construct),

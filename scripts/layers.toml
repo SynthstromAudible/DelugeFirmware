@@ -64,6 +64,9 @@ path = "plugin"
 path = "serialization"
 
 [[directory]]
+path = "storage"
+
+[[directory]]
 path = "synth"
 
 [[directory]]

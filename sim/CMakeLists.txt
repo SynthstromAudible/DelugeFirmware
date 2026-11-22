@@ -210,12 +210,12 @@ add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.
-    include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
+    include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/src/storage/resource/include)
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
-        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h
+        ${REPO_ROOT}/src/storage/resource/include # deluge_resource.h
         ${SIMDE_INCLUDE_DIR}               # compat shim's <simde/arm/neon.h> -> SIMDe
         ${SIMDE_INCLUDE_DIR}/simde         # argon's bare <arm/neon.h> -> SIMDe
     )

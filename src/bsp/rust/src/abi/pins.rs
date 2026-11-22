@@ -41,8 +41,8 @@ abi_pin!(in deluge_sample_stream::abi: deluge_sample_stream_open, deluge_sample_
 
 // --- The crates' own declarations of header functions (they cannot see `sys`) ---
 
-abi_pin!(in deluge_resource::manager: deluge_debug_now_frames);
-abi_pin!(in deluge_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
+abi_pin!(in deluge_storage_resource::manager: deluge_debug_now_frames);
+abi_pin!(in deluge_storage_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
 abi_pin!(in deluge_sample_fill::native: deluge_streaming_resource_manager);
 abi_pin!(in deluge_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
 abi_pin!(in deluge_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,

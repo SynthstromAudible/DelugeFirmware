@@ -35,13 +35,6 @@ name = "deluge_base_alloc"
 version = "0.1.0"
 
 [[package]]
-name = "deluge_resource"
-version = "0.1.0"
-dependencies = [
- "deluge_base_alloc",
-]
-
-[[package]]
 name = "deluge_sample_convert"
 version = "0.1.0"
 dependencies = [
@@ -54,6 +47,13 @@ version = "0.1.0"
 dependencies = [
  "deluge_sample_convert",
  "embassy-sync",
+]
+
+[[package]]
+name = "deluge_storage_resource"
+version = "0.1.0"
+dependencies = [
+ "deluge_base_alloc",
 ]
 
 [[package]]
@@ -129,9 +129,9 @@ dependencies = [
  "cc",
  "critical-section",
  "deluge_base_alloc",
- "deluge_resource",
  "deluge_sample_convert",
  "deluge_sample_fill",
+ "deluge_storage_resource",
 ]
 
 [[package]]

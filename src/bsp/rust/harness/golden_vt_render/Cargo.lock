@@ -403,11 +403,11 @@ dependencies = [
  "deluge-embedded-fatfs",
  "deluge-usb-classes",
  "deluge_base_alloc",
- "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",
  "deluge_sample_source",
  "deluge_sample_stream",
+ "deluge_storage_resource",
  "embassy-executor",
  "embassy-futures",
  "embassy-sync",
@@ -456,13 +456,6 @@ name = "deluge_base_alloc"
 version = "0.1.0"
 
 [[package]]
-name = "deluge_resource"
-version = "0.1.0"
-dependencies = [
- "deluge_base_alloc",
-]
-
-[[package]]
 name = "deluge_sample_convert"
 version = "0.1.0"
 dependencies = [
@@ -481,16 +474,16 @@ dependencies = [
 name = "deluge_sample_reader"
 version = "0.1.0"
 dependencies = [
- "deluge_resource",
  "deluge_sample_fill",
+ "deluge_storage_resource",
 ]
 
 [[package]]
 name = "deluge_sample_source"
 version = "0.1.0"
 dependencies = [
- "deluge_resource",
  "deluge_sample_fill",
+ "deluge_storage_resource",
 ]
 
 [[package]]
@@ -499,6 +492,13 @@ version = "0.1.0"
 dependencies = [
  "deluge_sample_fill",
  "embassy-sync",
+]
+
+[[package]]
+name = "deluge_storage_resource"
+version = "0.1.0"
+dependencies = [
+ "deluge_base_alloc",
 ]
 
 [[package]]

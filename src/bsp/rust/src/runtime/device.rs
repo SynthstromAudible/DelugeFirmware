@@ -14,7 +14,7 @@ use crate::{boot, boot_mem, sys};
 
 /// The Rust global allocator, which `embedded-fatfs`'s `alloc` feature needs.
 ///
-/// A TLSF heap of its own, distinct from `deluge_resource`'s. [`app_task`] gives it its arena
+/// A TLSF heap of its own, distinct from `deluge_storage_resource`'s. [`app_task`] gives it its arena
 /// before the mount; until then an allocation returns null.
 #[global_allocator]
 static FS_ALLOCATOR: fs_alloc::DelugeGlobalAlloc = fs_alloc::DelugeGlobalAlloc::new();

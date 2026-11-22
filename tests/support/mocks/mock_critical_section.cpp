@@ -17,10 +17,10 @@
 
 // Host bodies for the interrupt-masking C ABI that libdeluge declares and the BSP normally owns.
 //
-// deluge_resource's masking discipline (crates/deluge_resource/src/sync.rs) calls all three across
+// deluge_storage_resource's masking discipline (src/storage/resource/src/sync.rs) calls all three across
 // the C ABI on every acquire/release, so any host driver that links a Rust staticlib re-exporting
-// deluge_resource needs bodies for them even when the spec itself never contends. It is also the interrupt half of the
-// spec binaries' HAL (mock_hal.cpp).
+// deluge_storage_resource needs bodies for them even when the spec itself never contends. It is also the interrupt half
+// of the spec binaries' HAL (mock_hal.cpp).
 //
 // The no-op/false bodies are exact rather than merely adequate: these drivers are single-threaded
 // and never run in ISR context, so there is nothing to mask and no interrupt to report.
@@ -47,7 +47,7 @@ bool deluge_in_audio_context() noexcept {
 	return false;
 }
 
-/// The clock deluge_resource measures loader service latency with — in the firmware it is
+/// The clock deluge_storage_resource measures loader service latency with — in the firmware it is
 /// `AudioEngine::audioSampleTimer` (see src/deluge/io/debug/resource_clock.cpp), which these drivers
 /// do not link. A monotonic counter satisfies the manager's only requirement (that successive reads
 /// do not go backwards); no spec asserts on the latency figures it produces.

@@ -277,7 +277,7 @@ other. Also owns the legacy-name alias tables (§7.3).
 
 **deluge-stream** — audio-context storage: cluster cache, sample streaming,
 SD read scheduling, resource-manager `Source`/`materialize`/`on_evict` wiring (`Stealable` is fully
-retired -- see `crates/deluge_resource`). Split from `deluge-files` because the two halves have
+retired -- see `src/storage/resource`). Split from `deluge-files` because the two halves have
 opposite realtime contracts (blocking-allowed vs audio-safe), which today share a directory and
 a god-object. Implemented via `include/libdeluge/stream_io.h`.
 

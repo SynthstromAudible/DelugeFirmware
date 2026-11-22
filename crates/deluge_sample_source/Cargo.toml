@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-deluge_resource = { path = "../deluge_resource" }
+deluge_storage_resource = { path = "../../src/storage/resource" }
 # Only `chunk` is used (`ManagerPin::payload` reads a chunk's payload base directly). Default
 # features on purpose: `native_fill` is the manager-reaching fill core, which `deluge_sample_reader`
 # enables for every real build anyway.

@@ -9,8 +9,8 @@
 use alloc::boxed::Box;
 use core::ffi::c_void;
 
-use deluge_resource::facade::{Lease, Resource};
-use deluge_resource::DelugeResource;
+use deluge_storage_resource::facade::{Lease, Resource};
+use deluge_storage_resource::DelugeResource;
 
 /// Clusters pinned from the marker cluster onward, in the play direction. Mirrors
 /// `kNumClustersLoadedAhead` (`src/definitions_cxx.hpp`).
@@ -285,7 +285,7 @@ fn walk_and_lease(
 
 /// Enqueues `chunk` on the async loader at lowest priority (`0xFFFF_FFFF`) and wakes it, unless the
 /// chunk is already ready. The same two calls as the C++ `CLUSTER_ENQUEUE` path.
-fn enqueue_unfilled(resource: &Resource, chunk: deluge_resource::facade::Chunk) {
+fn enqueue_unfilled(resource: &Resource, chunk: deluge_storage_resource::facade::Chunk) {
     if resource.is_ready(chunk) {
         return;
     }
@@ -399,9 +399,9 @@ mod tests {
     use crate::host_streaming_stubs::{
         set_active_manager, set_fail_at_byte_offset, set_force_read_failure, TEST_LOCK,
     };
-    use deluge_resource::manager::BACKING_SLAB;
-    use deluge_resource::value::COST_IO;
     use deluge_sample_fill::{deluge_streaming_set_fill_context, FillContext};
+    use deluge_storage_resource::manager::BACKING_SLAB;
+    use deluge_storage_resource::value::COST_IO;
     extern crate std;
     use std::ops::Range;
     use std::vec::Vec;
@@ -469,13 +469,13 @@ mod tests {
             };
             assert!(!slab.is_null());
             // SAFETY: `h` is live.
-            let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };
+            let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
             assert!(!handle.is_null());
             // SAFETY: `handle` and `slab` are live, over the same heap.
-            unsafe { deluge_resource::deluge_resource_set_slab(handle, slab) };
+            unsafe { deluge_storage_resource::deluge_resource_set_slab(handle, slab) };
             // SAFETY: `handle` is live.
             let asset = unsafe {
-                deluge_resource::deluge_resource_define_asset(
+                deluge_storage_resource::deluge_resource_define_asset(
                     handle,
                     core::ptr::null_mut(),
                     None,
@@ -486,7 +486,7 @@ mod tests {
                 )
             };
             unsafe {
-                deluge_resource::deluge_resource_set_construct(
+                deluge_storage_resource::deluge_resource_set_construct(
                     handle,
                     asset,
                     Some(real_chunk_construct),
@@ -543,9 +543,9 @@ mod tests {
         /// counter. Unlike a lease count, it does not return to its old value across a spurious
         /// release-and-reacquire.
         fn acquire_generation(&self) -> u64 {
-            let mut stats = deluge_resource::Stats::default();
+            let mut stats = deluge_storage_resource::Stats::default();
             // SAFETY: `self.handle` lives as long as `self`.
-            unsafe { deluge_resource::deluge_resource_stats(self.handle, &mut stats) };
+            unsafe { deluge_storage_resource::deluge_resource_stats(self.handle, &mut stats) };
             stats.requests
         }
 
@@ -564,7 +564,10 @@ mod tests {
                 if let Some(chunk) = resource.peek(self.asset, index) {
                     // SAFETY: `self.handle` is live; `peek` just reported `chunk` resident.
                     unsafe {
-                        deluge_resource::deluge_resource_evict_chunk(self.handle, chunk.as_ptr())
+                        deluge_storage_resource::deluge_resource_evict_chunk(
+                            self.handle,
+                            chunk.as_ptr(),
+                        )
                     };
                 }
             }

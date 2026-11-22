@@ -1,4 +1,4 @@
-//! Drives `deluge_sample_fill::native_finish` over real streamed chunks in a real `deluge_resource`
+//! Drives `deluge_sample_fill::native_finish` over real streamed chunks in a real `deluge_storage_resource`
 //! manager: its `try_acquire` → payload accessor → convert-state accessor → stitch → write-back
 //! chain, checked against the C++ reference.
 //!
@@ -13,7 +13,7 @@
 //! # Harness
 //!
 //! `native_begin`/`native_finish` (feature `native_fill`) and the chunk storage are called
-//! directly. The resource-manager symbols come from `deluge_resource`, the chunk accessors from
+//! directly. The resource-manager symbols come from `deluge_storage_resource`, the chunk accessors from
 //! `deluge_sample_fill`. Only `deluge_streaming_resource_manager` is provided here, from an
 //! `AtomicPtr` set by [`ChunkHarness::new`]. Chunks are built by the production construct callback,
 //! `deluge_streaming_chunk_construct`.
@@ -38,14 +38,14 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use deluge_resource::{
+use deluge_sample_fill::FillContext;
+use deluge_sample_fill::chunk::StreamedChunk;
+use deluge_storage_resource::{
     BACKING_HEAP, DelugeResource, deluge_resource_create, deluge_resource_define_asset,
     deluge_resource_request, deluge_resource_set_construct,
 };
-use deluge_sample_fill::FillContext;
-use deluge_sample_fill::chunk::StreamedChunk;
 
-// Host stand-ins for the C-ABI symbols `deluge_resource` calls. Each test is single-threaded with
+// Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls. Each test is single-threaded with
 // no audio ISR, so no-ops are correct.
 #[unsafe(no_mangle)]
 extern "C" fn ENTER_CRITICAL_SECTION() {}

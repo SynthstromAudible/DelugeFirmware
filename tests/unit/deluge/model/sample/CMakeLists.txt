@@ -30,5 +30,5 @@ deluge_specs_driver(sample_reader_specs TREES host NEON
     ${DELUGE_REPO_ROOT}/include                         # libdeluge/sample_reader.h, streaming_fill.h, system.h
     ${DELUGE_REPO_ROOT}/src                             # definitions_cxx.hpp
     ${_app}                                             # model/sample/sample_reader_bridge.h, chunk_residency.h
-    ${DELUGE_REPO_ROOT}/crates/deluge_resource/include  # deluge_resource.h (sample_peek_spec.cpp's manager setup)
+    ${DELUGE_REPO_ROOT}/src/storage/resource/include  # deluge_resource.h (sample_peek_spec.cpp's manager setup)
 )

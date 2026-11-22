@@ -1,5 +1,5 @@
 //! Payload-offset gate: the region cursor (`SampleSource<ManagerResidency>`) over a real
-//! `deluge_resource` manager whose chunks are real `StreamedChunk`s.
+//! `deluge_storage_resource` manager whose chunks are real `StreamedChunk`s.
 //!
 //! A streamed chunk's payload sits at a non-zero offset from its manager backing, behind the
 //! `StreamedChunk` header. Payloads are seeded with `make_ramp` through
@@ -14,18 +14,18 @@ use core::ffi::c_void;
 use std::ptr;
 use std::sync::Mutex;
 
-use deluge_resource::value::COST_IO;
-use deluge_resource::{
+use deluge_sample_source::cursor::{RegionOut, RegionState, SampleSource};
+use deluge_sample_source::geometry::Geometry;
+use deluge_sample_source::manager_residency::ManagerResidency;
+use deluge_storage_resource::value::COST_IO;
+use deluge_storage_resource::{
     deluge_resource_create, deluge_resource_define_asset, deluge_resource_lease_count_by_slot,
     deluge_resource_mark_ready, deluge_resource_release, deluge_resource_request,
     deluge_resource_set_construct, deluge_resource_try_acquire, manager::BACKING_HEAP,
     DelugeResource,
 };
-use deluge_sample_source::cursor::{RegionOut, RegionState, SampleSource};
-use deluge_sample_source::geometry::Geometry;
-use deluge_sample_source::manager_residency::ManagerResidency;
 
-// `deluge_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
+// `deluge_storage_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
 // dependency crates' own `#[cfg(test)]` stubs are compiled out here, so this binary supplies them.
 // `deluge_in_interrupt` is always false, so masking is really exercised.
 mod host_critical_section_stubs {
@@ -124,7 +124,7 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 const CLUSTER_SIZE: u32 = 64;
 const CHUNK_CAP: u32 = 32; // ample for this gate's handful of indices
 
-/// A real `deluge_resource` manager over a test heap, with one asset whose `construct` places a
+/// A real `deluge_storage_resource` manager over a test heap, with one asset whose `construct` places a
 /// real streamed chunk (payload at `backing + payload_offset`) at each slab slot.
 struct ChunkHarness {
     handle: *mut DelugeResource,

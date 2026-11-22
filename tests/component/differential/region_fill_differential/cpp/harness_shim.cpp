@@ -40,7 +40,7 @@ extern "C" {
 
 /// Mirrors `finish_fill`'s convert + neighbour-gather + stitch tail (async_fill.cpp:110-162) exactly,
 /// minus the `loaded = true` / `deluge_resource_mark_ready` publish step (out of scope for the
-/// fill-differential -- the host end-to-end test covers publish, over a real `deluge_resource`
+/// fill-differential -- the host end-to-end test covers publish, over a real `deluge_storage_resource`
 /// manager).
 ///
 /// @param self_data                             This cluster's FULL `payload_with_trailing_slack()`

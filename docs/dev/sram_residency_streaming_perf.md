@@ -4,7 +4,7 @@
 Verification). Hand-off doc for a session resident in this repo.
 
 **Target branch:** the audio-stream refactor lives on **`next`** (`src/deluge/storage/audio/stream/`,
-`crates/deluge_resource`, `src/base/alloc`). Base new work on `next` (or a branch off it). The
+`src/storage/resource`, `src/base/alloc`). Base new work on `next` (or a branch off it). The
 reference docs below (`allocator_sdram_strangle.md`, `allocator_redesign.md`) were *removed from `next`*
 but still exist on `deepclone`, `deluge-project`, `feat/immediate-mode`, `feat/synth-golden-masters` —
 `git show deepclone:docs/dev/allocator_sdram_strangle.md`.
@@ -101,10 +101,10 @@ placement possible at all.
   of uniform slots borrowed from the TLSF heap; registers as the heap's reclaim hook and evicts the
   coldest **unpinned** slot on pressure (`EvictFn`, the `Stealable::steal()` analogue). Pinning ==
   `numReasonsToBeLoaded`.
-- `crates/deluge_resource` — resource manager (`src/manager.rs`): assets + individually-leased/evicted
+- `src/storage/resource` — resource manager (`src/manager.rs`): assets + individually-leased/evicted
   chunks, priority-queue eviction (the C++ `CacheManager` policy drives the reclaim hook), a **backing
   selector** per asset: `DELUGE_RESOURCE_BACKING_HEAP` (variable, TLSF) vs `DELUGE_RESOURCE_BACKING_SLAB`
-  (uniform clusters). C ABI in `crates/deluge_resource/include/deluge_resource.h`.
+  (uniform clusters). C ABI in `src/storage/resource/include/deluge_resource.h`.
 - `docs/dev/allocator_sdram_strangle.md` (on the branches listed above): collapsed
   STEALABLE/EXTERNAL/EXTERNAL_SMALL into one Rust SDRAM heap, slab-backed clusters, retired
   `MemoryRegion`, moved GrainBuffer/WaveTableBandData/AudioFile off the cluster queue to registered
@@ -213,7 +213,7 @@ manager an SRAM pool:
   `deluge_slab_create_unmanaged(sram_heap(), slot, sramCap)` alongside `clusterSlab_`
   (`general_memory_allocator.cpp:80`). Requires the resource manager to support *two* slabs and a per-asset
   slab selector (today `deluge_resource_set_slab` sets exactly one — `deluge_resource.h:117`). Rust change
-  in `crates/deluge_resource` + a new backing constant or a slab-id on the asset.
+  in `src/storage/resource` + a new backing constant or a slab-id on the asset.
 - **Option 2 — SampleStream owns a small SRAM pool directly** for Tier-1/Tier-2 chunks, bypassing the
   resource manager for those, allocating from `sram_heap()` / a dedicated SRAM slab. Simpler manager, but
   you lose unified priority eviction for the SRAM tier and must hand-roll demotion. Trade-off.
@@ -297,7 +297,7 @@ refresh stalls, bus serialization, cache behavior) is a **hardware-timing phenom
 
 - **SRAM budget sizing.** How much of ~3 MB is actually free after everything else? Measure `sram_size()`
   headroom on a heavy song. Threshold *N* and the global cap depend on it.
-- **Two-slab manager change** (Option 1) — scope of the Rust `deluge_resource` edit; keep the reclaim
+- **Two-slab manager change** (Option 1) — scope of the Rust `deluge_storage_resource` edit; keep the reclaim
   reentrancy guard intact (depth-1 retry in the C ABI).
 - **Bank-aware placement feasibility** (§5b.1) — can the slab expose/choose a slot's SDRAM bank from its
   physical address, and is the 4-bank stripe granularity worth the slab
@@ -324,8 +324,8 @@ refresh stalls, bus serialization, cache behavior) is a **hardware-timing phenom
 | Head-cluster pinning (per SampleHolder, all referenced samples) | `model/sample/sample_holder.cpp` (`clustersForStart[]`, `setAudioFile`/`loadClusters`) |
 | Slab/manager creation (one SDRAM slab) | `memory/general_memory_allocator.cpp:80,99-101` |
 | Memory heap API | `src/deluge/memory/heaps.h` |
-| Resource manager C ABI | `crates/deluge_resource/include/deluge_resource.h` |
-| Slab pager | `src/base/alloc/src/slab.rs`; manager `crates/deluge_resource/src/manager.rs` |
+| Resource manager C ABI | `src/storage/resource/include/deluge_resource.h` |
+| Slab pager | `src/base/alloc/src/slab.rs`; manager `src/storage/resource/src/manager.rs` |
 | Hardware: SDRAM part/config | Alliance `AS4C32M16SM-7TCN` (512 Mbit, 32M×16, 4-bank, CL2); config in deluge-sdk `crates/deluge-bsp/src/sdram.rs` — see §1 |
 | Hardware: memory map + uncached mirror | deluge-sdk `crates/rza1l-hal/src/memmap.rs` |
 | Hardware: cache mapping | deluge-sdk `crates/rza1l-hal/src/mmu.rs` (`PARA_NORMAL_CACHE`) |

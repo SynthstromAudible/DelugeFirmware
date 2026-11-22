@@ -27,8 +27,8 @@
 /// valuable chunks resident and rebuilds the rest on demand; a chunk under a hard
 /// lease (or marked dirty) is never evicted.
 ///
-/// Owned by the `deluge_resource` crate; implemented in Rust, must stay in sync
-/// with crates/deluge_resource/src/manager.rs. C-ABI: fixed-width types + function
+/// Owned by the `deluge_storage_resource` crate; implemented in Rust, must stay in sync
+/// with src/storage/resource/src/manager.rs. C-ABI: fixed-width types + function
 /// pointers only (no C `enum`s across the boundary).
 #ifndef DELUGE_RESOURCE_H
 #define DELUGE_RESOURCE_H

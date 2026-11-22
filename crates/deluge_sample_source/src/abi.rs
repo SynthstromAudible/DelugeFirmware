@@ -23,8 +23,8 @@ use core::ffi::c_void;
 use crate::cursor::{RegionState, SampleSource};
 use crate::geometry::{Geometry, UNKNOWN_LENGTH_SENTINEL};
 use crate::manager_residency::ManagerResidency;
-use deluge_resource::sync::{m_get, m_set, Masked};
-use deluge_resource::{DelugeResource, Resource};
+use deluge_storage_resource::sync::{m_get, m_set, Masked};
+use deluge_storage_resource::{DelugeResource, Resource};
 
 // C-ABI types, mirroring `libdeluge/sample_source.h`.
 
@@ -102,7 +102,7 @@ const POOL_SIZE: usize = 256;
 ///
 /// `source` is at offset 0 (asserted below), so the handle `open` returns, a pointer at `source`,
 /// casts straight back to its `Slot`. `in_use` is claimed and released under
-/// `deluge_resource::sync::Masked`.
+/// `deluge_storage_resource::sync::Masked`.
 #[repr(C)]
 struct Slot {
     source: UnsafeCell<Option<SampleSource<ManagerResidency>>>,
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn deluge_sample_source_open(
     let source = SampleSource::new(residency, geometry);
 
     let Some(slot) = claim_slot() else {
-        // Pool exhausted: return null and let the caller drop the voice, as `deluge_resource`
+        // Pool exhausted: return null and let the caller drop the voice, as `deluge_storage_resource`
         // does for its own full tables.
         return core::ptr::null_mut();
     };
@@ -386,7 +386,7 @@ mod tests {
     use super::*;
     extern crate std;
 
-    use deluge_resource::value::COST_IO;
+    use deluge_storage_resource::value::COST_IO;
     use std::sync::Mutex;
     use std::vec::Vec;
 
@@ -445,10 +445,10 @@ mod tests {
             unsafe { deluge_base_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, 16) };
         assert!(!slab.is_null());
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };
+        let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
         assert!(!handle.is_null());
         // SAFETY: `handle`/`slab` are both live, over the same heap.
-        unsafe { deluge_resource::deluge_resource_set_slab(handle, slab) };
+        unsafe { deluge_storage_resource::deluge_resource_set_slab(handle, slab) };
         handle
     }
 
@@ -457,19 +457,23 @@ mod tests {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the
         // callback has the required C-ABI signature.
         let asset = unsafe {
-            deluge_resource::deluge_resource_define_asset(
+            deluge_storage_resource::deluge_resource_define_asset(
                 h,
                 core::ptr::null_mut(),
                 None,
                 None,
                 core::ptr::null_mut(),
                 COST_IO,
-                deluge_resource::manager::BACKING_SLAB,
+                deluge_storage_resource::manager::BACKING_SLAB,
             )
         };
         // SAFETY: `h`/`asset` are live/valid per the call above.
         unsafe {
-            deluge_resource::deluge_resource_set_construct(h, asset, Some(real_chunk_construct));
+            deluge_storage_resource::deluge_resource_set_construct(
+                h,
+                asset,
+                Some(real_chunk_construct),
+            );
         }
         asset
     }
@@ -479,11 +483,12 @@ mod tests {
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; these are the same FFI-safe C-ABI
         // calls the facade wraps.
-        let ptr = unsafe { deluge_resource::deluge_resource_try_acquire(h, asset, index) };
+        let ptr = unsafe { deluge_storage_resource::deluge_resource_try_acquire(h, asset, index) };
         let ptr = if ptr.is_null() {
             // SAFETY: `h`/`asset` are live/valid.
-            let p =
-                unsafe { deluge_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE) };
+            let p = unsafe {
+                deluge_storage_resource::deluge_resource_request(h, asset, index, CLUSTER_SIZE)
+            };
             assert!(!p.is_null(), "reserve for mark-ready failed");
             p
         } else {
@@ -499,9 +504,9 @@ mod tests {
             }
         }
         // SAFETY: `h`/`ptr` are live/valid per the calls above.
-        unsafe { deluge_resource::deluge_resource_mark_ready(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_mark_ready(h, ptr) };
         // SAFETY: `h`/`ptr` are live/valid.
-        unsafe { deluge_resource::deluge_resource_release(h, ptr) };
+        unsafe { deluge_storage_resource::deluge_resource_release(h, ptr) };
     }
 
     /// A quarter-cluster header before exactly two clusters of audio spans three file clusters, the

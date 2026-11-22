@@ -15,7 +15,7 @@ pub mod registry;
 /// `DELUGE_RESOURCE_NO_ASSET` from `deluge_resource.h`: the asset id of a slot that has none yet.
 ///
 /// Mirrored by hand: this crate reaches the resource manager only through late-bound externs,
-/// never a `deluge_resource` dependency.
+/// never a `deluge_storage_resource` dependency.
 pub const DELUGE_RESOURCE_NO_ASSET: u32 = 0xFFFF_FFFF;
 
 /// Mirrors `DelugeSampleStreamGeometry` (`libdeluge/sample_stream.h`) field for field.

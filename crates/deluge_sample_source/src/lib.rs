@@ -3,7 +3,7 @@
 //!
 //! [`cursor::SampleSource`] is the per-reader residency state machine, generic over a
 //! [`residency::Residency`] provider; [`manager_residency::ManagerResidency`] is the production
-//! provider over the `deluge_resource` manager, and [`abi`] exports the C ABI over a static pool of
+//! provider over the `deluge_storage_resource` manager, and [`abi`] exports the C ABI over a static pool of
 //! cursors.
 #![no_std]
 
@@ -13,8 +13,8 @@ pub mod geometry;
 pub mod manager_residency;
 pub mod residency;
 
-// Test-only definitions of the C-ABI symbols `deluge_resource` calls out to. In a real link the
-// BSP (`services.rs`) and the app provide them; `deluge_resource`'s own test stubs are
+// Test-only definitions of the C-ABI symbols `deluge_storage_resource` calls out to. In a real link the
+// BSP (`services.rs`) and the app provide them; `deluge_storage_resource`'s own test stubs are
 // crate-private, so this crate's test binary must define them or it fails to link.
 #[cfg(test)]
 mod host_critical_section_stubs {
@@ -27,7 +27,7 @@ mod host_critical_section_stubs {
         static FAKE_NOW: Cell<u32> = const { Cell::new(1) };
     }
 
-    /// The clock `deluge_resource` measures loader service latency with (the app's
+    /// The clock `deluge_storage_resource` measures loader service latency with (the app's
     /// `resource_clock.cpp` in the firmware). A monotonic counter meets the manager's only
     /// requirement: successive reads never go backwards.
     #[unsafe(no_mangle)]

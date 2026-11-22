@@ -87,9 +87,9 @@ fs_alloc = { package = "deluge_base_alloc", path = "../../base/alloc" }
 
 # The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
 # `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep them on the
-# link line. `deluge_resource` is linked directly, not via the `deluge_rust` umbrella, whose
+# link line. `deluge_storage_resource` is linked directly, not via the `deluge_rust` umbrella, whose
 # `#[panic_handler]` would collide with ours.
-deluge_resource = { path = "../../../crates/deluge_resource" }
+deluge_storage_resource = { path = "../../storage/resource" }
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", features = ["c_abi"] }
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", features = ["c_abi"] }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", features = ["c_abi"] }
@@ -111,7 +111,7 @@ embassy-time = "0.5.1"
 critical-section = { version = "1", features = ["std"] }
 env_logger = { version = "0.11", optional = true }
 # The host C++ app (`host_app`) calls the same C-ABI crates.
-deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
+deluge_storage_resource = { path = "../../storage/resource", optional = true }
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional = true }
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
@@ -152,7 +152,7 @@ audio-timing = ["rtt"]
 ## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
 ## ABI and export the C-ABI crates' symbols it calls.
 host_app = [
-    "dep:deluge_resource",
+    "dep:deluge_storage_resource",
     "dep:deluge_sample_source",
     "deluge_sample_source/c_abi",
     "dep:deluge_sample_reader",
@@ -203,7 +203,7 @@ opt-level = "s"
 opt-level = "s"
 [profile.release.package.deluge_sample_source]
 opt-level = "s"
-[profile.release.package.deluge_resource]
+[profile.release.package.deluge_storage_resource]
 opt-level = "s"
 [profile.release.package.deluge_base_alloc]
 opt-level = "s"

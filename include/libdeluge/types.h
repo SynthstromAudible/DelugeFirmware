@@ -75,7 +75,7 @@ typedef struct DelugeFileLocation {
 	uint8_t valid;                               ///< nonzero if this names a file
 } DelugeFileLocation;
 
-/// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_resource` crate.
+/// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_storage_resource` crate.
 typedef struct DelugeResource DelugeResource;
 
 /// A sample's stream: the C++ `deluge::audio::stream::SampleStream` a region-port cursor is opened

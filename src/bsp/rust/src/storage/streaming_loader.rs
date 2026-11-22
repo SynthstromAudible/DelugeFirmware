@@ -17,7 +17,7 @@
 //! callers reach the filesystem through a non-yielding `block_on` spin, which would deadlock
 //! waiting on a task it starves.
 //!
-//! The manager pointer is `!Send`; cross-tier safety comes from `deluge_resource::sync`'s
+//! The manager pointer is `!Send`; cross-tier safety comes from `deluge_storage_resource::sync`'s
 //! critical-section serialization, not from sharing an executor with the C++ enqueue path.
 use core::ffi::c_void;
 

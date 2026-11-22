@@ -13,8 +13,8 @@ pub mod abi;
 pub mod reader;
 pub mod reservation;
 
-// Host stand-ins for the C-ABI symbols `deluge_resource` calls (critical section, interrupt
-// queries, clock). The BSP provides them in the firmware; `deluge_resource`'s own test stubs are
+// Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls (critical section, interrupt
+// queries, clock). The BSP provides them in the firmware; `deluge_storage_resource`'s own test stubs are
 // private to its crate, so this test binary must define them or every test that drops a `Lease`
 // fails to link.
 #[cfg(test)]
