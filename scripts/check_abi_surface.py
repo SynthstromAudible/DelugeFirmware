@@ -6,7 +6,8 @@
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
-``src/platform/device/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in
+``src/platform/device/src`` or a library crate's ``src`` (a root-workspace member under ``src/`` or
+``tests/trees``), or by a C/C++ body in ``src/``. A header in
 ``EXTERNAL`` is defined by a dependency outside this repository instead, and each of its functions counts as defined
 only when an ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function
 nobody calls keeps nothing alive.
@@ -17,7 +18,7 @@ function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test
 Callers are counted by name, per area:
 - ``app``: ``src/deluge`` and ``src/OSLikeStuff``;
 - ``tests``: ``tests/``, excluding the mocks' own definitions;
-- ``rust``: ``src/platform/device/src``, ``tests/harness`` and the crates workspace's member and excluded
+- ``rust``: ``src/platform/device/src``, ``tests/harness`` and the library crates' and the excluded src/ crates'
   directories, excluding the definitions.
 
 Comments are ignored.
@@ -168,26 +169,39 @@ def source_files(*roots: str, suffixes: tuple[str, ...]) -> list[Path]:
     return files
 
 
-CRATES = ROOT / "crates"
+WORKSPACE = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]
+# Root-workspace members outside the library crates: the device crate and the harnesses are scanned by path
+# (BSP_SRC, HARNESS), the host link helper is a build dependency with no C ABI, and the differential crates are tests.
+NOT_LIBRARIES = ("src/platform/", "tests/harness/", "tests/component/")
+
+
+def _library(relative: str) -> bool:
+    return not f"{relative}/".startswith(NOT_LIBRARIES)
 
 
 def workspace_members() -> dict[Path, str]:
-    """Every member of the crates workspace, by resolved directory, mapped to its package name. The members are
-    listed in `crates/Cargo.toml`, as paths relative to it, so a crate may live outside `crates/`."""
-    members = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]["members"]
+    """Every library crate of the root workspace (its members, less NOT_LIBRARIES), by resolved directory, mapped to its
+    package name."""
     found: dict[Path, str] = {}
-    for member in members:
-        directory = (CRATES / member).resolve()
-        manifest = tomllib.loads((directory / "Cargo.toml").read_text())
-        found[directory] = manifest["package"]["name"].replace("-", "_")
+    for member in WORKSPACE["members"]:
+        for directory in sorted(ROOT.glob(member)):
+            if not (directory / "Cargo.toml").is_file():
+                continue
+            if not _library(directory.relative_to(ROOT).as_posix()):
+                continue
+            manifest = tomllib.loads((directory / "Cargo.toml").read_text())
+            found[directory.resolve()] = manifest["package"]["name"].replace("-", "_")
     return found
 
 
 def workspace_excluded() -> list[Path]:
-    """The directories the crates workspace excludes, resolved. They are scanned for callers like the members, but
-    no pin reaches them."""
-    workspace = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]
-    return [(CRATES / e).resolve() for e in workspace.get("exclude", [])]
+    """The directories under src/ the root workspace excludes, resolved. They are scanned for callers like the
+    members, but no pin reaches them."""
+    return [
+        (ROOT / e).resolve()
+        for e in WORKSPACE.get("exclude", [])
+        if e.startswith("src/")
+    ]
 
 
 MEMBERS = workspace_members()
@@ -245,7 +259,7 @@ EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
 # `src/platform/device/src` and `tests/harness`, whose pins sit beside what they pin, or the crate's package name for
-# a crates-workspace member's `src`, which `abi/pins.rs` pins through the `in path:` form.
+# a library crate's `src`, which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
 

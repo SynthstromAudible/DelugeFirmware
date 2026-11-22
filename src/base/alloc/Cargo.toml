@@ -2,7 +2,6 @@
 # directly; the C++ conformance suite in `tests/unit/base/alloc` links it through `deluge_test_rust`.
 [package]
 name = "deluge_base_alloc"
-workspace = "../../../crates"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"

@@ -1,4 +1,0 @@
-# This crate sits outside the BSP's directory, so it does not read the BSP's `.cargo/config.toml`. The
-# embassy USB interface budget is the one setting of that file a host build uses.
-[env]
-EMBASSY_USB_MAX_INTERFACE_COUNT = "8"

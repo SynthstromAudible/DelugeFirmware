@@ -1,5 +1,5 @@
-# Byte-identical gate for the sample range reader (`deluge_storage_sample_reader`). Standalone crate, not a
-# workspace member. Pure Rust: the oracle reads resident chunk payloads through
+# Byte-identical gate for the sample range reader (`deluge_storage_sample_reader`). Pure Rust: the
+# oracle reads resident chunk payloads through
 # `deluge_storage_sample_fill::chunk`.
 [package]
 name = "region-read-differential"

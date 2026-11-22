@@ -362,7 +362,7 @@ def _run_one(
         binary = (
             Path(env["CARGO_TARGET_DIR"])
             / env.get("GOLDEN_VT_RENDER_TARGET", "")
-            / "release"
+            / tb.HARNESS_PROFILE
             / "golden_vt_render"
         )
         passed = judge(root, h, env, binary, out)

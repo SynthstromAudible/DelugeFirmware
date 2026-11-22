@@ -75,7 +75,7 @@ def label(card: str) -> str:
 
 def tree(card: Path, out: Path, repo: Path = REPO) -> Path:
     """`card` as files: a card manifest built into `out` (replacing whatever is there) by the BSP's `card-manifest`
-    tool; anything else, a directory or an image, as it stands. cargo runs in src/platform/device, whose rust-toolchain.toml
+    tool; anything else, a directory or an image, as it stands. cargo runs at the repo root, whose rust-toolchain.toml
     chooses the toolchain; its first run builds the BSP's host library."""
     if card.suffix != ".card":
         return card
@@ -86,13 +86,15 @@ def tree(card: Path, out: Path, repo: Path = REPO) -> Path:
             "run",
             "--quiet",
             "--locked",
+            "-p",
+            "deluge_platform_device",
             "--bin",
             "card-manifest",
             "--",
             str(card.resolve()),
             str(out.resolve()),
         ],
-        cwd=repo / "src/platform/device",
+        cwd=repo,
         check=True,
     )
     return out

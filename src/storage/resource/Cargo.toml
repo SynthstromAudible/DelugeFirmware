@@ -3,7 +3,6 @@
 # memory comes from `deluge_base_alloc`.
 [package]
 name = "deluge_storage_resource"
-workspace = "../../../crates"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"

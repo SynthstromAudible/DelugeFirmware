@@ -1,0 +1,148 @@
+# The one Cargo workspace over the in-tree Rust: the libraries under src/, the device image, and the test harnesses
+# and differentials. One lock, so every build resolves to the dependency versions the device image ships.
+#
+# Build packages with `-p`, never `--workspace` across the device crate and a host package: Cargo unifies features over
+# the packages in one build, and the device crate's platform features are mutually exclusive with the host ones.
+#
+# The cargo gates in tests/registry.toml run from here, each selecting its packages with `-p`:
+#
+# Gate crates:
+#     every #[test] in the core libraries: the allocator, the resource manager, the sample fill/reader/source/stream
+#     crates and the deluge_test_rust umbrella
+#
+# Gate bsp-host:
+#     the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix
+#     channels, the SD image path, the SD bus card init, the audio loader, and the card manifest parser and builder
+#     (src/platform/device/src/storage/card_manifest.rs). --locked, so a lock that has lost its deluge-sdk pin fails
+#     here instead of being rewritten.
+#
+# Gate sample-convert:
+#     deluge_storage_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles
+#
+# Gate audio-format-corpus:
+#     Compares `deluge-audio-format`'s decoder with the C++ `parseSampleHeader` and `parseWaveTableHeader` entry points over
+#     the WAV and AIFF files under the roots DELUGE_AUDIO_CORPUS names, so a defect in the C++ adapter's window
+#     buffering, short-tail handling or C-ABI marshalling shows as a differing header. With the variable unset the
+#     test is skipped. The C++ side is golden_vt_render's audio_header_dump scenario, which the test finds under
+#     build/cargo-harness or at GOLDEN_VT_RENDER_BIN.
+[workspace]
+resolver = "2"
+members = [
+    "src/base/alloc",
+    "src/storage/resource",
+    "src/storage/stream",
+    "src/storage/sample/convert",
+    "src/storage/sample/fill",
+    "src/storage/sample/reader",
+    "src/storage/sample/source",
+    "src/platform/device",
+    "src/platform/host/link",
+    "tests/trees/host/rust",
+    "tests/harness/golden_vt_render",
+    "tests/component/differential/*",
+]
+# The fuzz crate is a cargo-fuzz package with its own profile; deluge-upgrade is a desktop tool with its own workspace.
+# A package below an excluded directory is its own root, not a stray member of this workspace:
+# - `toolchain` holds dbt's CARGO_HOME, whose git checkouts (deluge-sdk's) resolve their own `workspace = true`
+#   fields;
+# - `.superpowers` holds tools/x86_parity.py's base-revision worktrees, whose older layouts have their own Cargo roots.
+exclude = ["src/base/alloc/fuzz", "tools/deluge-upgrade", "toolchain", ".superpowers"]
+
+# The embassy fork that ports the InterruptExecutor to platform-cortex-ar (GIC SGI pender). Same
+# version, so it replaces embassy-executor across the whole graph.
+#
+# The integrated timer queue is intrusive: the executor stores a `TimerQueueItem` in each task
+# header and embassy-time-queue-utils reads it back. `embassy-executor-timer-queue` has no `links`
+# key, so without patching the whole trio Cargo links two copies, the item types disagree, the alarm
+# is never armed, and every `Timer` await hangs.
+[patch.crates-io]
+embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
+
+# The device image (`deluge_platform_device`), built for size: the image must fit in on-chip SRAM
+# (docs/dev/image_size.md). The crates the audio render and sample streaming run, the allocator and the executor keep
+# "s" below. Under the whole-graph LTO that "s" holds as each function's `optsize` attribute, while the shared pass
+# pipeline follows the image crate's "z".
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = true
+panic = "abort"
+
+[profile.release.package.deluge_storage_sample_fill]
+opt-level = "s"
+[profile.release.package.deluge_storage_sample_reader]
+opt-level = "s"
+[profile.release.package.deluge_storage_stream]
+opt-level = "s"
+[profile.release.package.deluge_storage_sample_source]
+opt-level = "s"
+[profile.release.package.deluge_storage_resource]
+opt-level = "s"
+[profile.release.package.deluge_base_alloc]
+opt-level = "s"
+[profile.release.package.rza1-hal]
+opt-level = "s"
+[profile.release.package.embassy-executor]
+opt-level = "s"
+
+[profile.dev]
+opt-level = 1
+debug = true
+panic = "abort"
+
+# golden_vt_render (`--profile harness`): Cargo's default release profile, unwinding. A custom profile inherits the
+# release profile's per-package overrides, so each is set back to 3 here.
+[profile.harness]
+inherits = "release"
+opt-level = 3
+lto = false
+codegen-units = 16
+debug = false
+panic = "unwind"
+
+[profile.harness.package.deluge_storage_sample_fill]
+opt-level = 3
+[profile.harness.package.deluge_storage_sample_reader]
+opt-level = 3
+[profile.harness.package.deluge_storage_stream]
+opt-level = 3
+[profile.harness.package.deluge_storage_sample_source]
+opt-level = 3
+[profile.harness.package.deluge_storage_resource]
+opt-level = 3
+[profile.harness.package.deluge_base_alloc]
+opt-level = 3
+[profile.harness.package.rza1-hal]
+opt-level = 3
+[profile.harness.package.embassy-executor]
+opt-level = 3
+
+# The C++ unit-test tree's staticlib (`--profile host-test`, tests/trees/host/CMakeLists.txt): it links into C++
+# binaries, which abort on panic. `cargo test` keeps the test profile's unwinding.
+[profile.host-test]
+inherits = "release"
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+panic = "abort"
+
+[profile.host-test.package.deluge_storage_sample_fill]
+opt-level = 3
+[profile.host-test.package.deluge_storage_sample_reader]
+opt-level = 3
+[profile.host-test.package.deluge_storage_stream]
+opt-level = 3
+[profile.host-test.package.deluge_storage_sample_source]
+opt-level = 3
+[profile.host-test.package.deluge_storage_resource]
+opt-level = 3
+[profile.host-test.package.deluge_base_alloc]
+opt-level = 3
+[profile.host-test.package.rza1-hal]
+opt-level = 3
+[profile.host-test.package.embassy-executor]
+opt-level = 3

@@ -948,7 +948,7 @@ class BuildsTest(unittest.TestCase):
         root = Path("/repo")
         self.assertEqual(
             tb.products(root)["golden-vt-render"].outputs(root),
-            [root / "build/cargo-harness/release/golden_vt_render"],
+            [root / "build/cargo-harness/harness/golden_vt_render"],
         )
 
     def test_prebuilt_outputs_rejects_unprebuildable(self):
@@ -2512,7 +2512,7 @@ class ExplanationTest(unittest.TestCase):
             "registry-selftest": "scripts/tasks/test_harness_registry.py",
             "ptm-trace-tool": "tools/deluge_trace/deluge_trace.py",
             "snapshot-primitive-tsan": "tests/component/stress/run.sh",
-            "crates": "crates/Cargo.toml",
+            "crates": "Cargo.toml",
             "unit": "tests/trees/host/CMakeLists.txt",
         }
         by_name = {h.name: h for h in hr.load_registry(self.ROOT)}

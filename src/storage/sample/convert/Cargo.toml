@@ -1,12 +1,7 @@
 # Safe Rust wrappers over the app's convert/stitch C++, which build.rs compiles with `cc`.
 #
-# Excluded from the crates/ workspace: its std test harness links the C++ objects, so it stays
-# clear of the workspace's panic=abort/no_std profiles. build.rs fetches argon and SIMDe into a
-# gitignored third_party/ at the revisions cmake/deps.cmake pins, rather than reading a CMake
-# `_deps` tree.
-#
-# Gate sample-convert:
-#     deluge_storage_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles
+# build.rs fetches argon and SIMDe into a gitignored third_party/ at the revisions cmake/deps.cmake
+# pins, rather than reading a CMake `_deps` tree. Its gate's explanation is in the root Cargo.toml.
 [package]
 name = "deluge_storage_sample_convert"
 version = "0.1.0"

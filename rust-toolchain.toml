@@ -1,0 +1,7 @@
+# The workspace's toolchain: nightly, with rust-src for -Zbuild-std. Targets beyond the host: the device; i686, which
+# the C++ unit tests link `deluge_test_rust` as; and armv7 Linux, the arm-linux host tree's and the ARM
+# golden_vt_render's target.
+[toolchain]
+channel = "nightly"
+targets = ["armv7a-none-eabihf", "armv7-unknown-linux-gnueabihf", "i686-unknown-linux-gnu"]
+components = ["rust-src", "llvm-tools-preview", "clippy", "rustfmt"]

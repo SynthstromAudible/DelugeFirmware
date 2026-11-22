@@ -147,7 +147,7 @@ builds only `golden-vt-render`.
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
 | unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
-| crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
+| crates | unit | cargo | unit | gate | every #[test] in the core libraries: the allocator, the resource manager and the sample crates | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |

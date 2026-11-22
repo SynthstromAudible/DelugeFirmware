@@ -113,14 +113,15 @@ runtime_s = 300
 
 [[harness]]
 name = "fs-differential"
-path = "tests/component/differential/fs_differential"
+path = "."
 level = "component"
 runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "embedded-fatfs must agree with the reference FAT implementation on every filesystem operation"
-build = ["fixtures/mk_fixture.sh"]
-run = ["cargo", "test"]
+build = ["tests/component/differential/fs_differential/fixtures/mk_fixture.sh"]
+run = ["cargo", "test", "-p", "fs-differential"]
+# cargo runs a test binary in its package's directory, so the images are named from there.
 env = { SP0_FAT32 = "fixtures/fat32.img", SP0_FAT16 = "fixtures/fat16.img" }
 requires = ["cargo", "mtools"]
 tier = "pr"
@@ -207,14 +208,14 @@ runtime_s = 60
 
 [[harness]]
 name = "audio-format-corpus"
-path = "tests/component/differential/audio_format_corpus"
+path = "."
 level = "component"
 runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set)"
-build = ["cargo", "build", "--tests"]
-run = ["cargo", "test"]
+build = ["cargo", "build", "--tests", "-p", "audio_format_corpus"]
+run = ["cargo", "test", "-p", "audio_format_corpus"]
 requires = ["cargo"]
 tier = "pr"
 job = "unit"
@@ -222,14 +223,14 @@ runtime_s = 20
 
 [[harness]]
 name = "region-fill-differential"
-path = "tests/component/differential/region_fill_differential"
+path = "."
 level = "component"
 runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference"
-build = ["cargo", "build", "--tests"]
-run = ["cargo", "test"]
+build = ["cargo", "build", "--tests", "-p", "region-fill-differential"]
+run = ["cargo", "test", "-p", "region-fill-differential"]
 requires = ["cargo", "clang"]
 tier = "pr"
 job = "storage"
@@ -237,14 +238,14 @@ runtime_s = 60
 
 [[harness]]
 name = "region-read-differential"
-path = "tests/component/differential/region_read_differential"
+path = "."
 level = "component"
 runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the sample range-reader must resolve the same frames as the chunk-payload oracle"
-build = ["cargo", "build", "--tests"]
-run = ["cargo", "test"]
+build = ["cargo", "build", "--tests", "-p", "region-read-differential"]
+run = ["cargo", "test", "-p", "region-read-differential"]
 requires = ["cargo"]
 tier = "pr"
 job = "storage"
@@ -252,14 +253,14 @@ runtime_s = 60
 
 [[harness]]
 name = "region-source-differential"
-path = "tests/component/differential/region_source_differential"
+path = "."
 level = "component"
 runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the region cursor must resolve a chunk's payload, not its header, over real streamed backing"
-build = ["cargo", "build", "--tests"]
-run = ["cargo", "test"]
+build = ["cargo", "build", "--tests", "-p", "region-source-differential"]
+run = ["cargo", "test", "-p", "region-source-differential"]
 requires = ["cargo"]
 tier = "pr"
 job = "storage"
@@ -1378,13 +1379,13 @@ runtime_s = 5
 
 [[harness]]
 name = "crates"
-path = "crates"
+path = "."
 level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "every #[test] in the crates/ workspace"
-run = ["cargo", "nextest", "run", "--profile", "ci"]
+gates = "every #[test] in the core libraries: the allocator, the resource manager and the sample crates"
+run = ["cargo", "nextest", "run", "--profile", "ci", "-p", "deluge_base_alloc", "-p", "deluge_storage_resource", "-p", "deluge_test_rust", "-p", "deluge_storage_sample_source", "-p", "deluge_storage_sample_fill", "-p", "deluge_storage_sample_reader", "-p", "deluge_storage_stream"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
 tier = "pr"
@@ -1394,13 +1395,13 @@ runtime_s = 20
 
 [[harness]]
 name = "bsp-host"
-path = "src/platform/device"
+path = "."
 level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "the Rust BSP's host tests and in-crate #[test]s"
-run = ["cargo", "test", "--locked"]
+run = ["cargo", "test", "--locked", "-p", "deluge_platform_device"]
 requires = ["cargo"]
 tier = "pr"
 job = "unit"
@@ -1409,13 +1410,13 @@ runtime_s = 30
 
 [[harness]]
 name = "sample-convert"
-path = "src/storage/sample/convert"
+path = "."
 level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles"
-run = ["cargo", "test"]
+run = ["cargo", "test", "-p", "deluge_storage_sample_convert"]
 requires = ["cargo", "clang", "arm-none-eabi-gcc"]
 tier = "pr"
 job = "storage"
@@ -1968,7 +1969,7 @@ kind = "differential"
 status = "gate"
 gates = "every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on"
 build = []
-run = ["python3", "tools/x86_parity.py", "--ref", "build/cargo-harness/release/golden_vt_render", "--test", "build/cargo-harness/release/golden_vt_render", "--out", ".superpowers/x86-runs/self", "tests/ui-scripts/parity", "tests/ui-scripts/parity-card", "tests/ui-scripts/parity-songs"]
+run = ["python3", "tools/x86_parity.py", "--ref", "build/cargo-harness/harness/golden_vt_render", "--test", "build/cargo-harness/harness/golden_vt_render", "--out", ".superpowers/x86-runs/self", "tests/ui-scripts/parity", "tests/ui-scripts/parity-card", "tests/ui-scripts/parity-songs"]
 builds = ["golden-vt-render"]
 requires = ["content-card", "mtools"]
 tier = "manual"

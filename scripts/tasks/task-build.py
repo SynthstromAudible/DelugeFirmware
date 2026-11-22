@@ -61,9 +61,11 @@ CPP_TARGETS = [
 ]
 
 RUST_BSP_DIR = Path("src/platform/device")
+# The device crate, selected from the root workspace.
+RUST_PACKAGE = "deluge_platform_device"
 BUILD_DIR = "build"
 # Feature set matching clang's, so LLVM will inline across the language boundary.
-RUST_TARGET = "./armv7a-deluge-eabihf.json"
+RUST_TARGET = str(RUST_BSP_DIR / "armv7a-deluge-eabihf.json")
 MULTILIB = "thumb/v7-a+simd/hard"
 
 BUILD_CONFIGS = {
@@ -141,7 +143,7 @@ def path_remap_flags(root: Path) -> list[str]:
     """
     sysroot = subprocess.run(
         ["rustc", "--print", "sysroot"],
-        cwd=RUST_BSP_DIR,
+        cwd=root,
         env=os.environ,
         check=True,
         capture_output=True,
@@ -254,14 +256,14 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
 def stage_artifacts(root: Path, config: str) -> int:
     """Copy the cargo-linked ELF into build/<config>/ and derive .bin/.hex/.nmdump.
 
-    cargo owns the real output path (target/<triple>/<profile>/deluge-rust), but
+    cargo owns the real output path (the workspace's target/<triple>/<profile>/deluge-rust), but
     dbt sizediff and the VS Code launch configs expect the
     build/<Config>/deluge.* layout. Staging keeps that contract without
     teaching every consumer about cargo's directory scheme.
     """
     profile = "release" if config in CARGO_RELEASE_CONFIGS else "debug"
     triple = Path(RUST_TARGET).stem  # armv7a-deluge-eabihf
-    src_elf = root / RUST_BSP_DIR / "target" / triple / profile / "deluge-rust"
+    src_elf = root / "target" / triple / profile / "deluge-rust"
     if not src_elf.is_file():
         print(f"stage: no ELF at {src_elf}", file=sys.stderr)
         return 1
@@ -371,15 +373,15 @@ def device_feature_args(cargo_extra: list[str]) -> list[str]:
 
 
 def sdk_config_args(root: Path) -> list[str]:
-    """`cargo --config local-sdk.toml` when the local deluge-sdk override exists.
+    """`cargo --config src/platform/device/local-sdk.toml` when the local deluge-sdk override exists.
 
     Cargo.toml pins the deluge-sdk crates to a revision so any checkout can
     build. local-sdk.toml (gitignored) patches them back to a sibling
     ../deluge-sdk working copy for live SDK development; absent it, the build
     uses exactly what the pinned revision gives everyone else.
     """
-    override = root / RUST_BSP_DIR / "local-sdk.toml"
-    return ["--config", "local-sdk.toml"] if override.is_file() else []
+    override = RUST_BSP_DIR / "local-sdk.toml"
+    return ["--config", str(override)] if (root / override).is_file() else []
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -429,6 +431,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     cargo_args = [
         "cargo",
         "clippy" if args.clippy else "build",
+        "-p",
+        RUST_PACKAGE,
         "--target",
         RUST_TARGET,
         "-Zbuild-std=core,alloc",
@@ -445,9 +449,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         cargo_args += ["--", "-D", "warnings"]
 
     env = {**os.environ, **device_cxx_env(root, config)}
-    result = subprocess.run(
-        cargo_args, cwd=RUST_BSP_DIR, env=env, check=False
-    ).returncode
+    result = subprocess.run(cargo_args, cwd=root, env=env, check=False).returncode
     if result != 0 or args.clippy:
         return result
 

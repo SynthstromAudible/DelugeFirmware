@@ -39,7 +39,3 @@ deluge_base_alloc = { path = "../../../src/base/alloc", optional = true, feature
 # An AddressSanitizer build: links the sanitizer runtime (build.rs) against a host app compiled with it
 # (DELUGE_SIM_SANITIZE), and poisons the allocator's free blocks so a use-after-free inside a heap traps.
 asan = ["dep:deluge_base_alloc"]
-
-[profile.dev]
-opt-level = 1
-debug = true

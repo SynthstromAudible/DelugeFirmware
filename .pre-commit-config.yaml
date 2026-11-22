@@ -16,52 +16,21 @@ repos:
         types_or: [c, c++]
   - repo: local
     hooks:
-      # Rust has several separate Cargo roots (crates/, src/platform/device/, src/storage/sample/convert/, the
-      # harnesses); cargo fmt is per-manifest, so each needs its own hook. --check only (no rewrite) to
-      # match the other formatters' fail-and-report behaviour in this file.
-      - id: cargo-fmt-crates
-        name: rustfmt (crates)
-        entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
+      # One Cargo workspace at the root (Cargo.toml): `cargo fmt --all` checks every member. --check only (no
+      # rewrite) to match the other formatters' fail-and-report behaviour in this file.
+      - id: cargo-fmt
+        name: rustfmt
+        entry: cargo fmt --all --check --
         language: system
         types: [rust]
-        files: ^(crates/|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/).*\.rs$
-        pass_filenames: false
-      - id: cargo-fmt-sample-convert
-        # deluge_storage_sample_convert is a production dependency of the Rust BSP, but
-        # it's deliberately excluded from the crates/ workspace (build.rs
-        # cc-compiles app C++ and it has a std test harness, so it can't share
-        # the workspace's no_std/panic=abort profiles). `cargo fmt --all` above
-        # happens to still reach it today, incidentally, because a workspace
-        # member (deluge_storage_sample_fill) path-deps on it -- but that's not
-        # deliberate coverage: drop that dependency and it silently stops being
-        # checked. Give it its own hook against its own manifest instead, same
-        # as the BSP/harness split below.
-        name: rustfmt (deluge_storage_sample_convert)
-        entry: cargo fmt --manifest-path src/storage/sample/convert/Cargo.toml --check --
-        language: system
-        types: [rust]
-        files: ^src/storage/sample/convert/.*\.rs$
-        pass_filenames: false
-      - id: cargo-fmt-bsp
-        name: rustfmt (bsp)
-        entry: cargo fmt --manifest-path src/platform/device/Cargo.toml --check --
-        language: system
-        types: [rust]
-        files: ^src/platform/device/.*\.rs$
-        pass_filenames: false
-      - id: cargo-fmt-harness
-        name: rustfmt (harness)
-        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml src/platform/host/link/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
-        language: system
-        types: [rust]
-        files: ^(tests/component/differential/|tests/harness/|src/platform/host/link/).*\.rs$
+        files: ^(src/base/alloc/|src/storage/|src/platform/device/|src/platform/host/link/|tests/trees/host/rust/|tests/harness/|tests/component/differential/).*\.rs$
         pass_filenames: false
       - id: check-abi-surface
         name: every declared libdeluge function has a definition, a signature pin, a context tag and DELUGE_NOEXCEPT
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|Cargo\.toml$|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

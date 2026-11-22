@@ -45,7 +45,7 @@ fn main() {
         argon_inc.join("argon.hpp").is_file(),
         "deluge_storage_sample_convert's fetched argon cache not found at {} — expected deluge_storage_sample_convert's \
          build.rs to have fetched it first (it's this crate's normal dependency, built before this \
-         script runs). Try `cargo build` from src/storage/sample/convert/ first if invoking this \
+         script runs). Try `cargo build -p deluge_storage_sample_convert` first if invoking this \
          crate in isolation somehow skipped that.",
         argon_inc.display()
     );
