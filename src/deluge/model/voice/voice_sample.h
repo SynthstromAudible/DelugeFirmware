@@ -100,8 +100,9 @@ public:
 	bool writingToCache = false; // Value is only valid if cache assigned
 
 private:
-	void considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, int32_t wantedLength,
-	                                   int32_t priorityRating);
+	// Out of line so it doesn't bloat render() and push its hot path out of the instruction cache
+	[[gnu::noinline]] void considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample,
+	                                                     int32_t wantedLength, int32_t priorityRating);
 	[[nodiscard]] bool isLoopCrossfading() const { return loopCrossfadeLength != 0; }
 	bool finishLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, LoopType loopingType, int32_t priorityRating);
 	void cancelLoopCrossfade();
