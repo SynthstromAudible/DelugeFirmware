@@ -119,7 +119,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_scheduler # task_scheduler/clock_type.h on its path
     argon
     etl::etl
-    deluge_foundation
+    deluge_base
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
     deluge_controls  # the gold knobs' focus

@@ -217,7 +217,7 @@ app wires them.
 
 ### 3.2 Core-side library notes
 
-**deluge-base** — purified `util/` plus `foundation/`: fixed-point
+**deluge-base** — purified `util/` plus `base/`: fixed-point
 (`dsp-next/core/fixed_point.h`, `detail/raw_ops.h`), lookup tables, containers, `d_string`, error enum, `Finally`,
 semver — plus the new cross-cutting services: the diagnostics sink (replacing
 deep `display->` calls), **typed time units** (§5.3), the **execution-context
@@ -816,7 +816,7 @@ day one of each extraction:
 Ordered leaf-first; every step leaves the firmware shippable. Steps marked ◆
 are the params track (§7.3), which interleaves.
 
-1. **`deluge-base`**: purify `util/` + `foundation/`; add diagnostics sink,
+1. **`deluge-base`**: purify `util/` + `base/`; add diagnostics sink,
    typed time units, context tracker, PRNG service, feature-flag registry;
    stand up the layer-rule ratchet with the §1 matrix as baseline and the
    debug-build context/allocation guards.

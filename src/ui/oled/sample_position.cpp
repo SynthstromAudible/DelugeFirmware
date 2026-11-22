@@ -10,9 +10,9 @@ namespace deluge::ui::oled {
 
 namespace {
 
-/// @brief `intToString(number, buffer, min_digits)` (`foundation/string_format.c`), locally.
+/// @brief `intToString(number, buffer, min_digits)` (`base/string_format.c`), locally.
 ///
-/// `src/ui` may include neither `foundation/` nor `util/` (`ui-includes-outside`), and this is the
+/// `src/ui` may include neither `base/` nor `util/` (`ui-includes-outside`), and this is the
 /// only thing either was wanted for. Non-negative only -- every value on this screen is a sample
 /// position or a unit count.
 /// @param number     Value to write.

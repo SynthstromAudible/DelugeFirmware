@@ -16,7 +16,7 @@
  */
 
 #include "model/drum/midi_drum.h"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
+#include "base/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"

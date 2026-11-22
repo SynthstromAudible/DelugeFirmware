@@ -227,7 +227,7 @@ endif()
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
 add_subdirectory(${REPO_ROOT}/src/plugin/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
-add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
+add_subdirectory(${REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/base) # deluge_base
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
 add_subdirectory(${REPO_ROOT}/src/plugin ${CMAKE_BINARY_DIR}/plugin) # deluge_plugin
 add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects

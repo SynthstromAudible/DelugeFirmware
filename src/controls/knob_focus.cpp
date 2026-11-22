@@ -17,7 +17,7 @@
 
 #include "controls/knob_focus.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "project/song.h"
 
 #include <algorithm>

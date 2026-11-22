@@ -1152,7 +1152,7 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 }
 
 void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-                                       deluge::function_ref<void(int32_t)> visit) {
+                                       deluge::base::function_ref<void(int32_t)> visit) {
 	// Each cable of this set whose cable in the other set, from the same source to the same destination, is automated
 	auto& otherSet = static_cast<PatchCableSet&>(other);
 	for (int32_t c = 0; c < numPatchCables; c++) {
@@ -1163,7 +1163,7 @@ void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollec
 	}
 }
 
-void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void PatchCableSet::forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);

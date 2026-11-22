@@ -17,7 +17,7 @@
 
 #include "model/edits/change_effect.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "io/debug/log.h"
 #include "model/edits/set_chain_view.h"
 #include "model/edits/set_effect_setting.h"

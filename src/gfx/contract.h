@@ -9,7 +9,7 @@
 /// *first* draw call; a `PadGrid` indexed out of range reads or writes past its buffer. Compiling those checks out is
 /// exactly backwards.
 ///
-/// Why not the firmware's failure path: the app has `FREEZE_WITH_ERROR` (`foundation/panic.h` ->
+/// Why not the firmware's failure path: the app has `FREEZE_WITH_ERROR` (`base/panic.h` ->
 /// `display->freezeWithError()`), which parks the display with a code and is the right thing for
 /// an app-layer invariant. `src/gfx` is a leaf — it depends on nothing but the C/C++ standard
 /// library (enforced by `scripts/check_layers.py`), so `display` is not reachable from here and

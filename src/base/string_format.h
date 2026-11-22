@@ -17,7 +17,7 @@
 
 #pragma once
 
-/// foundation/string_format.h — pure number→string formatting.
+/// base/string_format.h — pure number→string formatting.
 ///
 /// Foundation tier: no dependencies beyond libc, so the app, BSP and HAL may all
 /// use it (the HAL's UART debug output formats numbers with intToString). Split

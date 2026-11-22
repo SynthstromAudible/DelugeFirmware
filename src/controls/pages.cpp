@@ -17,7 +17,7 @@
 
 #include "controls/pages.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "plugin/types/plugin_id.h"
 #include "project/song.h"
 

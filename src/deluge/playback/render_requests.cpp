@@ -17,8 +17,8 @@
 
 #include "playback/render_requests.h"
 
+#include "base/panic.h"
 #include "definitions_cxx.hpp"
-#include "foundation/panic.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"

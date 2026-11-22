@@ -45,7 +45,7 @@ path = "effects"
 target = "src/effects"
 
 [[directory]]
-path = "foundation"
+path = "base"
 target = "src/base"
 
 [[directory]]
@@ -117,7 +117,7 @@ root = "src/plugin"
 prefix = "plugin/"
 may_include = [
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -127,7 +127,7 @@ prefix = "effects/"
 may_include = [
     "plugin/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
     "dsp-next/",
 ]
 
@@ -139,7 +139,7 @@ may_include = [
     "plugin/",
     "effects/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
     "synth/modulation/patch_source.h",
     "synth/modulation/cable.h",
     # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
@@ -182,7 +182,7 @@ name = "serialization"
 root = "src/serialization"
 prefix = "serialization/"
 may_include = [
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -193,7 +193,7 @@ may_include = [
     # the sync words a note length is named from (header-only vocabulary)
     "plugin/types/sync.h",
     "plugin/types/display_mapping.h",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -212,7 +212,7 @@ may_include = [
     "plugin/plugin.h",
     "serialization/",
     "music/",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -223,7 +223,7 @@ may_include = [
     "project/",
     "plugin/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -242,7 +242,7 @@ may_include = [
     "music/",
     # a waveform's columns and peaks, the Waveforms port's vocabulary (header-only)
     "sample-view/peaks.h",
-    "foundation/panic.h",
+    "base/panic.h",
     "gui/l10n/setting_names.h",
     "gui/l10n/strings.h",
 ]
@@ -337,7 +337,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

@@ -1,7 +1,7 @@
 #include "model/edits/param_address_for.h"
 
+#include "base/panic.h"        // FREEZE_WITH_ERROR
 #include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
-#include "foundation/panic.h"  // FREEZE_WITH_ERROR
 #include "memory/heaps.h"      // onRenderTier
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"

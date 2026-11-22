@@ -147,7 +147,7 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_foundation deluge_serialization deluge_music deluge_project deluge_controls deluge_instrument deluge_effects deluge_host_chain deluge_midi \
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_controls deluge_instrument deluge_effects deluge_host_chain deluge_midi \
              deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
              deluge_notify deluge_scenes deluge_scenes_bind",
             app_objs_dir.display(),
@@ -202,7 +202,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
         ("src/synth", "libdeluge_synth.a"),
-        ("src/foundation", "libdeluge_foundation.a"),
+        ("src/base", "libdeluge_base.a"),
         ("src/serialization", "libdeluge_serialization.a"),
         ("src/music", "libdeluge_music.a"),
         ("src/project", "libdeluge_project.a"),

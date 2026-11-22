@@ -7,7 +7,7 @@ deluge_specs_driver(deluge_modulation_sync_specs TREES host
     etl::etl
     deluge_plugin
     deluge_music
-    deluge_foundation
+    deluge_base
   INCLUDES
     ${DELUGE_REPO_ROOT}/src
     ${DELUGE_REPO_ROOT}/src/deluge

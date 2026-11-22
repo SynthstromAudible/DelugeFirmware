@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "storage/deserializer.h"
 #include "storage/value.h"
 

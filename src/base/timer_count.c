@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "foundation/timer_count.h"
+#include "base/timer_count.h"
 #include "board_config.h" // XTAL_SPEED_MHZ
 
 uint32_t superfastTimerCountToNS(uint32_t timerCount) {

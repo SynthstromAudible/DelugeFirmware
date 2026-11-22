@@ -747,7 +747,7 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 
 void InstrumentClip::forEachRowWithOwnLength(
     ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
-    deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
+    deluge::base::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
 	(void)forEachRepeatedRow(
 	    *this, thisModelStack, otherModelStack,
 	    [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
@@ -759,7 +759,7 @@ void InstrumentClip::forEachRowWithOwnLength(
 
 void InstrumentClip::forEachRepeatedManager(
     ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
-    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
+    deluge::base::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 	const int32_t otherLength = otherInstrumentClip->loopLength();
 	int32_t whichRepeatThisIs = (uint32_t)offset / (uint32_t)otherLength;

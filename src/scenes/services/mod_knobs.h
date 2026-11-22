@@ -61,9 +61,9 @@
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
 ///          points use the last `now_ms` the service was ticked with.
 
+#include "base/panic.h"
 #include "controls/board.h"
 #include "effects/state.h"
-#include "foundation/panic.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/guest_knob_presentation.h"

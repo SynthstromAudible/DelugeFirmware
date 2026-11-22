@@ -58,7 +58,7 @@
 // the whole point — the pattern is only useful if a photo of it decodes the same way
 // whoever built the firmware.
 #include "io/debug/fault_pattern.h"
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "libdeluge/fault.h"
 #include <stddef.h>
 #include <version.h> // kCommitShort — stamped into the crash dump

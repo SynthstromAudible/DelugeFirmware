@@ -21,7 +21,7 @@
 // Busy-wait delays are a board concern: they route through the libdeluge clock
 // boundary. The pure number
 // formatting and board timer-count helpers that used to live here moved to the
-// foundation tier (foundation/string_format.* and foundation/timer_count.*).
+// foundation tier (base/string_format.* and base/timer_count.*).
 void delayMS(uint32_t ms) {
 	deluge_clock_delay_ms(ms);
 }

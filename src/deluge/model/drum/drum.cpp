@@ -19,8 +19,8 @@
 #include "dsp-next/core/fixed_point.h"
 #include "model/drum/expression_combine.h"
 
+#include "base/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "definitions_cxx.hpp"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"

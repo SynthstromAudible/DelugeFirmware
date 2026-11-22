@@ -420,7 +420,7 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 */
 
 void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/,
-                                             deluge::function_ref<void(int32_t)> visit) {
+                                             deluge::base::function_ref<void(int32_t)> visit) {
 	// Each CC of this collection the other collection has a lane for
 	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
 	for (const MIDIParam& param : params) {
@@ -430,7 +430,8 @@ void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const Param
 	}
 }
 
-void MIDIParamCollection::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void MIDIParamCollection::forEachLane(
+    deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		const int32_t cc = params[i].cc;
 		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);

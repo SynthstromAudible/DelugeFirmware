@@ -20,7 +20,7 @@
 #include "project/audio_input.h"
 #include "project/sound_routing_codec.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "project/arp_codec.h"
 #include "project/controls_codec.h"
 #include "project/mapping_codec.h"

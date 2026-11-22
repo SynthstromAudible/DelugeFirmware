@@ -16,8 +16,8 @@
  */
 
 #include "model/drum/non_audio_drum.h"
+#include "base/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "definitions_cxx.hpp"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"

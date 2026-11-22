@@ -1,6 +1,6 @@
 # deluge_project — the project model: a song's persistent musical state as host data (deluge::project).
 #
-# Standalone: it depends only on the standalone libraries below (plus foundation/panic.h), and
+# Standalone: it depends only on the standalone libraries below (plus base/panic.h), and
 # scripts/check_layers.py (its library in scripts/layers.toml) holds it to that with no allowlist. What a host supplies — the memory model
 # containers use, its out-of-memory exception, and the edit guard around structural edits the render may observe —
 # comes through the link-time hooks in model_memory.h and edit_guard.h.

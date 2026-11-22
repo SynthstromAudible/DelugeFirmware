@@ -59,7 +59,7 @@ if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
   set(DELUGE_HOST ON)
 endif()
 FetchContent_MakeAvailable(etl)
-add_subdirectory(${DELUGE_REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/libs/foundation EXCLUDE_FROM_ALL)
+add_subdirectory(${DELUGE_REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/libs/base EXCLUDE_FROM_ALL)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/deluge/dsp-next ${CMAKE_BINARY_DIR}/libs/dsp-next EXCLUDE_FROM_ALL)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/synth ${CMAKE_BINARY_DIR}/libs/synth EXCLUDE_FROM_ALL)
 

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 #include "project/containers.h"
 #include "project/edit_guard.h"
 #include <algorithm>

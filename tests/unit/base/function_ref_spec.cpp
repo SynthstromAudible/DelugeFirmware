@@ -1,19 +1,19 @@
-// deluge::function_ref calls the callable it refers to, through a capture by reference, and returns its value.
+// deluge::base::function_ref calls the callable it refers to, through a capture by reference, and returns its value.
 
-#include "foundation/function_ref.h"
+#include "base/function_ref.h"
 
 #include "cppspec.hpp"
 
 namespace {
 
-int twice(deluge::function_ref<int(int)> f, int x) {
+int twice(deluge::base::function_ref<int(int)> f, int x) {
 	return f(f(x));
 }
 
 } // namespace
 
 // clang-format off
-describe function_ref("deluge::function_ref", $ {
+describe function_ref("deluge::base::function_ref", $ {
 	it("returns the callable's value", _ {
 		expect(twice([](int x) { return x + 3; }, 1)).to_equal(7);
 	});
@@ -31,7 +31,7 @@ describe function_ref("deluge::function_ref", $ {
 			int n = 0;
 			int operator()(int x) { return n += x; }
 		} counter;
-		deluge::function_ref<int(int)> ref{counter};
+		deluge::base::function_ref<int(int)> ref{counter};
 		ref(2);
 		ref(3);
 		expect(counter.n).to_equal(5);

@@ -1,9 +1,9 @@
 #pragma once
-#include "board_config.h"     // board capabilities/layout (HAL-free)
-#include "foundation/panic.h" // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (foundation tier)
-#include <stdbool.h>          // IWYU pragma: export
-#include <stddef.h>           // IWYU pragma: export
-#include <stdint.h>           // IWYU pragma: export
+#include "base/panic.h"   // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (foundation tier)
+#include "board_config.h" // board capabilities/layout (HAL-free)
+#include <stdbool.h>      // IWYU pragma: export
+#include <stddef.h>       // IWYU pragma: export
+#include <stdint.h>       // IWYU pragma: export
 
 // Whether to compile with additional error-checking. The build sets this to 0 for rc/release builds.
 #ifndef ALPHA_OR_BETA_VERSION
@@ -46,7 +46,7 @@
 #define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
 
-// freezeWithError() + the FREEZE_WITH_ERROR macro now live in <foundation/panic.h>
+// freezeWithError() + the FREEZE_WITH_ERROR macro now live in <base/panic.h>
 // (the foundation tier), pulled in above.
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9

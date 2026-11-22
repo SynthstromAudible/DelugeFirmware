@@ -102,7 +102,8 @@ void retireReserved(const LaneSnapshot& snapshot, const LaneSnapshot* kept) {
 /// Call @p visit with every collection of every param manager @p song plays -- its own, each clip's and each note
 /// row's -- and that manager. A collection parked in undo history or awaiting retirement is not among them: its stores
 /// may already be gone.
-void forEachPlayedCollection(Song& song, deluge::function_ref<void(ParamCollection&, ParamManagerForTimeline&)> visit) {
+void forEachPlayedCollection(Song& song,
+                             deluge::base::function_ref<void(ParamCollection&, ParamManagerForTimeline&)> visit) {
 	auto visitManager = [&](ParamManagerForTimeline& manager) {
 		for (ParamCollectionSummary& summary : manager.summaries) {
 			if (summary.paramCollection == nullptr) {

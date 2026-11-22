@@ -88,8 +88,9 @@ std::vector<ControllerMapping> controlsOf(const deluge::instrument::KnobPairs& p
 	return controls;
 }
 
-bool writeKnobPairs(::Sound& sound, ::Song& song,
-                    deluge::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change) {
+bool writeKnobPairs(
+    ::Sound& sound, ::Song& song,
+    deluge::base::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change) {
 	const std::optional<deluge::project::ControlsAddress> address = controlsAddressOf(sound);
 	std::vector<ControllerMapping>* record = address ? song.project.resolveControls(*address) : nullptr;
 	// A record not holding all the mod knobs would read the missing ones as param id 0: the engine's knobs stand in.

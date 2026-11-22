@@ -17,7 +17,7 @@
 
 #pragma once
 
-/// foundation/panic.h — the panic / fatal-error primitive.
+/// base/panic.h — the panic / fatal-error primitive.
 ///
 /// Part of the foundation tier, which sits *below* the application, the BSP and
 /// the HAL: every layer may panic. Foundation headers live under src/ so they

@@ -88,8 +88,9 @@ void forEachCollection(ParamManagerForTimeline& manager, Visit visit) {
 
 /// A walk of the param managers a repeat at an offset appends to, each with the source's paired one and the append's
 /// arguments: a take clip's (InstrumentClip::forEachRepeatedManager()) or a row's with its own length.
-using ManagerVisit = deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)>;
-using ManagerWalk = deluge::function_ref<void(int32_t, ManagerVisit)>;
+using ManagerVisit =
+    deluge::base::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)>;
+using ManagerWalk = deluge::base::function_ref<void(int32_t, ManagerVisit)>;
 
 /// The walk of @p row's one manager, a row with its own length: @p rowStack names it, @p otherRowStack its source's.
 auto rowWalk(NoteRow& row, ModelStackWithNoteRow* rowStack, ModelStackWithNoteRow* otherRowStack) {

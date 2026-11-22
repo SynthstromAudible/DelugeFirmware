@@ -19,7 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 
-#include "foundation/panic.h" // FREEZE_WITH_ERROR
+#include "base/panic.h" // FREEZE_WITH_ERROR
 #include "gui/ui/browser_host.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"

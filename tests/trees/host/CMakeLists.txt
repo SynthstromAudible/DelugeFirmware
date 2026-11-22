@@ -146,7 +146,7 @@ add_library(deluge_spec STATIC
   ${_src}/deluge/util/audio_format_helpers.cpp
   ${_src}/deluge/util/string.cpp
   # intToString and floatToString, from the dependency-free foundation library.
-  ${_src}/foundation/string_format.c
+  ${_src}/base/string_format.c
   ${_src}/deluge/util/c_string.cpp
   ${_src}/deluge/util/lookuptables/lookuptables.cpp
   ${_tests}/support/mocks/mock_display.cpp

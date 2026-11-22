@@ -22,7 +22,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace deluge {
+namespace deluge::base {
 
 template <class Signature>
 class function_ref;
@@ -52,4 +52,4 @@ private:
 	R (*call_)(void*, Args...);
 };
 
-} // namespace deluge
+} // namespace deluge::base

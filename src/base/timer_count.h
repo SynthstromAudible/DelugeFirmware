@@ -17,7 +17,7 @@
 
 #pragma once
 
-/// foundation/timer_count.h — conversions between the board's hardware timer
+/// base/timer_count.h — conversions between the board's hardware timer
 /// counts and real time.
 ///
 /// Foundation tier: pure math over the board crystal frequency (board_config.h's

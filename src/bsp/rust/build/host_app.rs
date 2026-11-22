@@ -197,7 +197,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),
         ("app/dsp-next", "libdeluge-dsp-float.a"),
         ("synth", "libdeluge_synth.a"),
-        ("foundation", "libdeluge_foundation.a"),
+        ("base", "libdeluge_base.a"),
         ("serialization", "libdeluge_serialization.a"),
         ("music", "libdeluge_music.a"),
         ("project", "libdeluge_project.a"),

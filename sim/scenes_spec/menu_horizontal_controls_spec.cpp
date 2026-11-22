@@ -30,10 +30,10 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "base/string_format.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/dynamics/compressor_kernel.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
-#include "foundation/string_format.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "foundation/function_ref.h"
+#include "base/function_ref.h"
 #include "instruments/deluge/pages.h"
 #include "model/fx/effects_owner.h"
 #include "modulation/knob_target.h"
@@ -76,8 +76,9 @@ knobPairsOf(const std::vector<deluge::project::ControllerMapping>& controls);
 /// @param song   The song whose project holds the sound's record.
 /// @param change Maps the sound's knobs, one pair per mod button, to the knobs it takes.
 /// @return Whether any knob changed.
-bool writeKnobPairs(::Sound& sound, ::Song& song,
-                    deluge::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change);
+bool writeKnobPairs(
+    ::Sound& sound, ::Song& song,
+    deluge::base::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change);
 
 /// @brief Remap @p sound's mod knobs for a change of synth mode from @p from to @p to (the instrument's
 /// remap_for_mode), through writeKnobPairs.

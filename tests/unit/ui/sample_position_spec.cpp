@@ -27,7 +27,7 @@ namespace {
 constexpr int32_t kSpacingX = deluge::gfx::oled::kTextSpacingX; // legacy's smallTextSpacingX
 constexpr int32_t kSpacingY = deluge::gfx::oled::kTextSpacingY; // legacy's smallTextSizeY
 
-// `intToString(number, buffer, minNumDigits)` (foundation/string_format.c), for the reference
+// `intToString(number, buffer, minNumDigits)` (base/string_format.c), for the reference
 // render only.
 void int_to_string(uint32_t number, char* buffer, int32_t min_digits) {
 	int32_t digits = 1;
