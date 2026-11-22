@@ -25,10 +25,10 @@ abi_pin!(in deluge_audio_format::abi: deluge_audio_header_parser_init, deluge_au
 abi_pin!(in deluge_storage_sample_fill: deluge_streaming_set_fill_context);
 abi_pin!(in deluge_storage_sample_fill::chunk: deluge_streamed_chunk_payload_offset);
 
-abi_pin!(in deluge_sample_reader::abi: deluge_sample_reader_open, deluge_sample_reader_seek,
+abi_pin!(in deluge_storage_sample_reader::abi: deluge_sample_reader_open, deluge_sample_reader_seek,
     deluge_sample_reader_close, deluge_sample_reader_window, deluge_sample_reader_advance, deluge_sample_reader_ok,
     deluge_sample_read, deluge_sample_peek, deluge_sample_invalidate);
-abi_pin!(in deluge_sample_reader::reservation: deluge_sample_reserve_open, deluge_sample_reserve_move,
+abi_pin!(in deluge_storage_sample_reader::reservation: deluge_sample_reserve_open, deluge_sample_reserve_move,
     deluge_sample_reserve_close);
 
 abi_pin!(in deluge_sample_source::abi: deluge_sample_source_open, deluge_sample_region_acquire_ex,
@@ -44,8 +44,8 @@ abi_pin!(in deluge_sample_stream::abi: deluge_sample_stream_open, deluge_sample_
 abi_pin!(in deluge_storage_resource::manager: deluge_debug_now_frames);
 abi_pin!(in deluge_storage_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
 abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager);
-abi_pin!(in deluge_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
-abi_pin!(in deluge_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
+abi_pin!(in deluge_storage_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
+abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
     deluge_streaming_signal_fill);
 abi_pin!(in deluge_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
 abi_pin!(in deluge_sample_source::manager_residency: deluge_streaming_signal_fill);
@@ -80,13 +80,13 @@ abi_layout!(deluge_storage_sample_fill::FileLocation => DelugeFileLocation { con
 abi_layout!(deluge_storage_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor { dest, num_sectors, ok, handle,
     byte_offset });
 
-abi_layout!(deluge_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
-abi_layout!(enum deluge_sample_reader::reader::ReadHint => DelugeReadHint {
+abi_layout!(deluge_storage_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
+abi_layout!(enum deluge_storage_sample_reader::reader::ReadHint => DelugeReadHint {
     Cached = DELUGE_READ_CACHED, Scan = DELUGE_READ_SCAN });
-abi_layout!(enum deluge_sample_reader::reservation::LoadMode => DelugeLoadMode {
+abi_layout!(enum deluge_storage_sample_reader::reservation::LoadMode => DelugeLoadMode {
     Enqueue = DELUGE_LOAD_ENQUEUE, Now = DELUGE_LOAD_NOW, NowOrEnqueue = DELUGE_LOAD_NOW_OR_ENQUEUE });
 // The reader's own copy, beside the source's below.
-abi_layout!(deluge_sample_reader::reader::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
+abi_layout!(deluge_storage_sample_reader::reader::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
     audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format });
 
 abi_layout!(deluge_sample_source::geometry::Geometry => DelugeSampleGeometry { audio_data_start_bytes,

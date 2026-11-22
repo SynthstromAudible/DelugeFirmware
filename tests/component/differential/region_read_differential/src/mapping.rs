@@ -1,5 +1,5 @@
 //! The oracle's frame → (cluster, byte offset) mapping, written independently of
-//! `deluge_sample_reader`'s own so a bug there cannot hide in both.
+//! `deluge_storage_sample_reader`'s own so a bug there cannot hide in both.
 //!
 //! Byte position is `audio_data_start + frame * frame_stride`; cluster and offset are its quotient
 //! and remainder by the cluster size (a power of two in every real geometry).

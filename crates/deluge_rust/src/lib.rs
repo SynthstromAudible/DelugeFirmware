@@ -25,7 +25,7 @@ extern crate critical_section;
 extern crate deluge_storage_sample_fill;
 
 #[cfg(feature = "sample_abi")]
-extern crate deluge_sample_reader;
+extern crate deluge_storage_sample_reader;
 
 #[cfg(feature = "sample_abi")]
 extern crate deluge_sample_stream;

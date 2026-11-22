@@ -91,7 +91,7 @@ fs_alloc = { package = "deluge_base_alloc", path = "../../base/alloc" }
 # `#[panic_handler]` would collide with ours.
 deluge_storage_resource = { path = "../../storage/resource" }
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", features = ["c_abi"] }
-deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", features = ["c_abi"] }
+deluge_storage_sample_reader = { path = "../../storage/sample/reader", features = ["c_abi"] }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", features = ["c_abi"] }
 
 # Embassy versions match deluge-sdk's workspace pins.
@@ -113,7 +113,7 @@ env_logger = { version = "0.11", optional = true }
 # The host C++ app (`host_app`) calls the same C-ABI crates.
 deluge_storage_resource = { path = "../../storage/resource", optional = true }
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional = true }
-deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
+deluge_storage_sample_reader = { path = "../../storage/sample/reader", optional = true }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
 
 # The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
@@ -155,8 +155,8 @@ host_app = [
     "dep:deluge_storage_resource",
     "dep:deluge_sample_source",
     "deluge_sample_source/c_abi",
-    "dep:deluge_sample_reader",
-    "deluge_sample_reader/c_abi",
+    "dep:deluge_storage_sample_reader",
+    "deluge_storage_sample_reader/c_abi",
     "dep:deluge_sample_stream",
     "deluge_sample_stream/c_abi",
     "dep:block-device-driver",
@@ -197,7 +197,7 @@ panic = "abort"
 
 [profile.release.package.deluge_storage_sample_fill]
 opt-level = "s"
-[profile.release.package.deluge_sample_reader]
+[profile.release.package.deluge_storage_sample_reader]
 opt-level = "s"
 [profile.release.package.deluge_sample_stream]
 opt-level = "s"

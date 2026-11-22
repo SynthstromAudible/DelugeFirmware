@@ -48,7 +48,7 @@ extern "C" {
 ///
 /// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called by the Rust residency code right after it enqueues a chunk on the loader queue: a reservation's
-/// unfilled clusters (`deluge_sample_reader`'s `reservation.rs`) and a region acquire's miss
+/// unfilled clusters (`deluge_storage_sample_reader`'s `reservation.rs`) and a region acquire's miss
 /// (`deluge_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
 void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 
@@ -56,7 +56,7 @@ void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 ///
 /// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
 /// inside the executor's poll -- requests the fill and returns to its own loop. The range reader's
-/// fill route (deluge_sample_reader's `reader.rs`) is one such caller.
+/// fill route (deluge_storage_sample_reader's `reader.rs`) is one such caller.
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
 /// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
 void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing) DELUGE_NOEXCEPT;

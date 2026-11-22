@@ -1,4 +1,4 @@
-//! Reader differential: `deluge_sample_reader`'s `open`/`window`/`advance`/`deluge_sample_read`
+//! Reader differential: `deluge_storage_sample_reader`'s `open`/`window`/`advance`/`deluge_sample_read`
 //! over real streamed chunks must return the same bytes as [`oracle_frame`], a direct read of each
 //! chunk's resident payload at the location [`mapping`] computes.
 //!
@@ -21,17 +21,17 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use deluge_sample_reader::abi::{
-    DelugeFrameWindow, deluge_sample_read, deluge_sample_reader_advance,
-    deluge_sample_reader_close, deluge_sample_reader_ok, deluge_sample_reader_open,
-    deluge_sample_reader_seek, deluge_sample_reader_window,
-};
-use deluge_sample_reader::reader::ReadHint;
 use deluge_storage_resource::{
     BACKING_SLAB, deluge_resource_create, deluge_resource_define_asset, deluge_resource_request,
     deluge_resource_set_construct, deluge_resource_set_slab,
 };
 use deluge_storage_sample_fill::{FillContext, deluge_streaming_set_fill_context};
+use deluge_storage_sample_reader::abi::{
+    DelugeFrameWindow, deluge_sample_read, deluge_sample_reader_advance,
+    deluge_sample_reader_close, deluge_sample_reader_ok, deluge_sample_reader_open,
+    deluge_sample_reader_seek, deluge_sample_reader_window,
+};
+use deluge_storage_sample_reader::reader::ReadHint;
 
 use region_read_differential::mapping::{self, Geometry as MapGeo};
 use region_read_differential::ramp;
@@ -56,7 +56,7 @@ extern "C" fn deluge_debug_now_frames() -> u32 {
     0
 }
 
-/// Link stub for the synchronous card read (`libdeluge/file_io.h`) that `deluge_sample_reader`'s
+/// Link stub for the synchronous card read (`libdeluge/file_io.h`) that `deluge_storage_sample_reader`'s
 /// reservation fill references. Never reached here; fails without touching `dst`.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_efatfs_read_at(

@@ -6,7 +6,7 @@
 // cluster, one resident-but-not-ready cluster, and one never-touched (absent) cluster, then
 // asserts deluge_sample_peek's contract against all three. The frame->cluster mapping and
 // window/advance/degrade logic already have exhaustive coverage in the reader crate's own test
-// suite (crates/deluge_sample_reader/src/reader.rs's `mod tests`); this spec exists to prove the
+// suite (src/storage/sample/reader/src/reader.rs's `mod tests`); this spec exists to prove the
 // C-ABI wiring end to end, including the manager-handle resolution `mock_streaming_fill.cpp`'s
 // `set_active_manager` now makes settable.
 #include "mock_streaming_fill.h"

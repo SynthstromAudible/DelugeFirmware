@@ -8,10 +8,10 @@
 // `sample_reader_bridge_spec.cpp` only exercises `SampleFrameReader` over an asset with no
 // registered fill-context, so none of these ever actually RUN for it -- but every
 // `deluge_sample_reader_*` call any spec in this suite makes pulls the whole
-// `deluge_sample_reader`/`deluge_storage_sample_fill` archive members out of `deluge_rust_rs_sim`, and
+// `deluge_storage_sample_reader`/`deluge_storage_sample_fill` archive members out of `deluge_rust_rs_sim`, and
 // THEIR object code references these symbols unconditionally (same translation unit as the
 // functions the specs do call), so the link still needs a body for each one. Mirrors
-// `deluge_sample_reader`'s own `#[cfg(test)] host_streaming_stubs` module (Rust side) and this test
+// `deluge_storage_sample_reader`'s own `#[cfg(test)] host_streaming_stubs` module (Rust side) and this test
 // suite's sibling `mock_source.h`/`mock_read_source.h` mocks.
 #include "libdeluge/file_io.h"
 #include "libdeluge/sample_stream.h"

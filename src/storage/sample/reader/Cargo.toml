@@ -7,24 +7,25 @@
 #
 # A plain `no_std` rlib with no `#[panic_handler]`: the final artifact provides one.
 [package]
-name = "deluge_sample_reader"
+name = "deluge_storage_sample_reader"
+workspace = "../../../../crates"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
 
 [lib]
-name = "deluge_sample_reader"
+name = "deluge_storage_sample_reader"
 crate-type = ["rlib"]
 
 [dependencies]
-deluge_storage_resource = { path = "../../src/storage/resource" }
+deluge_storage_resource = { path = "../../resource" }
 # `native_fill` supplies the fill primitives this crate's synchronous fill composes; production
 # code needs it, not only tests.
-deluge_storage_sample_fill = { path = "../../src/storage/sample/fill", features = ["native_fill"] }
+deluge_storage_sample_fill = { path = "../fill", features = ["native_fill"] }
 
 [dev-dependencies]
-deluge_base_alloc = { path = "../../src/base/alloc" }
+deluge_base_alloc = { path = "../../../base/alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]

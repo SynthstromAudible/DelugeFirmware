@@ -294,7 +294,7 @@ void deluge_efatfs_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 /// @brief Synchronously read @p count bytes at absolute @p byte_offset of the file behind @p handle. [task]
 ///
 /// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the sample reservation's
-/// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
+/// synchronous `fill_now` (`deluge_storage_sample_reader`) reads through this. The Rust implementation
 /// (`storage/efatfs/device.rs` / `storage/efatfs/host.rs`) bridges to the async handle table by blocking on the
 /// async read.
 /// @param handle     A handle previously returned by deluge_efatfs_open.

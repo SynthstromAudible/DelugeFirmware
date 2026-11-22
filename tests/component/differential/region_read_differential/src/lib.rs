@@ -1,4 +1,4 @@
-//! Byte-identical gate for `deluge_sample_reader`.
+//! Byte-identical gate for `deluge_storage_sample_reader`.
 //!
 //! `open`/`window`/`advance`/`deluge_sample_read` must return the same bytes, for the same frames,
 //! as reading a chunk's resident payload directly at an independently computed location

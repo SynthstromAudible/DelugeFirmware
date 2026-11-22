@@ -1,4 +1,4 @@
-# Byte-identical gate for the sample range reader (`deluge_sample_reader`). Standalone crate, not a
+# Byte-identical gate for the sample range reader (`deluge_storage_sample_reader`). Standalone crate, not a
 # workspace member. Pure Rust: the oracle reads resident chunk payloads through
 # `deluge_storage_sample_fill::chunk`.
 [package]
@@ -10,7 +10,7 @@ license = "GPL-3.0-or-later"
 
 [dev-dependencies]
 # The reader under test.
-deluge_sample_reader = { path = "../../../../crates/deluge_sample_reader" }
+deluge_storage_sample_reader = { path = "../../../../src/storage/sample/reader" }
 # A real resource manager over a real heap.
 deluge_storage_resource = { path = "../../../../src/storage/resource" }
 # `native_finish` runs the real convert/stitch/publish tail, so the chunks' trailing-slack bytes
