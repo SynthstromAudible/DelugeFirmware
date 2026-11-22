@@ -5,14 +5,14 @@
 /// resolves against, never an engine object.
 
 #include "controls/knob_focus.h"
-#include "deluge-project/clip_address.h"
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/note_address.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/setting_group.h"
 #include "plugin/types/param.h"
 #include "plugin/types/setting.h"
+#include "project/clip_address.h"
+#include "project/fx_chain.h"
+#include "project/instrument_slot.h"
+#include "project/note_address.h"
+#include "project/param_address.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 #include <optional>

@@ -15,8 +15,8 @@
 ///       plugin API's menu mapping (`plugin/types/param_mapping.h`), which main's menu items
 ///       (`origin/main:src/deluge/gui/menu_item/`) use too.
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
 #include "scenes/menu/node.h"
 #include "shell/profile.h" // ui::shell::TextScratch
 

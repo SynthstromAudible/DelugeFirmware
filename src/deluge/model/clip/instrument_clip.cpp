@@ -17,8 +17,6 @@
 
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_note_row.h"
-#include "deluge-project/edit_guard.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -59,6 +57,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/doc_note_row.h"
+#include "project/edit_guard.h"
 #include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"

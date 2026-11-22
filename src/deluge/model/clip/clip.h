@@ -19,7 +19,6 @@
 
 #include "board_layout.hpp"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_clip.h"
 #include "gui/colour/colour.h"
 #include "gui/views/audio_clip_view.h"
 #include "io/midi/learned_midi.h"
@@ -29,6 +28,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
+#include "project/doc_clip.h"
 #include "util/c_string.h"
 #include <cstdint>
 #include <optional>

@@ -17,12 +17,12 @@
 #include "scenes/menu/value_session.h"
 #include "scenes/services/view_state.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 #include "storage/multi_range/multi_range.h"
 
 #include "support/printers/doc_clip_printer.h"

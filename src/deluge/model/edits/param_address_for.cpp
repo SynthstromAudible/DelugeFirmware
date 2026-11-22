@@ -1,9 +1,8 @@
 #include "model/edits/param_address_for.h"
 
 #include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
-#include "deluge-project/edit_guard.h"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR
-#include "memory/heaps.h"     // onRenderTier
+#include "foundation/panic.h"  // FREEZE_WITH_ERROR
+#include "memory/heaps.h"      // onRenderTier
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -17,6 +16,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "project/edit_guard.h"
 
 namespace deluge::edits {
 

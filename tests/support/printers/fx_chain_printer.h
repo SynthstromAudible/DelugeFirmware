@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/fx_chain.h"
+#include "project/fx_chain.h"
 #include "support/printers/state_handle_printer.h"
 
 #include <ostream>

@@ -3,8 +3,6 @@
 ///        the target's entry onto the engine field that plays it (a learned knob plays from the table, through the
 ///        mapping index); a target whose owner the song does not hold is refused with the table as it was.
 
-#include "deluge-project/arrangement.h"
-#include "deluge-project/mapping_table.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/clip.h"
@@ -19,6 +17,8 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/arrangement.h"
+#include "project/mapping_table.h"
 
 #include <optional>
 #include <utility>

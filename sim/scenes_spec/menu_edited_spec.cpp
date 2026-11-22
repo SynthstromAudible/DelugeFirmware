@@ -6,7 +6,6 @@
 /// The menu is opened on the global guest over the instrument clip view, as `openMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls.
 
-#include "deluge-project/mapping_table.h"
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host_ui.h"
@@ -24,6 +23,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
 #include "scenes/bind/ports/write_sink.h"

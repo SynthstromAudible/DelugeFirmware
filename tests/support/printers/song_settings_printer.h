@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "deluge-project/arrangement.h"
-#include "deluge-project/reverb_settings.h"
-#include "deluge-project/scale_settings.h"
-#include "deluge-project/transport.h"
+#include "project/arrangement.h"
+#include "project/reverb_settings.h"
+#include "project/scale_settings.h"
+#include "project/transport.h"
 #include "support/printers/note_set_printer.h"
 #include "support/printers/optional_printer.h"
 

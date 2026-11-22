@@ -37,7 +37,7 @@
 
 #include "scenes/menu/node.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 
 #include <cstdint>
 

@@ -21,13 +21,13 @@
 /// @brief What the gold knobs point at, as addresses into the model: the view's choice, never saved.
 
 #include "controls/board.h"
-#include "deluge-project/clip_address.h"
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/kit_row_address.h"
-#include "deluge-project/note_address.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/setting_group.h"
+#include "project/clip_address.h"
+#include "project/fx_chain.h"
+#include "project/instrument_slot.h"
+#include "project/kit_row_address.h"
+#include "project/note_address.h"
+#include "project/param_address.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 #include <optional>

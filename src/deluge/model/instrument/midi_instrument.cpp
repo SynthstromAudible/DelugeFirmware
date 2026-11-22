@@ -17,7 +17,6 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp-next/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
@@ -36,6 +35,7 @@
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
+#include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include <algorithm>

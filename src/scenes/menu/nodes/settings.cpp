@@ -37,11 +37,11 @@
 #include "scenes/registry.h"        // menu_scene()
 
 #include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, NUM_GATE_CHANNELS
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_channels.h"
-#include "deluge-project/midi_command.h"
 #include "gfx/oled/glyphs.h"
 #include "music/note_names.h"
+#include "project/device_settings.h"
+#include "project/midi_channels.h"
+#include "project/midi_command.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY

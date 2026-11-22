@@ -18,12 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/controller_mapping.h"
 #include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/fx/reverb_candidate.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
+#include "project/controller_mapping.h"
 #include "storage/audio/audio_load_context.h"
 #include "storage/audio/sample_load_walk.h"
 #include "util/c_string.h"

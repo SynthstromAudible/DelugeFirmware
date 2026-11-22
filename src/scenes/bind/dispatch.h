@@ -4,8 +4,8 @@
 /// @brief A target's value, range, choices, names and applicability, from its descriptor, its record and the name
 /// table; and the write request for a menu value.
 
-#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
+#include "project/song.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"

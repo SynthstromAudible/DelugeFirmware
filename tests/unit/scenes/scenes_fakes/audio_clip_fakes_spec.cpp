@@ -5,11 +5,11 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "notify/notice_queue.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/song.h"
 #include "sample-view/peaks.h"
 #include "scenes/services/peak_retry.h"
 #include "shell/profiles/deluge.h"

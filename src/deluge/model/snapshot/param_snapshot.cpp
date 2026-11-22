@@ -17,9 +17,9 @@
 
 #include "model/snapshot/param_snapshot.h"
 
-#include "deluge-project/param_automation.h" // DocAutoParam
-#include "deluge-project/param_edit.h"       // deluge::project::setValueForRegion
-#include "deluge-project/song.h"             // Song::resolveParam
+#include "project/param_automation.h" // DocAutoParam
+#include "project/param_edit.h"       // deluge::project::setValueForRegion
+#include "project/song.h"             // Song::resolveParam
 
 namespace deluge::snapshot {
 

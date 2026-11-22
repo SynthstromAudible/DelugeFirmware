@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/groove.h"
+#include "project/groove.h"
 
 #include <format>
 #include <ostream>

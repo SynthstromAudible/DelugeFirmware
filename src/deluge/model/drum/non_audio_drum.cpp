@@ -17,12 +17,12 @@
 
 #include "model/drum/non_audio_drum.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_drum.h"
 #include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/project_bridge/arp_bridge.h"
+#include "project/doc_drum.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 

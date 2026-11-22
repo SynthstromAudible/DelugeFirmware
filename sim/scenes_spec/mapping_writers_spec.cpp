@@ -3,7 +3,6 @@
 ///        owner arriving in a running song, a kit change, and a knob found not to be relative. After each, the table
 ///        holds what the engine plays, and the mapping index plays the table's knobs.
 
-#include "deluge-project/mapping_table.h"
 #include "effects/master_chain.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_dispatch.h"
@@ -28,6 +27,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
 #include <optional>

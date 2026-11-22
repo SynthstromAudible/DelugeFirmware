@@ -76,7 +76,6 @@
 #include "ui/core/metrics.h"
 
 #include "board_config.h"
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/language.h"
 #include "gui/ui/ui.h"
@@ -101,6 +100,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
+#include "project/setting_group.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"

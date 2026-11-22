@@ -3,9 +3,9 @@
 /// @file
 /// @brief A host chain's effect settings, read by its address.
 
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/song.h"
 #include "plugin/types/setting.h"
+#include "project/fx_chain.h"
+#include "project/song.h"
 #include "scenes/bind/ports/track_facts.h"
 
 #include <cstdint>

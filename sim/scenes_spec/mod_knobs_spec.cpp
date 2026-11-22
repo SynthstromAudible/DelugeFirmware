@@ -43,7 +43,7 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/knob_math.h"
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 
 #include "gui/views/knob_focus_from_stack.h"
 #include "scenes/bind/knob_assignment.h"

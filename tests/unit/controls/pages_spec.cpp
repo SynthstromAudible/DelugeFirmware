@@ -2,7 +2,7 @@
 #include "board_controls.hpp"
 #include "controls/pages.h"
 #include "controls/resolve.h"
-#include "deluge-project/song.h"
+#include "project/song.h"
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
 #include "effects/plugin.h"

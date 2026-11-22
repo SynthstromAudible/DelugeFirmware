@@ -35,7 +35,7 @@
 ///       arrays `extern` and transcribes `getLookupIndexFromValue` (`util/functions.cpp`) locally. The same treatment
 ///       `sound_compressor.cpp` gives `lshiftAndSaturate<24>`.
 
-#include "deluge-project/setting_group.h"
+#include "project/setting_group.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/param_shows.h"

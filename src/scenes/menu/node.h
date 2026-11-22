@@ -15,12 +15,12 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
-#include "deluge-project/device_settings.h" // RangeSpec::upper_path
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
 #include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
 #include "plugin/types/param_kind.h"
+#include "project/device_settings.h" // RangeSpec::upper_path
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
 #include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`

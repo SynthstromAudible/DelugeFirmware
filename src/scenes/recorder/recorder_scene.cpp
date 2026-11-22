@@ -14,9 +14,9 @@
 #include "scenes/menu/shortcut_blink.h"
 #include "ui/grid/frame.h"
 
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 
 #include <algorithm>
 #include <cstdint>

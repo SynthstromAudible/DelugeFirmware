@@ -7,7 +7,6 @@
 /// The writes are observed from outside the dispatch: the undo log lists each param written, in write order, and every
 /// value is read back through the param's address. Nothing here reads an owner's knob list.
 
-#include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -38,6 +37,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/cable.h"
 

@@ -198,16 +198,16 @@
 ///          `Action` in `shell/scene.h`.
 
 #include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
-#include "deluge-project/clip_address.h"
+#include "project/clip_address.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/timeline/timeline.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
+#include "project/device_settings.h"
+#include "project/setting_group.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/waveforms.h"

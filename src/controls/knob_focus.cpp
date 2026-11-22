@@ -17,8 +17,8 @@
 
 #include "controls/knob_focus.h"
 
-#include "deluge-project/song.h"
 #include "foundation/panic.h"
+#include "project/song.h"
 
 #include <algorithm>
 

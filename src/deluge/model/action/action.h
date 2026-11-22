@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/param_address.h"
+#include "project/param_address.h"
 
 #include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"

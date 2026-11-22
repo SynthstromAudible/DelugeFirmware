@@ -18,10 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
 #include "instruments/deluge/cable_records.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include "project/param_automation.h"
 #include "synth/matrix/program.h"
 #include "synth/modulation/patch_routing.h"
 #include <bitset>

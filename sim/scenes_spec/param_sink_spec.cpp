@@ -8,7 +8,6 @@
 #include "scenes/bind/target.h"
 #include "scenes/menu/bind_host.h"
 
-#include "deluge-project/param_address.h"
 #include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
@@ -35,6 +34,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 

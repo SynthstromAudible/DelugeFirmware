@@ -27,9 +27,6 @@
 // The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline captured from
 // engine-native recording.
 
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action_logger.h"
@@ -57,6 +54,9 @@
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"

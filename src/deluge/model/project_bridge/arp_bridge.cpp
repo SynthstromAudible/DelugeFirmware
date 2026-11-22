@@ -17,8 +17,8 @@
 
 #include "model/project_bridge/arp_bridge.h"
 
-#include "deluge-project/arp_codec.h"
 #include "modulation/arpeggiator.h"
+#include "project/arp_codec.h"
 #include "storage/storage_manager.h"
 
 #include <string>

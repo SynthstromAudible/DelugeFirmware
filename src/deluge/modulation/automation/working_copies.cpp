@@ -17,9 +17,6 @@
 
 #include "modulation/automation/working_copies.h"
 
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "foundation/function_ref.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
@@ -41,6 +38,9 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/staged_repeat.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 
 #include <array>
 #include <atomic>

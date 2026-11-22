@@ -6,15 +6,15 @@
 #include "scenes/services/knob_push.h"
 
 #include "board_controls.hpp"
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/song.h"
 #include "effects/state.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
+#include "project/controller_mapping.h"
+#include "project/instrument_slot.h"
+#include "project/song.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/ports.h"
 

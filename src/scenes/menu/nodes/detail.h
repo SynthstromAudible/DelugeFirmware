@@ -12,9 +12,9 @@
 #include "scenes/bind/target.h"
 #include "scenes/menu/node.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/strings.h" // the only `gui/` the scenes layer may reach (see CMakeLists.txt)
+#include "project/device_settings.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 #include <string_view>

@@ -3,9 +3,9 @@
 /// @file
 /// @brief A setting group's records, read by an owner's address.
 
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "plugin/types/setting.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "scenes/bind/ports/ports.h"
 
 #include <cstdint>

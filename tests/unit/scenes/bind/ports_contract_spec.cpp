@@ -7,9 +7,9 @@
 #include "support/printers/mapping_printer.h"
 #include "support/printers/transport_action_printer.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/transport.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/transport.h"
 #include "scenes/bind/device_reader.h"
 
 #include <cppspec.hpp>

@@ -23,12 +23,12 @@
 //
 // Exit: 0 = equal; 1 = load error; 2 = usage/IO; 3 = a record differs (printed).
 
-#include "deluge-project/arp_codec.h"
-#include "deluge-project/document.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
+#include "project/arp_codec.h"
+#include "project/document.h"
 #include "scenarios/drivers/tree_load.h"
 #include "serialization/tree.h"
 #include "storage/storage_manager.h"

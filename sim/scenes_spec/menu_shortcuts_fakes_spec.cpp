@@ -12,10 +12,10 @@
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcuts.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/device_settings.h"
+#include "project/features.h"
 #include "shell/scene.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"

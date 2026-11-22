@@ -18,13 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_address.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/owner_plugin.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "project/param_address.h"
 
 class Action;
 class CopiedNoteRow;

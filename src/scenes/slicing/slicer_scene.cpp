@@ -3,7 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/browser/browser_kind.h"
 #include "scenes/services/waveform_paint.h"

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "deluge-project/param_address.h"
 #include "model/consequence/consequence.h"
 #include "modulation/automation/auto_param.h"
+#include "project/param_address.h"
 
 class ModelStackWithAutoParam;
 

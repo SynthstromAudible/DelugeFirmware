@@ -26,7 +26,7 @@
 /// hook.
 
 #include "gui/ui/shell_note_bridge.h"
-#include "deluge-project/sequence_direction.h"
+#include "project/sequence_direction.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"

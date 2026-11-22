@@ -3,7 +3,6 @@
 // record and is not an undo step, as legacy's polarity switch is not; a full cable set refuses a new cable; and the
 // reverb recomputes after a write to the cable it copies, the sidechain's to its send.
 
-#include "deluge-project/param_address.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "model/action/action.h"
@@ -23,6 +22,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 

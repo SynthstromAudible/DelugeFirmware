@@ -16,8 +16,8 @@
  */
 #pragma once
 
-#include "deluge-project/param_edit.h"
 #include "model/snapshot/param_snapshot.h"
+#include "project/param_edit.h"
 #include <cstdint>
 
 namespace deluge::modulation {

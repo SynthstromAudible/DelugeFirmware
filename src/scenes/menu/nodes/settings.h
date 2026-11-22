@@ -87,10 +87,10 @@
 #include "scenes/menu/relevance.h"
 
 #include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/setting_group.h"
 #include "plugin/types/display_mapping.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/setting_group.h"
 
 #include <limits>
 #include <optional>

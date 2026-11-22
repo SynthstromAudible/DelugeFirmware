@@ -8,7 +8,6 @@
 /// param's address, and a feedback CC leaves the sample time it was sent at in `MidiFollow::timeLastCCSent`.
 
 #include "controls/knob_math.h"
-#include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -35,6 +34,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "scenes/menu/bind_host.h"
 
 #include <algorithm>

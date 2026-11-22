@@ -1,6 +1,6 @@
 #include "scenes/bind/ports/track_facts.h"
 
-#include "deluge-project/track_kind.h"
+#include "project/track_kind.h"
 
 #include <cppspec.hpp>
 

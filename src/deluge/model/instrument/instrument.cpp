@@ -17,7 +17,6 @@
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
@@ -25,6 +24,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "processing/engines/audio_engine.h"
+#include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"

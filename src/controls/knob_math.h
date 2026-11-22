@@ -20,8 +20,8 @@
 /// @file
 /// @brief The gold knob's arithmetic: position (-64..64) to stored word and back, and the turn.
 
-#include "deluge-project/param_address.h"
 #include "plugin/types/param.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 

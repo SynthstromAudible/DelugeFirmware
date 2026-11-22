@@ -4,12 +4,12 @@
 /// @brief Cases every implementation of a port must pass, the fake and the host's alike. Each takes the port under
 ///        test and returns whether it holds; a spec states the case and expects true.
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/transport.h"
 #include "plugin/types/display_mapping.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
+#include "project/transport.h"
 #include "sample-view/divide.h"
 #include "sample-view/peaks.h"
 #include "scenes/bind/device_reader.h"

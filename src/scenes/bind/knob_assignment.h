@@ -1,9 +1,9 @@
 #pragma once
 
 #include "controls/board.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/song.h"
 #include "plugin/types/param_kind.h"
+#include "project/param_address.h"
+#include "project/song.h"
 #include "scenes/bind/knob_focus.h"
 
 #include <cstdint>

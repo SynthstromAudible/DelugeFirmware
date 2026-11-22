@@ -1,9 +1,9 @@
 #pragma once
 
-#include "deluge-project/param_address.h"
 #include "model/action/action_logger.h" // ActionAddition
 #include "model/edits/edit.h"
 #include "model/edits/set_param_value.h"
+#include "project/param_address.h"
 
 namespace deluge::edits {
 

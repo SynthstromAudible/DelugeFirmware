@@ -14,7 +14,7 @@ collection `Kind` and index) maps to ids through `model/project_bridge/param_ids
 ## Identity in the host
 
 The host names a param without its owner as a `project::ParamTarget{ParamSpace space; plugin::ParamId id}`
-(`src/deluge-project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
+(`src/project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
 the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/deluge/cables.h`); a
 MIDI_CC id is the CC number, an EXPRESSION id the MPE dimension. Ids are per plugin (116 is portamento in the
 instrument's table and mod FX rate in the global effectable's), so a target is read only together with its owner's
@@ -391,7 +391,7 @@ takeover modes. The store allocates, so it lives on the app loop: the render nev
 writes it makes (forgets, arrivals and the copy half of a clone) wait in the held queue (`kPendingMappingOps`) for the
 app loop to apply them to the table and the store together.
 
-A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`src/deluge-project/mapping_codec.h`)
+A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`src/project/mapping_codec.h`)
 resolves it through the owner's `ParamNaming::id_of`, then through `mod_knob_target`, which sends a knob on a volume to
 the param the runtime uses, so the codec is the one place that rule lives.
 

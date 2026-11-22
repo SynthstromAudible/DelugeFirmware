@@ -33,9 +33,6 @@
 #include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -65,6 +62,9 @@
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 

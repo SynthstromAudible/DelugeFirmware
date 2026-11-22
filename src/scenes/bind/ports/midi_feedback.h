@@ -3,8 +3,8 @@
 /// @file
 /// @brief MIDI follow's feedback: the CCs the device sends back to a controller as the followed params move.
 
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

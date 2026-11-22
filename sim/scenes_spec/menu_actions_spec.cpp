@@ -853,7 +853,7 @@ std::array<int, 2> both_at(PerformanceEditingMode mode) {
 ///        indices.
 ///
 /// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE }`
-/// (`definitions_cxx.hpp`), and the `ui/screensaver/mode` row's choices (`deluge-project/device_settings.cpp`) list the
+/// (`definitions_cxx.hpp`), and the `ui/screensaver/mode` row's choices (`project/device_settings.cpp`) list the
 /// four in that order, as `ScreensaverModeMenu::getOptions`' own `@warning` requires
 /// (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`). Spelled as cursor indices because what the examples
 /// drive is a cursor.

@@ -4,7 +4,7 @@
 /// @brief The device's shortcut layout as a spec reads and sets it with no menu open: through a context over the
 ///        host's ports, as the menu itself reads it.
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/bind/ports/device_settings.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"

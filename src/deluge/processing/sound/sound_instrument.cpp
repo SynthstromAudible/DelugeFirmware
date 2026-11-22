@@ -17,7 +17,6 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_clip.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
@@ -31,6 +30,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "project/doc_clip.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"

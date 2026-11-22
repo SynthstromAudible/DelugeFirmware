@@ -8,7 +8,6 @@
 #include "scenes/menu/nodes/roots.h"
 #include "scenes/menu/nodes/sound_fx.h"
 
-#include "deluge-project/param_address.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
@@ -20,6 +19,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 

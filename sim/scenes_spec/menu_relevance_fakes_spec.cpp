@@ -8,9 +8,9 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/device_settings.h"
+#include "project/features.h"
 #include "serialization/value.h"
 
 #include "support/fake_host_rig.h"

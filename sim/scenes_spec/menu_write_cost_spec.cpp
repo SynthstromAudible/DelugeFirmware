@@ -9,7 +9,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "deluge-project/param_address.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "instruments/deluge/params.h"
@@ -23,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_address.h"
 
 #include "support/slot_record.h"
 #include "support/song_fixture.h"

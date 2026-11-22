@@ -1,4 +1,4 @@
-#include "deluge-project/song.h"
+#include "project/song.h"
 
 #include <cppspec.hpp>
 

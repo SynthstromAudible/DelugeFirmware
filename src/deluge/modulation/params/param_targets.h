@@ -18,10 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_address.h"
 #include "effects/host_chain/params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
+#include "project/param_address.h"
 
 #include <array>
 #include <cstdint>

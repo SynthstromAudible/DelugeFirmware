@@ -3,9 +3,9 @@
 /// @file
 /// @brief A slot's record as the scenes read it, for specs that check what an Edit left there.
 
-#include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
+#include "project/instrument_slot.h"
 #include "scenes/menu/bind_host.h"
 
 #include <vector>

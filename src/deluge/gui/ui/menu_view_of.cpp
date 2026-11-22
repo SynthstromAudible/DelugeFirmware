@@ -1,6 +1,6 @@
 #include "gui/ui/menu_view_of.h"
 
-#include "deluge-project/track_kind.h"
+#include "project/track_kind.h"
 
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"

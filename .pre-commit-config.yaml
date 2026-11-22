@@ -97,7 +97,7 @@ repos:
         entry: python3 scripts/check_model_words.py
         language: system
         pass_filenames: false
-        files: ^(src/deluge-project/|scripts/check_model_words\.py)
+        files: ^(src/project/|scripts/check_model_words\.py)
       - id: aligned-model-stacks
         name: model-stack buffers are aligned
         description: >-

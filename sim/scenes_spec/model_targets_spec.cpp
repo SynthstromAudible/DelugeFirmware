@@ -9,7 +9,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/edit.h"
@@ -23,6 +22,7 @@
 #include "plugin/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"

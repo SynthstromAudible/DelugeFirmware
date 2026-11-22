@@ -4,11 +4,11 @@
 /// @brief What the mapping index plays of a song's learned knobs: the specs' view of a learned knob once the table
 ///        holds it, as incoming MIDI finds it.
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/song/song.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
 
 #include <cstdint>
 #include <vector>

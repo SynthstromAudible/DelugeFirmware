@@ -23,7 +23,7 @@
 /// The decisions are `ModKnobs`' (the shell's service, `sharedModKnobs()`); what they show goes to the legacy display,
 /// `indicator_leds` and `View`. This header names no port type, so `UI`'s base hooks and the views include it.
 
-#include "deluge-project/param_address.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

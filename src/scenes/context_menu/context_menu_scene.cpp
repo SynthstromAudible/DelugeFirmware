@@ -37,8 +37,6 @@
 // `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. It is included rather than
 // re-declared locally, and its body is not re-implemented here (a notice plus the other four
 // resets) -- that would fork a legacy composite.
-#include "deluge-project/audio_input.h"
-#include "deluge-project/setting_group.h"
 #include "deluge.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
@@ -47,6 +45,8 @@
 #include "io/midi/midi_follow.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "project/audio_input.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>

@@ -18,12 +18,12 @@
 // cache), as the audio-clip menus and gestures do.
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_audio_clip.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
+#include "project/doc_audio_clip.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"

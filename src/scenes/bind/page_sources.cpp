@@ -1,8 +1,8 @@
 #include "scenes/bind/page_sources.h"
 
-#include "deluge-project/fx_chain.h"
 #include "effects/host_chain/pages.h"
 #include "instruments/deluge/pages.h"
+#include "project/fx_chain.h"
 
 #include <algorithm>
 #include <array>

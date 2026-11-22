@@ -6,11 +6,11 @@
 #include "scenes/bind/page_sources.h"
 
 #include "controls/pages.h"
-#include "deluge-project/song.h"
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
+#include "project/song.h"
 
 #include "cppspec.hpp"
 #include "support/printers/param_id_printer.h"

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "deluge-project/features.h"
 #include "gui/l10n/strings.h"
+#include "project/features.h"
 #include "storage/byte_channel.h"
 #include "util/containers.h"
 #include <array>
@@ -36,7 +36,7 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 // Keep the former On value as MenuOnly to preserve existing settings.
 enum class RuntimeFeatureStateShortcutOverlay : uint32_t { Off = 0, MenuOnly = 1, MenuAndClip = 2 };
 
-/// Every feature, by its `deluge::project::Feature` value: the feature table (`deluge-project/features.h`) declares
+/// Every feature, by its `deluge::project::Feature` value: the feature table (`project/features.h`) declares
 /// them, and each enumerator here is its feature's id.
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,

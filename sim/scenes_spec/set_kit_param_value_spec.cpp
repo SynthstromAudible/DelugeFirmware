@@ -2,7 +2,6 @@
 // with a row in the clip takes the value, a sound drum with no row and the MIDI and gate drums are left alone, and one
 // undo step restores every drum it wrote.
 
-#include "deluge-project/param_address.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "model/action/action.h"
@@ -20,6 +19,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_address.h"
 #include "storage/storage_manager.h"
 
 #include "support/song_fixture.h"

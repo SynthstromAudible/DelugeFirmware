@@ -28,9 +28,9 @@
 /// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
 /// `handle()` are the two places a write may happen.
 
-#include "deluge-project/mapping_table.h"
 #include "gfx/oled/icon.h"
 #include "notify/dirty_set.h"
+#include "project/mapping_table.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"

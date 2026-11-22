@@ -20,10 +20,10 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
 #include "foundation/string_format.h"
 #include "instruments/deluge/state_access.h"
+#include "project/device_settings.h"
+#include "project/features.h"
 
 #include <algorithm>
 #include <array>

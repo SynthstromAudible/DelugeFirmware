@@ -42,7 +42,6 @@
 #include "gui/l10n/strings.h"
 #include "hid/display/oled.h"
 
-#include "deluge-project/param_automation.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -56,6 +55,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/param_automation.h"
 
 #include "support/known_differences.h"
 #include "support/menu_engine.h"

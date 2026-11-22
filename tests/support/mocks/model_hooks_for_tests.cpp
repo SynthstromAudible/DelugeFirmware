@@ -1,7 +1,7 @@
 #include "model_hooks_for_tests.h"
 
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/model_memory.h"
+#include "project/edit_guard.h"
+#include "project/model_memory.h"
 
 #include <cstddef>
 #include <new>

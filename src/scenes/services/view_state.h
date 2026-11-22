@@ -5,11 +5,11 @@
 ///        lock, the range last edited. View state, keyed by what it belongs to; never written to the song or a sound,
 ///        and not saved.
 
-#include "deluge-project/clip_address.h"
-#include "deluge-project/drum_type.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/track_kind.h"
+#include "project/clip_address.h"
+#include "project/drum_type.h"
+#include "project/instrument_slot.h"
+#include "project/setting_group.h"
+#include "project/track_kind.h"
 #include "scenes/bind/ports/track_facts.h"
 
 #include <cstdint>

@@ -16,8 +16,6 @@
  */
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_note.h"
-#include "deluge-project/doc_note_row.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -48,6 +46,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/doc_note.h"
+#include "project/doc_note_row.h"
 #include "sequence/iterance_migration.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"

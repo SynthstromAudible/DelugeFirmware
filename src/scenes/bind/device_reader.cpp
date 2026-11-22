@@ -1,6 +1,6 @@
 #include "scenes/bind/device_reader.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 
 #include <cassert>
 
@@ -15,7 +15,7 @@ plugin::SettingReader DeviceReader::reader() const {
 }
 
 int32_t read_device_value(const DeviceSettings* port, project::DevicePath path) {
-	// A DevicePath names a row the table holds (`deluge-project/device_settings.cpp` checks each), so the row is always
+	// A DevicePath names a row the table holds (`project/device_settings.cpp` checks each), so the row is always
 	// found.
 	const plugin::SettingInfo* row = plugin::find_setting(project::device_table(), path.text());
 	assert(row != nullptr && "a DevicePath names a DEVICE row");

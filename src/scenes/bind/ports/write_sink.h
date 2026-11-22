@@ -4,9 +4,9 @@
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
 #include "controls/sink.h"
-#include "deluge-project/param_address.h"
 #include "instruments/deluge/cables.h"
 #include "plugin/types/sync.h"
+#include "project/param_address.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>

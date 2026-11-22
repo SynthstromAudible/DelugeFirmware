@@ -34,11 +34,11 @@
 
 #include "gui/l10n/strings.h"
 
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "gfx/grid/pad_grid.h"
 #include "instruments/deluge/state_access.h"
 #include "processing/engines/audio_engine.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/recorder/recorder_scene.h"

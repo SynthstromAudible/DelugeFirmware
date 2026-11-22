@@ -4,9 +4,9 @@
 /// @brief Where a scene's edits of a sound's sources go: its ranges, the take a range records, its DX7 patch and its
 ///        transpose.
 
-#include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/sound_state.h"
 #include "midi/device_id.h"
+#include "project/instrument_slot.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>

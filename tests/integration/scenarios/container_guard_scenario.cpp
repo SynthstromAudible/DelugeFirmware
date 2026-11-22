@@ -33,8 +33,6 @@
 #include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "dsp-next/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
@@ -89,6 +87,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"

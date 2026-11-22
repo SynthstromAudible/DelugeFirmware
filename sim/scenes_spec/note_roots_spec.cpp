@@ -6,9 +6,9 @@
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
 /// not here) -- it already owns every other root's row of that same table.
 
-#include "deluge-project/device_settings.h"
 #include "gui/l10n/setting_names.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -22,13 +22,13 @@
 #include "util/menu_entry.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/sequence_direction.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
+#include "project/sequence_direction.h"
 
 #include "support/fake_note_bridge.h"
 #include "support/song_fixture.h"

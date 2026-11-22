@@ -4,8 +4,8 @@
 /// @brief The device's own settings, read by DEVICE row: for the bind dispatch, and as typed values for a scene that
 ///        branches on one.
 
-#include "deluge-project/device_settings.h"
 #include "plugin/types/setting.h"
+#include "project/device_settings.h"
 #include "scenes/bind/ports/device_settings.h"
 
 #include <cstdint>

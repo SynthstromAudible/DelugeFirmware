@@ -20,8 +20,7 @@
 #include "model/drum/expression_combine.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
-#include "foundation/panic.h"        // FREEZE_WITH_ERROR (unbound-read guard)
+#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -32,6 +31,7 @@
 #include "model/project_bridge/midi_command.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
+#include "project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"

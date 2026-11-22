@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/param_address.h"
+#include "project/param_address.h"
 #include "synth/modulation/cable.h"
 
 #include <cstdint>

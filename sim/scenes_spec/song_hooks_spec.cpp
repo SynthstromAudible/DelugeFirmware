@@ -11,8 +11,8 @@
 #include "scenes/menu/nodes/scales.h"
 #include "scenes/menu/nodes/sound_fx.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/song/song.h"
+#include "project/setting_group.h"
 
 #include "support/song_fixture.h"
 

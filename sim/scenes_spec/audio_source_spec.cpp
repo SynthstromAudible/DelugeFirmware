@@ -20,9 +20,9 @@
 /// address the *same* `AudioOutput` -- a comparison that forgot step 3 would be reading legacy's own
 /// answer back.
 
-#include "deluge-project/setting_group.h"
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/setting_group.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"

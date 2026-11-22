@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "deluge-project/codec.h"
-#include "deluge-project/containers.h"
+#include "project/codec.h"
+#include "project/containers.h"
 #include "support/printers/expected_printer.h"
 
 #include <expected>

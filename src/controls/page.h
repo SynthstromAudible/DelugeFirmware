@@ -21,8 +21,8 @@
 /// @brief The pages the gold knobs are on, as the controls read them: an owner's published pages, their params as
 ///        targets in the owner's spaces.
 
-#include "deluge-project/param_address.h"
 #include "plugin/types/remote_controls.h"
+#include "project/param_address.h"
 
 #include <array>
 #include <cstdint>

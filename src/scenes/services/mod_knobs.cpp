@@ -25,9 +25,9 @@
 #include "controls/knob_math.h"
 #include "controls/pages.h"
 #include "controls/section.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/song.h"
 #include "plugin/types/display_mapping.h"
+#include "project/device_settings.h"
+#include "project/song.h"
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/knob_assignment.h"

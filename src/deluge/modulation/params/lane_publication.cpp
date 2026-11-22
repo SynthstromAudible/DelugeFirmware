@@ -17,7 +17,6 @@
 
 #include "modulation/params/lane_publication.h"
 
-#include "deluge-project/edit_guard.h"
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/heaps.h"
@@ -34,6 +33,7 @@
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
 #include "util/spsc_ring.h"
 
 #include <algorithm>

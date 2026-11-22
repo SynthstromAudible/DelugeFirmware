@@ -25,8 +25,8 @@
 /// below the Edit, so nothing above an Edit builds one.
 
 #include "controls/knob_focus.h"
-#include "deluge-project/param_address.h"
 #include "plugin/types/param_kind.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

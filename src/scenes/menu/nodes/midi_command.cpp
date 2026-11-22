@@ -35,9 +35,9 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_channels.h"
-#include "deluge-project/midi_command.h"
+#include "project/device_settings.h"
+#include "project/midi_channels.h"
+#include "project/midi_command.h"
 
 #include <charconv>
 #include <cstddef>
@@ -135,7 +135,7 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// Row 1: the channel or MPE zone. `Command::drawPixelsForOled`
 		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). The "great CC channel hack" is that
 		// `channel_or_zone` carries the message type in its high range (`kFirstCcChannel`, `kFirstProgramChangeChannel`
-		// -- `deluge-project/midi_command.h`), so the printed channel is the stored value minus whichever band it falls
+		// -- `project/midi_command.h`), so the printed channel is the stored value minus whichever band it falls
 		// in, plus one for 1-based display.
 		//
 		// The two MPE-zone arms are live, not defensive: `PlaybackHandler::noteMessageReceived`

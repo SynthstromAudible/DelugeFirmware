@@ -29,9 +29,9 @@
 /// what the render wrote is copied into the model.
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_address.h"
-#include "deluge-project/param_node.h"
 #include "modulation/automation/lane_command.h"
+#include "project/param_address.h"
+#include "project/param_node.h"
 #include <cstddef>
 #include <cstdint>
 

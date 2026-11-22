@@ -16,9 +16,6 @@
  */
 
 #include "modulation/params/param_set.h"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -44,6 +41,9 @@
 #include "plugin/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"

@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/param_address.h"
 #include "foundation/function_ref.h"
 #include "instruments/deluge/pages.h"
 #include "model/fx/effects_owner.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin/types/param.h"
+#include "project/controller_mapping.h"
+#include "project/param_address.h"
 
 #include <array>
 #include <optional>

@@ -13,7 +13,6 @@
 #include "plugin/types/arp.h"
 #include "plugin/types/setting.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/setting_names.h"
 #include "gui/l10n/short_label.h"
@@ -36,6 +35,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 #include "scenes/menu/context.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.

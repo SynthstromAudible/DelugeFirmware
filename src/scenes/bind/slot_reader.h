@@ -3,9 +3,9 @@
 /// @file
 /// @brief A sound's settings, read by its slot's address.
 
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/song.h"
 #include "plugin/types/setting.h"
+#include "project/instrument_slot.h"
+#include "project/song.h"
 #include "scenes/bind/ports/sound_facts.h"
 
 #include <cstdint>

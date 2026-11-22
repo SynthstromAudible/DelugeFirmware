@@ -17,9 +17,9 @@
 
 #include "gui/l10n/setting_names.h"
 
-#include "deluge-project/device_settings.h"
 #include "effects/host_chain/params.h"
 #include "instruments/deluge/params.h"
+#include "project/device_settings.h"
 
 #include <algorithm>
 #include <array>

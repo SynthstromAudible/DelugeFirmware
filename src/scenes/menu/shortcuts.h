@@ -13,7 +13,7 @@
 /// `std::span<const uint16_t>` layers) could not hold five 16x8 tables of *node pointers* plus two
 /// one-dimensional ones selected by context, so the tables live here.
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/menu/context.h"
 
 #include <cstdint>

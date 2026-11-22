@@ -17,13 +17,13 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 
-#include "deluge-project/param_automation.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_automation.h"
 
 #include "support/menu_context.h"
 #include "support/menu_engine.h"

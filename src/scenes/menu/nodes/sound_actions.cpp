@@ -21,8 +21,8 @@
 
 #include "scenes/menu/nodes/sound_actions.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/setting_names.h"
+#include "project/setting_group.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"

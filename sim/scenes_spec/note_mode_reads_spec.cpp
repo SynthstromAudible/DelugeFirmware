@@ -23,7 +23,6 @@
 #include "util/note_editor_open.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/sequence_direction.h"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/shell_pad_forward.h" // wireShellNoteBridge
@@ -47,6 +46,7 @@
 #include "notify/notice_queue.h"
 #include "playback/mode/session.h"
 #include "processing/sound/sound_drum.h"
+#include "project/sequence_direction.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"

@@ -94,9 +94,9 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
-#include "deluge-project/device_settings.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
+#include "project/device_settings.h"
 
 #include <array>
 #include <cstdint>

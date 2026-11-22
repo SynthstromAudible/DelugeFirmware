@@ -78,7 +78,6 @@
 #include "shell/scene_stack.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -107,6 +106,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "storage/flash_storage.h"

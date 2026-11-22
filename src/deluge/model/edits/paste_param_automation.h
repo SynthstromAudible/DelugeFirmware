@@ -1,8 +1,8 @@
 #pragma once
 
-#include "deluge-project/param_address.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_param_value.h"
+#include "project/param_address.h"
 #include <cstdint>
 
 class CopiedParamAutomation;

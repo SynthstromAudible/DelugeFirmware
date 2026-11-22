@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "deluge-project/lane_view.h"
 #include "foundation/function_ref.h"
 #include "modulation/params/param.h"
+#include "project/lane_view.h"
 
 #include <atomic>
 #include <cstdint>

@@ -13,7 +13,6 @@
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_randomizer.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
@@ -21,6 +20,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 
 #include "support/song_fixture.h"
 

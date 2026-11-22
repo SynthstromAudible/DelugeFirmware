@@ -4,13 +4,13 @@
 /// @brief A project::Song with a synth track and a sound kit row, each with an instrument slot, and fake ports
 /// holding each sound's typed state.
 
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "effects/state.h"
 #include "fakes.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/fx_chain.h"
+#include "project/instrument_slot.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "scenes/bind/ports/ports.h"
 
 #include <cstdint>

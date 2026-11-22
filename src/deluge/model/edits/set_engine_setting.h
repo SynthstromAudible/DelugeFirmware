@@ -1,8 +1,8 @@
 #pragma once
 
-#include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/codec.h"
 #include "model/edits/edit.h"
+#include "project/instrument_slot.h"
 #include "serialization/value.h"
 
 #include <expected>

@@ -21,10 +21,10 @@
 /// @brief MIDI follow: which param a followed CC names on the clip the knobs point at, as an address.
 
 #include "controls/knob_focus.h"
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
 #include "plugin/types/param_kind.h"
 #include "plugin/types/plugin_id.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

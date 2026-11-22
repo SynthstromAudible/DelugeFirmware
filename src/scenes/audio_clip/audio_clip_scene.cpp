@@ -32,15 +32,15 @@
 
 #include "scenes/bind/ports/waveforms.h"
 
-#include "deluge-project/audio_input.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
-#include "deluge-project/track_kind.h"
 #include "gfx/grid/exp_table.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
+#include "project/audio_input.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/setting_group.h"
+#include "project/song.h"
+#include "project/track_kind.h"
 #include "scenes/services/waveform_paint.h"
 #include "serialization/tree.h"
 

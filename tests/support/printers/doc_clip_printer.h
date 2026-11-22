@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/doc_clip.h"
+#include "project/doc_clip.h"
 #include "support/printers/arp_record_printer.h"
 #include "support/printers/optional_printer.h"
 

@@ -205,7 +205,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/foundation", "libdeluge_foundation.a"),
         ("src/serialization", "libdeluge_serialization.a"),
         ("src/music", "libdeluge_music.a"),
-        ("src/deluge-project", "libdeluge_project.a"),
+        ("src/project", "libdeluge_project.a"),
         ("src/controls", "libdeluge_controls.a"),
         ("src/instruments/deluge", "libdeluge_instrument.a"),
         ("src/effects", "libdeluge_effects.a"),

@@ -21,7 +21,7 @@
 
 #include <span>
 
-#include "deluge-project/param_automation.h"
+#include "project/param_automation.h"
 
 #include <cstdint>
 #include <span>

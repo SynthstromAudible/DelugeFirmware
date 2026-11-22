@@ -20,8 +20,8 @@
 // A model MIDI command names its device by reference; these resolve it to the live cable, match incoming MIDI with
 // LearnedMIDI's rule, and convert to and from the LearnedMIDI that MIDI learn writes into.
 
-#include "deluge-project/midi_command.h"
 #include "io/midi/learned_midi.h"
+#include "project/midi_command.h"
 
 #include <cstdint>
 #include <optional>

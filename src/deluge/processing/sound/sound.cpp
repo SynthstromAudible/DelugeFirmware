@@ -19,8 +19,6 @@
 
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/sound_routing_codec.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/pitch/fine_tune.h"
@@ -87,6 +85,8 @@
 #include "processing/sound/param_manager_view.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_automation.h"
+#include "project/sound_routing_codec.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_wave_table_range.h"

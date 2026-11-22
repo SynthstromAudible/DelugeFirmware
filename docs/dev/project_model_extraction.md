@@ -2,7 +2,7 @@
 
 Status: **Phases 0–2 done; Phase 3 active** — updated 2026-06-25
 (Phase 1 view-state carve-out + Phase 2 component extraction landed on branch
-`deluge-project`, host-sim + golden x86 green, arm-none-eabi firmware builds;
+`project`, host-sim + golden x86 green, arm-none-eabi firmware builds;
 hardware test pending before merge.)
 
 ## Goal
@@ -102,7 +102,7 @@ the engine never depends on the concrete model type.
 - **Phase 2 — Extract the project model into a new `deluge_project` library.**
   ✅ **DONE** (structural move complete; host-sim build + golden x86 corpus green
   OK=15, arm-none-eabi firmware builds + links clean; hardware test pending
-  before merge). Created `src/deluge-project/` (target `deluge_project`,
+  before merge). Created `src/project/` (target `deluge_project`,
   namespace `deluge::project`) — the boundary for the modern, idiomatic, OO
   C++23 project model, mirroring the synth work's clean library (`deluge_dsp` is
   the structural precedent). The serialized project data **is** the model: moved

@@ -17,7 +17,6 @@
 
 #include "modulation/params/staged_repeat.h"
 
-#include "deluge-project/param_edit.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_array.h"
 #include "model/clip/instrument_clip.h"
@@ -31,6 +30,7 @@
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
+#include "project/param_edit.h"
 
 #include <atomic>
 

@@ -3,10 +3,10 @@
 /// @file
 /// @brief The SettingContext a menu passes for a sound, built from its slot's address, or for a chain.
 
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/song.h"
 #include "plugin/types/setting.h"
+#include "project/fx_chain.h"
+#include "project/instrument_slot.h"
+#include "project/song.h"
 #include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/target.h"

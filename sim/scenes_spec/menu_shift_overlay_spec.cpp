@@ -2,8 +2,8 @@
 /// @brief The SHIFT shortcut colour overlay under a sound menu: when it shows, what it paints, and that it takes and
 ///        gives back the main pads and the greyout with SHIFT, as `main`'s `SoundEditor::renderMainPads` does.
 
-#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"

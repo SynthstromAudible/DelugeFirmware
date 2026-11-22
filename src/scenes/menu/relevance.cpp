@@ -34,12 +34,12 @@
 
 #include "scenes/menu/context.h"
 
-#include "deluge-project/audio_input.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
+#include "project/audio_input.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/waveforms.h"
 

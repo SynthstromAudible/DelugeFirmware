@@ -20,10 +20,10 @@
 // it; and a structural edit excludes the render exactly as AudioExcludedSection does, reporting to the
 // structural-edit probe.
 
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/model_memory.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
+#include "project/edit_guard.h"
+#include "project/model_memory.h"
 #include "util/exceptions.h"
 #include "util/structural_edit_probe.h"
 

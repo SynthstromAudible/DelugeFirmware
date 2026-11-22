@@ -6,7 +6,6 @@
 
 #include "ui/oled/popup.h"
 
-#include "deluge-project/midi_command.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
@@ -15,6 +14,7 @@
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
 #include "plugin/types/param.h"
+#include "project/midi_command.h"
 
 #include <algorithm>
 #include <cstdio>

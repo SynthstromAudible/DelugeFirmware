@@ -17,9 +17,6 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h" // the DOM kernels the engine edit ops forward to
 #include "dsp-next/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
@@ -53,6 +50,9 @@
 #include "playback/playback_handler.h"
 #include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h" // the DOM kernels the engine edit ops forward to
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include "util/functions.h"

@@ -24,9 +24,9 @@
 #include "controls/facts.h"
 #include "controls/sink.h"
 #include "controls/takeover.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/param_address.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

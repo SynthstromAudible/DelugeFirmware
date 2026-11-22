@@ -1,7 +1,7 @@
 // clang-format off
 #include "board_controls.hpp"
 #include "controls/knob_focus.h"
-#include "deluge-project/song.h"
+#include "project/song.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/owner_id_printer.h"
 #include <cppspec.hpp>

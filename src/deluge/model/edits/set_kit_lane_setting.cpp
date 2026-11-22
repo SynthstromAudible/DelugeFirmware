@@ -1,6 +1,5 @@
 #include "model/edits/set_kit_lane_setting.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_setting.h"
 #include "model/instrument/kit.h"
@@ -10,6 +9,7 @@
 #include "model/song/song.h"
 #include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 
 namespace deluge::edits {
 

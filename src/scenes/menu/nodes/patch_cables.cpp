@@ -38,7 +38,6 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "deluge-project/device_settings.h"
 #include "gui/l10n/param_names.h"
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/cable_codec.h"
@@ -46,6 +45,7 @@
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "plugin/types/param_mapping.h"
+#include "project/device_settings.h"
 #include "synth/modulation/cable.h"
 
 #include <algorithm>

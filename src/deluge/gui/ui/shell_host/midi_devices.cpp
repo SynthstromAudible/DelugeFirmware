@@ -1,8 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
@@ -12,6 +10,8 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/project_bridge/midi_command.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
 
 #include <cstddef>
 #include <optional>

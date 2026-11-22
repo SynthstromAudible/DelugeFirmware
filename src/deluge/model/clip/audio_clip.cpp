@@ -18,12 +18,12 @@
 #include "model/clip/audio_clip.h"
 #include "clip.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "model/fx/chain_codec.h"
 #include "model/fx/chain_params.h"
 #include "model/sample/clip_increment.h"
 #include "modulation/params/staged_repeat.h"
+#include "project/doc_audio_clip.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
 // `model/sample/`: `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`

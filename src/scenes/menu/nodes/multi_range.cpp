@@ -19,10 +19,10 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
-#include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "music/note_names.h"
+#include "project/song.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -35,7 +35,7 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/bind/device_reader.h"
 
 #include <algorithm>

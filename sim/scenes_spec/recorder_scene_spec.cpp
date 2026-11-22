@@ -58,7 +58,6 @@
 #include "ui/core/led_frame.h"
 #include "ui/core/metrics.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "hid/button.h"
 #include "hid/display/display.h"
@@ -79,6 +78,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/setting_group.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"

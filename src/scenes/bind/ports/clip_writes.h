@@ -3,7 +3,7 @@
 /// @file
 /// @brief Where a scene's edits of a clip go: requests the host applies as undoable steps where the edit is one.
 
-#include "deluge-project/clip_address.h"
+#include "project/clip_address.h"
 
 #include <cstdint>
 #include <string_view>

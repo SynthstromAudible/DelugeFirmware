@@ -379,8 +379,8 @@ SYNTH_RULE = textwrap.dedent(
     [[rule]]
     name = "synth-boundary"
     files = ["src/synth/**"]
-    pattern = '^(model|gui|util|deluge-project)/'
-    allow = ["util/misc.h", "deluge-project/drum_type.h"]
+    pattern = '^(model|gui|util|project)/'
+    allow = ["util/misc.h", "project/drum_type.h"]
     transitive = true
     reason = "the synth reaches no app layer, directly or through another header"
     """
@@ -423,10 +423,10 @@ class TransitiveRules(unittest.TestCase):
         self.repo.plant("src/synth/a.h", '#include "synth/b.h"\n')
         self.repo.plant(
             "src/synth/b.h",
-            '#include "util/misc.h"\n#include "deluge-project/drum_type.h"\n',
+            '#include "util/misc.h"\n#include "project/drum_type.h"\n',
         )
         self.repo.plant("src/deluge/util/misc.h", "#pragma once\n")
-        self.repo.plant("src/deluge-project/drum_type.h", "#pragma once\n")
+        self.repo.plant("src/project/drum_type.h", "#pragma once\n")
         self.assertEqual(self.reached("src/synth/a.h"), {})
 
     def test_an_unresolved_forbidden_include_is_counted_as_written(self):
@@ -601,13 +601,13 @@ class RealTable(unittest.TestCase):
             self.library_found("plugin", '#include "serialization/value.h"\n'), []
         )
         self.assertEqual(
-            len(self.library_found("plugin", '#include "deluge-project/song.h"\n')),
+            len(self.library_found("plugin", '#include "project/song.h"\n')),
             1,
         )
 
     def test_controls_may_use_the_model_and_plugin_api_but_not_instruments(self):
         self.assertEqual(
-            self.library_found("controls", '#include "deluge-project/song.h"\n'), []
+            self.library_found("controls", '#include "project/song.h"\n'), []
         )
         self.assertEqual(
             self.library_found("controls", '#include "plugin/plugin.h"\n'), []

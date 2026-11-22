@@ -1,7 +1,7 @@
 #pragma once
 
 // An automation point is model data (deluge_project); this keeps the app's existing includes working.
-#include "deluge-project/param_node.h"
+#include "project/param_node.h"
 
 using deluge::project::ParamNode;
 

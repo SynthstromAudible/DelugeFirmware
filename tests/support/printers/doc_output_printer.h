@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "deluge-project/doc_audio_clip.h"
-#include "deluge-project/doc_drum.h"
-#include "deluge-project/doc_output.h"
-#include "deluge-project/instrument_slot.h"
+#include "project/doc_audio_clip.h"
+#include "project/doc_drum.h"
+#include "project/doc_output.h"
+#include "project/instrument_slot.h"
 #include "support/printers/arp_record_printer.h"
 #include "support/printers/controller_mapping_printer.h"
 #include "support/printers/fx_chain_printer.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "definitions.h" // ALPHA_OR_BETA_VERSION
-#include "deluge-project/param_address.h"
+#include "project/param_address.h"
 #include <optional>
 
 class ModelStackWithAutoParam;

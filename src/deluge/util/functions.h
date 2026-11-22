@@ -19,10 +19,10 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/track_kind.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
+#include "project/track_kind.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage

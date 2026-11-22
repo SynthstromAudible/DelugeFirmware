@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/fx_chain.h"
 #include "model/edits/edit.h"
+#include "project/fx_chain.h"
 #include "serialization/value.h"
 
 #include <string>

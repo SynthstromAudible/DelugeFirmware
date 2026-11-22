@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "deluge-project/controller_mapping.h"
 #include "model/fx/effects_owner.h"
+#include "project/controller_mapping.h"
 #include "serialization/value.h"
 
 #include <cstdint>

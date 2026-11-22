@@ -19,7 +19,6 @@
 
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
 #include "memory/stack_guard.h"
 #include "model/fx/channel_setup.h"
@@ -38,6 +37,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/voice_budget.h"
 #include "processing/sound/source_resources.h"
+#include "project/instrument_slot.h"
 #include "serialization/value.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"

@@ -6,7 +6,6 @@
 #include "instruments/deluge/cable_acceptance.h"
 #include "scenes/menu/bind_host.h"
 
-#include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
@@ -17,6 +16,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/instrument_slot.h"
 
 #include "support/song_fixture.h"
 

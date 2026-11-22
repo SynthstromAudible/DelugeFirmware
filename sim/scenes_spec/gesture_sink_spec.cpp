@@ -8,7 +8,6 @@
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "model/action/action.h"
@@ -23,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 
 #include "support/printers/sound_record_printer.h"
 #include "support/slot_record.h"

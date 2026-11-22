@@ -1,10 +1,10 @@
 #include "model/edits/audio_input_for.h"
 
-#include "deluge-project/audio_input.h"
 #include "model/edits/setting_edit.h"
 #include "model/output.h"
 #include "notify/dirty_set.h"
 #include "processing/audio_output.h"
+#include "project/audio_input.h"
 #include "util/misc.h"
 
 #include <string>

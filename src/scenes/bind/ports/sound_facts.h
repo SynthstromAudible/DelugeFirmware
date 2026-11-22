@@ -4,11 +4,11 @@
 /// @brief What a scene reads of a sound that its record does not hold: what the card has loaded into it, its
 ///        engine's typed state, its patch cables, its ranges' identities, and the DX7 bank last read.
 
-#include "deluge-project/clip_address.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/param_address.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/clip_address.h"
+#include "project/instrument_slot.h"
+#include "project/param_address.h"
 
 #include <array>
 #include <cstddef>

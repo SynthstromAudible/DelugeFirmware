@@ -10,8 +10,8 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
 
-#include "deluge-project/device_settings.h"
 #include "notify/dirty_set.h"
+#include "project/device_settings.h"
 
 #include "support/fake_menu_shell.h"
 

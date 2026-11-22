@@ -19,7 +19,6 @@
 #include "instruments/deluge/state_access.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
@@ -37,6 +36,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/multi_range/multisample_range.h"
 

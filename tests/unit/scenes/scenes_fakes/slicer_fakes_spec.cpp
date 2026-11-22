@@ -5,7 +5,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "sample-view/view.h"
 #include "scenes/browser/browser_kind.h"
 #include "scenes/services/peak_retry.h"

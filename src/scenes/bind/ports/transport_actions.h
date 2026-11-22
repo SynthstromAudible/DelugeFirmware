@@ -4,7 +4,7 @@
 /// @brief What a scene asks the transport to do: the PLAY, RECORD, TAP TEMPO and tempo-encoder actions, undo, the
 ///        output recording, fill and the tempo grab.
 
-#include "deluge-project/clip_address.h"
+#include "project/clip_address.h"
 
 namespace deluge::scenes::bind {
 

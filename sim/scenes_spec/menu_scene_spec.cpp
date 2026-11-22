@@ -11,8 +11,8 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `bindings_spec.cpp` runs under.
 
-#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bind_host.h"

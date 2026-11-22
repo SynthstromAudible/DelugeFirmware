@@ -7,7 +7,6 @@
 
 #include "sample-view/view.h"
 
-#include "deluge-project/device_settings.h"
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
@@ -23,6 +22,7 @@
 #include "io/usb/usb_audio.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "project/device_settings.h"
 #include "storage/flash_storage.h"
 
 #include "dsp-next/core/stereo_sample.h"

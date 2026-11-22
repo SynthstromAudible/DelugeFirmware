@@ -37,9 +37,9 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "deluge-project/song.h"
 #include "notify/dirty_set.h"
 #include "plugin/types/display_mapping.h"
+#include "project/song.h"
 
 namespace deluge::scenes::menu::nodes {
 

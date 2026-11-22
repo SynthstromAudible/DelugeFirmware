@@ -4,11 +4,11 @@
 /// @brief `FakeHostRig`: the menu's context over a fake of every port and a model song of its own, for a spec that
 ///        drives a menu page with no legacy song and no host behind it.
 
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/instrument_slot.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"

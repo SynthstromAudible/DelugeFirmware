@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/sound_state.h"
+#include "project/instrument_slot.h"
 
 #include <expected>
 #include <optional>

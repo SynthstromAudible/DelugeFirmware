@@ -59,7 +59,7 @@
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
 ///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/bind/device_reader.h"
 #include "shell/scene.h"
 

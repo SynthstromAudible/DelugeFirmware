@@ -1,8 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_engine.h"
@@ -12,6 +10,8 @@
 #include "model/output.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/song/song.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
 
 #include <optional>
 #include <utility>

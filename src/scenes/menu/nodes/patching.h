@@ -4,7 +4,7 @@
 /// @brief The patching questions the cable pages and the shortcut blinks both ask: may a source modulate a
 ///        destination, is it patched to it, and which source a patching-source pad names.
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "scenes/menu/context.h"
 #include "synth/modulation/cable.h"
 

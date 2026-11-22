@@ -20,8 +20,6 @@
 #include "model/fx/chain_params.h"
 #include <cstdio>
 
-#include "deluge-project/param_edit.h" // setNodeAtPos
-#include "deluge-project/song.h"       // deluge::project::Song::resolveParam (equivalence spec)
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -41,6 +39,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "project/param_edit.h" // setNodeAtPos
+#include "project/song.h"       // deluge::project::Song::resolveParam (equivalence spec)
 #include "scenarios/gold_knob_gestures.h"
 #include <array>
 #include <cstring>
@@ -51,7 +51,6 @@
 #include <utility>
 #include <vector>
 
-#include "deluge-project/instrument_slot.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/dx7_init_voice.h"
@@ -83,6 +82,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/instrument_slot.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"
@@ -401,7 +401,7 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 }
 
 // Characterizes what the in-line poke does to the engine cursor AND the model store
-// (deluge-project DocAutoParam) for a SCALAR edit and a REGION edit, driven through the real
+// (project DocAutoParam) for a SCALAR edit and a REGION edit, driven through the real
 // deluge::edits::apply. This PINS the {engine cursor, model current_value, model nodes} transition
 // ParamSnapshot::applyPatch must reproduce, on the harness audio clip's own param (a real Clip: homogenizeRegion
 // casts the timeline counter to read getCurrentlyRecordingLinearly()).

@@ -21,7 +21,7 @@
 /// @brief MIDI takeover: where a controller's value moves a knob, as a pure function of the knob, the value, the global
 ///        mode and what the controller last sent.
 
-#include "deluge-project/mapping_table.h"
+#include "project/mapping_table.h"
 
 #include <cstddef>
 #include <cstdint>

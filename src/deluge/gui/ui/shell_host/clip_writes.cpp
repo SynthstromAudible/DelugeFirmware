@@ -1,7 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -12,6 +11,7 @@
 #include "model/edits/set_setting.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 
 #include <string>

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/fx_chain.h"
+#include "project/fx_chain.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>

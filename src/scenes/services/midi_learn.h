@@ -11,7 +11,7 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule), and learning writes through the scenes' ports and
 /// reads the song's record: the song's mapping table binds a section's launch, a clip's or kit row's mute, and a kit
 /// row's or track's input, and the device keeps the PLAY, RECORD and TAP TEMPO commands. Both are written through the
@@ -133,11 +133,11 @@
 #include "scenes/bind/ports/ports.h"
 #include "scenes/services/learn_mode.h"
 
-#include "deluge-project/clip_address.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
 #include "midi/device_id.h"
+#include "project/clip_address.h"
+#include "project/device_settings.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
 
 #include "ui/core/led_frame.h"
 

@@ -28,12 +28,12 @@
 #include "gui/l10n/short_label.h"
 #include "ui/oled/list.h"
 
-#include "deluge-project/song.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "music/note_length.h"
 #include "plugin/types/display_mapping.h"
+#include "project/song.h"
 #include "scenes/menu/bindings.h"
 #include "ui/oled/columns.h"
 #include "ui/oled/meters.h"

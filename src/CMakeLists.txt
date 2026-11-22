@@ -10,7 +10,7 @@ add_subdirectory(effects/host_chain) # deluge_host_chain: the host chain's param
 add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mapping
 add_subdirectory(sample-view) # deluge_sample_view: a waveform view's columns, peaks and navigation
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
-add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
+add_subdirectory(project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
 add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives

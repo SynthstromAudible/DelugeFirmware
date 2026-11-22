@@ -25,7 +25,6 @@
 #include "scenes/menu/menu_scene.h" // node_text, for the formatted names the level columns cut
 #include "scenes/menu/nodes/nodes.h"
 
-#include "deluge-project/song.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/effect_names.h"
@@ -35,6 +34,7 @@
 #include "instruments/deluge/words.h"
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
+#include "project/song.h"
 
 #include <algorithm>
 #include <array>

@@ -57,10 +57,10 @@
 
 #include "scenes/menu/node.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/track_kind.h"
 #include "instruments/deluge/state_access.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/track_kind.h"
 
 #include <array>
 #include <iterator>

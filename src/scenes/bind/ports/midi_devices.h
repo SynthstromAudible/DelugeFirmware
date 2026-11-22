@@ -3,9 +3,9 @@
 /// @file
 /// @brief The MIDI devices the menu lists, their names, and the settings each keeps for itself.
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
 #include "midi/device_id.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
 
 #include <array>
 #include <cstdint>

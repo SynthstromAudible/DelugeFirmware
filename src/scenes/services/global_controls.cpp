@@ -31,10 +31,10 @@
 
 #include "shell/input_lowering.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/song.h"
 
 #include <cstddef>
 #include <cstdint>

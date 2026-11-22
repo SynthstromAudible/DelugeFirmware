@@ -27,11 +27,11 @@
 #include "sample-view/divide.h"
 #include "sample-view/view.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
+#include "project/device_settings.h"
+#include "project/setting_group.h"
+#include "project/song.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

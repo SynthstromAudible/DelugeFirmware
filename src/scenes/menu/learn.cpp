@@ -26,8 +26,8 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_core.h"
 
-#include "deluge-project/song.h"
 #include "instruments/deluge/cables.h"
+#include "project/song.h"
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"

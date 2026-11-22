@@ -4,7 +4,7 @@
 #include "controls/pages.h"
 #include "controls/resolve.h"
 #include "controls/section.h"
-#include "deluge-project/song.h"
+#include "project/song.h"
 #include "effects/host_chain/pages.h"
 #include "instruments/deluge/pages.h"
 #include "plugin/plugin.h"

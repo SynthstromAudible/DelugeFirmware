@@ -5,8 +5,8 @@
 ///        MIDI or gate drum selected; and every column of the kit's own arp and randomizer pages by the selected drum's
 ///        kind and the arp's mode.
 
-#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"

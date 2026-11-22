@@ -1,6 +1,6 @@
 #include "fakes.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 
 #include <algorithm>
 #include <array>

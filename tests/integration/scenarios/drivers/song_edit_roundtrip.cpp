@@ -15,9 +15,6 @@
 //
 // Exit: 0 = edit persisted; 1 = load error; 2 = usage/IO; 3 = edit not applied / not persisted.
 
-#include "deluge-project/codec.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/state_rules.h"
@@ -45,6 +42,9 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/codec.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/storage_manager.h"
 #include "support/record_state.h"
 

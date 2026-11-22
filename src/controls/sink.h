@@ -22,13 +22,13 @@
 ///        no Edit and no engine object.
 
 #include "controls/knob_focus.h"
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/setting_group.h"
+#include "project/controller_mapping.h"
+#include "project/fx_chain.h"
+#include "project/instrument_slot.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
+#include "project/param_address.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 
 #include <cstdint>

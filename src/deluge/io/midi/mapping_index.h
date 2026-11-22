@@ -19,11 +19,11 @@
 
 #include "controls/takeover.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
 #include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
 #include "util/containers.h"
 
 #include <algorithm>

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "deluge-project/cv_mode.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
+#include "project/cv_mode.h"
 
 class ParamManagerForTimeline;
 class ModelStackWithThreeMainThings;

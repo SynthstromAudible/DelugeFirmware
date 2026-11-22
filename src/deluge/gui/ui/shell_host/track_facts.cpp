@@ -1,5 +1,4 @@
 #include "definitions_cxx.hpp"
-#include "deluge-project/track_kind.h"
 #include "effects/plugin.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "model/clip/instrument_clip.h"
@@ -12,6 +11,7 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
+#include "project/track_kind.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 

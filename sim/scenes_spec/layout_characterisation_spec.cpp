@@ -28,8 +28,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/controls_codec.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "instruments/deluge/naming.h"
@@ -55,6 +53,8 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/controller_mapping.h"
+#include "project/controls_codec.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
 #include "serialization/value.h"
 #include "storage/storage_manager.h"

@@ -30,9 +30,9 @@
 
 #include "gfx/oled/icons.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/song.h"
 #include "music/preset_scales.h"
+#include "project/device_settings.h"
+#include "project/song.h"
 #include "scenes/bind/device_reader.h"
 
 #include <algorithm>

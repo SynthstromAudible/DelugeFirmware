@@ -17,8 +17,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
 #include "instruments/deluge/mod_matrix.h"
+#include "project/param_automation.h"
 
 #include <cstddef>
 #include <optional>

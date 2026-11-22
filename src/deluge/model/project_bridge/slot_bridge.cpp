@@ -23,7 +23,6 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 
-#include "deluge-project/structure_codec.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/settings.h"
@@ -37,6 +36,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/structure_codec.h"
 #include "serialization/tree.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"

@@ -24,7 +24,6 @@
 // and a ring-mod sound's sample oscillator loads as a wavetable one. A kit's affect-entire leg sets one path on all its
 // sound drums at once. Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails (printed).
 
-#include "deluge-project/instrument_slot.h"
 #include "extern.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
@@ -49,6 +48,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/instrument_slot.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"

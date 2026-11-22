@@ -18,10 +18,10 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/song.h"
-#include "deluge-project/track_kind.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
+#include "project/song.h"
+#include "project/track_kind.h"
 
 #include <cstddef>
 #include <cstdint>

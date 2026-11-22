@@ -1,10 +1,8 @@
 #include "model/edits/set_param_value.h"
 #include "model/edits/edit_cable.h"
 
-#include "deluge-project/param_automation.h" // DocAutoParam::nodes
-#include "deluge-project/song.h"             // Song::resolveParam
-#include "gui/ui/ui.h"                       // getRootUI
-#include "gui/views/automation_view.h"       // automationView interpolation flags
+#include "gui/ui/ui.h"                 // getRootUI
+#include "gui/views/automation_view.h" // automationView interpolation flags
 #include "io/debug/log.h"
 #include "model/action/action.h" // recordParamChangeIfNotAlreadySnapshotted (region undo snapshot)
 #include "model/action/action_logger.h"
@@ -21,6 +19,8 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "project/param_automation.h" // DocAutoParam::nodes
+#include "project/song.h"             // Song::resolveParam
 
 namespace deluge::edits {
 

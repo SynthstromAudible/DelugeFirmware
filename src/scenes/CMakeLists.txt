@@ -3,7 +3,7 @@
 # protocol library), the standard library, and -- being the first model-aware layer --
 # model/**, modulation/**, playback/**, processing/**, storage/**, io/**, gui/l10n/**, and the
 # model's words and values: engines/**, plugin/**, serialization/**, sequence/**,
-# music/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes to
+# music/**, and the model's records: project/** (scenes/bind binds menu nodes to
 # them). Never gui/ otherwise, never hid/.
 #
 # Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no

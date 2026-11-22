@@ -5,9 +5,9 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/midi_command.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
 #include "midi/device_id.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
 
 #include "fakes.h"
 

@@ -4,7 +4,7 @@
 /// @brief What a scene reads of a clip that its record does not hold: its engine's play state and position, and the
 ///        view state the clip keeps.
 
-#include "deluge-project/clip_address.h"
+#include "project/clip_address.h"
 
 #include <cstdint>
 #include <optional>

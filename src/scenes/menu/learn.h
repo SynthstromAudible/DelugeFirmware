@@ -4,7 +4,7 @@
 /// @brief The menu's MIDI learn: learn mode, the LEARN button's arm and LED, and delivering a learned message to the
 ///        focused item -- `SoundEditor`'s learn members.
 
-#include "deluge-project/mapping_table.h"
+#include "project/mapping_table.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_state.h"
 #include "shell/scene.h"

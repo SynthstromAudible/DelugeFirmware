@@ -1,6 +1,6 @@
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/setting_names.h"
 #include "plugin/types/setting.h"
+#include "project/setting_group.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/setting_context.h"
 #include "support/model_fixture.h"

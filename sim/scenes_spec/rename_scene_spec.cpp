@@ -11,10 +11,10 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `menu_scene_spec.cpp` runs under.
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/setting_group.h"
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
+#include "project/setting_group.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"

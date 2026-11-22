@@ -31,7 +31,7 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule). The knobs read the song's record (`project::Song`)
 /// and act through the scenes' ports (`scenes/bind/`). So the shell's interface is implemented from inside the scenes
 /// library, which may see both, as `GlobalControls` and `MidiLearn` do.

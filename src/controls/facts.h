@@ -21,12 +21,12 @@
 /// @brief What a control reads that the model does not hold: the engine's live values and runtime state.
 
 #include "controls/takeover.h"
-#include "deluge-project/clip_address.h"
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/param_address.h"
 #include "plugin/types/param.h"
 #include "plugin/types/plugin_id.h"
+#include "project/clip_address.h"
+#include "project/controller_mapping.h"
+#include "project/instrument_slot.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>

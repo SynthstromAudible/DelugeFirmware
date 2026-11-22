@@ -3,10 +3,10 @@
 /// @file
 /// @brief What a scene reads of the song's tracks and owners that their records do not hold.
 
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/setting_group.h"
-#include "deluge-project/track_kind.h"
 #include "effects/state.h"
+#include "project/fx_chain.h"
+#include "project/setting_group.h"
+#include "project/track_kind.h"
 
 #include <cstdint>
 #include <vector>

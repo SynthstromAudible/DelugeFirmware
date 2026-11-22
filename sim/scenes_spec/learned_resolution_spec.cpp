@@ -4,7 +4,6 @@
 ///        learned members, and the facts a dispatch reads (the playing outputs, a kit's sound rows, the takeover's
 ///        inputs, the held step region, a param that does not exist yet).
 
-#include "deluge-project/mapping_table.h"
 #include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -36,6 +35,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/cable.h"

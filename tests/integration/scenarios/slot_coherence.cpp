@@ -20,7 +20,6 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
 
-#include "deluge-project/instrument_slot.h"
 #include "effects/codec.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/codec.h"
@@ -38,6 +37,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/instrument_slot.h"
 #include "serialization/tree.h"
 
 #include <cstdio>

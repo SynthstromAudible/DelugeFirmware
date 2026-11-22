@@ -17,11 +17,11 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "deluge-project/lane_view.h"        // deluge::project::LaneView (the lane the render plays)
-#include "deluge-project/param_automation.h" // deluge::project::DocAutoParam (held by value)
-#include "deluge-project/param_edit.h"       // deluge::project::RegionWriteResult (projectRegionFromStore)
-#include "modulation/action/action_type.h"   // ActionType (used as a default-argument value below)
+#include "modulation/action/action_type.h" // ActionType (used as a default-argument value below)
 #include "modulation/params/param_node_vector.h"
+#include "project/lane_view.h"        // deluge::project::LaneView (the lane the render plays)
+#include "project/param_automation.h" // deluge::project::DocAutoParam (held by value)
+#include "project/param_edit.h"       // deluge::project::RegionWriteResult (projectRegionFromStore)
 #include <cstdint>
 
 // model/action/action.h and storage/storage_manager.h are deliberately NOT included here: ActionType comes

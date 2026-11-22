@@ -15,7 +15,6 @@
 #include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/nodes/sound_voice.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -23,6 +22,7 @@
 #include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"

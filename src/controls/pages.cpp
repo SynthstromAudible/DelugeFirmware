@@ -17,9 +17,9 @@
 
 #include "controls/pages.h"
 
-#include "deluge-project/song.h"
 #include "foundation/panic.h"
 #include "plugin/types/plugin_id.h"
+#include "project/song.h"
 
 #include <algorithm>
 #include <cstddef>

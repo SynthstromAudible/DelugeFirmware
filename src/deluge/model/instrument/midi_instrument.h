@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h"
 #include "model/instrument/non_audio_instrument.h"
+#include "project/doc_output.h"
 #include "util/containers.h"
 #include "util/string.h"
 #include <array>

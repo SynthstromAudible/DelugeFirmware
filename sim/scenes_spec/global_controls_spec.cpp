@@ -61,10 +61,10 @@
 /// that matters is `TimelineView::buttonAction`'s final `else`
 /// (`gui/views/timeline_view.cpp`), which every root view inherits.
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/song.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/song.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"

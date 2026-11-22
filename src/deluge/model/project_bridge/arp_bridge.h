@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/arp_record.h"
+#include "project/arp_record.h"
 
 #include <cstdint>
 #include <optional>

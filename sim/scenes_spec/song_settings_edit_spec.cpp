@@ -2,9 +2,6 @@
 /// @brief `SetSetting` over a booted song: each setting group's Edit writes its record, then projects it onto the
 ///        engine object, and the `*SettingFor` helpers reach an owner outside the song through its setter alone.
 
-#include "deluge-project/setting_group.h"
-#include "deluge-project/song_codec.h"
-#include "deluge-project/structure_codec.h"
 #include "effects/reverb.h"
 #include "extern.h"
 #include "gui/ui/menu_view_of.h"
@@ -27,6 +24,9 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
+#include "project/song_codec.h"
+#include "project/structure_codec.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/roots.h"

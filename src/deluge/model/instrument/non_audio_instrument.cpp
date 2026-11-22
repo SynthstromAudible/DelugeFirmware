@@ -17,13 +17,13 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp-next/core/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
+#include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>

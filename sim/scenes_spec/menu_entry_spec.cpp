@@ -22,11 +22,11 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
-#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
+#include "project/device_settings.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/chains.h"

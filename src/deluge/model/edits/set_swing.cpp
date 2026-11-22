@@ -1,7 +1,7 @@
 #include "model/edits/set_swing.h"
 
-#include "deluge-project/song.h"
 #include "model/action/action_logger.h"
+#include "project/song.h"
 
 namespace deluge::edits {
 

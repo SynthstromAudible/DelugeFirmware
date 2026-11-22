@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/doc_output.h"
+#include "project/doc_output.h"
 
 #include <format>
 #include <ostream>

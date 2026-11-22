@@ -106,7 +106,7 @@ carries the per-device settings, and a device is a `midi::DeviceId` the host reg
 answers a waveform by its address: its info, its 16 columns at a window (each a peak, pending or past the end) and where
 a voice plays it. The scenes keep no peak cache; the host keeps each file's columns, keyed by the sample's lifetime
 serial, and the window, navigation and paint arithmetic are `src/sample-view/`'s. The device's own settings are the
-DEVICE setting group (`deluge-project/device_settings.h`), read and written by row through the `DeviceSettings` port
+DEVICE setting group (`project/device_settings.h`), read and written by row through the `DeviceSettings` port
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the settings
 root closes, never on a write. The ports speak `project::`, `plugin::`, `instrument::`, `effects::`, `controls::`,
 `midi::` and `sample_view::` words only. The host's implementations are in `src/deluge/gui/ui/shell_host/`; the fakes
@@ -321,7 +321,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | Lane | Worktrees | Directories owned | Collision risk |
 | --- | --- | --- | --- |
 | UI shell | Off `next`; R2, then the root-view program | `src/scenes`, `src/shell`, `gui/ui` | Scene binding tables |
-| Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/deluge-project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
+| Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
 | Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |

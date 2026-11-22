@@ -17,7 +17,6 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -30,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/move_section.h"
 #include "processing/engines/audio_engine.h"
+#include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 

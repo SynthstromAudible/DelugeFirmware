@@ -31,7 +31,7 @@
 
 #include "gui/l10n/strings.h"
 
-#include "deluge-project/setting_group.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>

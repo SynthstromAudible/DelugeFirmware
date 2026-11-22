@@ -52,7 +52,7 @@ nothing.
 * **Includes.** `scenes/`, `shell/`, `ui/`, `gfx/`, `notify/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
   `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
-  `sequence/`, `deluge-project/`, …) and three root-level headers named in that comment
+  `sequence/`, `project/`, …) and three root-level headers named in that comment
   (`definitions_cxx.hpp`, `src/deluge/deluge.h` and the generated `version.h`, each included by its bare
   name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`, `scenes-includes-gui`). The
   checker cannot see a slash-less include, so a fourth root-level header must be justified in that
@@ -779,10 +779,10 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 The device's own settings are a setting group, `project::SettingGroupId::DEVICE`, with its own owner
 (`SettingContext::Owner::DEVICE`, `project::DeviceAddress`), so no song reader evaluates a DEVICE row.
 
-* **The rows** are `project::device_table()` (`src/deluge-project/device_settings.{h,cpp}`), with their paths as
+* **The rows** are `project::device_table()` (`src/project/device_settings.{h,cpp}`), with their paths as
   typed `project::DevicePath` constants there. They cover the defaults, the pads and screen, the recording and
   sample settings, audio (input monitoring, metronome volume, USB audio), the trigger and MIDI clocks, MIDI and MIDI
-  follow, the CV and gate outputs, the community features (`deluge-project/features.h`), the play cursor, and the stem
+  follow, the CV and gate outputs, the community features (`project/features.h`), the play cursor, and the stem
   export's options. A CHOICE row's value is its choice's index; the few rows a scene branches on have a neutral
   `enum class` (`ShortcutsVersion`, `FlashCursor`, `FavouritesLayout` and `FeedbackAutomation` beside the table,
   `ShortcutOverlay` beside the features).

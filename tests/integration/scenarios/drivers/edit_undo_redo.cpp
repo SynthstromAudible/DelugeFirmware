@@ -12,10 +12,6 @@
 // no audio-engine pump). recording=OFF so the pre-log opens the Action. Assertions compare currentValue + nodes,
 // NOT doc()->current_value (undo does not restore the store scalar).
 
-#include "deluge-project/doc_audio_clip.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -80,6 +76,10 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
+#include "project/doc_audio_clip.h"
+#include "project/param_address.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "scenarios/drivers/tree_load.h"
 #include "sequence/iterance.h"
 #include "storage/storage_manager.h"

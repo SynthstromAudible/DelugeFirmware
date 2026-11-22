@@ -121,8 +121,8 @@
 #include "scenes/menu/nodes/sound_voice.h"
 #include "scenes/menu/relevance.h"
 
-#include "deluge-project/device_settings.h"
 #include "plugin/types/display_mapping.h"
+#include "project/device_settings.h"
 
 #include <span>
 

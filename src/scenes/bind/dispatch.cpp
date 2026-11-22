@@ -1,6 +1,5 @@
 #include "scenes/bind/dispatch.h"
 
-#include "deluge-project/device_settings.h"
 #include "effects/host_chain/params.h"
 #include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
@@ -8,6 +7,7 @@
 #include "instruments/deluge/settings.h"
 #include "plugin/types/plugin_id.h"
 #include "plugin/types/setting.h"
+#include "project/device_settings.h"
 #include "scenes/bind/chain_reader.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/model_reader.h"

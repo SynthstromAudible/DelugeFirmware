@@ -4,10 +4,10 @@
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
 #include "controls/sink.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
 #include "sample-view/peaks.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"

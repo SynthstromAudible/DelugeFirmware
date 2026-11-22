@@ -4,7 +4,7 @@
 
 #include "scenes/overlay/screensaver_scene.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "shell/scene.h"
 
 #include "fakes.h"

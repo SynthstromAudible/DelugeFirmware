@@ -15,7 +15,7 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule), and every arm here acts on the song through the
 /// scenes' ports and reads the song's record -- the transport, the sync-scaling clip's write, the undo history. So the
 /// shell's interface is implemented from inside the scenes library, which may see both, as `ModKnobs` and `MidiLearn`
@@ -210,7 +210,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/services/learn_mode.h"
 
-#include "deluge-project/song.h"
+#include "project/song.h"
 #include "ui/core/led_frame.h"
 
 #include "shell/scene.h"

@@ -17,9 +17,6 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -35,6 +32,9 @@
 #include "modulation/midi/midi_param.h"
 #include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include <new>

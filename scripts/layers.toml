@@ -37,7 +37,7 @@ path = "deluge"
 target = "legacy: shrinks to zero by rewrite, then is deleted"
 
 [[directory]]
-path = "deluge-project"
+path = "project"
 target = "src/project"
 
 [[directory]]
@@ -202,9 +202,9 @@ root = "src/sample-view"
 prefix = "sample-view/"
 
 [[library]]
-name = "model"
-root = "src/deluge-project"
-prefix = "deluge-project/"
+name = "project"
+root = "src/project"
+prefix = "project/"
 may_include = [
     "plugin/types/",
     # an engine's state, held without naming its type (a record owns its instrument's state)
@@ -220,7 +220,7 @@ name = "controls"
 root = "src/controls"
 prefix = "controls/"
 may_include = [
-    "deluge-project/",
+    "project/",
     "plugin/",
     "serialization/",
     "foundation/panic.h",
@@ -231,7 +231,7 @@ name = "scenes-bind"
 root = "src/scenes/bind"
 prefix = "scenes/bind/"
 may_include = [
-    "deluge-project/",
+    "project/",
     "controls/",
     "plugin/",
     "instruments/deluge/",
@@ -337,7 +337,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|deluge-project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]
@@ -394,7 +394,7 @@ reason = "the L0 kernels reach no app layer, the legacy dsp library or the platf
 [[rule]]
 name = "synth-boundary"
 files = ["src/synth/**"]
-pattern = '^(storage|model|processing|gui|playback|hid|io|dsp|bench|RZA1|bsp|drivers|memory|util|modulation|deluge-project)/'
+pattern = '^(storage|model|processing|gui|playback|hid|io|dsp|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
 allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",
@@ -403,11 +403,11 @@ allow = [
     "modulation/params/param.h",
     "modulation/sync.h",
     # the vocabulary definitions_cxx.hpp brings; synth-no-project-vocabulary keeps a synth file from naming it
-    "deluge-project/arrangement.h",
-    "deluge-project/drum_type.h",
-    "deluge-project/launch_style.h",
-    "deluge-project/midi_command.h",
-    "deluge-project/sequence_direction.h",
+    "project/arrangement.h",
+    "project/drum_type.h",
+    "project/launch_style.h",
+    "project/midi_command.h",
+    "project/sequence_direction.h",
 ]
 transitive = true
 reason = "the synth library reaches no app layer, the legacy dsp library or the platform, directly or through another header"
@@ -415,5 +415,5 @@ reason = "the synth library reaches no app layer, the legacy dsp library or the 
 [[rule]]
 name = "synth-no-project-vocabulary"
 files = ["src/synth/**"]
-pattern = '^deluge-project/'
+pattern = '^project/'
 reason = "the project vocabulary reaches the synth only through definitions_cxx.hpp"

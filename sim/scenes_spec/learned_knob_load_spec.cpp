@@ -3,7 +3,6 @@
 ///        the pitch-adjust zeroing reads them: a pitch adjust a learned knob turns keeps its preset value, whether the
 ///        knob is in the table, still on its owner before the table takes it, or handed over by a preset change.
 
-#include "deluge-project/mapping_table.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
@@ -17,6 +16,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/cable.h"
 

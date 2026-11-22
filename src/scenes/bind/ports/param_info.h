@@ -4,9 +4,9 @@
 /// @brief The descriptor rows every Deluge host's owners have: the instrument's for a sound's params, the host
 ///        chain's for a kit's, an audio track's and the song's.
 
-#include "deluge-project/param_address.h"
 #include "plugin/types/param.h"
 #include "plugin/types/plugin_id.h"
+#include "project/param_address.h"
 
 namespace deluge::scenes::bind {
 

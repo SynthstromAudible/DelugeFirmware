@@ -1,8 +1,8 @@
 #include "support/model_fixture.h"
 
-#include "deluge-project/doc_note_row.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
+#include "project/doc_note_row.h"
 #include "serialization/value.h"
 
 #include <utility>

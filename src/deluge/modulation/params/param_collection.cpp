@@ -17,7 +17,6 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_edit.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/mod_controllable/delay_type.h"
@@ -29,6 +28,7 @@
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin/types/param_mapping.h"
+#include "project/param_edit.h"
 #include <algorithm>
 #include <vector>
 

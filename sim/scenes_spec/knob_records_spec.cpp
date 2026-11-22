@@ -9,7 +9,6 @@
 
 #include "board_controls.hpp"
 #include "controls/knob_focus.h"
-#include "deluge-project/structure_codec.h"
 #include "instruments/deluge/pages.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -24,6 +23,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "processing/sound/sound.h"
+#include "project/structure_codec.h"
 #include "storage/storage_manager.h"
 
 #include "integration/scenarios/drivers/driver.h"

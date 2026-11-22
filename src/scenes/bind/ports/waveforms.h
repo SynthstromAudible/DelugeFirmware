@@ -3,8 +3,8 @@
 /// @file
 /// @brief A waveform by its address: what a scene draws a sample with, without the sample.
 
-#include "deluge-project/clip_address.h"
-#include "deluge-project/instrument_slot.h"
+#include "project/clip_address.h"
+#include "project/instrument_slot.h"
 #include "sample-view/peaks.h"
 
 #include <cstdint>
