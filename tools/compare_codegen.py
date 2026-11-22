@@ -64,11 +64,11 @@ change anywhere renumbers it. Such a code symbol is read as `name.0`, and when s
 named by their places, never merged, and a reference moved between them is a change. The symbol left unsuffixed keeps
 its name, and a data symbol's `.N` (a global split into its parts) and other suffixes (`.constprop.0`) keep their text.
 A Rust name keyed by its mangled text drops its crates' hashes (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`), because a
-moved crate changes its own hash and the hashes of the crates that depend on it, and drops the crate that instantiated a
-generic (the `<crate-root>` after a v0 name's path, read by its grammar), because LTO keeps any one crate's copy of the
-same code. Where that leaves two symbols of one image on one key, they take their instantiating crates back, and then,
-if still alike, their raw names. Names at one address (folded aliases) are one symbol and may share a key: a reference
-to either is the same.
+moved crate changes its own hash and the hashes of the crates that depend on it; the crate names stay, so one generic's
+instances from two crates stay apart. The hashes are found by a pattern on the raw text, which can also rewrite
+identifier bytes that look like one; that can only make a key differ between images (a false positive), as two symbols
+at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may share a
+key: a reference to either is the same, so an alias set that regroups between the images still pairs.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -663,166 +663,6 @@ def nm_symbols(nm_text: str) -> list[tuple[int, int, str]]:
     return found
 
 
-class RustPath:
-    """Just enough of a Rust v0 mangled name's grammar to find where its path ends: after it may come only the
-    crate that instantiated a generic, which names no part of the code. Back references are skipped, not followed."""
-
-    BASE62 = re.compile(r"[0-9a-zA-Z]*_")
-
-    def __init__(self, text: str):
-        self.text, self.at = text, 0
-
-    def peek(self) -> str:
-        return self.text[self.at : self.at + 1]
-
-    def take(self, char: str) -> bool:
-        if self.peek() == char:
-            self.at += 1
-            return True
-        return False
-
-    def base62(self) -> None:
-        m = self.BASE62.match(self.text, self.at)
-        if not m:
-            raise ValueError("base-62 number")
-        self.at = m.end()
-
-    def ident(self) -> None:
-        self.take("u")
-        m = re.compile(r"\d+").match(self.text, self.at)
-        if not m:
-            raise ValueError("identifier")
-        self.at = m.end()
-        self.take("_")
-        self.at += int(m.group(0))
-        if self.at > len(self.text):
-            raise ValueError("identifier length")
-
-    def disambiguator(self) -> None:
-        if self.take("s"):
-            self.base62()
-
-    def path(self) -> None:
-        tag = self.peek()
-        self.at += 1
-        if tag == "C":
-            self.disambiguator()
-            self.ident()
-        elif tag == "N":
-            self.at += 1  # the namespace
-            self.path()
-            self.disambiguator()
-            self.ident()
-        elif tag == "M":
-            self.disambiguator()
-            self.path()
-            self.type()
-        elif tag == "X":
-            self.disambiguator()
-            self.path()
-            self.type()
-            self.path()
-        elif tag == "Y":
-            self.type()
-            self.path()
-        elif tag == "I":
-            self.path()
-            while not self.take("E"):
-                self.generic_arg()
-        elif tag == "B":
-            self.base62()
-        else:
-            raise ValueError(f"path tag {tag!r}")
-
-    def generic_arg(self) -> None:
-        if self.take("L"):
-            self.base62()
-        elif self.take("K"):
-            self.const()
-        else:
-            self.type()
-
-    def const(self) -> None:
-        if self.take("p"):
-            return
-        if self.take("B"):
-            self.base62()
-            return
-        self.type()
-        self.take("n")
-        m = re.compile(r"[0-9a-f]*_").match(self.text, self.at)
-        if not m:
-            raise ValueError("const value")
-        self.at = m.end()
-
-    def type(self) -> None:
-        tag = self.peek()
-        if tag and tag in "abcdefhijlmnostuvxyz":
-            self.at += 1
-        elif tag in ("A",):
-            self.at += 1
-            self.type()
-            self.const()
-        elif tag in ("S", "P", "O"):
-            self.at += 1
-            self.type()
-        elif tag in ("R", "Q"):
-            self.at += 1
-            if self.take("L"):
-                self.base62()
-            self.type()
-        elif tag == "T":
-            self.at += 1
-            while not self.take("E"):
-                self.type()
-        elif tag == "F":
-            self.at += 1
-            if self.take("G"):
-                self.base62()
-            self.take("U")
-            if self.take("K") and not self.take("C"):
-                self.ident()
-            while not self.take("E"):
-                self.type()
-            self.type()
-        elif tag == "D":
-            self.at += 1
-            if self.take("G"):
-                self.base62()
-            while not self.take("E"):
-                self.path()
-                while self.take("p"):
-                    self.ident()
-                    self.type()
-            if self.take("L"):
-                self.base62()
-        elif tag == "B":
-            self.at += 1
-            self.base62()
-        else:
-            self.path()
-
-
-def rust_code_name(mangled: str) -> str:
-    """@p mangled (Rust v0) without the crate that instantiated it, if it names one, or as it is when it does not
-    parse."""
-    if not mangled.startswith("_R"):
-        return mangled
-    reader = RustPath(mangled)
-    reader.at = 2
-    try:
-        while reader.peek().isdigit():  # an encoding version
-            reader.at += 1
-        reader.path()
-    except (ValueError, IndexError):
-        return mangled
-    return (
-        mangled[: reader.at]
-        if reader.at < len(mangled) and mangled[reader.at] in "CB"
-        else mangled
-    )
-
-
 # A Rust v0 crate root's disambiguator (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`).
 RUST_CRATE_HASH = re.compile(r"Cs[0-9a-zA-Z]+_(?=\d)")
 # A Rust function's name as rustc and LLVM uniquify it in an image: `name.N`, N counted across the image.
@@ -1001,9 +841,9 @@ def moved_twins(
 def place_names(
     cxxfilt: str, nm_texts: list[str], sections: list, renames=keep, mangled=keep
 ):
-    """A rename for moved_twins(): each twin name and anchor of @p nm_texts by its renamed canonical() demangled name
-    (or, unreadable, its renamed mangled text), so that a place survives what demangling hides, such as a Rust crate's
-    hash, as the twin's key does."""
+    """A rename for moved_twins(): each twin name and anchor of @p nm_texts by its renamed mangled text without Rust
+    crate hashes and its full renamed demangled text, as demangler() keys a name it must tell apart from another of
+    the same text (overloads stay apart), so that a place survives a crate's hash or a namespace changing."""
     names = sorted(
         {
             n
@@ -1014,7 +854,10 @@ def place_names(
     )
     plain = run([cxxfilt], "\n".join(names)).splitlines() if names else []
     table = {
-        n: mangled(n) if p == n else canonical(renames(p)) for n, p in zip(names, plain)
+        n: mangled(n)
+        if p == n
+        else f"{RUST_CRATE_HASH.sub('Cs_', mangled(n))} | {renames(p)}"
+        for n, p in zip(names, plain)
     }
     return lambda name: table.get(name, name)
 
@@ -1060,20 +903,13 @@ def demangler(
                 demangled[i] = text
                 gnu_read.add(names[i])
     by_mangled = {}
-    by_crate = {}
     table = {}
     for raw, m, target, plain in zip(names, split, targets, demangled):
         if not m:
             # A Rust crate's hash follows its metadata, so a moved crate changes it and every hash that depends on
-            # it; the crate's name stays. The crate that instantiated a generic is no part of its code (LTO keeps
-            # any one crate's copy), so it is dropped first and kept only to tell two instances of one image apart.
+            # it; the crate's name stays.
             rust = stems[raw].startswith("_R")
             by_mangled[raw] = (
-                RUST_CRATE_HASH.sub("Cs_", rust_code_name(stems[raw]))
-                if rust
-                else stems[raw]
-            )
-            by_crate[raw] = (
                 RUST_CRATE_HASH.sub("Cs_", stems[raw]) if rust else stems[raw]
             )
         else:
@@ -1098,27 +934,19 @@ def demangler(
             )
         else:
             table[raw] = m.group(1) + plain + m.group(3)
-    for raw in names:
-        if (
-            raw not in by_crate
-            or by_mangled[raw] == stems[raw]
-            or not stems[raw].startswith("_R")
-        ):
-            by_crate[raw] = by_mangled[raw]
     own_texts = images if images is not None else [texts]
     owns = [sorted(symbol_names(i)) for i in own_texts]
     places = [addresses(i) for i in own_texts]
     singles = [[raw for raw in own if not twins[raw]] for own in owns]
-    final = settle(table, [by_mangled, by_crate], singles, places)
+    final = settle(table, [by_mangled], singles, places)
     # A twin's number names its anchor by the anchor's key, so it follows a rename as the anchor does.
     for raw, twin in twins.items():
         if twin:
             number = f"#{twin.group(1)}~{final.get(twin.group(2), twin.group(2))}"
             table[raw] += number
             by_mangled[raw] += number
-            by_crate[raw] += number
             final[raw] = table[raw]
-    final = settle(final, [by_mangled, by_crate], owns, places)
+    final = settle(final, [by_mangled], owns, places)
     return lambda name: final.get(name, name)
 
 

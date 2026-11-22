@@ -1003,6 +1003,25 @@ class UniquifiedCopies(MainHarness, unittest.TestCase):
         )
         self.assertEqual(status, 0)
 
+    def test_an_overloads_twin_that_moves_is_seen(self):
+        # helper() and helper(int) are both twins; helper()'s second copy moves from behind q to behind r.
+        def nm(second: str) -> str:
+            return (
+                "00000010 00000004 t p\n00000014 00000004 t _ZL6helperv\n00000018 00000004 t _ZL6helperi\n"
+                f"00000020 00000004 t {second}\n00000024 00000004 t _ZL6helperv\n"
+                "00000030 00000004 t s\n00000034 00000004 t _ZL6helperi\n"
+            )
+
+        table = {"_ZL6helperv": "helper()", "_ZL6helperi": "helper(int)"}
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt(table)):
+            places = compare_codegen.place_names(
+                "cxxfilt", [nm("q"), nm("r")], [(), ()]
+            )
+        self.assertEqual(
+            compare_codegen.moved_twins(nm("q"), nm("r"), rename=places),
+            frozenset({"_ZL6helperv"}),
+        )
+
     def test_other_suffixes_keep_their_text(self):
         # A clone's `.constprop.0`, and a split global's numbered parts (data), are not uniquifiers.
         nm = (
@@ -1620,9 +1639,9 @@ class WrappedNameKeys(unittest.TestCase):
     INDEX_MUT = "_RNvXs2_NtNtCskEwzLGIm5x3_4core5slice5indexINtNtNtB9_3ops5range5RangejEINtB5_10SliceIndexShE9index_mut"
     INDEX_TEXT = "<core::ops::range::Range<usize> as core::slice::index::SliceIndex<[u8]>>::index_mut"
 
-    def test_a_generic_instantiated_by_another_crate_pairs(self):
-        # LTO folded two crates' copies of one generic instance into one body; the new image keeps another pair.
-        # The instantiating crate is no part of the code, and names at one address are one symbol.
+    def test_a_folded_alias_set_that_regroups_pairs(self):
+        # LTO folded two crates' copies of one generic instance into one body; the new image folds another pair.
+        # Names at one address are one symbol, so the set shares a key in each image and the bodies pair.
         old = [
             self.INDEX_MUT + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
             self.INDEX_MUT + "Csj1bDsIbZyCz_14embedded_fatfs",
@@ -1659,22 +1678,6 @@ class WrappedNameKeys(unittest.TestCase):
         self.assertEqual(len({rename(n) for n in names}), 2)
         self.assertTrue(
             all("Cs_" in rename(n) and "Cs6N" not in rename(n) for n in names)
-        )
-
-    def test_the_instantiating_crate_is_read_by_the_grammar(self):
-        code = self.INDEX_MUT
-        self.assertEqual(
-            compare_codegen.rust_code_name(code + "CsdRgdbluJfa3_11embassy_usb"), code
-        )
-        self.assertEqual(compare_codegen.rust_code_name(code + "B9_"), code)
-        self.assertEqual(compare_codegen.rust_code_name(code), code)
-        # `4fooC3bar` is `fooC::bar`, not `foo` instantiated by a crate `bar`.
-        self.assertEqual(
-            compare_codegen.rust_code_name("_RNvNvCs1a_3crt4fooC3bar"),
-            "_RNvNvCs1a_3crt4fooC3bar",
-        )
-        self.assertEqual(
-            compare_codegen.rust_code_name("_RNvCs1a_3crt"), "_RNvCs1a_3crt"
         )
 
     def test_a_name_only_gnu_cxxfilt_reads_is_keyed_by_both_texts(self):
