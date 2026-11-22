@@ -20,22 +20,26 @@ and requires clause after it, and a template's leading return type, so a functio
 code doesn't, and every call to it, compare alike. Nothing else is cut: `(anonymous namespace)` is never a parameter
 list, a local or a lambda (`f(int) const::$_0::operator()`, `int r<int>()::x`) keeps its enclosing function's signature
 and return type, a compiler clone keeps its suffix (`.constprop.0`, a split global's `.0`) and a thunk its prefix, and
-data keeps its whole name. What the demangled text hides is read from the mangled name and appended: a constructor's or
-destructor's variant (` [C2]`, ` [D0]`: the base and the deleting destructor are different bodies) and a local's
-discriminator (` [_0]`). Two names of one image therefore share a key only when they are overloads, which are compared
-as a set of bodies; Rust names whose demangled text is alike (one generic instantiated in two crates, disambiguated
-closures) keep their raw names. Because a local keeps its enclosing signature, a signature-only change to a function
-that holds a lambda or a static local shows that lambda or local as added and removed (and the function as changed, as
-its calls name the new key): a false positive, never a false negative. ThinLTO's promoted-local suffixes
-(`.llvm.<hash>`) hash the module's source, so they are dropped too.
+data keeps its whole name. ThinLTO's promoted-local suffixes (`.llvm.<hash>`) hash the module's source, so they are
+dropped too.
+
+A key names one symbol of an image. Where several symbols of one image reach one name (overloads; a constructor's or
+destructor's variants, whose base and deleting bodies differ; a local's discriminated twins; one function's thunks for
+several bases; a Rust generic instantiated in two crates), the demangled text cannot tell them apart, so each of them is
+named by its mangled name instead, renamed as below. That needs no reading of the mangling and never merges two symbols.
+Its cost is false positives, never false negatives: such a symbol whose signature changes, or whose group gains or loses
+a member, shows as removed and added; and because a local keeps its enclosing signature, a signature-only change to a
+function that holds a lambda or a static local shows that lambda or local as added and removed (and the function as
+changed, as its calls name the new key).
 
 A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`) is
 read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named by its
 target's canonical name; the other wrapped names name data that belongs to what they wrap, so they keep the whole
-demangled text, as a local does. A mangled name the demangler cannot read (some lambda names) has the renamed namespaces
-applied to its mangled text, on component boundaries, and its substitution references (`S0_`) reduced to `S_`, because
-their indexes shift with the names. If two such names of one image end up equal that way, both keep their raw names. A
-reference the text rules do not recognise compares as a difference.
+demangled text, as a local does. A name keyed by its mangled text (those above, and a name the demangler cannot read)
+has the renamed namespaces applied to that text, on component boundaries, and its substitution references (`S0_`)
+reduced to `S_`, because their indexes shift with the names. If two such names of one image end up equal that way, both
+keep their raw names. A reference the text rules do not recognise compares as a difference. A body that several symbols
+file under one key (two promoted locals whose names differ only in `.llvm.<hash>`) is compared as a set of bodies.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -56,8 +60,8 @@ a verdict.
 With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images. Pairs are
 tried in order and the first whose OLD matches wins; an OLD that is a prefix of its own NEW
 (`deluge::ui=deluge::ui::widgets::core`) needs an identity pair for NEW first
-(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. A rename can make an unmoved
-OLD::f and a moved NEW::f one name; the move gate's old-spelling grep covers that.
+(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. An image that holds an unmoved
+OLD::f beside a moved NEW::f reads both as one name, so they keep their raw names and show as added and removed.
 
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
@@ -259,115 +263,6 @@ def canonical(demangled: str, local: bool = False) -> str:
         name = name[space + 1 :]
         break
     return name + suffix
-
-
-# A constructor or destructor variant code (complete, base, allocating, deleting) where a name's last component stands.
-STRUCTOR = re.compile(r"CI?[1-5]|D[0-5]")
-# A local entity's discriminator: `_N` or `__NN_`.
-DISCRIMINATOR = re.compile(r"__\d+_|_\d")
-
-
-# A thunk's call offsets: `h` with one, `v` with two, each a number (`n` for minus) ended by `_`.
-CALL_OFFSETS = re.compile(r"_ZT(?:c?(?:hn?\d+_|vn?\d+_n?\d+_))+")
-# What introduces a number rather than a source name's length: an array dimension, an unnamed type's number, a vector
-# size, a function parameter's index, an extended type's width.
-NUMBER_AFTER = ("A", "Ut", "Dv", "fp", "fL", "DF", "DB", "DU")
-
-
-def mangled_marks(mangled: str) -> str:
-    """What an Itanium mangled name tells apart but its demangled text does not, as ` [mark]`s for its key: each
-    constructor or destructor variant (`C1`/`C2`, `D0`/`D1`/`D2`), each local entity's discriminator (`_0` in
-    `…E7options_0`), and a thunk's call offsets (`hn16` in `_ZThn16_…`). A digit run is a source name's length unless an introducer makes it a number (NUMBER_AFTER, a
-    substitution or template parameter `S0_`/`T0_`, a literal `Li5E`, a thunk's offsets, a lambda's `UlvE0_`, a
-    discriminator), so a name that starts with `E` or `_` (`6EnvLfo`, `7__cxx11`) is skipped whole."""
-    if not mangled.startswith("_Z"):
-        return ""
-    offsets = CALL_OFFSETS.match(mangled)
-    i = offsets.end() if offsets else 2
-    # A thunk's offsets tell apart the thunks of one function for its several bases.
-    marks = [offsets.group(0)[3:].rstrip("_")] if offsets else []
-    after_name = local = False
-    last = ""  # the token before the cursor, when it is one that can introduce a number
-    openers: list[
-        str
-    ] = []  # the `E`-ended groups the cursor is in: N, I, Z, Ul, X, J, F, decltype, braced, `sr`
-    while i < len(mangled):
-        c = mangled[i]
-        if c.isdigit():
-            digits = re.match(r"\d+", mangled[i:]).group(0)
-            if last in NUMBER_AFTER or (
-                last == "fL" and mangled.startswith("p", i + len(digits))
-            ):
-                i, after_name, last = i + len(digits), False, ""  # a number
-            else:
-                i, after_name, last = (
-                    i + len(digits) + int(digits),
-                    True,
-                    "",
-                )  # a source name
-            continue
-        two = mangled[i : i + 2]
-        if two in NUMBER_AFTER:
-            i, after_name, last = i + 2, False, two
-            continue
-        if c == "A":
-            i, after_name, last = i + 1, False, "A"
-            continue
-        if c in "ST":
-            reference = re.match(r"[ST][0-9A-Z]*_", mangled[i:])
-            if reference:
-                i, after_name, last = i + len(reference.group(0)), False, ""
-                continue
-            if c == "S" and two[1:].islower():
-                i, after_name, last = i + 2, False, ""  # `St`, `Sa`, `Ss`, …
-                continue
-        if c == "L" and two != "L_" and ("I" in openers or two[1:].islower()):
-            # A literal, `Li5E` or `L4Kind1E`: its type, then its value up to `E`.
-            j = i + 1
-            if j < len(mangled) and mangled[j].isdigit():
-                digits = re.match(r"\d+", mangled[j:]).group(0)
-                j += len(digits) + int(digits)
-            end = mangled.find("E", j)
-            i, after_name, last = (end + 1 if end > 0 else len(mangled)), False, ""
-            continue
-        if c == "E":
-            if openers and openers[-1] == "Ul":
-                # A lambda's signature ends at the `E` its number follows (`E_`, `E0_`).
-                number = re.match(r"E\d*_", mangled[i:])
-                if number:
-                    openers.pop()
-                    i, after_name, last = i + len(number.group(0)), False, ""
-                    continue
-            elif openers:
-                openers.pop()
-            i, after_name, last = i + 1, False, ""
-            continue
-        if c == "Z":
-            local = True
-        if two in ("Ul", "DT", "Dt", "tl", "il") or (
-            two == "sr" and mangled[i + 2 : i + 3].isdigit()
-        ):
-            openers.append(two)
-            i, after_name, last = i + 2, False, ""
-            continue
-        if c in "NIZXJF":
-            openers.append(c)
-        if c == "_" and local and (after_name or mangled[i - 1] == "E"):
-            discriminator = DISCRIMINATOR.match(mangled, i)
-            if discriminator:
-                marks.append(discriminator.group(0))
-                i, after_name, last = discriminator.end(), False, ""
-                continue
-        structor = STRUCTOR.match(mangled, i)
-        if structor and (
-            structor.group(0).startswith("CI")
-            or mangled[structor.end() : structor.end() + 1] in ("E", "I", "B")
-        ):
-            marks.append(structor.group(0))
-            i, after_name, last = structor.end(), False, ""
-            continue
-        i, after_name, last = i + 1, False, ""
-    return "".join(f" [{m}]" for m in marks)
 
 
 def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
@@ -587,14 +482,14 @@ def namespace_renamer(pairs: list[tuple[str, str]]):
 
 
 def mangled_renamer(pairs: list[tuple[str, str]]):
-    """A rename for a name no demangler can read: the pairs applied to its mangled text, where a namespace is a run of
-    length-prefixed components (`6deluge10instrument`) that starts at a component boundary (not inside an identifier,
-    not under another namespace). Where a pair keeps its first component, the rest is also renamed behind `S_`, but only
-    in a name that starts with that component, because only there is `S_` known to stand for it. A reference through
-    another substitution (`S0_`) to the same namespace is not recognised: the name then compares as different, never as
-    the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace (either spelling)
-    each reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The reduction can make
-    two names of one image equal, which demangler() detects."""
+    """A rename for a name keyed by its mangled text (see demangler()): the pairs applied to that text, where a
+    namespace is a run of length-prefixed components (`6deluge10instrument`) that starts at a component boundary (not
+    inside an identifier, not under another namespace). Where a pair keeps its first component, the rest is also renamed
+    behind `S_`, but only in a name that starts with that component, because only there is `S_` known to stand for it. A
+    reference through another substitution (`S0_`) to the same namespace is not recognised: the name then compares as
+    different, never as the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace
+    (either spelling) each reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The
+    reduction can make two names of one image equal, which demangler() detects."""
 
     def run_of(components: list[str]) -> str:
         return "".join(f"{len(c)}{c}" for c in components)
@@ -685,50 +580,68 @@ def symbol_names(texts: list[str]) -> set[str]:
 
 
 def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images=None):
-    """A rename that maps every mangled symbol in @p texts to its canonical() demangled name, with @p renames (see
-    namespace_renamer()) applied first and mangled_marks() appended. A name that wraps a mangled one
-    (`__const._ZN…sources`, a linker veneer, a static guard's destructor, a split global's `.0`, a clone's
-    `.constprop.0`) is renamed through the mangled part and keeps its prefix and suffix. A veneer and a bare suffix keep
-    the canonical name; any other wrapped name names data and keeps the whole demangled text, as a local does. A mangled
-    name the demangler cannot read goes through @p mangled (mangled_renamer()). @p images holds each image's own texts:
-    if two such names, or two Rust names (whose demangled text hides the instantiating crate and the disambiguators),
-    of one image reach the same key, they keep their raw names instead."""
+    """A rename that maps every mangled symbol in @p texts to its key: its canonical() demangled name, with @p renames
+    (see namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer,
+    a static guard's destructor, a split global's `.0`, a clone's `.constprop.0`) is renamed through the mangled part
+    and keeps its prefix and suffix. A veneer and a bare suffix keep the canonical name; any other wrapped name names
+    data and keeps the whole demangled text, as a local does.
+
+    A key must name one symbol. Wherever several symbols of one image (@p images holds each image's own texts) reach
+    one key, which is what overloads, constructor and destructor variants, a local's discriminated twins, thunks for
+    several bases and Rust instantiations do, each of them is keyed by its mangled name instead, through @p mangled
+    (mangled_renamer()); so is a name the demangler cannot read. If two mangled keys of one image are still equal (the
+    renamer reduces substitution references), both keep their raw names."""
     names = sorted(symbol_names(texts))
     split = [WRAPPED.match(n) for n in names]
     targets = [m.group(2) if m else n for m, n in zip(split, names)]
     demangled = run([cxxfilt], "\n".join(targets)).splitlines()
+    by_mangled = {}
     table = {}
     unreadable = set()
     for raw, m, target, plain in zip(names, split, targets, demangled):
-        if plain == target and m and mangled:
-            table[raw] = m.group(1) + mangled(target) + m.group(3)
+        by_mangled[raw] = (
+            m.group(1) + (mangled or keep)(target) + m.group(3) if m else raw
+        )
+        if plain == target:
+            table[raw] = by_mangled[raw]
             unreadable.add(raw)
             continue
         if renames:
             plain = renames(plain)
-        marks = mangled_marks(target)
         if not m:
-            table[raw] = canonical(plain) + marks
+            table[raw] = canonical(plain)
         elif not m.group(1) or m.group(1).endswith("Thunk_"):
             table[raw] = (
-                m.group(1)
-                + canonical(plain, target.startswith("_ZZ"))
-                + marks
-                + m.group(3)
+                m.group(1) + canonical(plain, target.startswith("_ZZ")) + m.group(3)
             )
         else:
-            table[raw] = m.group(1) + plain + marks + m.group(3)
-    for image in images if images is not None else [texts]:
-        seen: dict[str, str] = {}
-        merged = set()
-        for raw in sorted(
-            n for n in symbol_names(image) if n in unreadable or n.startswith("_R")
-        ):
-            if seen.setdefault(table[raw], raw) != raw:
-                merged |= {raw, seen[table[raw]]}
-        for raw in merged:
-            table[raw] = raw
-    return lambda name: table.get(name, name)
+            table[raw] = m.group(1) + plain + m.group(3)
+    final = dict(table)
+    owns = [
+        sorted(symbol_names(i)) for i in (images if images is not None else [texts])
+    ]
+    for own in owns:
+        for group in shared(own, table):
+            for raw in group:
+                final[raw] = by_mangled[raw]
+    # Raw names are distinct, so this ends once every key of an image names one symbol.
+    settled = False
+    while not settled:
+        settled = True
+        for own in owns:
+            for group in shared(own, final):
+                for raw in group:
+                    if final[raw] != raw:
+                        final[raw], settled = raw, False
+    return lambda name: final.get(name, name)
+
+
+def shared(names: list[str], key: dict[str, str]) -> list[list[str]]:
+    """The groups of @p names that one @p key holds several of."""
+    holders: dict[str, list[str]] = {}
+    for name in names:
+        holders.setdefault(key[name], []).append(name)
+    return [group for group in holders.values() if len(group) > 1]
 
 
 # A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`.

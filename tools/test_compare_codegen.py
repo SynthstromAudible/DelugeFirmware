@@ -239,8 +239,7 @@ NAME_FIXTURE = [
 ORACLE_TAIL = re.compile(
     r"(?: const| volatile| ?&&?)*(?: requires (?:(?![)>'}]::).)*)?"
 )
-# The marks demangler() appends from the mangled name, and a compiler clone's suffix.
-ORACLE_MARKS = re.compile(r"(?: \[[^\]]*\])+$")
+# A compiler clone's suffix.
 ORACLE_CLONE = re.compile(r"(?: \(\.[\w.]+\))+$")
 
 
@@ -265,7 +264,6 @@ def names_a_local(base: str) -> bool:
 def is_own_signature_of(key: str, name: str) -> bool:
     """Whether @p name is the entity @p key names plus its own parameter list, the qualifiers after it and, unless the
     key names a local, a leading return type: what one key may hold several of."""
-    key = ORACLE_MARKS.sub("", key)
     veneer = re.match(r"__\w*?Thunk_", key)
     if veneer:
         if not name.startswith(veneer.group(0)):
@@ -296,29 +294,14 @@ def is_own_signature_of(key: str, name: str) -> bool:
     return False
 
 
-def may_share_a_key(key: str, members: list[tuple[str, str]]) -> bool:
-    """Whether the symbols @p members, as (mangled, demangled), may all have @p key: distinct texts (one text for two
-    symbols, such as a constructor's variants, means the key cannot tell them apart), each @p key's own signature."""
-    texts = [text for _, text in members]
-    return len(set(texts)) == len(texts) and all(
-        is_own_signature_of(key, t) for t in texts
-    )
-
-
-def key_groups(mangled: list[str], cxxfilt: str) -> dict[str, list[tuple[str, str]]]:
-    """@p mangled's symbols grouped by the key the tool gives them (demangler(), then canonical()), each as (mangled
-    without its ThinLTO suffix, demangled text); only keys that several symbols share."""
+def shared_keys(mangled: list[str], cxxfilt: str) -> dict[str, list[str]]:
+    """The keys the tool gives (demangler(), as for one image) that several of @p mangled's symbols share, each with
+    those symbols (without their ThinLTO suffixes)."""
     listing = "".join(f"00000000 00000000 T {n}\n" for n in mangled)
-    rename = demangler(cxxfilt, [listing])
-    raws = sorted({compare_codegen.LTO_SUFFIX.sub("", n) for n in mangled})
-    split = [compare_codegen.WRAPPED.match(n) for n in raws]
-    targets = [m.group(2) if m else n for m, n in zip(split, raws)]
-    plain = compare_codegen.run([cxxfilt], "\n".join(targets)).splitlines()
-    groups: dict[str, list[tuple[str, str]]] = {}
-    for raw, m, text in zip(raws, split, plain):
-        groups.setdefault(rename(raw), []).append(
-            (raw, m.group(1) + text + m.group(3) if m else text)
-        )
+    rename = demangler(cxxfilt, [listing], mangled=mangled_renamer([]))
+    groups: dict[str, list[str]] = {}
+    for raw in sorted({compare_codegen.LTO_SUFFIX.sub("", n) for n in mangled}):
+        groups.setdefault(rename(raw), []).append(raw)
     return {k: v for k, v in groups.items() if len(v) > 1}
 
 
@@ -488,24 +471,20 @@ class CanonicalTest(unittest.TestCase):
                         is_own_signature_of(key, name), (key, sorted(group))
                     )
 
-    def assert_only_overloads_share_a_key(self, mangled: list[str]):
+    def assert_no_two_symbols_share_a_key(self, mangled: list[str]):
         cxxfilt = shutil.which("llvm-cxxfilt")
         self.assertIsNotNone(cxxfilt, "the property test needs llvm-cxxfilt on PATH")
-        bad = {
-            k: v
-            for k, v in key_groups(mangled, cxxfilt).items()
-            if not may_share_a_key(k, v)
-        }
-        self.assertEqual(bad, {})
+        self.assertEqual(shared_keys(mangled, cxxfilt), {})
 
-    def test_only_overloads_share_a_key_in_the_fixture_image(self):
+    def test_no_two_symbols_share_a_key_in_the_fixture_image(self):
         with open(NAMES_FIXTURE) as f:
-            self.assert_only_overloads_share_a_key(f.read().split())
+            self.assert_no_two_symbols_share_a_key(f.read().split())
 
-    def test_only_overloads_share_a_key_in_the_live_image(self):
+    def test_no_two_symbols_share_a_key_in_the_live_image(self):
         if not (os.path.exists(REAL_IMAGE) and shutil.which("llvm-nm")):
             self.skipTest(
-                "no build/RelWithDebInfo/deluge.elf or llvm-nm; the fixture test holds the property for a checked-in image"
+                "no build/RelWithDebInfo/deluge.elf or llvm-nm; "
+                "the fixture test holds the property for a checked-in image"
             )
         listing = subprocess.run(
             ["llvm-nm", "--defined-only", REAL_IMAGE],
@@ -513,7 +492,7 @@ class CanonicalTest(unittest.TestCase):
             text=True,
             check=True,
         ).stdout
-        self.assert_only_overloads_share_a_key(
+        self.assert_no_two_symbols_share_a_key(
             sorted(
                 {
                     line.split()[-1]
@@ -522,34 +501,6 @@ class CanonicalTest(unittest.TestCase):
                 }
             )
         )
-
-    def test_every_text_shared_by_several_symbols_gets_distinct_marks(self):
-        # What an image happens to emit is only part of a class's variants: every group of fixture symbols with one
-        # demangled text must be told apart by its marks, whichever of them a later image holds.
-        cxxfilt = shutil.which("llvm-cxxfilt")
-        self.assertIsNotNone(cxxfilt, "the property test needs llvm-cxxfilt on PATH")
-        with open(NAMES_FIXTURE) as f:
-            raws = sorted(
-                {
-                    compare_codegen.LTO_SUFFIX.sub("", n)
-                    for n in f.read().split()
-                    if n.startswith("_Z")
-                }
-            )
-        split = [compare_codegen.WRAPPED.match(n) for n in raws]
-        targets = [m.group(2) for m in split]
-        texts = compare_codegen.run([cxxfilt], "\n".join(targets)).splitlines()
-        groups: dict[str, list[str]] = {}
-        for m, target, text in zip(split, targets, texts):
-            if text != target:
-                groups.setdefault(m.group(1) + text + m.group(3), []).append(target)
-        alike = {
-            text: targets
-            for text, targets in groups.items()
-            if len(targets) > 1
-            and len({compare_codegen.mangled_marks(t) for t in targets}) < len(targets)
-        }
-        self.assertEqual(alike, {})
 
     def test_the_oracle_rejects_what_must_not_share_a_key(self):
         self.assertFalse(
@@ -570,34 +521,10 @@ class CanonicalTest(unittest.TestCase):
         self.assertFalse(
             is_own_signature_of("deluge::", "deluge::(anonymous namespace)::kTable")
         )
-        self.assertFalse(
-            may_share_a_key(
-                "FileReader::~FileReader",
-                [
-                    ("_ZN10FileReaderD0Ev", "FileReader::~FileReader()"),
-                    ("_ZN10FileReaderD2Ev", "FileReader::~FileReader()"),
-                ],
-            )
-        )
-        self.assertFalse(
-            may_share_a_key(
-                "h(int)::options",
-                [
-                    ("_ZZ1hiE7options", "h(int)::options"),
-                    ("_ZZ1hiE7options_0", "h(int)::options"),
-                ],
-            )
-        )
         self.assertTrue(
-            may_share_a_key(
+            is_own_signature_of(
                 "std::expected<int, E>::~expected",
-                [
-                    (
-                        "a",
-                        "std::expected<int, E>::~expected() requires !is_trivially_destructible_v<T>",
-                    ),
-                    ("b", "std::expected<int, E>::~expected() const"),
-                ],
+                "std::expected<int, E>::~expected() requires !is_trivially_destructible_v<T>",
             )
         )
         self.assertTrue(
@@ -773,14 +700,14 @@ class VeneerNames(unittest.TestCase):
         def fake(tool, stdin=None):
             return "\n".join(table[n] for n in stdin.splitlines()) + "\n"
 
-        listing = "".join(
-            f"10 <{n}>:\n" for n in (self.OLD, self.NEW, self.OTHER, self.PLAIN)
-        )
+        base = "".join(f"10 <{n}>:\n" for n in (self.OLD, self.OTHER, self.PLAIN))
+        moved = f"10 <{self.NEW}>:\n"
         with mock.patch.object(compare_codegen, "run", fake):
             return demangler(
                 "cxxfilt",
-                [listing],
+                [base, moved],
                 namespace_renamer([("deluge::gfx", "deluge::ui::gfx")]),
+                images=[[base], [moved]],
             )
 
     def test_a_veneer_follows_its_targets_rename(self):
@@ -814,19 +741,22 @@ class WrappedNames(unittest.TestCase):
         "_ZZN6deluge2ui3gfx1fEvE5scene": "deluge::ui::gfx::f()::scene",
     }
 
-    def names(self, listing):
+    def names(self, old, new):
+        """A rename for two images, @p old's and @p new's (one symbol each)."""
+        images = [[f"10 <{old}>:\n"], [f"10 <{new}>:\n"]]
         with mock.patch.object(compare_codegen, "run", fake_cxxfilt(self.TABLE)):
             return demangler(
                 "cxxfilt",
-                [listing],
+                [text for image in images for text in image],
                 namespace_renamer(list(self.PAIR)),
                 mangled_renamer(list(self.PAIR)),
+                images,
             )
 
     def test_a_data_name_follows_its_symbols_rename_and_keeps_its_wrapping(self):
         old = "__const._ZN6deluge3gfx1kE.sources"
         new = "__const._ZN6deluge2ui3gfx1kE.sources"
-        rename = self.names(f"10 <{old}>:\n10 <{new}>:\n")
+        rename = self.names(old, new)
         self.assertEqual(rename(old), rename(new))
         self.assertTrue(rename(old).startswith("__const."))
         self.assertTrue(rename(old).endswith(".sources"))
@@ -834,7 +764,7 @@ class WrappedNames(unittest.TestCase):
     def test_a_guard_destructor_name_follows_its_symbols_rename(self):
         old = "__dtor__ZZN6deluge3gfx1fEvE5scene"
         new = "__dtor__ZZN6deluge2ui3gfx1fEvE5scene"
-        rename = self.names(f"10 <{old}>:\n10 <{new}>:\n")
+        rename = self.names(old, new)
         self.assertEqual(rename(old), rename(new))
         self.assertTrue(rename(old).startswith("__dtor_"))
 
@@ -1101,17 +1031,31 @@ class WrappedNameKeys(unittest.TestCase):
             text,
         )
 
-    def test_numbers_follow_their_introducers(self):
-        marks = compare_codegen.mangled_marks
-        self.assertEqual(marks("_ZN4llvm15ScalarEvolution9ExitLimitC2Ev"), " [C2]")
-        self.assertEqual(marks("_ZN1WIL4Kind1EED2Ev"), " [D2]")
-        self.assertEqual(marks("_ZN1XC2EA10_i"), " [C2]")
-        self.assertEqual(marks("_ZN1XC2EDv4_f"), " [C2]")
-        self.assertEqual(marks("_ZThn8_N1XD0Ev"), " [hn8] [D0]")
-        self.assertEqual(marks("_ZThn16_N1XD0Ev"), " [hn16] [D0]")
-        self.assertEqual(marks("_ZTv0_n12_N1XD1Ev"), " [v0_n12] [D1]")
-        self.assertEqual(marks("_ZZ1fvENKUt_3getEv"), "")
-        self.assertEqual(marks("_ZZ1fvE1x_0"), " [_0]")
+    def test_a_float_templates_variants_stay_apart(self):
+        self.assert_retarget_is_a_change(
+            "_ZN6deluge3dsp5DelayIfLj16EE4TapsD2Ev",
+            "_ZN6deluge3dsp5DelayIfLj16EE4TapsD0Ev",
+            "deluge::dsp::Delay<float, 16u>::Taps::~Taps()",
+        )
+
+    def test_a_local_class_in_a_decltype_function_keeps_its_variants(self):
+        self.assert_retarget_is_a_change(
+            "_ZZ2f1IiEDTeqfL0p_LN1n4KindE7EET_EN5LocalD2Ev",
+            "_ZZ2f1IiEDTeqfL0p_LN1n4KindE7EET_EN5LocalD0Ev",
+            "decltype(fp == (n::Kind)7) f1<int>(int)::Local::~Local()",
+        )
+
+    def test_thunks_for_two_bases_stay_apart(self):
+        self.assert_retarget_is_a_change(
+            "_ZThn8_N1XD0Ev", "_ZThn16_N1XD0Ev", "non-virtual thunk to X::~X()"
+        )
+        table = {
+            "_ZN4llvm15ScalarEvolution9ExitLimitC1Ev": "llvm::ScalarEvolution::ExitLimit::ExitLimit()",
+            "_ZN4llvm15ScalarEvolution9ExitLimitC2Ev": "llvm::ScalarEvolution::ExitLimit::ExitLimit()",
+            "_ZTv0_n12_N1XD1Ev": "virtual thunk to X::~X()",
+            "_ZTv0_n16_N1XD1Ev": "virtual thunk to X::~X()",
+        }
+        self.assertEqual(len(set(self.keys(table))), 4)
 
     def test_discriminated_locals_stay_apart(self):
         table = {
@@ -1123,7 +1067,7 @@ class WrappedNameKeys(unittest.TestCase):
         }
         self.assertEqual(len(set(self.keys(table))), 5)
 
-    def test_a_template_argument_or_a_lambda_number_is_no_mark(self):
+    def test_a_symbol_alone_with_its_key_keeps_its_demangled_name(self):
         table = {
             "_ZN1WIL4Kind1EED2Ev": "W<(Kind)1>::~W()",
             "_ZZ1fvENKUlvE0_clEv": "f()::'lambda0'()::operator()() const",
@@ -1133,12 +1077,34 @@ class WrappedNameKeys(unittest.TestCase):
         self.assertEqual(
             self.keys(table),
             [
-                "W<(Kind)1>::~W [D2]",
+                "W<(Kind)1>::~W",
                 "f()::'lambda0'()::operator()",
                 "deluge::(anonymous namespace)::kD2E",
-                "std::vector<int, std::allocator<int>>::vector [C2]",
+                "std::vector<int, std::allocator<int>>::vector",
             ],
         )
+
+    def test_overloads_keep_their_mangled_names_and_follow_a_rename(self):
+        # Overloads cannot share a key, so a signature change of one shows it removed and added: a false positive.
+        old = {
+            "_ZN6deluge3gfx1fEi": "deluge::gfx::f(int)",
+            "_ZN6deluge3gfx1fEl": "deluge::gfx::f(long)",
+        }
+        new = {
+            "_ZN6deluge2ui3gfx1fEi": "deluge::ui::gfx::f(int)",
+            "_ZN6deluge2ui3gfx1fEl": "deluge::ui::gfx::f(long)",
+        }
+        listings = ["".join(f"10 <{n}>:\n" for n in names) for names in (old, new)]
+        rename = self.names({**old, **new}, listings, [[listings[0]], [listings[1]]])
+        self.assertEqual(
+            [rename(n) for n in old], ["_ZN6deluge2ui3gfx1fEi", "_ZN6deluge2ui3gfx1fEl"]
+        )
+        self.assertEqual([rename(n) for n in new], [rename(n) for n in old])
+
+    def test_an_unmoved_name_beside_its_moved_twin_stays_apart(self):
+        old, new = "_ZN6deluge3gfx1fEv", "_ZN6deluge2ui3gfx1fEv"
+        table = {old: "deluge::gfx::f()", new: "deluge::ui::gfx::f()"}
+        self.assertEqual(self.keys(table), [old, new])
 
     def test_a_split_globals_parts_and_a_clone_stay_apart(self):
         names = [
