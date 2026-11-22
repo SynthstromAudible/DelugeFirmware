@@ -194,6 +194,10 @@ class ClassifierTest(unittest.TestCase):
 REAL_IMAGE = os.path.join(
     os.path.dirname(__file__), "..", "build", "RelWithDebInfo", "deluge.elf"
 )
+# A device image's defined symbols, mangled (`llvm-nm --defined-only`, names only, sorted, deduplicated).
+NAMES_FIXTURE = os.path.join(
+    os.path.dirname(__file__), "testdata", "compare_codegen_names.txt"
+)
 
 # Shapes from a device image whose last `)` or space is not a signature.
 NAME_FIXTURE = [
@@ -230,17 +234,52 @@ NAME_FIXTURE = [
 ]
 
 
+# What may follow an own parameter list in a name that shares a key: cv and ref qualifiers, and a requires clause in
+# which no `::` follows a bracket or a quote (that would be a local's name after its enclosing function's clause).
+ORACLE_TAIL = re.compile(
+    r"(?: const| volatile| ?&&?)*(?: requires (?:(?![)>'}]::).)*)?"
+)
+# The marks demangler() appends from the mangled name, and a compiler clone's suffix.
+ORACLE_MARKS = re.compile(r"(?: \[[^\]]*\])+$")
+ORACLE_CLONE = re.compile(r"(?: \(\.[\w.]+\))+$")
+
+
+def names_a_local(base: str) -> bool:
+    """Whether @p base holds a top-level `(…)` group other than `(anonymous namespace)`: an enclosing function."""
+    base = re.sub(r"\boperator(?:\(\)|\[\]|[^\w\s(]+)", "operator", base)
+    depth = 0
+    for i, c in enumerate(base):
+        if c in "(<{[":
+            if (
+                depth == 0
+                and c == "("
+                and not base.startswith("(anonymous namespace)", i)
+            ):
+                return True
+            depth += 1
+        elif c in ")>}]":
+            depth -= 1
+    return False
+
+
 def is_own_signature_of(key: str, name: str) -> bool:
-    """Whether @p name is @p key with its own parameter list (and what follows it) and perhaps a leading return type
-    added: what one key may hold several of."""
-    clone = re.search(r"(?: \(\.[\w.]+\))+$", key)
+    """Whether @p name is the entity @p key names plus its own parameter list, the qualifiers after it and, unless the
+    key names a local, a leading return type: what one key may hold several of."""
+    key = ORACLE_MARKS.sub("", key)
+    veneer = re.match(r"__\w*?Thunk_", key)
+    if veneer:
+        if not name.startswith(veneer.group(0)):
+            return False
+        key, name = key[veneer.end() :], name[veneer.end() :]
+    clone = ORACLE_CLONE.search(key)
     if clone:
         if not name.endswith(clone.group(0)):
             return False
         key, name = key[: clone.start()], name[: -len(clone.group(0))]
+    returns = not names_a_local(key)
     at = name.find(key + "(")
     while at >= 0:
-        if at == 0 or name[at - 1] == " ":
+        if at == 0 or (returns and name[at - 1] == " "):
             rest = name[at + len(key) :]
             depth = 0
             for i, c in enumerate(rest):
@@ -248,7 +287,7 @@ def is_own_signature_of(key: str, name: str) -> bool:
                 if depth == 0:
                     if rest[
                         : i + 1
-                    ] != "(anonymous namespace)" and OWN_QUALIFIERS.fullmatch(
+                    ] != "(anonymous namespace)" and ORACLE_TAIL.fullmatch(
                         rest[i + 1 :]
                     ):
                         return True
@@ -257,7 +296,30 @@ def is_own_signature_of(key: str, name: str) -> bool:
     return False
 
 
-OWN_QUALIFIERS = re.compile(r"(?: (?:const|volatile|noexcept)| ?&&?)*(?: requires .*)?")
+def may_share_a_key(key: str, members: list[tuple[str, str]]) -> bool:
+    """Whether the symbols @p members, as (mangled, demangled), may all have @p key: distinct texts (one text for two
+    symbols, such as a constructor's variants, means the key cannot tell them apart), each @p key's own signature."""
+    texts = [text for _, text in members]
+    return len(set(texts)) == len(texts) and all(
+        is_own_signature_of(key, t) for t in texts
+    )
+
+
+def key_groups(mangled: list[str], cxxfilt: str) -> dict[str, list[tuple[str, str]]]:
+    """@p mangled's symbols grouped by the key the tool gives them (demangler(), then canonical()), each as (mangled
+    without its ThinLTO suffix, demangled text); only keys that several symbols share."""
+    listing = "".join(f"00000000 00000000 T {n}\n" for n in mangled)
+    rename = demangler(cxxfilt, [listing])
+    raws = sorted({compare_codegen.LTO_SUFFIX.sub("", n) for n in mangled})
+    split = [compare_codegen.WRAPPED.match(n) for n in raws]
+    targets = [m.group(2) if m else n for m, n in zip(split, raws)]
+    plain = compare_codegen.run([cxxfilt], "\n".join(targets)).splitlines()
+    groups: dict[str, list[tuple[str, str]]] = {}
+    for raw, m, text in zip(raws, split, plain):
+        groups.setdefault(rename(raw), []).append(
+            (raw, m.group(1) + text + m.group(3) if m else text)
+        )
+    return {k: v for k, v in groups.items() if len(v) > 1}
 
 
 class CanonicalTest(unittest.TestCase):
@@ -317,7 +379,7 @@ class CanonicalTest(unittest.TestCase):
         )
         self.assertEqual(
             canonical("auto X::f() const::$_0::operator()<int>(int) const"),
-            "X::f() const::$_0::operator()<int>",
+            "auto X::f() const::$_0::operator()<int>",
         )
 
     def test_a_local_keeps_its_enclosing_functions_signature(self):
@@ -338,6 +400,17 @@ class CanonicalTest(unittest.TestCase):
         self.assertEqual(
             canonical("X::operator bool() const::$_0::operator()() const"),
             "X::operator bool() const::$_0::operator()",
+        )
+
+    def test_a_templates_lambdas_and_locals_keep_its_return_type(self):
+        self.assertNotEqual(
+            canonical("int r<int>()::'lambda'()::operator()() const"),
+            canonical("long r<int>()::'lambda'()::operator()() const"),
+        )
+        self.assertNotEqual(canonical("int r<int>()::x"), canonical("long r<int>()::x"))
+        self.assertEqual(
+            canonical("int r<int>()::'lambda'()::operator()() const"),
+            "int r<int>()::'lambda'()::operator()",
         )
 
     def test_a_return_type_is_stripped_only_at_top_level(self):
@@ -415,18 +488,92 @@ class CanonicalTest(unittest.TestCase):
                         is_own_signature_of(key, name), (key, sorted(group))
                     )
 
-    @unittest.skipUnless(
-        os.path.exists(REAL_IMAGE) and shutil.which("llvm-nm"), "no device image"
-    )
-    def test_only_overloads_share_a_key_in_a_real_image(self):
+    def assert_only_overloads_share_a_key(self, mangled: list[str]):
+        cxxfilt = shutil.which("llvm-cxxfilt")
+        self.assertIsNotNone(cxxfilt, "the property test needs llvm-cxxfilt on PATH")
+        bad = {
+            k: v
+            for k, v in key_groups(mangled, cxxfilt).items()
+            if not may_share_a_key(k, v)
+        }
+        self.assertEqual(bad, {})
+
+    def test_only_overloads_share_a_key_in_the_fixture_image(self):
+        with open(NAMES_FIXTURE) as f:
+            self.assert_only_overloads_share_a_key(f.read().split())
+
+    def test_only_overloads_share_a_key_in_the_live_image(self):
+        if not (os.path.exists(REAL_IMAGE) and shutil.which("llvm-nm")):
+            return  # the fixture test holds the same property for a checked-in image
         listing = subprocess.run(
-            ["llvm-nm", "-C", "--defined-only", REAL_IMAGE],
+            ["llvm-nm", "--defined-only", REAL_IMAGE],
             capture_output=True,
             text=True,
             check=True,
         ).stdout
-        self.assert_only_overloads_collide(
-            {line[11:] for line in listing.splitlines() if len(line) > 11}
+        self.assert_only_overloads_share_a_key(
+            sorted(
+                {
+                    line.split()[-1]
+                    for line in listing.splitlines()
+                    if len(line.split()) == 3
+                }
+            )
+        )
+
+    def test_the_oracle_rejects_what_must_not_share_a_key(self):
+        self.assertFalse(
+            is_own_signature_of("S<int>::g", "S<int>::g() requires C<T>::x")
+        )
+        self.assertFalse(
+            is_own_signature_of(
+                "S<int>::g",
+                "S<int>::g() requires C<T>::'lambda0'()::operator()() const",
+            )
+        )
+        self.assertFalse(
+            is_own_signature_of(
+                "r<int>()::'lambda'()::operator()",
+                "long r<int>()::'lambda'()::operator()() const",
+            )
+        )
+        self.assertFalse(
+            is_own_signature_of("deluge::", "deluge::(anonymous namespace)::kTable")
+        )
+        self.assertFalse(
+            may_share_a_key(
+                "FileReader::~FileReader",
+                [
+                    ("_ZN10FileReaderD0Ev", "FileReader::~FileReader()"),
+                    ("_ZN10FileReaderD2Ev", "FileReader::~FileReader()"),
+                ],
+            )
+        )
+        self.assertFalse(
+            may_share_a_key(
+                "h(int)::options",
+                [
+                    ("_ZZ1hiE7options", "h(int)::options"),
+                    ("_ZZ1hiE7options_0", "h(int)::options"),
+                ],
+            )
+        )
+        self.assertTrue(
+            may_share_a_key(
+                "std::expected<int, E>::~expected",
+                [
+                    (
+                        "a",
+                        "std::expected<int, E>::~expected() requires !is_trivially_destructible_v<T>",
+                    ),
+                    ("b", "std::expected<int, E>::~expected() const"),
+                ],
+            )
+        )
+        self.assertTrue(
+            is_own_signature_of(
+                "std::get<0u>", "int& std::get<0u>(std::array<int, 3u>&)"
+            )
         )
 
 
@@ -504,6 +651,33 @@ Disassembly of section .sdram_init:
 2f000000:      \tmov.w\tr2, #0x18
 2f000004:      \tbx\tlr
 """
+
+
+class MainTest(unittest.TestCase):
+    def test_one_image_given_twice_compares_identical(self):
+        def fake(tool, stdin=None):
+            if tool[0] == "objdump":
+                return SAMPLE
+            if tool[0] == "cxxfilt":
+                return stdin + "\n"
+            return ""
+
+        argv = [
+            "compare_codegen.py",
+            "a.elf",
+            "a.elf",
+            "--objdump",
+            "objdump",
+            "--cxxfilt",
+            "cxxfilt",
+        ]
+        with (
+            mock.patch.object(compare_codegen, "run", fake),
+            mock.patch.object(compare_codegen.sys, "argv", argv),
+            mock.patch("builtins.print") as printed,
+        ):
+            self.assertEqual(compare_codegen.main(), 0)
+        self.assertIn(mock.call("changed: 0"), printed.call_args_list)
 
 
 class DisassembleTest(unittest.TestCase):
@@ -832,6 +1006,109 @@ class WrappedNameKeys(unittest.TestCase):
             ),
             (["foo"], [], []),
         )
+
+    def keys(self, table):
+        rename = self.names(table, ["".join(f"10 <{n}>:\n" for n in table)])
+        return [rename(n) for n in table]
+
+    def test_a_constrained_functions_locals_and_lambdas_stay_apart(self):
+        table = {
+            "_ZN1SIiE1gEvQ1CIT_E": "S<int>::g() requires C<T>",
+            "_ZZN1SIiE1gEvQ1CIT_EE1x": "S<int>::g() requires C<T>::x",
+            "_ZZN1SIiE1gEvQ1CIT_EENKUlvE_clEv": "S<int>::g() requires C<T>::'lambda'()::operator()() const",
+            "_ZZN1SIiE1gEvQ1CIT_EENKUlvE0_clEv": "S<int>::g() requires C<T>::'lambda0'()::operator()() const",
+        }
+        self.assertEqual(len(set(self.keys(table))), 4)
+        self.assertEqual(self.keys(table)[0], "S<int>::g")
+
+    def test_constructor_and_destructor_variants_stay_apart(self):
+        table = {
+            "_ZN10FileReaderC1Ev": "FileReader::FileReader()",
+            "_ZN10FileReaderC2Ev": "FileReader::FileReader()",
+            "_ZN10FileReaderD0Ev": "FileReader::~FileReader()",
+            "_ZN10FileReaderD1Ev": "FileReader::~FileReader()",
+            "_ZN10FileReaderD2Ev": "FileReader::~FileReader()",
+            "_ZZN1XD2EvE1x": "X::~X()::x",
+            "_ZZN1XD1EvE1x": "X::~X()::x",
+        }
+        self.assertEqual(len(set(self.keys(table))), 7)
+
+    def test_a_call_retargeted_from_the_base_to_the_deleting_destructor_is_a_change(
+        self,
+    ):
+        d2, d0 = "_ZN10FileReaderD2Ev", "_ZN10FileReaderD0Ev"
+        table = {d2: "FileReader::~FileReader()", d0: "FileReader::~FileReader()"}
+        listing = f"10 <{d2}>:\n10:\tbx\tlr\n\n14 <{d0}>:\n14:\tbx\tlr\n"
+        caller = "20 <caller>:\n20:      \tbl\t0x{} <{}> @ imm = #0x0\n"
+        rename = self.names(
+            table, [listing + caller.format(10, d2) + caller.format(14, d0)]
+        )
+        base = functions(listing + "\n" + caller.format(10, d2), rename)
+        new = functions(listing + "\n" + caller.format(14, d0), rename)
+        self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_discriminated_locals_stay_apart(self):
+        table = {
+            "_ZZ1hiE7options": "h(int)::options",
+            "_ZZ1hiE7options_0": "h(int)::options",
+            "_ZZ1giEN1X1mEv": "g(int)::X::m()",
+            "_ZZ1giEN1X1mE_0v": "g(int)::X::m()",
+            "_ZZ1fvE1x__12_": "f()::x",
+        }
+        self.assertEqual(len(set(self.keys(table))), 5)
+
+    def test_a_template_argument_or_a_lambda_number_is_no_mark(self):
+        table = {
+            "_ZN1WIL4Kind1EED2Ev": "W<(Kind)1>::~W()",
+            "_ZZ1fvENKUlvE0_clEv": "f()::'lambda0'()::operator()() const",
+            "_ZN6deluge12_GLOBAL__N_14kD2EE": "deluge::(anonymous namespace)::kD2E",
+            "_ZNSt6vectorIiSaIiEEC2Ev": "std::vector<int, std::allocator<int>>::vector()",
+        }
+        self.assertEqual(
+            self.keys(table),
+            [
+                "W<(Kind)1>::~W [D2]",
+                "f()::'lambda0'()::operator()",
+                "deluge::(anonymous namespace)::kD2E",
+                "std::vector<int, std::allocator<int>>::vector [C2]",
+            ],
+        )
+
+    def test_a_split_globals_parts_and_a_clone_stay_apart(self):
+        names = [
+            "_ZN12_GLOBAL__N_14poolE.0",
+            "_ZN12_GLOBAL__N_14poolE.1",
+            "_Z1fv.constprop.0",
+            "_Z1fv",
+        ]
+        plain = {
+            "_ZN12_GLOBAL__N_14poolE": "(anonymous namespace)::pool",
+            "_Z1fv": "f()",
+        }
+        rename = self.names(plain, ["".join(f"10 <{n}>:\n" for n in names)])
+        self.assertEqual(
+            [rename(n) for n in names],
+            [
+                "(anonymous namespace)::pool.0",
+                "(anonymous namespace)::pool.1",
+                "f.constprop.0",
+                "f",
+            ],
+        )
+
+    def test_rust_names_that_demangle_alike_keep_their_raw_names(self):
+        core = "_RNvXNtNtCskEwzLGIm5x3_4core5slice3cmpShNtNtB6_3cmp9PartialEq2eq"
+        a, b = (
+            core + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
+            core + "Csj1bDsIbZyCz_14embedded_fatfs",
+        )
+        runtime = "_RNvNvNvNtNtCskEwzLGIm5x3_4core5slice5index16slice_index_fail{}8do_panic7runtime"
+        c, d = runtime.format(""), runtime.format("s0_")
+        alone = "_RNvCs6NFbV2PXKjr_15deluge_bsp_rust4main"
+        text = "<[u8] as core::cmp::PartialEq>::eq"
+        panic = "core::slice::index::slice_index_fail::do_panic::runtime"
+        table = {a: text, b: text, c: panic, d: panic, alone: "deluge_bsp_rust::main"}
+        self.assertEqual(self.keys(table), [a, b, c, d, "deluge_bsp_rust::main"])
 
     def test_collapsing_is_judged_per_image(self):
         # The same pair of spellings in two images, one name each, is a rename, not a collision.
