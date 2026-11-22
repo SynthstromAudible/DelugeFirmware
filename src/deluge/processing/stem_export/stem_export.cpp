@@ -32,7 +32,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"

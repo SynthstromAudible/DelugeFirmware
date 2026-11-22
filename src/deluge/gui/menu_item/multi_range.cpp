@@ -23,7 +23,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"

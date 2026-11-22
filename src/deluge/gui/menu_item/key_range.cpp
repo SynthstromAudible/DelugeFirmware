@@ -20,7 +20,7 @@
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 

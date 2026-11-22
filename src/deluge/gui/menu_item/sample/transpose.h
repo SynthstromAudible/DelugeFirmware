@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"

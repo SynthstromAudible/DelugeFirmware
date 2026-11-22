@@ -1,6 +1,25 @@
 #pragma once
 
 #include "model/scale/note_set.h"
+#include <array>
+#include <cstdint>
+#include <optional>
+
+/** How a ScaleChange maps notes when it goes by diatonic degree letter (see scale_degrees.h) rather than by scale
+ * degree index. Intervals are semitones above the root; -1 means "none" throughout.
+ */
+struct LetterMapping {
+	/// How anchors outside the source scale are spelled
+	bool preferFlats = false;
+	/// Letter 0..6 of each interval of the source scale
+	std::array<int8_t, 12> sourceLetter{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+	/// For each letter, the interval of the source scale's (primary) note with it
+	std::array<int8_t, 7> sourcePrimary{-1, -1, -1, -1, -1, -1, -1};
+	/// For each letter, the interval of the target scale's (primary) note with it
+	std::array<int8_t, 7> targetPrimary{-1, -1, -1, -1, -1, -1, -1};
+	/// For each letter, the interval of the target scale's second note with it, if two share the letter
+	std::array<int8_t, 7> targetSecond{-1, -1, -1, -1, -1, -1, -1};
+};
 
 class ScaleChange {
 public:
@@ -26,7 +45,7 @@ public:
 	 * and only the scale around them changes.
 	 */
 	bool isIdentity() const {
-		if (byLetter) {
+		if (letterMapping) {
 			return false;
 		}
 		for (int8_t offset : degreeOffset) {
@@ -37,17 +56,8 @@ public:
 		return true;
 	}
 
-	/** If set, notes are mapped by degree letter (see scale_degrees.h) instead of by scale degree:
-	 * sourceLetter[interval] is the letter of each note of the source scale (-1 if not in it), targetNote[letter] the
-	 * interval of the target scale's note with that letter (-1 if it has none), and preferFlats how anchors outside the
-	 * source scale are spelled. The degree offsets are unused.
-	 */
-	bool byLetter = false;
-	bool preferFlats = false;
-	int8_t sourceLetter[12] = {0};
-	int8_t targetNote[7] = {0};
-	int8_t targetSecond[7] = {-1, -1, -1, -1, -1, -1, -1};
-	int8_t sourcePrimary[7] = {0};
+	/** If set, notes are mapped by degree letter instead of by scale degree, and the degree offsets are unused. */
+	std::optional<LetterMapping> letterMapping;
 
 private:
 	int8_t degreeOffset[kMaxScaleSize] = {0};

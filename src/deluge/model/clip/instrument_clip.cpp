@@ -30,8 +30,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/note_regrouper.h"
 #include "model/consequence/consequence_note_row_mute.h"
-#include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -59,7 +59,6 @@
 #include <cmath>
 #include <new>
 #include <ranges>
-#include <vector>
 
 #include "playback/mode/playback_mode.h"
 
@@ -484,13 +483,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 		if (!melodicInstrument->earlyNotes.empty()) {
 
 			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-			bool scaleAltered = false;
-
 			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
 				const auto [velocity, still_active] = noteInfo;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYNote(note, modelStack);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow != nullptr) {
 					int32_t probability = noteRow->getDefaultProbability();
@@ -505,10 +501,6 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				}
 			}
 
-			// If this caused the scale to change, update scroll
-			if (action != nullptr && scaleAltered) {
-				action->updateYScrollClipViewAfter();
-			}
 			melodicInstrument->earlyNotes.clear();
 		}
 	}
@@ -1078,10 +1070,8 @@ foundIt:
 }
 
 // This never changes the scale: a note outside the scale of a scale-mode clip just gets an "accidental" row.
-// scaleAltered is no longer set, and is kept only so that callers still compile.
 ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
-                                                                  ModelStackWithTimelineCounter* modelStack,
-                                                                  Action* action, bool* scaleAltered) {
+                                                                  ModelStackWithTimelineCounter* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForYNote(yNote, modelStack);
 
 	// If one didn't already exist, create one
@@ -1091,7 +1081,6 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 		// If that created successfully (i.e. enough RAM)...
 		if (thisNoteRow) {
-
 			modelStackWithNoteRow->setNoteRow(thisNoteRow, yNote);
 		}
 	}
@@ -1213,10 +1202,6 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-bool InstrumentClip::isAccidentalRow(const NoteRow* row, const MusicalKey& key) {
-	return isScaleModeClip() && !key.isInKey(row->y);
-}
-
 int32_t InstrumentClip::getDisplayAnchorYNote(int32_t yNote, Song* song) {
 	if (!isScaleModeClip()) {
 		return yNote;
@@ -1224,138 +1209,13 @@ int32_t InstrumentClip::getDisplayAnchorYNote(int32_t yNote, Song* song) {
 	return song->key.accidentalAnchor(yNote, song->key.prefersFlats());
 }
 
-// Adds a copy of a note to a row, keeping lift and accidental lineage. Returns false, adding nothing, if it overlaps a
-// note that is already there.
-static bool addMovedNote(NoteRow* row, const Note& note, ModelStackWithNoteRow* modelStackWithRow) {
-	if (!row->attemptNoteAdd(note.pos, note.length, note.velocity, note.probability, note.iterance, note.fill,
-	                         modelStackWithRow, nullptr)) {
+bool InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
+                                        deluge::accidentals::AccidentalHandling accidentalHandling,
+                                        int32_t pendingTranspose) {
+	if (!isScaleModeClip()) {
 		return false;
 	}
-	Note* added = row->notes.getElement(row->notes.search(note.pos, GREATER_OR_EQUAL));
-	added->setLift(note.lift);
-	added->anchorOffset = note.anchorOffset;
-	return true;
-}
-
-// Moves every note individually (see model/scale/accidentals.h), so that notes which a previous scale change merged
-// into one row split back out again. In-key notes move by the semitone shift of their scale degree. Accidentals (notes
-// outside the scale, or marked with an anchorOffset) either follow their anchor, found using the key as it is before
-// the change, or, if accidentalsFollowAnchor is false, keep their pitch. Rows can then land on or cross each other,
-// which sortAndMergeNoteRows() sorts out. Not undoable. The song key is the one before the change, and changes.target
-// the mode notes after it.
-void InstrumentClip::regroupNotes(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
-                                  bool accidentalsFollowAnchor, int32_t pendingTranspose) {
-	using namespace deluge::accidentals;
-
-	// Find all NoteRows which belong to this scale, and change their note
-	MusicalKey key = modelStack->song->key;
-	MusicalKey newKey = key;
-	newKey.modeNotes = changes.target;
-	newKey.rootNote += pendingTranspose;
-
-	struct MovedNote {
-		int32_t pitch;
-		Note note;
-	};
-	std::vector<MovedNote> movedNotes; // Notes leaving their row for another one
-
-	std::vector<uint8_t> wasInScale(noteRows.getNumElements());
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		wasInScale[i] = key.isInKey(thisNoteRow->y);
-
-		// All notes with no marker share a destination, because they share an anchor
-		NoteDestination rowDestination = destination(thisNoteRow->y, 0, key, changes, accidentalsFollowAnchor);
-		int8_t rowMarker = rowDestination.marker ? rowDestination.marker
-		                                         : markerFor(rowDestination.pitch + pendingTranspose,
-		                                                     rowDestination.anchor + pendingTranspose, newKey);
-
-		int32_t newY = rowDestination.pitch;
-		bool anyUnmarked = false;
-		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
-			anyUnmarked = anyUnmarked || thisNoteRow->notes.getElement(n)->anchorOffset == 0;
-		}
-		if (!anyUnmarked && thisNoteRow->notes.getNumElements()) {
-			Note* first = thisNoteRow->notes.getElement(0);
-			newY = destination(thisNoteRow->y, first->anchorOffset, key, changes, accidentalsFollowAnchor).pitch;
-		}
-
-		// Sort the notes into those staying in the row, and those moving elsewhere
-		bool anyLeaving = false;
-		for (int32_t n = thisNoteRow->notes.getNumElements() - 1; n >= 0; n--) {
-			Note* note = thisNoteRow->notes.getElement(n);
-			NoteDestination d = rowDestination;
-			int8_t marker = rowMarker;
-			if (note->anchorOffset != 0) {
-				d = destination(thisNoteRow->y, note->anchorOffset, key, changes, accidentalsFollowAnchor);
-				marker =
-				    d.marker ? d.marker : markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, newKey);
-			}
-			if (d.pitch == newY) {
-				note->anchorOffset = marker;
-			}
-			else {
-				if (!anyLeaving) {
-					anyLeaving = true;
-					ModelStackWithNoteRow* modelStackWithNoteRow =
-					    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-					thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-				}
-				MovedNote moved{d.pitch, *note};
-				moved.note.anchorOffset = marker;
-				movedNotes.push_back(moved);
-				thisNoteRow->notes.deleteAtIndex(n);
-			}
-		}
-
-		if (newY != thisNoteRow->y) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-			thisNoteRow->y = newY;
-		}
-	}
-
-	bool merged = sortAndMergeNoteRows(modelStack, wasInScale);
-
-	// Now put the notes which changed row into theirs, creating it if need be. A note which overlaps one already
-	// there can't be kept.
-	for (const MovedNote& moved : movedNotes) {
-		if (moved.pitch < 0 || moved.pitch > kMaxMIDIValue) {
-			continue;
-		}
-		int32_t index;
-		NoteRow* row = getNoteRowForYNote(moved.pitch, &index);
-		if (!row) {
-			row = noteRows.insertNoteRowAtY(moved.pitch, &index);
-			if (!row) {
-				continue;
-			}
-		}
-		ModelStackWithNoteRow* modelStackWithRow = modelStack->addNoteRow(getNoteRowId(row, index), row);
-		if (moved.note.pos < modelStackWithRow->getLoopLength()) {
-			addMovedNote(row, moved.note, modelStackWithRow);
-		}
-	}
-
-	if (!movedNotes.empty()) {
-		expectEvent();
-	}
-
-	// Notes changed row, or rows merged, so undo entries made before this (which find rows by y) may now point at the
-	// wrong notes. The UI that made the scale change clears the undo log when it sees this; this can also run from
-	// MIDI transpose during playback, where deleting actions isn't safe.
-	if (merged || !movedNotes.empty()) {
-		modelStack->song->noteRowsRestructured = true;
-	}
-}
-
-void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
-                                        bool accidentalsFollowAnchor, int32_t pendingTranspose) {
-	if (!isScaleModeClip()) {
-		return;
-	}
-	regroupNotes(changes, modelStack, accidentalsFollowAnchor, pendingTranspose);
+	bool rowsRestructured = NoteRegrouper{*this, modelStack}.regroup(changes, accidentalHandling, pendingTranspose);
 
 	uint8_t oldSize = changes.source.scaleSize();
 	uint8_t newSize = changes.target.scaleSize();
@@ -1365,123 +1225,15 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 	int yDegree = yScroll - (yOctave * oldSize);
 	// Take scale size changes into account and adjust yScroll to keep same octave visible
 	yScroll = yOctave * newSize + yDegree;
+	return rowsRestructured;
 }
 
-// Restores ascending y order of noteRows (which is binary-searched) after rows have been moved, and merges rows which
-// ended up with the same y. wasInScale has one entry per row, saying if it was in the scale before the move. The
-// survivor of a merge is the row that was in scale, else the one with more notes. Not undoable. Returns whether any
-// rows were merged.
-bool InstrumentClip::sortAndMergeNoteRows(ModelStackWithTimelineCounter* modelStack, std::vector<uint8_t>& wasInScale) {
-	// Insertion sort - rows are few, and moves small. swapElements() is what the container offers for this.
-	for (int32_t i = 1; i < noteRows.getNumElements(); i++) {
-		for (int32_t j = i; j > 0 && noteRows.getElement(j - 1)->y > noteRows.getElement(j)->y; j--) {
-			noteRows.swapElements(j - 1, j);
-			std::swap(wasInScale[j - 1], wasInScale[j]);
-		}
-	}
-
-	bool merged = false;
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		int32_t runEnd = i + 1;
-		while (runEnd < noteRows.getNumElements() && noteRows.getElement(runEnd)->y == noteRows.getElement(i)->y) {
-			runEnd++;
-		}
-		if (runEnd - i < 2) {
-			continue;
-		}
-		merged = true;
-
-		int32_t survivorIndex = i;
-		for (int32_t k = i + 1; k < runEnd; k++) {
-			bool better = wasInScale[k] != wasInScale[survivorIndex]
-			                  ? wasInScale[k]
-			                  : noteRows.getElement(k)->notes.getNumElements()
-			                        > noteRows.getElement(survivorIndex)->notes.getNumElements();
-			if (better) {
-				survivorIndex = k;
-			}
-		}
-
-		NoteRow* survivor = noteRows.getElement(survivorIndex);
-		int32_t survivorLoopLength =
-		    modelStack->addNoteRow(getNoteRowId(survivor, survivorIndex), survivor)->getLoopLength();
-
-		for (int32_t k = i; k < runEnd; k++) {
-			if (k == survivorIndex) {
-				continue;
-			}
-			NoteRow* source = noteRows.getElement(k);
-			ModelStackWithNoteRow* modelStackWithSource = modelStack->addNoteRow(getNoteRowId(source, k), source);
-			source->stopCurrentlyPlayingNote(modelStackWithSource); // Otherwise we'd leave a MIDI note playing
-
-			for (int32_t n = 0; n < source->notes.getNumElements(); n++) {
-				Note* note = source->notes.getElement(n);
-				if (note->pos >= survivorLoopLength) {
-					continue;
-				}
-				// A note overlapping one already there is dropped. addNoteRow() mutates the model stack in place, so
-				// the source call above clobbered the survivor's; issue it again.
-				ModelStackWithNoteRow* modelStackWithSurvivor =
-				    modelStack->addNoteRow(getNoteRowId(survivor, survivorIndex), survivor);
-				addMovedNote(survivor, *note, modelStackWithSurvivor);
-			}
-		}
-
-		// Delete the merged-away rows, highest index first. The survivor then ends up at index i.
-		for (int32_t k = runEnd - 1; k >= i; k--) {
-			if (k != survivorIndex) {
-				noteRows.deleteNoteRowAtIndex(k);
-				wasInScale.erase(wasInScale.begin() + k);
-			}
-		}
-	}
-	return merged;
-}
-
-void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) {
-	if (!isScaleModeClip()) {
-		return;
-	}
-
-	for (int32_t i = 0; i < noteRows.getNumElements();) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-
-		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
-			noteRows.deleteNoteRowAtIndex(i);
-		}
-		else {
-			i++;
-		}
-	}
-}
-
-void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key,
-                                                        const MusicalKey* excludeOutOf) {
+void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key) {
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			if (!excludeOutOf) {
-				notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
-			}
-			else {
-				// Count what each note hangs off (see model/scale/accidentals.h): an in-key row is itself, and an
-				// accidental row has the anchor it is displayed on. Notes marked with an anchorOffset have their own.
-				// An anchor which is no longer in the key counts for nothing.
-				int32_t y = thisNoteRow->getNoteCode();
-				bool unmarkedCounted = false;
-				for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
-					int8_t marker = thisNoteRow->notes.getElement(n)->anchorOffset;
-					if (marker == 0 && unmarkedCounted) {
-						continue;
-					}
-					unmarkedCounted = unmarkedCounted || marker == 0;
-					int32_t anchor = deluge::accidentals::lineageAnchor(y, marker, *excludeOutOf);
-					if (excludeOutOf->isInKey(anchor)) {
-						notesWithinOctavePresent.add(key.intervalOf(anchor));
-					}
-				}
-			}
+			notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
 			i++;
 		}
 
@@ -1489,6 +1241,38 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 		else {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
+	}
+}
+
+void InstrumentClip::seeWhatAnchorsWithinOctaveArePresent(NoteSet& anchorsWithinOctavePresent, MusicalKey key,
+                                                          const MusicalKey& lineageKey) {
+	const deluge::accidentals::SpelledKey spelledLineageKey{lineageKey};
+	for (int32_t i = 0; i < noteRows.getNumElements();) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+
+		// If this NoteRow has no notes, delete it, otherwise we'll have problems as the musical mode is changed
+		if (thisNoteRow->hasNoNotes()) {
+			noteRows.deleteNoteRowAtIndex(i);
+			continue;
+		}
+
+		// An in-key row is its own anchor, and an accidental row has the anchor it is displayed on. All its notes
+		// without an AnchorMarker share that, so only the first of them needs counting; marked notes name their own.
+		int32_t y = thisNoteRow->getNoteCode();
+		bool unmarkedCounted = false;
+		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
+			AnchorMarker marker = thisNoteRow->notes.getElement(n)->anchorMarker;
+			if (marker.isDerived() && unmarkedCounted) {
+				continue;
+			}
+			unmarkedCounted = unmarkedCounted || marker.isDerived();
+			int32_t anchor = deluge::accidentals::lineageAnchor(y, marker, spelledLineageKey);
+			// An anchor which is no longer in the key counts for nothing
+			if (lineageKey.isInKey(anchor)) {
+				anchorsWithinOctavePresent.add(key.intervalOf(anchor));
+			}
+		}
+		i++;
 	}
 }
 
@@ -1608,11 +1392,11 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		};
 		vote(thisNoteRow->y + shiftFor(thisNoteRow));
 		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
-			int32_t marker = thisNoteRow->notes.getElement(n)->anchorOffset;
-			if (marker != 0) {
-				vote(thisNoteRow->y
-				     + shiftForInterval[key.intervalOf(
-				         deluge::accidentals::lineageAnchor(thisNoteRow->y, (int8_t)marker, key))]);
+			AnchorMarker marker = thisNoteRow->notes.getElement(n)->anchorMarker;
+			if (!marker.isDerived()) {
+				// A marker names its anchor outright, whatever the key
+				int32_t anchor = thisNoteRow->y + marker.semitonesToAnchor();
+				vote(thisNoteRow->y + shiftForInterval[key.intervalOf(anchor)]);
 			}
 		}
 	}
@@ -1658,7 +1442,8 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		for (int32_t degree = 0; degree < numModeNotes; degree++) {
 			nudge[degree] = shiftForInterval[key.modeNotes[degree]];
 		}
-		regroupNotes(nudge, modelStack, true);
+		// The caller clears the undo history whatever this did to the rows
+		(void)NoteRegrouper{*this, modelStack}.regroup(nudge, deluge::accidentals::AccidentalHandling::FOLLOW_ANCHOR);
 	}
 
 	yScroll += change;
@@ -1739,86 +1524,6 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 	else {
 		return song->getYNoteFromYVisual(yVisual, inScaleMode);
 	}
-}
-
-int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
-	NoteSet notesPresent;
-
-	// It's important this comes before noteRows.getNumElements(), since fetching
-	// used notes also deletes empty note rows!
-	seeWhatNotesWithinOctaveArePresent(notesPresent, song->key);
-
-	// If no NoteRows, not much we can do
-	if (noteRows.getNumElements() == 0) {
-		return previousRoot;
-	}
-
-	previousRoot = previousRoot % 12;
-	if (previousRoot < 0) {
-		previousRoot += 12;
-	}
-
-	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % 12;
-	if (lowestNote < 0) {
-		lowestNote += 12;
-	}
-
-	uint8_t lowestIncompatibility = 255;
-	uint8_t mostViableRoot = 0;
-
-	// Go through each possible root note
-	for (int32_t root = 0; root < 12; root++) {
-		uint8_t incompatibility = 255;
-
-		if (notesPresent.has(root)) { // || root == previousRoot) {
-			// Assess viability of this being the root note
-			uint8_t majorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 3) % 12)) {
-				majorIncompatibility += 2;
-			}
-			if (notesPresent.has((root + 6) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 8) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 10) % 12)) {
-				majorIncompatibility++;
-			}
-
-			uint8_t minorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 4) % 12)) {
-				minorIncompatibility += 2;
-			}
-			if (notesPresent.has((root + 6) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 9) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 11) % 12)) {
-				minorIncompatibility++;
-			}
-
-			incompatibility = std::min(majorIncompatibility, minorIncompatibility);
-		}
-
-		if (incompatibility < lowestIncompatibility
-		    || (incompatibility == lowestIncompatibility
-		        && (root == lowestNote || root == previousRoot // Favour the previous root and the lowest note
-		            ))) {
-			lowestIncompatibility = incompatibility;
-			mostViableRoot = root;
-		}
-	}
-
-	return mostViableRoot;
 }
 
 int32_t InstrumentClip::getNumNoteRows() {

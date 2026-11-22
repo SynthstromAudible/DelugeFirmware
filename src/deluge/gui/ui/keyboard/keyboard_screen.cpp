@@ -53,7 +53,7 @@
 #include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "util/functions.h"
 
 PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
@@ -350,21 +350,12 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 
 			else {
-				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-
-				bool scaleAltered = false;
-
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(
-				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(newNote, modelStackWithTimelineCounter);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
 					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
 					                                         currentNotesState.notes[idx].velocity);
-
-					// If this caused the scale to change, update scroll
-					if (action && scaleAltered) {
-						action->updateYScrollClipViewAfter();
-					}
 				}
 			}
 		}
@@ -444,8 +435,9 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 				// If user holding shift and we're already in scale mode, pick a scale from a list
 				if (Buttons::isShiftButtonPressed() && inScaleMode) {
-					gui::context_menu::selectScale.setupAndCheckAvailability();
-					openUI(&gui::context_menu::selectScale);
+					if (gui::context_menu::selectScale.setupAndCheckAvailability()) {
+						openUI(&gui::context_menu::selectScale);
+					}
 				}
 
 				// Or, no shift button - normal behaviour
@@ -571,8 +563,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		toggleScaleModeOnButtonRelease = false;
 		cycleThroughScales();
-		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
-		requestRendering();
+		onScaleChanged();
 	}
 
 	// store if the user is holding the x encoder

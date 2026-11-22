@@ -1,10 +1,5 @@
 #include "model/scale/musical_key.h"
 #include "util/const_functions.h"
-#ifdef IN_UNIT_TESTS
-#include "song_mock.h"
-#else
-#include "model/song/song.h"
-#endif
 
 #include <cstdint>
 
@@ -44,8 +39,4 @@ int32_t MusicalKey::accidentalAnchor(int32_t noteCode, bool flats) const {
 		note += step;
 	}
 	return note;
-}
-
-bool useSharpsForNoteNames() {
-	return !currentSong || !currentSong->key.prefersFlats();
 }

@@ -3,7 +3,6 @@
 #include "util/d_string.h"
 
 #include "clip_mocks.h"
-#include "model/scale/musical_key.h"
 
 class Song {
 public:
@@ -24,7 +23,6 @@ public:
 	ClipArray sessionClips;
 	ClipArray arrangementOnlyClips;
 	int32_t insideWorldTickMagnitude = 1;
-	MusicalKey key;
 };
 
 extern Song* currentSong;

@@ -1,76 +1,79 @@
 #pragma once
 
+#include "model/scale/anchor_marker.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/scale_change.h"
 
 #include <cstdint>
 
 /** Pure helpers for "accidental lineage": notes outside the key (accidentals) hang off an in-key anchor pitch, and
- * follow it through scale changes. A Note stores anchorOffset (anchor - pitch) only when that can't be derived from
- * the pitch and the key (e.g. after rows were merged by a scale change); 0 means "derive".
+ * follow it through scale changes. A Note stores an AnchorMarker only when its anchor can't be derived from its pitch
+ * and the key (e.g. after a scale change put it on an in-key pitch).
  */
 namespace deluge::accidentals {
 
-/** Reserved markers (not offsets: never add them to a pitch). Both mean the anchor is the pitch of the note itself, or
- * an anchor which kept its pitch when its degree was absent from the new scale and so is no longer where the degree
- * is. kSelfAnchored: anchor = the note's own pitch, even though the key would derive another. tagged(letter, offset):
- * anchor = y + offset, remembering the degree letter 0..6 it was a note of (offset 0 is a note that is its own
- * anchor), so it finds the degree again even when its pitch is a native note of another degree meanwhile. They
- * occupy [INT8_MIN, kLowestPlainOffset); plain offsets are only used from kLowestPlainOffset up.
+/** A key together with whether it is spelled with flats. Working that out is not free (MusicalKey::prefersFlats()),
+ * so build one of these per key rather than per note.
  */
-constexpr int8_t kSelfAnchored = INT8_MIN;
-constexpr int kTagMaxOffset = 4;
-constexpr int kTagSpan = 2 * kTagMaxOffset + 1;
-constexpr int8_t kTagBase = INT8_MIN + 1;
-constexpr int8_t kLowestPlainOffset = kTagBase + 7 * kTagSpan;
-/** The marker for an anchor at y + offset which is the note of degree letter `letter`, or 0 if offset doesn't fit. */
-constexpr int8_t tagged(int letter, int offset) {
-	return (offset < -kTagMaxOffset || offset > kTagMaxOffset)
-	           ? (int8_t)0
-	           : (int8_t)(kTagBase + letter * kTagSpan + offset + kTagMaxOffset);
-}
-constexpr int8_t selfAnchored(int letter) {
-	return tagged(letter, 0);
-}
-constexpr bool isTagged(int8_t m) {
-	return m >= kTagBase && m < kLowestPlainOffset;
-}
-constexpr int taggedLetter(int8_t m) {
-	return (m - kTagBase) / kTagSpan;
-}
-constexpr int taggedOffset(int8_t m) {
-	return (m - kTagBase) % kTagSpan - kTagMaxOffset;
-}
-/** True for markers which make the note its own anchor. */
-constexpr bool isSelfAnchored(int8_t m) {
-	return m == kSelfAnchored || (isTagged(m) && taggedOffset(m) == 0);
-}
+struct SpelledKey {
+	explicit SpelledKey(const MusicalKey& key_) : key(key_), flats(key_.prefersFlats()) {}
 
-/** Lineage anchor of a note at pitch y with stored offset m under key k:
- * kSelfAnchored -> y; tagged -> y + its offset; m != 0 -> y + m; y in key -> y; otherwise the display anchor (below in
- * sharp keys, above in flat keys).
- */
-int32_t lineageAnchor(int32_t y, int8_t m, const MusicalKey& k);
+	/// The in-key note that noteCode is displayed on: itself if in key, else the nearest in-key note below it (sharp
+	/// keys) or above it (flat keys)
+	[[nodiscard]] int32_t displayAnchor(int32_t noteCode) const { return key.accidentalAnchor(noteCode, flats); }
 
-struct NoteDestination {
-	int32_t pitch;
-	int32_t anchor;
-	/// Nonzero if the note must be marked with this (selfAnchored(letter)) rather than with markerFor()
-	int8_t marker = 0;
+	MusicalKey key;
+	bool flats;
 };
 
-/** Where a note goes under ScaleChange c (degrees in oldKey). If c.byLetter, every note moves by its anchor's degree
- * letter (followAnchor is ignored: the set/scale-select path); a note whose letter the target lacks keeps its pitch. A
- * note with an in-key anchor equal to its pitch moves by its own degree's shift. Accidental-lineage notes (anchor !=
- * pitch) either follow their anchor (followAnchor: scale cycle/set, rotate) or keep their pitch (sharpen/flatten one
- * degree). anchor is the lineage anchor after the change, before it is turned into a marker with markerFor().
- * Keep-pitch example: C major with an F# accidental, sharpen F: the F row lands on F#; the accidental stays on F# with
- * anchor F, so it is marked -1 and splits back out when F# is flattened back to F.
+/** The anchor of a note at pitch with the given marker: the one the marker names, or for a derived (unmarked) note
+ * its display anchor in the key (which is the pitch itself if that is in key).
  */
-NoteDestination destination(int32_t y, int8_t m, const MusicalKey& oldKey, const ScaleChange& c, bool followAnchor);
+int32_t lineageAnchor(int32_t pitch, AnchorMarker marker, const SpelledKey& key);
 
-/** Marker to store for a note landing at pitch p with anchor a under newKey (0 if derivable, kSelfAnchored if a == p
- * but the key would derive another). */
-int8_t markerFor(int32_t p, int32_t a, const MusicalKey& newKey);
+/** Marker to store for a note which a scale change left at pitch with the given anchor, under the key after the
+ * change: derived if that key gives the pitch this anchor anyway (or the distance can't be stored), self if the note
+ * is its own anchor but the key would derive another, else the offset.
+ */
+AnchorMarker markerFor(int32_t pitch, int32_t anchor, const SpelledKey& newKey);
+
+/// What a scale change which shifts scale degrees does with accidentals
+enum class AccidentalHandling {
+	/// They move along with the in-key note they hang off
+	FOLLOW_ANCHOR,
+	/// They stay at their pitch (sharpening or flattening one degree)
+	KEEP_PITCH,
+};
+
+/// Where a scale change puts a note
+struct NoteDestination {
+	int32_t pitch;
+	/// The note's lineage anchor after the change
+	int32_t anchor;
+	/// If not derived, the note must be given this marker (a tagged one, which markerFor() can't work out as it
+	/// doesn't know the letter) instead of markerFor()'s
+	AnchorMarker forcedMarker = AnchorMarker::derived();
+
+	/// The marker to store on the note. pendingTranspose is a uniform shift in semitones which the caller is still to
+	/// apply to every note and to the key's root after the change (in-key transposition does this), and finalKey the
+	/// key as it will be once that is done.
+	[[nodiscard]] AnchorMarker markerUnder(const SpelledKey& finalKey, int32_t pendingTranspose = 0) const {
+		return forcedMarker.isDerived() ? markerFor(pitch + pendingTranspose, anchor + pendingTranspose, finalKey)
+		                                : forcedMarker;
+	}
+};
+
+/** Where a note at pitch with the given marker goes under a scale change away from oldKey. There are three kinds of
+ * change:
+ * - By letter (change.letterMapping is set; scale selection): every note moves with its anchor's degree letter, and
+ *   one whose letter the target scale lacks keeps its pitch. handling is ignored.
+ * - Pitch-preserving (change.isIdentity()): no note moves; only the anchors are worked out again.
+ * - By degree (rotating the mode, nudging by scale degrees, sharpening or flattening one degree): a note which is its
+ *   own in-key anchor moves by its degree's shift. What an accidental does is up to handling.
+ *   Keep-pitch example: C major with an F# accidental, sharpen F: the F row lands on F#; the accidental stays on F#
+ *   with anchor F, so it is marked offset(-1) and splits back out when F# is flattened back to F.
+ */
+NoteDestination destination(int32_t pitch, AnchorMarker marker, const SpelledKey& oldKey, const ScaleChange& change,
+                            AccidentalHandling handling);
 
 } // namespace deluge::accidentals

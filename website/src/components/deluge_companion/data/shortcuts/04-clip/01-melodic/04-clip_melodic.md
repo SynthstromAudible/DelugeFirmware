@@ -3,7 +3,7 @@ capability-order: 5
 sub-capability: Clip (Melodic)
 sub-capability-order: 1
 
-# Cycle default scales
+# Choose scale from list
 
 #OFFICIAL #SYNTH #MIDI #CV
 

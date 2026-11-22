@@ -21,7 +21,7 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
-#include "model/scale/musical_key.h"
+#include "model/song/note_spelling.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
 

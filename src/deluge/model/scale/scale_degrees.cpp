@@ -14,10 +14,10 @@ constexpr int kInfeasible = 1 << 20;
 constexpr int kSharingPenalty = 8;
 
 struct Search {
-	int count;
-	int8_t notes[7];
-	int8_t chosen[7];
-	int8_t best[7];
+	int count = 0;
+	std::array<int8_t, 7> notes{};
+	std::array<int8_t, 7> chosen{};
+	std::array<int8_t, 7> best{};
 	int bestCost = kInfeasible;
 
 	void run(int index, int cost) {
@@ -51,33 +51,34 @@ struct Search {
 };
 } // namespace
 
-bool degreeLetters(NoteSet scale, std::array<int8_t, 12>& letters) {
-	letters.fill(-1);
+std::optional<DegreeLetters> degreeLetters(NoteSet scale) {
 	scale.add(0);
 	if (scale.count() > 7) {
-		return false;
+		return std::nullopt;
 	}
-	Search s;
-	s.count = scale.count();
-	for (int i = 0; i < s.count; i++) {
-		s.notes[i] = scale[i];
+	DegreeLetters letters;
+	letters.fill(-1);
+	Search search;
+	search.count = scale.count();
+	for (int i = 0; i < search.count; i++) {
+		search.notes[i] = scale[i];
 	}
-	s.chosen[0] = 0; // The root is always the 1st
-	if (s.count == 1 || s.count == 7) {
-		for (int i = 0; i < s.count; i++) {
-			letters[s.notes[i]] = i; // 7 notes: one per letter
+	search.chosen[0] = 0; // The root is always the 1st
+	if (search.count == 1 || search.count == 7) {
+		for (int i = 0; i < search.count; i++) {
+			letters[search.notes[i]] = i; // 7 notes: one per letter
 		}
-		return true;
+		return letters;
 	}
-	s.run(1, 0);
-	if (s.bestCost == kInfeasible) {
-		return false;
+	search.run(1, 0);
+	if (search.bestCost == kInfeasible) {
+		return std::nullopt;
 	}
 	letters[0] = 0;
-	for (int i = 1; i < s.count; i++) {
-		letters[s.notes[i]] = s.best[i];
+	for (int i = 1; i < search.count; i++) {
+		letters[search.notes[i]] = search.best[i];
 	}
-	return true;
+	return letters;
 }
 
 int spellLetter(int interval, bool flats) {
@@ -95,56 +96,58 @@ int spellLetter(int interval, bool flats) {
 	return letter;
 }
 
-void letterNotes(const std::array<int8_t, 12>& letters, int8_t primary[7], int8_t secondary[7]) {
-	for (int letter = 0; letter < 7; letter++) {
-		primary[letter] = -1;
-		secondary[letter] = -1;
-	}
+LetterNotes letterNotes(const DegreeLetters& letters) {
+	LetterNotes notes;
+	notes.primary.fill(-1);
+	notes.secondary.fill(-1);
 	for (int interval = 0; interval < 12; interval++) {
 		int letter = letters[interval];
 		if (letter < 0) {
 			continue;
 		}
-		if (primary[letter] < 0) {
-			primary[letter] = interval;
+		if (notes.primary[letter] < 0) {
+			notes.primary[letter] = interval;
 			continue;
 		}
 		// Two notes: the primary is the one nearer the major scale's, the lower one if equally near
-		int other = primary[letter];
-		int altNew = std::abs(interval - kMajorNotes[letter]);
-		int altOther = std::abs(other - kMajorNotes[letter]);
-		if (altNew < altOther) {
-			primary[letter] = interval;
-			secondary[letter] = other;
+		int other = notes.primary[letter];
+		int alterationNew = std::abs(interval - kMajorNotes[letter]);
+		int alterationOther = std::abs(other - kMajorNotes[letter]);
+		if (alterationNew < alterationOther) {
+			notes.primary[letter] = interval;
+			notes.secondary[letter] = other;
 		}
 		else {
-			secondary[letter] = interval;
+			notes.secondary[letter] = interval;
 		}
 	}
+	return notes;
 }
 
 int majorNote(int letter) {
 	return kMajorNotes[letter];
 }
 
-bool letterChange(const MusicalKey& key, NoteSet target, ScaleChange& change) {
-	std::array<int8_t, 12> sourceLetters;
-	std::array<int8_t, 12> targetLetters;
+std::optional<ScaleChange> letterChange(const MusicalKey& key, NoteSet target) {
 	target.add(0);
-	if (!degreeLetters(key.modeNotes, sourceLetters) || !degreeLetters(target, targetLetters)) {
-		return false;
+	std::optional<DegreeLetters> sourceLetters = degreeLetters(key.modeNotes);
+	std::optional<DegreeLetters> targetLetters = degreeLetters(target);
+	if (!sourceLetters || !targetLetters) {
+		return std::nullopt;
 	}
+	LetterNotes targetNotes = letterNotes(*targetLetters);
+
+	ScaleChange change;
 	change.source = key.modeNotes;
 	change.target = target;
-	change.byLetter = true;
-	change.preferFlats = key.prefersFlats();
-	for (int interval = 0; interval < 12; interval++) {
-		change.sourceLetter[interval] = sourceLetters[interval];
-	}
-	int8_t unused[7];
-	letterNotes(sourceLetters, change.sourcePrimary, unused);
-	letterNotes(targetLetters, change.targetNote, change.targetSecond);
-	return true;
+	change.letterMapping = LetterMapping{
+	    .preferFlats = key.prefersFlats(),
+	    .sourceLetter = *sourceLetters,
+	    .sourcePrimary = letterNotes(*sourceLetters).primary,
+	    .targetPrimary = targetNotes.primary,
+	    .targetSecond = targetNotes.secondary,
+	};
+	return change;
 }
 
 } // namespace deluge::scale_degrees

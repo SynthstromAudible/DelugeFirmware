@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/accidental_rows.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -26,6 +27,7 @@
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
+#include <optional>
 #include <span>
 
 class InstrumentClip;
@@ -46,15 +48,19 @@ class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
-// EditPadPress::yNoteOverride value meaning "the NoteRow shown at yDisplay"
-constexpr int16_t kNoYNoteOverride = INT16_MIN;
+/// How long an edit pad must have been down to count as held rather than as part of a quick tap or chord: 80 ms, in
+/// samples (roughly 44 per ms). Only once it is held does another press to its right on the same row edit the note's
+/// length, and do the mod encoders edit the held step's automation.
+constexpr int32_t kEditPadHoldTime = 80 * 44;
 
 struct EditPadPress {
 	bool isActive;
 	uint8_t yDisplay;
 	uint8_t xDisplay;
-	int16_t yNoteOverride; // If not kNoYNoteOverride, the press is on this yNote (an accidental hidden behind yDisplay)
-	bool deleteOnDepress;  // Can also mean to delete tail
+	/// If set, the press is on the NoteRow of this pitch (an accidental hidden behind yDisplay, see AccidentalRows)
+	/// rather than on the NoteRow shown at yDisplay
+	std::optional<int16_t> yNoteOverride;
+	bool deleteOnDepress; // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
 	Iterance intendedIterance;
@@ -105,11 +111,9 @@ public:
 	/// Learn notes from current clip + scale mode clips as USER scale.
 	/// Enters scale mode if wasn't in it already. LEARN + SCALE.
 	ActionResult commandLearnUserScale();
-	/// Cycle through preset scales.
-	ActionResult commandCycleThroughScales();
 	/// Pick a scale from a popup list. SHIFT + SCALE in scale mode.
 	ActionResult commandSelectScale();
-	/// The song's scale was changed (by the scale selection menu): redraw with the new colours
+	/// The song's scale was changed: redraw with the new colours
 	void onScaleChanged();
 	/// Flash the current root note. Part of SCALE down.
 	ActionResult commandFlashRootNote();
@@ -262,7 +266,8 @@ public:
 	// made these public so they can be accessed by the automation clip view
 	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]{}; // 255 seems to mean none
-	int16_t auditionedYNoteOverride[kDisplayHeight];          // kNoYNoteOverride unless auditioning a hidden accidental
+	/// Accidentals of a scale mode clip, which are shown on a neighbouring row
+	AccidentalRows accidentalRows{};
 	uint8_t auditionPadIsPressed[kDisplayHeight]{};
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight]{};
 	uint8_t lastAuditionedYDisplay{};
@@ -288,10 +293,6 @@ public:
 	std::span<EditPadPress> get_note_edit_targets();
 	void exitNoteEditor();
 	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
-	ModelStackWithNoteRow* getNoteRowForEditPadPress(const EditPadPress& press,
-	                                                 ModelStackWithTimelineCounter* modelStack);
-	NoteRow* getNoteRowForEditPadPress(const EditPadPress& press, int32_t* getIndex = nullptr);
-	bool getHiddenYNotesForYDisplay(int32_t yDisplay, int32_t& first, int32_t& last);
 	void deselectNoteAndGoUpOneLevel();
 	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);

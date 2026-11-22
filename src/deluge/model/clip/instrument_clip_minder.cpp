@@ -44,8 +44,8 @@
 #include "model/consequence/consequence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/scale/musical_key.h"
 #include "model/scale/preset_scales.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -575,13 +575,11 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 
 void InstrumentClipMinder::cycleThroughScales() {
 	displayScaleName(currentSong->cycleThroughScales());
-	currentSong->clearUndoIfNoteRowsRestructured();
 }
 
 // Returns if the scale could be changed or not
 bool InstrumentClipMinder::setScale(Scale newScale) {
 	Scale result = currentSong->setScale(newScale);
-	currentSong->clearUndoIfNoteRowsRestructured();
 	if (result == NO_SCALE) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
 		return false;

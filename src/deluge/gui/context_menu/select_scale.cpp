@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -37,23 +37,27 @@ std::span<char const*> SelectScale::getOptions() {
 
 bool SelectScale::setupAndCheckAvailability() {
 	numOptions = 0;
-	Scale current = currentSong->getCurrentScale();
 	currentOption = 0;
-	for (int32_t s = 0; s <= NUM_PRESET_SCALES; s++) {
-		bool isUser = s == USER_SCALE;
-		if (isUser ? !currentSong->hasUserScale() : currentSong->disabledPresetScales[s]) {
-			// The current scale is listed even if disabled in the menu, so that it can be seen and kept
-			if (static_cast<Scale>(s) != current) {
-				continue;
-			}
-		}
-		if (static_cast<Scale>(s) == current) {
+	Scale current = currentSong->getCurrentScale();
+
+	// The current scale is listed even if it isn't otherwise available, so that it can be seen and kept
+	auto addOption = [&](Scale scale, bool available) {
+		if (scale == current) {
 			currentOption = numOptions;
 		}
-		scales[numOptions] = static_cast<Scale>(s);
-		names[numOptions] = getScaleName(static_cast<Scale>(s));
+		else if (!available) {
+			return;
+		}
+		scales[numOptions] = scale;
+		names[numOptions] = getScaleName(scale);
 		numOptions++;
+	};
+
+	for (int32_t preset = 0; preset < NUM_PRESET_SCALES; preset++) {
+		addOption(static_cast<Scale>(preset), !currentSong->disabledPresetScales[preset]);
 	}
+	addOption(USER_SCALE, currentSong->hasUserScale());
+
 	scrollPos = currentOption;
 	return numOptions > 0;
 }

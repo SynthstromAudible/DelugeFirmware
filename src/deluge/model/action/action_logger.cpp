@@ -344,6 +344,10 @@ bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation)
 
 	deleteLastActionIfEmpty();
 
+	if (deleteLogIfStale(time)) {
+		return false;
+	}
+
 	if (firstAction[time]) {
 		Action* toRevert = firstAction[time];
 
@@ -791,6 +795,26 @@ void ActionLogger::deleteAllLogs() {
 	deleteLog(AFTER);
 }
 
+void ActionLogger::invalidateLogs() {
+	for (Action* newest : firstAction) {
+		if (newest != nullptr) {
+			// Everything older is behind this one in the list, so marking the newest covers them all
+			newest->stale = true;
+			newest->openForAdditions = false;
+		}
+	}
+}
+
+/// If the next Action to revert in this direction was invalidated, deletes it and everything older. Returns whether
+/// it did.
+bool ActionLogger::deleteLogIfStale(TimeType time) {
+	if (firstAction[time] == nullptr || !firstAction[time]->stale) {
+		return false;
+	}
+	deleteLog(time);
+	return true;
+}
+
 void ActionLogger::deleteLog(int32_t time) {
 	while (firstAction[time]) {
 		Action* toDelete = firstAction[time];
@@ -896,6 +920,10 @@ void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 
 	bool revertedWholeAction = false;
+
+	if (deleteLogIfStale(BEFORE)) {
+		return false;
+	}
 
 	Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
 	if (firstConsequence) { // Should always be true

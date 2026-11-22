@@ -17,9 +17,14 @@ namespace {
 
 struct SimNote {
 	int32_t pitch;
-	int8_t marker;
+	AnchorMarker marker;
+	/// A note whose anchor is anchorOffset semitones away (0: no marker)
+	SimNote(int32_t pitch_, int32_t anchorOffset = 0) : pitch(pitch_), marker(AnchorMarker::offset(anchorOffset)) {}
+	SimNote(int32_t pitch_, AnchorMarker marker_) : pitch(pitch_), marker(marker_) {}
 	bool operator==(const SimNote& o) const { return pitch == o.pitch && marker == o.marker; }
-	bool operator<(const SimNote& o) const { return pitch != o.pitch ? pitch < o.pitch : marker < o.marker; }
+	bool operator<(const SimNote& o) const {
+		return pitch != o.pitch ? pitch < o.pitch : marker.raw() < o.marker.raw();
+	}
 };
 
 /// A clip's worth of notes under a song key, with one persistent ScaleMapper like Song has.
@@ -37,18 +42,19 @@ struct SimSong {
 		}
 	}
 
-	/// pendingTranspose mirrors InstrumentClip::regroupNotes: markers are chosen against the key as it will be after a
+	/// pendingTranspose mirrors NoteRegrouper::regroup: markers are chosen against the key as it will be after a
 	/// uniform shift of that many semitones, which the caller applies afterwards.
-	void regroup(const ScaleChange& changes, bool followAnchor, int32_t pendingTranspose = 0) {
+	void regroup(const ScaleChange& changes, AccidentalHandling handling, int32_t pendingTranspose = 0) {
 		MusicalKey newKey = key;
 		newKey.modeNotes = changes.target;
 		MusicalKey finalKey = newKey;
 		finalKey.rootNote += pendingTranspose;
+		const SpelledKey oldSpelling{key};
+		const SpelledKey finalSpelling{finalKey};
 		for (SimNote& n : notes) {
-			NoteDestination d = destination(n.pitch, n.marker, key, changes, followAnchor);
+			NoteDestination d = destination(n.pitch, n.marker, oldSpelling, changes, handling);
 			n.pitch = d.pitch;
-			n.marker =
-			    d.marker ? d.marker : markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, finalKey);
+			n.marker = d.markerUnder(finalSpelling, pendingTranspose);
 		}
 		key = newKey;
 	}
@@ -79,7 +85,7 @@ struct SimSong {
 			}
 		}
 		changes.target = changes.applyTo(changes.source);
-		regroup(changes, true, semitones);
+		regroup(changes, AccidentalHandling::FOLLOW_ANCHOR, semitones);
 		key.modeNotes = changes.target;
 
 		for (SimNote& n : notes) {
@@ -92,15 +98,15 @@ struct SimSong {
 	bool setScaleNotes(NoteSet newScale) {
 		newScale.add(0);
 		ScaleChange changes;
-		if (deluge::scale_degrees::letterChange(key, newScale, changes)) {
-			regroup(changes, true);
+		if (auto byLetter = deluge::scale_degrees::letterChange(key, newScale)) {
+			regroup(*byLetter, AccidentalHandling::FOLLOW_ANCHOR);
 			key.modeNotes = newScale;
 			return true;
 		}
 		// More than 7 notes in either scale: the mapper
 		NoteSet inUse;
 		for (const SimNote& n : notes) {
-			int32_t a = lineageAnchor(n.pitch, n.marker, key);
+			int32_t a = lineageAnchor(n.pitch, n.marker, SpelledKey{key});
 			if (key.isInKey(a)) {
 				inUse.add(key.intervalOf(a));
 			}
@@ -122,7 +128,7 @@ struct SimSong {
 		else if (!mapper.computeChangeFrom(inUse, key.modeNotes, newScale, changes)) {
 			return false;
 		}
-		regroup(changes, true);
+		regroup(changes, AccidentalHandling::FOLLOW_ANCHOR);
 		key.modeNotes = newScale;
 		return true;
 	}
@@ -133,7 +139,7 @@ struct SimSong {
 		changes.source = key.modeNotes;
 		changes[degree] += change;
 		changes.target = changes.applyTo(changes.source);
-		regroup(changes, false);
+		regroup(changes, AccidentalHandling::KEEP_PITCH);
 	}
 
 	std::vector<SimNote> sorted() const {
@@ -145,7 +151,7 @@ struct SimSong {
 	/// Every note's lineage anchor must be in key, or the next scale change would lose it
 	bool anchorsInKey() const {
 		for (const SimNote& n : notes) {
-			if (!key.isInKey(lineageAnchor(n.pitch, n.marker, key))) {
+			if (!key.isInKey(lineageAnchor(n.pitch, n.marker, SpelledKey{key}))) {
 				return false;
 			}
 		}
@@ -160,7 +166,7 @@ void checkSame(const std::vector<SimNote>& expected, const std::vector<SimNote>&
 	CHECK_EQUAL(expected.size(), actual.size());
 	for (size_t i = 0; i < expected.size(); i++) {
 		CHECK_EQUAL(expected[i].pitch, actual[i].pitch);
-		CHECK_EQUAL(expected[i].marker, actual[i].marker);
+		CHECK_EQUAL(expected[i].marker.raw(), actual[i].marker.raw());
 	}
 }
 
@@ -169,8 +175,8 @@ void checkSame(const std::vector<SimNote>& expected, const std::vector<SimNote>&
 std::vector<SimNote> effective(const SimSong& song) {
 	std::vector<SimNote> s = song.sorted();
 	for (SimNote& n : s) {
-		if (n.marker != 0 && !song.key.isInKey(lineageAnchor(n.pitch, n.marker, song.key))) {
-			n.marker = 0;
+		if (!n.marker.isDerived() && !song.key.isInKey(lineageAnchor(n.pitch, n.marker, SpelledKey{song.key}))) {
+			n.marker = AnchorMarker::derived();
 		}
 	}
 	std::sort(s.begin(), s.end());
@@ -182,30 +188,34 @@ std::vector<SimNote> effective(const SimSong& song) {
 TEST_GROUP(AccidentalsTest){};
 
 TEST(AccidentalsTest, lineageAnchor) {
-	MusicalKey c;
-	c.modeNotes = kMajor;
-	CHECK_EQUAL(60, lineageAnchor(60, 0, c));
-	CHECK_EQUAL(60, lineageAnchor(61, 0, c)); // C major prefers sharps
-	CHECK_EQUAL(62, lineageAnchor(63, -1, c));
-	CHECK_EQUAL(64, lineageAnchor(63, 1, c));
-	MusicalKey f = c;
-	f.rootNote = 5;
-	f.modeNotes = kMajor;
-	CHECK_EQUAL(70, lineageAnchor(70, 0, f)); // Bb is in F major
-	CHECK_EQUAL(72, lineageAnchor(71, 0, f)); // B isn't: flat key, anchor above
-	CHECK_EQUAL(62, lineageAnchor(61, 0, f)); // flat key: anchor above
+	MusicalKey cMajor;
+	cMajor.modeNotes = kMajor;
+	const SpelledKey c{cMajor};
+	CHECK_EQUAL(60, lineageAnchor(60, AnchorMarker::derived(), c));
+	CHECK_EQUAL(60, lineageAnchor(61, AnchorMarker::derived(), c)); // C major prefers sharps
+	CHECK_EQUAL(62, lineageAnchor(63, AnchorMarker::offset(-1), c));
+	CHECK_EQUAL(64, lineageAnchor(63, AnchorMarker::offset(1), c));
+	MusicalKey fMajor = cMajor;
+	fMajor.rootNote = 5;
+	const SpelledKey f{fMajor};
+	CHECK_EQUAL(70, lineageAnchor(70, AnchorMarker::derived(), f)); // Bb is in F major
+	CHECK_EQUAL(72, lineageAnchor(71, AnchorMarker::derived(), f)); // B isn't: flat key, anchor above
+	CHECK_EQUAL(62, lineageAnchor(61, AnchorMarker::derived(), f)); // flat key: anchor above
 }
 
 TEST(AccidentalsTest, markerFor) {
-	MusicalKey c;
-	c.modeNotes = kMajor;
-	CHECK_EQUAL(0, markerFor(61, 60, c)); // derivable
-	CHECK_EQUAL(0, markerFor(60, 60, c));
-	MusicalKey minor;
-	minor.modeNotes = kMinor;
-	CHECK_EQUAL(-1, markerFor(63, 62, minor)); // Eb in C minor, hanging off D
-	CHECK_EQUAL(-1, markerFor(69, 68, minor)); // A natural in C minor (flats: derived anchor Bb), hanging off Ab
-	CHECK_EQUAL(0, markerFor(0, 1000, c));     // doesn't fit an int8
+	MusicalKey cMajor;
+	cMajor.modeNotes = kMajor;
+	const SpelledKey c{cMajor};
+	CHECK(markerFor(61, 60, c).isDerived()); // derivable
+	CHECK(markerFor(60, 60, c).isDerived());
+	MusicalKey cMinor;
+	cMinor.modeNotes = kMinor;
+	const SpelledKey minor{cMinor};
+	CHECK(AnchorMarker::offset(-1) == markerFor(63, 62, minor)); // Eb in C minor, hanging off D
+	// A natural in C minor (flats: derived anchor Bb), hanging off Ab
+	CHECK(AnchorMarker::offset(-1) == markerFor(69, 68, minor));
+	CHECK(markerFor(0, 1000, c).isDerived()); // too far to store
 }
 
 TEST(AccidentalsTest, majorMinorRoundTrip) {
@@ -262,7 +272,7 @@ TEST(AccidentalsTest, inKeyTransposeChoosesMarkersAgainstFinalKey) {
 	// final key, which used to flip markers and collapse B onto C.
 	const NoteSet lydian{0, 2, 4, 6, 7, 9, 11};
 	SimSong song(lydian, 5, {72});
-	song.notes.push_back({71, 1});
+	song.notes.push_back(SimNote{71, 1});
 	auto original = song.sorted();
 
 	song.transposeInKey(1);
@@ -408,9 +418,10 @@ TEST(AccidentalsTest, tooSmallScaleWithAccidentalsMapsByDegreeAndRestores) {
 	// E->Eb, B->Bb, D and A stay (self-anchored, as pentatonic minor has no 2nd or 6th), C# stays hanging off C
 	// (marked -1: pentatonic minor is a flat key, which would hang it off Eb), A# stays hanging off A, which keeps
 	// its pitch and remembers it is the 6th
-	std::vector<SimNote> expected = {{60, 0}, {61, -1}, {62, selfAnchored(1)}, {63, 0},
-	                                 {65, 0}, {67, 0},  {69, selfAnchored(5)}, {70, tagged(5, -1)},
-	                                 {70, 0}};
+	std::vector<SimNote> expected = {
+	    {60, 0}, {61, -1}, {62, AnchorMarker::tagged(1, 0)}, {63, 0},
+	    {65, 0}, {67, 0},  {69, AnchorMarker::tagged(5, 0)}, {70, AnchorMarker::tagged(5, -1)},
+	    {70, 0}};
 	checkSame(expected, song.sorted());
 
 	CHECK(song.setScaleNotes(kMajor));
@@ -469,34 +480,49 @@ TEST(AccidentalsTest, tooSmallScaleViaSmallScalesRestoresPitches) {
 	checkSame(original, song.sorted());
 }
 
-TEST(AccidentalsTest, selfAnchoredMarker) {
-	MusicalKey minorPent;
-	minorPent.modeNotes = kPentMinor; // Flats: D (62) would derive Eb (63) as its anchor
-	CHECK_EQUAL(kSelfAnchored, markerFor(62, 62, minorPent));
-	CHECK_EQUAL(0, markerFor(63, 63, minorPent)); // in key: derivable
-	CHECK_EQUAL(62, lineageAnchor(62, kSelfAnchored, minorPent));
-	CHECK_EQUAL(62, lineageAnchor(62, selfAnchored(1), minorPent));
-	CHECK(isSelfAnchored(selfAnchored(1)));
-	CHECK(isSelfAnchored(kSelfAnchored));
-	CHECK_EQUAL(1, taggedLetter(selfAnchored(1)));
-	CHECK(!isTagged(kSelfAnchored));
-	CHECK(!isTagged(-1));
-	CHECK(!isTagged(0));
-	CHECK(!isTagged(127));
+TEST(AccidentalsTest, selfAndTaggedMarkers) {
+	MusicalKey pentMinorKey;
+	pentMinorKey.modeNotes = kPentMinor; // Flats: D (62) would derive Eb (63) as its anchor
+	const SpelledKey minorPent{pentMinorKey};
+	CHECK(markerFor(62, 62, minorPent).isSelf());
+	CHECK(markerFor(63, 63, minorPent).isDerived()); // in key: derivable
+	CHECK_EQUAL(62, lineageAnchor(62, AnchorMarker::self(), minorPent));
+	CHECK_EQUAL(62, lineageAnchor(62, AnchorMarker::tagged(1, 0), minorPent));
+	CHECK_EQUAL(1, AnchorMarker::tagged(1, 0).letter());
+	CHECK(!AnchorMarker::self().isTagged());
+	CHECK(!AnchorMarker::offset(-1).isTagged());
+	CHECK(!AnchorMarker::derived().isTagged());
+	CHECK(!AnchorMarker::offset(127).isTagged());
 	// Anchor one above the note, remembering letter 5
-	int8_t m = tagged(5, 1);
-	CHECK(isTagged(m));
-	CHECK(!isSelfAnchored(m));
-	CHECK_EQUAL(5, taggedLetter(m));
-	CHECK_EQUAL(1, taggedOffset(m));
+	AnchorMarker m = AnchorMarker::tagged(5, 1);
+	CHECK(m.isTagged());
+	CHECK(!m.isSelf());
+	CHECK_EQUAL(5, m.letter());
+	CHECK_EQUAL(1, m.semitonesToAnchor());
 	CHECK_EQUAL(70, lineageAnchor(69, m, minorPent));
-	CHECK_EQUAL(0, tagged(0, 5)); // doesn't fit
+	CHECK(AnchorMarker::tagged(0, 5).isDerived()); // doesn't fit
 	for (int letter = 0; letter < 7; letter++) {
-		for (int o = -kTagMaxOffset; o <= kTagMaxOffset; o++) {
-			CHECK_EQUAL(letter, taggedLetter(tagged(letter, o)));
-			CHECK_EQUAL(o, taggedOffset(tagged(letter, o)));
+		for (int o = -AnchorMarker::kMaxTaggedOffset; o <= AnchorMarker::kMaxTaggedOffset; o++) {
+			AnchorMarker tagged = AnchorMarker::tagged(letter, o);
+			CHECK(tagged.isTagged());
+			CHECK_EQUAL(letter, tagged.letter());
+			CHECK_EQUAL(o, tagged.semitonesToAnchor());
+			// What song files store must survive a round trip
+			CHECK(tagged == AnchorMarker::fromRaw(tagged.raw()));
 		}
 	}
+}
+
+TEST(AccidentalsTest, markerBytesAreStable) {
+	// Song files store raw(), so the encoding must not change
+	CHECK_EQUAL(0, AnchorMarker::derived().raw());
+	CHECK_EQUAL(-128, AnchorMarker::self().raw());
+	CHECK_EQUAL(-1, AnchorMarker::offset(-1).raw());
+	CHECK_EQUAL(127, AnchorMarker::offset(127).raw());
+	CHECK_EQUAL(-127, AnchorMarker::tagged(0, -4).raw());
+	CHECK_EQUAL(-65, AnchorMarker::tagged(6, 4).raw());
+	CHECK_EQUAL(-64, AnchorMarker::offset(-64).raw());
+	CHECK(AnchorMarker::offset(-65).isDerived()); // would collide with the tagged range
 }
 
 TEST(AccidentalsTest, inKeyTransposeKeepsNoteShape) {
@@ -517,7 +543,7 @@ TEST(AccidentalsTest, bluesToMajorMapsByDegree) {
 	// accidental)
 	CHECK((std::vector<int32_t>{60, 64, 65, 66, 67, 71}) == pitchesOf(song));
 	// F# is an accidental in major, hanging off the G it was the b5 of
-	CHECK_EQUAL(1, song.sorted()[3].marker);
+	CHECK(AnchorMarker::offset(1) == song.sorted()[3].marker);
 	CHECK(song.setScaleNotes(blues));
 	CHECK((std::vector<int32_t>{60, 63, 65, 66, 67, 70}) == pitchesOf(song));
 }

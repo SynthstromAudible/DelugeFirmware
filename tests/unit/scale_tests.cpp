@@ -782,9 +782,9 @@ TEST_GROUP(ScaleDegreesTest){};
 
 namespace {
 std::array<int8_t, 12> lettersOf(NoteSet scale) {
-	std::array<int8_t, 12> l;
-	CHECK(deluge::scale_degrees::degreeLetters(scale, l));
-	return l;
+	auto letters = deluge::scale_degrees::degreeLetters(scale);
+	CHECK(letters.has_value());
+	return *letters;
 }
 /// Monotone, injective, alterations within 2
 void checkSane(NoteSet scale, const std::array<int8_t, 12>& l) {
@@ -861,18 +861,14 @@ TEST(ScaleDegreesTest, wholeToneAndBluesPinned) {
 }
 
 TEST(ScaleDegreesTest, moreThanSevenNotesHaveNone) {
-	std::array<int8_t, 12> l;
-	CHECK_FALSE(deluge::scale_degrees::degreeLetters({0, 1, 2, 3, 4, 5, 7, 9}, l));
-	CHECK_EQUAL(-1, l[0]);
+	CHECK_FALSE(deluge::scale_degrees::degreeLetters({0, 1, 2, 3, 4, 5, 7, 9}).has_value());
 }
 
 TEST(ScaleDegreesTest, letterNotesPrimaryAndSecondary) {
-	int8_t primary[7];
-	int8_t secondary[7];
-	deluge::scale_degrees::letterNotes(lettersOf({0, 3, 5, 6, 7, 10}), primary, secondary);
-	CHECK_EQUAL(7, primary[4]); // the natural 5th is primary, b5 secondary
-	CHECK_EQUAL(6, secondary[4]);
-	CHECK_EQUAL(5, primary[3]);
-	CHECK_EQUAL(-1, secondary[3]);
-	CHECK_EQUAL(-1, primary[1]);
+	auto notes = deluge::scale_degrees::letterNotes(lettersOf({0, 3, 5, 6, 7, 10}));
+	CHECK_EQUAL(7, notes.primary[4]); // the natural 5th is primary, b5 secondary
+	CHECK_EQUAL(6, notes.secondary[4]);
+	CHECK_EQUAL(5, notes.primary[3]);
+	CHECK_EQUAL(-1, notes.secondary[3]);
+	CHECK_EQUAL(-1, notes.primary[1]);
 }

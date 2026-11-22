@@ -24,8 +24,8 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "model/scale/musical_key.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/note_spelling.h"
 #include "util/functions.h"
 #include <stdlib.h>
 

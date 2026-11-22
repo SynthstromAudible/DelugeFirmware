@@ -37,7 +37,7 @@ Error NoteVector::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotTo
 	Error error = OrderedResizeableArrayWith32bitKey::insertAtIndex(i, numToInsert, thingNotToStealFrom);
 	if (error == Error::NONE) {
 		for (int32_t n = i; n < i + numToInsert; n++) {
-			((Note*)getElementAddress(n))->anchorOffset = 0;
+			static_cast<Note*>(getElementAddress(n))->anchorMarker = AnchorMarker::derived();
 		}
 	}
 	return error;
