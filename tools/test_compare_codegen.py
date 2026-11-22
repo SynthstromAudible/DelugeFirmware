@@ -641,9 +641,8 @@ class MainTest(unittest.TestCase):
         self.assertIn(mock.call("changed: 0"), printed.call_args_list)
 
 
-class SameNamedSymbols(unittest.TestCase):
-    """Two symbols of one image with one name (promoted statics whose names differ only in `.llvm.<hash>`, or static
-    and anonymous-namespace symbols of two modules) are told apart by their order in the image."""
+class MainHarness:
+    """main() over fake tools: a disassembly and an `nm` listing per image path, DEMANGLED for llvm-cxxfilt."""
 
     SEGMENTS = "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n"
     DEMANGLED: ClassVar[dict[str, str]] = {
@@ -651,8 +650,10 @@ class SameNamedSymbols(unittest.TestCase):
         "_ZN12_GLOBAL__N_14flagEb": "(anonymous namespace)::flag(bool)",
     }
 
-    def run_main(self, images: dict[str, tuple[str, str]]) -> tuple[int, list]:
-        """main() over fake images: path -> (disassembly, `nm -S -n` listing)."""
+    def run_main(
+        self, images: dict[str, tuple[str, str]], *args: str
+    ) -> tuple[int, list]:
+        """main() over fake images: path -> (disassembly, `nm -S -n` listing); @p args go on the command line."""
 
         def fake(tool, stdin=None):
             if tool[0] == "cxxfilt":
@@ -664,13 +665,18 @@ class SameNamedSymbols(unittest.TestCase):
             return {"objdump": disassembly, "nm": nm, "readelf": self.SEGMENTS}[tool[0]]
 
         argv = ["compare_codegen.py", *images, "--objdump", "objdump", "--nm", "nm"]
-        argv += ["--readelf", "readelf", "--cxxfilt", "cxxfilt"]
+        argv += ["--readelf", "readelf", "--cxxfilt", "cxxfilt", *args]
         with (
             mock.patch.object(compare_codegen, "run", fake),
             mock.patch.object(compare_codegen.sys, "argv", argv),
             mock.patch("builtins.print") as printed,
         ):
             return compare_codegen.main(), printed.call_args_list
+
+
+class SameNamedSymbols(MainHarness, unittest.TestCase):
+    """Two symbols of one image with one name (promoted statics whose names differ only in `.llvm.<hash>`, or static
+    and anonymous-namespace symbols of two modules) are told apart by the symbol before them and their order."""
 
     def promoted(self, first: str, second: str, word: str) -> tuple[str, str]:
         nm = (
@@ -713,6 +719,155 @@ class SameNamedSymbols(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn(mock.call("changed: 1"), printed)
         self.assertIn(mock.call("  caller"), printed)
+
+    def anchored(
+        self, copies: list[tuple[str, int, str]], word: str
+    ) -> tuple[str, str]:
+        """An image whose `foo` points at @p word, with each copy of `_ZL1k` (module anchor, address, hash) placed
+        behind its module's own symbol."""
+        nm = "20001000 00000018 T foo\n" + "".join(
+            f"{a - 0x10:08x} 00000010 d {anchor}\n{a:08x} 00000010 d _ZL1k.llvm.{h}\n"
+            for anchor, a, h in copies
+        )
+        return SAMPLE.replace("0x20251190", word), nm
+
+    def test_a_pointer_moved_to_another_copy_when_one_is_dropped_and_one_added_is_a_change(
+        self,
+    ):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.anchored(
+                    [("a_mod", 0x20251190, "111"), ("b_mod", 0x20251200, "222")],
+                    "0x20251190",
+                ),
+                "b.elf": self.anchored(
+                    [("b_mod", 0x20251200, "222"), ("c_mod", 0x20251220, "333")],
+                    "0x20251200",
+                ),
+            }
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+        self.assertNotIn(mock.call("changed: 0"), printed)
+
+    def test_the_same_copies_behind_the_same_anchors_compare_identical(self):
+        copies = [("a_mod", 0x20251190, "111"), ("b_mod", 0x20251200, "222")]
+        status, _ = self.run_main(
+            {
+                "a.elf": self.anchored(copies, "0x20251200"),
+                "b.elf": self.anchored(copies, "0x20251200"),
+            }
+        )
+        self.assertEqual(status, 0)
+
+    def test_a_call_moved_to_another_function_copy_when_one_is_dropped_and_one_added_is_a_change(
+        self,
+    ):
+        flag = "_ZN12_GLOBAL__N_14flagEb"
+
+        def image(mods: list[tuple[str, int]], target: int) -> tuple[str, str]:
+            listing = "".join(
+                f"{a - 4:x} <{m}>:\n{a - 4:x}:\tnop\n\n{a:x} <{flag}>:\n{a:x}:\tbx\tlr\n\n"
+                for m, a in mods
+            )
+            listing += (
+                f"100 <caller>:\n100:      \tbl\t0x{target:x} <{flag}> @ imm = #0x0\n"
+            )
+            nm = "".join(
+                f"{a - 4:08x} 00000004 t {m}\n{a:08x} 00000004 t {flag}\n"
+                for m, a in mods
+            )
+            return listing, nm + "00000100 00000004 T caller\n"
+
+        status, printed = self.run_main(
+            {
+                "a.elf": image([("p_mod", 0x14), ("q_mod", 0x24)], 0x14),
+                "b.elf": image([("q_mod", 0x24), ("r_mod", 0x34)], 0x24),
+            }
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  caller"), printed)
+        self.assertNotIn(mock.call("changed: 0"), printed)
+
+    def adr_image(self, target_hash_first: bool) -> tuple[str, str]:
+        # A Thumb `adr` at 0x20001008: Align(0x2000100c, 4) + imm. objdump names its target without an address.
+        imm, name = (
+            (0xF4, "_ZL1k.llvm.111") if target_hash_first else (0x1F4, "_ZL1k.llvm.222")
+        )
+        listing = (
+            "20001000 <foo>:\n20001000:      \tpush\t{r4, lr}\n"
+            f"20001008:      \tadr\tr0, #{imm} <{name}>\n20001010:      \tpop\t{{r4, pc}}\n"
+        )
+        nm = (
+            "20001000 00000018 T foo\n20001020 00000010 d p_mod\n20001100 00000010 d _ZL1k.llvm.111\n"
+            "20001120 00000010 d q_mod\n20001200 00000010 d _ZL1k.llvm.222\n"
+        )
+        return listing, nm
+
+    def test_an_adr_moved_to_another_copy_is_a_change(self):
+        status, printed = self.run_main(
+            {"a.elf": self.adr_image(True), "b.elf": self.adr_image(False)}
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+
+    def test_an_adr_that_lands_in_no_copy_is_an_error(self):
+        listing, nm = self.adr_image(True)
+        listing = listing.replace("#244", "#4")
+        with self.assertRaises(ValueError):
+            number_twins(nm, listing)
+
+
+class RenamedMangledKeys(MainHarness, unittest.TestCase):
+    """Under --rename, a name keyed by its mangled text has its substitution references reduced to `S_`, which can
+    make two entities' mangled texts equal across images; their demangled text keeps them apart."""
+
+    DEMANGLED: ClassVar[dict[str, str]] = {
+        "_ZN6deluge3gfx1AINS0_1XEEC1Ev": "deluge::gfx::A<deluge::gfx::X>::A()",
+        "_ZN6deluge3gfx1AINS0_1XEEC2Ev": "deluge::gfx::A<deluge::gfx::X>::A()",
+        "_ZN6deluge3gfx1AINS_1XEEC1Ev": "deluge::gfx::A<deluge::X>::A()",
+        "_ZN6deluge3gfx1AINS_1XEEC2Ev": "deluge::gfx::A<deluge::X>::A()",
+        "_ZZN6deluge3gfx1fINS0_1XEEEvvE1x": "void deluge::gfx::f<deluge::gfx::X>()::x",
+        "_ZZN6deluge3gfx1fINS0_1XEEEvvE1x_0": "void deluge::gfx::f<deluge::gfx::X>()::x",
+        "_ZZN6deluge3gfx1fINS_1XEEEvvE1x": "void deluge::gfx::f<deluge::X>()::x",
+        "_ZZN6deluge3gfx1fINS_1XEEEvvE1x_0": "void deluge::gfx::f<deluge::X>()::x",
+    }
+    RENAME = ("--rename", "deluge::gfx=deluge::ui::gfx")
+
+    def constructors(self, x: str) -> tuple[str, str]:
+        c1, c2 = (f"_ZN6deluge3gfx1AIN{x}1XEEC{v}Ev" for v in "12")
+        listing = (
+            f"10 <{c1}>:\n10:\tbx\tlr\n\n14 <{c2}>:\n14:\tbx\tlr\n\n"
+            f"20 <caller>:\n20:      \tbl\t0x14 <{c2}> @ imm = #0x0\n"
+        )
+        nm = f"00000010 00000004 t {c1}\n00000014 00000004 t {c2}\n00000020 00000004 T caller\n"
+        return listing, nm
+
+    def test_a_call_moved_to_an_entity_whose_reduced_mangled_text_is_alike_is_a_change(
+        self,
+    ):
+        status, printed = self.run_main(
+            {"a.elf": self.constructors("S0_"), "b.elf": self.constructors("S_")},
+            *self.RENAME,
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  caller"), printed)
+        self.assertNotIn(mock.call("changed: 0"), printed)
+
+    def test_a_pointer_moved_to_data_whose_reduced_mangled_text_is_alike_is_a_change(
+        self,
+    ):
+        def image(x: str) -> tuple[str, str]:
+            local = f"_ZZN6deluge3gfx1fIN{x}1XEEEvvE1x"
+            nm = f"20001000 00000018 T foo\n20251190 00000010 d {local}\n20251200 00000010 d {local}_0\n"
+            return SAMPLE, nm
+
+        status, printed = self.run_main(
+            {"a.elf": image("S0_"), "b.elf": image("S_")}, *self.RENAME
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+        self.assertNotIn(mock.call("changed: 0"), printed)
 
 
 class DisassembleTest(unittest.TestCase):
@@ -1175,7 +1330,11 @@ class WrappedNameKeys(unittest.TestCase):
         listings = ["".join(f"10 <{n}>:\n" for n in names) for names in (old, new)]
         rename = self.names({**old, **new}, listings, [[listings[0]], [listings[1]]])
         self.assertEqual(
-            [rename(n) for n in old], ["_ZN6deluge2ui3gfx1fEi", "_ZN6deluge2ui3gfx1fEl"]
+            [rename(n) for n in old],
+            [
+                "_ZN6deluge2ui3gfx1fEi | deluge::ui::gfx::f(int)",
+                "_ZN6deluge2ui3gfx1fEl | deluge::ui::gfx::f(long)",
+            ],
         )
         self.assertEqual([rename(n) for n in new], [rename(n) for n in old])
 
