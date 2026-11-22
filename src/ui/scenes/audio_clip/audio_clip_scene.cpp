@@ -1326,7 +1326,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	// three -- so legacy draws the type text and nothing else. Passing the empty name with
 	// `name_empty = false` is what reproduces that: the widget takes its draw-the-name branch and
 	// draws an empty string. Measured against legacy in
-	// `sim/scenes_spec/audio_clip_scene_spec.cpp`'s "unnamed output" example, which fails with
+	// `tests/integration/ui/scenes/audio_clip_scene_spec.cpp`'s "unnamed output" example, which fails with
 	// `name_empty = out->name.empty()`.
 	const bool name_is_empty = name.empty();
 	deluge::ui::widgets::oled::OutputNameData data{

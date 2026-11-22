@@ -6,7 +6,7 @@
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
 /// `…ForSongView`, `…ForKitGlobalFX` (`origin/main:src/deluge/gui/ui/menus.cpp`), `midiOrCVParamShortcuts` and
 /// `gateDrumParamShortcuts` -- transcribed cell by cell as `Node` pointers, keyed by
-/// `MenuContext::Root`. `sim/scenes_spec/shortcuts_spec.cpp` cross-checks every cell of every table
+/// `MenuContext::Root`. `tests/integration/ui/scenes/shortcuts_spec.cpp` cross-checks every cell of every table
 /// against the legacy array it came from, in both directions.
 ///
 /// The board profile does not carry these: `BoardProfile::shortcuts` (two

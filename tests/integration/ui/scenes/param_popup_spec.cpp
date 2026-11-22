@@ -20,7 +20,7 @@
 ///
 /// They are reachable: `show()` takes an `overlay::PopupContext` precisely so the class that has the
 /// context -- `services::ModKnobs`, the popup's first real caller -- can fire them. The arm that is
-/// covered is covered where that context lives, in `sim/scenes_spec/mod_knobs_spec.cpp`'s
+/// covered is covered where that context lives, in `tests/integration/ui/scenes/mod_knobs_spec.cpp`'s
 /// "gives the popup the model context legacy reads off View" example, which drives the LPF-morph
 /// rename against the real `View::displayModEncoderValuePopup` on a real `Sound`. What stays
 /// uncovered is `PopupContext::stuttering` (nothing in the port owns the stutter gesture, so no

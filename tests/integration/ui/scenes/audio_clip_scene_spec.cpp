@@ -131,9 +131,9 @@
 ///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at
 ///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`).
 ///
-/// Declared rather than included, exactly as `sim/scenes_spec/timeline_spec.cpp` declares it, and for its reason:
-/// `Clip::getLivePos()` adds `getNumSwungTicksInSinceLastActionedSwungTick()` to `lastProcessedPos`, and on a song no
-/// transport ever started that reaches `getActualSwungTickCount`'s external-clock swing branch and divides by
+/// Declared rather than included, exactly as `tests/integration/ui/scenes/timeline_spec.cpp` declares it, and for its
+/// reason: `Clip::getLivePos()` adds `getNumSwungTicksInSinceLastActionedSwungTick()` to `lastProcessedPos`, and on a
+/// song no transport ever started that reaches `getActualSwungTickCount`'s external-clock swing branch and divides by
 /// `(uint32_t)(50 + currentSong->swingAmount)` (`playback/playback_handler.cpp`) -- a **SIGFPE**, not a failure.
 /// Holding the latch takes legacy's own early return in `getNumSwungTicksInSinceLastActionedSwungTick`
 /// (`playback/playback_handler.cpp`), so `getLivePos()` is exactly `lastProcessedPos`, which is what a spec that sets
@@ -741,7 +741,7 @@ void expect_edit_matches(Self& self, const ModelSnapshot& legacy, const ModelSna
 /// @brief `deluge_profile()`'s button matrix, inverted: the `(x, y)` a `DELUGE_EVENT_BUTTON`
 ///        carries for @p b.
 ///
-/// The same helper `sim/scenes_spec/global_controls_spec.cpp` carries, and here for its
+/// The same helper `tests/integration/ui/scenes/global_controls_spec.cpp` carries, and here for its
 /// reason: the forward table is `BoardProfile::button_by_matrix` (`ui/shell/profiles/deluge.cpp`'s `kMatrix`)
 /// and hard-coding coordinates would be a second copy of the layout to drift.
 /// @param b The button.
@@ -871,7 +871,7 @@ struct Input {
 ///
 /// A class derived from it may name it, and a static member function of that class is a legal
 /// handle with no cast anywhere. `NavProbe` is never constructed (it is abstract). The identical
-/// trick `sim/scenes_spec/timeline_spec.cpp`'s `TickProbe` uses, and for its reason.
+/// trick `tests/integration/ui/scenes/timeline_spec.cpp`'s `TickProbe` uses, and for its reason.
 struct NavProbe : ClipNavigationTimelineView {
 	static void set_remembered_scroll(int32_t value) { xScrollBeforeFollowingAutoExtendingLinearRecording = value; }
 	static int32_t remembered_scroll() { return xScrollBeforeFollowingAutoExtendingLinearRecording; }
@@ -2088,7 +2088,7 @@ describe audio_clip_scene_spec_body(
 		        // **Driven directly**, because building half a dispatcher here would be a second seam
 		        // nobody owns. This example is what says the callee is real; that the dispatcher's arm
 		        // reaches the LEGACY method of the same name is pinned in
-		        // `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_three_verbs`.
+		        // `tests/integration/ui/scenes/menu_actions_spec.cpp`'s `menu_action_three_verbs`.
 		        Rig r;
 		        const Sentinel s{};
 

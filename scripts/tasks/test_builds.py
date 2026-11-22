@@ -105,7 +105,7 @@ HOST_APP_TARGETS = [
     "deluge_base_notify",
     "deluge_ui_scenes",
     "deluge_ui_level3",
-    "deluge_scenes_spec",
+    "deluge_ui_scenes_spec",
 ]
 
 

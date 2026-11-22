@@ -24,7 +24,7 @@
 /// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
 /// "unimplemented" and goes nowhere, in `SoundEditor::potentialShortcutPadAction`) and says so in the line comment.
 ///
-/// The transcription is not trusted on its own: `sim/scenes_spec/shortcuts_spec.cpp` walks every
+/// The transcription is not trusted on its own: `tests/integration/ui/scenes/shortcuts_spec.cpp` walks every
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
 /// directions.
 ///

@@ -110,7 +110,7 @@ class ModControllableBridgeOnly(unittest.TestCase):
     def test_the_old_comparison_name_is_counted_anywhere(self):
         for rel in (
             "src/deluge/model/planted.cpp",
-            "sim/scenes_spec/planted_spec.cpp",
+            "tests/integration/ui/scenes/planted_spec.cpp",
             "tests/integration/scenarios/planted.cpp",
         ):
             with self.subTest(rel=rel):
@@ -126,7 +126,7 @@ class LegacyEffectsOwnerRows(unittest.TestCase):
     def test_each_tree_naming_a_deleted_owner_class_is_counted(self):
         for rel in (
             "src/deluge/model/fx/planted.cpp",
-            "sim/scenes_spec/planted_spec.cpp",
+            "tests/integration/ui/scenes/planted_spec.cpp",
             "tests/integration/scenarios/planted.cpp",
         ):
             with self.subTest(rel=rel):
@@ -153,7 +153,7 @@ class LegacyEffectsOwnerRows(unittest.TestCase):
     def test_the_param_table_library_by_its_old_name_is_counted(self):
         for rel in (
             "src/deluge/model/fx/planted.cpp",
-            "sim/scenes_spec/planted_spec.cpp",
+            "tests/integration/ui/scenes/planted_spec.cpp",
             "tests/unit/effects/planted_spec.cpp",
         ):
             with self.subTest(rel=rel):

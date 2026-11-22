@@ -17,7 +17,7 @@
 /// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`, and
 /// `setNoteRowParameterValue` likewise -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own
-/// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Those predicates
+/// popup (`tests/integration/ui/scenes/note_bridge_spec.cpp` pins exactly that shape). Those predicates
 /// see the note mode through `util/note_editor_open.h`; this bridge does not paper over the
 /// gate itself.
 ///

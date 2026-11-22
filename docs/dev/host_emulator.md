@@ -99,7 +99,7 @@ binaries and lists every snapshot file they disagree on; `--worktree REV` builds
 
 ## Scenes specs
 
-The scenes' CppSpec files (`sim/scenes_spec`) link into the host app and run on `golden_vt_render`, one file per
+The scenes' CppSpec files (`tests/integration/ui/scenes`) link into the host app and run on `golden_vt_render`, one file per
 process, from the app's own init, as the `ui-scenes-spec` gate does. A file's card is installed before boot: the
 fixture card unless `tests/integration/checks/scenes_spec_cards.txt` names another (`none` for no card). To run one by
 hand, or list them:

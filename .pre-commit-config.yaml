@@ -115,11 +115,11 @@ repos:
         files: ^(src/deluge/gui/|src/ui/scenes/|scripts/check_setting_menus\.py)
       - id: test-support-names
         name: no per-directory support/ file shadows tests/support/
-        description: a file under a support/ folder in tests/ or sim/ never has a path tests/support/ also has
+        description: a file under a support/ folder in tests/ never has a path tests/support/ also has
         entry: python3 scripts/check_test_support_names.py
         language: system
         pass_filenames: false
-        files: ^(tests/|sim/|scripts/check_test_support_names\.py)
+        files: ^(tests/|scripts/check_test_support_names\.py)
       - id: check-layer-rules
         name: UI layer-rule ratchet
         description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)
@@ -151,7 +151,7 @@ repos:
         entry: python3 scripts/check_spec_comparisons.py --staged
         language: system
         pass_filenames: false
-        files: ^(tests/|sim/scenes_spec/).*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
+        files: ^tests/.*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
 # - repo: local
 
 #   hooks:

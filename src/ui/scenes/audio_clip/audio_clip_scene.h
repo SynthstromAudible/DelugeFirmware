@@ -87,7 +87,7 @@
 /// through its transport port (`clocks_active`, `arrangement_mode`), and the last is
 /// already ported and measured as `timeline::TimelineState::tick_square`. Every one a spec can drive, so the
 /// playhead ships, painted through `ui::widgets::grid::tick_squares` (`ui/widgets/grid/columns.h`), and
-/// `sim/scenes_spec/audio_clip_scene_spec.cpp` compares it against legacy's own `graphicsRoutine`
+/// `tests/integration/ui/scenes/audio_clip_scene_spec.cpp` compares it against legacy's own `graphicsRoutine`
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp`), which
 /// is the driver-side substitution this widget is the port of.
 ///

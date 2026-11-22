@@ -641,9 +641,9 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///       `origin/main:src/deluge/gui/menu_item/cv/selection.h` and in
 ///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
 ///       `NUM_GATE_CHANNELS`. All three are `CustomItem`s that draw their own list (`ui/scenes/menu/nodes/dynamic.h`),
-///       as main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is no
-///       placeholder" example pins that zero, so the day a node does set the hook, that example fails and
-///       points here.
+///       as main's do, so this arm has nothing to be designed against.
+///       `tests/integration/ui/scenes/tables_3_spec.cpp`'s "is no placeholder" example pins that zero, so the day a
+///       node does set the hook, that example fails and points here.
 ///
 ///       A `"type": "submenu"` entry with `"dynamic": true` and the children the hook yields under a fixture context
 ///       is not viable: the dump builds no `MenuContext` to expand against, and building one would make the committed

@@ -146,7 +146,7 @@ bool menuShowsAutomationViewParam();
 /// `browser_host.h`'s `setSampleClaimDispatch` for the same reason it exists there: the
 /// decision is the part worth pinning, and performing it means calling into `keyboardScreen` /
 /// `instrumentClipView` / `performanceView`, whose handlers need model state a spec should not have
-/// to build. `deluge_scenes_spec` links `deluge_app`, so those symbols resolve -- this is about what
+/// to build. `deluge_ui_scenes_spec` links `deluge_app`, so those symbols resolve -- this is about what
 /// running them costs, not about what links.
 void setPadForwardPerform(PadForwardPerform perform);
 

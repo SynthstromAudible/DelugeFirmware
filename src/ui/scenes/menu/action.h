@@ -52,7 +52,7 @@
 /// `take_action()` is an outbox and this file is only its producing half. Its consumer,
 /// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), drains it once per guest tick;
 /// **every arm has a body**. The specs in
-/// `sim/scenes_spec/menu_actions_spec.cpp` assert both halves: that the right item emits the right
+/// `tests/integration/ui/scenes/menu_actions_spec.cpp` assert both halves: that the right item emits the right
 /// *identity* and payload through the real input path, and -- in the four `dispatchShellActions`
 /// groups -- that the legacy effect happens. Only `StartStemExport`'s acting half is still pinned by
 /// identity alone, for a reason that file's own group states.

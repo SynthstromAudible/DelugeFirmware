@@ -23,7 +23,7 @@
 /// detent hits `TimelineView::horizontalEncoderAction`'s own `isNoUIModeActive()` or
 /// `isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` gate (`gui/views/timeline_view.cpp`) and does
 /// nothing. The marker editor has the same ceiling
-/// (`sim/scenes_spec/marker_scene_spec.cpp`'s zoom example), but clearing the mode by hand did
+/// (`tests/integration/ui/scenes/marker_scene_spec.cpp`'s zoom example), but clearing the mode by hand did
 /// **not** buy a second detent there.
 ///
 /// **Here clearing it does buy the next detent, and that is measured, not argued.** The evidence is "scrolls a second

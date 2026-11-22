@@ -29,7 +29,7 @@ namespace deluge::ui::shell {
 ///
 ///       **The shipped application never hits this.** `ui::scenes::scene_registry()` registers
 ///       `overlay::screensaver_scene()` at that kind, so the push succeeds and the latch never
-///       fires -- `sim/scenes_spec/screensaver_scene_spec.cpp` asserts `push_refused() == 0` end to
+///       fires -- `tests/integration/ui/scenes/screensaver_scene_spec.cpp` asserts `push_refused() == 0` end to
 ///       end through a real `Shell`. The latch is still the correct answer for a **profile or spec
 ///       that registers nothing** at that slot: the `SceneRegistry` is the application's, the shell
 ///       does not fill this kind in for it (see the `Shell` constructor), and several shell specs

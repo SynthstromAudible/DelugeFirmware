@@ -60,7 +60,7 @@ using deluge::synth::PatchSource;
 /// @brief What a `Node` is: which builder made it, and (with `Hint`) which widget renders it.
 ///
 /// A `Kind` exists only if at least three items in the tables use it: with all eleven roots
-/// declared, `sim/scenes_spec/tables_3_spec.cpp` counts the nodes of each kind across
+/// declared, `tests/integration/ui/scenes/tables_3_spec.cpp` counts the nodes of each kind across
 /// `nodes::kAllRoots` and fails below three.
 ///
 /// Four shapes have no kind, and one kind is present on exactly the threshold:

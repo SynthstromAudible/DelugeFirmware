@@ -335,7 +335,7 @@ struct DxState {
 /// So the rule is not "mailboxes drain first". It is: **`ctx_` mutations first, then navigation,
 /// then the repaint decision, then scene pushes** -- and a new mailbox belongs in whichever of
 /// those four bands its effect falls into. The load-bearing case is `source_choice`, and
-/// `sim/scenes_spec/tables_3_spec.cpp`'s `drains the selector's output index BEFORE the navigation
+/// `tests/integration/ui/scenes/tables_3_spec.cpp`'s `drains the selector's output index BEFORE the navigation
 /// arm, not after` is the spec that fails if it moves -- it opens the gate selector from a context
 /// whose `source_index` names the *other* page, in both directions, so a stale read lands on the
 /// wrong page either way. The other five are ordered by the argument above rather than by a test,

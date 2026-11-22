@@ -25,9 +25,11 @@ class TestSupportNamesTest(unittest.TestCase):
 
     def test_a_nested_shared_path_clashes(self):
         self.assertEqual(
-            clashes(SHARED + ["sim/scenes_spec/support/mocks/mock_panic.cpp"]),
+            clashes(
+                SHARED + ["tests/integration/ui/scenes/support/mocks/mock_panic.cpp"]
+            ),
             [
-                "sim/scenes_spec/support/mocks/mock_panic.cpp shadows tests/support/mocks/mock_panic.cpp"
+                "tests/integration/ui/scenes/support/mocks/mock_panic.cpp shadows tests/support/mocks/mock_panic.cpp"
             ],
         )
 

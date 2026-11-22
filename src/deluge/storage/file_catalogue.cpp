@@ -72,7 +72,7 @@ const void* FileCatalogue::claimant() {
 } // namespace deluge::storage
 
 // The cull window's two knobs. Namespace-scope globals with external linkage, exactly as they were
-// beside `Browser`'s listing before the extraction -- `sim/scenes_spec/file_catalogue_spec.cpp`
+// beside `Browser`'s listing before the extraction -- `tests/integration/ui/scenes/file_catalogue_spec.cpp`
 // declares them `extern` to drive a cull deterministically, so their linkage is part of what the
 // move had to preserve.
 int32_t maxNumFileItemsNow;
@@ -500,7 +500,7 @@ int32_t FileCatalogue::searchFileItems(char const* searchString, bool* foundExac
 	// reason is worth writing down because it is the obvious thing to add (E3 task 3 fix round 1
 	// proposed exactly that, and it was tried): **sorting through this class is not a precondition
 	// of searching.** This function's contract is "set the globals first", and `fileItems` is a
-	// public vector anything may order by hand -- `sim/scenes_spec/file_catalogue_spec.cpp`'s
+	// public vector anything may order by hand -- `tests/integration/ui/scenes/file_catalogue_spec.cpp`'s
 	// `sort_under` does, precisely because `sortFileItems` forces `octaveStartsFromA = false` and
 	// the octave-from-A characterisation needs a list sorted under the comparator it will then
 	// search. An assert would have failed that legitimate, legacy-characterising pattern. What is

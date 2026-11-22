@@ -228,7 +228,7 @@ inline const BoardProfile& profile_64() {
 ///
 /// The two learn hooks take `MIDICable&` and this suite cannot build one: `MIDICable` is abstract
 /// and every shipped subclass needs a USB or DIN backend behind it
-/// (`sim/scenes_spec/midi_learn_spec.cpp`'s `SpecCable` makes the same observation, in a target
+/// (`tests/integration/ui/scenes/midi_learn_spec.cpp`'s `SpecCable` makes the same observation, in a target
 /// that does link `io/midi/`). It does not need to build one, because **nothing on this path reads
 /// through the pointer**: the host names the cable by its handle in `UiEvent::device`
 /// (`io/midi/device_registry.h`, faked here by `support/fake_device_registry.cpp`), and the one thing in the

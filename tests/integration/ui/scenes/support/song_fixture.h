@@ -19,10 +19,10 @@
 /// pure-model recipe for a synth clip:
 /// `StorageManager::createNewInstrument` + `setupAsDefaultSynth` + `setAudioInstrument` +
 /// `addOutput`. This header replays exactly that recipe, so no `startupConditionalTask` hook and
-/// no change to `deluge_scenes_spec`'s generated `main()` is needed.
+/// no change to `deluge_ui_scenes_spec`'s generated `main()` is needed.
 ///
 /// Determinism: the `scenes_spec` ctest row runs with `DELUGE_HOST_DETERMINISTIC=1` and
-/// `DELUGE_SD_ROOT=tests/fixtures/card` (`sim/scenes_spec/CMakeLists.txt`); this fixture touches
+/// `DELUGE_SD_ROOT=tests/fixtures/card` (`tests/integration/ui/scenes/CMakeLists.txt`); this fixture touches
 /// neither the clock nor the card, so the per-spec rows are equally deterministic.
 ///
 /// Ownership: fixtures are allocated out of the deluge heap and never freed -- a spec process is

@@ -1,6 +1,6 @@
-"""The scenes' specs (sim/scenes_spec) on golden_vt_render, one file per process.
+"""The scenes' specs (tests/integration/ui/scenes) on golden_vt_render, one file per process.
 
-The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under sim/scenes_spec,
+The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under tests/integration/ui/scenes,
 selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
 on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never
@@ -10,9 +10,9 @@ an empty one (no examples) do not. Every file runs in a fresh process, so no fil
 currentSong, a guard it left open) can reach another.
 
 Gate ui-scenes-spec:
-    the scenes' specs (sim/scenes_spec) run on golden_vt_render, one file per process from the app's own init, each on
+    the scenes' specs (tests/integration/ui/scenes) run on golden_vt_render, one file per process from the app's own init, each on
     its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table
-    must list exactly the spec files under sim/scenes_spec (selftest/ aside), and every file must exit 0 and print its
+    must list exactly the spec files under tests/integration/ui/scenes (selftest/ aside), and every file must exit 0 and print its
     own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one still running after two
     minutes fails by name. The runner's self-specs pin a passing file and the card checks (SdRoot/NoSdRoot) passing and
     a failing and a crashing one failing; each file's process is fresh, so one file's leftover state cannot reach
@@ -52,7 +52,7 @@ def _cards(root: Path) -> dict[str, str]:
 
 
 def _spec_files(root: Path) -> set[str]:
-    base = root / "sim/scenes_spec"
+    base = root / "tests/integration/ui/scenes"
     return {
         p.relative_to(base).with_suffix("").as_posix()
         for p in base.rglob("*_spec.cpp")
@@ -116,7 +116,7 @@ def run(gate) -> None:
 
     if not in_table & files:
         gate.fail(
-            "no scenes spec file ran: the entry table and sim/scenes_spec share none"
+            "no scenes spec file ran: the entry table and tests/integration/ui/scenes share none"
         )
     passed = 0
     for spec_id in sorted(in_table & files):

@@ -41,7 +41,7 @@ int run_specs(int argc, char** const argv, Specs&... specs) {
 ///        `SPEC-EXAMPLES <n>`.
 ///
 /// The name is the one the executable running the file looks up: the file's stem under deluge_specs_driver
-/// (tests/support/cmake/specs.cmake), `<dir>_<stem>` under sim/scenes_spec's generated table.
+/// (tests/support/cmake/specs.cmake), `<dir>_<stem>` under tests/integration/ui/scenes's generated table.
 ///
 /// Include "support/spec_main.h" after every project header: it brings in CppSpec, whose `context`, `_` and `$`
 /// macros break a header that uses those names (dsp-next's `kernel.h` among them).

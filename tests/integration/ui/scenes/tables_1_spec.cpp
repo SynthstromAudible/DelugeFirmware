@@ -471,7 +471,7 @@ describe tables_1_validation("scenes::menu sound-subtree tables: validation", $ 
 		const MenuContext contexts[] = {f.ctx};
 		// This tree is clean under the default (strict) options: both file selectors, the
 		// four sample loop points and both audio recorders have real items (`nodes/sample.h`).
-		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and this
+		// `tests/integration/ui/scenes/sample_items_spec.cpp` pins which item each of those nodes got, and this
 		// is the same claim `output_items_spec.cpp` makes over `kAllRoots`, made here over `kBatch1Roots`.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeSpecificNodes,

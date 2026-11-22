@@ -3,7 +3,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""No per-directory support/ folder under tests/ or sim/ holds a file named like one in tests/support/.
+"""No per-directory support/ folder under tests/ holds a file named like one in tests/support/.
 
 A spec includes shared support code as "support/<path>", and its own directory comes before tests/ on its include
 path, so a file at <spec dir>/support/<path> would be compiled in place of tests/support/<path> without a word. The
@@ -13,7 +13,7 @@ Usage:
     scripts/check_test_support_names.py    # check the tracked files, exit 1 on a clash
 
 Gate test-support-names:
-    no per-directory support/ folder under tests/ or sim/ holds a path that tests/support/ also holds, so
+    no per-directory support/ folder under tests/ holds a path that tests/support/ also holds, so
     "support/<path>" always names the shared file
 """
 
@@ -26,7 +26,7 @@ from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parent.parent
 SHARED = PurePosixPath("tests/support")
-ROOTS = ("tests", "sim")
+ROOTS = ("tests",)
 
 
 def clashes(paths: Iterable[str]) -> list[str]:

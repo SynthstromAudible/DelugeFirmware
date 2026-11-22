@@ -422,7 +422,7 @@ void clearKnobIndicatorLevels() {
 // (`tests/trees/host/CMakeLists.txt`'s note, and `gui/ui/shell_guest_services.h`'s own
 // "why this is its own translation unit"). What a guest spec can say about it is
 // that `opened()` calls it, which is what the counter is for; that the services
-// it installs are the right ones is `sim/scenes_spec/boot_wiring_spec.cpp`'s,
+// it installs are the right ones is `tests/integration/ui/scenes/boot_wiring_spec.cpp`'s,
 // where the real closure exists.
 // ---------------------------------------------------------------------------
 namespace deluge::gui::ui {
@@ -587,7 +587,7 @@ void releaseShellSlicerBeforeClose() {
 // builds. The counter and the recorded arguments are what let `shell_host_ui_pad_input_spec.cpp` ask the only
 // question that lives on this side of that seam: whether `ShellHostUI::padAction` forwards a pad the
 // scene did not claim, and with which coordinates and velocity -- not which arm the real decision
-// takes, which is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the binary where the real legacy
+// takes, which is `tests/integration/ui/scenes/pad_forward_spec.cpp`'s, in the binary where the real legacy
 // views exist.
 PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	fakelegacyui::pad_forwards++;
@@ -634,7 +634,7 @@ bool renderClipViewSidebarUnderMarker(uint32_t, RGB[][kDisplayWidth + kSideBarWi
 // answer: the guest acts on what these return, so each answers the settable value
 // `tests/unit/deluge/gui/support/fake_legacy_ui.h` names rather than a fixed one. The real ones read
 // `deluge::ui::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
-// `sim/scenes_spec/note_mode_spec.cpp`'s.
+// `tests/integration/ui/scenes/note_mode_spec.cpp`'s.
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	fakelegacyui::note_button_forwards++;
 	fakelegacyui::last_note_button = fakelegacyui::NoteButtonCall{b, on};

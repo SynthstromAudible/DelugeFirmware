@@ -20,7 +20,8 @@
 
 extern "C" {
 
-/// @brief One scenes spec file: its id (its path under sim/scenes_spec without the extension) and its entry.
+/// @brief One scenes spec file: its id (its path under tests/integration/ui/scenes without the extension) and its
+/// entry.
 struct DelugeSceneSpecEntry {
 	const char* id;          ///< e.g. "menu_scene_spec", "selftest/pass_spec".
 	int (*run)(int, char**); ///< The file's CppSpec entry: 0 when every example passed.

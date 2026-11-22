@@ -414,7 +414,7 @@ private:
 	///          carrying more than 63 detents wraps negative**: 120 detents is 240 edges, which
 	///          narrows to -16. Measured: a slice count of 136 became 0 and a 100-detent vertical
 	///          turn arrived as -28, which is why every multi-turn gesture in
-	///          `sim/scenes_spec/slicer_scene_spec.cpp` is split into <= 63-detent turns.
+	///          `tests/integration/ui/scenes/slicer_scene_spec.cpp` is split into <= 63-detent turns.
 	///
 	///          **Legacy saturates where this wraps, and does so on the far side of the detent
 	///          division.** `interpretEncoders` (`hid/encoder_input.cpp`) takes whole detents

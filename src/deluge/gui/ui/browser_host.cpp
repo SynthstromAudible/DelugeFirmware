@@ -550,7 +550,7 @@ void dispatchChoice(const BrowserChoice& choice) {
 	switch (choice.id) {
 	case BrowserId::Sample:
 		// The split is
-		// made before anything acts, so `sim/scenes_spec/browser_choice_spec.cpp` can pin the
+		// made before anything acts, so `tests/integration/ui/scenes/browser_choice_spec.cpp` can pin the
 		// decision over every path shape without the arm below it having to be reachable.
 		switch (choice.op) {
 		case BrowserChoice::Op::Enter:

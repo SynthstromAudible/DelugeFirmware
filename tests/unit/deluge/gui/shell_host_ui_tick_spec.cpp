@@ -83,7 +83,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// with a foreign UI on top. `dispatchShellActions` is stubbed in this suite, so the *cause*
 		// cannot be reproduced here; the guest's response to the resulting state can, and is exactly
 		// what this pins. The end-to-end version, with the real dispatcher opening the real
-		// `performanceView`, is `sim/scenes_spec/menu_actions_spec.cpp`'s
+		// `performanceView`, is `tests/integration/ui/scenes/menu_actions_spec.cpp`'s
 		// `menu_action_three_verbs`.
 		Rig r;
 		// A scene that wants a wake on every tick, so "nothing was armed" cannot be the shell simply

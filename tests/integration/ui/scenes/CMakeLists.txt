@@ -22,18 +22,18 @@ set(_support_sources
     support/oracle_starfield.cpp
     ${REPO_ROOT}/tests/harness/snapshot.cpp)
 
-if(NOT TARGET deluge_scenes_fakes)
-  add_subdirectory(${REPO_ROOT}/tests/support/scenes ${CMAKE_CURRENT_BINARY_DIR}/scenes_fakes)
+if(NOT TARGET deluge_ui_scenes_fakes)
+  add_subdirectory(${REPO_ROOT}/tests/support/ui/scenes ${CMAKE_CURRENT_BINARY_DIR}/scenes_fakes)
 endif()
 
-add_library(deluge_scenes_spec STATIC ${_spec_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
-target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_ui_scenes deluge_scenes_fakes c++spec)
-target_include_directories(deluge_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests)
-target_compile_definitions(deluge_scenes_spec PRIVATE
+add_library(deluge_ui_scenes_spec STATIC ${_spec_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
+target_link_libraries(deluge_ui_scenes_spec PRIVATE deluge_app deluge_ui_scenes deluge_ui_scenes_fakes c++spec)
+target_include_directories(deluge_ui_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(deluge_ui_scenes_spec PRIVATE ${REPO_ROOT}/tests)
+target_compile_definitions(deluge_ui_scenes_spec PRIVATE
     DELUGE_REPO_ROOT="${REPO_ROOT}"
     UI_SCRIPTS_DIR="${REPO_ROOT}/tests/ui-scripts/shell"
     UI_GOT_DIR="${CMAKE_BINARY_DIR}/got")
 include(${REPO_ROOT}/tests/support/cmake/golden.cmake)
-deluge_golden_root(deluge_scenes_spec)
-set_target_properties(deluge_scenes_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
+deluge_golden_root(deluge_ui_scenes_spec)
+set_target_properties(deluge_ui_scenes_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)

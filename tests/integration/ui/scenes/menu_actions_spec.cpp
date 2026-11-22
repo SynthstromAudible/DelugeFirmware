@@ -1230,7 +1230,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 });
 
 describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbox", $ {
-	// The other side of the seam, in the binary that has every half: `deluge_scenes_spec` links the
+	// The other side of the seam, in the binary that has every half: `deluge_ui_scenes_spec` links the
 	// real `menu_scene()`, the real `dispatchShellActions` AND the real
 	// `ShellHostUI::timerCallback` (`nm -C` on the driver shows all three as `T`). The host suite's
 	// `tests/unit/deluge/gui/shell_action_dispatch_spec.cpp` links only the last of those -- it stubs the

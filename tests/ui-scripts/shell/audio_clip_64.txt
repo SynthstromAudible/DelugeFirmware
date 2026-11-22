@@ -1,7 +1,7 @@
 # Level-2 acceptance, 128x64 panel: `audio_clip::AudioClipScene`.
 #
 # The board and the OLED `Style` both come from the spec (`board_64()` / `profile_64()` in
-# `sim/scenes_spec/scene_scripts_spec.cpp`), not from a `board` step: a `board` step re-sizes the
+# `tests/integration/ui/scenes/scene_scripts_spec.cpp`), not from a `board` step: a `board` step re-sizes the
 # panel but leaves the profile's `style_by_index` pointing at `kDelugeStyle48`, and the two have to
 # move together or `Shell::render_oled` draws the 48-row layout into a 64-row panel.
 #

@@ -21,7 +21,7 @@
 ///
 /// Every function here is a transcription of the legacy `isRelevant` override cited on its
 /// declaration -- `src/ui/scenes` may not include `gui/menu_item/`, so the tests cross-check the two
-/// (`sim/scenes_spec/tables_1_spec.cpp` calls the legacy overrides, which are public
+/// (`tests/integration/ui/scenes/tables_1_spec.cpp` calls the legacy overrides, which are public
 /// (`MenuItem::isRelevant` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), against these).
 ///
 /// **A null `sound` is never relevant.** Legacy's overrides all begin by

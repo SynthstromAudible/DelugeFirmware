@@ -88,7 +88,7 @@
 /// UI, while a shell popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()`
 /// changes hands, and an `input_transparent()` overlay never holds it, so a popup the scene raises coming and going
 /// does not reset its slice table (`ui/shell/scene_stack.h`'s contract table). Both directions are asserted in
-/// `sim/scenes_spec/slicer_scene_spec.cpp`.
+/// `tests/integration/ui/scenes/slicer_scene_spec.cpp`.
 ///
 /// @par Two legacy hazards
 ///

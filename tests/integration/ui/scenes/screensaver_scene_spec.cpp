@@ -4,7 +4,7 @@
 ///
 /// @par Two oracles, because there are two claims
 ///
-/// **The port keeps legacy's arithmetic.** `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`
+/// **The port keeps legacy's arithmetic.** `tests/integration/ui/scenes/support/oracle_rainfall.{h,cpp}`
 /// and `oracle_starfield.{h,cpp}` are the legacy `hid/display/` sources, transcribed by a
 /// three-substitution `sed` recorded verbatim at the top of each of those files (namespace, include
 /// path -- nothing else). They are compiled into this spec under `namespace screensaver_oracle` and

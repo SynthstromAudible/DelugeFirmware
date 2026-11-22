@@ -22,7 +22,7 @@
 ///
 /// The arithmetic is legacy's `hid/display/starfield` unchanged -- see `ui/widgets/oled/rainfall.h`'s file
 /// doc for why it lives here. The oracle this class is compared against frame by frame is
-/// `sim/scenes_spec/support/oracle_starfield.{h,cpp}`.
+/// `tests/integration/ui/scenes/support/oracle_starfield.{h,cpp}`.
 
 #include <array>
 #include <cstddef>

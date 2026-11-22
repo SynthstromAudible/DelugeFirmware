@@ -28,8 +28,8 @@
 ///
 /// Legacy's `hid::display::Screensaver` renders it into its own canvas through this symbol. The
 /// arithmetic is legacy's, unchanged: every constant, every expression and every statement is
-/// legacy's -- see `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`, a mechanical transcription of
-/// the legacy source that `sim/scenes_spec/screensaver_scene_spec.cpp` runs against this class
+/// legacy's -- see `tests/integration/ui/scenes/support/oracle_rainfall.{h,cpp}`, a mechanical transcription of
+/// the legacy source that `tests/integration/ui/scenes/screensaver_scene_spec.cpp` runs against this class
 /// frame by frame.
 
 #include <array>

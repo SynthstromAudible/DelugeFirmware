@@ -150,7 +150,7 @@ extern int service_wirings;
 /// says so in its own words). What that leaves assertable here is the half that lives in
 /// `ShellHostUI::timerCallback` and cannot be seen from anywhere else -- **that the poll happens,
 /// once per tick, on every path through the tick, and after `Shell::tick` has run**. That the poll
-/// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
+/// then empties `MenuScene`'s real outbox is `tests/integration/ui/scenes/menu_actions_spec.cpp`'s, in the
 /// binary where the real scene exists.
 extern int action_dispatches;
 /// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
@@ -175,7 +175,7 @@ extern std::function<void()> on_action_dispatch;
 ///
 /// The real one is `gui/ui/browser_host.cpp`'s, which names `browser_scene()` and so belongs to the
 /// `deluge_ui_scenes` closure this suite never builds. What the poll does is
-/// `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter keeps the guest linking here.
+/// `tests/integration/ui/scenes/browser_choice_spec.cpp`'s; this counter keeps the guest linking here.
 extern int browser_host_polls;
 
 /// @brief How many times `deluge::gui::ui::deliverShellBrowserAnswers()` was called since `reset()`.
@@ -196,7 +196,7 @@ extern std::function<void()> on_browser_answer_delivery;
 /// `automationView` and `deluge::ui::scenes::menu_scene()`, none of which this suite builds. What that
 /// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
 /// whether a pad the scene did not claim reaches the forward at all, and with which arguments --
-/// not which arm the real decision takes; that is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the
+/// not which arm the real decision takes; that is `tests/integration/ui/scenes/pad_forward_spec.cpp`'s, in the
 /// binary where the real legacy views exist.
 extern int pad_forwards;
 /// @brief The arguments of the last `forwardGridPad()` call.
@@ -223,7 +223,7 @@ extern bool marker_sidebar_answer;
 /// feeding the shell, `std::nullopt` feeds it -- so each fake answers a settable value rather than a
 /// fixed one. The real functions read `deluge::ui::scenes::menu_scene()` and call `instrumentClipView`,
 /// neither of which this suite builds; which arm the real classification takes is
-/// `sim/scenes_spec/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
+/// `tests/integration/ui/scenes/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
 /// consults its function, with which arguments, and what it does with either answer.
 /// @{
 /// @brief The arguments of one `forwardNoteButton()` call.

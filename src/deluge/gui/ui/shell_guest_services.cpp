@@ -77,7 +77,7 @@ namespace {
 /// `learn` first because `GlobalControls` takes a `LearnMode&` and a real application passes the
 /// same `MidiLearn` it also puts in `Services::midi_learn` (`GlobalControls`'s constructor);
 /// member order is what makes that reference valid rather than a promise. Same shape as
-/// `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices`, which is the level-2 demonstration of
+/// `tests/integration/ui/scenes/scene_scripts_spec.cpp`'s `RealServices`, which is the level-2 demonstration of
 /// this wiring.
 struct GuestServices {
 	deluge::ui::scenes::services::MidiLearn learn;

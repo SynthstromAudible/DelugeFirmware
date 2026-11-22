@@ -76,7 +76,7 @@ builds only `golden-vt-render`.
 | stale-ui | integration | scenario | property | gate | a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty | pr | app | ~5s |
 | ui-scripts | integration | scenario | regression | gate | the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock | pr | app | ~1m |
 | ui-menu-dump | integration | scenario | regression | gate | the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json | pr | app | ~2s |
-| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (sim/scenes_spec) pass on golden_vt_render, one file per process from the app's own init, each on its card | pr | app | ~10s |
+| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card | pr | app | ~10s |
 | load-cancel | integration | scenario | property | gate | a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load | pr | app | ~5s |
 | ui-timer-deadline | integration | scenario | property | gate | the "ui routine" job runs the UI timers at their deadlines instead of polling | pr | app | ~1m |
 | idle-job-rates | integration | scenario | property | gate | an idle app runs each job only as often as it has work | pr | app | ~5s |
@@ -185,7 +185,7 @@ builds only `golden-vt-render`.
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
 | setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
-| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
+| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | pr | tooling | ~1s |
 | spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
