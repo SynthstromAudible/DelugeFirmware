@@ -176,6 +176,8 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
         "-stdlib=libstdc++",
         f"--sysroot={sysroot}",
         f"--gcc-toolchain={gcc}",
+        # __FILE__ names repo-relative paths, as the app's own objects do (CMakeLists.txt).
+        f"-fmacro-prefix-map={root}/=",
         # bits/c++config.h is per-multilib, and the fallback copy is soft-float.
         f"-isystem{cxx_inc[0]}/arm-none-eabi/{MULTILIB}",
     ]
