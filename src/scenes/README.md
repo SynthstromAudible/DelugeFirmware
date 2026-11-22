@@ -72,7 +72,7 @@ nothing.
   call (`scenes-no-stem-export-process`). Where a ported item has to run a root-UI behaviour it names it for the host
   instead — see "The action seam".
 * **Drawing.** No `OledFrame`/`GridFrame` primitive (`scenes-no-frame-primitives`): pixels come from
-  `ui::oled` and `ui::grid` widgets, so layout rules live in one place.
+  `ui::widgets::oled` and `ui::widgets::grid` widgets, so layout rules live in one place.
 * **No wall clock** (`shell-no-clock`): the frame's `now_ms()` and `tick(dt)` are the only time a
   scene knows, and `next_timer()` is how it asks to be woken.
 * **No input lock** (`scenes-no-input-lock`): no scene files `Action::Kind::LockInput`.
@@ -157,7 +157,7 @@ per-`Submenu` `current_item_` does (`origin/main:src/deluge/gui/menu_item/submen
 `reset_process_state()` forgets them, as a boot does.
 
 **Where things happen.** The toolkit's rule is that a widget draws and consumes its input in the same
-call (`ui/core/frame_context.h`, rule 2: *reading is claiming*), so `render_oled` is where input is
+call (`ui/widgets/core/frame_context.h`, rule 2: *reading is claiming*), so `render_oled` is where input is
 observed, and it may not touch the model. `after_render()` turns a widget's `Response` into
 navigation or a write; `handle()` gets what no widget can claim — a pad (positional, never masked)
 and a button nothing owned. `owns(event)` tells the shell, before the render, which widget-owned
@@ -428,8 +428,8 @@ scene's header gives its reasons.
 `rename::RenameScene` replaces legacy's `RenameUI` and its four subclasses, which differed only in
 three virtuals; those are a `rename::Target` row indexed by `SceneId::arg`. Three targets ship —
 `Clip`, `Output`, `Drum` — because those are what the tree reaches; `renameMidiCCUI` is opened only
-by the automation view. The pixels are the toolkit's (`ui::grid::text_keyboard`,
-`ui::oled::text_edit`); the scene owns the typing rules and legacy's backspace auto-repeat
+by the automation view. The pixels are the toolkit's (`ui::widgets::grid::text_keyboard`,
+`ui::widgets::oled::text_edit`); the scene owns the typing rules and legacy's backspace auto-repeat
 (`kBackspaceRepeatDelayMs` 500, then `kBackspaceRepeatMs` 80), read from `TextKeyboardState::backspace_held`.
 While the hold is up, the keys, Enter, BACK, SELECT and the sidebar do nothing.
 
@@ -442,7 +442,7 @@ LOAD FILES for a synth), and its DELETE? menu, which blinks SAVE as `main`'s sav
 (`Descriptor::for_saving`). The browser's folder menus use the last three hooks: `options_now` (legacy's
 `isCurrentOptionAvailable`, re-asked before every render, turn and accept), `pad` (the keyboard
 beneath reads the press; `passes_pads_beneath`) and `busy` (BACK, Select and pads refused while
-their load runs). The window is `ui::oled::option_window`, not `ui::oled::list`: legacy insets the
+their load runs). The window is `ui::widgets::oled::option_window`, not `ui::widgets::oled::list`: legacy insets the
 label by 1, sizes the highlight at 106 and pins the cursor to the bottom row, none of which `list`
 does. The box is a fixed 100×40 `PopupStyle::Permanent` square with the title drawn at x 22.
 
@@ -525,13 +525,13 @@ The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tie
 
 `marker::MarkerScene` ports `SampleMarkerEditor`, opened by the four loop-point items and the audio clip's waveform
 item with the `MarkerType` as `SceneId::arg`. Legacy draws **no waveform on the OLED** — a title, a lock badge, a
-duration and a sample count — so the OLED half is `ui::oled::sample_position` and the pad half `ui::grid::markers`
+duration and a sample count — so the OLED half is `ui::widgets::oled::sample_position` and the pad half `ui::widgets::grid::markers`
 over the waveforms port's columns at the range's or the audio clip's address, navigated by
 `sample_view::WaveformView` ("The waveform views" below). One legacy render bug is fixed in the port: `renderOLED`
-draws the h/m unit letters at a fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws
+draws the h/m unit letters at a fixed `x = 6`, over their own digits, past a minute; `ui::widgets::oled::sample_position` draws
 them at the cursor.
 
-A zoom slides as `PadLEDs::renderZoom` does, through `ui::grid::ZoomTransition`: from the last settled
+A zoom slides as `PadLEDs::renderZoom` does, through `ui::widgets::grid::ZoomTransition`: from the last settled
 frame to the new view's bare waveform over 110 ms, a step every 50 ms, every input refused while it slides.
 The playhead is the newest voice's column on every row, painted with the flash cursor Slow and flashed with it Fast; the host walks
 the voices (`Waveforms::play_position`). A vertical turn reaches the clip view beneath through the host
@@ -560,7 +560,7 @@ ended (`bind::ViewActions`).
 The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
 all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
 
-A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::oled::threshold_meter`,
+A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::widgets::oled::threshold_meter`,
 blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
 pre-roll margin.
 
@@ -573,7 +573,7 @@ opened on the item alone (the drum creator's) leaves the menu.
 `ParamPopupScene` (the mod-encoder value popup) and `CountInScene` are input-transparent grid
 overlays. `ScreensaverScene` is the drawing half of legacy's `Screensaver`; the policy half (idle
 deadline, wake on input, the inhibitors) is `shell::Screensaver`. `Rainfall` and `Starfield` live in
-`ui/oled/`, and `sim/scenes_spec/support/oracle_*` compare them frame by frame against a
+`ui/widgets/oled/`, and `sim/scenes_spec/support/oracle_*` compare them frame by frame against a
 transcription of legacy's.
 
 ### The timeline state (`timeline/`)
@@ -629,7 +629,7 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
 
 * **The play cursor is painted in `render_grid`.** Legacy hands a column to
   `PadLEDs::setTickSquares` and the driver substitutes the colour per pad; the shell has one
-  immediate-mode render, so the waveform is drawn and `ui::grid::tick_squares` goes last.
+  immediate-mode render, so the waveform is drawn and `ui::widgets::grid::tick_squares` goes last.
 * **BACK while holding the horizontal encoder clears the clip**, ahead of `View`'s undo, exactly when
   `currentUIMode` equals that mode — not with the song button held too.
 * **The scene carries a two-value `currentUIMode`** (holding SONG, holding X_ENC) with legacy's
@@ -867,7 +867,7 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
   registry's construction reaching it first.
 * **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the device's
   `pads/playCursor` row, which the audio clip view, the slicer and the marker editor read each frame: Slow
-  paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
+  paints the playhead, Fast flashes it through the PIC (`ui::widgets::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware
 
@@ -903,8 +903,8 @@ What a user can see differ from `main` today, beyond the features below that the
 | A notification's 2000 ms starts when a consumer pops it, not when it was raised, and its title and value are fitted into 46 bytes value-first, where `OLED::displayNotification` measures the untruncated title. | `Notices::drain`, `notice_notification`; `tests/ui-scripts/parity/DIFFERENCES.md` D97 |
 | Shift + a horizontal turn on the DX7 parameter page at the pitch envelope's first rate, every operator off: legacy hangs, the port stays on the param. | `tests/ui-scripts/parity/DIFFERENCES.md` D87 |
 | The DX7 shortcut fallback tests the pad's source on this sound, where legacy tests the source the previous menu left. | `tests/ui-scripts/parity/DIFFERENCES.md` D90 |
-| The marker editor draws the h/m unit letters beside their digits; legacy draws them at a fixed `x = 6`, over the digits, past a minute. | `ui/oled/sample_position.h` |
-| Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
+| The marker editor draws the h/m unit letters beside their digits; legacy draws them at a fixed `x = 6`, over the digits, past a minute. | `ui/widgets/oled/sample_position.h` |
+| Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/widgets/oled/popup.h`'s progress bar, `ui/widgets/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
 
 ## Features `main` has that the scenes do not
 
@@ -924,4 +924,4 @@ listed here, and the specs over the frozen legacy rows pin each divergence by id
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
 | `Submenu::shouldForwardButtons`' `buttonAction` (`origin/main:src/deluge/gui/menu_item/submenu.h`) | `main` forwards a horizontal page's buttons to its focused value column; the menu routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column; `tests/ui-scripts/parity/DIFFERENCES.md` D95 |
-| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | the zoom through `ui::grid::ZoomTransition`, as the marker editor's; a scroll transition |
+| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | the zoom through `ui::widgets::grid::ZoomTransition`, as the marker editor's; a scroll transition |

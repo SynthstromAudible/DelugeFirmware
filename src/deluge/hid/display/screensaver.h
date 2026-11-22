@@ -18,8 +18,8 @@
 #pragma once
 
 #include "hid/display/oled_canvas/canvas.h"
-#include "ui/oled/rainfall.h"
-#include "ui/oled/starfield.h"
+#include "ui/widgets/oled/rainfall.h"
+#include "ui/widgets/oled/starfield.h"
 
 namespace deluge::hid::display {
 
@@ -101,8 +101,8 @@ private:
 	static bool active_;
 	static bool frameDirty_;
 	static oled_canvas::Canvas canvas_;
-	static ui::oled::Starfield starfield_;
-	static ui::oled::Rainfall rainfall_;
+	static ui::widgets::oled::Starfield starfield_;
+	static ui::widgets::oled::Rainfall rainfall_;
 };
 
 } // namespace deluge::hid::display

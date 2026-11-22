@@ -51,7 +51,7 @@ int32_t DeviceSettings::read(const plugin::SettingInfo& row) const {
 		return *stored;
 	}
 	// A CHOICE index past the row's choices (a byte the flash held that no menu offers) is clamped into them, as a
-	// choice item's widget shows one (`enum_value` in `ui/oled/values.cpp`).
+	// choice item's widget shows one (`enum_value` in `ui/widgets/oled/values.cpp`).
 	if (const std::optional<int64_t> index = plugin::whole_number(*text);
 	    index && row.kind == plugin::SettingKind::CHOICE && !row.choices.empty()) {
 		return static_cast<int32_t>(std::clamp<int64_t>(*index, 0, static_cast<int64_t>(row.choices.size()) - 1));

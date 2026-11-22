@@ -43,7 +43,7 @@ public:
 	///                      `uint16_t` a `SceneId` carries.
 	explicit ContextMenuItem(uint16_t descriptor_id) : descriptor_id_{descriptor_id} {}
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;

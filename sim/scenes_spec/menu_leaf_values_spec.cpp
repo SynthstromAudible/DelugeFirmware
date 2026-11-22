@@ -29,8 +29,8 @@
 #include "scenes/menu/present.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
-#include "ui/oled/list.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/values.h"
 
 #include "base/notify/dirty_set.h"
 #include "shell/profiles/deluge.h"
@@ -291,8 +291,8 @@ describe leaf_words("scenes::menu full-screen Decimal words", $ {
 		// The same list drawn with main's two words, below the title.
 		deluge::ui::test::Rig48 main_words;
 		bool off = false;
-		deluge::ui::ScrollText scroll;
-		(void)deluge::ui::oled::toggle(main_words.frame, deluge::ui::oled::menu_rect(main_words.frame), off,
+		deluge::ui::widgets::core::ScrollText scroll;
+		(void)deluge::ui::widgets::oled::toggle(main_words.frame, deluge::ui::widgets::oled::menu_rect(main_words.frame), off,
 		                               deluge::l10n::get(String::STRING_FOR_DISABLED),
 		                               deluge::l10n::get(String::STRING_FOR_ENABLED), scroll);
 		bool same = true;

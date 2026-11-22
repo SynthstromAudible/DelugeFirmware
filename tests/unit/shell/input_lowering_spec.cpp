@@ -7,7 +7,7 @@
 
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::ui::EncoderRole;
+using deluge::ui::widgets::core::EncoderRole;
 
 namespace {
 /// A BUTTON event at matrix (x, y).
@@ -223,7 +223,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(3, 2, 20);          // a turn the host gave no time
 		in.end_tick(20);
 		expect(in.snapshot().turn).to_equal(int8_t(4));
-		const std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		const std::span<const deluge::ui::widgets::core::TimedTurn> turns = in.snapshot().turns;
 		expect(turns.size()).to_equal(size_t(3));
 		expect(turns[0].detents).to_equal(int8_t(1));
 		expect(turns[0].time_us).to_equal(uint64_t(600'000));
@@ -249,7 +249,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		UiEvent e{UiEvent::Kind::AllReleased};
 		expect(in.next(e)).to_be_true();
 		in.withdraw(e);
-		std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		std::span<const deluge::ui::widgets::core::TimedTurn> turns = in.snapshot().turns;
 		expect(turns.size()).to_equal(size_t(2));
 		expect(turns[0].time_us).to_equal(uint64_t(200));
 		expect(in.snapshot().turn).to_equal(int8_t(5));
@@ -382,7 +382,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(pad_ev(3, 5, 90), 4242);
 		in.end_tick(4242);
 
-		const deluge::ui::InputSnapshot& s = in.snapshot();
+		const deluge::ui::widgets::core::InputSnapshot& s = in.snapshot();
 		expect(s.turn).to_equal(int8_t(1));
 		expect(s.select_pressed).to_be_true();
 		expect(s.back_pressed).to_be_true();
@@ -575,23 +575,23 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		UiEvent back{UiEvent::Kind::Button};
 		back.button = ButtonId::Back;
 		back.on = true;
-		const std::pair<UiEvent, bool deluge::ui::InputClaims::*> cases[] = {
-		    {turn(EncoderRole::Select), &deluge::ui::InputClaims::turn},
-		    {turn(EncoderRole::GoldUpper), &deluge::ui::InputClaims::edit0},
-		    {turn(EncoderRole::GoldLower), &deluge::ui::InputClaims::edit1},
-		    {turn(EncoderRole::Horizontal), &deluge::ui::InputClaims::horizontal},
-		    {turn(EncoderRole::Vertical), &deluge::ui::InputClaims::vertical},
-		    {select_press, &deluge::ui::InputClaims::select},
-		    {back, &deluge::ui::InputClaims::back},
+		const std::pair<UiEvent, bool deluge::ui::widgets::core::InputClaims::*> cases[] = {
+		    {turn(EncoderRole::Select), &deluge::ui::widgets::core::InputClaims::turn},
+		    {turn(EncoderRole::GoldUpper), &deluge::ui::widgets::core::InputClaims::edit0},
+		    {turn(EncoderRole::GoldLower), &deluge::ui::widgets::core::InputClaims::edit1},
+		    {turn(EncoderRole::Horizontal), &deluge::ui::widgets::core::InputClaims::horizontal},
+		    {turn(EncoderRole::Vertical), &deluge::ui::widgets::core::InputClaims::vertical},
+		    {select_press, &deluge::ui::widgets::core::InputClaims::select},
+		    {back, &deluge::ui::widgets::core::InputClaims::back},
 		};
 		for (const auto& [event, bit] : cases) {
-			deluge::ui::InputClaims c{};
+			deluge::ui::widgets::core::InputClaims c{};
 			expect(claim_covers(c, event)).to_be_false();
 			add_claim(c, event);
 			expect(c.*bit).to_be_true();
 			expect(claim_covers(c, event)).to_be_true();
 		}
-		deluge::ui::InputClaims all{};
+		deluge::ui::widgets::core::InputClaims all{};
 		add_claim(all, turn(EncoderRole::Tempo));
 		expect(claim_covers(all, turn(EncoderRole::Tempo))).to_be_false();
 	});

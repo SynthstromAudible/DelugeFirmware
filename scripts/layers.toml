@@ -310,19 +310,19 @@ reason = "the notification channel includes only itself and the standard library
 [[rule]]
 name = "ui-includes-outside"
 files = ["src/ui/**"]
-pattern = '^(?!ui/|ui/gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+pattern = '^(?!ui/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
 [[rule]]
 name = "ui-oled-no-grid"
-files = ["src/ui/oled/**"]
-pattern = '^ui/grid/'
+files = ["src/ui/widgets/oled/**"]
+pattern = '^ui/widgets/grid/'
 reason = "the OLED widgets and the pad components never include each other"
 
 [[rule]]
 name = "ui-grid-no-oled"
-files = ["src/ui/grid/**"]
-pattern = '^ui/oled/'
+files = ["src/ui/widgets/grid/**"]
+pattern = '^ui/widgets/oled/'
 reason = "the OLED widgets and the pad components never include each other"
 
 [[rule]]

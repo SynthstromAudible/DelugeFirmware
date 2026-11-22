@@ -7,7 +7,7 @@
 #include "scenes/menu/node.h"
 #include "shell/profile.h"
 #include "ui/gfx/oled/icon.h"
-#include "ui/oled/columns.h"
+#include "ui/widgets/oled/columns.h"
 
 #include <cstdint>
 #include <span>
@@ -26,11 +26,11 @@ struct NodeText {
 
 /// @brief The storage one horizontal column's drawing points into; it outlives the `columns` call that draws it.
 struct ColumnSlot {
-	deluge::ui::oled::MeterColumn meter;
-	deluge::ui::oled::TextColumn text;
-	deluge::ui::oled::ToggleColumn toggle;
-	deluge::ui::oled::ArtColumn art;
-	deluge::ui::oled::DrawColumn draw;
+	deluge::ui::widgets::oled::MeterColumn meter;
+	deluge::ui::widgets::oled::TextColumn text;
+	deluge::ui::widgets::oled::ToggleColumn toggle;
+	deluge::ui::widgets::oled::ArtColumn art;
+	deluge::ui::widgets::oled::DrawColumn draw;
 	char value[16]{};
 	char label[16]{};
 	NodeText label_scratch;
@@ -49,7 +49,7 @@ struct ColumnSlot {
 /// @param slot_frame The column's value region; the drawing covers the panel below the title.
 /// @param focused    Unused.
 /// @param ctx        Must point at a `ColumnSlot::OptionList`.
-void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool focused, void* ctx);
+void option_list_column(deluge::ui::widgets::oled::OledFrame& slot_frame, bool focused, void* ctx);
 
 /// @brief The icon legacy's `renderSubmenuItemTypeForOled` draws at the right of @p node's row: the arrow, or a
 ///        checkbox for a toggle.
@@ -116,7 +116,7 @@ std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32
 /// @param slot  Storage @p col's label and `ctx` point into.
 /// @param col   The column; its label, `show_label`, `render` and `ctx` are written.
 void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
-                    deluge::ui::oled::Column& col);
+                    deluge::ui::widgets::oled::Column& col);
 
 /// @brief The value text of the notification an edit on @p column raises: legacy's `getNotificationValue` for that
 ///        item -- its own (`Binding::value_text`), or its kind's.

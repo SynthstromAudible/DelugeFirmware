@@ -142,8 +142,8 @@
 #include "scenes/bind/ports/take_actions.h"
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
-#include "ui/grid/effects.h"
-#include "ui/oled/threshold_meter.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/oled/threshold_meter.h"
 
 #include <cstdint>
 #include <optional>
@@ -213,8 +213,8 @@ public:
 	[[nodiscard]] bool last_enter_refused() const { return last_enter_refused_; }
 
 	deluge::ui::shell::SceneKind kind() const override { return kRecorderSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void leds(deluge::ui::LedFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
@@ -227,14 +227,14 @@ public:
 	void taken_down();
 
 	/// @brief `AudioRecorder::getGreyoutColsAndRows`: every column of the grid, sidebar included, greyed.
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 	/// @brief True: `AudioRecorder` overrides neither `renderMainPads` nor `renderSidebar`, so the view beneath keeps
 	///        every pad and `Shell::tick` greys it with `greyout_mask`. The scene's only grid output is its blink.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief `AudioRecorder::opened`'s `setupShortcutBlink(currentSourceIndex, 4, 0)` and `blinkShortcut()`: the
 	///        source's recorder shortcut pad flashes on every cycle of the sound editor's blink counter while a take
 	///        is armed.
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 
 	/// @name Observable state
 	/// For specs, and for whoever wires the menu items up.
@@ -264,7 +264,7 @@ private:
 	[[nodiscard]] bind::TakeActions* takes() const;
 	/// @brief `AudioRecorder::getThresholdMeterState` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), for a panel
 	/// @p width wide.
-	deluge::ui::oled::ThresholdMeter meter_state(int32_t width) const;
+	deluge::ui::widgets::oled::ThresholdMeter meter_state(int32_t width) const;
 	/// @brief `AudioRecorder::endRecordingSoon`, through `TakeActions::end_soon`.
 	void end_recording_soon();
 	/// @brief `AudioRecorder::finishRecording`, through `TakeActions::finish`.

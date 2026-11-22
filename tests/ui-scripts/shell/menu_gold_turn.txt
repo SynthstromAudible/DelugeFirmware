@@ -5,7 +5,7 @@
 # **Why the gold knobs pass through a menu.** Legacy edits a menu value with the *select* encoder,
 # and the gold knobs never touch a menu at all -- `SoundEditor::modEncoderAction` falls through to
 # `View::modEncoderAction`, which edits the mod-controllable's param instead of the menu item. So
-# `int_value` reads only the select turn (`ui/oled/values.cpp`'s `select_delta`, from `f.turn()`).
+# `int_value` reads only the select turn (`ui/widgets/oled/values.cpp`'s `select_delta`, from `f.turn()`).
 #
 # **What it pins.** With `int_value` claiming only the select turn, this script's two `GoldUpper` steps are unclaimed by
 # `MenuScene` and reach the real `ModKnobs`, exactly as they would over any other view. `nodes::saturation` itself never

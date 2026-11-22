@@ -161,7 +161,7 @@ void select_language() {
 constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`kDelugeEncoders`, `shell/profiles/deluge.cpp`), which lowers to
 /// `InputSnapshot::edit[0]` (`InputLowering::end_tick`). It does not move a `Kind::Int` leaf:
-/// `int_value` claims the select turn instead (`ui/oled/values.cpp`'s `select_delta`),
+/// `int_value` claims the select turn instead (`ui/widgets/oled/values.cpp`'s `select_delta`),
 /// as `render_leaf_int` records (`MenuView::render_leaf_int`, `scenes/menu/view.cpp`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
@@ -950,7 +950,7 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 	int32_t value = read();
 	for (uint32_t step = 0; value != target && step < 80; step++) {
 		// **The same encoder for both.** `enum_value` owns the select encoder (`f.turn()`) and so does
-		// `int_value` (`ui/oled/values.cpp`'s `select_delta`) -- exactly what legacy's own
+		// `int_value` (`ui/widgets/oled/values.cpp`'s `select_delta`) -- exactly what legacy's own
 		// `Value<T>::selectEncoderAction` does for both items.
 		//
 		// The loop still runs until the value lands rather than counting detents: in practice it lands in exactly
@@ -1385,7 +1385,7 @@ describe menu_action_screensaver("the screensaver items -- the device port's sto
 	// `Screensaver::timerEvent()` stands the legacy screensaver down instead of activating it, so it cannot be showing
 	// while a menu row is turned. `menu_entry_spec.cpp`'s `menu_entry_screensaver` group pins that stand-down.
 	//
-	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn (`ui/oled/values.cpp`'s
+	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn (`ui/widgets/oled/values.cpp`'s
 	// `select_delta`), as main reaches both items' `writeCurrentValue` from `Value<T>::selectEncoderAction`. `Rig`
 	// feeds board encoder indices straight into a `Shell`; `ShellHostUI` routes a gold turn to the knobs' service rather
 	// than to the menu, so the guest example turns the mode item.
@@ -2404,7 +2404,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(FlashStorage::accessibilityMenuHighlighting).to_equal(MenuHighlighting::FULL_INVERSION);
 		expect(deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts).to_be_true();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
-		    .to_equal(deluge::ui::Highlighting::FullInversion);
+		    .to_equal(deluge::ui::widgets::core::Highlighting::FullInversion);
 
 		// `flash::Status::writeCurrentValue`, through the play cursor's device row: leaving the slow flash clears its
 		// tick squares and, the slow flash still current, sends the column pair that held one; leaving another does
@@ -2482,7 +2482,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
-		    .to_equal(deluge::ui::Highlighting::NoInversion);
+		    .to_equal(deluge::ui::widgets::core::Highlighting::NoInversion);
 		FlashStorage::accessibilityMenuHighlighting = was;
 		deluge::gui::ui::pushShellHighlighting();
 	});

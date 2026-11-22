@@ -111,7 +111,7 @@ add_library(deluge_scenes STATIC
     overlay/count_in_scene.cpp
     # the idle animation -- the third overlay scene, and the only one registered under a
     # kind of the SHELL's own (`SceneKind::Screensaver`), because `shell::Screensaver` pushes it by
-    # name. The two animations it draws moved out of `hid/display/` to `ui/oled/` in the same task.
+    # name. The two animations it draws moved out of `hid/display/` to `ui/widgets/oled/` in the same task.
     overlay/screensaver_scene.cpp
     # the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
     # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
@@ -151,7 +151,7 @@ target_include_directories(deluge_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../../include
     ${CMAKE_CURRENT_LIST_DIR}/../deluge
 )
-# deluge_ui_shell already brings deluge_ui_core/deluge_ui_oled/deluge_ui_grid/deluge_base_notify PUBLIC (the
+# deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/deluge_base_notify PUBLIC (the
 # `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/shell/CMakeLists.txt); deluge_app is the portable
 # application (an OBJECT library) this layer is allowed to read model/modulation/playback/storage from.
 #

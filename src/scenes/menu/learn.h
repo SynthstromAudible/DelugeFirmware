@@ -8,7 +8,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_state.h"
 #include "shell/scene.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include <cstdint>
 #include <optional>
@@ -73,7 +73,8 @@ public:
 	             const deluge::ui::shell::UiContext& ui, std::optional<bool> host_allows = std::nullopt);
 
 	/// @brief Declare the LEARN LED: learn mode's fast blink, else @p shared_blink while the item wants it.
-	void leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::LedState shared_blink);
+	void leds(const MenuState& st, deluge::ui::widgets::core::LedFrame& f,
+	          deluge::ui::widgets::core::LedState shared_blink);
 
 	/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an item
 	///        that allows learn; left on LEARN's release (`SoundEditor::buttonAction` in

@@ -1,6 +1,6 @@
 #include "shell/shell.h"
 #include "support/script_runner.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/text.h"
 
 #include "cppspec.hpp"
 
@@ -46,29 +46,30 @@ public:
 		return true;
 	}
 
-	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override {
 		if (role != SurfaceRole::Main) {
 			return;
 		}
 		const deluge::ui::gfx::oled::Rect b = frame.bounds();
-		deluge::ui::oled::title(frame, "DEMO");
+		deluge::ui::widgets::oled::title(frame, "DEMO");
 		// The two counters, on one line: `T` is the net `Select` detents `handle()` has seen, `M`
 		// how many `Dirty::ClipContent` facts `on_model_changed` has. Drawn unconditionally, so an
 		// unturned, unchanged scene still says `T0 M0` -- a counter that appeared only once it was
 		// non-zero could not tell "nothing happened" from "the scene stopped drawing it".
 		const std::string counters = "T" + std::to_string(turns_) + " M" + std::to_string(model_changes_);
-		deluge::ui::oled::text(
-		    frame, {0, b.h / 2, b.w, 10}, counters,
-		    deluge::ui::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
+		deluge::ui::widgets::oled::text(frame, {0, b.h / 2, b.w, 10}, counters,
+		                                deluge::ui::widgets::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7,
+		                                                                     deluge::ui::widgets::oled::Align::Centre});
 		if (arg_ != 0) {
 			const std::string n = std::to_string(static_cast<unsigned>(arg_));
-			deluge::ui::oled::text(
+			deluge::ui::widgets::oled::text(
 			    frame, {0, b.h - 10, b.w, 10}, n,
-			    deluge::ui::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
+			    deluge::ui::widgets::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7,
+			                                         deluge::ui::widgets::oled::Align::Centre});
 		}
 	}
 
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		for (int32_t i = 0; i < 3; i++) {
 			(void)frame.pad(i, i, kDemoColours[i]);
 		}
@@ -79,14 +80,15 @@ public:
 		}
 	}
 
-	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Play),
-		                deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
+		(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Play),
+		                deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::On, 0, 0});
 		// Blinking, not lit: the two are indistinguishable in the fake's `set_led` shadow (which
 		// only sees the level `flush` resolved for this tick), so this is what pins that `.state`
 		// reports the *declaration* -- the `.state` line `led <Name> blink <period>`.
-		(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Record),
-		                deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kRecordBlinkMs, 0});
+		(void)frame.set(
+		    static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Record),
+		    deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, kRecordBlinkMs, 0});
 	}
 
 	Result handle(const UiEvent& event, const UiContext&) override {
@@ -102,7 +104,7 @@ public:
 			return r;
 		case UiEvent::Kind::Pad:
 			// Read in `handle()`, never through a frame: reading an input while rendering claims it
-			// (`ui/core/frame_context.h` rule 2), and this scene draws on both surfaces in a tick,
+			// (`ui/widgets/core/frame_context.h` rule 2), and this scene draws on both surfaces in a tick,
 			// so a frame read would claim the same press twice. No `Repaint` needed -- an ordinary
 			// pad event is routed by `pump_input` *before* the frame is built, so this tick's grid
 			// already shows the change.
@@ -115,7 +117,7 @@ public:
 			r.handled = true;
 			return r;
 		case UiEvent::Kind::Encoder:
-			if (event.encoder != deluge::ui::EncoderRole::Select) {
+			if (event.encoder != deluge::ui::widgets::core::EncoderRole::Select) {
 				return Result::unhandled();
 			}
 			turns_ += event.delta;
@@ -197,7 +199,7 @@ class FillScene final : public Scene {
 public:
 	SceneKind kind() const override { return kFill; }
 
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		for (uint8_t y = 0; y < kFillRows; y++) {
 			for (uint8_t x = 0; x < kFillCols + 2; x++) { // + the profile's 2 sidebar columns
 				(void)frame.pad(x, y, RGB{1, 1, 1});
@@ -226,7 +228,7 @@ struct FillRegistry {
 ///        tables that diverge produce different snapshots. Everything else is identical to `DemoScene`.
 class DemoSceneExtraPixel final : public DemoScene {
 public:
-	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override {
 		DemoScene::render_oled(role, frame);
 		if (role == SurfaceRole::Main) {
 			frame.canvas.draw_pixel(0, 0);

@@ -55,8 +55,8 @@
 #include "shell/leds.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/led_frame.h"
-#include "ui/core/metrics.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/core/metrics.h"
 
 #include "gui/l10n/l10n.h"
 #include "hid/button.h"
@@ -160,7 +160,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -270,23 +271,23 @@ std::string main_panel(std::string_view name) {
 }
 
 /// @brief The state @p b was declared with this frame, or `Off` when it was not declared at all.
-deluge::ui::LedState::Kind led_kind(const deluge::ui::LedFrame& f, ButtonId b) {
+deluge::ui::widgets::core::LedState::Kind led_kind(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
-		if (id == static_cast<deluge::ui::LedId>(b)) {
+		if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
 			return state.kind;
 		}
 	}
-	return deluge::ui::LedState::Kind::Off;
+	return deluge::ui::widgets::core::LedState::Kind::Off;
 }
 
 /// @brief The shared blink rate @p b was declared on this frame, or `Normal` if it was not declared.
-deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
+deluge::ui::widgets::core::BlinkRate led_rate(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
-		if (id == static_cast<deluge::ui::LedId>(b)) {
+		if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
 			return state.rate;
 		}
 	}
-	return deluge::ui::BlinkRate::Normal;
+	return deluge::ui::widgets::core::BlinkRate::Normal;
 }
 
 /// @brief Publish an OUTPUT recording (a resample, as far as every reader is concerned) for the
@@ -1258,13 +1259,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		for (uint32_t at = 0; at <= 400; at += 10) {
 			r.tick(at);
 		}
-		const std::vector<deluge::ui::grid::PadFlash> flashes{
+		const std::vector<deluge::ui::widgets::grid::PadFlash> flashes{
 		    r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
 		expect(flashes.size()).to_equal(size_t{2}); // at 20 ms and 220 ms
-		for (const deluge::ui::grid::PadFlash& flash : flashes) {
+		for (const deluge::ui::widgets::grid::PadFlash& flash : flashes) {
 			expect(static_cast<int32_t>(flash.x)).to_equal(0);
 			expect(static_cast<int32_t>(flash.y)).to_equal(4);
-			expect(flash.colour).to_equal(deluge::ui::grid::FlashColour::Default);
+			expect(flash.colour).to_equal(deluge::ui::widgets::grid::FlashColour::Default);
 		}
 	});
 
@@ -1273,13 +1274,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		r.open_over_menu();
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		recorder_scene().leds(f);
-		expect(f.restart_requested(deluge::ui::BlinkRate::Normal).value_or(false)).to_be_true();
-		expect(f.restart_requested(deluge::ui::BlinkRate::Fast).value_or(false)).to_be_true();
-		deluge::ui::LedFrame again;
+		expect(f.restart_requested(deluge::ui::widgets::core::BlinkRate::Normal).value_or(false)).to_be_true();
+		expect(f.restart_requested(deluge::ui::widgets::core::BlinkRate::Fast).value_or(false)).to_be_true();
+		deluge::ui::widgets::core::LedFrame again;
 		recorder_scene().leds(again);
-		expect(again.restart_requested(deluge::ui::BlinkRate::Normal).has_value()).to_be_false();
+		expect(again.restart_requested(deluge::ui::widgets::core::BlinkRate::Normal).has_value()).to_be_false();
 	});
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
@@ -1297,21 +1298,21 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// calling `leds()` directly, because the SYNTH/KIT claim is precisely that this scene's
 		// declaration outranks the menu's. `MenuScene::leds` declares both
 		// OFF, mirroring `SoundEditor::setLedStates`.
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
-		expect(led_rate(f, ButtonId::Record)).to_equal(deluge::ui::BlinkRate::Fast); // kFastFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Record)).to_equal(deluge::ui::widgets::core::BlinkRate::Fast); // kFastFlashTime
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Back)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
-		expect(led_rate(f, ButtonId::Back)).to_equal(deluge::ui::BlinkRate::Normal); // kFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Back)).to_equal(deluge::ui::widgets::core::BlinkRate::Normal); // kFlashTime
 		// The fixture is a synth, so `editingKit()` is false: SYNTH on, KIT off.
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Synth)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::On));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::On));
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Kit)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Off));
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Scale)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Off));
 	});
 
 	// --- the foreground-recording publication ---------------------------------------------------

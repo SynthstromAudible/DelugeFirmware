@@ -45,7 +45,7 @@ using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f, bool kit_global_latched) {
+void MenuPads::render_grid(MenuCore core, deluge::ui::widgets::grid::GridFrame& f, bool kit_global_latched) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// Reads no input at all. That is what keeps "a scene reads any one input in at most one render pass per tick"
@@ -152,7 +152,7 @@ std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, Valu
 	// layer, ENV3 for ENV1 (`SoundEditor::potentialShortcutPadAction` in
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	const SourceBlink& blink = st.blink_plan.sources[sx][y];
-	if (blink.freq_mask == 0 && blink.colour != deluge::ui::grid::FlashColour::Yellow
+	if (blink.freq_mask == 0 && blink.colour != deluge::ui::widgets::grid::FlashColour::Yellow
 	    && is_patch_cable_item(focused_value(ctx, st))) {
 		if (const PatchSource second = patching::mod_source_shortcut(version, sx, y, true);
 		    second != PatchSource::NOT_AVAILABLE) {
@@ -193,8 +193,8 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
                                            const UiContext& ui) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule 4), so it always arrives
-	// here. Legacy's gate (`SoundEditor::potentialShortcutPadAction`) is SHIFT, or an audition held over the
+	// The shortcut-pad jump. A `Pad` event is never masked (`ui/widgets/core/frame_context.h`, rule 4), so it always
+	// arrives here. Legacy's gate (`SoundEditor::potentialShortcutPadAction`) is SHIFT, or an audition held over the
 	// instrument clip view, a UI fact the host puts on the press itself (`UiEvent::shortcut_without_shift`).
 	if (event.kind == UiEvent::Kind::Pad && event.on && (ui.shift || event.shortcut_without_shift)) {
 		// Legacy's second-layer toggle (`SoundEditor::potentialShortcutPadAction` in
@@ -303,7 +303,7 @@ uint16_t MenuPads::arm_landing_on(const Node& page, const Node& column) {
 	return node_id(page);
 }
 
-deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st) {
+deluge::ui::widgets::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st) {
 	// `SoundEditor::getGreyoutColsAndRows` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). The two arms that branch
 	// on the root UI's type arrive as `MenuContext::root_greyout`. `doGreyout == false` is spelled as an all-zero mask,
 	// which `greyout()` already reads as "grey nothing". Same reason as `leds()`: with no path there is no menu on

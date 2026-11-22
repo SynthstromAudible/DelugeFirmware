@@ -53,7 +53,7 @@ extern const Icon submenuArrowBold;
 /// @}
 
 /// @{
-/// @name Routing-diagram arrowheads (`ui/oled/routing.h`)
+/// @name Routing-diagram arrowheads (`ui/widgets/oled/routing.h`)
 /// @note Legacy icons `OLED::downArrowIcon` (5 wide) and `OLED::rightArrowIcon` (3 wide).
 extern const Icon arrowDown;
 extern const Icon arrowRight;
@@ -81,7 +81,7 @@ extern const Icon browserMidiEdge;
 ///       nine pixels tall and a byte is eight**, so legacy's own comment says "remember to draw a
 ///       rectangle under it so it looks correct" -- `SampleMarkerEditor::renderOLED` does that with
 ///       an `invertArea` one row below (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), and so does
-///       `ui::oled::title_badge`, which is the only intended caller.
+///       `ui::widgets::oled::title_badge`, which is the only intended caller.
 extern const Icon markerLock;
 /// @}
 } // namespace deluge::ui::gfx::oled::icons

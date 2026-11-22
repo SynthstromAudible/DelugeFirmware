@@ -55,7 +55,7 @@ class ProbeScene final : public Scene {
 public:
 	SceneKind kind() const override { return kBase; }
 
-	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole, deluge::ui::widgets::oled::OledFrame& frame) override {
 		renders++;
 		// Real ink, so a tick that rendered is distinguishable from one that did not by something
 		// other than this counter if an example ever needs it to be.

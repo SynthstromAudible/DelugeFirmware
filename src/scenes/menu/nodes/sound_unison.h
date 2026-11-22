@@ -21,8 +21,9 @@
 ///       integer with no label (`origin/main:src/deluge/gui/menu_item/unison/count.h`, `unison_count`'s
 ///       `unison_count_art` and `without_column_label`) and three splayed lines
 ///       (`origin/main:src/deluge/gui/menu_item/unison/detune.h`, not carried: its column draws the number) -- neither
-///       of which is a `ui::oled::Hint`, so they take `Hint::None`. `StereoSpread` does not override it and so keeps
-///       `Number`'s default knob (`Number::getRenderingStyle` in `origin/main:src/deluge/gui/menu_item/number.h`).
+///       of which is a `ui::widgets::oled::Hint`, so they take `Hint::None`. `StereoSpread` does not override it and so
+///       keeps `Number`'s default knob (`Number::getRenderingStyle` in
+///       `origin/main:src/deluge/gui/menu_item/number.h`).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"

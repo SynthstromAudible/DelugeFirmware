@@ -12,21 +12,21 @@
 /// `verticalEncoderAction` / `getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp`), and the
 /// input half of `QwertyUI` -- its typing rules: `padAction`,
 /// `processBackspace` and `horizontalEncoderAction` (all in `gui/ui/qwerty_ui.cpp`). The *pixels* are already
-/// ported and are not re-implemented here: `ui::grid::text_keyboard` is `QwertyUI::drawKeys` and
-/// `ui::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`.
+/// ported and are not re-implemented here: `ui::widgets::grid::text_keyboard` is `QwertyUI::drawKeys` and
+/// `ui::widgets::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`.
 ///
 /// **What this scene may not do.** Like `MenuScene`, it never calls an `OledFrame` drawing
-/// primitive -- the box, the title and the edited text all come from `ui::oled` widgets
+/// primitive -- the box, the title and the edited text all come from `ui::widgets::oled` widgets
 /// (`popup_frame`, `text`, `text_edit`), so the layout rules stay in one place. It never
 /// allocates: the edited name lives in a fixed buffer on the scene.
 
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
-#include "ui/core/response.h"
-#include "ui/core/state.h"
-#include "ui/grid/effects.h"
-#include "ui/grid/keyboard.h"
-#include "ui/oled/text_edit.h"
+#include "ui/widgets/core/response.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/grid/keyboard.h"
+#include "ui/widgets/oled/text_edit.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -98,8 +98,8 @@ public:
 	void open(const menu::MenuContext& ctx);
 
 	deluge::ui::shell::SceneKind kind() const override { return kRenameSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
@@ -107,7 +107,7 @@ public:
 	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
 	/// @brief `QwertyUI::opened`'s `blinkLed(IndicatorLED::BACK)`: BACK blinks, restarted where the editor opens.
-	void leds(deluge::ui::LedFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 
 	/// @brief True: the keyboard is painted over whatever grid is beneath, and the sidebar
 	///        columns the keyboard does not own keep showing the view underneath -- exactly what
@@ -122,7 +122,7 @@ public:
 	///        (`rename_ui.cpp`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 	/// @brief `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp`): `*cols = 0b11`.
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b11, 0}; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return {0b11, 0}; }
 
 	/// @brief The name being edited. Exposed for specs and for whoever needs to see the in-flight
 	///        text; nothing outside may write it.
@@ -156,13 +156,13 @@ private:
 	/// `QwertyUI::enteredText`, as unbounded as main's.
 	std::string text_;
 
-	deluge::ui::oled::TextEditState edit_{};
-	deluge::ui::grid::TextKeyboardState kb_{};
-	deluge::ui::grid::KeyboardLayoutKind layout_ = deluge::ui::grid::KeyboardLayoutKind::Qwerty;
+	deluge::ui::widgets::oled::TextEditState edit_{};
+	deluge::ui::widgets::grid::TextKeyboardState kb_{};
+	deluge::ui::widgets::grid::KeyboardLayoutKind layout_ = deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty;
 
 	/// The end-of-string cursor's blink, `OLED::setupBlink`'s square wave as the toolkit spells it
-	/// (`ui/core/state.h`'s `Blink`, and `values.cpp`'s decimal cursor for the same idiom).
-	deluge::ui::Blink cursor_blink_{};
+	/// (`ui/widgets/core/state.h`'s `Blink`, and `values.cpp`'s decimal cursor for the same idiom).
+	deluge::ui::widgets::core::Blink cursor_blink_{};
 	/// `cursor_blink_.period_ms` doubles as "armed", exactly as `decimal_value`'s does; this is the
 	/// clock the render pass last saw, so `next_timer()` can answer without one of its own.
 	uint32_t last_render_ms_ = 0;
@@ -180,7 +180,7 @@ private:
 
 	/// What this tick's `render_grid` observed, for `after_render` to act on -- the same
 	/// render-observes / after_render-acts split `MenuScene` uses.
-	deluge::ui::Response resp_{};
+	deluge::ui::widgets::core::Response resp_{};
 
 	/// @brief Did `render_grid` actually run this tick?
 	///

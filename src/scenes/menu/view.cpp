@@ -25,13 +25,13 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
 
 #include "gui/l10n/strings.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/columns.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/columns.h"
+#include "ui/widgets/oled/values.h"
 
 #include <algorithm>
 #include <span>
@@ -42,7 +42,7 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::TextScratch;
 using namespace detail;
 
-void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node_ref) {
+void MenuView::render(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node_ref) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	const Node* node = &node_ref;
@@ -101,22 +101,22 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 		// arm; it stays only so a newly added `Kind` still draws its title rather than nothing at
 		// all until its own interpreter exists.
 		NodeText scratch;
-		deluge::ui::oled::title(f, display_text(*node, ValueTextUse::Title, ctx, scratch));
+		deluge::ui::widgets::oled::title(f, display_text(*node, ValueTextUse::Title, ctx, scratch));
 		break;
 	}
 	}
 }
 
-void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_vertical(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText title_scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, title_scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, title_scratch));
 
 	const Node* kids[kMaxMenuChildren];
 	const size_t n = visible_children(ctx, node, kids);
 
-	deluge::ui::oled::ListRow rows[kMaxMenuChildren];
+	deluge::ui::widgets::oled::ListRow rows[kMaxMenuChildren];
 	NodeText label_scratch[kMaxMenuChildren];
 	// One row's note per list: only `Linked` writes one, and its list holds it once.
 	char note_scratch[sizeof(NodeText::chars)];
@@ -131,43 +131,45 @@ void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		}
 	}
 
-	// `menu_rect(f)` is the legacy-reproducing rect (`menu_rect` in `ui/oled/list.h`) -- never a hand-computed
+	// `menu_rect(f)` is the legacy-reproducing rect (`menu_rect` in `ui/widgets/oled/list.h`) -- never a hand-computed
 	// one. `list` clamps the cursor, walks it with `f.turn()`, and reports `entered` on a select
 	// press, claiming both for the tick.
-	st.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), st.list[st.depth],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, st.scroll[st.depth]);
+	st.tick.render_resp = deluge::ui::widgets::oled::list(f, deluge::ui::widgets::oled::menu_rect(f), st.list[st.depth],
+	                                                      std::span<const deluge::ui::widgets::oled::ListRow>{rows, n},
+	                                                      st.scroll[st.depth]);
 }
 
-int32_t MenuView::accelerated_detents(deluge::ui::oled::OledFrame& f, int8_t turned) {
+int32_t MenuView::accelerated_detents(deluge::ui::widgets::oled::OledFrame& f, int8_t turned) {
 	// `main`'s encoder task hands each turn over as the board decodes it, and `HorizontalMenu::selectEncoderAction`
 	// accelerates each on the clock as it is handed over, truncating each product to an int. The tick holds the turns
 	// that came since the last one: each is accelerated on the time the board decoded it, or on the tick's clock when
 	// the host gave it none.
 	const double tick_time = static_cast<double>(f.acceleration_clock_ms()) / 1000.0;
-	const std::span<const deluge::ui::TimedTurn> turns = f.turns();
+	const std::span<const deluge::ui::widgets::core::TimedTurn> turns = f.turns();
 	if (turns.empty()) {
-		return static_cast<int32_t>(
-		    turned * horizontal_acceleration_.advance(turned, tick_time, deluge::ui::kHorizontalMenuAcceleration));
+		return static_cast<int32_t>(turned
+		                            * horizontal_acceleration_.advance(
+		                                turned, tick_time, deluge::ui::widgets::core::kHorizontalMenuAcceleration));
 	}
 	int32_t detents = 0;
-	for (const deluge::ui::TimedTurn& turn : turns) {
+	for (const deluge::ui::widgets::core::TimedTurn& turn : turns) {
 		const double time = turn.time_us != 0 ? static_cast<double>(turn.time_us) / 1'000'000.0 : tick_time;
-		detents += static_cast<int32_t>(
-		    turn.detents
-		    * horizontal_acceleration_.advance(turn.detents, time, deluge::ui::kHorizontalMenuAcceleration));
+		detents +=
+		    static_cast<int32_t>(turn.detents
+		                         * horizontal_acceleration_.advance(
+		                             turn.detents, time, deluge::ui::widgets::core::kHorizontalMenuAcceleration));
 	}
 	return detents;
 }
 
-void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_horizontal(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	const Node* kids[kMaxMenuColumns];
-	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+	deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 	NodeText label_scratch[kMaxMenuColumns];
 	const size_t n = build_column_list(ctx, node, std::span<const Node*>{kids, kMaxMenuColumns},
-	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+	                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
 
 	// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the select
@@ -177,7 +179,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	// offset times `calcNextKnobSpeed` (`kHorizontalMenuAcceleration`), truncated
 	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
 	// draws the page, so a detent edits the column the user was looking at; `columns` itself no
-	// longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
+	// longer touches the turn at all (`ui/widgets/oled/columns.cpp`'s own note).
 	const int32_t focus = n == 0 ? 0 : clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	const int8_t turned = f.turn();
 	f.claim_turn();
@@ -204,7 +206,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 			else {
 				const IntRange range = bindings::range(target, ctx);
 				// The toolkit's own guard: a zero `step` would give a dead select knob
-				// (`coarse_step` in `ui/oled/values.cpp`).
+				// (`coarse_step` in `ui/widgets/oled/values.cpp`).
 				int32_t step = range.step != 0 ? range.step : 1;
 				// `getNumberEditSize` on a horizontal page (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): a
 				// Decimal moves 1.00 a detent, 0.01 with SELECT or SHIFT held; a node's own `HorizontalStep` overrides
@@ -271,7 +273,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 
 	NodeText title_scratch;
 	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
-	// band (`columns` in `ui/oled/columns.h`).
+	// band (`columns` in `ui/widgets/oled/columns.h`).
 	// A member page drawn whole (`Node::page_draw`): legacy's `renderMenuItems` overrides, which number the focused
 	// item among the member's own.
 	struct PageDrawCall {
@@ -280,7 +282,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 		int32_t focus;
 	};
 	PageDrawCall call{};
-	deluge::ui::oled::PageRender page_render{};
+	deluge::ui::widgets::oled::PageRender page_render{};
 	if (n > 0) {
 		const int32_t focus = clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
 		const Node* member = bindings::group_member_of(node, ctx, static_cast<size_t>(focus));
@@ -291,35 +293,36 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 			}
 			call = PageDrawCall{.member = member, .ctx = &ctx, .focus = focus - first};
 			page_render = {.draw =
-			                   [](deluge::ui::oled::OledFrame& frame, int32_t, void* ctx) {
+			                   [](deluge::ui::widgets::oled::OledFrame& frame, int32_t, void* ctx) {
 				                   const auto& c = *static_cast<const PageDrawCall*>(ctx);
-				                   deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(frame);
+				                   deluge::ui::widgets::oled::OledFrame panel =
+				                       deluge::ui::widgets::oled::panel_frame(frame);
 				                   c.member->page_draw(panel, *c.ctx, c.focus);
 			                   },
 			               .ctx = &call};
 		}
 	}
-	st.tick.render_resp = deluge::ui::oled::columns(f, f.bounds(), st.columns[st.depth],
-	                                                std::span<const deluge::ui::oled::Column>{cols, n},
-	                                                page_title(ctx, st, title_scratch), page_render);
+	st.tick.render_resp = deluge::ui::widgets::oled::columns(
+	    f, f.bounds(), st.columns[st.depth], std::span<const deluge::ui::widgets::oled::Column>{cols, n},
+	    page_title(ctx, st, title_scratch), page_render);
 
-	// `columns` claims the press only for a submenu column (`columns` in `ui/oled/columns.cpp`), so a press on a
-	// *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress` forwarding to the
+	// `columns` claims the press only for a submenu column (`columns` in `ui/widgets/oled/columns.cpp`), so a press on
+	// a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress` forwarding to the
 	// focused item does (`Submenu::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): enter its
 	// `select_chain` target, or `ascend()` -- see `MenuTick::column_press`'s own doc for why that is not
 	// `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns` was handed, so the claim is
-	// idempotent (`ui/core/frame_context.h`, rule 2) and never trips `double_claim`.
+	// idempotent (`ui/widgets/core/frame_context.h`, rule 2) and never trips `double_claim`.
 	const int32_t settled = n == 0 ? -1 : clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
 		st.tick.column_press = f.select_pressed();
 	}
 }
 
-void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_int(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `int_value` places its digits at a rect-relative
 	// `kValueY`, calibrated (per its own doc comment) for `rect == f.bounds()` -- exactly the
@@ -329,12 +332,12 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	// bottom edge.
 	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
 	// bar.
-	deluge::ui::oled::ValueStyle style = node.bind.style;
+	deluge::ui::widgets::oled::ValueStyle style = node.bind.style;
 	style.continuous = node.bind.param.valid();
 	struct LabelCall {
 		const Node* node;
 		const MenuContext* ctx;
-		deluge::ui::ScrollText* scroll;
+		deluge::ui::widgets::core::ScrollText* scroll;
 	};
 	const LabelCall call{&node, &ctx, &st.scroll[st.depth < kMenuDepth ? st.depth : 0]};
 	style.hook_ctx = &call;
@@ -352,13 +355,14 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		};
 	}
 	if (node.bind.leaf_draw != nullptr) {
-		style.draw = [](deluge::ui::oled::OledFrame& frame, deluge::ui::gfx::oled::Rect, int32_t value, const void* c) {
+		style.draw = [](deluge::ui::widgets::oled::OledFrame& frame, deluge::ui::gfx::oled::Rect, int32_t value,
+		                const void* c) {
 			const auto& lc = *static_cast<const LabelCall*>(c);
 			lc.node->bind.leaf_draw(frame, *lc.ctx, value, *lc.scroll);
 		};
 	}
-	const deluge::ui::Response r =
-	    deluge::ui::oled::int_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx), style, /*focused=*/true);
+	const deluge::ui::widgets::core::Response r = deluge::ui::widgets::oled::int_value(
+	    f, f.bounds(), st.edit_int, bindings::range(node, ctx), style, /*focused=*/true);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -366,22 +370,22 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	}
 	// `int_value` owns the select encoder -- legacy edits the value with it on a number screen
 	// (`SoundEditor::selectEncoderAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and so does this port
-	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
+	// (`ui/widgets/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
 	// claim -- `int_value` never reads `select_pressed()`.
 	if (f.select_pressed()) {
 		st.tick.render_resp.entered = true;
 	}
-	// This claim is idempotent (`ui/core/frame_context.h` rule 2): `int_value` already claimed the
+	// This claim is idempotent (`ui/widgets/core/frame_context.h` rule 2): `int_value` already claimed the
 	// turn above while editing. Kept so the ownership reads here too.
 	f.claim_turn();
 }
 
-void MenuView::render_leaf_range(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_range(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	const RangeSpec* spec = node.bind.range_spec;
 	if (spec == nullptr || spec->format == nullptr) {
@@ -392,9 +396,9 @@ void MenuView::render_leaf_range(MenuCore core, deluge::ui::oled::OledFrame& f, 
 
 	// `f.bounds()`, NOT `menu_rect(f)`, for `render_leaf_int`'s reason: `range_value` places its
 	// digits at a rect-relative `kValueY` calibrated for the whole panel.
-	const deluge::ui::Response r =
-	    deluge::ui::oled::range_value(f, f.bounds(), st.edit_int, st.edit_upper, bindings::range(node, ctx),
-	                                  st.edit_edge, spec->format, spec->clamp, /*focused=*/true, &ctx);
+	const deluge::ui::widgets::core::Response r =
+	    deluge::ui::widgets::oled::range_value(f, f.bounds(), st.edit_int, st.edit_upper, bindings::range(node, ctx),
+	                                           st.edit_edge, spec->format, spec->clamp, /*focused=*/true, &ctx);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -406,18 +410,19 @@ void MenuView::render_leaf_range(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	if (f.select_pressed()) {
 		st.tick.render_resp.entered = true;
 	}
-	f.claim_turn(); // idempotent (`ui/core/frame_context.h` rule 2): `range_value` already claimed it above.
+	f.claim_turn(); // idempotent (`ui/widgets/core/frame_context.h` rule 2): `range_value` already claimed it above.
 }
 
-void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
-	// the rect horizontally only (`decimal_value` in `ui/oled/values.h`), and its goldens were recorded that way.
-	deluge::ui::oled::ValueStyle style{.restart_from_negative = node.bind.decimal_restart_from_negative};
+	// the rect horizontally only (`decimal_value` in `ui/widgets/oled/values.h`), and its goldens were recorded that
+	// way.
+	deluge::ui::widgets::oled::ValueStyle style{.restart_from_negative = node.bind.decimal_restart_from_negative};
 	struct WordCall {
 		const Node* node;
 		const MenuContext* ctx;
@@ -431,10 +436,10 @@ void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f
 			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
 		};
 	}
-	const deluge::ui::Response r =
-	    deluge::ui::oled::decimal_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx),
-	                                    node.bind.decimal_places, st.decimal_pos, st.cursor_blink,
-	                                    /*focused=*/true, style);
+	const deluge::ui::widgets::core::Response r =
+	    deluge::ui::widgets::oled::decimal_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx),
+	                                             node.bind.decimal_places, st.decimal_pos, st.cursor_blink,
+	                                             /*focused=*/true, style);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -447,22 +452,22 @@ void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f
 	f.claim_turn();
 }
 
-void MenuView::render_leaf_enum(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_enum(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	std::string_view names_buf[kMaxDynamicNames];
 	TextScratch names_scratch[kMaxDynamicNames];
 	const size_t n = bindings::names(node, ctx, names_buf, names_scratch);
 
 	// `enum_value` takes a `ListState` AND a `ScrollText` of its own and has no `focused`
-	// parameter -- it owns the turn and the select itself (`enum_value` in `ui/oled/values.h`).
-	const deluge::ui::Response r =
-	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), st.enum_index,
-	                                 std::span<const std::string_view>{names_buf, n}, st.enum_list, st.enum_scroll,
-	                                 /*wrap=*/false);
+	// parameter -- it owns the turn and the select itself (`enum_value` in `ui/widgets/oled/values.h`).
+	const deluge::ui::widgets::core::Response r = deluge::ui::widgets::oled::enum_value(
+	    f, deluge::ui::widgets::oled::menu_rect(f), st.enum_index, std::span<const std::string_view>{names_buf, n},
+	    st.enum_list, st.enum_scroll,
+	    /*wrap=*/false);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -470,11 +475,11 @@ void MenuView::render_leaf_enum(MenuCore core, deluge::ui::oled::OledFrame& f, c
 	}
 }
 
-void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	TextScratch off_scratch;
 	TextScratch on_scratch;
@@ -482,9 +487,9 @@ void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f,
 	const std::string_view on = text_of(nodes::kToggleWords[1], on_scratch);
 
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
-	// (`toggle` in `ui/oled/values.h`).
-	const deluge::ui::Response r =
-	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st.edit_bool, off, on, st.scroll[st.depth]);
+	// (`toggle` in `ui/widgets/oled/values.h`).
+	const deluge::ui::widgets::core::Response r = deluge::ui::widgets::oled::toggle(
+	    f, deluge::ui::widgets::oled::menu_rect(f), st.edit_bool, off, on, st.scroll[st.depth]);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -492,11 +497,11 @@ void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f,
 	}
 }
 
-void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
+void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::widgets::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
+	deluge::ui::widgets::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	// Legacy is `SyncLevel::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`). `SyncLevel`
 	// derives from `Enumeration` (`origin/main:src/deluge/gui/menu_item/sync_level.h`), not `Integer`, so -- unlike
@@ -506,7 +511,7 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
 		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
-		const auto offset = static_cast<int32_t>(deluge::ui::oled::select_delta(f));
+		const auto offset = static_cast<int32_t>(deluge::ui::widgets::oled::select_delta(f));
 		// A `Binding::turn` is the item's own `selectEncoderAction` (`swing::Interval` wraps).
 		const std::optional<int32_t> turned =
 		    node.bind.turn != nullptr ? node.bind.turn(ctx, st.edit_int, offset) : std::nullopt;
@@ -523,11 +528,11 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// `Style::menu_base_y` on top of the baseline's own offset and clip the string off the panel's bottom edge). But
 	// the font is `MetricBold13`, NOT `f.style.value_font`/`big_font` (both `MetricBold20`): legacy draws this one in
 	// the smaller "Big" face at its own baseline (`SyncLevel::drawPixelsForOled` in
-	// `origin/main:src/deluge/gui/menu_item/sync_level.cpp`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and
-	// `Style` carries no field for it -- `MetricBold9` is hard-coded the same way in `columns` (`ui/oled/columns.cpp`)
-	// for the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't just mismatch
-	// the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px per character) runs off both edges
-	// of a 128px panel, which is the clipping this choice avoids.
+	// `origin/main:src/deluge/gui/menu_item/sync_level.cpp`, `kSyncValueY`'s doc comment in
+	// `ui/widgets/core/metrics.h`), and `Style` carries no field for it -- `MetricBold9` is hard-coded the same way in
+	// `columns` (`ui/widgets/oled/columns.cpp`) for the same reason, a legacy font choice with no `Style` counterpart.
+	// Getting this wrong doesn't just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` =
+	// 18px per character) runs off both edges of a 128px panel, which is the clipping this choice avoids.
 	//
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
@@ -535,13 +540,14 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// clears the whole canvas before any scene draws, which is what makes
 	// that safe for a full-panel screen like this one.
 	constexpr deluge::ui::gfx::oled::FontId kFont = deluge::ui::gfx::oled::FontId::MetricBold13;
-	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
-	                                       deluge::ui::oled::text_height_for(kFont)};
+	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::widgets::core::kSyncValueY,
+	                                       f.bounds().w, deluge::ui::widgets::oled::text_height_for(kFont)};
 
 	// Centred text, not digits: OFF at zero, else the note length (`sync_level_name`), never the raw menu option.
 	char name_buf[32];
 	const std::string_view text_val = sync_level_name(node, ctx, st.edit_int, name_buf);
-	deluge::ui::oled::text(f, band, text_val, {.font = kFont, .align = deluge::ui::oled::Align::Centre});
+	deluge::ui::widgets::oled::text(f, band, text_val,
+	                                {.font = kFont, .align = deluge::ui::widgets::oled::Align::Centre});
 
 	// The select press leaves the item, same as every other leaf's arm.
 	if (f.select_pressed()) {
@@ -549,8 +555,8 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	}
 }
 
-deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& st) {
-	deluge::ui::InputClaims c{};
+deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& st) {
+	deluge::ui::widgets::core::InputClaims c{};
 	c.back = st.depth > 0; // `render_oled` reads Back only below the root
 	const Node* node = focused(st);
 	if (node == nullptr) {
@@ -592,7 +598,7 @@ deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& st)
 		break;
 	case Kind::Custom:
 		if (node->custom != nullptr) {
-			const deluge::ui::InputClaims item = node->custom->owned_input(ctx, st);
+			const deluge::ui::widgets::core::InputClaims item = node->custom->owned_input(ctx, st);
 			c.turn = item.turn;
 			c.edit0 = item.edit0;
 			c.edit1 = item.edit1;

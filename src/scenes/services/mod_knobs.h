@@ -70,9 +70,9 @@
 #include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_target.h"
 
-#include "ui/core/knob_indicator.h"
-#include "ui/core/led_frame.h"
-#include "ui/core/metrics.h"
+#include "ui/widgets/core/knob_indicator.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/core/metrics.h"
 
 #include "shell/scene_stack.h"
 #include "shell/service.h"
@@ -271,7 +271,7 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	/// @brief Declare the eight mod LEDs and the two gold-knob indicator columns, from the focus every tick.
-	void leds(deluge::ui::LedFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 	std::optional<uint32_t> next_timer() const override;
 	/// @}
@@ -310,7 +310,7 @@ private:
 	///        shows its middle; stop the blink otherwise.
 	void potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn, KnobPresentation& out);
 	/// @brief Declare both knob indicator columns -- `View::setKnobIndicatorLevels`.
-	void declare_indicators(deluge::ui::LedFrame& frame);
+	void declare_indicators(deluge::ui::widgets::core::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
 	/// @brief The param a knob turn reports to MIDI follow: its kind, where it is and the knob's new position.

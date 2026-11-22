@@ -103,7 +103,7 @@ STEM_EXPORT_PROCESS_CALLS = (
 # The waveform's arithmetic (columns, peaks, scroll and zoom) is `src/sample-view/`'s, and its scan is
 # `model/sample/waveform_scan.h`'s, both of which `src/scenes` may reach; the drawing into `PadLEDs`'
 # images stays in `gui/waveform/waveform_renderer.h`, which the scenes layer draws around through
-# `ui/grid/`. This row is what keeps the split split. It is a SYMBOL row for the same reason
+# `ui/widgets/grid/`. This row is what keeps the split split. It is a SYMBOL row for the same reason
 # `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a regression
 # would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
 LEGACY_WAVEFORM_GLOBALS = ("waveformRenderer",)
@@ -342,7 +342,7 @@ RULES = [
         "2026-08-26-ui-notifications-design.md",
     ),
     (
-        # The input-consumption contract (ui/core/frame_context.h): a widget reads input only
+        # The input-consumption contract (ui/widgets/core/frame_context.h): a widget reads input only
         # through its frame's accessors -- f.turn(), f.edit(0), f.select_pressed() -- so that
         # focus masking and input claims are not something a widget can forget to apply. Reaching
         # into the snapshot behind the frame skips both. The two frame files are excluded because
@@ -353,7 +353,7 @@ RULES = [
         # past it, and a `/* ... */` block comment naming `input.turn` counts (only `//`-prefixed
         # lines are skipped). It is a ratchet against drift, not a proof.
         "ui-widgets-read-input-directly",
-        ("src/ui/{oled,grid}/**", "src/ui/{oled,grid}/frame.{h,cpp}"),
+        ("src/ui/widgets/{oled,grid}/**", "src/ui/widgets/{oled,grid}/frame.{h,cpp}"),
         "symbol",
         r"\binput\.(turn|edit|horizontal|vertical|select_pressed|back_pressed|shift|now_ms)\b",
         "2026-08-26-ui-toolkit-design.md",
@@ -489,14 +489,14 @@ RULES = [
     (
         # Menus draw only through widgets: no direct OledFrame primitive calls from the scene
         # layer. The real risk is `f.<primitive>`, not `canvas.` -- OledFrame exposes
-        # pixel/hline/rect/glyphs directly (`ui/oled/frame.h`).
+        # pixel/hline/rect/glyphs directly (`ui/widgets/oled/frame.h`).
         #
         # A ratchet against drift, not a proof: this only sees the two local names it lists, so a
         # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
         # caveat as ui-widgets-read-input-directly -- the row catches the habit, not every spelling.
         "scenes-no-frame-primitives",
         # `src/scenes/**`, not just `menu/**`: the rule is about the scenes layer (`rename/`, for
-        # one, draws its box through `ui::oled::popup_frame` rather than `f.rect`, as this row asks).
+        # one, draws its box through `ui::widgets::oled::popup_frame` rather than `f.rect`, as this row asks).
         "src/scenes/**",
         "symbol",
         r"\b(canvas|f)\.(pixel|hline|vline|line|rect|invert|clear|glyph)",
@@ -636,8 +636,8 @@ RULES = [
     ),
     (
         # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows. The
-        # toolkit is where the shortcut would be most tempting: `ui/grid/markers.cpp` and
-        # `ui/oled/sample_position.cpp` draw exactly what `WaveformRenderer` draws, and calling the
+        # toolkit is where the shortcut would be most tempting: `ui/widgets/grid/markers.cpp` and
+        # `ui/widgets/oled/sample_position.cpp` draw exactly what `WaveformRenderer` draws, and calling the
         # legacy renderer instead would be both a layer violation and a silent un-porting.
         "scenes-no-legacy-waveform",
         "src/ui/**",
@@ -661,7 +661,7 @@ RULES = [
     (
         # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows and
         # `scenes-no-legacy-waveform` is two. The toolkit half matters because `Rainfall` and
-        # `Starfield` (`src/ui/oled/`) are ports of code from `hid/display/`, the directory
+        # `Starfield` (`src/ui/widgets/oled/`) are ports of code from `hid/display/`, the directory
         # `indicator_leds` and `PadLEDs` live in, where those calls were allowed.
         "scenes-no-legacy-hid-drivers",
         "src/ui/**",

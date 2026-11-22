@@ -2,7 +2,7 @@
 #include "deluge.h"
 #include "libdeluge/board.h"
 #include "shell/profile.h"
-#include "ui/core/style.h"
+#include "ui/widgets/core/style.h"
 
 namespace deluge::ui::shell {
 
@@ -14,12 +14,13 @@ static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Param0,
 static_assert(sizeof(kRoles) / sizeof(kRoles[0]) == 3);
 
 // Display styles: 128×64 toolkit style for all three panels.
-static constexpr const Style* kStyles[] = {&kDelugeStyle64, &kDelugeStyle64, &kDelugeStyle64};
+static constexpr const widgets::core::Style* kStyles[] = {
+    &widgets::core::kDelugeStyle64, &widgets::core::kDelugeStyle64, &widgets::core::kDelugeStyle64};
 static_assert(sizeof(kStyles) / sizeof(kStyles[0]) == 3);
 
 // Export test-board-specific spans.
 const std::span<const SurfaceRole> kTestBoardOledRoles = kRoles;
-const std::span<const Style* const> kTestBoardOledStyles = kStyles;
+const std::span<const widgets::core::Style* const> kTestBoardOledStyles = kStyles;
 
 // Test board descriptor: same as Deluge for pads/buttons/encoders, but 3 OLEDs 128×64.
 static constexpr DelugeDisplayDesc kDisplays[] = {

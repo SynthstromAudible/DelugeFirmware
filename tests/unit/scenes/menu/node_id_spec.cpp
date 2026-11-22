@@ -1,7 +1,7 @@
 #include "modulation/params/param.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
-#include "ui/oled/meters.h"
+#include "ui/widgets/oled/meters.h"
 
 #include "cppspec.hpp"
 

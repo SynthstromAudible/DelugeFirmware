@@ -117,7 +117,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -137,7 +138,7 @@ class BlinklessScene final : public deluge::ui::shell::Scene {
 public:
 	SceneKind kind() const override { return kBlinklessKind; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
-	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::oled::OledFrame&) override {}
+	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::widgets::oled::OledFrame&) override {}
 };
 
 /// @brief The application's registry with the blinkless scene added.
@@ -206,7 +207,7 @@ struct Rig {
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
@@ -687,7 +688,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		// select turn whether or not the cursor could move.
 		DirectCtx d;
 		const Result turned = context_menu_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Select, .delta = 1}, d.ctx);
 		expect(turned.handled).to_be_true();
 		expect(turned.actions.empty()).to_be_true(); // nothing moved, so no repaint is asked for
 	});
@@ -993,7 +994,7 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 
 		(void)context_menu::descriptor(DescriptorId::ResetFlash).accept(ctx, 0);
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
-		    .to_equal(deluge::ui::Highlighting::PartialInversion); // `resetSettings`' default
+		    .to_equal(deluge::ui::widgets::core::Highlighting::PartialInversion); // `resetSettings`' default
 		expect(shellHostUI.shell().screensaver_idle_ms())
 		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u); // a minute, as `arm()` counts
 

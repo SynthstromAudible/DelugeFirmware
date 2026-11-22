@@ -25,7 +25,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
-#include "ui/oled/columns.h"
+#include "ui/widgets/oled/columns.h"
 
 #include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -94,9 +94,10 @@ void do_adjust_col(const menu::MenuContext&, int32_t offset) {
 	g_adjust_calls++;
 	g_adjust_last_offset = offset;
 }
-constexpr menu::Node adjust_col = menu::with_adjust(menu::int_item(sid(String::STRING_FOR_VELOCITY), get_adjust_col,
-                                                                   set_adjust_col, deluge::ui::oled::Range{0, 127, 1}),
-                                                    do_adjust_col);
+constexpr menu::Node adjust_col =
+    menu::with_adjust(menu::int_item(sid(String::STRING_FOR_VELOCITY), get_adjust_col, set_adjust_col,
+                                     deluge::ui::widgets::oled::Range{0, 127, 1}),
+                      do_adjust_col);
 constexpr const menu::Node* kAdjustKids[] = {&adjust_col};
 constexpr menu::Node adjust_page =
     menu::submenu(sid(String::STRING_FOR_VELOCITY), kAdjustKids, menu::Layout::Horizontal);
@@ -115,9 +116,10 @@ int32_t get_permit_col(const menu::MenuContext&) {
 void set_permit_col(const menu::MenuContext&, int32_t) {
 	g_permit_set_calls++;
 }
-constexpr menu::Node permit_col = menu::with_permitted(
-    menu::int_item(sid(String::STRING_FOR_PAN), get_permit_col, set_permit_col, deluge::ui::oled::Range{0, 50, 1}),
-    permitted_permit_col);
+constexpr menu::Node permit_col =
+    menu::with_permitted(menu::int_item(sid(String::STRING_FOR_PAN), get_permit_col, set_permit_col,
+                                        deluge::ui::widgets::oled::Range{0, 50, 1}),
+                         permitted_permit_col);
 constexpr const menu::Node* kPermitKids[] = {&permit_col};
 constexpr menu::Node permit_page = menu::submenu(sid(String::STRING_FOR_PAN), kPermitKids, menu::Layout::Horizontal);
 
@@ -139,9 +141,10 @@ menu::ValueText value_text_text_col(const menu::MenuContext&, int32_t, menu::Val
 	std::memcpy(out.data(), s.data(), n);
 	return menu::ValueText{.length = n, .strikethrough = false};
 }
-constexpr menu::Node text_col = menu::with_value_text(
-    menu::int_item(sid(String::STRING_FOR_FILL), get_text_col, set_text_col, deluge::ui::oled::Range{0, 100, 1}),
-    value_text_text_col);
+constexpr menu::Node text_col =
+    menu::with_value_text(menu::int_item(sid(String::STRING_FOR_FILL), get_text_col, set_text_col,
+                                         deluge::ui::widgets::oled::Range{0, 100, 1}),
+                          value_text_text_col);
 constexpr const menu::Node* kTextKids[] = {&text_col};
 constexpr menu::Node text_page = menu::submenu(sid(String::STRING_FOR_FILL), kTextKids, menu::Layout::Horizontal);
 
@@ -157,9 +160,10 @@ int32_t get_strike_col(const menu::MenuContext&) {
 }
 void set_strike_col(const menu::MenuContext&, int32_t) {
 }
-constexpr menu::Node strike_col = menu::with_value_text(
-    menu::int_item(sid(String::STRING_FOR_FILL), get_strike_col, set_strike_col, deluge::ui::oled::Range{0, 1, 1}),
-    value_text_strike_col);
+constexpr menu::Node strike_col =
+    menu::with_value_text(menu::int_item(sid(String::STRING_FOR_FILL), get_strike_col, set_strike_col,
+                                         deluge::ui::widgets::oled::Range{0, 1, 1}),
+                          value_text_strike_col);
 constexpr const menu::Node* kStrikeKids[] = {&strike_col};
 constexpr menu::Node strike_page = menu::submenu(sid(String::STRING_FOR_FILL), kStrikeKids, menu::Layout::Horizontal);
 

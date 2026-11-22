@@ -4,7 +4,7 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/source_names.h"
 
-#include "ui/oled/popup.h"
+#include "ui/widgets/oled/popup.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
@@ -333,11 +333,11 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	return false;
 }
 
-void ParamPopupScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) {
+void ParamPopupScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main || remaining_ms_ == 0) {
 		return;
 	}
-	deluge::ui::oled::notification(frame, shown_name(), shown_value());
+	deluge::ui::widgets::oled::notification(frame, shown_name(), shown_value());
 }
 
 Result ParamPopupScene::handle(const deluge::ui::shell::UiEvent& /*event*/,

@@ -115,7 +115,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;

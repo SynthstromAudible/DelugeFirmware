@@ -10,7 +10,7 @@
 #include <span>
 
 using deluge::ui::shell::ButtonId;
-using deluge::ui::EncoderRole;
+using deluge::ui::widgets::core::EncoderRole;
 
 describe board_consistency("the Deluge's controls board and the shell's profile", ${
 	const deluge::ui::shell::BoardProfile& profile = deluge::scenes::deluge_profile();

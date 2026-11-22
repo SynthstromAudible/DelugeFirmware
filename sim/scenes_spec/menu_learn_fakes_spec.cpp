@@ -17,7 +17,7 @@
 #include "project/param_address.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
-#include "ui/core/input.h"
+#include "ui/widgets/core/input.h"
 
 #include "support/fake_menu_shell.h"
 
@@ -97,7 +97,7 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 		                                      .device = deluge::midi::kDin}))
 		    .to_be_true();
 		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::Encoder,
-		                                      .encoder = deluge::ui::EncoderRole::GoldUpper, .delta = 1}))
+		                                      .encoder = deluge::ui::widgets::core::EncoderRole::GoldUpper, .delta = 1}))
 		    .to_be_true();
 		const std::vector<Call> knobs = calls_of(r, Call::Kind::LEARN_KNOB);
 		expect(knobs.size()).to_equal(size_t{2});

@@ -3,8 +3,8 @@
 #
 # **The ordinary door first.** `nodes::sample0_recorder` is a child of `nodes::sound_actions`
 # (`nodes/sound_actions.h`) and of `nodes::drum_actions` (`nodes/roots.h`), both
-# `Layout::Vertical` -- and `ui::oled::list` sets `entered` for any selectable row
-# (`ui/oled/list.cpp`) while `render_vertical` marks every row selectable. So SOUND -> ACTIONS ->
+# `Layout::Vertical` -- and `ui::widgets::oled::list` sets `entered` for any selectable row
+# (`ui/widgets/oled/list.cpp`) while `render_vertical` marks every row selectable. So SOUND -> ACTIONS ->
 # RECORD TO SAMPLE is two ordinary select presses, and that is how a user reaches it.
 #
 # **Then the shortcut door**, (0,4) of `kSoundCells` (`menu/shortcuts.cpp`, legacy's own

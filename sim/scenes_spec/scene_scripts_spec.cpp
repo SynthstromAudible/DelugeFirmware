@@ -212,7 +212,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -705,7 +706,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// a menu value with the *select* encoder; the gold knobs never touch a menu at all --
 		// `SoundEditor::modEncoderAction` falls through to `View::modEncoderAction`
 		// (`View::modEncoderAction`), which edits the mod-controllable's param instead. `int_value`
-		// claims only the select turn (`ui/oled/values.cpp`'s `select_delta`), so the two
+		// claims only the select turn (`ui/widgets/oled/values.cpp`'s `select_delta`), so the two
 		// `GoldUpper` turns below are unclaimed by `MenuScene` and reach `services::ModKnobs`
 		// through the routing chain `View::modEncoderAction` names.
 		//

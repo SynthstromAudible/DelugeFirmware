@@ -1,6 +1,6 @@
 #include "support/frames.h"
-#include "ui/core/style.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/text.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -8,7 +8,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::FontId;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -25,7 +25,7 @@ namespace uitest = deluge::ui::test;
 // unnoticed; the literals are what make these tables testable.
 
 // clang-format off
-describe text_widgets("ui::oled text & title", $ {
+describe text_widgets("ui::widgets::oled text & title", $ {
 	it("maps each FontId to its legacy textHeight and textWidth", _ {
 		// FontId::Apple7 is the legacy *height 9* shape (kTextSpacingY), not height 7:
 		// font_for_text_height returns kApple7Up for 9, which carries y_adjust = 1 and so
@@ -79,7 +79,7 @@ describe text_widgets("ui::oled text & title", $ {
 		// MetricBold9, so the example above cannot tell a styled title from a hardcoded one --
 		// this one gives the style something to prove.
 		uitest::Rig48 r;
-		Style big = kDelugeStyle48;
+		widgets::core::Style big = deluge::ui::widgets::core::kDelugeStyle48;
 		big.title_font = FontId::MetricBold13;
 		OledFrame f = root_frame(r.canvas, big, r.ctx);
 		title(f, "SOUND");

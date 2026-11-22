@@ -1,11 +1,11 @@
 #include "support/frames.h"
-#include "ui/core/blink.h"
-#include "ui/core/metrics.h"
-#include "ui/core/style.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/routing.h"
+#include "ui/widgets/core/blink.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/routing.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -20,7 +20,7 @@
 #include <string_view>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -202,8 +202,8 @@ Rect number_rect() {
 /// @brief Draw @p value at @p edit_pos through the widget, its blink lit, on @p r.
 template <class R>
 void draw_number(R& r, int32_t value, int8_t edit_pos) {
-	Blink blink{};
-	blink.period_ms = deluge::ui::kFlashTime;
+	widgets::core::Blink blink{};
+	blink.period_ms = deluge::ui::widgets::core::kFlashTime;
 	blink.restart_lit(0);
 	cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, edit_pos, blink);
 }
@@ -211,7 +211,7 @@ void draw_number(R& r, int32_t value, int8_t edit_pos) {
 } // namespace
 
 // clang-format off
-describe routing_chain_w("ui::oled::routing_chain", $ {
+describe routing_chain_w("ui::widgets::oled::routing_chain", $ {
 
 	it("draws legacy's two-stage diagram, byte for byte", _ {
 		uitest::Rig48 r;
@@ -305,7 +305,7 @@ describe routing_chain_w("ui::oled::routing_chain", $ {
 	});
 });
 
-describe segmented_switch_w("ui::oled::segmented_switch", $ {
+describe segmented_switch_w("ui::widgets::oled::segmented_switch", $ {
 
 	it("draws legacy's BI/UNI box, byte for byte, on both slots", _ {
 		for (int32_t selected = 0; selected <= 1; selected++) {
@@ -390,7 +390,7 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 	});
 });
 
-describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
+describe cable_strength_value_w("ui::widgets::oled::cable_strength_value", $ {
 
 	it("hides a zero fraction while the cursor is left of it, byte for byte", _ {
 		uitest::Rig48 r;
@@ -452,10 +452,10 @@ describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
 		uitest::Rig48 r;
 		int32_t value = 2200;
 		int8_t pos = 2;
-		Blink blink{};
+		widgets::core::Blink blink{};
 		r.input.turn = 1;
 		r.begin_tick(10);
-		Response got = cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
+		widgets::core::Response got = cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
 		expect(got.changed).to_be_true();
 		expect(value).to_equal(2300);
 		r.input.shift = true;
@@ -474,7 +474,7 @@ describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
 		uitest::Rig48 r;
 		int32_t value = 0;
 		int8_t pos = 2;
-		Blink blink{};
+		widgets::core::Blink blink{};
 		r.input.horizontal = -1;
 		for (uint32_t t = 10; t <= 40; t += 10) {
 			r.begin_tick(t);

@@ -1,11 +1,11 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/state.h"
-#include "ui/core/style.h"
-#include "ui/core/text_wrap.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/font.h"
-#include "ui/oled/popup.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/core/text_wrap.h"
+#include "ui/widgets/oled/popup.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -16,7 +16,7 @@
 #include <string_view>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::FontId;
 using deluge::ui::gfx::oled::Rect;
@@ -381,12 +381,12 @@ uint32_t working_time(uint32_t cycle, int32_t step) {
 } // namespace
 
 // clang-format off
-describe popup_w("ui::oled::popup", $ {
+describe popup_w("ui::widgets::oled::popup", $ {
 	it("wraps at a space and reports the two lines' widths", _ {
 		// Apple ][ at height 9 is monospaced: 6px a character, and a space is width 0 + spacing 6,
 		// so "HELLO WORLD THIS " is 17 chars and 102px and "WRAPS" is 5 and 30.
 		const std::string_view s = "HELLO WORLD THIS WRAPS";
-		const WrappedLines w = wrap_lines(s, 116, kPopupMaxCharsPerLine, FontId::Apple7);
+		const deluge::ui::widgets::core::WrappedLines w = widgets::core::wrap_lines(s, 116, deluge::ui::widgets::core::kPopupMaxCharsPerLine, FontId::Apple7);
 
 		expect(static_cast<int32_t>(w.count)).to_equal(2);
 		expect(std::string(w.lines[0])).to_equal(std::string("HELLO WORLD THIS "));
@@ -410,7 +410,7 @@ describe popup_w("ui::oled::popup", $ {
 			b.maxWidthPerLine = max_width;
 			legacy::breakStringIntoLines(text, &b, 9);
 
-			const WrappedLines w = wrap_lines(text, max_width, 19, FontId::Apple7);
+			const deluge::ui::widgets::core::WrappedLines w = widgets::core::wrap_lines(text, max_width, 19, FontId::Apple7);
 
 			expect(static_cast<int32_t>(w.count)).to_equal(b.numLines);
 			expect(w.longest).to_equal(b.longestLineWidth);
@@ -437,24 +437,24 @@ describe popup_w("ui::oled::popup", $ {
 		// TEXT_MAX_NUM_LINES. The check is *after* addLine, so the count lands on exactly 8 and
 		// the tail is silently gone.
 		const std::string_view many = "A\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK";
-		const WrappedLines w = wrap_lines(many, 116, 19, FontId::Apple7);
-		expect(static_cast<int32_t>(w.count)).to_equal(kWrapMaxLines);
+		const deluge::ui::widgets::core::WrappedLines w = widgets::core::wrap_lines(many, 116, 19, FontId::Apple7);
+		expect(static_cast<int32_t>(w.count)).to_equal(deluge::ui::widgets::core::kWrapMaxLines);
 		expect(std::string(w.lines[7])).to_equal(std::string("H"));
 
 		legacy::TextLineBreakdown b{};
 		b.maxCharsPerLine = 19;
 		b.maxWidthPerLine = 116;
 		legacy::breakStringIntoLines("A\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK", &b, 9);
-		expect(b.numLines).to_equal(kWrapMaxLines);
+		expect(b.numLines).to_equal(deluge::ui::widgets::core::kWrapMaxLines);
 	});
 
 	it("ignores max_chars_per_line, because legacy never reads the field", _ {
 		// `maxCharsPerLine` is set by all three legacy callers and read by none of
 		// breakStringIntoLines, findLineSplitPoint, addLine or addCharacterToLine.
 		const std::string_view s = "HELLO WORLD THIS WRAPS";
-		const WrappedLines a = wrap_lines(s, 116, 1, FontId::Apple7);
-		const WrappedLines b = wrap_lines(s, 116, 19, FontId::Apple7);
-		const WrappedLines c = wrap_lines(s, 116, 1000, FontId::Apple7);
+		const deluge::ui::widgets::core::WrappedLines a = widgets::core::wrap_lines(s, 116, 1, FontId::Apple7);
+		const deluge::ui::widgets::core::WrappedLines b = widgets::core::wrap_lines(s, 116, 19, FontId::Apple7);
+		const deluge::ui::widgets::core::WrappedLines c = widgets::core::wrap_lines(s, 116, 1000, FontId::Apple7);
 		expect(static_cast<int32_t>(a.count)).to_equal(static_cast<int32_t>(b.count));
 		expect(static_cast<int32_t>(c.count)).to_equal(static_cast<int32_t>(b.count));
 		expect(std::string(a.lines[0])).to_equal(std::string(b.lines[0]));
@@ -475,8 +475,8 @@ describe popup_w("ui::oled::popup", $ {
 		expect(box.x).to_equal((128 - 42) / 2);
 		expect(box.y).to_equal((48 - 21) / 2 - 5);
 		expect(r.frame.origin.y + box.y).to_equal(13); // the canvas row legacy computes
-		expect(box.w).to_equal(30 + kPopupMargin);
-		expect(box.h).to_equal(9 + kPopupMargin);
+		expect(box.w).to_equal(30 + deluge::ui::widgets::core::kPopupMargin);
+		expect(box.h).to_equal(9 + deluge::ui::widgets::core::kPopupMargin);
 
 		uitest::Rig64 r64;
 		const Rect box64 = popup_rect_for(r64.frame, Size{30, 9});
@@ -645,7 +645,7 @@ describe popup_w("ui::oled::popup", $ {
 			uitest::Rig48 r;
 			// Already armed and anchored at 0, i.e. the animation started then; an unarmed Blink
 			// would be re-anchored at `now` and always show step 1.
-			Blink blink{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
+			widgets::core::Blink blink{.period_ms = static_cast<uint16_t>(deluge::ui::widgets::core::kWorkingStepMs), .until_ms = 0};
 			r.input = uitest::null_input(working_time(cycle, step));
 			working(r.frame, r.frame.bounds(), loading ? "Loading" : "Saving", blink);
 
@@ -676,45 +676,45 @@ describe popup_w("ui::oled::popup", $ {
 
 	it("arms the blink and asks for the next animation step", _ {
 		uitest::Rig48 r;
-		Blink blink{};
+		widgets::core::Blink blink{};
 		r.input = uitest::null_input(1000);
 		working(r.frame, r.frame.bounds(), "Loading", blink);
 
 		// period_ms doubles as "armed": kWorkingStepMs, anchored at now.
-		expect(static_cast<int32_t>(blink.period_ms)).to_equal(kWorkingStepMs);
+		expect(static_cast<int32_t>(blink.period_ms)).to_equal(deluge::ui::widgets::core::kWorkingStepMs);
 		expect(static_cast<int32_t>(blink.until_ms)).to_equal(1000);
 		// Step 1 runs for kWorkingPauseMs.
-		expect(static_cast<int32_t>(r.gate.next_deadline().value())).to_equal(1000 + kWorkingPauseMs);
+		expect(static_cast<int32_t>(r.gate.next_deadline().value())).to_equal(1000 + deluge::ui::widgets::core::kWorkingPauseMs);
 
 		// A step in the middle of the run reschedules at kWorkingStepMs. The gate keeps the
 		// *earliest* pending deadline, so the shell's own consume comes first.
 		uitest::Rig48 r2;
-		Blink b2{};
+		widgets::core::Blink b2{};
 		r2.input = uitest::null_input(1000);
 		working(r2.frame, r2.frame.bounds(), "Loading", b2);
-		expect(r2.gate.needs_frame(1000 + kWorkingPauseMs, false, false)).to_be_true();
-		r2.input = uitest::null_input(1000 + kWorkingPauseMs);
+		expect(r2.gate.needs_frame(1000 + deluge::ui::widgets::core::kWorkingPauseMs, false, false)).to_be_true();
+		r2.input = uitest::null_input(1000 + deluge::ui::widgets::core::kWorkingPauseMs);
 		working(r2.frame, r2.frame.bounds(), "Loading", b2);
 		expect(static_cast<int32_t>(r2.gate.next_deadline().value()))
-		    .to_equal(1000 + kWorkingPauseMs + kWorkingStepMs);
+		    .to_equal(1000 + deluge::ui::widgets::core::kWorkingPauseMs + deluge::ui::widgets::core::kWorkingStepMs);
 
 		// And the last step of a cycle holds for kWorkingPauseMs again.
 		uitest::Rig48 r3;
-		Blink b3{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
+		widgets::core::Blink b3{.period_ms = static_cast<uint16_t>(deluge::ui::widgets::core::kWorkingStepMs), .until_ms = 0};
 		r3.input = uitest::null_input(working_time(1, kReset));
 		working(r3.frame, r3.frame.bounds(), "Loading", b3);
 		expect(static_cast<int32_t>(r3.gate.next_deadline().value()))
-		    .to_equal(static_cast<int32_t>(working_time(1, kReset)) + kWorkingPauseMs);
+		    .to_equal(static_cast<int32_t>(working_time(1, kReset)) + deluge::ui::widgets::core::kWorkingPauseMs);
 	});
 
 	it("runs the working animation the other way for Saving", _ {
 		uitest::Rig48 load;
-		Blink bl{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
+		widgets::core::Blink bl{.period_ms = static_cast<uint16_t>(deluge::ui::widgets::core::kWorkingStepMs), .until_ms = 0};
 		load.input = uitest::null_input(working_time(1, 8));
 		working(load.frame, load.frame.bounds(), "Loading", bl);
 
 		uitest::Rig48 save;
-		Blink bs{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
+		widgets::core::Blink bs{.period_ms = static_cast<uint16_t>(deluge::ui::widgets::core::kWorkingStepMs), .until_ms = 0};
 		save.input = uitest::null_input(working_time(1, 8));
 		working(save.frame, save.frame.bounds(), "Saving", bs);
 
@@ -723,7 +723,7 @@ describe popup_w("ui::oled::popup", $ {
 		expect_golden(self, "ui/widgets/working_saving_48.pbm", save.pbm());
 
 		uitest::Rig64 load64;
-		Blink b64{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
+		widgets::core::Blink b64{.period_ms = static_cast<uint16_t>(deluge::ui::widgets::core::kWorkingStepMs), .until_ms = 0};
 		load64.input = uitest::null_input(working_time(1, 8));
 		working(load64.frame, load64.frame.bounds(), "Loading", b64);
 		expect_golden(self, "ui/widgets/working_loading_64.pbm", load64.pbm());

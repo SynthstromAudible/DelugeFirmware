@@ -56,7 +56,7 @@ describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 		(void)deluge::scenes::context_menu::descriptor(DescriptorId::ResetAll).accept(ctx, 0);
 
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
-		    .to_equal(deluge::ui::Highlighting::PartialInversion);
+		    .to_equal(deluge::ui::widgets::core::Highlighting::PartialInversion);
 		expect(shellHostUI.shell().screensaver_idle_ms())
 		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u);
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();

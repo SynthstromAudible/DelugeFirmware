@@ -98,7 +98,7 @@ bool overlay_shown(const MenuContext& ctx, bool shift) {
 	       && ctx.root != MenuContext::Root::NoteEditor && ctx.root != MenuContext::Root::NoteRowEditor;
 }
 
-bool other_source_pad_held(const deluge::ui::PadMask& held, uint8_t x, uint8_t y) {
+bool other_source_pad_held(const deluge::ui::widgets::core::PadMask& held, uint8_t x, uint8_t y) {
 	for (uint8_t sx = kShortcutCols - 2; sx < kShortcutCols; sx++) {
 		for (uint8_t sy = 0; sy < kShortcutRows; sy++) {
 			if (is_patching_source_pad(sx, sy) && (sx != x || sy != y) && held.test(sx, sy)) {
@@ -126,7 +126,7 @@ RGB shortcut_colour(const MenuContext& ctx, project::ShortcutsVersion version, u
 	return kShortcutColours[x][y];
 }
 
-void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& ctx) {
+void paint_shortcut_colours(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx) {
 	const project::ShortcutsVersion version = shortcuts_version(ctx);
 	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -135,7 +135,7 @@ void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& c
 	}
 }
 
-void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
+void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
                          const Node* focused) {
 	// A patched param, or a cable page patching `patching_param`; and a sound to patch on.
 	if (focused == nullptr || (ctx.root != MenuContext::Root::Sound && ctx.root != MenuContext::Root::Drum)) {
@@ -209,7 +209,7 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 	}
 }
 
-void paint_dx_shortcut_colours(deluge::ui::grid::GridFrame& f) {
+void paint_dx_shortcut_colours(deluge::ui::widgets::grid::GridFrame& f) {
 	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
 			(void)f.pad(x, y, kDxShortcutColours[x][y]);
@@ -217,7 +217,8 @@ void paint_dx_shortcut_colours(deluge::ui::grid::GridFrame& f) {
 	}
 }
 
-void render_overlay(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st, const Node* focused) {
+void render_overlay(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
+                    const Node* focused) {
 	if (nodes::dx_pad_layout(ctx, st)) {
 		paint_dx_shortcut_colours(f);
 	}

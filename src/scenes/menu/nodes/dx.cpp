@@ -16,9 +16,9 @@
 #include "scenes/profile.h"
 
 #include "ui/gfx/oled/font.h"
-#include "ui/oled/frame.h"
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
 
 #include "base/string_format.h"
 #include "instruments/classic/state_access.h"
@@ -58,11 +58,11 @@ const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
 
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief The state of the sound the menu edits, if the facts know it.
@@ -90,35 +90,36 @@ void write_patch(const MenuContext& ctx, const deluge::instruments::classic::DxP
 /// @brief Draw @p names as a list on the focused level's cursor, as `MenuItem::drawItemsForOled`
 ///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) does for the three DX7 lists, and publish the render's
 ///        response.
-deluge::ui::Response draw_list(deluge::ui::oled::OledFrame& f, MenuState& state,
-                               std::span<const std::string_view> names) {
+deluge::ui::widgets::core::Response draw_list(deluge::ui::widgets::oled::OledFrame& f, MenuState& state,
+                                              std::span<const std::string_view> names) {
 	constexpr size_t kMaxRows = 32;
-	std::array<deluge::ui::oled::ListRow, kMaxRows> rows{};
+	std::array<deluge::ui::widgets::oled::ListRow, kMaxRows> rows{};
 	const size_t n = std::min(names.size(), kMaxRows);
 	for (size_t i = 0; i < n; i++) {
 		rows[i].label = names[i];
 	}
 	const size_t d = depth_of(state);
-	state.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                           std::span<const deluge::ui::oled::ListRow>{rows.data(), n}, state.scroll[d],
-	                           /*allow_motion=*/true, /*accelerate=*/true);
+	state.tick.render_resp = deluge::ui::widgets::oled::list(
+	    f, deluge::ui::widgets::oled::menu_rect(f), state.list[d],
+	    std::span<const deluge::ui::widgets::oled::ListRow>{rows.data(), n}, state.scroll[d],
+	    /*allow_motion=*/true, /*accelerate=*/true);
 	return state.tick.render_resp;
 }
 
 /// @brief The focused level's list, put on @p cursor.
 void focus_list(MenuState& state, int16_t cursor) {
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
 	state.list[d].cursor = cursor;
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 }
 
 using PatchBytes = std::array<uint8_t, 156>;
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `show`: @p text on one of the page's two rows at a
 ///        character column, inverted when it is the param shown.
-void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column, bool inverted = false) {
+void show(deluge::ui::widgets::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column,
+          bool inverted = false) {
 	using namespace deluge::ui::gfx::oled;
 	const int32_t y = 7 + (2 + row) * (kTextSizeYUpdated + 2);
 	const int32_t x = 5 + column * kTextSpacingX;
@@ -129,7 +130,7 @@ void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, in
 }
 
 /// @brief `show`'s number form: at least two digits.
-void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t column, bool inverted = false) {
+void show(deluge::ui::widgets::oled::OledFrame& p, int32_t value, int32_t row, int32_t column, bool inverted = false) {
 	char digits[12];
 	intToString(value, digits, 2);
 	show(p, digits, row, column, inverted);
@@ -137,7 +138,7 @@ void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t co
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderEnvelope`: rates over levels; `op` 6 is the
 /// pitch envelope.
-void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+void draw_envelope(deluge::ui::widgets::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate", 0, 0);
 	show(p, "levl", 1, 0);
 	for (int32_t i = 0; i < 4; i++) {
@@ -148,7 +149,7 @@ void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderScaling`: the two depths over the two curves,
 /// the breakpoint between them.
-void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+void draw_scaling(deluge::ui::widgets::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	using namespace deluge::ui::gfx::oled;
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[op * 21 + 9 + i], 0, 1 + i * 11, 9 + i == idx);
@@ -165,7 +166,7 @@ void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int3
 }
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderSensParams`.
-void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+void draw_sensitivity(deluge::ui::widgets::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate scale", 0, 1);
 	show(p, params[op * 21 + 13], 0, 12, idx == 13);
 	show(p, "ampmod", 1, 0);
@@ -176,7 +177,7 @@ void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, 
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderTuning`: the mode, coarse, fine and detune
 /// (shown from -7), then the level.
-void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+void draw_tuning(deluge::ui::widgets::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, params[op * 21 + 17] != 0 ? "fixed" : "ratio", 0, 1, idx == 17);
 	for (int32_t i = 0; i < 3; i++) {
 		int32_t value = params[op * 21 + 18 + i];
@@ -190,7 +191,7 @@ void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32
 }
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderLFO`.
-void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
+void draw_lfo(deluge::ui::widgets::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[137 + i], 0, 1 + i * 3, 137 + i == param);
 	}
@@ -207,7 +208,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderAlgorithm`: a "#NN" badge inverted at the
 /// title's right, and the diagram.
-void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
+void draw_algorithm(deluge::ui::widgets::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::ui::gfx::oled;
 	const int32_t algorithm = std::min<int32_t>(params[134], static_cast<int32_t>(kDxAlgorithms) - 1);
 	char badge[12] = "#";
@@ -225,8 +226,8 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 
 /// @brief `DxParam::drawPixelsForOled` for @p param of @p patch, on the panel frame @p p.
 /// @param top The panel's first visible row, `OLED_MAIN_TOPMOST_PIXEL` on the 48-row panel.
-void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instruments::classic::DxPatchState& patch,
-                int16_t param) {
+void draw_param(deluge::ui::widgets::oled::OledFrame& p, int32_t top,
+                const deluge::instruments::classic::DxPatchState& patch, int16_t param) {
 	using namespace deluge::ui::gfx::oled;
 	const PatchBytes& params = patch.params;
 	if (param < 0 || param == 135 || param == 136) {
@@ -279,7 +280,7 @@ void DxBrowseItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	    deluge::ui::shell::SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::DxSyx)};
 }
 
-void DxBrowseItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void DxBrowseItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	draw_title_for(f, state); // never on screen: the item is left the tick it is entered
 }
 
@@ -310,17 +311,17 @@ void DxCartridgeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	load_program(ctx, 0);
 }
 
-void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void DxCartridgeItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	const std::optional<bind::DxCartridgeNames> bank =
 	    ctx.ports.sound != nullptr ? ctx.ports.sound->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
 	if (!bank || bank->count <= 0) {
 		return; // `drawPixelsForOled` draws nothing with no bank
 	}
-	deluge::ui::ListState& list = state.list[depth_of(state)];
+	deluge::ui::widgets::core::ListState& list = state.list[depth_of(state)];
 	// `selectEncoderAction`: the cursor clamps to the bank, and only a move loads the program.
 	list.freeze_cursor = true;
-	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::widgets::oled::select_delta(f)); t != 0) {
 		const int32_t next = std::clamp<int32_t>(list.cursor + t, 0, bank->count - 1);
 		if (next != list.cursor) {
 			list.cursor = static_cast<int16_t>(next);
@@ -332,7 +333,7 @@ void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	for (int32_t i = 0; i < bank->count; i++) {
 		names[i] = std::string_view{bank->names[i].data()};
 	}
-	const deluge::ui::Response resp =
+	const deluge::ui::widgets::core::Response resp =
 	    draw_list(f, state, std::span<const std::string_view>{names.data(), static_cast<size_t>(bank->count)});
 	if (resp.entered) {
 		// `selectButtonPress`: `soundEditor.exitCompletely()`.
@@ -340,7 +341,8 @@ void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 }
 
-deluge::ui::InputClaims DxCartridgeItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
+deluge::ui::widgets::core::InputClaims DxCartridgeItem::owned_input(const MenuContext& /*ctx*/,
+                                                                    const MenuState& /*state*/) const {
 	return kListInput;
 }
 
@@ -377,13 +379,14 @@ void DxEngineSelectItem::on_reread(const MenuContext& ctx, MenuState& state) con
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(patch ? patch->engine_mode : 0);
 }
 
-void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void DxEngineSelectItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                MenuState& state) const {
 	draw_title_for(f, state);
-	deluge::ui::ListState& list = state.list[depth_of(state)];
+	deluge::ui::widgets::core::ListState& list = state.list[depth_of(state)];
 	// `selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`): a turn that would leave the
 	// three modes does nothing at all, rather than stopping at the end.
 	list.freeze_cursor = true;
-	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::widgets::oled::select_delta(f)); t != 0) {
 		const int32_t next = list.cursor + t;
 		if (next >= 0 && next < std::ssize(kEngineModes)) {
 			if (std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx)) {
@@ -397,7 +400,8 @@ void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	(void)draw_list(f, state, kEngineModes); // SELECT ascends: `selectButtonPress` answers nothing
 }
 
-deluge::ui::InputClaims DxEngineSelectItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
+deluge::ui::widgets::core::InputClaims DxEngineSelectItem::owned_input(const MenuContext& /*ctx*/,
+                                                                       const MenuState& /*state*/) const {
 	return kListInput;
 }
 
@@ -414,13 +418,14 @@ void DxGlobalParamsItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) 
 	focus_list(state, state.dx.global_cursor);
 }
 
-void DxGlobalParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void DxGlobalParamsItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                                MenuState& state) const {
 	draw_title_for(f, state);
 	std::array<std::string_view, dx::kGlobalRows> names{};
 	for (int32_t row = 0; row < dx::kGlobalRows; row++) {
 		names[row] = dx::global_row(row);
 	}
-	const deluge::ui::Response resp = draw_list(f, state, names);
+	const deluge::ui::widgets::core::Response resp = draw_list(f, state, names);
 	const int16_t cursor = state.list[depth_of(state)].cursor;
 	state.dx.global_cursor = cursor;
 	if (resp.entered) {
@@ -435,7 +440,8 @@ void DxGlobalParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	}
 }
 
-deluge::ui::InputClaims DxGlobalParamsItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
+deluge::ui::widgets::core::InputClaims DxGlobalParamsItem::owned_input(const MenuContext& /*ctx*/,
+                                                                       const MenuState& /*state*/) const {
 	return kListInput;
 }
 
@@ -456,7 +462,8 @@ void DxOperatorParamsItem::on_focus(const MenuContext& /*ctx*/, MenuState& state
 	focus_list(state, state.dx.operator_cursor);
 }
 
-void DxOperatorParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void DxOperatorParamsItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                                  MenuState& state) const {
 	// `FormattedTitle::format(N)`: "DX7 operator *" with its asterisk replaced by the operator's number.
 	const std::string_view format = deluge::scenes::text_lookup(sid(String::STRING_FOR_DX_OPERATOR_PARAMS));
 	std::array<char, 32> title{};
@@ -465,13 +472,13 @@ void DxOperatorParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	if (const size_t star = format.find('*'); star < n) {
 		title[star] = static_cast<char>('0' + (6 - state.dx.op));
 	}
-	deluge::ui::oled::title(f, std::string_view{title.data(), n});
+	deluge::ui::widgets::oled::title(f, std::string_view{title.data(), n});
 
 	std::array<std::string_view, dx::kOperatorRows> names{};
 	for (int32_t row = 0; row < dx::kOperatorRows; row++) {
 		names[row] = dx::operator_row(row);
 	}
-	const deluge::ui::Response resp = draw_list(f, state, names);
+	const deluge::ui::widgets::core::Response resp = draw_list(f, state, names);
 	const int16_t cursor = state.list[depth_of(state)].cursor;
 	state.dx.operator_cursor = cursor;
 	if (resp.entered) {
@@ -480,8 +487,8 @@ void DxOperatorParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	}
 }
 
-deluge::ui::InputClaims DxOperatorParamsItem::owned_input(const MenuContext& /*ctx*/,
-                                                          const MenuState& /*state*/) const {
+deluge::ui::widgets::core::InputClaims DxOperatorParamsItem::owned_input(const MenuContext& /*ctx*/,
+                                                                         const MenuState& /*state*/) const {
 	return kListInput;
 }
 
@@ -498,12 +505,12 @@ const Node* dx_operator_params_chain(const MenuContext& /*ctx*/, const MenuState
 // ---------------------------------------------------------------------------------------------
 // `DxParam` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`)
 
-void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void DxParamItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx);
 	int16_t& param = state.dx.param;
 	f.claim_turn();
 	f.claim_horizontal();
-	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0 && patch) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::widgets::oled::select_delta(f)); t != 0 && patch) {
 		// `DxParam::selectEncoderAction` and `DxParam::setValue`: oscillator 1's patch, always.
 		if (param >= 0 && param <= dx::kLastParam) {
 			const int32_t value = patch->params[param] + t;
@@ -538,7 +545,7 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 	}
 
 	std::array<char, 32> title{};
-	deluge::ui::oled::title(f, std::string_view{title.data(), dx::title(state.dx.param, title)});
+	deluge::ui::widgets::oled::title(f, std::string_view{title.data(), dx::title(state.dx.param, title)});
 	state.tick.render_resp = {};
 	f.claim_select();
 	if (f.select_pressed()) {
@@ -546,12 +553,13 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 	}
 	if (const std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx)) {
 		// Legacy draws in the canvas's own coordinates, the rows above the panel's visible top included.
-		deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(f);
+		deluge::ui::widgets::oled::OledFrame panel = deluge::ui::widgets::oled::panel_frame(f);
 		draw_param(panel, f.origin.y, *patch, state.dx.param);
 	}
 }
 
-deluge::ui::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
+deluge::ui::widgets::core::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/,
+                                                                const MenuState& /*state*/) const {
 	return {.turn = true, .horizontal = true, .select = true};
 }
 

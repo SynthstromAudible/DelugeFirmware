@@ -9,8 +9,8 @@
 
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::ui::EncoderRole;
-using deluge::ui::InputClaims;
+using deluge::ui::widgets::core::EncoderRole;
+using deluge::ui::widgets::core::InputClaims;
 
 namespace {
 

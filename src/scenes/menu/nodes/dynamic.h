@@ -50,9 +50,9 @@
 /// ## Divergence
 ///
 ///   * **`Devices::current_scroll_`.** Legacy keeps its own top-of-viewport index and its own
-///     `computeScrollForSelected` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). `ui::oled::list` owns the
-///     window and the scroll, so this builds every row and lets the widget pick the slice -- the same simplification
-///     `MultiRangeItem` and `PatchCablesItem` make.
+///     `computeScrollForSelected` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). `ui::widgets::oled::list`
+///     owns the window and the scroll, so this builds every row and lets the widget pick the slice -- the same
+///     simplification `MultiRangeItem` and `PatchCablesItem` make.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -90,8 +90,9 @@ public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -107,8 +108,9 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The one selector here whose backward arm does real work -- see the `.cpp`.
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -122,8 +124,9 @@ public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

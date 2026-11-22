@@ -52,7 +52,7 @@
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/grid/keyboard.h"
+#include "ui/widgets/grid/keyboard.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -307,7 +307,7 @@ bool scene_on_stack(Shell& shell, SceneKind kind) {
 // ---------------------------------------------------------------------------------------------
 // Typing on the grid keyboard, which is how the browser is committed
 
-constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
+constexpr int32_t kHomeRow = deluge::ui::widgets::grid::kTextKeyboardHomeRow;
 
 struct Pad {
 	int32_t x = -1, y = -1;
@@ -317,9 +317,9 @@ struct Pad {
 ///        rather than transcribing the table a second time (`browser_scene_spec.cpp`'s `pad_for`).
 Pad pad_for(char c) {
 	for (int32_t y = 0; y < 8; y++) {
-		for (int32_t x = 0; x < deluge::ui::grid::kTextKeyboardCols; x++) {
-			if (deluge::ui::grid::text_keyboard_char_at(deluge::ui::grid::KeyboardLayoutKind::Qwerty, x, y, kHomeRow,
-			                                            false)
+		for (int32_t x = 0; x < deluge::ui::widgets::grid::kTextKeyboardCols; x++) {
+			if (deluge::ui::widgets::grid::text_keyboard_char_at(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty,
+			                                                     x, y, kHomeRow, false)
 			    == c) {
 				return Pad{x, y};
 			}
@@ -461,7 +461,7 @@ struct ShellRig {
 
 	/// @brief Press and release the enter pad, then settle -- the commit, through the real input path.
 	void enter() {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		pad(p, 64);
 		pad(p, 0);
 		step();
@@ -512,7 +512,7 @@ struct GuestRig {
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
 	///        `ShellHostUI::padAction` only queues, and a tick is what routes.
 	void press_enter(void (GuestRig::*tick)()) {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		(void)ui.padAction(p.x, p.y, 64);
 		(this->*tick)();
 		(void)ui.padAction(p.x, p.y, 0);
@@ -579,7 +579,7 @@ struct MidiRig {
 	}
 
 	void enter() {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		pad(p, 64);
 		pad(p, 0);
 		step();
@@ -1178,7 +1178,7 @@ describe browser_choice_reroot(
 	    //       overridden true by `FileSelector`, `origin/main:src/deluge/gui/menu_item/file_selector.h`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
 	    //       notification instead of opening the browser (`MenuView::render_horizontal`'s
-	    //       `column_press`, and `ui/oled/columns.cpp` behind it). The shortcut pad is what is
+	    //       `column_press`, and `ui/widgets/oled/columns.cpp` behind it). The shortcut pad is what is
 	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm).
 
 	    before_each([] {
@@ -1228,7 +1228,7 @@ describe browser_choice_reroot(
 		        expect(column).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(column);
 		        // The group pages across its members, so the counter reads `main`'s 1/6, not the member page's 1/3.
-		        const deluge::ui::oled::Paging paging =
+		        const deluge::ui::widgets::oled::Paging paging =
 		            menu::horizontal_paging(menu_scene().menu_context(), menu_scene().state());
 		        expect(static_cast<int32_t>(paging.page)).to_equal(0);
 		        expect(static_cast<int32_t>(paging.total_pages)).to_equal(6);

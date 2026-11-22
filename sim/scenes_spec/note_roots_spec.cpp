@@ -128,13 +128,13 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 
 		ctx.root = MenuContext::Root::NoteEditor;
 		scene.open(nodes::note_editor_root, ctx);
-		const deluge::ui::grid::GreyoutMask editor_mask = scene.greyout_mask();
+		const deluge::ui::widgets::grid::GreyoutMask editor_mask = scene.greyout_mask();
 		expect(editor_mask.cols).to_equal(uint32_t{0x03});
 		expect(editor_mask.rows).to_equal(uint32_t{0});
 
 		ctx.root = MenuContext::Root::NoteRowEditor;
 		scene.open(nodes::note_row_editor_root, ctx);
-		const deluge::ui::grid::GreyoutMask row_mask = scene.greyout_mask();
+		const deluge::ui::widgets::grid::GreyoutMask row_mask = scene.greyout_mask();
 		expect(row_mask.cols).to_equal(uint32_t{0});
 		expect(row_mask.rows).to_equal(uint32_t{0});
 	});

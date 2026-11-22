@@ -1,10 +1,10 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/state.h"
-#include "ui/core/style.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/font.h"
-#include "ui/oled/popup.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/popup.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -17,7 +17,7 @@
 #include <utility>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -162,11 +162,11 @@ std::span<const std::string_view> three() {
 } // namespace
 
 // clang-format off
-describe option_window_w("ui::oled::option_window", $ {
+describe option_window_w("ui::widgets::oled::option_window", $ {
 
 	it("draws legacy's window, rule and heading", _ {
 		uitest::Rig48 r;
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, one(), 0, 0, label);
 
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, /*invert=*/true);
@@ -206,7 +206,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		for (const auto [current, scroll] : std::array<std::pair<int32_t, int32_t>, 4>{
 		         {{0, 0}, {1, 0}, {1, 1}, {2, 1}}}) {
 			uitest::Rig48 r;
-			ScrollText label;
+			widgets::core::ScrollText label;
 			option_window(r.frame, kAreYouSure, three(), current, scroll, label);
 			legacy_render_oled(r.reference, 128, 48, kAreYouSure, three(), current, scroll, true);
 			expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
@@ -218,7 +218,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// but `setupAndCheckAvailability` and a restored state both write the pair directly, and a
 		// window that did not contain the cursor would draw no highlight at all.
 		uitest::Rig48 r;
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, three(), /*selected=*/2, /*first=*/0, label);
 		// Clamped to {selected - 1} = 1, i.e. the same frame as the legitimate {2, 1} pair.
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, three(), 2, 1, true);
@@ -235,7 +235,7 @@ describe option_window_w("ui::oled::option_window", $ {
 			r.canvas.draw_horizontal_line(y, 0, 127);
 			r.reference.draw_horizontal_line(y, 0, 127);
 		}
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, one(), 0, 0, label);
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, true);
 		expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
@@ -249,10 +249,10 @@ describe option_window_w("ui::oled::option_window", $ {
 		// this layer reads as `style.highlighting == Highlighting::NoInversion` -- the same
 		// substitution `list`, `columns` and `text_edit` make for the same legacy primitive.
 		uitest::Rig48 r;
-		Style plain = deluge::ui::kDelugeStyle48;
-		plain.highlighting = Highlighting::NoInversion;
+		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
+		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(f, kAreYouSure, three(), 1, 0, label);
 
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, three(), 1, 0, /*invert=*/false);
@@ -268,7 +268,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// windowMinY = (64 - 40) >> 1 = 12, so every offset below it moves with the window; the
 		// three horizontal insets are panel-width-relative and do not.
 		uitest::Rig64 r;
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, three(), 1, 0, label);
 		// The 64-row panel has no hidden rows at all (`visible_top == 0`), so this one is compared
 		// whole -- the whole window, top border included.
@@ -280,7 +280,7 @@ describe option_window_w("ui::oled::option_window", $ {
 
 	it("draws nothing but the empty window for an empty option list", _ {
 		uitest::Rig48 r;
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, {}, 0, 0, label);
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, {}, 0, 0, true);
 		expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
@@ -293,7 +293,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// widget is driven across ticks with no input at all, which is the only thing that moves it.
 		constexpr std::string_view kLong[] = {"A VERY LONG OPTION LABEL INDEED"};
 		uitest::Rig48 r;
-		ScrollText label;
+		widgets::core::ScrollText label;
 
 		r.begin_tick(0);
 		option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
@@ -302,26 +302,26 @@ describe option_window_w("ui::oled::option_window", $ {
 		expect(static_cast<int>(label.text_w_last)).to_equal(186);
 		expect(static_cast<int>(label.rect_w_last)).to_equal(78);
 		expect(static_cast<int>(label.offset)).to_equal(0);
-		expect(static_cast<int>(label.next_step_ms)).to_equal(kScrollTime);
+		expect(static_cast<int>(label.next_step_ms)).to_equal(widgets::core::kScrollTime);
 		const std::string first_frame = r.pbm();
 
 		// A quiet tick before the pause is up changes nothing at all.
-		r.begin_tick(kScrollTime - 1);
+		r.begin_tick(widgets::core::kScrollTime - 1);
 		option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		expect(static_cast<int>(label.offset)).to_equal(0);
 		expect(r.pbm()).to_equal(first_frame);
 
 		// The tick the pause expires on steps one pixel, and re-arms at the 15ms forward cadence.
-		r.begin_tick(kScrollTime);
+		r.begin_tick(widgets::core::kScrollTime);
 		option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		expect(static_cast<int>(label.offset)).to_equal(1);
-		expect(static_cast<int>(label.next_step_ms)).to_equal(kScrollTime + kScrollStepForwardMs);
+		expect(static_cast<int>(label.next_step_ms)).to_equal(widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs);
 		expect(r.pbm()).not_().to_equal(first_frame);
 
 		// ...and it keeps going on further quiet ticks.
-		uint32_t now = kScrollTime;
+		uint32_t now = widgets::core::kScrollTime;
 		for (int i = 0; i < 5; i++) {
-			now += static_cast<uint32_t>(kScrollStepForwardMs);
+			now += static_cast<uint32_t>(deluge::ui::widgets::core::kScrollStepForwardMs);
 			r.begin_tick(now);
 			option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		}
@@ -329,7 +329,7 @@ describe option_window_w("ui::oled::option_window", $ {
 
 		// A label that fits never scrolls, however long it is left alone.
 		uitest::Rig48 still;
-		ScrollText fits;
+		widgets::core::ScrollText fits;
 		still.begin_tick(0);
 		option_window(still.frame, kAreYouSure, one(), 0, 0, fits);
 		const std::string fixed = still.pbm();
@@ -345,7 +345,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		uitest::Rig48 r;
 		r.input.turn = 2;
 		r.input.select_pressed = true;
-		ScrollText label;
+		widgets::core::ScrollText label;
 		option_window(r.frame, kAreYouSure, three(), 1, 0, label);
 		expect(r.ctx.claims.turn).to_be_false();
 		expect(r.ctx.claims.select).to_be_false();
@@ -354,13 +354,13 @@ describe option_window_w("ui::oled::option_window", $ {
 	it("records both shipped geometries as goldens", _ {
 		{
 			uitest::Rig48 r;
-			ScrollText label;
+			widgets::core::ScrollText label;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, label);
 			expect_golden(self, "ui/widgets/option_window_confirm_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
-			ScrollText label;
+			widgets::core::ScrollText label;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, label);
 			expect_golden(self, "ui/widgets/option_window_confirm_64.pbm", r.pbm());
 		}
@@ -368,13 +368,13 @@ describe option_window_w("ui::oled::option_window", $ {
 			// The scrolled window: three options, the window on {1, 2} with the cursor on the
 			// bottom row -- the shape `ContextMenu::selectEncoderAction` produces walking down.
 			uitest::Rig48 r;
-			ScrollText label;
+			widgets::core::ScrollText label;
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
 			expect_golden(self, "ui/widgets/option_window_scrolled_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
-			ScrollText label;
+			widgets::core::ScrollText label;
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
 			expect_golden(self, "ui/widgets/option_window_scrolled_64.pbm", r.pbm());
 		}
@@ -391,7 +391,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// anyway because legacy does (see popup.h). What this example
 		// *does* pin is that the overlapping case renders identically to legacy at all.
 		uitest::Rig48 r;
-		ScrollText sc;
+		widgets::core::ScrollText sc;
 		const std::string_view footer = "TRACK 1";
 		option_window(r.frame, kAreYouSure, three(), 0, 0, sc, /*allow_motion=*/true, footer);
 		legacy_render_oled(r.reference, 128, 48, kAreYouSure, three(), 0, 0, /*invert=*/true, footer);
@@ -403,7 +403,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// would erase the bottom rows of the option row above; legacy leaves them alone. Asserted on
 		// the shared rows rather than left as prose.
 		uitest::Rig48 r;
-		ScrollText sc;
+		widgets::core::ScrollText sc;
 		option_window(r.frame, kAreYouSure, three(), 0, 0, sc, /*allow_motion=*/true, "TRACK 1");
 		// windowMinY = 4; the second option row's band starts at 4 + 18 + 9 = 31, the footer's at
 		// 4 + 20 + 9 = 33, so rows 33..39 carry ink from both.
@@ -426,7 +426,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		const std::string_view footer = "TRACK 1";
 		{
 			uitest::Rig48 r;
-			ScrollText sc;
+			widgets::core::ScrollText sc;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, sc, /*allow_motion=*/true, footer);
 			legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
 			expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
@@ -440,7 +440,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		}
 		{
 			uitest::Rig64 r;
-			ScrollText sc;
+			widgets::core::ScrollText sc;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, sc, /*allow_motion=*/true, footer);
 			legacy_render_oled(r.reference, 128, 64, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
 			expect(r.pbm()).to_equal(r.reference_pbm()); // no bezel on the 64-row panel
@@ -453,8 +453,8 @@ describe option_window_w("ui::oled::option_window", $ {
 		// leaving the focused row's own scroller alone.
 		const std::string_view footer = "A VERY LONG TRACK NAME";
 		uitest::Rig48 r;
-		ScrollText label;
-		ScrollText footer_label;
+		widgets::core::ScrollText label;
+		widgets::core::ScrollText footer_label;
 
 		r.begin_tick(0);
 		option_window(r.frame, kAreYouSure, one(), 0, 0, label, /*allow_motion=*/true, footer, &footer_label);
@@ -464,7 +464,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		expect(static_cast<int>(footer_label.offset)).to_equal(0);
 		const std::string first_frame = r.pbm();
 
-		r.begin_tick(kScrollTime);
+		r.begin_tick(widgets::core::kScrollTime);
 		option_window(r.frame, kAreYouSure, one(), 0, 0, label, /*allow_motion=*/true, footer, &footer_label);
 		expect(static_cast<int>(footer_label.offset)).to_equal(1);
 		expect(static_cast<int>(label.offset)).to_equal(0);
@@ -473,11 +473,11 @@ describe option_window_w("ui::oled::option_window", $ {
 
 	it("draws nothing extra when the footer is empty, which is every other descriptor", _ {
 		uitest::Rig48 plain;
-		ScrollText sc1;
+		widgets::core::ScrollText sc1;
 		option_window(plain.frame, kAreYouSure, one(), 0, 0, sc1);
 
 		uitest::Rig48 explicit_empty;
-		ScrollText sc2;
+		widgets::core::ScrollText sc2;
 		option_window(explicit_empty.frame, kAreYouSure, one(), 0, 0, sc2, /*allow_motion=*/true, {});
 
 		expect(explicit_empty.pbm()).to_equal(plain.pbm());

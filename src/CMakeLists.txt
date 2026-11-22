@@ -13,7 +13,7 @@ add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + te
 add_subdirectory(project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
-add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
+add_subdirectory(ui)         # deluge_ui_widgets_core / deluge_ui_widgets_oled / deluge_ui_widgets_grid: the immediate-mode toolkit
 add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)

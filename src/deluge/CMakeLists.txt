@@ -133,9 +133,9 @@ target_link_libraries(deluge_app PUBLIC
     deluge_sample_view # a waveform view's columns, peaks and navigation
     deluge_ui_gfx_oled # pure drawing primitives
     deluge_ui_gfx_grid
-    deluge_ui_core # the immediate-mode UI toolkit
-    deluge_ui_oled
-    deluge_ui_grid
+    deluge_ui_widgets_core # the immediate-mode UI toolkit
+    deluge_ui_widgets_oled
+    deluge_ui_widgets_grid
     deluge_ui_shell # surfaces, scene stack, input lowering, services, tick, flush
     deluge_base_notify # the model->UI notification channel
 )

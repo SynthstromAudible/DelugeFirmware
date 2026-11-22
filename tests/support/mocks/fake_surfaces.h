@@ -59,8 +59,8 @@ public:
 	std::vector<std::pair<uint8_t, ColumnPair>> columns_sent;
 	std::vector<std::pair<uint8_t, bool>> led_writes;
 	std::vector<uint8_t> led_releases;
-	std::vector<std::pair<uint8_t, deluge::ui::KnobIndicator>> indicator_writes;
-	std::vector<deluge::ui::grid::PadFlash> flashes_sent;
+	std::vector<std::pair<uint8_t, deluge::ui::widgets::core::KnobIndicator>> indicator_writes;
+	std::vector<deluge::ui::widgets::grid::PadFlash> flashes_sent;
 	/// `columns_sent.size()` at each `flash_pad`, so a spec can tell what a flash was sent after.
 	std::vector<size_t> columns_before_flash;
 	/// How many of `flashes_sent` a level-2 snapshot has already reported; the next snapshot
@@ -81,8 +81,8 @@ public:
 		columns_sent.emplace_back(pair_index, pair);
 	}
 
-	void flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) override {
-		flashes_sent.push_back(deluge::ui::grid::PadFlash{x, y, colour});
+	void flash_pad(uint8_t x, uint8_t y, deluge::ui::widgets::grid::FlashColour colour) override {
+		flashes_sent.push_back(deluge::ui::widgets::grid::PadFlash{x, y, colour});
 		columns_before_flash.push_back(columns_sent.size());
 	}
 
@@ -95,7 +95,7 @@ public:
 
 	void release_led(uint8_t board_led) override { led_releases.push_back(board_led); }
 
-	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override {
+	void set_indicator(uint8_t which, const deluge::ui::widgets::core::KnobIndicator& indicator) override {
 		indicator_writes.emplace_back(which, indicator);
 		if (which < 2) {
 			indicator_shadow_[which] = indicator;
@@ -164,7 +164,7 @@ public:
 	/// @brief Knob indicator \p which, if the shell has ever set it.
 	/// @param which 0 for the lower indicator, 1 for the upper (an `IndicatorId` value).
 	/// @return A pointer to the shadow, or null when unset (or out of range).
-	const deluge::ui::KnobIndicator* indicator(uint8_t which) const {
+	const deluge::ui::widgets::core::KnobIndicator* indicator(uint8_t which) const {
 		return which < 2 && indicator_set_[which] ? &indicator_shadow_[which] : nullptr;
 	}
 
@@ -174,7 +174,7 @@ private:
 	static constexpr size_t kMaxLeds = 64;
 
 	std::array<bool, kMaxLeds> led_shadow_{};
-	deluge::ui::KnobIndicator indicator_shadow_[2]{};
+	deluge::ui::widgets::core::KnobIndicator indicator_shadow_[2]{};
 	bool indicator_set_[2]{};
 };
 
@@ -203,7 +203,8 @@ inline constexpr DelugeBoard kBoard2{"test",          16,    8, 4, 9, 6, 0, 0, D
 /// @return The profile, viewing static storage.
 inline BoardProfile test_profile_two_oleds() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48,
+	                                                                      &deluge::ui::widgets::core::kDelugeStyle64};
 	return BoardProfile{
 	    .oled_role_by_index = kRoles,
 	    .style_by_index = kStyles,
@@ -224,9 +225,9 @@ inline BoardProfile test_profile_two_oleds() {
 /// Deluge board tables; this one exists so the input specs have something to lower against.
 /// @return The profile, viewing static storage.
 inline BoardProfile test_profile_input() {
-	using deluge::ui::EncoderRole;
 	using deluge::ui::shell::ButtonId;
 	using deluge::ui::shell::EncoderKind;
+	using deluge::ui::widgets::core::EncoderRole;
 	// clang-format off
 	static constexpr ButtonId kMatrix[] = {
 	    // x:  0                  1               2               3                       4                    5                6                      7                      8
@@ -247,7 +248,7 @@ inline BoardProfile test_profile_input() {
 	                                         EncoderKind::Accelerating, EncoderKind::Detented};
 	static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(EncoderRole::Count));
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48};
 	// `LedId` values equal `ButtonId` values for the LEDs under buttons (`shell/leds.h`,
 	// `Shell::flush` rely on it), so this table is indexed by `ButtonId`; -1 = no board LED under
 	// that button. Only `Play` and `Record` are wired -- the two ids the shell specs that exercise

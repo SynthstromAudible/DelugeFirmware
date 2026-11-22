@@ -15,12 +15,12 @@
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`)
 ///     -> `services::read_waveform` then `services::paint_columns` (the read through the waveform's address, then
-///     `ui::grid::waveform_full`).
-///   * `renderColumn` / `renderMarkerInCol` -> `ui::grid::marker_column` /
+///     `ui::widgets::grid::waveform_full`).
+///   * `renderColumn` / `renderMarkerInCol` -> `ui::widgets::grid::marker_column` /
 ///     `marker_tint`.
-///   * `renderOLED`'s `drawScreenTitle` -> `ui::oled::title`.
-///   * its lock icon + `invertArea` -> `ui::oled::title_badge`.
-///   * its time and sample-count lines -> `ui::oled::sample_position`.
+///   * `renderOLED`'s `drawScreenTitle` -> `ui::widgets::oled::title`.
+///   * its lock icon + `invertArea` -> `ui::widgets::oled::title_badge`.
+///   * its time and sample-count lines -> `ui::widgets::oled::sample_position`.
 ///
 /// The read and the navigation are not widgets: the read goes through the context's waveforms port
 /// (`scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the navigation
@@ -39,9 +39,9 @@
 /// @par The waveform is on the pads only
 ///
 /// `SampleMarkerEditor::renderOLED` draws **no waveform at all** -- a title, an optional lock badge,
-/// a duration and a sample count. So there is no `src/ui/oled/` waveform component:
-/// `ui::oled::sample_position` is the OLED half, and `ui::grid::waveform_full`
-/// plus `ui::grid::markers` are the pad half.
+/// a duration and a sample count. So there is no `src/ui/widgets/oled/` waveform component:
+/// `ui::widgets::oled::sample_position` is the OLED half, and `ui::widgets::grid::waveform_full`
+/// plus `ui::widgets::grid::markers` are the pad half.
 ///
 /// @par What is deliberately not ported
 ///
@@ -54,9 +54,9 @@
 ///
 /// @par The zoom slide and the playhead
 ///
-/// A zoom slides from what the pads showed to the new view's bare waveform over `ui::grid::kZoomSpeed`, as
-/// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::grid::ZoomTransition`); every input
-/// is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
+/// A zoom slides from what the pads showed to the new view's bare waveform over `ui::widgets::grid::kZoomSpeed`, as
+/// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::widgets::grid::ZoomTransition`);
+/// every input is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
 /// `SampleMarkerEditor::graphicsRoutine`'s: the column the newest voice plays, on every row, painted with the flash
 /// cursor Slow and flashed by the PIC with it Fast.
 ///
@@ -88,11 +88,11 @@
 #include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
 #include "shell/scene.h"
-#include "ui/core/response.h"
-#include "ui/grid/effects.h"
-#include "ui/grid/markers.h"
-#include "ui/grid/waveform.h"
-#include "ui/grid/zoom_transition.h"
+#include "ui/widgets/core/response.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/grid/markers.h"
+#include "ui/widgets/grid/waveform.h"
+#include "ui/widgets/grid/zoom_transition.h"
 
 #include "gui/l10n/strings.h"
 #include "project/device_settings.h"
@@ -126,7 +126,7 @@ inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(kSampleMarkerBli
 /// @brief The four marker colours, in `MarkerType` order.
 ///
 /// `SampleMarkerEditor::renderMarkerInCol`'s switch (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), lifted
-/// out because `ui::grid::marker_column` takes colours rather than marker types -- it may not
+/// out because `ui::widgets::grid::marker_column` takes colours rather than marker types -- it may not
 /// include `definitions_cxx.hpp` and so cannot know what a `MarkerType` is.
 /// @return A span of `kNumMarkerTypes` colours: green, cyan, magenta, red.
 std::span<const RGB> marker_colours();
@@ -154,8 +154,8 @@ public:
 	static bool can(const menu::MenuContext& ctx);
 
 	deluge::ui::shell::SceneKind kind() const override { return kMarkerSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	void tick(uint32_t dt_ms) override;
@@ -181,7 +181,7 @@ public:
 		return deluge::ui::shell::GridPadClaim::AllButClipAudition;
 	}
 	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows`: `*cols = 0b10`, rows 0.
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
 	/// @brief `SampleMarkerEditor::opened`: over the keyboard screen the greyout is shown at once
 	///        (`PadLEDs::skipGreyoutFade`), elsewhere it fades in.
 	bool greyout_changes_instantly() const override { return ctx_.root_is_keyboard; }
@@ -206,7 +206,7 @@ public:
 	/// the slide over.
 	bool sliding() const { return zoom_pending_.has_value() || zoom_.active; }
 	/// @brief The last zoom slide begun, running or not.
-	const deluge::ui::grid::ZoomTransition& zoom_slide() const { return zoom_; }
+	const deluge::ui::widgets::grid::ZoomTransition& zoom_slide() const { return zoom_; }
 	/// @brief The zone's markers in zone order, each with its frame and the column it lands on now, as
 	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
 	///        them: a start marker by its first frame, an end marker by its last.
@@ -345,7 +345,7 @@ private:
 	/// A zoom the next grid render starts sliding: the levels, pin square and step `horizontal_encoder` found.
 	std::optional<deluge::ui::gfx::grid::ZoomParams> zoom_pending_;
 	/// The running slide.
-	deluge::ui::grid::ZoomTransition zoom_;
+	deluge::ui::widgets::grid::ZoomTransition zoom_;
 	/// The main pads as the last settled frame painted them, the playhead aside: a slide's `from`.
 	std::optional<deluge::ui::gfx::grid::PadGrid> shown_;
 	int8_t press_x_ = -1;

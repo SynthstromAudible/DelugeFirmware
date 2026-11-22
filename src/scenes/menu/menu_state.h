@@ -11,8 +11,8 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "shell/scene.h"
-#include "ui/core/response.h"
-#include "ui/core/state.h"
+#include "ui/widgets/core/response.h"
+#include "ui/widgets/core/state.h"
 
 #include <cstdint>
 #include <optional>
@@ -51,7 +51,7 @@ struct MenuTick {
 	/// clears it back to 0 once the offset has been applied.
 	int32_t edit_offset = 0;
 	/// The widget `Response` the render pass produced (`changed` / `entered`).
-	deluge::ui::Response render_resp{};
+	deluge::ui::widgets::core::Response render_resp{};
 	/// Whether the render pass moved the value in the edit storage above.
 	bool value_changed = false;
 	/// Which node `value_changed` belongs to.
@@ -67,7 +67,7 @@ struct MenuTick {
 	/// render does not read BACK, as a read is a claim, and `handle()` swallows the press instead.
 	bool back_acts = true;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui::oled::columns`). `after_render`
+	/// claims the press only for a submenu column, `ui::widgets::oled::columns`). `after_render`
 	/// answers it the way a leaf's own select press is answered, not the way this field's name
 	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
 	/// (`origin/main:src/deluge/gui/menu_item/submenu.cpp`), whose own `select_chain` is entered if it names one
@@ -348,16 +348,17 @@ struct MenuState {
 	/// One per menu depth, so walking back up restores the level's own cursor -- legacy's
 	/// `Submenu::current_item_` being a member of each submenu (`origin/main:src/deluge/gui/menu_item/submenu.h`).
 	///
-	/// @note `list[depth].editing` IS the editing flag (`ListState::editing` in `ui/core/state.h`): a reserved bool no
+	/// @note `list[depth].editing` IS the editing flag (`ListState::editing` in `ui/widgets/core/state.h`): a reserved
+	/// bool no
 	///       widget reads, which is exactly what a scene-owned "the leaf is being edited" bit
 	///       wants to be.
-	deluge::ui::ListState list[kMenuDepth]{};
+	deluge::ui::widgets::core::ListState list[kMenuDepth]{};
 	/// One per menu depth, like `list`: a horizontal page nested under another must not lose the
 	/// parent's column focus when the child is entered and left again.
-	deluge::ui::ColumnsState columns[kMenuDepth]{};
+	deluge::ui::widgets::core::ColumnsState columns[kMenuDepth]{};
 	/// One per menu depth, for the same reason -- and because `render_leaf_toggle` borrows this
 	/// for its own two-row list, which would otherwise fight the parent menu's label scroller.
-	deluge::ui::ScrollText scroll[kMenuDepth]{};
+	deluge::ui::widgets::core::ScrollText scroll[kMenuDepth]{};
 
 	// --- typed per-kind edit storage: the widgets do not share one int32 ---
 	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
@@ -367,9 +368,9 @@ struct MenuState {
 	/// `Kind::Enum`: `enum_value()` takes an `int32_t& index` ...
 	int32_t enum_index = 0;
 	/// ... plus its own `ListState` ...
-	deluge::ui::ListState enum_list{};
+	deluge::ui::widgets::core::ListState enum_list{};
 	/// ... plus its own `ScrollText` (`oled::enum_value`).
-	deluge::ui::ScrollText enum_scroll{};
+	deluge::ui::widgets::core::ScrollText enum_scroll{};
 	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
 	/// this is the upper (`node.h`'s `RangeSpec`).
 	int32_t edit_upper = 0;
@@ -379,12 +380,12 @@ struct MenuState {
 	/// (`Range::beginSession` in `origin/main:src/deluge/gui/menu_item/range.cpp`). One field here for the same reason:
 	/// only one leaf is on screen at a time, and `enter_leaf` re-seeds it per visit exactly where
 	/// `Range::beginSession`/`IntegerRange::beginSession` do.
-	deluge::ui::oled::RangeEdge edit_edge = deluge::ui::oled::RangeEdge::Off;
+	deluge::ui::widgets::oled::RangeEdge edit_edge = deluge::ui::widgets::oled::RangeEdge::Off;
 	/// `decimal_value`'s in/out cursor position.
 	int8_t decimal_pos = 0;
-	/// `decimal_value`'s OLED cursor blink ONLY (`ui::Blink` in `ui/core/state.h`; `until_ms` is a phase
+	/// `decimal_value`'s OLED cursor blink ONLY (`ui::Blink` in `ui/widgets/core/state.h`; `until_ms` is a phase
 	/// anchor, not a deadline).
-	deluge::ui::Blink cursor_blink{};
+	deluge::ui::widgets::core::Blink cursor_blink{};
 	/// `render_grid`: when the current shortcut-blink cycle started, legacy's
 	/// `shortcutBlinkCounter = 0` (`setupShortcutBlink`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	///

@@ -58,10 +58,10 @@ using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::scenes::bind::port_of;
 using deluge::scenes::bind::Ports;
-using deluge::ui::EncoderRole;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::UiEvent;
+using deluge::ui::widgets::core::EncoderRole;
 
 namespace {
 
@@ -634,7 +634,7 @@ bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
 	if (!guest_.blink_on(which_encoder)) {
 		return false;
 	}
-	return (now_ms_ - guest_.blink_start_ms(which_encoder)) < deluge::ui::kKnobIndicatorBlinkMs;
+	return (now_ms_ - guest_.blink_start_ms(which_encoder)) < deluge::ui::widgets::core::kKnobIndicatorBlinkMs;
 }
 
 ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
@@ -688,7 +688,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	return out;
 }
 
-void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
+void ModKnobs::declare_indicators(deluge::ui::widgets::core::LedFrame& frame) {
 	// `View::setKnobIndicatorLevels`.
 	// No root UI: an empty scene stack.
 	if (stack_.depth() == 0) {
@@ -700,7 +700,8 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		// `indicator_leds::clearKnobIndicatorLevels()`.
 		for (int32_t k = 0; k < board_.slots; k++) {
-			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));
+			(void)frame.indicator(static_cast<deluge::ui::widgets::core::IndicatorId>(k),
+			                      deluge::ui::widgets::core::knob_indicator_levels(0, false));
 		}
 		return;
 	}
@@ -709,35 +710,36 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			// A blinking knob is driven by its blink's phase.
-			(void)frame.indicator(
-			    static_cast<deluge::ui::IndicatorId>(k),
-			    deluge::ui::knob_indicator_blink(now_ms_ - guest_.blink_start_ms(k), guest_.blink_bipolar(k)));
+			(void)frame.indicator(static_cast<deluge::ui::widgets::core::IndicatorId>(k),
+			                      deluge::ui::widgets::core::knob_indicator_blink(now_ms_ - guest_.blink_start_ms(k),
+			                                                                      guest_.blink_bipolar(k)));
 			continue;
 		}
 		const IndicatorLevel level = indicator_level(indicator_info(k), stuttering);
 		if (level.declared) {
-			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k),
-			                      deluge::ui::knob_indicator_levels(level.level, level.bipolar));
+			(void)frame.indicator(static_cast<deluge::ui::widgets::core::IndicatorId>(k),
+			                      deluge::ui::widgets::core::knob_indicator_levels(level.level, level.bipolar));
 		}
 	}
 }
 
-void ModKnobs::leds(deluge::ui::LedFrame& frame) {
+void ModKnobs::leds(deluge::ui::widgets::core::LedFrame& frame) {
 	// `View::setModLedStates`' final block, "Sort out actual mod LEDs". The
 	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
 	// and are not this service's -- see the class doc.
 	const bool its_the_song = !is_clip_context(*focus_); // `itsTheSong`
 	const int32_t mod_knob_mode = mode();
 
-	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 	// `indicator_leds::blinkLed(led)`'s defaults (`hid/led/indicator_leds.h`): `numBlinks` 255 (i.e. forever) on
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
-	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
+	constexpr deluge::ui::widgets::core::LedState kBlink =
+	    deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal);
 
 	for (int32_t i = 0; i < board_.sections; i++) {
 		const bool on = (i == mod_knob_mode);
-		deluge::ui::LedState state = kOff;
+		deluge::ui::widgets::core::LedState state = kOff;
 		if (its_the_song && on && mod_knob_mode == 0 && focus_->vu_meter) {
 			state = kBlink; // the volume mod LED blinks while the VU meter is up
 		}
@@ -747,7 +749,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 		else {
 			state = on ? kOn : kOff;
 		}
-		(void)frame.set(static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i), state);
+		(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i), state);
 	}
 
 	declare_indicators(frame);
@@ -823,8 +825,8 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			const uint32_t elapsed = now_ms_ - guest_.blink_start_ms(k);
-			const uint32_t to_next_half =
-			    deluge::ui::kKnobIndicatorBlinkHalfMs - (elapsed % deluge::ui::kKnobIndicatorBlinkHalfMs);
+			const uint32_t to_next_half = deluge::ui::widgets::core::kKnobIndicatorBlinkHalfMs
+			                              - (elapsed % deluge::ui::widgets::core::kKnobIndicatorBlinkHalfMs);
 			if (!next.has_value() || to_next_half < *next) {
 				next = to_next_half;
 			}

@@ -1,8 +1,8 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/style.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/list.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/list.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -10,7 +10,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::BorderRadius;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -42,7 +42,7 @@ namespace icons = deluge::ui::gfx::oled::icons;
 //      the whole frame.
 
 // clang-format off
-describe list_w("ui::oled::list", $ {
+describe list_w("ui::widgets::oled::list", $ {
 	it("puts main's menu rect at main's base-y", _ {
 		// Legacy baseY is 14 on a 48px panel and 15 on a 64px one; the
 		// `+= OLED_MAIN_TOPMOST_PIXEL` on the next line is the frame's origin, so these are
@@ -61,7 +61,7 @@ describe list_w("ui::oled::list", $ {
 
 	it("draws three rows at the legacy positions with the first highlighted", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		expect(st.rows_last).to_equal(int16_t(5));
 		expect(st.cursor).to_equal(int16_t(0));
@@ -101,9 +101,9 @@ describe list_w("ui::oled::list", $ {
 		// against a rect spelled out in legacy literals rather than through menu_rect, so the
 		// helper cannot mask a shift.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 a; ListState sa; ScrollText ca;
+		uitest::Rig48 a; widgets::core::ListState sa; widgets::core::ScrollText ca;
 		list(a.frame, menu_rect(a.frame), sa, rows, ca);
-		uitest::Rig48 b; ListState sb; ScrollText cb;
+		uitest::Rig48 b; widgets::core::ListState sb; widgets::core::ScrollText cb;
 		list(b.frame, Rect{0, 14, 128, 29}, sb, rows, cb);
 		expect(a.pbm()).to_equal(b.pbm());
 	});
@@ -112,7 +112,7 @@ describe list_w("ui::oled::list", $ {
 		// Same widget, arbitrary rect: rows start at rect.y, labels at rect.x + kTextSpacingX,
 		// the highlight spans only rect, and rect.h caps the visible count below menu_rows.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(r.frame, Rect{20, 10, 60, 18}, st, rows, sc);   // 18 / 9 == 2 rows, not 3
 		expect(r.lit(20, 15)).to_be_false();  // canvas y 15 = local 10: top-left corner
 		expect(r.lit(20, 16)).to_be_true();   // left edge of the highlight
@@ -129,11 +129,11 @@ describe list_w("ui::oled::list", $ {
 		// The note-range picker while an edge is edited (`MultiRange::drawPixelsForOled`): no selected row, and the
 		// edited half of one row inverted.
 		const ListRow rows[] = {{"ONE"}, {.label = "TWO", .invert_from = 6, .invert_to = 42}, {"THREE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		st.cursor = 1;
 		st.hide_cursor = true;
 		r.input.turn = 1;
-		const Response resp = list(r.frame, menu_rect(r.frame), st, rows, sc);
+		const widgets::core::Response resp = list(r.frame, menu_rect(r.frame), st, rows, sc);
 		expect(resp.changed).to_be_false();
 		expect(st.cursor).to_equal(int16_t(1));
 		// No highlight: row 1 (canvas rows 28..36) is not inverted across the width.
@@ -149,7 +149,7 @@ describe list_w("ui::oled::list", $ {
 		// `MultiRange::currentScroll`: the window opens with the cursor on its last row, and a move keeps it in view
 		// without re-centring it.
 		const ListRow rows[] = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		st.keep_scroll = true;
 		st.scroll = -1;
@@ -169,7 +169,7 @@ describe list_w("ui::oled::list", $ {
 	it("walks five rows a click under shift only for a list that asks, then clamps", _ {
 		// `SoundEditor::selectEncoderAction` scales the offset for a non-submenu item and hands a submenu the raw one.
 		const ListRow rows[] = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}};
-		uitest::Rig48 r; ListState submenu; ListState item; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState submenu; widgets::core::ListState item; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		r.input.turn = 1;
 		r.input.shift = true;
@@ -183,13 +183,13 @@ describe list_w("ui::oled::list", $ {
 
 	it("moves the cursor with turn, clamps, and keeps it visible", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		list(r.frame, m, st, rows, sc);
-		r.input.turn = 4; Response resp = list(r.frame, m, st, rows, sc);
+		r.input.turn = 4; widgets::core::Response resp = list(r.frame, m, st, rows, sc);
 		expect(resp.changed).to_be_true(); expect(st.cursor).to_equal(int16_t(4));
 		expect(st.scroll).to_equal(int16_t(2));     // rows 2,3,4 visible; cursor on the last row
-		r.input.turn = 3; Response again = list(r.frame, m, st, rows, sc);
+		r.input.turn = 3; widgets::core::Response again = list(r.frame, m, st, rows, sc);
 		expect(st.cursor).to_equal(int16_t(4));     // clamped against rows_last, no wrap
 		expect(again.changed).to_be_false();
 
@@ -226,7 +226,7 @@ describe list_w("ui::oled::list", $ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const int16_t want_scroll[] = {0, 0, 1, 2, 2};
 		for (int16_t c = 0; c < 5; c++) {
-			uitest::Rig48 r; ListState st; ScrollText sc;
+			uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 			st.cursor = c; st.rows_last = 5;
 			list(r.frame, menu_rect(r.frame), st, rows, sc);
 			expect(st.scroll).to_equal(want_scroll[c]);
@@ -238,13 +238,13 @@ describe list_w("ui::oled::list", $ {
 	it("windows a list shorter than menu_rows without scrolling it", _ {
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
 		for (int16_t c = 0; c < 2; c++) {
-			uitest::Rig48 r; ListState st; ScrollText sc;
+			uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 			st.cursor = c; st.rows_last = 2;
 			list(r.frame, menu_rect(r.frame), st, two, sc);
 			expect(st.scroll).to_equal(int16_t(0));
 		}
 		// Only two bands are drawn; the third row's band (canvas 37..45) stays empty.
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(r.frame, menu_rect(r.frame), st, two, sc);
 		for (int y = 37; y <= 45; y++) {
 			expect(r.lit(0, y)).to_be_false();
@@ -252,14 +252,14 @@ describe list_w("ui::oled::list", $ {
 		}
 	});
 
-	it("does not latch select_pressed: the caller supplies edges (ui/core/input.h)", _ {
+	it("does not latch select_pressed: the caller supplies edges (ui/widgets/core/input.h)", _ {
 		// `select_pressed` is an *edge* -- true only on the tick the button went down -- and the
 		// widget deliberately does no de-duplication of its own. Two consecutive ticks with the
 		// flag still set therefore report `entered` twice. That is the contract, not a bug: a
 		// shell that lowered a level here would enter a submenu once per frame, and this case is
 		// what makes the requirement visible to whoever writes that shell.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		r.input.select_pressed = true;
 		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();
 		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();  // still held
@@ -271,7 +271,7 @@ describe list_w("ui::oled::list", $ {
 
 	it("reports entered on select press, and never on a non-selectable row", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		r.input.select_pressed = true;
 		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();
 
@@ -280,12 +280,12 @@ describe list_w("ui::oled::list", $ {
 		// one, reverting to the last relevant item at the ends. ListRow::selectable reproduces
 		// that scan for rows the caller does want drawn.
 		const ListRow mixed[] = {{"HEAD", {}, nullptr, false}, {"ONE"}, {"GAP", {}, nullptr, false}, {"TWO"}};
-		uitest::Rig48 r2; ListState st2; ScrollText sc2;
+		uitest::Rig48 r2; widgets::core::ListState st2; widgets::core::ScrollText sc2;
 		st2.cursor = 0; st2.rows_last = 4;                 // parked on the unselectable header
 		r2.input.select_pressed = true;
 		expect(list(r2.frame, menu_rect(r2.frame), st2, mixed, sc2).entered).to_be_false();
 
-		uitest::Rig48 r3; ListState st3; ScrollText sc3;
+		uitest::Rig48 r3; widgets::core::ListState st3; widgets::core::ScrollText sc3;
 		const Rect m3 = menu_rect(r3.frame);
 		st3.cursor = 1; st3.rows_last = 4;
 		r3.input.turn = 1;                                  // one detent skips "GAP" entirely
@@ -299,7 +299,7 @@ describe list_w("ui::oled::list", $ {
 	it("bounds turn by this frame's row count, not the previous frame's", _ {
 		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		list(r.frame, m, st, five, sc);
 		expect(st.rows_last).to_equal(int16_t(5));
@@ -319,12 +319,12 @@ describe list_w("ui::oled::list", $ {
 		// state.rows_last; this clamps it into [0, 1] immediately.
 		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		r.input.turn = 4; list(r.frame, m, st, five, sc);
 		expect(st.cursor).to_equal(int16_t(4));
 		r.input.turn = 0;
-		Response resp = list(r.frame, m, st, two, sc);
+		widgets::core::Response resp = list(r.frame, m, st, two, sc);
 		expect(st.cursor).to_equal(int16_t(1));      // clamped against this frame's 2 rows
 		expect(resp.changed).to_be_true();           // the clamp itself is a same-frame change
 		expect(st.rows_last).to_equal(int16_t(2));
@@ -337,12 +337,12 @@ describe list_w("ui::oled::list", $ {
 		// row 2, not stay pinned at row 1 waiting for state.rows_last to catch up.
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
 		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		r.input.turn = 1; list(r.frame, m, st, two, sc);
 		expect(st.cursor).to_equal(int16_t(1));       // at the old end, two rows
 		r.input.turn = 1;
-		Response resp = list(r.frame, m, st, five, sc); // grows to five rows this same call
+		widgets::core::Response resp = list(r.frame, m, st, five, sc); // grows to five rows this same call
 		expect(st.cursor).to_equal(int16_t(2));       // walked into the newly-available row
 		expect(resp.changed).to_be_true();
 		expect(st.rows_last).to_equal(int16_t(5));
@@ -353,10 +353,10 @@ describe list_w("ui::oled::list", $ {
 		// draw_vertical_line(xMin, startY, endY) -- one column, no rounding, nothing else.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		Style plain = kDelugeStyle48;
-		plain.highlighting = Highlighting::NoInversion;
+		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
+		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
-		ListState st; ScrollText sc;
+		widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(f, menu_rect(f), st, rows, sc);
 		for (int y = 19; y <= 27; y++) {
 			expect(r.lit(0, y)).to_be_true();     // the rule, corners included
@@ -374,12 +374,12 @@ describe list_w("ui::oled::list", $ {
 		// early return.
 		const char* longest = "A VERY LONG MENU ROW LABEL THAT OVERFLOWS";
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		r.input.now_ms = 0;             list(r.frame, m, st, rows, sc);  // arms the 400ms pause
 		expect(sc.offset).to_equal(int16_t(0));
-		r.input.now_ms = kScrollTime;   list(r.frame, m, st, rows, sc);  // first pixel step
-		r.input.now_ms = kScrollTime + kScrollStepForwardMs;
+		r.input.now_ms = widgets::core::kScrollTime;   list(r.frame, m, st, rows, sc);  // first pixel step
+		r.input.now_ms = widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs;
 		list(r.frame, m, st, rows, sc);
 		expect(sc.offset).to_be_greater_than(0);
 		expect(sc.offset).to_equal(int16_t(2));
@@ -401,14 +401,14 @@ describe list_w("ui::oled::list", $ {
 		const char* longest = "A VERY LONG MENU ROW LABEL THAT OVERFLOWS";
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		Style plain = kDelugeStyle48;
-		plain.highlighting = Highlighting::NoInversion;
+		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
+		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
-		ListState st; ScrollText sc;
+		widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(f);
 		r.input.now_ms = 0;             list(f, m, st, rows, sc);
-		r.input.now_ms = kScrollTime;   list(f, m, st, rows, sc);
-		r.input.now_ms = kScrollTime + kScrollStepForwardMs;
+		r.input.now_ms = widgets::core::kScrollTime;   list(f, m, st, rows, sc);
+		r.input.now_ms = widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs;
 		list(f, m, st, rows, sc);
 		expect(sc.offset).to_equal(int16_t(2));
 		for (int y = 19; y <= 27; y++) {
@@ -427,7 +427,7 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("shows five rows on 128x64 with an icon column", _ {
-		uitest::Rig64 r; ListState st; ScrollText sc;
+		uitest::Rig64 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const ListRow with_icon[] = {{"A", {}, &icons::checkedBox}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}};
 		list(r.frame, menu_rect(r.frame), st, with_icon, sc);
 		expect(st.rows_last).to_equal(int16_t(6));
@@ -469,7 +469,7 @@ describe list_w("ui::oled::list", $ {
 		// straight off the canvas instead of through the selected row's inversion. All three
 		// menu icons are exercised: their bitmaps are the legacy OLED::checkedBoxIcon /
 		// uncheckedBoxIcon / submenuArrowIcon.
-		uitest::Rig64 r; ListState st; ScrollText sc;
+		uitest::Rig64 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const ListRow with_icons[] = {{"A"},
 		                              {"B", {}, &icons::checkedBox},
 		                              {"C", {}, &icons::uncheckedBox},
@@ -508,7 +508,7 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("right-aligns a row value ahead of the icon column", _ {
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const ListRow rows[] = {{"ONE"}, {"TWO", "ON"}, {"THREE"}};
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		// No icon on that row, so the value's right edge is the rect's: drawStringAlignRight
@@ -528,7 +528,7 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("stacks a value and an icon on the same row", _ {
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const ListRow rows[] = {{"ONE"}, {"TWO", "ON", &icons::checkedBox}, {"THREE"}};
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		// content_end = 128 - 14 = 114 for the icon, so the 12px value ends there: columns
@@ -554,17 +554,17 @@ describe list_w("ui::oled::list", $ {
 		// `Linked::renderSubmenuItemTypeForOled`: the file's name at x kTextSpacingX, two rows down, in the rows' own
 		// face. Here it lands in an empty slot, so it must match a third row's unselected label pixel for pixel.
 		const ListRow noted[] = {{.label = "LINKED", .below = "X.XML"}, {"HIDE"}};
-		uitest::Rig48 a; ListState sa; ScrollText ca;
+		uitest::Rig48 a; widgets::core::ListState sa; widgets::core::ScrollText ca;
 		list(a.frame, menu_rect(a.frame), sa, noted, ca);
 		const ListRow three[] = {{"LINKED"}, {"HIDE"}, {.label = "X.XML", .selectable = false}};
-		uitest::Rig48 b; ListState sb; ScrollText cb;
+		uitest::Rig48 b; widgets::core::ListState sb; widgets::core::ScrollText cb;
 		list(b.frame, menu_rect(b.frame), sb, three, cb);
 		expect(a.pbm()).to_equal(b.pbm());
 	});
 
 	it("draws no note for a row without one", _ {
 		const ListRow rows[] = {{"LINKED"}, {"HIDE"}};
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		for (int y = 37; y <= 45; y++) {      // the third slot: canvas rows 37..45 on the 48-row panel
 			for (int x = 0; x < 128; x++) {
@@ -576,7 +576,7 @@ describe list_w("ui::oled::list", $ {
 	it("keeps an over-wide value from crossing the label origin", _ {
 		// New column, no legacy counterpart: a value longer than the row must not push the
 		// label box negative. Clamped at rect.x + kTextSpacingX.
-		uitest::Rig48 r; ListState st; ScrollText sc;
+		uitest::Rig48 r; widgets::core::ListState st; widgets::core::ScrollText sc;
 		const ListRow rows[] = {{"ONE"}, {"TWO", "A VALUE FAR TOO WIDE FOR ANY ROW ON THIS PANEL"}, {"THREE"}};
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		for (int y = 28; y <= 36; y++) {

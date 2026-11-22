@@ -41,7 +41,7 @@ struct DrawLineOptions {
 	std::optional<uint8_t> max_x{std::nullopt};
 	/// @brief Called for each pixel the line visits, if set.
 	///
-	/// A raw function pointer plus an opaque context (the pattern `ui/oled/columns.h` already
+	/// A raw function pointer plus an opaque context (the pattern `ui/widgets/oled/columns.h` already
 	/// uses) rather than a `std::function`: a `std::function` holding a capturing lambda
 	/// heap-allocates, and `src/ui/gfx/README.md` forbids allocation in this library.
 	/// `callback_ctx` is passed back unchanged.
@@ -107,7 +107,7 @@ public:
 	/// @brief The clip as last set, or `std::nullopt` if none is.
 	///
 	/// Unclamped -- this returns what was passed in, so a caller (\ref
-	/// deluge::ui::oled::ClipScope) can save and restore it.
+	/// deluge::ui::widgets::oled::ClipScope) can save and restore it.
 	/// @return The current clip rectangle, or `std::nullopt`.
 	std::optional<Rect> clip() const { return clip_; }
 	/// @}

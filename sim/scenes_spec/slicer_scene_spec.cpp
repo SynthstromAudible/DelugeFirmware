@@ -61,8 +61,8 @@
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/columns.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/columns.h"
 
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -138,7 +138,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -905,7 +906,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.tick(0);
 		const auto pad = [&](int16_t velocity) {
 			deluge::ui::shell::ButtonSet held{};
-			deluge::ui::PadMask pads{};
+			deluge::ui::widgets::core::PadMask pads{};
 			const deluge::ui::shell::UiContext ctx{held, pads, false, false, 0, r.profile};
 			deluge::ui::shell::UiEvent e{deluge::ui::shell::UiEvent::Kind::Pad};
 			e.x = kDisplayWidth;
@@ -1283,7 +1284,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.open();
 		ops.next_play_position =
 		    static_cast<int32_t>(slicer_scene().x_scroll() + 5 * slicer_scene().x_zoom());
-		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const RGB tick = deluge::ui::widgets::grid::tick_colour(deluge::ui::widgets::grid::TickColour::Normal, RGB{});
 		uint32_t at = 0;
 		for (const Mode mode : {Mode::Region, Mode::Manual}) {
 			slicer_scene().set_mode(mode);
@@ -1304,7 +1305,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().set_ops(&ops);
 		r.open();
 		ops.next_play_position = static_cast<int32_t>(slicer_scene().x_scroll() + 5 * slicer_scene().x_zoom());
-		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const RGB tick = deluge::ui::widgets::grid::tick_colour(deluge::ui::widgets::grid::TickColour::Normal, RGB{});
 		const uint8_t saved = PadLEDs::flashCursor;
 		slicer_scene().set_mode(Mode::Region);
 		// Each leg waits out the 15 ms playhead tick, so each reads a frame drawn under its own setting.

@@ -179,7 +179,7 @@ struct FakeMenuShell {
 		using ui::shell::ButtonId;
 		using ui::shell::UiEvent;
 		const ui::shell::ButtonSet held{};
-		const ui::PadMask pads{};
+		const ui::widgets::core::PadMask pads{};
 		const ui::shell::UiContext ui_ctx{held, pads, false, false, 0, deluge_profile()};
 		(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn},
 		                          ui_ctx);

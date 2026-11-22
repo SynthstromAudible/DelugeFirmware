@@ -187,12 +187,12 @@ bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, deluge::midi::
 
 bool MenuLearn::gold_turn(const MenuContext& ctx, const MenuState& st, const UiEvent& event) const {
 	if (!mode_ || event.kind != UiEvent::Kind::Encoder
-	    || (event.encoder != deluge::ui::EncoderRole::GoldLower
-	        && event.encoder != deluge::ui::EncoderRole::GoldUpper)) {
+	    || (event.encoder != deluge::ui::widgets::core::EncoderRole::GoldLower
+	        && event.encoder != deluge::ui::widgets::core::EncoderRole::GoldUpper)) {
 		return false;
 	}
 	if (!(ctx.is_kit && ctx.is_kit_global_fx)) {
-		(void)knob(ctx, st, {}, event.encoder == deluge::ui::EncoderRole::GoldUpper ? 1 : 0, 255);
+		(void)knob(ctx, st, {}, event.encoder == deluge::ui::widgets::core::EncoderRole::GoldUpper ? 1 : 0, 255);
 	}
 	return true;
 }
@@ -248,7 +248,8 @@ bool MenuLearn::observe(const MenuContext& ctx, const MenuState& st, const UiEve
 	return restart_blink;
 }
 
-void MenuLearn::leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::LedState shared_blink) {
+void MenuLearn::leds(const MenuState& st, deluge::ui::widgets::core::LedFrame& f,
+                     deluge::ui::widgets::core::LedState shared_blink) {
 	// `SoundEditor::beginScreen`'s tail (`SoundEditor::updatePadLightsFor`): every screen change asks the
 	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
@@ -257,15 +258,16 @@ void MenuLearn::leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::L
 	// the press.
 	if (restart_) {
 		restart_ = false;
-		f.restart(deluge::ui::BlinkRate::Fast);
+		f.restart(deluge::ui::widgets::core::BlinkRate::Fast);
 	}
-	const auto learn = static_cast<deluge::ui::LedId>(ButtonId::Learn);
+	const auto learn = static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Learn);
 	if (mode_) {
-		(void)f.set(learn, deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+		(void)f.set(learn, deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Fast));
 	}
 	else {
-		(void)f.set(learn,
-		            wants_blink(st) ? shared_blink : deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0});
+		(void)f.set(learn, wants_blink(st) ? shared_blink
+		                                   : deluge::ui::widgets::core::LedState{
+		                                         deluge::ui::widgets::core::LedState::Kind::Off, 0, 0});
 	}
 }
 

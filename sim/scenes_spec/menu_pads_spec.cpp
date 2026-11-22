@@ -25,8 +25,8 @@
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
-using deluge::ui::grid::FlashColour;
-using deluge::ui::grid::PadFlash;
+using deluge::ui::widgets::grid::FlashColour;
+using deluge::ui::widgets::grid::PadFlash;
 
 namespace {
 

@@ -22,18 +22,18 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 	});
 	it("copies a style in for every surface", _ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
-		expect(s.oled()[0].style->menu_rows).to_equal(deluge::ui::kDelugeStyle48.menu_rows);
-		expect(s.oled()[1].style->menu_rows).to_equal(deluge::ui::kDelugeStyle64.menu_rows);
-		expect(s.oled()[0].style).not_().to_equal(&deluge::ui::kDelugeStyle48); // a copy, which the shell may restyle
+		expect(s.oled()[0].style->menu_rows).to_equal(deluge::ui::widgets::core::kDelugeStyle48.menu_rows);
+		expect(s.oled()[1].style->menu_rows).to_equal(deluge::ui::widgets::core::kDelugeStyle64.menu_rows);
+		expect(s.oled()[0].style).not_().to_equal(&deluge::ui::widgets::core::kDelugeStyle48); // a copy, which the shell may restyle
 	});
 	it("set_highlighting restyles every surface's copy, not the profile's", _ {
 		// `FlashStorage::accessibilityMenuHighlighting`, which main's renderers read live
 		// (`HorizontalMenu::renderMenuItems` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
-		s.set_highlighting(deluge::ui::Highlighting::FullInversion);
-		expect(s.oled()[0].style->highlighting).to_equal(deluge::ui::Highlighting::FullInversion);
-		expect(s.oled()[1].style->highlighting).to_equal(deluge::ui::Highlighting::FullInversion);
-		expect(deluge::ui::kDelugeStyle48.highlighting).to_equal(deluge::ui::Highlighting::PartialInversion);
+		s.set_highlighting(deluge::ui::widgets::core::Highlighting::FullInversion);
+		expect(s.oled()[0].style->highlighting).to_equal(deluge::ui::widgets::core::Highlighting::FullInversion);
+		expect(s.oled()[1].style->highlighting).to_equal(deluge::ui::widgets::core::Highlighting::FullInversion);
+		expect(deluge::ui::widgets::core::kDelugeStyle48.highlighting).to_equal(deluge::ui::widgets::core::Highlighting::PartialInversion);
 	});
 	it("falls back to display_width/height when the board lists no panels", _ {
 		DelugeBoard b = uitest::kBoard2;
@@ -72,7 +72,7 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		p.colours[3] = RGB{1, 2, 3};
 		s.send_columns(4, p);
 		s.set_led(7, true);
-		s.set_indicator(0, deluge::ui::KnobIndicator{{3, 3, 2, 0}});
+		s.set_indicator(0, deluge::ui::widgets::core::KnobIndicator{{3, 3, 2, 0}});
 		s.flush();
 		expect(s.columns_sent.size()).to_equal(size_t(1));
 		expect(s.columns_sent[0].first).to_equal(uint8_t(4));
@@ -104,10 +104,10 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 	// drives would land on the wrong knob on real hardware -- a swap no other spec here would notice, because both
 	// indices are in range and both accept the same data.
 	it("numbers IndicatorId to match the boundary's whichKnob: Lower is 0", _ {
-		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Lower) == 0);
-		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Upper) == 1);
-		expect(static_cast<uint8_t>(deluge::ui::IndicatorId::Lower)).to_equal(uint8_t(0));
-		expect(static_cast<uint8_t>(deluge::ui::IndicatorId::Upper)).to_equal(uint8_t(1));
+		static_assert(static_cast<uint8_t>(deluge::ui::widgets::core::IndicatorId::Lower) == 0);
+		static_assert(static_cast<uint8_t>(deluge::ui::widgets::core::IndicatorId::Upper) == 1);
+		expect(static_cast<uint8_t>(deluge::ui::widgets::core::IndicatorId::Lower)).to_equal(uint8_t(0));
+		expect(static_cast<uint8_t>(deluge::ui::widgets::core::IndicatorId::Upper)).to_equal(uint8_t(1));
 	});
 	it("reports pads, LEDs and indicators in the snapshot format", _ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
@@ -117,7 +117,7 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		s.set_led(9, true);
 		s.set_led(9, false);
 		// Index 1 is `IndicatorId::Upper`, so the line names the upper knob.
-		s.set_indicator(1, deluge::ui::KnobIndicator{{3, 3, 2, 0}});
+		s.set_indicator(1, deluge::ui::widgets::core::KnobIndicator{{3, 3, 2, 0}});
 		expect(s.state()).to_equal(std::string("indicator upper 3 3 2 0\n"
 		                                       "led 7 on\n"
 		                                       "pad 0 0 255 0 0\n"

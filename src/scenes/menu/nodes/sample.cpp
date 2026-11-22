@@ -31,7 +31,7 @@
 
 #include "definitions_cxx.hpp" // MarkerType
 #include "shell/profile.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/text.h"
 
 namespace deluge::scenes::menu::nodes {
 
@@ -51,15 +51,16 @@ constexpr uint16_t kSampleBrowserArg = static_cast<uint16_t>(browser::BrowserId:
 
 } // namespace
 
-void SampleSceneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void SampleSceneItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                             MenuState& state) const {
 	// Drawn for at most the one tick between `on_focus` asking for the push and the router applying
 	// it, so what matters is only that it is never a blank frame -- `EditNameItem::render`'s own
 	// reasoning (`nodes/edit_name.cpp`). Legacy never draws any of these five items: `beginSession`
 	// opens the browser / marker editor / recorder before `SoundEditor` renders anything.
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 deluge::ui::shell::Result SampleSceneItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

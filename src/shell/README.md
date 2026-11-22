@@ -213,7 +213,7 @@ browser's keyboard). Pads go to whoever could read them when the tick's first pa
 so a press that closes a context menu is not typed into the scene it uncovers.
 
 **A scene reads any one input in at most one render pass per tick.** Reading through a frame *is*
-claiming it (`ui/core/frame_context.h`, rule 2), and a scene on two surfaces builds two
+claiming it (`ui/widgets/core/frame_context.h`, rule 2), and a scene on two surfaces builds two
 `FrameInput`s, so reading `f.turn()` in both `render_oled` and `render_grid` trips
 `InputClaims::double_claim`. Read it in the pass that owns it and draw the resulting state on the
 other; a scene that needs the raw event on both does not own it and reacts in `handle()`.

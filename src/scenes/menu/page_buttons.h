@@ -8,7 +8,7 @@
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/walk.h"
 #include "shell/scene.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include <cstdint>
 #include <optional>
@@ -32,6 +32,6 @@ std::optional<deluge::ui::shell::Result> handle_page_button(MenuCore core, MenuW
                                                             MenuContext::Root chain_root);
 
 /// @brief Declare the six buttons' LEDs: lit over the focused column and with more than one page, off elsewhere.
-void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::LedFrame& f);
+void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::widgets::core::LedFrame& f);
 
 } // namespace deluge::scenes::menu

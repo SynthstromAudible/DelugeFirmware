@@ -242,12 +242,13 @@ inline bool matrix_of(const BoardProfile& profile, ButtonId b, uint8_t& x, uint8
 /// harness carries its own, in the enum's declaration order.
 /// @param name The script's role name.
 /// @return The role, or `std::nullopt` when no role is named that.
-inline std::optional<deluge::ui::EncoderRole> encoder_role_by_name(std::string_view name) {
+inline std::optional<deluge::ui::widgets::core::EncoderRole> encoder_role_by_name(std::string_view name) {
 	static constexpr const char* kNames[] = {"Select", "Horizontal", "Vertical", "GoldUpper", "GoldLower", "Tempo"};
-	static_assert(sizeof(kNames) / sizeof(kNames[0]) == static_cast<size_t>(deluge::ui::EncoderRole::Count));
+	static_assert(sizeof(kNames) / sizeof(kNames[0])
+	              == static_cast<size_t>(deluge::ui::widgets::core::EncoderRole::Count));
 	for (size_t i = 0; i < sizeof(kNames) / sizeof(kNames[0]); i++) {
 		if (name == kNames[i]) {
-			return static_cast<deluge::ui::EncoderRole>(i);
+			return static_cast<deluge::ui::widgets::core::EncoderRole>(i);
 		}
 	}
 	return std::nullopt;
@@ -257,7 +258,8 @@ inline std::optional<deluge::ui::EncoderRole> encoder_role_by_name(std::string_v
 /// @param profile The board profile.
 /// @param role    The role to locate.
 /// @return The index, or `std::nullopt` when the profile does not wire that role.
-inline std::optional<uint8_t> encoder_index_of(const BoardProfile& profile, deluge::ui::EncoderRole role) {
+inline std::optional<uint8_t> encoder_index_of(const BoardProfile& profile,
+                                               deluge::ui::widgets::core::EncoderRole role) {
 	for (size_t i = 0; i < profile.encoder_by_index.size(); i++) {
 		if (profile.encoder_by_index[i] == role) {
 			return static_cast<uint8_t>(i);
@@ -308,7 +310,7 @@ inline std::optional<deluge::base::notify::Notice::Kind> notice_kind_by_name(std
 /// declaration keys straight into `button_name()` -- no board-profile table to reverse.
 /// @param id The declared LED.
 /// @return The button's name, or the id's digits when it names no button.
-inline std::string led_name(deluge::ui::LedId id) {
+inline std::string led_name(deluge::ui::widgets::core::LedId id) {
 	if (const char* n = deluge::ui::shell::button_name(static_cast<ButtonId>(id)); n != nullptr) {
 		return n;
 	}
@@ -358,19 +360,20 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 	// `SurfaceSet::leds()` is non-const.
 	for (const auto& [id, state] : fake.leds().frame.entries()) {
 		switch (state.kind) {
-		case deluge::ui::LedState::Kind::Off:
+		case deluge::ui::widgets::core::LedState::Kind::Off:
 			break; // An LED declared off is not shown at all -- only lit/blinking ones are.
-		case deluge::ui::LedState::Kind::On:
+		case deluge::ui::widgets::core::LedState::Kind::On:
 			deluge::harness::add_led_line(lines, led_name(id), false, 0);
 			break;
-		case deluge::ui::LedState::Kind::Blink:
+		case deluge::ui::widgets::core::LedState::Kind::Blink:
 			deluge::harness::add_led_line(lines, led_name(id), true, state.period_ms);
 			break;
-		case deluge::ui::LedState::Kind::Shared:
+		case deluge::ui::widgets::core::LedState::Kind::Shared:
 			// The shared phase's toggle period, so a snapshot names the rate.
 			deluge::harness::add_led_line(lines, led_name(id), true,
-			                              state.rate == deluge::ui::BlinkRate::Fast ? deluge::ui::kFastFlashTime
-			                                                                        : deluge::ui::kFlashTime);
+			                              state.rate == deluge::ui::widgets::core::BlinkRate::Fast
+			                                  ? deluge::ui::widgets::core::kFastFlashTime
+			                                  : deluge::ui::widgets::core::kFlashTime);
 			break;
 		}
 	}
@@ -378,7 +381,7 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 	// note on it) -- so index 1, not 0, is the upper knob. The `.state` name has to be the physical
 	// knob, or a level-2 snapshot would disagree with the level-3 one for the same screen.
 	for (uint8_t i = 0; i < 2; i++) {
-		if (const deluge::ui::KnobIndicator* k = fake.indicator(i); k != nullptr) {
+		if (const deluge::ui::widgets::core::KnobIndicator* k = fake.indicator(i); k != nullptr) {
 			deluge::harness::add_indicator_line(lines, i == 1, k->levels);
 		}
 	}
@@ -386,7 +389,7 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 	// one -- the level-2 twin of `tools/emu_parity.py` comparing the flashes over a window.
 	std::set<std::string> flashes;
 	for (size_t i = fake.flashes_reported; i < fake.flashes_sent.size(); i++) {
-		const deluge::ui::grid::PadFlash& f = fake.flashes_sent[i];
+		const deluge::ui::widgets::grid::PadFlash& f = fake.flashes_sent[i];
 		flashes.insert("flash " + std::to_string(f.x) + " " + std::to_string(f.y) + " "
 		               + std::to_string(static_cast<unsigned>(f.colour)));
 	}
@@ -645,7 +648,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				break;
 			}
 			case StepKind::Encoder: {
-				const std::optional<deluge::ui::EncoderRole> role = detail::encoder_role_by_name(s.name);
+				const std::optional<deluge::ui::widgets::core::EncoderRole> role = detail::encoder_role_by_name(s.name);
 				if (!role) {
 					result.error = detail::make_error(line, "unknown encoder role");
 					return result;

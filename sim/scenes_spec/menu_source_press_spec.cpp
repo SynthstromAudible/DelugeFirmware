@@ -200,7 +200,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		menu::MenuWalk walk;
 		menu::ValueSession session;
 		const deluge::ui::shell::ButtonSet held{};
-		const deluge::ui::PadMask held_pads{};
+		const deluge::ui::widgets::core::PadMask held_pads{};
 		const deluge::ui::shell::UiContext ui{held, held_pads, true, false, 0, deluge_profile()};
 		const std::optional<deluge::ui::shell::Result> got =
 		    pads.source_press(menu::MenuCore{core_ctx, st}, walk, session, 15, 2, ui);

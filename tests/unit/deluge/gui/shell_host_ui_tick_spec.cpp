@@ -275,10 +275,10 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		const uint8_t back = static_cast<uint8_t>(IndicatorLED::BACK);
 		expect(back).to_equal(uint8_t(16));
 		r.base.led_declared = true;
-		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
+		r.base.led_id = static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
 		// (`MenuScene::leds`, `MenuLearn::leds`): a plain blink, no deadline.
-		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
+		r.base.led_state = deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 
 		// The whole chain, driven by nothing but the guest's own arms.
@@ -310,8 +310,8 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		Rig r;
 		const uint8_t back = static_cast<uint8_t>(IndicatorLED::BACK);
 		r.base.led_declared = true;
-		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
-		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
+		r.base.led_id = static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back);
+		r.base.led_state = deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, 128, 0};
 		indicator_leds::ledStates[back] = true; // legacy's state for BACK before the guest takes it
 		expect(r.open()).to_be_true();
 
@@ -354,8 +354,8 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 	it("writes a knob indicator only when something declares one", _ {
 		Rig r;
 		r.base.led_declared = true;
-		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
-		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
+		r.base.led_id = static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back);
+		r.base.led_state = deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 		uint32_t now = 0;
 		(void)run_quiet(r.guest, now, 5);

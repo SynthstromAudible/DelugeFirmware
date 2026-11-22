@@ -40,10 +40,10 @@ constexpr int32_t kGreyoutAmountFull = 6500000;
 
 /// Board LED indices the LED-derivation case declares against; `LedId` is an opaque enum the board
 /// profile gives meaning to, so a spec names its own.
-constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(3);
+constexpr deluge::ui::widgets::core::LedId kPlayLed = static_cast<deluge::ui::widgets::core::LedId>(3);
 /// Two more, for the shared-blink cases.
-constexpr deluge::ui::LedId kRecordLed = static_cast<deluge::ui::LedId>(4);
-constexpr deluge::ui::LedId kSongLed = static_cast<deluge::ui::LedId>(5);
+constexpr deluge::ui::widgets::core::LedId kRecordLed = static_cast<deluge::ui::widgets::core::LedId>(4);
+constexpr deluge::ui::widgets::core::LedId kSongLed = static_cast<deluge::ui::widgets::core::LedId>(5);
 
 /// @brief A BUTTON event at matrix (x, y), as `tests/unit/shell/input_lowering_spec.cpp` builds them.
 DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
@@ -57,7 +57,8 @@ constexpr std::string_view kPopupText = "SAVED";
 
 BoardProfile tick_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48,
+	                                                                      &deluge::ui::widgets::core::kDelugeStyle64};
 	BoardProfile p = uitest::test_profile_input();
 	p.oled_role_by_index = kRoles;
 	p.style_by_index = kStyles;
@@ -82,7 +83,7 @@ class BaseScene final : public Scene {
 public:
 	SceneKind kind() const override { return kBase; }
 
-	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override {
 		oled_renders++;
 		if (role == SurfaceRole::Main) {
 			frame.hline(kMainLineY, 0, 40);
@@ -99,7 +100,7 @@ public:
 			frame.rect({kAuxRectX, kAuxRectY, 20, 10});
 		}
 	}
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		grid_renders++;
 		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
@@ -110,10 +111,12 @@ public:
 			}
 		}
 	}
-	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
+		(void)frame.set(kPlayLed,
+		                deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::On, 0, 0});
 		if (shared_blink) {
-			(void)frame.set(kRecordLed, deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+			(void)frame.set(kRecordLed,
+			                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 		}
 	}
 	Result handle(const UiEvent& event, const UiContext&) override {
@@ -166,7 +169,8 @@ public:
 		}
 	}
 	bool owns(const UiEvent& event) const override {
-		return owns_turn && event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select;
+		return owns_turn && event.kind == UiEvent::Kind::Encoder
+		       && event.encoder == deluge::ui::widgets::core::EncoderRole::Select;
 	}
 	void on_model_changed(const deluge::base::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
@@ -219,11 +223,11 @@ public:
 	explicit OverlayScene(SceneKind k = kOverlay) : kind_(k) {}
 	SceneKind kind() const override { return kind_; }
 
-	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole, deluge::ui::widgets::oled::OledFrame& frame) override {
 		oled_renders++;
 		frame.rect({kBoxX, kBoxY, 30, 12});
 	}
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		grid_renders++;
 		if (grid_renders == 1) {
 			first_frame_shift = frame.shift();
@@ -232,16 +236,18 @@ public:
 			(void)frame.pad(0, 0, kOverlayColour);
 		}
 	}
-	void leds(deluge::ui::LedFrame& frame) override {
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
 		if (declares_play) {
-			(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 200, 0});
+			(void)frame.set(kPlayLed, deluge::ui::widgets::core::LedState{
+			                              deluge::ui::widgets::core::LedState::Kind::Blink, 200, 0});
 		}
 		if (shared_blink) {
-			(void)frame.set(kSongLed, deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+			(void)frame.set(kSongLed,
+			                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 		}
 		if (restart_next) {
 			restart_next = false;
-			frame.restart(deluge::ui::BlinkRate::Normal);
+			frame.restart(deluge::ui::widgets::core::BlinkRate::Normal);
 		}
 	}
 	Result handle(const UiEvent&, const UiContext&) override {
@@ -258,7 +264,7 @@ public:
 	bool occludes_grid() const override { return occludes; }
 	bool oled_transparent(SurfaceRole) const override { return transparent; }
 	bool input_transparent() const override { return passive; }
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return mask; }
 
 	/// The local corner `render_oled` draws its box at.
 	static constexpr int32_t kBoxX = 60, kBoxY = 20;
@@ -275,7 +281,7 @@ public:
 	bool declares_play = true, shared_blink = false, restart_next = false;
 	/// Whether `render_grid` paints its one pad.
 	bool paints = true;
-	deluge::ui::grid::GreyoutMask mask{};
+	deluge::ui::widgets::grid::GreyoutMask mask{};
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0;
 	/// The time every `tick()` has handed this scene, summed.
 	uint32_t ticked_ms = 0;
@@ -434,9 +440,9 @@ describe shell_tick("shell::Shell::tick", $ {
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		// `GreyoutMask::cols` is counted right-to-left -- bit `n` selects column `width - 1 - n`
-		// (`ui/grid/effects.h`, from `prepareColour`'s `kDisplayWidth + kSideBarWidth - 1 - x`) --
+		// (`ui/widgets/grid/effects.h`, from `prepareColour`'s `kDisplayWidth + kSideBarWidth - 1 - x`) --
 		// so column 0 of an 18-wide grid is bit 17, not bit 0.
-		r.overlay.mask = deluge::ui::grid::GreyoutMask{.cols = 1u << 17, .rows = 0};
+		r.overlay.mask = deluge::ui::widgets::grid::GreyoutMask{.cols = 1u << 17, .rows = 0};
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
 		r.shell.tick(0);
@@ -460,9 +466,9 @@ describe shell_tick("shell::Shell::tick", $ {
 		// a menu's mask under a keyboard's, which legacy's top-down `getUIGreyoutColsAndRows`
 		// (`gui/ui/ui.cpp`) resolves to the keyboard's alone.
 		r.overlay.paints = false;
-		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		r.overlay.mask = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFEu, 0};
 		r.upper.paints = false;
-		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
+		r.upper.mask = deluge::ui::widgets::grid::GreyoutMask{0b10u, 0};
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
 		expect(r.shell.stack().push({kUpper, 0})).to_be_true();
@@ -483,9 +489,9 @@ describe shell_tick("shell::Shell::tick", $ {
 		Rig r{ShellConfig{.greys_in_send_path = true}};
 		r.base.colour = RGB{100, 100, 100};
 		r.overlay.paints = false;
-		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		r.overlay.mask = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFEu, 0};
 		r.upper.paints = false;
-		r.upper.mask = deluge::ui::grid::GreyoutMask{0b10u, 0};
+		r.upper.mask = deluge::ui::widgets::grid::GreyoutMask{0b10u, 0};
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
 		expect(r.shell.stack().push({kUpper, 0})).to_be_true();

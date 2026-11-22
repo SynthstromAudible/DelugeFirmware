@@ -2,8 +2,8 @@
 #include "scenes/menu/node.h"
 #include "shell/scene.h" // for the CustomItem concrete override in this file only -- node.h never
                          // includes this itself, see its file-level note.
-#include "ui/oled/meters.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/oled/meters.h"
+#include "ui/widgets/oled/values.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -24,7 +24,7 @@ static_assert(node_spec_a.kind == Kind::Int);
 static_assert(node_spec_a.bind.param.index == 5);
 static_assert(node_spec_a.bind.param.kind == params::Kind::PATCHED);
 static_assert(node_spec_a.title == 1);
-static_assert(node_spec_a.hint == deluge::ui::oled::Hint::Lpf);
+static_assert(node_spec_a.hint == deluge::ui::widgets::oled::Hint::Lpf);
 
 // `submenu()` -- children span through as-is, layout carried through.
 constexpr const Node* node_spec_kids[] = {&node_spec_a};
@@ -34,8 +34,8 @@ static_assert(node_spec_s.layout == Layout::Horizontal);
 static_assert(node_spec_s.kind == Kind::Submenu);
 static_assert(node_spec_s.children[0] == &node_spec_a);
 
-// `IntRange` is an alias of `ui::oled::Range`, not a new type.
-static_assert(std::is_same_v<IntRange, deluge::ui::oled::Range>);
+// `IntRange` is an alias of `ui::widgets::oled::Range`, not a new type.
+static_assert(std::is_same_v<IntRange, deluge::ui::widgets::oled::Range>);
 
 // `Binding::scaling`: `Scaling::Standard` unless the call site
 // names one of the two legacy exceptions. Only `param()` takes it -- a `get`/`set` binding owns its
@@ -61,7 +61,7 @@ int32_t node_spec_get(const MenuContext&) { return 0; }
 void node_spec_set(const MenuContext&, int32_t) {}
 constexpr Node node_spec_int = int_item(4, node_spec_get, node_spec_set, IntRange{0, 100, 5}, Hint::Slider);
 static_assert(node_spec_int.kind == Kind::Int);
-static_assert(node_spec_int.hint == deluge::ui::oled::Hint::Slider);
+static_assert(node_spec_int.hint == deluge::ui::widgets::oled::Hint::Slider);
 static_assert(node_spec_int.bind.fixed_range.has_value());
 static_assert(node_spec_int.bind.fixed_range->min == 0 && node_spec_int.bind.fixed_range->max == 100);
 static_assert(node_spec_int.bind.scaling == Scaling::Standard); // a get/set binding is never scaled
@@ -75,7 +75,7 @@ static_assert(node_spec_decimal.bind.decimal_places == 2);
 // expression regardless of the object's own type or how it was constructed -- this does not
 // require CustomItem itself to be a literal type).
 struct NodeSpecNullItem : CustomItem {
-	void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
+	void render(deluge::ui::widgets::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                  const MenuContext&, MenuState&) const override {
 		return {};

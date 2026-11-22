@@ -26,9 +26,9 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
+#include "ui/widgets/oled/values.h"
 
 #include "definitions_cxx.hpp" // NUM_GATE_CHANNELS, NUM_PHYSICAL_CV_CHANNELS
 #include "midi/device_id.h"
@@ -57,11 +57,11 @@ const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
 
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief Draw @p names as `Selection::drawPixelsForOled` would (`origin/main:src/deluge/gui/menu_item/selection.cpp`
@@ -98,14 +98,14 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 ///        off-time row, but restoring the cursor on the way back must NOT, and legacy keeps the two
 ///        apart by never writing `currentSourceIndex` on that branch at all
 ///        (`Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`).
-void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, std::span<const std::string_view> names,
-                             size_t real_output_limit) {
+void render_output_selection(deluge::ui::widgets::oled::OledFrame& f, MenuState& state,
+                             std::span<const std::string_view> names, size_t real_output_limit) {
 	draw_title_for(f, state);
 
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.tick.render_resp =
-	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
+	state.tick.render_resp = deluge::ui::widgets::oled::enum_value(f, deluge::ui::widgets::oled::menu_rect(f), index,
+	                                                               names, state.list[d], state.scroll[d]);
 	if (state.tick.render_resp.entered && !names.empty()) {
 		state.walk.source_choice =
 		    static_cast<int8_t>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(names.size()) - 1));
@@ -129,8 +129,8 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, s
 /// value and leaves `soundEditor.currentSourceIndex` alone, and so does this.
 void focus_output_selection(MenuState& state) {
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 }
 
 /// @brief The devices `Devices::drawPixelsForOled` would draw, in its own order: the host's connected devices
@@ -161,7 +161,8 @@ void CvSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 	focus_output_selection(state); // `origin/main:src/deluge/gui/menu_item/cv/selection.h` `beginSession`
 }
 
-void CvSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void CvSelectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                             MenuState& state) const {
 	static_assert(std::size(kCvOutputNames) == NUM_PHYSICAL_CV_CHANNELS,
 	              "cv::Selection::getOptions names one row per physical CV output");
 	const std::string_view names[] = {
@@ -212,7 +213,8 @@ void GateSelectionItem::on_focus_backward(const MenuContext& /*ctx*/, MenuState&
 	    std::clamp<int32_t>(state.real_output_choice, 0, static_cast<int32_t>(NUM_GATE_CHANNELS) - 1));
 }
 
-void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void GateSelectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                               MenuState& state) const {
 	static_assert(std::size(kGateOutputNames) == NUM_GATE_CHANNELS + 1,
 	              "gate::Selection::getOptions names every gate output, then the off-time page");
 	const std::string_view names[] = {
@@ -255,9 +257,9 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	}
 
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
 	state.list[d].cursor = static_cast<int16_t>(cursor);
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 
 	// `Devices::beginSession` sets `soundEditor`'s current MIDI cable to `getCable(this->getValue())`. A `CustomItem`
 	// gets a `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
@@ -272,16 +274,16 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	state.walk.midi_device_choice = cursor < n ? devices[cursor] : deluge::midi::kDin;
 }
 
-void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void MidiDevicesItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
 	// `Devices::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) builds
-	// `kOLEDMenuNumOptionsVisible` labels around its own `current_scroll_`; `ui::oled::list` owns the window, so every
-	// connected device becomes a row and the widget picks the slice.
+	// `kOLEDMenuNumOptionsVisible` labels around its own `current_scroll_`; `ui::widgets::oled::list` owns the window,
+	// so every connected device becomes a row and the widget picks the slice.
 	std::array<deluge::midi::DeviceId, kMaxDeviceRows> devices{};
 	const size_t n = listed_devices(ctx, devices);
 
-	deluge::ui::oled::ListRow rows[kMaxDeviceRows];
+	deluge::ui::widgets::oled::ListRow rows[kMaxDeviceRows];
 	for (size_t i = 0; i < n; i++) {
 		// `Devices::drawPixelsForOled` labels a row with the cable's `getDisplayName()`; the host's names outlive this
 		// frame.
@@ -291,8 +293,8 @@ void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 
 	const size_t d = depth_of(state);
 	state.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[d]);
+	    deluge::ui::widgets::oled::list(f, deluge::ui::widgets::oled::menu_rect(f), state.list[d],
+	                                    std::span<const deluge::ui::widgets::oled::ListRow>{rows, n}, state.scroll[d]);
 
 	// `selectEncoderAction`'s own tail (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): the cursor IS the
 	// selection, and `soundEditor`'s current MIDI cable follows it. Legacy's skip-the-disconnected loop

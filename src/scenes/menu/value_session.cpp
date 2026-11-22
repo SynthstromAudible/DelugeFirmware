@@ -75,18 +75,18 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 	switch (node.kind) {
 	case Kind::Enum:
 		st.enum_index = bindings::read(node, ctx);
-		st.enum_list = deluge::ui::ListState{};
-		st.enum_scroll = deluge::ui::ScrollText{};
+		st.enum_list = deluge::ui::widgets::core::ListState{};
+		st.enum_scroll = deluge::ui::widgets::core::ScrollText{};
 		break;
 	case Kind::Toggle:
 		st.edit_bool = bindings::read(node, ctx) != 0;
-		st.scroll[st.depth] = deluge::ui::ScrollText{};
+		st.scroll[st.depth] = deluge::ui::widgets::core::ScrollText{};
 		break;
 	case Kind::Decimal:
 		st.edit_int = bindings::read(node, ctx);
 		// `Decimal::beginSession`: the cursor starts on `getDefaultEditPos()`.
 		st.decimal_pos = node.bind.default_edit_pos;
-		st.cursor_blink = deluge::ui::Blink{};
+		st.cursor_blink = deluge::ui::widgets::core::Blink{};
 		break;
 	case Kind::Range: {
 		// `Range::beginSession` (`origin/main:src/deluge/gui/menu_item/range.cpp`) is `editingRangeEdge = OFF`, and
@@ -95,10 +95,10 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		// `RangeSpec::focus_left_when_split` says.
 		st.edit_int = bindings::read(node, ctx); // the lower edge
 		st.edit_upper = bindings::read_upper(node, ctx);
-		st.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		st.edit_edge = deluge::ui::widgets::oled::RangeEdge::Off;
 		if (const RangeSpec* spec = node.bind.range_spec;
 		    spec != nullptr && spec->focus_left_when_split && st.edit_int != st.edit_upper) {
-			st.edit_edge = deluge::ui::oled::RangeEdge::Left;
+			st.edit_edge = deluge::ui::widgets::oled::RangeEdge::Left;
 		}
 		break;
 	}

@@ -1,7 +1,7 @@
 #include "shell/notices.h"
 #include "shell/scene_stack.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/text.h"
 #include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
@@ -439,10 +439,10 @@ describe shell_notices("shell::Notices", $ {
 			// None of them paints a pad: `render_grid` is the base `Scene`'s do-nothing default.
 			deluge::ui::gfx::grid::PadGrid grid{{16, 2, 8}};
 			grid.set(3, 3, RGB{9, 9, 9});
-			deluge::ui::InputSnapshot snap{};
-			deluge::ui::RepaintGate gate;
-			deluge::ui::FrameContext ctx{snap, gate};
-			deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
+			deluge::ui::widgets::core::InputSnapshot snap{};
+			deluge::ui::widgets::core::RepaintGate gate;
+			deluge::ui::widgets::core::FrameContext ctx{snap, gate};
+			deluge::ui::widgets::grid::GridFrame frame = deluge::ui::widgets::grid::root_grid_frame(grid, ctx);
 			scene->render_grid(frame);
 			expect(grid.at(3, 3)).to_equal(RGB{9, 9, 9});
 		}
@@ -476,7 +476,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("a console line's glyphs are not clipped -- E and F must not render identically", _ {
 		// `ConsoleScene::render_oled` must draw each line into a region as tall as
-		// `FontId::Apple7`'s real height (`text_height_for`, 9 -- `ui/core/metrics.h`'s
+		// `FontId::Apple7`'s real height (`text_height_for`, 9 -- `ui/widgets/core/metrics.h`'s
 		// own note that this face draws one row lower than its 7-row sibling); a shorter region clips every
 		// glyph's bottom row. `E` and `F` differ ONLY in that bottom bar, so they are the cheapest
 		// possible shape probe: a set-pixel COUNT assertion (the "actually drew
@@ -506,7 +506,7 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a Notification with no sink pushes the banner: top-pinned, transparent, input-transparent, "
-	   "drawn with ui::oled::notification", _ {
+	   "drawn with ui::widgets::oled::notification", _ {
 		expect(notification_sink()).to_be_null();
 		Rig r;
 		(void)r.queue.push(make_notification("Probability", "100%"));
@@ -529,7 +529,7 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 banner;
 		r.notification.render_oled(SurfaceRole::Main, banner.frame);
 		deluge::ui::test::Rig48 widget;
-		deluge::ui::oled::notification(widget.frame, "Probability", "100%");
+		deluge::ui::widgets::oled::notification(widget.frame, "Probability", "100%");
 		deluge::ui::test::Rig48 blank;
 		expect(banner.pbm()).not_().to_equal(blank.pbm());
 		expect(banner.pbm()).to_equal(widget.pbm());
@@ -537,7 +537,7 @@ describe shell_notices("shell::Notices", $ {
 		// Top-pinned: legacy's band is `OLED_MAIN_TOPMOST_PIXEL` to `+ kTextSpacingY + 1`
 		// (`OLED::displayNotification` in `oled.cpp`), so nothing below that band is lit.
 		const int32_t top = banner.frame.origin.y;
-		const int32_t end_y = deluge::ui::oled::text_height_for(banner.frame.style.row_font) + 1;
+		const int32_t end_y = deluge::ui::widgets::oled::text_height_for(banner.frame.style.row_font) + 1;
 		bool lit_below = false;
 		for (int32_t y = top + end_y + 1; y < top + banner.frame.bounds().h; y++) {
 			for (int32_t x = 0; x < banner.frame.bounds().w; x++) {
@@ -850,10 +850,10 @@ describe shell_notices("shell::Notices", $ {
 		popup48.render_oled(SurfaceRole::Main, saved48.frame);
 
 		// Real content, asserted before trusting the golden: the Framed border sits exactly
-		// where deluge::ui::oled::popup_rect_for computes it (mirrors popup_spec.cpp's own technique),
+		// where deluge::ui::widgets::oled::popup_rect_for computes it (mirrors popup_spec.cpp's own technique),
 		// and the canvas is not blank -- so a blind re-record over a broken render (wrong style,
 		// missing text, an empty canvas) cannot pass silently.
-		const auto box48 = deluge::ui::oled::popup_rect_for(saved48.frame, content);
+		const auto box48 = deluge::ui::widgets::oled::popup_rect_for(saved48.frame, content);
 		const int32_t top48 = saved48.frame.origin.y;
 		expect(saved48.lit(box48.x, top48 + box48.y + 1)).to_be_true();         // left edge
 		expect(saved48.lit(box48.x + box48.w, top48 + box48.y + 1)).to_be_true(); // right edge
@@ -868,7 +868,7 @@ describe shell_notices("shell::Notices", $ {
 		popup64.show("SAVED", /*popup_type=*/1, 0, 800);
 		popup64.render_oled(SurfaceRole::Main, saved64.frame);
 
-		const auto box64 = deluge::ui::oled::popup_rect_for(saved64.frame, content);
+		const auto box64 = deluge::ui::widgets::oled::popup_rect_for(saved64.frame, content);
 		const int32_t top64 = saved64.frame.origin.y;
 		expect(saved64.lit(box64.x, top64 + box64.y + 1)).to_be_true();
 		expect(saved64.lit(box64.x + box64.w, top64 + box64.y + 1)).to_be_true();

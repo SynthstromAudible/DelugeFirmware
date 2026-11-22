@@ -158,7 +158,7 @@ public:
 	          deluge::synth::PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
 	deluge::ui::shell::SceneKind kind() const override { return kParamPopupSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
 	/// @brief The popup routes nothing: legacy never calls `buttonAction`/`padAction` on the popup
 	///        image, it is drawn straight into the OLED image on the way out
 	///        (`OLED::sendMainImage`).

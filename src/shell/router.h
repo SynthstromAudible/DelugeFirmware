@@ -3,7 +3,7 @@
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
 #include "shell/service.h"
-#include "ui/core/frame_context.h"
+#include "ui/widgets/core/frame_context.h"
 
 #include <cstddef>
 #include <cstdint>

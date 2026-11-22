@@ -1,7 +1,7 @@
 #pragma once
 #include "libdeluge/board.h"
 #include "shell/profile.h"
-#include "ui/core/input.h"
+#include "ui/widgets/core/input.h"
 #include <cstdint>
 #include <span>
 
@@ -21,7 +21,7 @@ extern const std::span<const int8_t> kDelugeLedByButton;
 
 /// Deluge encoder order: libdeluge index → EncoderRole (0=Vertical, 1=Horizontal, 2=Tempo, 3=Select, 4=GoldUpper,
 /// 5=GoldLower).
-extern const std::span<const EncoderRole> kDelugeEncoders;
+extern const std::span<const widgets::core::EncoderRole> kDelugeEncoders;
 
 /// Deluge encoder kinds: EncoderRole → EncoderKind (Detented or Accelerating).
 extern const std::span<const EncoderKind> kDelugeEncoderKinds;
@@ -30,7 +30,7 @@ extern const std::span<const EncoderKind> kDelugeEncoderKinds;
 extern const std::span<const SurfaceRole> kDelugeOledRoles;
 
 /// Deluge OLED styles: display index → Style* (one 48-row style).
-extern const std::span<const Style* const> kDelugeOledStyles;
+extern const std::span<const widgets::core::Style* const> kDelugeOledStyles;
 
 /// The board profile for the Deluge: button matrix, LED map, encoders, styles, and shortcuts.
 /// @return The profile, viewing static storage.

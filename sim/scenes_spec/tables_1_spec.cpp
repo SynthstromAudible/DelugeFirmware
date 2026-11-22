@@ -675,7 +675,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		// Main's edge arm on four ranges, against the port's arithmetic: every range, both edges, both directions,
 		// turned far enough to reach every clamp. The row holds all four ranges, since a left edge moves the range
 		// below's top.
-		using deluge::ui::oled::RangeEdge;
+		using deluge::ui::widgets::oled::RangeEdge;
 		RangeFixture f{4};
 		const int16_t tops[] = {40, 41, 60, 32767};
 		int32_t compared = 0;
@@ -704,7 +704,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 	});
 
 	it("picks an edge on a horizontal turn exactly as Range::horizontalEncoderAction does", _ {
-		using deluge::ui::oled::RangeEdge;
+		using deluge::ui::widgets::oled::RangeEdge;
 		RangeFixture f{3};
 		const auto name_of = [](RangeEdge e) { return e == RangeEdge::Left ? "left" : e == RangeEdge::Right ? "right" : "off"; };
 		size_t compared = 0;
@@ -820,9 +820,9 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		static_cast<SoundInstrument*>(f.song.instrument)->sourceResources[0].defaultRangeI = 4;
 		std::vector<int32_t> got;
 		menu::MenuState picker{};
-		picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
+		picker.edit_edge = deluge::ui::widgets::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
 		nodes::kMultiRangeItem.on_focus(f.ctx, picker);
-		expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Off));
 		const auto frame = [&](int8_t turn, bool shift) {
 			deluge::ui::test::Rig48 rig;
 			rig.input.turn = turn;
@@ -855,10 +855,10 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		popup.ui.popup = true;
 		nodes::range_delete_press(gated, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
+		state.edit_edge = deluge::ui::widgets::oled::RangeEdge::Left;
 		nodes::range_delete_press(f.ctx, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		state.edit_edge = deluge::ui::widgets::oled::RangeEdge::Off;
 		nodes::range_delete_press(f.ctx, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(2);
 		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
@@ -900,7 +900,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
 		expect(static_cast<int32_t>(sound->sourceResources[0].getRangeIndex(40))).to_equal(0);
-		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		picker.edit_edge = deluge::ui::widgets::oled::RangeEdge::Right;
 		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
 	});

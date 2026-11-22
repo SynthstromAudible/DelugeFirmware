@@ -148,7 +148,7 @@ fn archive_app_objects(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app eyalroz_printf \
              deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_controls deluge_instruments_classic deluge_effects deluge_host_chains deluge_midi \
-             deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
+             deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_oled deluge_ui_widgets_grid deluge_ui_shell \
              deluge_base_notify deluge_scenes deluge_scenes_bind",
             app_objs_dir.display(),
             build_dir.display()
@@ -213,9 +213,9 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/midi", "libdeluge_midi.a"),
         ("src/ui/gfx", "libdeluge_ui_gfx_oled.a"),
         ("src/ui/gfx", "libdeluge_ui_gfx_grid.a"),
-        ("src/ui", "libdeluge_ui_core.a"),
-        ("src/ui", "libdeluge_ui_oled.a"),
-        ("src/ui", "libdeluge_ui_grid.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_core.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_oled.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_grid.a"),
         ("src/shell", "libdeluge_ui_shell.a"),
         ("src/base/notify", "libdeluge_base_notify.a"),
         ("src/scenes", "libdeluge_scenes.a"),

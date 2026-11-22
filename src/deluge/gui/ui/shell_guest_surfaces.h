@@ -123,7 +123,7 @@ public:
 	/// @param x Pad column.
 	/// @param y Pad row.
 	/// @param colour The flash's colour code.
-	void flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) override;
+	void flash_pad(uint8_t x, uint8_t y, deluge::ui::widgets::grid::FlashColour colour) override;
 	void set_led(uint8_t board_led, bool on) override;
 	/// @brief Restore legacy's state for an LED the shell has stopped declaring.
 	///
@@ -133,7 +133,7 @@ public:
 	/// that blinker.
 	/// @param board_led An `indicator_leds::LED` value.
 	void release_led(uint8_t board_led) override;
-	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override;
+	void set_indicator(uint8_t which, const deluge::ui::widgets::core::KnobIndicator& indicator) override;
 	void flush() override;
 
 	/// @brief Does this board's `SurfaceRole::Main` surface have somewhere to go?

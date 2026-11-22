@@ -39,10 +39,10 @@
 ///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
 ///           `default_key` are `Kind::Range` -- exactly the three consumers that
 ///           justify a `Range` kind -- and each end is a DEVICE row (`defaults/tempo/lower`, `.../upper`), not a
-///           menu-item member. See `kDefaultTempoSpec` below and `ui/oled/values.h`'s `range_value`.
+///           menu-item member. See `kDefaultTempoSpec` below and `ui/widgets/oled/values.h`'s `range_value`.
 ///           `default_active_scale` is `nodes::ActiveScalesItem` (`nodes/scales.h`); legacy's
 ///           `ActiveScaleMenu` (`origin/main:src/deluge/gui/menu_item/active_scales.h`) renders through
-///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::oled::list` already is.
+///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::widgets::oled::list` already is.
 ///
 /// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are declared, but not as children of anything.** They are
 ///       not children of `settingsRootMenu` -- legacy reaches them only from `cv::Selection::selectButtonPress` /
@@ -156,11 +156,11 @@ std::optional<int32_t> turn_follow_channel(const MenuContext& ctx, int32_t value
 /// @param f      The frame the item draws in.
 /// @param value  The channel or zone after this tick's edit.
 /// @param scroll The side-scroll state of the device's name.
-void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::oled::OledFrame& f,
-                         int32_t value, deluge::ui::ScrollText& scroll);
+void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::widgets::oled::OledFrame& f,
+                         int32_t value, deluge::ui::widgets::core::ScrollText& scroll);
 template <project::FollowInput Input>
-void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
-                         deluge::ui::ScrollText& scroll) {
+void draw_follow_channel(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
+                         deluge::ui::widgets::core::ScrollText& scroll) {
 	follow_channel_draw(Input, ctx, f, value, scroll);
 }
 
@@ -639,17 +639,17 @@ std::string_view format_range_key(int32_t value, const void* hook_ctx, std::span
 /// `origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
 inline constexpr RangeSpec kDefaultTempoSpec{.upper_path = project::device_path::kTempoUpper,
                                              .format = format_range_integer,
-                                             .clamp = deluge::ui::oled::RangeClamp::Push,
+                                             .clamp = deluge::ui::widgets::oled::RangeClamp::Push,
                                              .focus_left_when_split = true};
 inline constexpr RangeSpec kDefaultSwingSpec{.upper_path = project::device_path::kSwingUpper,
                                              .format = format_range_integer,
-                                             .clamp = deluge::ui::oled::RangeClamp::Push,
+                                             .clamp = deluge::ui::widgets::oled::RangeClamp::Push,
                                              .focus_left_when_split = true};
 /// `KeyRange` clamps each end against the other and has **no** `beginSession` override, so it takes
 /// `Range::beginSession`'s bare OFF (`origin/main:src/deluge/gui/menu_item/range.cpp`).
 inline constexpr RangeSpec kDefaultKeySpec{.upper_path = project::device_path::kKeyUpper,
                                            .format = format_range_key,
-                                           .clamp = deluge::ui::oled::RangeClamp::Bound,
+                                           .clamp = deluge::ui::widgets::oled::RangeClamp::Bound,
                                            .focus_left_when_split = false};
 
 inline constexpr Node default_tempo = range_item(sid(String::STRING_FOR_TEMPO), sid(String::STRING_FOR_DEFAULT_TEMPO),
@@ -820,7 +820,7 @@ inline constexpr Node flash_status =
 inline constexpr Node record_count_in = with_value_style(
     with_title(setting_item(sid(String::STRING_FOR_COUNT_IN), Kind::Int, device_row(project::device_path::kCountIn)),
                sid(String::STRING_FOR_REC_COUNT_IN)),
-    deluge::ui::oled::ValueStyle{.off_at_zero = true});
+    deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true});
 /// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), the DEVICE row's range --
 /// "can't do triplets/dots for quantize" (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
 inline constexpr Node record_quantize =
@@ -965,9 +965,10 @@ inline constexpr Node runtime_features =
 ///        build-time constant string, no state at all.
 class FirmwareVersionItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
-		return deluge::ui::InputClaims{.select = true};
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
+		return deluge::ui::widgets::core::InputClaims{.select = true};
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
@@ -980,9 +981,10 @@ inline const FirmwareVersionItem kFirmwareVersionItem{};
 ///        instance -- `mutable` fields on this one shared instance stand in for it.
 class BatteryLevelItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
-		return deluge::ui::InputClaims{.select = true};
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
+		return deluge::ui::widgets::core::InputClaims{.select = true};
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,

@@ -35,7 +35,8 @@ constexpr uint8_t kPlayY = 3;
 /// its whole render pass every tick and needs somewhere to draw.
 BoardProfile services_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48,
+	                                                                      &deluge::ui::widgets::core::kDelugeStyle64};
 	BoardProfile p = uitest::test_profile_input();
 	p.oled_role_by_index = kRoles;
 	p.style_by_index = kStyles;
@@ -76,7 +77,7 @@ public:
 		log_->push_back(name_);
 		return Result::unhandled();
 	}
-	void leds(deluge::ui::LedFrame&) override { led_calls++; }
+	void leds(deluge::ui::widgets::core::LedFrame&) override { led_calls++; }
 	void tick(uint32_t, uint32_t) override { ticks++; }
 	std::optional<uint32_t> next_timer() const override {
 		timer_queries++;
@@ -348,12 +349,12 @@ describe shell_services("shell::Shell::set_services", $ {
 		r.shell.tick(0);
 		KnobRecorder knobs;
 		r.shell.set_services(Services{.mod_knobs = &knobs});
-		expect(r.shell.route_lowered_turn(deluge::ui::EncoderRole::GoldUpper, 3, 1000)).to_be_true();
-		expect(r.shell.route_lowered_turn(deluge::ui::EncoderRole::GoldUpper, 3, 5000)).to_be_true();
+		expect(r.shell.route_lowered_turn(deluge::ui::widgets::core::EncoderRole::GoldUpper, 3, 1000)).to_be_true();
+		expect(r.shell.route_lowered_turn(deluge::ui::widgets::core::EncoderRole::GoldUpper, 3, 5000)).to_be_true();
 		expect(knobs.seen.size()).to_equal(size_t(2));
 		for (const UiEvent& e : knobs.seen) {
 			expect(e.kind).to_equal(UiEvent::Kind::Encoder);
-			expect(e.encoder).to_equal(deluge::ui::EncoderRole::GoldUpper);
+			expect(e.encoder).to_equal(deluge::ui::widgets::core::EncoderRole::GoldUpper);
 			expect(e.delta).to_equal(3);
 			expect(e.lowered).to_be_true();
 		}

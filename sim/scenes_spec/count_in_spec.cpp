@@ -26,7 +26,7 @@
 ///
 /// The 48-row profile is compared whole-panel against the real `OLED` singleton, which is the only
 /// live oracle there is (`OLED_MAIN_HEIGHT_PIXELS` is a compile-time 48; there is no 64-row legacy
-/// singleton to ask). The widget this scene calls, `ui::oled::popup_text`, is already proven byte
+/// singleton to ask). The widget this scene calls, `ui::widgets::oled::popup_text`, is already proven byte
 /// for byte against a *height-parameterised* transcription of `OLED::popupText` at both 48 and 64
 /// rows in `tests/unit/ui/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
 /// example -- so the 64-row example here does not re-derive that; it instead confirms this scene
@@ -98,7 +98,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -213,7 +214,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 	});
 
 	it("centres the same box content at both panel geometries, at the geometry-correct offset", _ {
-		// The widget itself (`ui::oled::popup_text`) is already proven byte for byte against a
+		// The widget itself (`ui::widgets::oled::popup_text`) is already proven byte for byte against a
 		// height-parameterised legacy transcription at both 48 and 64 rows
 		// (`tests/unit/ui/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
 		// not the widget's own arithmetic again.

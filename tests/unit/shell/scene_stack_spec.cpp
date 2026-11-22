@@ -54,7 +54,7 @@ public:
 		}
 	}
 	void on_resume() override { resumes++; }
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return greyout; }
 	void save_state(SceneState& s) const override {
 		std::memcpy(s.bytes, &arg, sizeof(arg));
 		saves++;
@@ -68,7 +68,7 @@ public:
 	int exit_at = -1;   ///< When this scene last exited, from `seq`.
 	uint16_t arg = 0;
 	uint16_t restored = 0;
-	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
+	deluge::ui::widgets::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int enters = 0, exits = 0, resumes = 0, restores = 0;
 	mutable int saves = 0;
 };
@@ -89,9 +89,9 @@ public:
 	void on_resume() override { resumes++; }
 	void save_state(SceneState&) const override { saves++; }
 	void restore_state(const SceneState&) override { restores++; }
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return greyout; }
 
-	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
+	deluge::ui::widgets::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int* seq = nullptr;
 	int exit_at = -1;
 	int exits = 0, resumes = 0, restores = 0;
@@ -106,9 +106,9 @@ public:
 
 	void on_exit() override { exits++; }
 	void on_resume() override { resumes++; }
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return greyout; }
 
-	deluge::ui::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
+	deluge::ui::widgets::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
 	int exits = 0, resumes = 0;
 };
 
@@ -526,7 +526,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(null.kind()).to_equal(SceneKind::Null);
 
 		ButtonSet held;
-		deluge::ui::PadMask held_pads{};
+		deluge::ui::widgets::core::PadMask held_pads{};
 		BoardProfile profile{};
 		UiContext ctx{held, held_pads, false, false, 0, profile};
 		UiEvent ev{};

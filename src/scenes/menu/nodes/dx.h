@@ -34,7 +34,7 @@ namespace deluge::scenes::menu::nodes {
 ///        from the cartridge page returns to it.
 class DxBrowseItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -52,8 +52,8 @@ public:
 /// `SoundWrites::load_dx_program`; SELECT closes the menu.
 class DxCartridgeItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -65,8 +65,8 @@ public:
 ///        `origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`).
 class DxEngineSelectItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -85,8 +85,8 @@ inline const DxCartridgeItem kDxCartridge{};
 ///        member does.
 class DxGlobalParamsItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -101,8 +101,8 @@ public:
 ///        outlives the page, as legacy's one singleton's does.
 class DxOperatorParamsItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -121,9 +121,9 @@ public:
 /// with every operator off), the page stays where it is.
 class DxParamItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The select encoder's turn and press, and the horizontal encoder (`DxParam::horizontalEncoderAction`).
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;

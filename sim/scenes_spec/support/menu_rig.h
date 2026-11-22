@@ -7,7 +7,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "shell/shell.h"
-#include "ui/core/frame_context.h"
+#include "ui/widgets/core/frame_context.h"
 
 namespace deluge::scenes::spec {
 
@@ -24,7 +24,8 @@ inline void reset_menu_singleton(deluge::ui::shell::Shell& shell) {
 /// @brief Whether what the scene says it owns is exactly what its render claimed: every per-input flag equal.
 /// @param owned   `MenuScene::owned_input()`.
 /// @param claimed The frame context's claims after `render_oled`.
-inline bool owns_matches_claims(const deluge::ui::InputClaims& owned, const deluge::ui::InputClaims& claimed) {
+inline bool owns_matches_claims(const deluge::ui::widgets::core::InputClaims& owned,
+                                const deluge::ui::widgets::core::InputClaims& claimed) {
 	return owned.turn == claimed.turn && owned.edit0 == claimed.edit0 && owned.edit1 == claimed.edit1
 	       && owned.horizontal == claimed.horizontal && owned.vertical == claimed.vertical
 	       && owned.select == claimed.select && owned.back == claimed.back;

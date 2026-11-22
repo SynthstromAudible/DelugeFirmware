@@ -24,10 +24,10 @@
 #include "scenes/bind/target.h"
 #include "scenes/profile.h"
 
-#include "ui/core/blink.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/popup.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/core/blink.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/popup.h"
+#include "ui/widgets/oled/text.h"
 
 #include "gui/l10n/strings.h"
 
@@ -41,9 +41,6 @@
 namespace deluge::scenes::rename {
 
 using deluge::l10n::String;
-using deluge::ui::kFlashTime;
-using deluge::ui::kTextSpacingX;
-using deluge::ui::kTextSpacingY;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -51,6 +48,9 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
+using deluge::ui::widgets::core::kFlashTime;
+using deluge::ui::widgets::core::kTextSpacingX;
+using deluge::ui::widgets::core::kTextSpacingY;
 using ui::gfx::oled::Rect;
 
 namespace {
@@ -164,7 +164,7 @@ bool is_ascii_letter(char c) {
 /// `OLED_MAIN_HEIGHT_PIXELS` -- the *panel*, the rows the faceplate hides included -- so the
 /// arithmetic below is done in this rectangle and lands in frame coordinates for free. Same
 /// conversion `popup.cpp`'s own `panel_of` makes, for the same reason; it is file-static there.
-Rect panel_of(const deluge::ui::oled::OledFrame& f) {
+Rect panel_of(const deluge::ui::widgets::oled::OledFrame& f) {
 	const ui::gfx::oled::Geometry g = f.canvas.geometry();
 	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
 }
@@ -218,28 +218,29 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string current = t.read(ctx_);
 	text_ = current;
-	edit_ = deluge::ui::oled::TextEditState{};
-	kb_ = deluge::ui::grid::TextKeyboardState{};
+	edit_ = deluge::ui::widgets::oled::TextEditState{};
+	kb_ = deluge::ui::widgets::grid::TextKeyboardState{};
 	resp_ = {};
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
-	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
+	layout_ =
+	    static_cast<deluge::ui::widgets::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
 	// (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`, and `hid/display/oled.cpp`).
-	cursor_blink_ = deluge::ui::Blink{};
+	cursor_blink_ = deluge::ui::widgets::core::Blink{};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;
 	blink_restart_ = true;
 	return true;
 }
 
-void RenameScene::leds(deluge::ui::LedFrame& frame) {
+void RenameScene::leds(deluge::ui::widgets::core::LedFrame& frame) {
 	if (std::exchange(blink_restart_, false)) {
-		frame.restart(deluge::ui::BlinkRate::Normal);
+		frame.restart(deluge::ui::widgets::core::BlinkRate::Normal);
 	}
-	(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	                deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back),
+	                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 }
 
 void RenameScene::on_exit() {
@@ -260,7 +261,7 @@ void RenameScene::on_exit() {
 	grid_pass_ = false;
 }
 
-void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
+void RenameScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
 	const uint32_t now = f.now_ms();
 	last_render_ms_ = now;
@@ -271,20 +272,20 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 		cursor_blink_.period_ms = static_cast<uint16_t>(kFlashTime);
 		cursor_blink_.restart_lit(now);
 	}
-	edit_.cursor_lit = deluge::ui::blink_lit(cursor_blink_, now);
+	edit_.cursor_lit = deluge::ui::widgets::core::blink_lit(cursor_blink_, now);
 	// Arm the panel's own gate at the cursor's *next flip*, which is what `next_timer()` cannot
 	// name: it answers one interval for the scene, this names the edge. `text_edit` cannot arm it
-	// itself either, because it takes no clock and owns no state (`ui/oled/text_edit.h`:
+	// itself either, because it takes no clock and owns no state (`ui/widgets/oled/text_edit.h`:
 	// "Render-only"). Without `Shell::tick`'s step 8b the host would wake on `next_timer()` while
 	// `RepaintGate` still said no, and the bar would be computed correctly and never drawn. Only while
 	// the bar exists at all: mid-string `cursor_lit` gates nothing.
 	if (edit_.cursor == static_cast<int16_t>(text_.size())) {
-		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
+		f.gate().request_repaint_after(deluge::ui::widgets::core::blink_next_flip_in(cursor_blink_, now), now);
 	}
 
 	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
 	// `visible_top`.
-	deluge::ui::oled::OledFrame pf = deluge::ui::oled::panel_frame(f);
+	deluge::ui::widgets::oled::OledFrame pf = deluge::ui::widgets::oled::panel_frame(f);
 	const Rect panel = panel_of(pf);
 
 	// The window: 120x40, centred on the panel. `popup_frame` is `clearAreaExact` + `drawRectangle`
@@ -292,35 +293,37 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	// rectangle here, not a rounded one (`popup.h`).
 	const int32_t win_x = panel.x + ((panel.w - kWindowW) >> 1);
 	const int32_t win_y = panel.y + ((panel.h - kWindowH) >> 1);
-	deluge::ui::oled::popup_frame(pf, Rect{win_x, win_y, kWindowW, kWindowH}, deluge::ui::oled::PopupStyle::Permanent);
+	deluge::ui::widgets::oled::popup_frame(pf, Rect{win_x, win_y, kWindowW, kWindowH},
+	                                       deluge::ui::widgets::oled::PopupStyle::Permanent);
 
 	// `drawStringCentred(title, windowMinY + 6, kTextSpacingX, kTextSpacingY)` -- centred on the
 	// *panel*, in the ordinary row font, NOT `drawScreenTitle`: there is no title rule here and the
 	// text sits inside the box rather than across the top of the screen.
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::text(pf, Rect{panel.x, win_y + kTitleDy, panel.w, kTextSpacingY},
-	                       deluge_profile().text_or_digits(target(target_).title, scratch),
-	                       {.font = pf.style.row_font, .align = deluge::ui::oled::Align::Centre});
+	deluge::ui::widgets::oled::text(pf, Rect{panel.x, win_y + kTitleDy, panel.w, kTextSpacingY},
+	                                deluge_profile().text_or_digits(target(target_).title, scratch),
+	                                {.font = pf.style.row_font, .align = deluge::ui::widgets::oled::Align::Centre});
 
 	// The name box and the text inside it. `charsStartPixel = (width - 17 * kTextSpacingX) >> 1`,
 	// `boxStartPixel = charsStartPixel - 3`, and the box's right edge mirrors its left.
 	const int32_t chars_off = (panel.w - kMaxNumChars * kTextSpacingX) >> 1;
 	const int32_t chars_x = panel.x + chars_off;
 	const int32_t box_off = chars_off - 3;
-	deluge::ui::oled::popup_frame(pf, Rect{panel.x + box_off, win_y + kBoxDy, panel.w - 2 * box_off, kBoxH},
-	                              deluge::ui::oled::PopupStyle::Permanent);
+	deluge::ui::widgets::oled::popup_frame(pf, Rect{panel.x + box_off, win_y + kBoxDy, panel.w - 2 * box_off, kBoxH},
+	                                       deluge::ui::widgets::oled::PopupStyle::Permanent);
 
 	// `drawTextForOLEDEditing(charsStartPixel, WIDTH - charsStartPixel + 1, 27, 17, canvas)`: the
 	// rect's right edge is legacy's `xPixelMax`, and its width in whole characters is legacy's
 	// `maxNumChars`.
 	const int32_t chars_w = panel.w - 2 * chars_off + 1;
-	deluge::ui::oled::text_edit(pf, Rect{chars_x, win_y + kTextDy, chars_w, kTextSpacingY}, entered_text(), edit_);
+	deluge::ui::widgets::oled::text_edit(pf, Rect{chars_x, win_y + kTextDy, chars_w, kTextSpacingY}, entered_text(),
+	                                     edit_);
 }
 
-void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {
+void RenameScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	// `QwertyUI::drawKeys` (`qwerty_ui.cpp`), already ported. The sidebar is deliberately
 	// untouched -- legacy clears the *main* pads only.
-	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+	resp_ = deluge::ui::widgets::grid::text_keyboard(f, kb_, layout_, deluge::ui::widgets::grid::kTextKeyboardHomeRow);
 	grid_pass_ = true;
 	// Stamped here as well as in `render_oled`, and for a different reason: the backspace repeat
 	// runs off the grid pass, which is the pass that reports the hold. A tick that repainted only
@@ -337,7 +340,7 @@ void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {
 }
 
 Result RenameScene::after_render() {
-	const deluge::ui::Response resp = resp_;
+	const deluge::ui::widgets::core::Response resp = resp_;
 	resp_ = {};
 
 	// `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm, ahead of this tick's own key:
@@ -356,19 +359,19 @@ Result RenameScene::after_render() {
 	if (resp.index >= 0 && !repeat_armed_) {
 		const char c = static_cast<char>(resp.index);
 
-		if (c == deluge::ui::grid::kTextKeyboardEnter) {
+		if (c == deluge::ui::widgets::grid::kTextKeyboardEnter) {
 			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp`) -> `enterKeyPress()`.
 			return enter_key_press();
 		}
 
-		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+		if (c == deluge::ui::widgets::grid::kTextKeyboardBackspace) {
 			// `QwertyUI::padAction` (`qwerty_ui.cpp`): delete one character now, then arm the hold at
-			// `deluge::ui::grid::kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
+			// `deluge::ui::widgets::grid::kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
 			// `setTimer(UI_SPECIFIC, 500)`, with `repeat_armed_` standing in for
 			// `currentUIMode = UI_MODE_HOLDING_BACKSPACE`.
 			backspace();
 			repeat_armed_ = true;
-			repeat_at_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatDelayMs;
+			repeat_at_ms_ = last_render_ms_ + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs;
 		}
 		else {
 			type_char(c);
@@ -408,7 +411,7 @@ bool RenameScene::advance_repeat(bool backspace_held, uint32_t now) {
 	// cadence. Re-armed from `now` rather than from `repeat_at_ms_`, so a tick that arrived late
 	// (a long render, a card access) deletes one character and not a burst catching up.
 	backspace();
-	repeat_at_ms_ = now + deluge::ui::grid::kBackspaceRepeatMs;
+	repeat_at_ms_ = now + deluge::ui::widgets::grid::kBackspaceRepeatMs;
 	return true;
 }
 
@@ -449,7 +452,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// `RenameUI::padAction`: a main pad goes to the keyboard --
 		// which, in this stack, already claimed it while `render_grid` painted it, so anything
 		// arriving here is by definition outside the keyboard's columns. "Otherwise, exit."
-		if (event.on && event.x >= deluge::ui::grid::kTextKeyboardCols) {
+		if (event.on && event.x >= deluge::ui::widgets::grid::kTextKeyboardCols) {
 			if (repeat_armed_) {
 				Result r; // `RenameUI::padAction` exits only with no UI mode set
 				r.handled = true;
@@ -460,7 +463,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
-		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
+		if (event.encoder == deluge::ui::widgets::core::EncoderRole::Horizontal) {
 			// `QwertyUI::horizontalEncoderAction` with the two
 			// `predictExtendedText()` calls dropped: `QwertyUI::predictExtendedText` is a
 			// do-nothing `return true` for everything but `Browser` (`QwertyUI::predictExtendedText`), so on a
@@ -482,7 +485,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
 			return r;
 		}
-		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
+		if (event.encoder == deluge::ui::widgets::core::EncoderRole::Vertical) {
 			// `RenameUI::verticalEncoderAction`: swallowed, so a turn
 			// does not scroll whatever view is showing underneath.
 			Result r;
@@ -600,7 +603,7 @@ std::optional<uint32_t> RenameScene::next_timer() const {
 	// (`text_edit`: `cursor_lit` gates that arm and nothing else). Mid-string there is nothing to
 	// flash, so nothing to wake for.
 	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(text_.size())) {
-		next = deluge::ui::blink_next_flip_in(cursor_blink_, last_render_ms_);
+		next = deluge::ui::widgets::core::blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
 
 	// The held-backspace repeat is legacy's `TimerName::UI_SPECIFIC`, and it is the reason this

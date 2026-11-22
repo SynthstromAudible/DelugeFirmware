@@ -120,7 +120,6 @@
 using namespace deluge::scenes;
 using deluge::modulation::params::Kind;
 using deluge::scenes::services::ModKnobs;
-using deluge::ui::EncoderRole;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::deluge_profile;
@@ -136,6 +135,7 @@ using deluge::ui::shell::Service;
 using deluge::ui::shell::Services;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
+using deluge::ui::widgets::core::EncoderRole;
 
 namespace {
 
@@ -308,19 +308,19 @@ std::ostream& operator<<(std::ostream& os, const ModLed& led) {
 /// @param frame The composed frame.
 /// @param i     0..7.
 /// @return The declared state, or `std::nullopt` when nothing declared that LED.
-std::optional<ModLed> port_mod_led(const deluge::ui::LedFrame& frame, int32_t i) {
-	const auto want = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i);
+std::optional<ModLed> port_mod_led(const deluge::ui::widgets::core::LedFrame& frame, int32_t i) {
+	const auto want = static_cast<deluge::ui::widgets::core::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i);
 	for (const auto& [id, state] : frame.entries()) {
 		if (id != want) {
 			continue;
 		}
 		switch (state.kind) {
-		case deluge::ui::LedState::Kind::Off:
+		case deluge::ui::widgets::core::LedState::Kind::Off:
 			return ModLed{false, false};
-		case deluge::ui::LedState::Kind::On:
+		case deluge::ui::widgets::core::LedState::Kind::On:
 			return ModLed{true, false};
-		case deluge::ui::LedState::Kind::Blink:
-		case deluge::ui::LedState::Kind::Shared:
+		case deluge::ui::widgets::core::LedState::Kind::Blink:
+		case deluge::ui::widgets::core::LedState::Kind::Shared:
 			// `blinkLed`'s default `initialState` is true (`indicator_leds.h`), and
 			// `shell/leds.h`'s `led_is_on` reads phase 0 of a blink as lit too, so a freshly
 			// declared blink is lit.
@@ -342,7 +342,7 @@ const uint8_t* indicator_shadow(int32_t which) {
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	deluge::ui::shell::ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	/// Both clocks at @p now_ms: the tick's, and the one acceleration is timed on.
 	explicit DirectCtx(uint32_t now_ms = 0)
@@ -583,10 +583,11 @@ std::vector<std::string> indicator_disagreements(KnobRig& rig, Song* song, const
 	std::vector<std::string> found;
 	currentSong = song;
 	const auto compare = [&](const std::string& at, const knob_recorded::KnobIndicatorStep& want) {
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.knobs.leds(frame);
 		for (int32_t k = 0; k < 2; k++) {
-			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+			const deluge::ui::widgets::core::KnobIndicator* port =
+			    frame.indicator_or_null(static_cast<deluge::ui::widgets::core::IndicatorId>(k));
 			const std::string where = label + " " + at + " knob=" + std::to_string(k);
 			if (port == nullptr) {
 				found.push_back(where + " port-null");
@@ -786,9 +787,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			now += 5;
 		}
 		rig.knobs.tick(now, 5);
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.knobs.leds(frame);
-		const deluge::ui::KnobIndicator* port = frame.indicator_or_null(deluge::ui::IndicatorId::Lower);
+		const deluge::ui::widgets::core::KnobIndicator* port = frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Lower);
 		expect(port).not_().to_be_null("the lower indicator");
 		// Recorded from `View::setKnobIndicatorLevel` after the same four turns: the lower column centred, so it blinks.
 		constexpr std::array<uint8_t, 4> kRecordedBlink = {255, 255, 0, 0};
@@ -1475,7 +1476,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		push.on = true;
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};
-			deluge::ui::PadMask pads{};
+			deluge::ui::widgets::core::PadMask pads{};
 			UiContext ctx;
 			ShiftCtx() : ctx{held, pads, true, false, 0, deluge_profile()} {}
 		} shifted;
@@ -1509,7 +1510,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const Result turned = rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), plain.ctx);
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};
-			deluge::ui::PadMask pads{};
+			deluge::ui::widgets::core::PadMask pads{};
 			UiContext ctx;
 			ShiftCtx() : ctx{held, pads, true, false, 2000, deluge_profile()} {}
 		} shifted;
@@ -2190,10 +2191,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		it("declares both indicators at zero", _ {
 			CvRig r;
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			r.rig.knobs.leds(frame);
 			for (int32_t k = 0; k < 2; k++) {
-				const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+				const deluge::ui::widgets::core::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::widgets::core::IndicatorId>(k));
 				expect(port).not_().to_be_null("the column's indicator");
 				if (port != nullptr) {
 					for (int32_t seg = 0; seg < 4; seg++) {
@@ -2375,7 +2376,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			// unchanged tables and pass on a port that ignores the button entirely.
 			expect(rig.knobs.mode()).to_equal(mode);
 
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			rig.knobs.leds(frame);
 			for (int32_t i = 0; i < 8; i++) {
 				const std::optional<ModLed> port = port_mod_led(frame, i);
@@ -2427,7 +2428,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Recorded from `View::modButtonAction`: a first press selects, the meter stays off, LED 0 is steady.
 		expect(rig.knobs.display_vu_meter()).to_be_false();
 		{
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			rig.knobs.leds(frame);
 			expect(port_mod_led(frame, 0).value()).to_equal(ModLed{true, false});
 		}
@@ -2437,7 +2438,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(0, true);
 		expect(rig.knobs.display_vu_meter()).to_be_true();
 		{
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			currentSong = pf.song;
 			rig.knobs.leds(frame);
 			const ModLed port = port_mod_led(frame, 0).value();
@@ -2465,7 +2466,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.mode()).to_equal(0);
 		expect(rig.knobs.display_vu_meter()).to_be_true();
 		{
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			currentSong = pf.song;
 			rig.knobs.leds(frame);
 			const ModLed port = port_mod_led(frame, 0).value();
@@ -2497,25 +2498,25 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.mode()).to_equal(3);
 
 		{
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			rig.knobs.leds(frame);
 			expect(port_mod_led(frame, 3).value()).to_equal(ModLed{true, false});
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).not_().to_be_null();
+			expect(frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Lower)).not_().to_be_null();
 		}
 
 		ModKnobs::ViewState state;
 		state.in_automation_editor = true;
 		rig.knobs.set_view_state(state);
 		{
-			deluge::ui::LedFrame frame;
+			deluge::ui::widgets::core::LedFrame frame;
 			rig.knobs.leds(frame);
 			for (int32_t i = 0; i < 8; i++) {
 				expect(port_mod_led(frame, i).value()).to_equal(ModLed{false, false});
 			}
 			// `View::setKnobIndicatorLevels`'s early return (`views/view.cpp`): legacy leaves both columns exactly as
 			// they were, which here is "declares nothing".
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
+			expect(frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Lower)).to_be_null();
+			expect(frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Upper)).to_be_null();
 		}
 
 		// `View::modButtonAction` ignores the mod button in the automation editor -- and the mod button itself is
@@ -2672,11 +2673,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		indicator_leds::clearKnobIndicatorLevels();
 
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.knobs.leds(frame);
 		for (int32_t k = 0; k < 2; k++) {
 			const uint8_t* legacy = indicator_shadow(k);
-			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+			const deluge::ui::widgets::core::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::widgets::core::IndicatorId>(k));
 			expect(legacy).not_().to_be_null("the column's shadow");
 			expect(port).not_().to_be_null("the column's indicator");
 			if (legacy != nullptr && port != nullptr) {
@@ -2698,10 +2699,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		expect(rig.stack.depth()).to_equal(size_t(0));
 
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.knobs.leds(frame);
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
+		expect(frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Lower)).to_be_null();
+		expect(frame.indicator_or_null(deluge::ui::widgets::core::IndicatorId::Upper)).to_be_null();
 		expect(port_mod_led(frame, 0).has_value()).to_be_true();
 		currentSong = nullptr;
 	});
@@ -2739,7 +2740,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// is a param to delete on this fixture, so the action must be there.
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};
-			deluge::ui::PadMask pads{};
+			deluge::ui::widgets::core::PadMask pads{};
 			UiContext ctx;
 			ShiftCtx() : ctx{held, pads, true, false, 0, deluge_profile()} {}
 		} shifted;
@@ -2753,7 +2754,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// LEARN held: `View::modEncoderButtonAction` returns immediately and still counts as dealt with.
 		struct LearnCtx {
 			deluge::ui::shell::ButtonSet held = learn_held();
-			deluge::ui::PadMask pads{};
+			deluge::ui::widgets::core::PadMask pads{};
 			UiContext ctx{held, pads, true, false, 0, deluge_profile()};
 			static deluge::ui::shell::ButtonSet learn_held() {
 				deluge::ui::shell::ButtonSet b{};

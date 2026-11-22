@@ -56,12 +56,12 @@
 
 namespace deluge::gui::ui {
 
-using deluge::ui::EncoderRole;
 using deluge::ui::shell::Scene;
 using deluge::ui::shell::SceneRegistry;
 using deluge::ui::shell::Services;
 using deluge::ui::shell::ShellConfig;
 using deluge::ui::shell::SurfaceRole;
+using deluge::ui::widgets::core::EncoderRole;
 
 ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board,
                          const deluge::ui::shell::BoardProfile& profile)
@@ -104,7 +104,7 @@ bool ShellHostUI::opened() {
 		return false;
 	}
 	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
-	fedPads_ = deluge::ui::PadMask{};
+	fedPads_ = deluge::ui::widgets::core::PadMask{};
 	shell_.lowering().forget_held_pads();
 	// Nor any input an earlier visit was fed and closed before a tick routed: a turn just before a direct close is the
 	// UI's that was current then, never this menu's.
@@ -306,7 +306,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// the `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this function, and greys
 	// whatever `PadLEDs::image` holds -- the root view's pixels and the guest's alike. The guest's
 	// shell greys nothing itself (`ShellConfig::greys_in_send_path`), so every pad is greyed once.
-	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
+	const deluge::ui::widgets::grid::GreyoutMask mask = greyoutMask();
 	if (mask.cols == 0 && mask.rows == 0) {
 		return false;
 	}
@@ -318,7 +318,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-deluge::ui::grid::GreyoutMask ShellHostUI::greyoutMask() {
+deluge::ui::widgets::grid::GreyoutMask ShellHostUI::greyoutMask() {
 	// The stack's own top-down walk, the guest's half of `getUIGreyoutColsAndRows`: a popup over
 	// the menu leaves the menu's greyout standing, and a keyboard over it replaces it.
 	return shell_.stack().topmost_greyout();
@@ -354,7 +354,7 @@ void ShellHostUI::syncPads() {
 	using deluge::ui::shell::regions_without;
 	const PadRegions owned = surfaces_.owned_regions();
 	const PadRegions answered = answeredRegions();
-	const deluge::ui::grid::GreyoutMask mask = greyoutMask();
+	const deluge::ui::widgets::grid::GreyoutMask mask = greyoutMask();
 	const bool ownerChanged = owned != padsOwned_;
 	const bool greyoutChanged = mask.cols != padsGreyout_.cols || mask.rows != padsGreyout_.rows;
 	const PadRegions gained = regions_without(owned, padsOwned_);
@@ -768,7 +768,8 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_u
 		// and a zero-edge feed would still set `had_input_this_tick` and wake the repaint gate.
 		return;
 	}
-	const std::span<const deluge::ui::EncoderRole> byIndex = shell_.lowering().profile().encoder_by_index;
+	const std::span<const deluge::ui::widgets::core::EncoderRole> byIndex =
+	    shell_.lowering().profile().encoder_by_index;
 	const int32_t per = config_.lowering.edges_per_detent > 0 ? config_.lowering.edges_per_detent : 1;
 	// See the `@warning` on the declaration: the clamp is in detents, before the multiply, so the
 	// product lands inside `int8_t` for any `edges_per_detent`.

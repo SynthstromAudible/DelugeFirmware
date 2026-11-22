@@ -1,6 +1,6 @@
 #pragma once
 #include "shell/scene.h"
-#include "ui/core/state.h"
+#include "ui/widgets/core/state.h"
 
 #include <cstdint>
 
@@ -21,7 +21,7 @@ public:
 	///        "zero re-arms" idiom `WorkingScene::arm()` uses for the same `Blink`.
 	bool on_enter(const SceneId&) override;
 
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) override;
 
 	/// @brief This *is* the root while loading (`Shell::song_loading` resets the whole stack to
 	///        just this scene), so there is nothing beneath it to be "an overlay" over --
@@ -34,7 +34,7 @@ public:
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
 private:
-	Blink blink_{};
+	widgets::core::Blink blink_{};
 };
 
 } // namespace deluge::ui::shell

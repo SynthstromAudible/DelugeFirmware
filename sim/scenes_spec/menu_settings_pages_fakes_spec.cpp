@@ -35,8 +35,8 @@
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/shell.h"
-#include "ui/core/input.h"
 #include "ui/gfx/oled/glyphs.h"
+#include "ui/widgets/core/input.h"
 
 #include "support/fake_host_rig.h"
 #include "support/fake_menu_shell.h"
@@ -395,7 +395,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		hold(r.fakes, device_path::kTempoUpper, 150);
 		(void)r.open_settings(nodes::default_tempo);
 		// A split range opens on its left end.
-		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Left));
 		r.turn(60, 20);
 		expect(last_stores(r.fakes, 2))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kTempoLower} + "=160",
@@ -409,7 +409,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		hold(r.fakes, device_path::kKeyUpper, 9);
 		(void)r.open_settings(nodes::default_key);
 		// A key range opens on neither end; the horizontal encoder picks the left one.
-		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Off));
 		r.horizontal(-1, 20);
 		r.turn(10, 40);
 		expect(last_stores(r.fakes, 2))
@@ -420,7 +420,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 	it("spells the key range's ends as the device's useSharps row says", _ {
 		FakeMenuShell r;
 		const MenuContext ctx = r.open_settings(nodes::default_key);
-		std::array<char, deluge::ui::oled::kRangeTextMax> scratch{};
+		std::array<char, deluge::ui::widgets::oled::kRangeTextMax> scratch{};
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)}).to_equal(std::string{"C#"});
 		hold(r.fakes, device_path::kUseSharps, 0);
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)})

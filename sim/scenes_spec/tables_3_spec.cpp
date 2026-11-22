@@ -259,7 +259,8 @@ DelugeBoard board_64() {
 
 const deluge::ui::shell::BoardProfile& profile_64() {
 	static const deluge::ui::shell::BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		deluge::ui::shell::BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -272,7 +273,7 @@ void shift_learn() {
 	using deluge::ui::shell::ButtonId;
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
@@ -350,7 +351,7 @@ bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel
 	using deluge::ui::shell::ButtonId;
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	const bool used = menu_scene()
@@ -2454,7 +2455,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	it("renders the device list and both output selectors, on both panel geometries", _ {
 		// Both geometries, because a row constant that is right on one panel and wrong on the other
 		// is exactly the class of mistake a single golden cannot see. Nothing here hand-computes a
-		// rect: both pages lay out through `ui::oled::menu_rect(f)`, like every other menu screen.
+		// rect: both pages lay out through `ui::widgets::oled::menu_rect(f)`, like every other menu screen.
 		deluge::base::notify::dirty().drain();
 		{
 			deluge::base::notify::Notice stray;
@@ -2615,7 +2616,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	//
 	// The rows land on legacy's literal *canvas* rows 20 / 29 / 38 on both panels, which the port
 	// reaches through two corrections rather than one literal (`nodes/midi_command.cpp`'s
-	// `command_row0_y`, and `ui/core/metrics.h`): the frame origin already carries the panel's own
+	// `command_row0_y`, and `ui/widgets/core/metrics.h`): the frame origin already carries the panel's own
 	// `visible_top`, which is 5 on the 48-row board and **0** on the 64-row one -- hence
 	// `kMidiCommandRowY48` = 15 and `kMidiCommandRowY64` = 20, a pair, not a constant -- and
 	// `kApple7Height7YAdjust` = -1 cancels the one-row drop `FontId::Apple7` (the height-9 Apple

@@ -1,5 +1,5 @@
 #include "support/frames.h"
-#include "ui/grid/rows.h"
+#include "ui/widgets/grid/rows.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
@@ -38,7 +38,7 @@ RGB velocity_colour(RGB colour, uint8_t velocity) {
 } // namespace
 
 // clang-format off
-describe rows("ui::grid rows", $ {
+describe rows("ui::widgets::grid rows", $ {
 	it("paints a note's start, tail and blur exactly as NoteRow::renderRow does", _ {
 		uitest::GridRig r;
 		// A three-column note starting on column 0 at full velocity, and a one-column note
@@ -189,7 +189,7 @@ describe rows("ui::grid rows", $ {
 	});
 	it("hit-tests only the columns a composited call paints", _ {
 		uitest::GridRig r;
-		PadEvent ev[] = {{7, 1, 100, true}};
+		widgets::core::PadEvent ev[] = {{7, 1, 100, true}};
 		r.input.pads = ev;
 		const NoteCell note[] = {{.start_col = 2, .len_cols = 1, .velocity = 127}};
 		const ClipRowData composited{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur,
@@ -197,7 +197,7 @@ describe rows("ui::grid rows", $ {
 		expect(clip_row(r.frame, 1, composited).pressed).to_be_false();   // column 7 is not this row's
 		ClipRowData whole = composited;
 		whole.overwrite_existing = true;
-		const Response resp = clip_row(r.frame, 1, whole);
+		const widgets::core::Response resp = clip_row(r.frame, 1, whole);
 		expect(resp.pressed).to_be_true();
 		expect(int(resp.index)).to_equal(7);       // the pressed column, in `index`
 		expect(int(resp.velocity)).to_equal(100);  // the pad's own velocity, in `velocity`
@@ -256,15 +256,15 @@ describe rows("ui::grid rows", $ {
 	it("reports the pressed column in `index` and the pad's own velocity in `velocity`", _ {
 		uitest::GridRig r;
 		const std::array<RGB, 4> cells{RGB{1, 1, 1}, RGB{2, 2, 2}, RGB{3, 3, 3}, RGB{4, 4, 4}};
-		PadEvent ev[] = {{2, 3, 90, true}};
+		widgets::core::PadEvent ev[] = {{2, 3, 90, true}};
 		r.input.pads = ev;
-		const Response pressed = row(r.frame, 3, cells);
+		const widgets::core::Response pressed = row(r.frame, 3, cells);
 		expect(pressed.pressed).to_be_true();
 		expect(int(pressed.index)).to_equal(2);             // the column itself, not x + 1
 		expect(int(pressed.velocity)).to_equal(90);         // a real velocity, not an encoding
 		expect(r.grid.at(2, 3)).to_equal(RGB{3, 3, 3});
 		// A row with no press reports index -1, and a different row does not see this one's event.
-		const Response quiet = row(r.frame, 4, cells);
+		const widgets::core::Response quiet = row(r.frame, 4, cells);
 		expect(quiet.pressed).to_be_false();
 		expect(int(quiet.index)).to_equal(-1);
 		expect(int(quiet.velocity)).to_equal(0);
@@ -272,10 +272,10 @@ describe rows("ui::grid rows", $ {
 	it("reports the leftmost press, and ORs release and held across the row", _ {
 		uitest::GridRig r;
 		const std::array<RGB, 8> cells{};
-		PadEvent ev[] = {{5, 2, 40, true}, {1, 2, 90, true}, {7, 2, 0, false}};
+		widgets::core::PadEvent ev[] = {{5, 2, 40, true}, {1, 2, 90, true}, {7, 2, 0, false}};
 		r.input.pads = ev;
 		r.input.held_pads.set(3, 2, true);
-		const Response resp = row(r.frame, 2, cells);
+		const widgets::core::Response resp = row(r.frame, 2, cells);
 		expect(int(resp.index)).to_equal(1);      // column 1, not column 5
 		expect(int(resp.velocity)).to_equal(90);  // and that pad's velocity, not column 5's 40
 		expect(resp.released).to_be_true();

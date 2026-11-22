@@ -165,7 +165,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn).not_().to_be_null();
 		if (turn != nullptr) {
-			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
+			expect(turn->ev.encoder).to_equal(deluge::ui::widgets::core::EncoderRole::Horizontal);
 		}
 
 		r.base.seen.clear();
@@ -189,7 +189,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn).not_().to_be_null();
 		if (turn != nullptr) {
-			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Vertical);
+			expect(turn->ev.encoder).to_equal(deluge::ui::widgets::core::EncoderRole::Vertical);
 		}
 
 		r.base.seen.clear();

@@ -2,8 +2,8 @@
 
 #include "cppspec.hpp"
 #include "support/spec_main.h"
-#include "ui/core/metrics.h"
 #include "ui/gfx/grid/rect.h"
+#include "ui/widgets/core/metrics.h"
 
 using deluge::ui::gfx::grid::Rect;
 
@@ -14,7 +14,7 @@ describe grid_rect("gfx::grid::Rect", $ {
 		expect(r.contains(2, 1)).to_be_true();
 		expect(r.contains(6, 1)).to_be_false();
 		expect(r.intersect(Rect{4, 2, 10, 10})).to_equal(Rect{4, 2, 2, 2});
-		expect(deluge::ui::kTextSpacingY).to_equal(9);
+		expect(deluge::ui::widgets::core::kTextSpacingY).to_equal(9);
 	});
 	// split_rows(at) / split_cols(at): the same two-way-at-a-position shape as
 	// gfx::oled::Rect::split_rows/split_cols and the SDK's Frame::split_rows/split_cols.

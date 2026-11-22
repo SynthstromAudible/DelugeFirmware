@@ -9,9 +9,9 @@
 /// already shipped as `shell::Screensaver` (`shell/screensaver.h`), which pushes this scene by
 /// kind; this scene is what that service finds.
 ///
-/// The two animations live in `ui/oled/rainfall.h` and `ui/oled/starfield.h`, because `src/scenes/**` may include
-/// neither `gui/` nor `hid/` (`scripts/layers.toml`'s `scenes-includes-gui` rule). Legacy's `Screensaver` draws the
-/// same two objects; see `ui/oled/rainfall.h`'s file doc.
+/// The two animations live in `ui/widgets/oled/rainfall.h` and `ui/widgets/oled/starfield.h`, because `src/scenes/**`
+/// may include neither `gui/` nor `hid/` (`scripts/layers.toml`'s `scenes-includes-gui` rule). Legacy's `Screensaver`
+/// draws the same two objects; see `ui/widgets/oled/rainfall.h`'s file doc.
 ///
 /// @par What chooses the mode, and where legacy chooses it
 ///
@@ -63,8 +63,8 @@
 #include "scenes/bind/device_reader.h"
 #include "shell/scene.h"
 
-#include "ui/oled/rainfall.h"
-#include "ui/oled/starfield.h"
+#include "ui/widgets/oled/rainfall.h"
+#include "ui/widgets/oled/starfield.h"
 
 #include <cstdint>
 #include <optional>
@@ -119,7 +119,7 @@ public:
 	/// the pass.
 	/// @param role  The OLED surface being drawn.
 	/// @param frame The frame to draw into.
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
 
 	/// @brief The screensaver routes nothing: legacy's is a canvas override, never a `UI`.
 	/// @return Always `Result::unhandled()`.
@@ -167,9 +167,9 @@ public:
 	///         first `on_enter`.
 	[[nodiscard]] deluge::project::ScreensaverMode mode() const { return mode_; }
 	/// @return The rain field, for a spec comparing it against the pre-move oracle.
-	const deluge::ui::oled::Rainfall& rainfall() const { return rainfall_; }
+	const deluge::ui::widgets::oled::Rainfall& rainfall() const { return rainfall_; }
 	/// @return The star field, for the same reason.
-	const deluge::ui::oled::Starfield& starfield() const { return starfield_; }
+	const deluge::ui::widgets::oled::Starfield& starfield() const { return starfield_; }
 	/// @return Milliseconds accumulated toward the next animation frame.
 	uint32_t since_frame_ms() const { return since_frame_ms_; }
 	/// @}
@@ -185,8 +185,8 @@ private:
 
 	const deluge::scenes::bind::DeviceSettings* device_ = nullptr; ///< the installed port; null reads the row's default
 	deluge::project::ScreensaverMode mode_ = deluge::project::ScreensaverMode::OFF; ///< the mode last read
-	deluge::ui::oled::Rainfall rainfall_;
-	deluge::ui::oled::Starfield starfield_;
+	deluge::ui::widgets::oled::Rainfall rainfall_;
+	deluge::ui::widgets::oled::Starfield starfield_;
 	/// Milliseconds accumulated since the last animation frame; legacy's `TimerName::SCREENSAVER`
 	/// re-arm, kept here because the shell ticks every tick rather than only at a deadline.
 	uint32_t since_frame_ms_ = 0;

@@ -2,8 +2,8 @@
 
 #include "base/notify/notice_queue.h"
 #include "ui/gfx/grid/tween.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/frame.h"
 
 #include <algorithm>
 #include <iterator>
@@ -15,15 +15,15 @@ namespace {
 
 using base::notify::Dirty;
 
-/// @brief Legacy's full greyout strength, as `ui::grid::greyout`'s `amount` argument.
+/// @brief Legacy's full greyout strength, as `ui::widgets::grid::greyout`'s `amount` argument.
 ///
-/// The toolkit's `amount` *is* legacy's `greyProportion` (`ui/grid/effects.h`: "Legacy's `greyProportion`, the argument
-/// `RGB::greyOut` takes"), and `greyProportion` is not the 0..1 float the callers pass -- `setGreyoutAmount(float)`
-/// scales it: `greyProportion = newAmount * 6500000` (`hid/led/pad_leds.cpp`). Every place that greys a whole view
-/// outright asks for the full amount, `setGreyoutAmount(1)` (`PadLEDs::reassessGreyout`'s instant branch,
-/// `skipGreyoutFade`, `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled constant is
-/// `1 * 6500000`. (The fractional values at `timerRoutine` (`pad_leds.cpp`) are a transition ramping the same scale in
-/// and out, which the tween driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus
+/// The toolkit's `amount` *is* legacy's `greyProportion` (`ui/widgets/grid/effects.h`: "Legacy's `greyProportion`, the
+/// argument `RGB::greyOut` takes"), and `greyProportion` is not the 0..1 float the callers pass --
+/// `setGreyoutAmount(float)` scales it: `greyProportion = newAmount * 6500000` (`hid/led/pad_leds.cpp`). Every place
+/// that greys a whole view outright asks for the full amount, `setGreyoutAmount(1)` (`PadLEDs::reassessGreyout`'s
+/// instant branch, `skipGreyoutFade`, `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled
+/// constant is `1 * 6500000`. (The fractional values at `timerRoutine` (`pad_leds.cpp`) are a transition ramping the
+/// same scale in and out, which the tween driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus
 /// `totalRGB * (proportion >> 5)` over a 23-bit shift (`ui/gfx/grid/rgb.h`), which is why the number is this size
 /// rather than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
@@ -76,7 +76,7 @@ ColumnPair read_column_pair(const ui::gfx::grid::PadGrid& grid, uint8_t pair_ind
 /// @brief Elementwise equality for `KnobIndicator`, which (unlike `ColumnPair`) declares no
 ///        `operator==` of its own. Iterates the real extent of `levels` rather than a hardcoded
 ///        4, so this does not silently go stale if that array's size ever changes.
-bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
+bool same_indicator(const widgets::core::KnobIndicator& a, const widgets::core::KnobIndicator& b) {
 	for (size_t i = 0; i < std::size(a.levels); i++) {
 		if (a.levels[i] != b.levels[i]) {
 			return false;
@@ -87,7 +87,7 @@ bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
 
 /// @brief How many knob indicators the board has: `IndicatorId::Lower` and `::Upper`.
 ///
-/// `IndicatorId` (`ui/core/led_frame.h`) declares no `Count`, and `LedFrame::indicator_in_range`
+/// `IndicatorId` (`ui/widgets/core/led_frame.h`) declares no `Count`, and `LedFrame::indicator_in_range`
 /// hardcodes this same "2" privately -- this is the shell's own name for that same fact, not a
 /// duplicate source of truth to keep in sync with a differently-spelled one.
 constexpr uint8_t kIndicatorCount = 2;
@@ -240,7 +240,7 @@ void Shell::boot() {
 	lowering_.widgets_gate().request_repaint();
 }
 
-void Shell::set_highlighting(ui::Highlighting h) {
+void Shell::set_highlighting(ui::widgets::core::Highlighting h) {
 	surfaces_.set_highlighting(h);
 	for (OledSurface& s : surfaces_.oled()) {
 		s.gate.request_repaint();
@@ -322,7 +322,7 @@ bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
 	return router_.route(event, make_context(now_ms));
 }
 
-bool Shell::route_lowered_turn(EncoderRole role, int8_t offset, uint32_t now_ms) {
+bool Shell::route_lowered_turn(widgets::core::EncoderRole role, int8_t offset, uint32_t now_ms) {
 	// A user touched the box, as the board feeds note.
 	screensaver_.note_activity(now_ms);
 	UiEvent e{UiEvent::Kind::Encoder};
@@ -400,7 +400,7 @@ void Shell::tick(uint32_t now_ms) {
 		surfaces_.grid().gate.request_repaint();
 		lowering_.widgets_gate().request_repaint();
 	}
-	else if (const grid::GreyoutMask now = stack_.topmost_greyout();
+	else if (const widgets::grid::GreyoutMask now = stack_.topmost_greyout();
 	         now.cols != greyout_.cols || now.rows != greyout_.rows) {
 		// A scene whose mask follows its own state (the sample browser's, as its pads change) changes the greyout
 		// with no stack change.
@@ -596,7 +596,7 @@ void Shell::apply_dirty(const base::notify::DirtySet& dirty, std::optional<uint3
 	if (!dirty.any()) {
 		return;
 	}
-	const auto request = [&](RepaintGate& gate) {
+	const auto request = [&](widgets::core::RepaintGate& gate) {
 		if (owed_at.has_value()) {
 			gate.request_repaint_after(0, *owed_at);
 		}
@@ -652,7 +652,7 @@ void Shell::pump_input(uint32_t now_ms) {
 	routed_ = {};
 	decider_ = nullptr;
 	deciders_differ_ = false;
-	InputClaims owned_presses{};
+	widgets::core::InputClaims owned_presses{};
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
 		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
@@ -819,11 +819,13 @@ bool Shell::render_oled(OledSurface& s) {
 		// Exactly one scene per pass owns the tick's input, and it is the same one the router hands
 		// events to: the input-frontmost scene (`Scene::input_transparent`). Everything else in the
 		// pass -- beneath it, or a passive layer above it -- draws with `InputMask::none()`, so its
-		// widgets still paint but read 0/false and claim nothing (`ui/oled/frame.h`, `root_frame`'s
+		// widgets still paint but read 0/false and claim nothing (`ui/widgets/oled/frame.h`, `root_frame`'s
 		// `mask` note). Keying this on the *topmost* scene instead would let a console line or the
 		// working animation, which route nothing, deafen the view they are drawn over.
-		const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-		ui::oled::OledFrame frame = ui::oled::root_frame(s.canvas, *s.style, lowering_.ctx(), mask, covered(k));
+		const widgets::core::InputMask mask =
+		    scenes[k] == focus ? widgets::core::InputMask::all() : widgets::core::InputMask::none();
+		ui::widgets::oled::OledFrame frame =
+		    ui::widgets::oled::root_frame(s.canvas, *s.style, lowering_.ctx(), mask, covered(k));
 		scenes[k]->render_oled(s.role, frame);
 		append_rendered(scenes[k]);
 	}
@@ -871,18 +873,20 @@ void Shell::render_grid(uint32_t now_ms) {
 	// Same focus rule as `render_oled`: the input-frontmost scene, not simply the topmost one.
 	Scene* const focus = &stack_.input_top();
 	{
-		const InputMask mask = scenes[base] == focus ? InputMask::all() : InputMask::none();
-		ui::grid::GridFrame frame =
-		    ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(base));
+		const widgets::core::InputMask mask =
+		    scenes[base] == focus ? widgets::core::InputMask::all() : widgets::core::InputMask::none();
+		ui::widgets::grid::GridFrame frame =
+		    ui::widgets::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(base));
 		scenes[base]->render_grid(frame);
 		append_rendered(scenes[base]);
 	}
 
 	if (has_overlay) {
 		for (size_t k = base + 1; k < scenes.size(); k++) {
-			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-			ui::grid::GridFrame frame =
-			    ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(k));
+			const widgets::core::InputMask mask =
+			    scenes[k] == focus ? widgets::core::InputMask::all() : widgets::core::InputMask::none();
+			ui::widgets::grid::GridFrame frame =
+			    ui::widgets::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(k));
 			scenes[k]->render_grid(frame);
 			append_rendered(scenes[k]);
 		}
@@ -893,7 +897,7 @@ void Shell::render_grid(uint32_t now_ms) {
 	// and `prepareColour` applies whichever value is current to the same masked pads
 	// regardless of whether it is ramping or settled. So while that tween is running, it *replaces*
 	// this static full-strength pass rather than stacking underneath it; running both would grey
-	// the frame twice; the tween block below applies the masked `ui::grid::greyout` itself, at the
+	// the frame twice; the tween block below applies the masked `ui::widgets::grid::greyout` itself, at the
 	// ramped or (on completion) full proportion.
 	//
 	// A host that greys in its send path (`ShellConfig::greys_in_send_path`) gets an ungreyed grid
@@ -901,11 +905,12 @@ void Shell::render_grid(uint32_t now_ms) {
 	const bool greyout_tween_active = g.tween.has_value() && g.tween->kind == ActiveTween::Kind::GreyOut;
 	const bool greys_here = !config_.greys_in_send_path && (greyout_.cols != 0 || greyout_.rows != 0);
 	if (!greyout_tween_active && greys_here) {
-		// Last, and once: `ui::grid::greyout` mutates the grid rather than tinting on the way out,
-		// so anything painted after it would escape the tint (`ui/grid/effects.h`'s warning).
+		// Last, and once: `ui::widgets::grid::greyout` mutates the grid rather than tinting on the way out,
+		// so anything painted after it would escape the tint (`ui/widgets/grid/effects.h`'s warning).
 		// `InputMask::none()`: an effect pass paints, it does not consume input.
-		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
-		ui::grid::greyout(frame, greyout_, kGreyoutAmountFull);
+		ui::widgets::grid::GridFrame frame =
+		    ui::widgets::grid::root_grid_frame(grid, lowering_.ctx(), widgets::core::InputMask::none());
+		ui::widgets::grid::greyout(frame, greyout_, kGreyoutAmountFull);
 	}
 
 	// A grid tween blends the whole composed frame above -- scenes and greyout alike
@@ -920,8 +925,9 @@ void Shell::render_grid(uint32_t now_ms) {
 				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`timerRoutine` in `pad_leds.cpp`) -- the
 				// static pass above was skipped this tick precisely because this tween was still
 				// live when that check ran.
-				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
-				ui::grid::greyout(frame, greyout_, kGreyoutAmountFull);
+				ui::widgets::grid::GridFrame frame =
+				    ui::widgets::grid::root_grid_frame(grid, lowering_.ctx(), widgets::core::InputMask::none());
+				ui::widgets::grid::greyout(frame, greyout_, kGreyoutAmountFull);
 			}
 			// Otherwise the live grid above is already the final frame; nothing left to blend.
 			g.tween.reset();
@@ -951,12 +957,13 @@ void Shell::render_grid(uint32_t now_ms) {
 				break;
 			}
 			case ActiveTween::Kind::GreyOut: {
-				// Masked, not `gfx::grid::grey_out`'s unconditional "every main column": see the
+				// Masked, not `ui::gfx::grid::grey_out`'s unconditional "every main column": see the
 				// class comment above on why this replaces the static pass rather than adding to it.
 				if (!config_.greys_in_send_path) {
 					const int32_t proportion = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-					ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
-					ui::grid::greyout(frame, greyout_, proportion);
+					ui::widgets::grid::GridFrame frame =
+					    ui::widgets::grid::root_grid_frame(grid, lowering_.ctx(), widgets::core::InputMask::none());
+					ui::widgets::grid::greyout(frame, greyout_, proportion);
 				}
 				break;
 			}
@@ -977,8 +984,8 @@ void Shell::audit_ownership() {
 	if (decider_ != taker || deciders_differ_) {
 		return;
 	}
-	const InputClaims& claimed = lowering_.ctx().claims;
-	const auto count = [&](bool InputClaims::* bit) {
+	const widgets::core::InputClaims& claimed = lowering_.ctx().claims;
+	const auto count = [&](bool widgets::core::InputClaims::* bit) {
 		if ((routed_.*bit) && (claimed.*bit)) {
 			ownership_audit().undeclared_claims++;
 		}
@@ -986,9 +993,10 @@ void Shell::audit_ownership() {
 			ownership_audit().unclaimed_owned++;
 		}
 	};
-	for (bool InputClaims::* bit :
-	     {&InputClaims::turn, &InputClaims::edit0, &InputClaims::edit1, &InputClaims::horizontal,
-	      &InputClaims::vertical, &InputClaims::select, &InputClaims::back}) {
+	for (bool widgets::core::InputClaims::* bit :
+	     {&widgets::core::InputClaims::turn, &widgets::core::InputClaims::edit0, &widgets::core::InputClaims::edit1,
+	      &widgets::core::InputClaims::horizontal, &widgets::core::InputClaims::vertical,
+	      &widgets::core::InputClaims::select, &widgets::core::InputClaims::back}) {
 		count(bit);
 	}
 }
@@ -1008,11 +1016,11 @@ void Shell::derive_leds(uint32_t now_ms) {
 	// begins with a `blinkLed`. A rate nothing declares stops, as legacy's timer does.
 	bool declared[2] = {};
 	bool started[2] = {};
-	std::array<int8_t, LedFrame::kMaxEntries> shared_now;
+	std::array<int8_t, widgets::core::LedFrame::kMaxEntries> shared_now;
 	shared_now.fill(-1);
 	for (const auto& [id, state] : leds.frame.entries()) {
 		const size_t board_led = static_cast<size_t>(static_cast<uint8_t>(id));
-		if (state.kind != LedState::Kind::Shared || board_led >= LedFrame::kMaxEntries) {
+		if (state.kind != widgets::core::LedState::Kind::Shared || board_led >= widgets::core::LedFrame::kMaxEntries) {
 			continue;
 		}
 		const auto r = static_cast<int8_t>(std::to_underlying(state.rate));
@@ -1021,13 +1029,16 @@ void Shell::derive_leds(uint32_t now_ms) {
 		started[r] = started[r] || shared_rate_[board_led] != r;
 	}
 	shared_rate_ = shared_now;
-	for (const ui::BlinkRate rate : {ui::BlinkRate::Normal, ui::BlinkRate::Fast}) {
+	for (const ui::widgets::core::BlinkRate rate :
+	     {ui::widgets::core::BlinkRate::Normal, ui::widgets::core::BlinkRate::Fast}) {
 		const size_t r = std::to_underlying(rate);
 		if (const std::optional<bool> initially_on = leds.frame.restart_requested(rate)) {
-			blink_phases_[r] = ui::BlinkPhase{.origin_ms = now_ms, .initially_on = *initially_on, .running = true};
+			blink_phases_[r] =
+			    ui::widgets::core::BlinkPhase{.origin_ms = now_ms, .initially_on = *initially_on, .running = true};
 		}
 		else if (started[r]) {
-			blink_phases_[r] = ui::BlinkPhase{.origin_ms = now_ms, .initially_on = true, .running = true};
+			blink_phases_[r] =
+			    ui::widgets::core::BlinkPhase{.origin_ms = now_ms, .initially_on = true, .running = true};
 		}
 		else if (!declared[r]) {
 			blink_phases_[r].running = false;
@@ -1037,7 +1048,7 @@ void Shell::derive_leds(uint32_t now_ms) {
 	leds.desired_declared.fill(false);
 	for (const auto& [id, state] : leds.frame.entries()) {
 		const size_t board_led = static_cast<size_t>(static_cast<uint8_t>(id));
-		if (board_led >= LedFrame::kMaxEntries) {
+		if (board_led >= widgets::core::LedFrame::kMaxEntries) {
 			// A board LED past the shadow arrays cannot be diffed or sent. `LedFrame::set` returns
 			// a bool precisely so a dropped declaration is not swallowed, and neither is this one:
 			// the count is the diagnostic that a board profile has outgrown `kMaxEntries`.
@@ -1157,7 +1168,7 @@ void Shell::flush(uint32_t now_ms) {
 	// Pad flashes go out after the column pairs, so a flash plays over the colours this tick sent.
 	// Each is an event of this tick: sent once and dropped. No budget, as legacy's `flashMainPad`
 	// checks none.
-	for (const ui::grid::PadFlash& flash : g.flashes.flashes()) {
+	for (const ui::widgets::grid::PadFlash& flash : g.flashes.flashes()) {
 		surfaces_.flash_pad(flash.x, flash.y, flash.colour);
 		any_sent = true;
 	}
@@ -1168,7 +1179,7 @@ void Shell::flush(uint32_t now_ms) {
 	// `led_send_needed` both use -- and the board profile maps that to the physical board LED
 	// `SurfaceSet::set_led` takes.
 	LedSurface& leds = surfaces_.leds();
-	for (size_t i = 0; i < LedFrame::kMaxEntries; i++) {
+	for (size_t i = 0; i < widgets::core::LedFrame::kMaxEntries; i++) {
 		if (leds.sent_once[i] && !leds.desired_declared[i]) {
 			// Sent before and declared by nothing now: the LED goes back to its owner, once. Clearing
 			// `sent_once` makes a later declaration send even a state equal to `last_on`, since the
@@ -1205,7 +1216,8 @@ void Shell::flush(uint32_t now_ms) {
 	// Knob indicators: diff against `last_indicators`, only while declared this tick -- an
 	// indicator nothing declared is left exactly as it was, the same rule as an undeclared LED.
 	for (uint8_t which = 0; which < kIndicatorCount; which++) {
-		const KnobIndicator* ind = leds.frame.indicator_or_null(static_cast<IndicatorId>(which));
+		const widgets::core::KnobIndicator* ind =
+		    leds.frame.indicator_or_null(static_cast<widgets::core::IndicatorId>(which));
 		if (ind == nullptr) {
 			continue;
 		}

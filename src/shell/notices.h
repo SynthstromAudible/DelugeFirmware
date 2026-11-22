@@ -4,8 +4,8 @@
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
 #include "shell/service.h"
-#include "ui/core/state.h"
-#include "ui/oled/popup.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/oled/popup.h"
 
 #include <cstdint>
 #include <optional>
@@ -86,7 +86,7 @@ public:
 	/// @return The type value, already folded (0 -> `General`) by whoever called `show()`.
 	uint8_t popup_type() const { return popup_type_; }
 
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) override;
 	/// @brief Transparent on every surface: legacy draws a popup onto the image the UI beneath left
 	///        (`OLED::sendMainImage`, `hid/display/oled.cpp`), so around its window the screen
 	///        still shows that UI, and the shell has to draw the scene below first.
@@ -118,7 +118,7 @@ private:
 	///        `automation_view.cpp`, `stem_export.cpp`), never reached through `Notice`/
 	///        `notify_drain.cpp`, so a persistent (`timeout_ms == 0`) popup still draws `Framed`/
 	///        `Notification` rather than switching style.
-	static ui::oled::PopupStyle style_for(uint8_t popup_type);
+	static ui::widgets::oled::PopupStyle style_for(uint8_t popup_type);
 
 	char text_[48] = {};
 	uint8_t popup_type_ = kPopupTypeGeneral;
@@ -171,7 +171,7 @@ public:
 	/// @return Milliseconds from the last `set_now()` or `append()`, or `std::nullopt` when no line is showing.
 	std::optional<uint32_t> next_timer() const override { return remaining_ms(now_ms_); }
 
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
 	bool oled_transparent(SurfaceRole) const override { return true; }
@@ -208,7 +208,7 @@ private:
 };
 
 /// @brief The "busy, please wait" corner animation: legacy's `updateWorkingAnimation`/
-///        `displayWorkingAnimation`, drawn through the toolkit's `ui::oled::working()`.
+///        `displayWorkingAnimation`, drawn through the toolkit's `ui::widgets::oled::working()`.
 class WorkingScene final : public Scene {
 public:
 	SceneKind kind() const override { return SceneKind::Working; }
@@ -216,9 +216,9 @@ public:
 	/// @brief Arm the animation and (re)anchor its clock.
 	/// @param word   Legacy's direction switch: `"Loading"` runs right-to-left, anything else
 	///               (`"Saving"`) left-to-right; copied into an 8-byte buffer, truncated if
-	///               longer. See `ui::oled::working` -- nothing is printed.
+	///               longer. See `ui::widgets::oled::working` -- nothing is printed.
 	/// @param now_ms The tick's wall clock; the animation clock's own anchor is derived from this
-	///               by `ui::oled::working` on the next `render_oled`, not stored eagerly here.
+	///               by `ui::widgets::oled::working` on the next `render_oled`, not stored eagerly here.
 	void arm(std::string_view word, uint32_t now_ms);
 	/// @brief Disarm the animation. Does not touch the scene stack -- see `Notices::tick`, which
 	///        is what pops this scene once `armed()` goes false.
@@ -227,7 +227,7 @@ public:
 	/// @return True from `arm()` until the next `clear()`.
 	bool armed() const { return armed_; }
 
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the animation draws only its own corner box.
 	bool oled_transparent(SurfaceRole) const override { return true; }
 	/// @brief A grid overlay that paints nothing.
@@ -252,7 +252,7 @@ public:
 private:
 	char word_[8] = {};
 	bool armed_ = false;
-	Blink blink_{};
+	widgets::core::Blink blink_{};
 };
 
 /// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display, and how
@@ -296,7 +296,7 @@ const NotificationSink* notification_sink();
 ///
 /// Driven entirely by `Notices`, like the three scenes above. What it ports, statement by
 /// statement:
-///   * **Position and pixels.** `render_oled` is `ui::oled::notification`,
+///   * **Position and pixels.** `render_oled` is `ui::widgets::oled::notification`,
 ///     that function's own transcription: the band from `OLED_MAIN_TOPMOST_PIXEL` to
 ///     `+ kTextSpacingY + 1`, inverted (`OLED::displayNotification` in `oled.cpp`).
 ///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (in `OLED::displayNotification`), whose
@@ -337,7 +337,7 @@ public:
 	/// @return The value last shown, NUL-terminated; empty for a title-only notification.
 	const char* value() const { return value_; }
 
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) override;
 	/// @brief Always transparent: it draws its eleven-row top band on `Main` and nothing on any
 	///        other surface, so every surface still needs the scene beneath. Legacy composites
 	///        the popup over the running UI's image (`OLED::sendMainImage`, `oled.cpp`).

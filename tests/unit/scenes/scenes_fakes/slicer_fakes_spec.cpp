@@ -81,7 +81,7 @@ struct SlicerHost {
 /// @brief Press the pad at (@p x, @p y) on @p scene, as the shell hands it a pad.
 Result press(SlicerScene& scene, uint8_t x, uint8_t y) {
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const UiContext ctx{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
 	return scene.handle(UiEvent{.kind = UiEvent::Kind::Pad, .x = x, .y = y, .velocity = 64, .on = true}, ctx);
 }
@@ -89,7 +89,7 @@ Result press(SlicerScene& scene, uint8_t x, uint8_t y) {
 /// @brief Press the button @p b on @p scene, as the shell hands it a press.
 Result press_button(SlicerScene& scene, deluge::ui::shell::ButtonId b) {
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const UiContext ctx{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
 	return scene.handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = b}, ctx);
 }

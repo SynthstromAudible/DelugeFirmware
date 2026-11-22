@@ -31,9 +31,9 @@
 #include "base/notify/notice_queue.h"
 
 #include "shell/profile.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/scroll_text.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/scroll_text.h"
+#include "ui/widgets/oled/text.h"
 
 #include "project/device_settings.h"
 #include "project/midi_channels.h"
@@ -56,11 +56,11 @@ using deluge::project::kFirstProgramChangeChannel;
 ///
 /// A `CustomItem` is handed `MenuState`, not its own `Node` -- `nodes/settings.cpp`'s `focused_of` /
 /// `draw_title_for` pair, and `nodes/edit_name.cpp`'s inline copy of the same three lines.
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief `l10n::get(id)` through the profile's own table.
@@ -76,27 +76,29 @@ std::string_view format_int(int32_t v, char (&buf)[12]) {
 
 /// @brief The first of `drawPixelsForOled`'s three text rows, in @p f's frame-local coordinates.
 ///
-/// Two corrections stacked, both recorded in `ui/core/metrics.h` rather than as literals here:
+/// Two corrections stacked, both recorded in `ui/widgets/core/metrics.h` rather than as literals here:
 ///
 ///   * `kMidiCommandRowY48` / `kMidiCommandRowY64` -- legacy's literal canvas row 20 minus the
 ///     panel's own `visible_top`, which the frame's origin already carries. It is a *pair* because
 ///     `visible_top` is 5 on the 48-row panel and 0 on a 64-row one, so a single constant is wrong
 ///     on one of them by five rows. Selected from `Style::menu_base_y`, the profile value
-///     `ui::oled::output_name` already picks its own 48/64 pair with (`output_name` in `ui/oled/misc.cpp`) --
-///     never from the framebuffer's height, so a mismatched (Style, Geometry) pair cannot disagree.
+///     `ui::widgets::oled::output_name` already picks its own 48/64 pair with (`output_name` in
+///     `ui/widgets/oled/misc.cpp`) -- never from the framebuffer's height, so a mismatched (Style, Geometry) pair
+///     cannot disagree.
 ///   * `kApple7Height7YAdjust` -- legacy draws these rows at `kTextSizeYUpdated` (7), which selects
 ///     the Apple face's height-7 variant; `FontId::Apple7` is the height-9 one, which draws the
 ///     same glyphs one row lower. Laying the rect one row high cancels that.
 ///
 /// Together the ink lands on legacy's own canvas rows 20 / 29 / 38, on both panels.
-int32_t command_row0_y(const deluge::ui::oled::OledFrame& f) {
-	const bool tall = f.style.menu_base_y == deluge::ui::kMenuBaseY64;
-	return (tall ? deluge::ui::kMidiCommandRowY64 : deluge::ui::kMidiCommandRowY48) + deluge::ui::kApple7Height7YAdjust;
+int32_t command_row0_y(const deluge::ui::widgets::oled::OledFrame& f) {
+	const bool tall = f.style.menu_base_y == deluge::ui::widgets::core::kMenuBaseY64;
+	return (tall ? deluge::ui::widgets::core::kMidiCommandRowY64 : deluge::ui::widgets::core::kMidiCommandRowY48)
+	       + deluge::ui::widgets::core::kApple7Height7YAdjust;
 }
 
 } // namespace
 
-void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void MidiCommandItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
 	// A context with no MIDI devices port has no binding to show: the command reads as unassigned.
@@ -107,16 +109,16 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 	const int32_t row0_y = command_row0_y(f);
 	const int32_t row_h = f.style.row_height;
-	const int32_t spacing = deluge::ui::oled::spacing_x_for(f.style.row_font);
+	const int32_t spacing = deluge::ui::widgets::oled::spacing_x_for(f.style.row_font);
 	const auto row = [&](int32_t i, int32_t x) {
 		return deluge::ui::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
 	};
-	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
+	const deluge::ui::widgets::oled::TextStyle ts{.font = f.style.row_font};
 	deluge::ui::shell::TextScratch scratch;
 
 	if (!command) {
 		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`).
-		deluge::ui::oled::text(f, row(0, 0), text_of(String::STRING_FOR_COMMAND_UNASSIGNED, scratch), ts);
+		deluge::ui::widgets::oled::text(f, row(0, 0), text_of(String::STRING_FOR_COMMAND_UNASSIGNED, scratch), ts);
 	}
 	else {
 		// Row 0: the device, side-scrolling. `Command::drawPixelsForOled`
@@ -129,8 +131,8 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		if (command->device) {
 			device = ctx.ports.midi->name(*command->device);
 		}
-		deluge::ui::oled::scroll_text(f, row(0, 0), device, f.style.row_font,
-		                              state.scroll[state.depth < kMenuDepth ? state.depth : 0]);
+		deluge::ui::widgets::oled::scroll_text(f, row(0, 0), device, f.style.row_font,
+		                                       state.scroll[state.depth < kMenuDepth ? state.depth : 0]);
 
 		// Row 1: the channel or MPE zone. `Command::drawPixelsForOled`
 		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). The "great CC channel hack" is that
@@ -162,9 +164,9 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 				channel_mod = kFirstCcChannel;
 			}
 			char buf[12];
-			deluge::ui::oled::text(f, row(1, spacing * 8), format_int(channel + 1 - channel_mod, buf), ts);
+			deluge::ui::widgets::oled::text(f, row(1, spacing * 8), format_int(channel + 1 - channel_mod, buf), ts);
 		}
-		deluge::ui::oled::text(f, row(1, 0), channel_text, ts);
+		deluge::ui::widgets::oled::text(f, row(1, 0), channel_text, ts);
 
 		// Row 2: which kind of message, and its number. `Command::drawPixelsForOled`
 		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). "Note"/"CC"/"PC" are bare literals in legacy too
@@ -176,10 +178,10 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		else if (channel >= kFirstCcChannel) {
 			kind = "CC";
 		}
-		deluge::ui::oled::text(f, row(2, 0), kind, ts);
+		deluge::ui::widgets::oled::text(f, row(2, 0), kind, ts);
 		char buf[12];
-		deluge::ui::oled::text(f, row(2, spacing * 5),
-		                       format_int(command->note_or_cc.value_or(project::MidiCommand::kNone), buf), ts);
+		deluge::ui::widgets::oled::text(f, row(2, spacing * 5),
+		                                format_int(command->note_or_cc.value_or(project::MidiCommand::kNone), buf), ts);
 	}
 
 	// A leaf's select press leaves the item -- `FirmwareVersionItem::render`'s own arm, and what
@@ -200,7 +202,8 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
 	// from also acting on it. `midi::Command` has no `buttonAction`/`padAction` override, and MIDI learn reaches the
 	// item through `MenuLearn::offer`, which calls the learn members below.
 	using deluge::ui::shell::UiEvent;
-	if (event.kind != UiEvent::Kind::Encoder || event.encoder != deluge::ui::EncoderRole::Select || event.delta == 0) {
+	if (event.kind != UiEvent::Kind::Encoder || event.encoder != deluge::ui::widgets::core::EncoderRole::Select
+	    || event.delta == 0) {
 		return {};
 	}
 	if (ctx.ports.learn != nullptr) {

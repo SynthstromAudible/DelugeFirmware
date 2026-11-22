@@ -8,7 +8,7 @@
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/walk.h"
 #include "shell/scene.h"
-#include "ui/grid/effects.h"
+#include "ui/widgets/grid/effects.h"
 
 #include <cstdint>
 #include <optional>
@@ -18,7 +18,7 @@ namespace deluge::scenes::menu {
 
 /// @brief The grid greyout under the menu -- `SoundEditor::getGreyoutColsAndRows`
 /// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
-deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st);
+deluge::ui::widgets::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st);
 
 /// @brief When the pad blinks next need a frame: the shorter of the shortcut counter's two steps the plan uses, or
 ///        nullopt with nothing blinking.
@@ -31,7 +31,7 @@ public:
 	/// @brief Flash the shortcut blinks for `pad_subject()` (`blinkShortcut`,
 	/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @param kit_global_latched As `plan_blinks`'.
-	void render_grid(MenuCore core, deluge::ui::grid::GridFrame& f, bool kit_global_latched = false);
+	void render_grid(MenuCore core, deluge::ui::widgets::grid::GridFrame& f, bool kit_global_latched = false);
 	/// @brief SHIFT + a pad: the second-layer toggle and the jump (`potentialShortcutPadAction`).
 	/// @return The result when the event was a SHIFT + pad press, else nullopt.
 	std::optional<deluge::ui::shell::Result> handle_pad(MenuCore core, MenuWalk& walk, ValueSession& session,

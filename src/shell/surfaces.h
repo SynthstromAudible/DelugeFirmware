@@ -1,14 +1,14 @@
 #pragma once
 #include "libdeluge/board.h"
 #include "shell/profile.h"
-#include "ui/core/led_frame.h"
-#include "ui/core/repaint_gate.h"
-#include "ui/core/style.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/grid/rgb.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/geometry.h"
-#include "ui/grid/frame.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/core/repaint_gate.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/grid/frame.h"
 
 #include <array>
 #include <cstddef>
@@ -26,7 +26,7 @@ inline constexpr uint8_t kMaxOled = 4;
 inline constexpr size_t kOledStorageBytes = 128 * 64 / 8;
 /// @brief LEDs in one main-grid column pair: two columns of eight pads.
 inline constexpr uint8_t kColumnPairLeds = 16;
-/// @brief Column-pair capacity, sized to `gfx::grid::kMaxGridCols / 2`.
+/// @brief Column-pair capacity, sized to `ui::gfx::grid::kMaxGridCols / 2`.
 inline constexpr uint8_t kMaxColumnPairs = ui::gfx::grid::kMaxGridCols / 2;
 
 /// @brief Bytes in one main-grid column-pair send, for `Shell::flush`'s pad-output-space budget.
@@ -53,7 +53,7 @@ struct OledSurface {
 
 	ui::gfx::oled::Canvas canvas;
 	ui::gfx::oled::Geometry geometry{0, 0, 0};
-	RepaintGate gate;
+	widgets::core::RepaintGate gate;
 	SurfaceRole role = SurfaceRole::None;
 	uint8_t index = 0;
 	bool blit_pending = false;
@@ -62,7 +62,7 @@ struct OledSurface {
 	/// @warning The shell requires a style for every surface it renders. This is null for a
 	///          surface past the end of `BoardProfile::style_by_index`; such a surface must not be
 	///          rendered, and a board profile that leaves one null is a profile bug.
-	const Style* style = nullptr;
+	const widgets::core::Style* style = nullptr;
 };
 
 /// @brief The 16 pad colours of one main-grid column pair.
@@ -93,12 +93,12 @@ struct ActiveTween {
 struct GridSurface {
 	/// The pad framebuffer, valid once `SurfaceSet::build()` has run.
 	///
-	/// `gfx::grid::PadGrid` has no default constructor (its dimensions are a constructor
+	/// `ui::gfx::grid::PadGrid` has no default constructor (its dimensions are a constructor
 	/// argument) and the surface pool must be constructible before the board is known, so the
 	/// grid is held two-phase in an `optional` and emplaced by `build()`. Reach it through
 	/// `grid()`, never through the optional.
 	std::optional<ui::gfx::grid::PadGrid> grid_storage;
-	RepaintGate gate;
+	widgets::core::RepaintGate gate;
 	ColumnPair last_sent[kMaxColumnPairs]{};
 	bool sent_once[kMaxColumnPairs]{};
 	/// How many column pairs this board's grid has; indexes `last_sent`/`sent_once`.
@@ -112,7 +112,7 @@ struct GridSurface {
 	bool dirty = false;
 	/// The pad flashes this tick's scene renders asked for. `Shell::render_grid` hands it to each
 	/// scene's root frame and `Shell::flush` sends and clears it.
-	ui::grid::PadFlashList flashes;
+	ui::widgets::grid::PadFlashList flashes;
 
 	/// @brief The pad framebuffer.
 	/// @pre `SurfaceSet::build()` has run.
@@ -131,17 +131,17 @@ struct GridSurface {
 struct LedSurface {
 	/// This tick's composed declarations, filled by `Shell::derive_leds` through
 	/// `LedCompose::compose` (`shell/leds.h`).
-	LedFrame frame;
+	widgets::core::LedFrame frame;
 	/// Whether board LED `i` should be lit right now: `led_is_on()` evaluated against this tick's
 	/// clock, so the blink phase is resolved before the diff rather than inside it.
-	std::array<bool, LedFrame::kMaxEntries> desired_on{};
+	std::array<bool, widgets::core::LedFrame::kMaxEntries> desired_on{};
 	/// Whether anything declared board LED `i` at all this tick. An undeclared LED is not driven
 	/// off -- a board LED nothing in the stack mentions is not the shell's to turn off; one the shell
 	/// sent is handed back once through `SurfaceSet::release_led`.
-	std::array<bool, LedFrame::kMaxEntries> desired_declared{};
-	std::array<bool, LedFrame::kMaxEntries> last_on{};
-	std::array<bool, LedFrame::kMaxEntries> sent_once{};
-	KnobIndicator last_indicators[2]{};
+	std::array<bool, widgets::core::LedFrame::kMaxEntries> desired_declared{};
+	std::array<bool, widgets::core::LedFrame::kMaxEntries> last_on{};
+	std::array<bool, widgets::core::LedFrame::kMaxEntries> sent_once{};
+	widgets::core::KnobIndicator last_indicators[2]{};
 	bool indicators_sent[2]{};
 };
 
@@ -172,7 +172,7 @@ public:
 	///        `FlashStorage::accessibilityMenuHighlighting` live (`HorizontalMenu::renderMenuItems` in
 	///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	/// @param h The highlighting the card stores.
-	void set_highlighting(Highlighting h) {
+	void set_highlighting(widgets::core::Highlighting h) {
 		for (uint8_t i = 0; i < oled_count_; i++) {
 			styles_[i].highlighting = h;
 		}
@@ -216,7 +216,7 @@ public:
 	/// @param x Pad column, `< main_cols`.
 	/// @param y Pad row.
 	/// @param colour The flash's colour code.
-	virtual void flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colour) = 0;
+	virtual void flash_pad(uint8_t x, uint8_t y, ui::widgets::grid::FlashColour colour) = 0;
 	/// @brief Set one indicator LED.
 	/// @param board_led Board-defined LED index.
 	/// @param on Whether it should be lit.
@@ -232,7 +232,7 @@ public:
 	/// @param which 0 for the lower knob, 1 for the upper (matching `IndicatorId`, whose values are
 	///        this index -- see the ordering note on that enum).
 	/// @param indicator The levels to send.
-	virtual void set_indicator(uint8_t which, const KnobIndicator& indicator) = 0;
+	virtual void set_indicator(uint8_t which, const widgets::core::KnobIndicator& indicator) = 0;
 	/// @brief Push everything queued by the calls above to the hardware.
 	virtual void flush() = 0;
 	/// @}
@@ -256,8 +256,8 @@ protected:
 	///
 	/// @param board Board capability descriptor.
 	/// @param profile Board profile; supplies the surface roles, styles and sidebar width.
-	/// @pre The board's total column count fits `gfx::grid::kMaxGridCols` and its row count fits
-	///      `gfx::grid::kMaxGridRows` (enforced by `PadGrid`'s own contract).
+	/// @pre The board's total column count fits `ui::gfx::grid::kMaxGridCols` and its row count fits
+	///      `ui::gfx::grid::kMaxGridRows` (enforced by `PadGrid`'s own contract).
 	/// @pre The board's total column count (`pad_grid_width + sidebar_cols`) is **even**. `pairs`
 	///      is `cols() / 2` and the send path works a pair at a time (`read_column_pair`), so an
 	///      odd total leaves its last column in no pair, never read and never sent -- silently, and
@@ -268,7 +268,7 @@ protected:
 	uint8_t storage_[kMaxOled][kOledStorageBytes]{};
 	/// Each surface's style, copied from the board profile so the shell can restyle it (`set_highlighting`,
 	/// `set_rounded`).
-	Style styles_[kMaxOled]{};
+	widgets::core::Style styles_[kMaxOled]{};
 	OledSurface oled_[kMaxOled];
 	uint8_t oled_count_ = 0;
 	GridSurface grid_;

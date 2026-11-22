@@ -151,7 +151,7 @@ void set_sub_leaf(const MenuContext&, int32_t v) {
 	g_sub_leaf = v;
 }
 constexpr Node sub_leaf =
-    menu::int_item(sid(String::STRING_FOR_PAN), get_sub_leaf, set_sub_leaf, deluge::ui::oled::Range{0, 50, 1});
+    menu::int_item(sid(String::STRING_FOR_PAN), get_sub_leaf, set_sub_leaf, deluge::ui::widgets::oled::Range{0, 50, 1});
 constexpr const Node* kSubmenuColChildren[] = {&sub_leaf};
 constexpr Node submenu_col = menu::submenu(sid(String::STRING_FOR_FILTERS), kSubmenuColChildren);
 
@@ -170,14 +170,15 @@ void set_chain_target(const MenuContext&, int32_t v) {
 	g_chain_target = v;
 }
 constexpr Node chain_target = menu::int_item(sid(String::STRING_FOR_TEMPO), get_chain_target, set_chain_target,
-                                             deluge::ui::oled::Range{0, 50, 1});
+                                             deluge::ui::widgets::oled::Range{0, 50, 1});
 constexpr const Node* kChainColTargets[] = {&chain_target};
 const Node* chain_col_chain(const MenuContext&, const menu::MenuState&) {
 	return &chain_target;
 }
-constexpr Node chain_col = menu::with_select_chain(
-    menu::int_item(sid(String::STRING_FOR_RESONANCE), get_chain_col, set_chain_col, deluge::ui::oled::Range{0, 50, 1}),
-    chain_col_chain, kChainColTargets);
+constexpr Node chain_col =
+    menu::with_select_chain(menu::int_item(sid(String::STRING_FOR_RESONANCE), get_chain_col, set_chain_col,
+                                           deluge::ui::widgets::oled::Range{0, 50, 1}),
+                            chain_col_chain, kChainColTargets);
 
 // The range-dependent column: a real `bind.param` so `permission_for`/`ensure_first_range` have a
 // source to ask, exactly as `menu_scene_spec.cpp`'s own `transpose_leaf` is built.
@@ -192,8 +193,8 @@ int32_t get_filler_col(const MenuContext&) {
 void set_filler_col(const MenuContext&, int32_t v) {
 	g_filler_col = v;
 }
-constexpr Node filler_col =
-    menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col, deluge::ui::oled::Range{0, 50, 1});
+constexpr Node filler_col = menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col,
+                                           deluge::ui::widgets::oled::Range{0, 50, 1});
 
 // A range-dependent column with `allow_session_from_horizontal` also set -- the port of one of
 // `FileSelector`/`osc::AudioRecorder`/`sample::Start`/`sample::End`/`audio_clip::SampleMarkerEditor`
@@ -232,10 +233,12 @@ constexpr Node stay_parent = menu::submenu(sid(String::STRING_FOR_SETTINGS), kSt
 bool never_relevant(const MenuContext&) {
 	return false;
 }
-constexpr Node fixed_hidden_a = menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col,
-                                               deluge::ui::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
-constexpr Node fixed_hidden_b = menu::int_item(sid(String::STRING_FOR_RESONANCE), get_filler_col, set_filler_col,
-                                               deluge::ui::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
+constexpr Node fixed_hidden_a =
+    menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col,
+                   deluge::ui::widgets::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
+constexpr Node fixed_hidden_b =
+    menu::int_item(sid(String::STRING_FOR_RESONANCE), get_filler_col, set_filler_col,
+                   deluge::ui::widgets::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
 constexpr const Node* kFixedChildren[] = {&enum_col,   &fixed_hidden_a, &toggle_col,
                                           &filler_col, &fixed_hidden_b, &chain_col};
 constexpr Node fixed_page =
@@ -253,8 +256,9 @@ constexpr const Node* kGroupPageBChildren[] = {&filler_col};
 constexpr Node group_page_b =
     menu::submenu(sid(String::STRING_FOR_FILTER_ROUTE), kGroupPageBChildren, menu::Layout::Horizontal);
 /// A column that begins its own session from the horizontal page (`allowToBeginSessionFromHorizontalMenu`).
-constexpr Node session_plain_col = menu::with_allow_session_from_horizontal(menu::int_item(
-    sid(String::STRING_FOR_RECORD_TO_SAMPLE), get_filler_col, set_filler_col, deluge::ui::oled::Range{0, 50, 1}));
+constexpr Node session_plain_col = menu::with_allow_session_from_horizontal(
+    menu::int_item(sid(String::STRING_FOR_RECORD_TO_SAMPLE), get_filler_col, set_filler_col,
+                   deluge::ui::widgets::oled::Range{0, 50, 1}));
 constexpr const Node* kSessionPageChildren[] = {&enum_col, &session_plain_col};
 constexpr Node session_page =
     menu::submenu(sid(String::STRING_FOR_SAMPLE_RECORDER), kSessionPageChildren, menu::Layout::Horizontal);
@@ -283,8 +287,8 @@ int32_t get_wide_col(const MenuContext&) {
 void set_wide_col(const MenuContext&, int32_t v) {
 	g_wide_col = v;
 }
-constexpr Node wide_col_inner =
-    menu::int_item(sid(String::STRING_FOR_MASTER_LEVEL), get_wide_col, set_wide_col, deluge::ui::oled::Range{0, 50, 1});
+constexpr Node wide_col_inner = menu::int_item(sid(String::STRING_FOR_MASTER_LEVEL), get_wide_col, set_wide_col,
+                                               deluge::ui::widgets::oled::Range{0, 50, 1});
 constexpr Node wide_col = menu::nodes::with_slots(wide_col_inner, 4);
 constexpr const Node* kWideChildren[] = {&wide_col};
 constexpr Node wide_page = menu::submenu(sid(String::STRING_FOR_MASTER_LEVEL), kWideChildren, menu::Layout::Horizontal);
@@ -463,11 +467,11 @@ deluge::base::notify::Notice expect_one_notification(Self& self,
 
 /// @brief Whether \p f declared \p b's LED `On` this frame -- `LedFrame` has no query accessor of
 ///        its own, only `entries()`, so this scans it.
-bool led_on(const deluge::ui::LedFrame& f, ButtonId b) {
-	const auto id = static_cast<deluge::ui::LedId>(b);
+bool led_on(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
+	const auto id = static_cast<deluge::ui::widgets::core::LedId>(b);
 	for (const auto& [entry_id, state] : f.entries()) {
 		if (entry_id == id) {
-			return state.kind == deluge::ui::LedState::Kind::On;
+			return state.kind == deluge::ui::widgets::core::LedState::Kind::On;
 		}
 	}
 	return false;
@@ -623,12 +627,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::OFF), slot, col);
 		expect(col.show_label).to_equal(false);
-		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::art_column).to_equal(true);
 		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
-		expect(slot.art.face == deluge::ui::oled::ArtColumn::Face::Title).to_equal(true);
+		expect(slot.art.face == deluge::ui::widgets::oled::ArtColumn::Face::Title).to_equal(true);
 
 		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::RANDOM), slot, col);
 		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::dice).to_equal(true);
@@ -643,7 +647,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		std::string badges;
 		for (int32_t v = 0; v < 16; v++) {
 			slot = {};
@@ -665,7 +669,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::stutter_direction, ctx, 0, slot, col);
 		expect(std::string(slot.art.text)).to_equal(std::string("song"));
 		expect(slot.art.icon).to_be_null();
@@ -687,16 +691,16 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::sequence_direction, ctx, 1, slot, col); // reverse
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::art_column));
 		expect(slot.art.icon).to_equal(&deluge::ui::gfx::oled::icons::direction);
 		expect(slot.art.reversed).to_be_true();
 		menu::present_column(menu::nodes::sequence_direction, ctx, 2, slot, col); // ping-pong
 		expect(static_cast<int>(slot.art.twin_dx)).to_equal(2);
 		slot = {};
 		menu::present_column(menu::nodes::sequence_direction, ctx, 3, slot, col); // obey parent: the option text
-		expect(address_of(col.render)).not_().to_equal(address_of(deluge::ui::oled::art_column));
+		expect(address_of(col.render)).not_().to_equal(address_of(deluge::ui::widgets::oled::art_column));
 	});
 
 	it("the rhythm columns space main's pattern, zero as X, the MIDI/CV one a pixel left", _ {
@@ -707,9 +711,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 5, slot, col);
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::art_column));
 		expect(std::string(slot.art.text)).to_equal(std::string(deluge::plugin::kArpRhythms[5].name));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
@@ -737,7 +741,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const MenuContext ctx = r.open(horiz_page);
 		char buf[32];
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::nodes::set_stutter_direction(ctx, 1); // the sound's own stutter
 		menu::nodes::set_stutter_quantize(ctx, 1);
 		r.shell.tick(0);
@@ -811,13 +815,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
-		using Shape = deluge::ui::oled::DrawColumn::Shape;
+		deluge::ui::widgets::oled::Column col;
+		using Shape = deluge::ui::widgets::oled::DrawColumn::Shape;
 		const auto drawn = [&](const Node& node, int32_t value) {
 			slot = {};
 			col = {};
 			menu::present_column(node, ctx, value, slot, col);
-			return col.render == deluge::ui::oled::draw_column;
+			return col.render == deluge::ui::widgets::oled::draw_column;
 		};
 		expect(drawn(menu::nodes::portamento, 20)).to_be_true();
 		expect(slot.draw.shape).to_equal(Shape::Glide);
@@ -848,7 +852,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open_real(menu::nodes::filter_routing_page);
 		r.shell.tick(0);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::filter_routing, menu_scene().menu_context(), 0, slot, col);
 		expect(address_of(col.render)).to_equal(address_of(menu::option_list_column));
 		menu::present_column(menu::nodes::mod_fx_type, menu_scene().menu_context(), 0, slot, col);
@@ -878,13 +882,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
-		using Shape = deluge::ui::oled::DrawColumn::Shape;
+		deluge::ui::widgets::oled::Column col;
+		using Shape = deluge::ui::widgets::oled::DrawColumn::Shape;
 		const auto drawn = [&](const Node& node) {
 			slot = {};
 			col = {};
 			menu::present_column(node, ctx, 0, slot, col);
-			return col.render == deluge::ui::oled::draw_column;
+			return col.render == deluge::ui::widgets::oled::draw_column;
 		};
 		expect(drawn(menu::nodes::sample0_recorder)).to_be_true();
 		expect(slot.draw.shape).to_equal(Shape::Recorder);
@@ -905,7 +909,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		slot = {};
 		menu::present_column(menu::nodes::file0_selector, ctx, 0, slot, col);
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::art_column));
 		expect(slot.art.icon).to_equal(&deluge::ui::gfx::oled::icons::folderBig);
 		expect(static_cast<int>(slot.art.dy)).to_equal(-3);
 
@@ -1137,7 +1141,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::master_transpose, ctx, -1200, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_TRANSPOSE)));
 		expect(std::string(slot.text.value)).to_equal(std::string("-12"));
@@ -1152,11 +1156,11 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::arp_sync, ctx, 0, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_SYNC)));
 		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
-		expect(slot.art.face == deluge::ui::oled::ArtColumn::Face::Row).to_equal(true);
+		expect(slot.art.face == deluge::ui::widgets::oled::ArtColumn::Face::Row).to_equal(true);
 
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH); // an even sync's option is its level
 		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
@@ -1171,12 +1175,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::voice_count, ctx, 0, slot, col);
-		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::art_column).to_equal(true);
 		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::infinity).to_equal(true);
 		menu::present_column(menu::nodes::voice_count, ctx, 8, slot, col);
-		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::meter_column).to_equal(true);
 	});
 
 	it("a column whose legacy item names its own label draws main's short name", _ {
@@ -1189,7 +1193,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		const auto label_of = [&](const Node& node, int32_t value) {
 			menu::present_column(node, ctx, value, slot, col);
 			return std::string(col.label);
@@ -1211,10 +1215,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		for (const Node* node : {&nodes::osc0_type, &nodes::lfo1_type, &nodes::mod_fx_type, &nodes::filter_routing,
 		                         &nodes::unison_count, &nodes::sample0_recorder}) {
-			col = deluge::ui::oled::Column{};
+			col = deluge::ui::widgets::oled::Column{};
 			menu::present_column(*node, ctx, 0, slot, col);
 			expect(col.show_label).to_equal(false);
 		}
@@ -1228,15 +1232,15 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(nodes::lfo1_type, ctx, static_cast<int32_t>(deluge::instruments::classic::LFOType::SAW), slot, col);
-		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::art_column).to_equal(true);
 		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::saw).to_equal(true);
 		expect(static_cast<int>(slot.art.dy)).to_equal(2);
 
 		menu::present_column(nodes::sample0_reverse, ctx, 1, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_PLAY)));
-		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::art_column).to_equal(true);
 		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::direction).to_equal(true);
 		expect(slot.art.reversed).to_equal(true);
 	});
@@ -1250,12 +1254,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(nodes::osc0_phase, ctx, 90, slot, col);
-		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
-		expect(slot.meter.hint == deluge::ui::oled::Hint::Slider).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::meter_column).to_equal(true);
+		expect(slot.meter.hint == deluge::ui::widgets::oled::Hint::Slider).to_equal(true);
 		menu::present_column(nodes::osc0_phase, ctx, -1, slot, col);
-		expect(col.render == deluge::ui::oled::text_column).to_equal(true);
+		expect(col.render == deluge::ui::widgets::oled::text_column).to_equal(true);
 		expect(std::string(slot.text.value)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
 	});
 
@@ -1339,7 +1343,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		(void)r.open(menu::nodes::filters_group);
 		r.shell.tick(0);
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		expect(led_on(f, ButtonId::Scale)).to_be_true();
 		expect(led_on(f, ButtonId::CrossScreen)).to_be_true();
@@ -1408,9 +1412,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
 		menu::ColumnSlot slot{};
-		deluge::ui::oled::Column col{};
+		deluge::ui::widgets::oled::Column col{};
 		menu::present_column(menu::nodes::vibrato, ctx, 0, slot, col);
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::text_column));
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::text_column));
 		expect(std::string(slot.text.value)).to_equal(std::string("0.00"));
 		menu::present_column(menu::nodes::vibrato, ctx, -50, slot, col);
 		expect(std::string(slot.text.value)).to_equal(std::string("-0.50"));
@@ -1418,8 +1422,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(slot.text.value)).to_equal(std::string("-10"));
 		menu::ColumnSlot duck{};
 		menu::present_column(menu::nodes::sidechain_volume, ctx, 2500, duck, col);
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::meter_column));
-		expect(duck.meter.hint).to_equal(deluge::ui::oled::Hint::Ducking);
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::meter_column));
+		expect(duck.meter.hint).to_equal(deluge::ui::widgets::oled::Hint::Ducking);
 		expect(duck.meter.raw).to_equal(2500);
 		expect(duck.meter.raw_max).to_equal(5000);
 	});
@@ -1857,10 +1861,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::present_column(menu::nodes::lpf_freq, ctx, 25, slot, col);
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::draw_column));
-		expect(slot.draw.shape).to_equal(deluge::ui::oled::DrawColumn::Shape::FilterGraph);
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::draw_column));
+		expect(slot.draw.shape).to_equal(deluge::ui::widgets::oled::DrawColumn::Shape::FilterGraph);
 		expect(static_cast<int>(col.span_next)).to_equal(1);
 		expect(slot.draw.filter.freq_raw).to_equal(25);
 		expect(slot.draw.filter.hpf).to_be_false();
@@ -1873,16 +1877,16 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::bindings::write(menu::nodes::lpf_mode, ctx, 1); // 24 dB ladder
 		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DRIVE)));
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::meter_column));
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::meter_column));
 		menu::bindings::write(menu::nodes::lpf_mode, ctx, 3); // SVF band
 		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MORPH_SHORT)));
-		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::draw_column));
-		expect(slot.draw.shape).to_equal(deluge::ui::oled::DrawColumn::Shape::Slider);
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::widgets::oled::draw_column));
+		expect(slot.draw.shape).to_equal(deluge::ui::widgets::oled::DrawColumn::Shape::Slider);
 		expect(slot.draw.norm).to_equal(20.f / 50.f);
 	});
 
@@ -1891,7 +1895,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
-		deluge::ui::oled::Column col;
+		deluge::ui::widgets::oled::Column col;
 		menu::bindings::write(menu::nodes::hpf_mode, ctx, 0); // SVF band
 		menu::present_column(menu::nodes::hpf_morph, ctx, 10, slot, col);
 		expect(slot.draw.norm).to_equal(40.f / 50.f);
@@ -2594,7 +2598,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		expect(led_on(f, ButtonId::Synth)).to_be_true(); // ENUM_COL is focused, column 0
 		expect(led_on(f, ButtonId::Kit)).to_be_false();
@@ -2611,7 +2615,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			Rig r;
 			(void)r.open(horiz_page); // two pages
 			r.shell.tick(0);
-			deluge::ui::LedFrame f;
+			deluge::ui::widgets::core::LedFrame f;
 			menu_scene().leds(f);
 			expect(led_on(f, ButtonId::Scale)).to_be_true();
 			expect(led_on(f, ButtonId::CrossScreen)).to_be_true();
@@ -2620,7 +2624,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			Rig r;
 			(void)r.open(wide_page); // one page, one wide column
 			r.shell.tick(0);
-			deluge::ui::LedFrame f;
+			deluge::ui::widgets::core::LedFrame f;
 			menu_scene().leds(f);
 			expect(led_on(f, ButtonId::Scale)).to_be_false();
 			expect(led_on(f, ButtonId::CrossScreen)).to_be_false();
@@ -2637,7 +2641,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open(wide_page);
 		r.shell.tick(0);
 
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		expect(led_on(f, ButtonId::Synth)).to_be_false();
 		expect(led_on(f, ButtonId::Kit)).to_be_false();
@@ -2652,7 +2656,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open(vertical_page);
 		r.shell.tick(0);
 
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		for (ButtonId b : {ButtonId::Synth, ButtonId::Kit, ButtonId::Midi, ButtonId::Cv, ButtonId::CrossScreen,
 		                   ButtonId::Scale}) {

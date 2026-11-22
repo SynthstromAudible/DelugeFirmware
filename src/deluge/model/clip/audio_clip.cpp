@@ -28,7 +28,7 @@
 // `model/sample/`: `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
 // side. The inversion is this method, not the include -- a `model/` class that renders. Its
-// extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
+// extracted form is `ui::widgets::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
 // build, so closing this belongs to whoever moves clip-row rendering into the scene layer.
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"

@@ -34,7 +34,7 @@ namespace {
 /// @brief A `CustomItem` that renders nothing -- the spec only ever counts these, never draws one.
 class NullItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
+	void render(deluge::ui::widgets::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                 const MenuContext&, MenuState&) const override {
 		return {};
@@ -355,7 +355,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		// `get`/`set` node with `adjust` added is well-formed and must stay silent.
 		set_shortcut_table_for_test({}, 0, 0);
 		static constexpr Node with_get = with_adjust(
-		    int_item(442, zero, discard, deluge::ui::oled::Range{0, 50, 1}), discard_offset);
+		    int_item(442, zero, discard, deluge::ui::widgets::oled::Range{0, 50, 1}), discard_offset);
 		static constexpr const Node* kids[] = {&with_get};
 		static constexpr Node root = submenu(443, kids);
 		static constexpr const Node* roots[] = {&root};

@@ -4,15 +4,15 @@
 #include "scenes/recorder/recorder_scene.h"
 
 #include "definitions_cxx.hpp" // Error, kSampleRate
-#include "ui/oled/frame.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/text.h"
 
 #include "base/notify/notice_queue.h"
 
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"
 #include "scenes/menu/shortcut_blink.h"
-#include "ui/grid/frame.h"
+#include "ui/widgets/grid/frame.h"
 
 #include "gui/l10n/strings.h"
 #include "project/setting_group.h"
@@ -396,21 +396,21 @@ std::optional<uint32_t> RecorderScene::next_timer() const {
 // ---------------------------------------------------------------------------------------------
 // Rendering
 
-void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
+void RecorderScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
 	const uint32_t now = f.now_ms();
 
 	if (threshold_take()) {
-		deluge::ui::oled::threshold_meter(f, meter_state(f.bounds().w));
+		deluge::ui::widgets::oled::threshold_meter(f, meter_state(f.bounds().w));
 	}
 	else {
 		// `renderOLED`'s plain arm, through the toolkit rather than through `Canvas::drawStringCentred`
 		// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects; the centring is over
 		// the frame's own width, which is legacy's `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
-		deluge::ui::oled::text(
+		deluge::ui::widgets::oled::text(
 		    f, deluge::ui::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::ui::gfx::oled::kTextBigSizeY},
 		    capturing() ? kRecording : kWaiting,
-		    {.font = deluge::ui::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
+		    {.font = deluge::ui::gfx::oled::FontId::MetricBold13, .align = deluge::ui::widgets::oled::Align::Centre});
 	}
 
 	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a
@@ -426,7 +426,7 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	}
 }
 
-deluge::ui::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const {
+deluge::ui::widgets::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const {
 	// The meter's ends from the input's levels (a mono take shows its one channel on both), the threshold's x, and the
 	// blink, on the audio clock legacy blinks by.
 	const uint32_t frames = ctx_.ports.audio != nullptr ? ctx_.ports.audio->audio_sample_timer() : 0;
@@ -434,10 +434,10 @@ deluge::ui::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const
 	const bind::InputLevels level = takes() != nullptr ? takes()->take_levels() : bind::InputLevels{};
 	const bind::InputTake t = take().value_or(bind::InputTake{});
 	const float right = t.channels == 2 ? level.right : level.left;
-	deluge::ui::oled::ThresholdMeter m{
-	    .level_end_x = {deluge::ui::oled::threshold_meter_x(level.left, width),
-	                    deluge::ui::oled::threshold_meter_x(right, width)},
-	    .threshold_x = deluge::ui::oled::threshold_meter_x(t.threshold_level, width),
+	deluge::ui::widgets::oled::ThresholdMeter m{
+	    .level_end_x = {deluge::ui::widgets::oled::threshold_meter_x(level.left, width),
+	                    deluge::ui::widgets::oled::threshold_meter_x(right, width)},
+	    .threshold_x = deluge::ui::widgets::oled::threshold_meter_x(t.threshold_level, width),
 	    .recording = t.capturing,
 	};
 	if (m.recording) {
@@ -450,7 +450,7 @@ deluge::ui::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const
 	return m;
 }
 
-void RecorderScene::render_grid(deluge::ui::grid::GridFrame& f) {
+void RecorderScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	// The pads are the view's beneath. `opened()` arms the blink only on success, and leaves the source blinks as the
 	// sound editor had them; the items the recorder opens from blink no patching source, so the plan is the one pad.
 	if (!armed_) {
@@ -470,7 +470,7 @@ void RecorderScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
 }
 
-void RecorderScene::leds(deluge::ui::LedFrame& f) {
+void RecorderScene::leds(deluge::ui::widgets::core::LedFrame& f) {
 	// `opened()`'s LED tail, all seven of it. `LedId` values are `ButtonId` values by
 	// the contract in `shell/profiles/deluge.h`, and legacy's own `IndicatorLED` values are the
 	// same button matrix coordinates (`hid/led/indicator_leds.h`), so each of these is the
@@ -482,24 +482,24 @@ void RecorderScene::leds(deluge::ui::LedFrame& f) {
 	// which is `getCurrentOutputType() == OutputType::KIT` -- the context's own `is_kit`). `LedCompose::compose` runs
 	// the stack bottom to top and the last writer wins (`shell/leds.h`), so declaring them here is what makes the
 	// recorder's answer the one that shows.
-	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 	if (blink_restart_) {
 		blink_restart_ = false;
-		f.restart(deluge::ui::BlinkRate::Normal);
-		f.restart(deluge::ui::BlinkRate::Fast);
+		f.restart(deluge::ui::widgets::core::BlinkRate::Normal);
+		f.restart(deluge::ui::widgets::core::BlinkRate::Fast);
 	}
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), ctx_.is_kit ? kOff : kOn);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), ctx_.is_kit ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Synth), ctx_.is_kit ? kOff : kOn);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Kit), ctx_.is_kit ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::CrossScreen), kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Session), kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Scale), kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back),
+	            deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 	// `blinkLed(RECORD, 255, 1)` -- 255 blinks means "keep going", at blink-type 1's fast rate, which is "blink until
 	// this scene stops declaring it".
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Record),
-	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Record),
+	            deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Fast));
 }
 
 RecorderScene& recorder_scene() {

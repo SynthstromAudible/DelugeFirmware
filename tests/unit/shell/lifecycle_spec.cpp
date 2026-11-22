@@ -28,7 +28,8 @@ DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
 
 BoardProfile lifecycle_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48,
+	                                                                      &deluge::ui::widgets::core::kDelugeStyle64};
 	BoardProfile p = uitest::test_profile_input();
 	p.oled_role_by_index = kRoles;
 	p.style_by_index = kStyles;
@@ -339,8 +340,8 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		const size_t blits = r.fake.blits.size();
 		r.shell.tick(10);
 		expect(r.fake.blits.size()).to_equal(blits); // nothing changed, nothing sent
-		r.shell.set_highlighting(deluge::ui::Highlighting::NoInversion);
-		expect(r.fake.oled()[0].style->highlighting).to_equal(deluge::ui::Highlighting::NoInversion);
+		r.shell.set_highlighting(deluge::ui::widgets::core::Highlighting::NoInversion);
+		expect(r.fake.oled()[0].style->highlighting).to_equal(deluge::ui::widgets::core::Highlighting::NoInversion);
 		r.shell.tick(20);
 		expect(r.fake.blits.size()).to_be_greater_than(blits);
 	});

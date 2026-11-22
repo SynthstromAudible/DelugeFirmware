@@ -56,12 +56,12 @@ using namespace deluge::scenes;
 using deluge::l10n::String;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
-using deluge::ui::oled::RangeEdge;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+using deluge::ui::widgets::oled::RangeEdge;
 
 namespace {
 
@@ -174,7 +174,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -377,7 +378,7 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 
 describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
 	it("spells an integer end as main does, over the whole range", _ {
-		char scratch[deluge::ui::oled::kRangeTextMax];
+		char scratch[deluge::ui::widgets::oled::kRangeTextMax];
 		const menu::IntRange tempo = menu::bindings::range(nodes::default_tempo, host_context());
 		for (int32_t v = tempo.min; v <= tempo.max; v++) {
 			const std::string at = "tempo " + std::to_string(v) + " ";
@@ -388,7 +389,7 @@ describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
 
 	it("spells a note end as main does, in both sharps and flats", _ {
 		RangeStorageGuard guard;
-		char scratch[deluge::ui::oled::kRangeTextMax];
+		char scratch[deluge::ui::widgets::oled::kRangeTextMax];
 		const MenuContext ctx = host_context();
 		for (const bool sharps : {true, false}) {
 			FlashStorage::defaultUseSharps = sharps;

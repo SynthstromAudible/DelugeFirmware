@@ -11,7 +11,7 @@
 ///       own state) and are never needed to lay out a `Node` tree as data.
 ///
 /// @note `OledFrame`, `UiEvent`, `UiContext` and `Result` are likewise forward declared rather than
-///       pulled in via `ui/oled/frame.h` / `shell/scene.h`: `CustomItem::render`/`handle` only ever
+///       pulled in via `ui/widgets/oled/frame.h` / `shell/scene.h`: `CustomItem::render`/`handle` only ever
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
@@ -21,15 +21,15 @@
 #include "plugin/types/param_kind.h"
 #include "project/device_settings.h" // RangeSpec::upper_path
 #include "scenes/bind/target.h"
-#include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
-#include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`
-#include "ui/core/frame_context.h"         // CustomItem::owned_input
-#include "ui/gfx/oled/icons.h"             // CustomItem::row_icon's default answer -- one `extern const Icon`
-#include "ui/grid/frame.h"                 // CustomItem::source_blink
-#include "ui/oled/column_drawings.h"       // DrawColumn
-#include "ui/oled/columns.h"               // ArtColumn
-#include "ui/oled/meters.h"
-#include "ui/oled/values.h"
+#include "synth/modulation/cable.h"          // CustomItem::learn_descriptor -- returned by value
+#include "synth/modulation/patch_source.h"   // PatchSource, the type of the pads' sources in `source_press`
+#include "ui/gfx/oled/icons.h"               // CustomItem::row_icon's default answer -- one `extern const Icon`
+#include "ui/widgets/core/frame_context.h"   // CustomItem::owned_input
+#include "ui/widgets/grid/frame.h"           // CustomItem::source_blink
+#include "ui/widgets/oled/column_drawings.h" // DrawColumn
+#include "ui/widgets/oled/columns.h"         // ArtColumn
+#include "ui/widgets/oled/meters.h"
+#include "ui/widgets/oled/values.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -37,13 +37,13 @@
 #include <span>
 #include <string_view>
 
-namespace deluge::ui {
+namespace deluge::ui::widgets::core {
 class LedFrame;
-} // namespace deluge::ui
+} // namespace deluge::ui::widgets::core
 
-namespace deluge::ui::oled {
+namespace deluge::ui::widgets::oled {
 struct OledFrame;
-} // namespace deluge::ui::oled
+} // namespace deluge::ui::widgets::oled
 
 namespace deluge::ui::shell {
 struct UiEvent;
@@ -98,7 +98,7 @@ enum class Kind : uint8_t {
 	///
 	/// `Binding::target` is the **lower** edge's row; `Binding::range_spec` names the upper edge's row and carries
 	/// the two per-item rules (how the ends spell themselves, and what happens when they would cross). Rendered by
-	/// `ui::oled::range_value`.
+	/// `ui::widgets::oled::range_value`.
 	Range,
 	Custom,
 };
@@ -107,13 +107,14 @@ enum class Kind : uint8_t {
 enum class Layout : uint8_t { Vertical, Horizontal };
 
 /// @brief The horizontal-menu meter style a node's value draws with -- an alias, not a new type
-///        (`ui::oled::Hint` in `ui/oled/meters.h`). `Enum`/`Toggle` are toolkit-only slot styles `columns` uses to
-///        pick a slot renderer; every other enumerator maps 1:1 onto legacy's `Number::RenderingStyle`.
-using Hint = deluge::ui::oled::Hint;
+///        (`ui::widgets::oled::Hint` in `ui/widgets/oled/meters.h`). `Enum`/`Toggle` are toolkit-only slot styles
+///        `columns` uses to pick a slot renderer; every other enumerator maps 1:1 onto legacy's
+///        `Number::RenderingStyle`.
+using Hint = deluge::ui::widgets::oled::Hint;
 
 /// @brief An edited value's bounds and coarse step -- an alias, not a new type
-///        (`ui::oled::Range` in `ui/oled/values.h`).
-using IntRange = deluge::ui::oled::Range;
+///        (`ui::widgets::oled::Range` in `ui/widgets/oled/values.h`).
+using IntRange = deluge::ui::widgets::oled::Range;
 
 /// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the
 ///        user sees, i.e. which of legacy's `readCurrentValue`/`getFinalValue` pairs a param item
@@ -253,7 +254,7 @@ using ValueTextFn = ValueText (*)(const MenuContext& ctx, int32_t value, ValueTe
 /// @param ctx   What is being edited.
 /// @param value The value to draw, in the node's own units.
 /// @return The icon or word to draw in place of the node's ordinary column, or nothing to draw that column.
-using ColumnArtFn = std::optional<deluge::ui::oled::ArtColumn> (*)(const MenuContext& ctx, int32_t value);
+using ColumnArtFn = std::optional<deluge::ui::widgets::oled::ArtColumn> (*)(const MenuContext& ctx, int32_t value);
 
 /// @brief A horizontal page's title on its @p page'th page (0-based, the page's own count) -- legacy's `getTitle`
 ///        overrides that read `paging.visiblePageNumber`. A fallback answer keeps the static title.
@@ -261,13 +262,13 @@ using PageTitleFn = ValueText (*)(const MenuContext& ctx, uint8_t page, std::spa
 
 /// @brief A horizontal page drawn whole, in panel coordinates, in place of its columns -- legacy's
 ///        `renderMenuItems` overrides. @p focused is the focused column's index among the page's own.
-using PageDrawFn = void (*)(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
+using PageDrawFn = void (*)(deluge::ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
 
 /// @brief Legacy's drawing for one value that is neither a meter, a word nor an icon -- `Binding::column_draw`.
 /// @param ctx   What is being edited.
 /// @param value The value to draw, in the node's own units.
 /// @return The drawing, or nothing to draw the node's ordinary column.
-using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuContext& ctx, int32_t value);
+using ColumnDrawFn = std::optional<deluge::ui::widgets::oled::DrawColumn> (*)(const MenuContext& ctx, int32_t value);
 
 /// @brief Whether a select turn on this node's horizontal column moves the value the other way -- legacy's
 ///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
@@ -293,8 +294,8 @@ using TickMagnitudeFn = int32_t (*)(const MenuContext& ctx);
 
 /// @brief `Binding::leaf_draw`'s hook: legacy's `drawInteger` override that draws an `Int` item's whole screen below
 ///        its title, given the value after this tick's edit and the screen's side-scroll state.
-using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
-                            deluge::ui::ScrollText& scroll);
+using LeafDrawFn = void (*)(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
+                            deluge::ui::widgets::core::ScrollText& scroll);
 
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
@@ -383,11 +384,11 @@ struct RangeSpec {
 	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half (`IntegerRange::getText` in
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::getText`
 	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)). Its context is the menu's `MenuContext`.
-	deluge::ui::oled::RangeFormatFn format = nullptr;
+	deluge::ui::widgets::oled::RangeFormatFn format = nullptr;
 
-	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
+	/// @brief Which of legacy's two crossing rules this item uses (`ui/widgets/oled/values.h`'s
 	///        `RangeClamp`): `Push` for `IntegerRange`, `Bound` for `KeyRange`.
-	deluge::ui::oled::RangeClamp clamp = deluge::ui::oled::RangeClamp::Push;
+	deluge::ui::widgets::oled::RangeClamp clamp = deluge::ui::widgets::oled::RangeClamp::Push;
 
 	/// @brief Does opening the item land on the LEFT edge when the two ends differ?
 	///
@@ -409,7 +410,7 @@ struct Binding {
 	std::optional<IntRange> fixed_range{};
 	std::span<const uint16_t> names{};
 	DynamicNamesFn dynamic_names = nullptr;
-	deluge::ui::oled::ValueStyle style{};
+	deluge::ui::widgets::oled::ValueStyle style{};
 	uint8_t decimal_places = 0;
 
 	/// @brief `Kind::Range` only: the upper edge and the two per-item rules. Null for every other
@@ -542,7 +543,7 @@ struct MenuState;
 using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
 
 /// @brief What a list or option widget claims while drawn focused: the select turn and press.
-inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true};
+inline constexpr deluge::ui::widgets::core::InputClaims kListInput{.turn = true, .select = true};
 
 /// @brief The pad an item blinks in place of its node's own (`CustomItem::own_blink`).
 struct ItemBlink {
@@ -557,19 +558,22 @@ struct ItemBlink {
 ///        handful of others.
 struct CustomItem {
 	virtual ~CustomItem() = default;
-	virtual void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;
+	virtual void render(deluge::ui::widgets::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;
 	virtual deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                         const MenuContext&, MenuState&) const = 0;
 	/// @brief The widget-owned inputs `render` claims while this item is focused, which `MenuScene::owns` answers
 	///        with before the render runs. Must match the claims `render` makes; the shell audits the two.
 	/// @return None by default: `handle` sees every input.
-	virtual deluge::ui::InputClaims owned_input(const MenuContext&, const MenuState&) const { return {}; }
+	virtual deluge::ui::widgets::core::InputClaims owned_input(const MenuContext&, const MenuState&) const {
+		return {};
+	}
 
 	/// @brief Declare the button LEDs this item lights while it is the focused screen, over the page buttons' own
 	///        (`MenuScene::leds`): the legacy items that light LEDs in `beginSession` and put them out in `endSession`.
 	///        Not asked for a horizontal page's column, where legacy's `beginSession` lights nothing. Every tick
 	///        redeclares the frame, so leaving the screen puts them out with no hook.
-	virtual void leds(deluge::ui::LedFrame& /*f*/, const MenuContext& /*ctx*/, const MenuState& /*state*/) const {}
+	virtual void leds(deluge::ui::widgets::core::LedFrame& /*f*/, const MenuContext& /*ctx*/,
+	                  const MenuState& /*state*/) const {}
 
 	/// @brief The source a range-specific item's range rule is about: its own `source_id_` in `main`'s
 	///        `checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, ...)`, which can differ from the
@@ -707,7 +711,8 @@ struct CustomItem {
 	}
 
 	/// @brief The text legacy's `renderSubmenuItemTypeForOled` draws two rows under this item's row, or empty for none:
-	///        `midi::device_definition::Linked` writes the linked file's name there (`ui::oled::ListRow::below`).
+	///        `midi::device_definition::Linked` writes the linked file's name there
+	///        (`ui::widgets::oled::ListRow::below`).
 	/// @param ctx The menu context.
 	/// @param out Where the text is written.
 	/// @return The text, in @p out; empty for none.
@@ -872,7 +877,7 @@ struct CustomItem {
 	virtual bool is_patch_cable() const { return false; }
 
 	virtual uint8_t source_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/, PatchSource /*source*/,
-	                             deluge::ui::grid::FlashColour& /*colour*/) const {
+	                             deluge::ui::widgets::grid::FlashColour& /*colour*/) const {
 		return 255;
 	}
 

@@ -28,7 +28,7 @@
 
 namespace deluge::scenes::menu {
 
-using deluge::ui::grid::FlashColour;
+using deluge::ui::widgets::grid::FlashColour;
 
 namespace {
 
@@ -229,7 +229,7 @@ uint32_t ms_to_next_step(uint32_t anchor_ms, uint32_t now_ms) {
 	return phase < kSourceBlinkMs ? (kSourceBlinkMs - phase) : (kBlinkCycleMs - phase);
 }
 
-void fire_blink_step(deluge::ui::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step) {
+void fire_blink_step(deluge::ui::widgets::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step) {
 	const uint32_t cycle = step >> 1;
 	if ((step & 1) != 0) {
 		// The param step, 180 ms long.

@@ -1,5 +1,5 @@
 #include "support/frames.h"
-#include "ui/grid/effects.h"
+#include "ui/widgets/grid/effects.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -11,7 +11,7 @@
 #include <vector>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 
@@ -40,10 +40,10 @@ uitest::GridRig painted_rig() {
 
 // Pad events must outlive the span the snapshot holds, so each step keeps its own vector.
 struct Tick {
-	std::vector<PadEvent> pads;
+	std::vector<widgets::core::PadEvent> pads;
 };
 
-/// A *fresh* frame over the rig's grid, as the shell builds one per tick (ui/grid/frame.h: a
+/// A *fresh* frame over the rig's grid, as the shell builds one per tick (ui/widgets/grid/frame.h: a
 /// `GridFrame` is a per-tick object -- four references and a rectangle, free to build).
 ///
 /// Reusing `GridRig::frame` across the ticks below would also work: `local_events()` has no
@@ -51,7 +51,7 @@ struct Tick {
 /// on (see grid_frame_spec's "re-filters when the snapshot's events are swapped" and "never
 /// caches"). This builds a fresh one anyway, because that is the shape the shell has and the one
 /// the gesture FSM is specified for.
-GestureEvent step(uitest::GridRig& r, Hold& hold, int32_t& second_x, int32_t& second_y) {
+GestureEvent step(uitest::GridRig& r, widgets::core::Hold& hold, int32_t& second_x, int32_t& second_y) {
 	GridFrame f = root_grid_frame(r.grid, r.ctx);
 	return gesture(f, hold, HoldPolicy{}, second_x, second_y);
 }
@@ -138,7 +138,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("reports a tap when the pad is released inside the short-press window", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -158,7 +158,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("reports a hold exactly once when the deadline passes", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -182,7 +182,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("arms the repaint deadline for the hold", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -196,7 +196,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("reports a release when the pad goes up after the deadline", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -219,7 +219,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("reports the second pad's coordinates when another pad is pressed", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -240,7 +240,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("ignores a release of some other pad", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -260,7 +260,7 @@ describe effects_grid("ui/grid/effects", $ {
 		// Returning on the first event would have started a hold and never ended
 		// it -- local_events() is rebuilt per frame, so the release would be lost, not deferred.
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick both{{{.x = 5, .y = 2, .velocity = 64, .pressed = true},
@@ -273,7 +273,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("handles two different pads pressed in the same tick", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick two{{{.x = 5, .y = 2, .velocity = 64, .pressed = true},
@@ -290,7 +290,7 @@ describe effects_grid("ui/grid/effects", $ {
 		// The concrete drop the single-return loop caused: [release A, press B] reported the tap
 		// and never started B's hold.
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
@@ -317,7 +317,7 @@ describe effects_grid("ui/grid/effects", $ {
 
 	it("uses frame-local coordinates inside a region", _ {
 		uitest::GridRig r;
-		Hold hold;
+		widgets::core::Hold hold;
 		int32_t sx = -1, sy = -1;
 
 		Tick down{{{.x = 6, .y = 3, .velocity = 64, .pressed = true}}};

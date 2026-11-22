@@ -481,7 +481,7 @@ void release_all_legacy_buttons() {
 }
 
 /// @brief The declared state of one LED in @p f, or `nullopt` when it was not declared.
-std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, ButtonId b) {
+std::optional<deluge::ui::widgets::core::LedState> led_state(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
 		if (static_cast<uint8_t>(id) == static_cast<uint8_t>(b)) {
 			return state;
@@ -494,8 +494,8 @@ std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, But
 ///
 /// A pair rather than a bool, so "nothing declared it" and "declared off" cannot be confused --
 /// they are different facts and this spec asserts both.
-std::pair<bool, bool> led_declared_on(const deluge::ui::LedFrame& f, ButtonId b, uint32_t now_ms) {
-	const std::optional<deluge::ui::LedState> s = led_state(f, b);
+std::pair<bool, bool> led_declared_on(const deluge::ui::widgets::core::LedFrame& f, ButtonId b, uint32_t now_ms) {
+	const std::optional<deluge::ui::widgets::core::LedState> s = led_state(f, b);
 	return {s.has_value(), s.has_value() && deluge::ui::shell::led_is_on(*s, now_ms)};
 }
 
@@ -1081,7 +1081,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin(); // phase ON, exactly as `startMIDILearn` -> `midiLearnFlash` leaves it
 		expect(rig.ml.flash_on()).to_be_true();
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.ml.leds(frame);
 
 		const auto [play_declared, play_on] = led_declared_on(frame, ButtonId::Play, 0);
@@ -1095,7 +1095,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// Hold RECORD, and it starts following the phase without ever being learned (`View::midiLearnFlash`'s RECORD
 		// arm).
 		rig.ml.thing_pressed(LearnTarget::global_command(deluge::project::GlobalCommand::RECORD), true);
-		deluge::ui::LedFrame held_frame;
+		deluge::ui::widgets::core::LedFrame held_frame;
 		rig.ml.leds(held_frame);
 		const auto [held_declared, held_on] = led_declared_on(held_frame, ButtonId::Record, 0);
 		expect(held_declared).to_be_true();
@@ -1107,7 +1107,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// port whose LEDs did not move with the phase would be a different UI.
 		rig.ml.tick(1'000 + LearnService::kFlashMs, LearnService::kFlashMs);
 		expect(rig.ml.flash_on()).to_be_false();
-		deluge::ui::LedFrame flipped;
+		deluge::ui::widgets::core::LedFrame flipped;
 		rig.ml.leds(flipped);
 		const auto [play2_declared, play2_on] = led_declared_on(flipped, ButtonId::Play, 0);
 		const auto [rec2_declared, rec2_on] = led_declared_on(flipped, ButtonId::Record, 0);
@@ -1124,25 +1124,25 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// forever, at `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)`
 		// (`View::endMIDILearn`).
 		LearnRig rig;
-		deluge::ui::LedFrame off_frame;
+		deluge::ui::widgets::core::LedFrame off_frame;
 		rig.ml.leds(off_frame);
-		const std::optional<deluge::ui::LedState> off = led_state(off_frame, ButtonId::Learn);
+		const std::optional<deluge::ui::widgets::core::LedState> off = led_state(off_frame, ButtonId::Learn);
 		expect(off.has_value()).to_be_true();
-		expect(off->kind).to_equal(deluge::ui::LedState::Kind::Off);
+		expect(off->kind).to_equal(deluge::ui::widgets::core::LedState::Kind::Off);
 
 		rig.ml.begin();
-		deluge::ui::LedFrame on_frame;
+		deluge::ui::widgets::core::LedFrame on_frame;
 		rig.ml.leds(on_frame);
-		const std::optional<deluge::ui::LedState> on = led_state(on_frame, ButtonId::Learn);
+		const std::optional<deluge::ui::widgets::core::LedState> on = led_state(on_frame, ButtonId::Learn);
 		expect(on.has_value()).to_be_true();
-		expect(on->kind).to_equal(deluge::ui::LedState::Kind::Shared);
-		expect(on->rate).to_equal(deluge::ui::BlinkRate::Fast);
+		expect(on->kind).to_equal(deluge::ui::widgets::core::LedState::Kind::Shared);
+		expect(on->rate).to_equal(deluge::ui::widgets::core::BlinkRate::Fast);
 		// A blink with no deadline: legacy's `numBlinks == 255` never folds back
 		// (`blinkLed` in `hid/led/indicator_leds.cpp`, `updateBlinkingLedStates`).
 		expect(on->until_ms).to_equal(0);
 		// And it really does change on its own at the fast period, which is what makes the declaration a blink rather
 		// than a name for one.
-		const deluge::ui::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
+		const deluge::ui::widgets::core::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
 		expect(deluge::ui::shell::led_is_on(*on, 0, phases))
 		    .not_().to_equal(deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs, phases));
 	});

@@ -28,8 +28,8 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
 
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
@@ -65,11 +65,11 @@ size_t depth_of(const MenuState& state) {
 
 /// @brief Draw the focused node's title, as `MenuItem::renderOLED` does before it calls
 ///        `drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`).
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief The track the menu's context names, as the song holds it; nullopt where it names none.
@@ -302,7 +302,8 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, browser_arg_};
 }
 
-void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void MidiDeviceLinkedItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                                  MenuState& state) const {
 	// Reached on the **unlink** arm only. On the link arm `after_render` files the `Push` at the end
 	// of the very tick that focused this item, and `BrowserScene` is not `oled_transparent`, so the
 	// menu never renders again until the browser closes -- by which time `go_up_on_resume` has
@@ -340,8 +341,8 @@ deluge::ui::shell::Result MidiDeviceLinkedItem::handle(const deluge::ui::shell::
 void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `beginSession` (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`).
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	const std::vector<bind::TrackFact> tracks =
@@ -362,7 +363,8 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 	state.list[d].cursor = static_cast<int16_t>(index);
 }
 
-void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void SpecificOutputItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                MenuState& state) const {
 	draw_title_for(f, state);
 
 	const size_t d = depth_of(state);
@@ -374,7 +376,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
 	// before `after_render`, so reading it from the render is what keeps the page in step with the
 	// encoder instead of one tick behind it (`browser_scene.h` §5.7 records the same finding).
-	if (const auto turn = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); turn != 0) {
+	if (const auto turn = static_cast<int32_t>(deluge::ui::widgets::oled::select_delta(f)); turn != 0) {
 		const int32_t next = next_recordable_index(ctx, tracks, editing, state.list[d].cursor, turn);
 		if (next >= 0) { // main's `selectEncoderAction` returns early on a negative index
 			state.list[d].cursor = static_cast<int16_t>(next);
@@ -392,8 +394,8 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// Main's `SpecificSourceOutputSelector::drawPixelsForOled`, laid out at legacy's own offsets from the top of the
 	// panel.
 	//
-	// **`ui::oled::output_name` is deliberately not used**, even though it is the port of the same
-	// two-line output display (`ui/oled/misc.h`). Its rows are `View::drawOutputNameFromDetails`'s
+	// **`ui::widgets::oled::output_name` is deliberately not used**, even though it is the port of the same
+	// two-line output display (`ui/widgets/oled/misc.h`). Its rows are `View::drawOutputNameFromDetails`'s
 	// (12 and 30 on a 64-row panel), and that display has no screen title above it; this item does
 	// (`MenuItem::renderOLED`, `origin/main:src/deluge/gui/menu_item/menu_item.cpp`), and at row 12 the type label
 	// would collide with the title rule the profile puts at `menu_base_y`. Legacy's own numbers --
@@ -406,32 +408,33 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const deluge::ui::gfx::oled::Rect area = f.bounds();
 	const deluge::ui::gfx::oled::FontId type_font = f.style.row_font;   // kTextSpacingX / kTextSpacingY
 	const deluge::ui::gfx::oled::FontId name_font = f.style.title_font; // kTextTitleSpacingX / kTextTitleSizeY
-	const int32_t type_h = deluge::ui::oled::text_height_for(type_font);
-	const int32_t name_h = deluge::ui::oled::text_height_for(name_font);
+	const int32_t type_h = deluge::ui::widgets::oled::text_height_for(type_font);
+	const int32_t name_h = deluge::ui::widgets::oled::text_height_for(name_font);
 
 	const bind::TrackFact* out = track_at(tracks, editing, state.list[d].cursor);
 	if (out == nullptr) {
 		// Main's `drawPixelsForOled` empty case. Not an l10n id: legacy's literal is not in `gui/l10n/strings.h`, and
 		// inventing one would be a change to the l10n data rather than a port (`browser_scene.h`'s `Descriptor::title`
 		// makes the same call).
-		deluge::ui::oled::text(
+		deluge::ui::widgets::oled::text(
 		    f, deluge::ui::gfx::oled::Rect{area.x, area.y + 21, area.w, type_h}, "No track",
-		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
+		    deluge::ui::widgets::oled::TextStyle{.font = type_font, .align = deluge::ui::widgets::oled::Align::Centre});
 	}
 	else {
-		deluge::ui::oled::text(
+		deluge::ui::widgets::oled::text(
 		    f, deluge::ui::gfx::oled::Rect{area.x, area.y + 14, area.w, type_h}, output_type_text(*out),
-		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
+		    deluge::ui::widgets::oled::TextStyle{.font = type_font, .align = deluge::ui::widgets::oled::Align::Centre});
 		// Main's `drawPixelsForOled` name row -- centred when it fits, left-aligned when it does not (the side-scroller
 		// legacy arms in that case has no port; see `output_items.h`).
 		const std::optional<serialization::Value> named = track_row(ctx, out->output_id, "name");
 		const std::string name_text = named ? named->str() : std::string{};
 		const std::string_view name{name_text};
 		const bool fits = deluge::ui::gfx::oled::string_width_px(name, name_h) <= area.w;
-		deluge::ui::oled::text(f, deluge::ui::gfx::oled::Rect{area.x, area.y + 28, area.w, name_h}, name,
-		                       deluge::ui::oled::TextStyle{.font = name_font,
-		                                                   .align = fits ? deluge::ui::oled::Align::Centre
-		                                                                 : deluge::ui::oled::Align::Left});
+		deluge::ui::widgets::oled::text(
+		    f, deluge::ui::gfx::oled::Rect{area.x, area.y + 28, area.w, name_h}, name,
+		    deluge::ui::widgets::oled::TextStyle{.font = name_font,
+		                                         .align = fits ? deluge::ui::widgets::oled::Align::Centre
+		                                                       : deluge::ui::widgets::oled::Align::Left});
 	}
 
 	// `MenuItem::selectButtonPress`'s default is `nullptr` -- "go up a level" -- and this class does

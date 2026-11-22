@@ -16,7 +16,7 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 		OledSurface& surface = oled_[i];
 		surface.canvas = ui::gfx::oled::Canvas(std::span<uint8_t>(storage_[i], kOledStorageBytes), geometry);
 		surface.geometry = geometry;
-		surface.gate = RepaintGate{};
+		surface.gate = widgets::core::RepaintGate{};
 		surface.role = i < profile.oled_role_by_index.size() ? profile.oled_role_by_index[i] : SurfaceRole::None;
 		surface.index = i;
 		surface.blit_pending = false;
@@ -36,7 +36,7 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 	// must widen the send path rather than expect the odd column to appear -- see `build()`'s
 	// preconditions in `surfaces.h`.
 	grid_.pairs = static_cast<uint8_t>(std::min<uint16_t>(dims.cols() / 2, kMaxColumnPairs));
-	grid_.gate = RepaintGate{};
+	grid_.gate = widgets::core::RepaintGate{};
 	grid_.tween.reset();
 	for (uint8_t i = 0; i < kMaxColumnPairs; i++) {
 		grid_.last_sent[i] = ColumnPair{};

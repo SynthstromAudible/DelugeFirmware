@@ -16,8 +16,8 @@
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
-#include "ui/core/input.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include "fakes.h"
 
@@ -82,7 +82,7 @@ struct Rig {
 	const Ports ports = host.ports();
 	deluge::project::Song model;
 	deluge::ui::shell::ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 
 	Rig() {
 		table[kRootSlot] = &root;
@@ -120,7 +120,8 @@ struct Rig {
 };
 
 /// @brief The state @p frame declares for @p button's LED, or none.
-std::optional<deluge::ui::LedState> led_of(const deluge::ui::LedFrame& frame, ButtonId button) {
+std::optional<deluge::ui::widgets::core::LedState> led_of(const deluge::ui::widgets::core::LedFrame& frame,
+                                                          ButtonId button) {
 	for (const auto& [id, state] : frame.entries()) {
 		if (static_cast<uint8_t>(id) == static_cast<uint8_t>(button)) {
 			return state;
@@ -193,19 +194,19 @@ describe midi_learn_fakes("scenes::services::MidiLearn -- learns through its ins
 	it("flashes the PLAY LED while learning when PLAY's command is learned", _ {
 		Rig rig;
 		(void)rig.button(ButtonId::Learn, true);
-		deluge::ui::LedFrame unlearned;
+		deluge::ui::widgets::core::LedFrame unlearned;
 		rig.ml.leds(unlearned);
 		expect(led_of(unlearned, ButtonId::Play).has_value()).to_be_false();
 
 		rig.host.midi.globals[GlobalCommand::PLAY] =
 		    LearnedBinding{.device = deluge::midi::kDin, .channel_or_zone = 0, .note_or_cc = 36};
-		deluge::ui::LedFrame learned;
+		deluge::ui::widgets::core::LedFrame learned;
 		rig.ml.leds(learned);
-		const std::optional<deluge::ui::LedState> play = led_of(learned, ButtonId::Play);
+		const std::optional<deluge::ui::widgets::core::LedState> play = led_of(learned, ButtonId::Play);
 		expect(play.has_value()).to_be_true();
 		if (play) {
 			expect(rig.ml.flash_on()).to_be_true();
-			expect(play->kind).to_equal(deluge::ui::LedState::Kind::On);
+			expect(play->kind).to_equal(deluge::ui::widgets::core::LedState::Kind::On);
 		}
 		expect(led_of(learned, ButtonId::Record).has_value()).to_be_false();
 	});

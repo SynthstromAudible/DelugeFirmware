@@ -29,7 +29,7 @@ public:
 	virtual Result handle(const UiEvent& event, const UiContext& ctx) { return {}; }
 	/// @brief Declare this service's LED and knob-indicator states for the tick.
 	/// @param frame The tick's LED declarations, composed alongside every scene's.
-	virtual void leds(LedFrame& frame) {}
+	virtual void leds(widgets::core::LedFrame& frame) {}
 	/// @brief Advance any time-based state.
 	/// @param now_ms The tick's wall clock.
 	/// @param dt_ms   Milliseconds since this service was last ticked.

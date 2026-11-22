@@ -86,7 +86,7 @@
 /// through its clip-facts port (`clip_playing`, `clip_recording_linearly`), the clocks and the arrangement's mode
 /// through its transport port (`clocks_active`, `arrangement_mode`), and the last is
 /// already ported and measured as `timeline::TimelineState::tick_square`. Every one a spec can drive, so the
-/// playhead ships, painted through `ui::grid::tick_squares` (`ui/grid/columns.h`), and
+/// playhead ships, painted through `ui::widgets::grid::tick_squares` (`ui/widgets/grid/columns.h`), and
 /// `sim/scenes_spec/audio_clip_scene_spec.cpp` compares it against legacy's own `graphicsRoutine`
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp`), which
 /// is the driver-side substitution this widget is the port of.
@@ -94,8 +94,8 @@
 /// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the device port's
 ///       `pads/playCursor` row: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
 ///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
-///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
-///       colourless for a muted row.
+///       (`ui::widgets::grid::flash_tick_squares`); `ui/widgets/grid/columns.h`'s `tick_colour` warning records why
+///       that flash is colourless for a muted row.
 ///
 /// @par What draws what
 ///
@@ -104,18 +104,19 @@
 /// `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen` -> the waveforms port's read at the clip's AUDIO_CLIP
-///     address (`services::read_waveform`) + `ui::grid::waveform_full` over its PEAK columns. A frame whose read left
-///     a column pending draws no waveform and asks again, for as long as one is pending (`services::PeakRetry`).
+///     address (`services::read_waveform`) + `ui::widgets::grid::waveform_full` over its PEAK columns. A frame whose
+///     read left a column pending draws no waveform and asks again, for as long as one is pending
+///     (`services::PeakRetry`).
 ///   * the grey region and the two marker columns -> `GridFrame::pad` through the
 ///     main-column region, with the colours resolved here.
-///   * `renderSidebar`'s black fill -> `ui::grid::sidebar_columns`.
-///   * `graphicsRoutine`'s `PadLEDs::setTickSquares` -> `ui::grid::tick_squares`.
-///   * `renderOLED`'s `view.displayOutputName` -> `ui::oled::output_name`, plus the
-///     clip's "Section N" line through `ui::oled::text` (see `render_oled`).
+///   * `renderSidebar`'s black fill -> `ui::widgets::grid::sidebar_columns`.
+///   * `graphicsRoutine`'s `PadLEDs::setTickSquares` -> `ui::widgets::grid::tick_squares`.
+///   * `renderOLED`'s `view.displayOutputName` -> `ui::widgets::oled::output_name`, plus the
+///     clip's "Section N" line through `ui::widgets::oled::text` (see `render_oled`).
 ///
 /// @par The sidebar widget's status-pad rules are NOT this view's
 ///
-/// `ui/grid/sidebar.h` carries `status_pad`/`status_colour` (the port of
+/// `ui/widgets/grid/sidebar.h` carries `status_pad`/`status_colour` (the port of
 /// `View::getClipMuteSquareColour`) and `audition_pad`/`audition_colour` (the port of
 /// `InstrumentClipView::drawAuditionSquare`). **`AudioClipView::renderSidebar` uses neither.** Read
 /// end to end (`audio_clip_view.cpp`), its body is: return early if `image` is null or a
@@ -123,7 +124,7 @@
 /// `colours::black`; then, *only while* `isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)`,
 /// `view.renderMacros(kDisplayWidth, y, -1, image, occupancyMask)`; then refresh the occupancy
 /// mask; and finally `view.flashPlayEnable()` if any macro reported armed. No clip-status square,
-/// no audition square. So the entry point this scene uses is `ui::grid::sidebar_columns`, and the
+/// no audition square. So the entry point this scene uses is `ui::widgets::grid::sidebar_columns`, and the
 /// two colour helpers would have been the wrong widget for it -- which is the answer to the
 /// question, not an omission.
 ///
@@ -202,8 +203,8 @@
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/timeline/timeline.h"
 #include "shell/scene.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/frame.h"
 
 #include "project/device_settings.h"
 #include "project/setting_group.h"
@@ -212,7 +213,7 @@
 #include "scenes/bind/ports/waveforms.h"
 #include "scenes/services/peak_retry.h"
 #include "ui/gfx/grid/pad_grid.h"
-#include "ui/grid/columns.h"
+#include "ui/widgets/grid/columns.h"
 
 #include <array>
 #include <cstdint>
@@ -352,7 +353,7 @@ public:
 	///
 	/// `AudioClipView::lastTickSquare` (`audio_clip_view.h`), which `scenes/timeline/timeline.h`'s
 	/// table leaves to this scene. 255 is legacy's "no cursor" sentinel
-	/// (`AudioClipView::graphicsRoutine` in `audio_clip_view.cpp`), which is also `ui::grid::kNoTickSquare`.
+	/// (`AudioClipView::graphicsRoutine` in `audio_clip_view.cpp`), which is also `ui::widgets::grid::kNoTickSquare`.
 	/// @return The column, or 255.
 	[[nodiscard]] int32_t last_tick_square() const { return last_tick_square_; }
 
@@ -364,8 +365,8 @@ public:
 	[[nodiscard]] bool blink_on() const { return blink_on_; }
 
 	deluge::ui::shell::SceneKind kind() const override { return kAudioClipSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	void tick(uint32_t dt_ms) override;
@@ -641,7 +642,7 @@ private:
 	std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> flashed_ticks_ = filled_no_tick();
 	static constexpr std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> filled_no_tick() {
 		std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> a{};
-		a.fill(deluge::ui::grid::kNoTickSquare);
+		a.fill(deluge::ui::widgets::grid::kNoTickSquare);
 		return a;
 	}
 	/// @}

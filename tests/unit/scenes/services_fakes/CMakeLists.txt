@@ -20,4 +20,4 @@ deluge_specs_driver(services_fakes_specs TREES host NEON
           ${_l10n}/effect_names.cpp
           ${_l10n}/param_names.cpp
           ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
-  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell deluge_ui_oled deluge_host_chains)
+  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell deluge_ui_widgets_oled deluge_host_chains)

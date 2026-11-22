@@ -1,9 +1,9 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/style.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/column_drawings.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/column_drawings.h"
 
 #include "cppspec.hpp"
 
@@ -14,7 +14,7 @@
 #include <initializer_list>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -201,7 +201,7 @@ void legacy_clip_end(Canvas& image) {
 } // namespace
 
 // clang-format off
-describe column_drawings_w("ui::oled::column_drawings", $ {
+describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 
 	it("draws the portamento glide as main's, at zero, mid and full", _ {
 		for (const int32_t v : {0, 17, 50}) {
@@ -234,16 +234,16 @@ describe column_drawings_w("ui::oled::column_drawings", $ {
 		constexpr int32_t kTwoSlots = 63;
 		for (const int32_t source : {0, 1}) {
 			for (const bool focused : {false, true}) {
-				for (const Highlighting h : {Highlighting::PartialInversion, Highlighting::FullInversion}) {
+				for (const deluge::ui::widgets::core::Highlighting h : {deluge::ui::widgets::core::Highlighting::PartialInversion, deluge::ui::widgets::core::Highlighting::FullInversion}) {
 					uitest::Rig48 r;
-					Style style = r.style;
+					widgets::core::Style style = r.style;
 					style.highlighting = h;
 					OledFrame frame = root_frame(r.canvas, style, r.ctx);
 					DrawColumn data{.shape = DrawColumn::Shape::Recorder, .raw = source};
 					// No label (`showColumnLabel()` false), so the whole 25-row box.
 					frame.region(Rect{kStartX, kStartY - 5, kTwoSlots, 25}, false,
 					             [&](OledFrame& slot) { draw_column(slot, focused, &data); });
-					legacy_recorder(r.reference, kTwoSlots, source, focused, h == Highlighting::FullInversion);
+					legacy_recorder(r.reference, kTwoSlots, source, focused, h == deluge::ui::widgets::core::Highlighting::FullInversion);
 					expect(r.pbm()).to_equal(r.reference_pbm());
 				}
 			}

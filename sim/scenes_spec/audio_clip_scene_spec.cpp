@@ -73,7 +73,7 @@
 #include "shell/input_lowering.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/metrics.h"
+#include "ui/widgets/core/metrics.h"
 
 #include "board_config.h"
 #include "gui/l10n/l10n.h"
@@ -236,7 +236,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -570,7 +571,7 @@ void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
 
 /// @brief The colour the pad driver substitutes for a `Normal` tick square.
 ///
-/// `PadLEDs::flashColours[0]` (`hid/led/pad_leds.cpp`), which is `ui::grid::tick_colour`'s
+/// `PadLEDs::flashColours[0]` (`hid/led/pad_leds.cpp`), which is `ui::widgets::grid::tick_colour`'s
 /// `kPlayheadColour`. No waveform bar can take it: the bars are a scaling of the clip's colour,
 /// whose green channel is 26, and grey is `RGB::monochrome(7)`.
 constexpr RGB kPlayheadColour{130, 120, 130};
@@ -831,7 +832,7 @@ struct Input {
 	/// @param delta Signed detents.
 	/// @param at_ms The tick's clock.
 	/// @return The `Result` the scene returned.
-	Result turn(deluge::ui::EncoderRole role, int8_t delta, uint32_t at_ms = 0) {
+	Result turn(deluge::ui::widgets::core::EncoderRole role, int8_t delta, uint32_t at_ms = 0) {
 		now_ms = at_ms;
 		return audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = role, .delta = delta},
 		                                 ctx());
@@ -1633,7 +1634,7 @@ describe audio_clip_scene_spec_body(
 		        r.open_scene_only();
 		        r.scene().timeline().scroll_before_following = 480;
 		        (void)in.press(ButtonId::Session, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Session, false);
 
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
@@ -1673,7 +1674,7 @@ describe audio_clip_scene_spec_body(
 		        r.open_scene_only();
 		        r.scene().timeline().scroll_before_following = 480;
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
@@ -1778,9 +1779,9 @@ describe audio_clip_scene_spec_body(
 		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        const int32_t port_shortened = r.f.clip->loopLength();
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 		        const ModelSnapshot port = model_snapshot(r);
 		        const int32_t port_steps = undo_steps();
@@ -1828,7 +1829,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(s);
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 		        const int32_t port_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
 
@@ -1878,17 +1879,17 @@ describe audio_clip_scene_spec_body(
 		        (void)in.pad(end_square_of(r), 0, true); // the marker back down
 
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        expect(last(Kind::RESIZE).resize).to_equal(Resize::STRETCH);
 		        expect(last(Kind::RESIZE).value).to_equal(int64_t{720});
 		        expect(last(Kind::RESIZE).old_length).to_equal(768);
 		        expect(clip_writes.calls.back().kind).to_equal(Kind::UNDO_SCROLL);
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        expect(last(Kind::RESIZE).resize).to_equal(Resize::NO_STRETCH);
 		        expect(last(Kind::RESIZE).value).to_equal(int64_t{816});
 		        (void)in.press(ButtonId::XEnc, false);
-		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Vertical, 3);
 		        expect(clip_writes.calls.back().kind).to_equal(Kind::RECOLOUR);
 		        expect(last(Kind::RECOLOUR).clip).to_equal(r.address());
 		        expect(last(Kind::RECOLOUR).value).to_equal(int64_t{3});
@@ -1909,7 +1910,7 @@ describe audio_clip_scene_spec_body(
 		        expect(last(Kind::CLEAR).clear_automation).to_equal(!FlashStorage::automationClear);
 		        expect(last(Kind::CLEAR).clear_sequence_and_mpe).to_be_true();
 
-		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Select, 1);
 		        expect(recording.requests.size()).to_equal(size_t{1});
 		        if (!recording.requests.empty()) {
 			        const bind::WriteRequest& mode = recording.requests.back();
@@ -2064,7 +2065,7 @@ describe audio_clip_scene_spec_body(
 			        (void)in.press(ButtonId::Shift, true);
 			        (void)in.press(ButtonId::XEnc, true);
 			        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
-			        (void)in.turn(deluge::ui::EncoderRole::Horizontal, static_cast<int8_t>(offset));
+			        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, static_cast<int8_t>(offset));
 			        (void)in.press(ButtonId::XEnc, false);
 			        (void)in.press(ButtonId::Shift, false);
 			        const ModelSnapshot port = model_snapshot(r);
@@ -2151,7 +2152,7 @@ describe audio_clip_scene_spec_body(
 
 		        deluge::edits::audioModeFor(*r.f.output, start);
 		        r.open_scene_only();
-		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Select, 1);
 		        expect(r.f.output->mode).to_equal(after_legacy);
 
 		        deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
@@ -2176,7 +2177,7 @@ describe audio_clip_scene_spec_body(
 		        r.f.clip->setColourOffset(start);
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Vertical, 3);
 		        (void)in.press(ButtonId::Shift, false);
 		        expect(r.f.clip->colourOffset()).to_equal(after_legacy);
 
@@ -2200,7 +2201,7 @@ describe audio_clip_scene_spec_body(
 
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        r.open_scene_only();
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll_long);
 		        expect(r.scene().timeline().x_scroll).to_equal(48 * kDisplayWidth); // one screen
 
@@ -2216,7 +2217,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        expect(r.scene().timeline().x_zoom).to_equal(legacy_zoom);
 		        (void)in.press(ButtonId::XEnc, false);
 	        });

@@ -21,7 +21,7 @@
 
 #include "scenes/menu/nodes/sound_fx.h"
 
-#include "ui/oled/column_drawings.h"
+#include "ui/widgets/oled/column_drawings.h"
 
 #include <algorithm>
 
@@ -260,16 +260,16 @@ std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, 
 	return kRateValues[std::clamp<int32_t>(idx + offset, 0, static_cast<int32_t>(kRateValues.size()) - 1)];
 }
 
-std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value) {
+std::optional<deluge::ui::widgets::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value) {
 	// `stutter::StutterDirection::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`)
 	// over its shifted `getValue()`.
 	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
 	if (v == kUseSong) {
-		return deluge::ui::oled::ArtColumn{.text = "song"};
+		return deluge::ui::widgets::oled::ArtColumn{.text = "song"};
 	}
-	return deluge::ui::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::direction,
-	                                   .reversed = v == kReversed || v == kReversedPingPong,
-	                                   .dots = v == kForwardPingPong || v == kReversedPingPong};
+	return deluge::ui::widgets::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::direction,
+	                                            .reversed = v == kReversed || v == kReversedPingPong,
+	                                            .dots = v == kForwardPingPong || v == kReversedPingPong};
 }
 
 ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
@@ -310,14 +310,14 @@ constexpr const Node* kRoots[] = {&sound_fx};
 
 const std::span<const Node* const> kSoundFxChildren{kRoots};
 
-void eq_page_draw(ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused) {
+void eq_page_draw(ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused) {
 	// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): treble
 	// frequency counts up to 32 only.
-	ui::oled::eq_graph(panel, static_cast<float>(bindings::read(eq_bass, ctx)) / 50.f,
-	                   static_cast<float>(bindings::read(eq_treble, ctx)) / 50.f,
-	                   static_cast<float>(bindings::read(eq_bass_freq, ctx)) / 50.f,
-	                   static_cast<float>(std::clamp<int32_t>(bindings::read(eq_treble_freq, ctx), 0, 32)) / 32.f,
-	                   focused);
+	ui::widgets::oled::eq_graph(
+	    panel, static_cast<float>(bindings::read(eq_bass, ctx)) / 50.f,
+	    static_cast<float>(bindings::read(eq_treble, ctx)) / 50.f,
+	    static_cast<float>(bindings::read(eq_bass_freq, ctx)) / 50.f,
+	    static_cast<float>(std::clamp<int32_t>(bindings::read(eq_treble_freq, ctx), 0, 32)) / 32.f, focused);
 }
 
 } // namespace deluge::scenes::menu::nodes

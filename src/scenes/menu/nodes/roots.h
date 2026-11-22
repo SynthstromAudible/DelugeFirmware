@@ -88,7 +88,7 @@
 ///           `MenuAction::OpenPerformanceView`; the mode it shows is the host's
 ///           `bind::UiFacts::performance_editing_mode()`.
 ///         * `active_scales` is a `nodes::ActiveScalesItem` (`nodes/scales.h`): one row per preset scale with a
-///           checkbox, over `ui::oled::list`, which already ports the renderer legacy's own
+///           checkbox, over `ui::widgets::oled::list`, which already ports the renderer legacy's own
 ///           `drawSubmenuItemsForOled` was adapted from.
 ///
 ///       No node anywhere in the tree points at `nodes::kPending`, so `validate_tree` reports no

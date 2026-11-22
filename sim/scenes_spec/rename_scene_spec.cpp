@@ -28,8 +28,8 @@
 #include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/keyboard.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/keyboard.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -107,7 +107,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -120,7 +121,7 @@ constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 
-constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
+constexpr int32_t kHomeRow = deluge::ui::widgets::grid::kTextKeyboardHomeRow;
 
 /// @brief The pad that types @p c on the QWERTY layout, or `{-1, -1}`.
 ///
@@ -131,9 +132,9 @@ struct Pad {
 };
 Pad pad_for(char c) {
 	for (int32_t y = 0; y < 8; y++) {
-		for (int32_t x = 0; x < deluge::ui::grid::kTextKeyboardCols; x++) {
-			if (deluge::ui::grid::text_keyboard_char_at(deluge::ui::grid::KeyboardLayoutKind::Qwerty, x, y, kHomeRow,
-			                                            false)
+		for (int32_t x = 0; x < deluge::ui::widgets::grid::kTextKeyboardCols; x++) {
+			if (deluge::ui::widgets::grid::text_keyboard_char_at(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty,
+			                                                     x, y, kHomeRow, false)
 			    == c) {
 				return Pad{x, y};
 			}
@@ -216,7 +217,7 @@ struct Rig {
 		}
 	}
 	/// @brief Press the backspace pad (row `home_row + 2`, x 14).
-	void backspace() { type(deluge::ui::grid::kTextKeyboardBackspace); }
+	void backspace() { type(deluge::ui::widgets::grid::kTextKeyboardBackspace); }
 	/// @brief Press the pad that types @p c and leave it down. The shell's held-pad mask keeps it
 	///        held until `release`, which is what `Response::held_index` reads.
 	void press(char c, uint32_t at) {
@@ -228,13 +229,13 @@ struct Rig {
 		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), 0, at);
 	}
 	/// @brief Press the enter pad (row `home_row`, x 14) -- the commit, through the real input path.
-	void enter() { type(deluge::ui::grid::kTextKeyboardEnter); }
+	void enter() { type(deluge::ui::widgets::grid::kTextKeyboardEnter); }
 };
 
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
@@ -719,7 +720,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// The press itself deletes one character and arms the hold
 		// (`QwertyUI::padAction`: `processBackspace()` then
 		// `setTimer(UI_SPECIFIC, 500)`).
-		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.press(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
 		// The scene must ask to be woken with no input pending, or nothing would run `render_grid`
@@ -728,22 +729,22 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// the ticks below, which is the assertion a wrong constant fails.)
 		const std::optional<uint32_t> armed = rename_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		to_be_at_most(expect(armed.value()), deluge::ui::grid::kBackspaceRepeatDelayMs);
+		to_be_at_most(expect(armed.value()), deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
 
 		// One millisecond short of the delay: still four characters.
-		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs - 1);
+		r.tick(1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
 		// On the delay: the first repeat.
-		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
+		r.tick(1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// Then every 80 ms, not every 500.
-		const uint32_t first = 1000 + deluge::ui::grid::kBackspaceRepeatDelayMs;
-		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs - 1);
+		const uint32_t first = 1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs;
+		r.tick(first + deluge::ui::widgets::grid::kBackspaceRepeatMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
-		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs);
+		r.tick(first + deluge::ui::widgets::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
-		r.tick(first + 2 * deluge::ui::grid::kBackspaceRepeatMs);
+		r.tick(first + 2 * deluge::ui::widgets::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
 	});
 
@@ -756,14 +757,14 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.clock = 10;
 		r.type(std::string_view{"ABCDEFG"});
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdefg"});
-		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.press(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
 		// A letter pressed beside the hold: swallowed, and the hold carries on (`QwertyUI::padAction`).
 		r.press('A', 1100);
 		r.tick(1100);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
-		r.press(deluge::ui::grid::kTextKeyboardEnter, 1150);
+		r.press(deluge::ui::widgets::grid::kTextKeyboardEnter, 1150);
 		r.tick(1150);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		r.button(kBackX, kBackY, true, 1200);
@@ -774,10 +775,10 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(1300);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
-		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
+		r.tick(1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcde"});
 		// Once the pad lifts, BACK closes again.
-		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
+		r.release(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1600);
 		r.tick(1600);
 		r.button(kBackX, kBackY, true, 1700);
 		r.tick(1700);
@@ -792,7 +793,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(0);
 		r.clock = 10;
 		r.type(std::string_view{"ABCDE"});
-		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.press(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
 		r.tick(1530); // 30 ms late
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
@@ -800,7 +801,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 		r.tick(1610);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
-		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1620);
+		r.release(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1620);
 		r.tick(1620);
 	});
 
@@ -813,14 +814,14 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.clock = 10;
 		r.type(std::string_view{"ABCDE"});
 
-		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.press(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
-		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs); // one repeat
+		r.tick(1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs); // one repeat
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp`); here the hold is a
 		// level, so letting go simply stops `held_index` naming the key.
-		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
+		r.release(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1600);
 		r.tick(1600);
 		r.tick(2000);
 		r.tick(3000);
@@ -856,7 +857,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// `s.gate.needs_frame(now, had_input_, false)`, the shell-wide widgets gate, or
 		// `router_.repaint_requested(role)` says so (`Shell::tick`). On a tick with no
 		// input none of those fire on their own here: nothing in this scene arms the widgets gate
-		// (`text_edit` is render-only and owns no clock, `ui/oled/text_edit.h`), and no `Repaint`
+		// (`text_edit` is render-only and owns no clock, `ui/widgets/oled/text_edit.h`), and no `Repaint`
 		// action is in flight. So the scene's own `request_repaint_after` is the *only* thing that
 		// brings the panel back -- and a spec that supplies input on every tick would pass with it
 		// deleted, which is exactly the shape of the bug it fixes.
@@ -873,12 +874,12 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(static_cast<int>(rename_scene().entered_text().size())).to_equal(0);
 
 		// One half-period later, with NOTHING queued: the panel must have been redrawn, dark.
-		r.tick(deluge::ui::kFlashTime);
+		r.tick(deluge::ui::widgets::core::kFlashTime);
 		const std::string dark = r.fake.pbm(0);
 		expect(dark).not_().to_equal(lit);
 
 		// And back again on the next one -- a square wave, not a one-shot.
-		r.tick(2 * deluge::ui::kFlashTime);
+		r.tick(2 * deluge::ui::widgets::core::kFlashTime);
 		expect(r.fake.pbm(0)).to_equal(lit);
 	});
 
@@ -1083,7 +1084,7 @@ describe rename_exits("scenes::rename::RenameScene exits", $ {
 			r.open_rename(context_of(f), TargetId::Drum);
 			r.tick(0);
 			// `RenameUI::padAction`: a pad outside the keyboard's columns exits.
-			r.pad(deluge::ui::grid::kTextKeyboardCols, 0, 64, 100);
+			r.pad(deluge::ui::widgets::grid::kTextKeyboardCols, 0, 64, 100);
 			r.tick(100);
 			expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(std::string{"Snare"});
 			expect(r.shell.stack().depth()).to_equal(size_t(0));
@@ -1156,7 +1157,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// The title's rule runs the panel's width on its last title row; the rename window covers
 		// only the middle, so its two ends show whatever the menu beneath drew.
 		const std::string pbm = r.fake.pbm(0);
-		constexpr int32_t kRuleRow = kVisibleTop48 + deluge::ui::kTitleSeparatorY;
+		constexpr int32_t kRuleRow = kVisibleTop48 + deluge::ui::widgets::core::kTitleSeparatorY;
 		expect(pbm_lit(pbm, 1, kRuleRow)).to_equal(std::optional<bool>{false});
 		expect(pbm_lit(pbm, 126, kRuleRow)).to_equal(std::optional<bool>{false});
 	});

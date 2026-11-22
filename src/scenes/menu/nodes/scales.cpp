@@ -25,8 +25,8 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
 
 #include "ui/gfx/oled/icons.h"
 
@@ -128,20 +128,20 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 	}
 }
 
-void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void ActiveScalesItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	// `MenuItem::renderOLED` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) draws the screen title and then
 	// calls `drawPixelsForOled`; `ActiveScaleMenu` overrides only the second, so the title is legacy's too.
 	// (`drawName()` is overridden to nothing, `origin/main:src/deluge/gui/menu_item/active_scales.cpp`, which is the
 	// 7SEG path.)
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 
 	// `drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`): one row per scale, the name
 	// clipped short of the box, and a checked or unchecked box at the right. `list` owns the window, the highlight and
 	// the focused row's side scroller -- see `scales.h` for why that is the same renderer and not merely a similar one.
-	deluge::ui::oled::ListRow rows[kScaleRows];
+	deluge::ui::widgets::oled::ListRow rows[kScaleRows];
 	for (size_t i = 0; i < kScaleRows; i++) {
 		// `scalelikeNames` holds `char const*` with static storage (`music/preset_scales.h`),
 		// so the view outlives this frame.
@@ -152,10 +152,10 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	}
 
 	const size_t d = depth_of(state);
-	state.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, kScaleRows}, state.scroll[d],
-	                           /*allow_motion=*/true, /*accelerate=*/true);
+	state.tick.render_resp = deluge::ui::widgets::oled::list(
+	    f, deluge::ui::widgets::oled::menu_rect(f), state.list[d],
+	    std::span<const deluge::ui::widgets::oled::ListRow>{rows, kScaleRows}, state.scroll[d],
+	    /*allow_motion=*/true, /*accelerate=*/true);
 
 	if (!state.tick.render_resp.entered) {
 		return;

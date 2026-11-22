@@ -48,11 +48,13 @@
 /// Nothing here calls an `OledFrame` or `GridFrame` primitive (`scenes-no-frame-primitives`), and nothing names
 /// `waveformRenderer` or `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
-///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
+///   * `renderOLED`'s window, rule, label and centred count -> `ui::widgets::oled::count_window`.
 ///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> the waveforms port's read at the SLICE
-///     address (`services::read_waveform`) + `services::paint_columns` (`ui::grid::waveform_full` over its columns).
+///     address (`services::read_waveform`) + `services::paint_columns` (`ui::widgets::grid::waveform_full` over its
+///     columns).
 ///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
-///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
+///   * `graphicsRoutine`'s playhead -> `ui::widgets::grid::tick_squares` on rows 7 to 4 at the column
+///   `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
 /// A frame whose read left a column pending paints no main pad and asks again (`services::PeakRetry`).
@@ -112,8 +114,8 @@
 
 #include "scenes/bind/ports/ports.h"
 #include "shell/scene.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/frame.h"
 
 #include "sample-view/view.h"
 #include "scenes/services/peak_retry.h"
@@ -316,8 +318,8 @@ public:
 	bool add_slice_at(int32_t sample_pos);
 
 	deluge::ui::shell::SceneKind kind() const override { return kSlicerSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
@@ -421,7 +423,7 @@ private:
 
 	/// @brief `Slicer::renderMainPads`: the waveform, and in MANUAL the slice marks and slot grid.
 	/// @param f The grid frame.
-	void render_pads(deluge::ui::grid::GridFrame& f);
+	void render_pads(deluge::ui::widgets::grid::GridFrame& f);
 
 	/// @brief `Slicer::preview`: hand the snapshotted audition to the host, which holds its load.
 	/// @param req The audition request.

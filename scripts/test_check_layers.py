@@ -247,7 +247,7 @@ class CountedRules(unittest.TestCase):
     def test_other_families_are_not_counted(self):
         self.repo.plant(
             "src/scenes/menu/planted.cpp",
-            '#include "scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/oled/columns.h"\n',
+            '#include "scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/widgets/oled/columns.h"\n',
         )
         self.assertEqual(self.counts(), {})
 

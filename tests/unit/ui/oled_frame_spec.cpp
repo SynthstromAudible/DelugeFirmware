@@ -1,5 +1,5 @@
 #include "support/frames.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/oled/frame.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <span>
 
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Point;
 using deluge::ui::gfx::oled::Rect;
 using deluge::ui::gfx::oled::Size;
@@ -70,7 +70,7 @@ constexpr Rect kRegion{20, 12, 24, 19};
 } // namespace
 
 // clang-format off
-describe oled_frame("ui::oled::OledFrame", $ {
+describe oled_frame("ui::widgets::oled::OledFrame", $ {
 	it("translates by visible_top and clips to the visible area", _ {
 		uitest::Rig48 r;
 		r.frame.pixel(0, 0);                       // local (0,0) -> canvas (0,5)
@@ -222,7 +222,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 
 	it("inverts a square box with rounded corners off, as main's invertAreaRounded does", _ {
 		uitest::Rig64 r;
-		deluge::ui::Style square = r.style;
+		deluge::ui::widgets::core::Style square = r.style;
 		square.rounded = false;
 		OledFrame f = root_frame(r.canvas, square, r.ctx);
 		f.invert_rounded(Rect{10, 10, 20, 9});

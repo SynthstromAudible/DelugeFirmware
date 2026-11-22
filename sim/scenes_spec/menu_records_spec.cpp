@@ -95,10 +95,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		menu::MenuState st{};
 		st.path[0] = &nodes::multi_range;
 		st.depth = 0;
-		st.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		st.edit_edge = deluge::ui::widgets::oled::RangeEdge::Right;
 		st.list[0].cursor = 0;
 		menu::ValueSession{}.read_again({ctx, st});
-		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
+		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Right));
 		expect(static_cast<int>(st.list[0].cursor)).to_equal(0);
 		expect(static_cast<int>(st.walk.range_choice)).to_equal(-1);
 		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);

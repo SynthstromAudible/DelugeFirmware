@@ -1,5 +1,5 @@
 #include "shell/notices.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/text.h"
 
 #include <algorithm>
 #include <cstring>
@@ -92,8 +92,9 @@ const char* notice_kind_name(base::notify::Notice::Kind k) {
 	return "Text";
 }
 
-ui::oled::PopupStyle PopupScene::style_for(uint8_t popup_type) {
-	return popup_type == kPopupTypeNotification ? ui::oled::PopupStyle::Notification : ui::oled::PopupStyle::Framed;
+ui::widgets::oled::PopupStyle PopupScene::style_for(uint8_t popup_type) {
+	return popup_type == kPopupTypeNotification ? ui::widgets::oled::PopupStyle::Notification
+	                                            : ui::widgets::oled::PopupStyle::Framed;
 }
 
 void PopupScene::show(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms) {
@@ -120,13 +121,13 @@ std::optional<uint32_t> PopupScene::remaining_ms(uint32_t now_ms) const {
 	return left > 0 ? static_cast<uint32_t>(left) : 0U;
 }
 
-void PopupScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
+void PopupScene::render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
 	// Legacy draws a popup on the whole canvas, so a tall window's top border lands on a row above `visible_top`.
-	ui::oled::OledFrame panel = ui::oled::panel_frame(frame);
-	ui::oled::popup_text(panel, text_, style_for(popup_type_));
+	ui::widgets::oled::OledFrame panel = ui::widgets::oled::panel_frame(frame);
+	ui::widgets::oled::popup_text(panel, text_, style_for(popup_type_));
 }
 
 bool PopupScene::oled_transparent(SurfaceRole /*role*/) const {
@@ -169,7 +170,7 @@ std::optional<uint32_t> ConsoleScene::remaining_ms(uint32_t now_ms) const {
 	return next;
 }
 
-void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
+void ConsoleScene::render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
@@ -177,11 +178,11 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	// grows the same way (`OLED::setupConsole` places a new item below the existing ones).
 	//
 	// `text_height_for(Apple7)`, NOT a hand-picked 7: `FontId::Apple7` draws at height 9
-	// (`ui/core/metrics.h`'s own note -- the Apple ][ face's "Up" variant, one row lower than its
+	// (`ui/widgets/core/metrics.h`'s own note -- the Apple ][ face's "Up" variant, one row lower than its
 	// 7-8 sibling, and 9 is what this `FontId` means). A hard-coded 7 clipped the glyphs' bottom
 	// row inside every `region` below: with the row gone, `E` and `F` render pixel-identical, which a
 	// set-pixel-count assertion alone cannot catch.
-	const int32_t kLineHeight = ui::oled::text_height_for(ui::gfx::oled::FontId::Apple7);
+	const int32_t kLineHeight = ui::widgets::oled::text_height_for(ui::gfx::oled::FontId::Apple7);
 	int32_t y = frame.bounds().h;
 	for (const Line& line : lines_) {
 		// Difference form for the same wrap reason as `PopupScene::expired`: a line appended just
@@ -191,8 +192,9 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 			continue;
 		}
 		y -= kLineHeight;
-		frame.region({0, y, frame.bounds().w, kLineHeight}, false, [&](ui::oled::OledFrame& region) {
-			ui::oled::text(region, region.bounds(), line.text, ui::oled::TextStyle{ui::gfx::oled::FontId::Apple7});
+		frame.region({0, y, frame.bounds().w, kLineHeight}, false, [&](ui::widgets::oled::OledFrame& region) {
+			ui::widgets::oled::text(region, region.bounds(), line.text,
+			                        ui::widgets::oled::TextStyle{ui::gfx::oled::FontId::Apple7});
 		});
 	}
 }
@@ -227,21 +229,21 @@ uint32_t NotificationScene::remaining_ms(uint32_t now_ms) const {
 	return left > 0 ? static_cast<uint32_t>(left) : 0U;
 }
 
-void NotificationScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
+void NotificationScene::render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
-	ui::oled::notification(frame, title_, value_);
+	ui::widgets::oled::notification(frame, title_, value_);
 }
 
 void WorkingScene::arm(std::string_view word, uint32_t now_ms) {
-	(void)now_ms; // The animation's own clock is anchored lazily by ui::oled::working() itself.
+	(void)now_ms; // The animation's own clock is anchored lazily by ui::widgets::oled::working() itself.
 	copy_bounded(word_, sizeof(word_), word);
 	armed_ = true;
-	// Zero re-arms: period_ms doubles as "armed" for ui::oled::working (see Blink's own doc), so
+	// Zero re-arms: period_ms doubles as "armed" for ui::widgets::oled::working (see Blink's own doc), so
 	// resetting it here is what makes a re-`arm()` restart the animation from its first frame
 	// rather than continuing wherever the previous run's clock had it.
-	blink_ = Blink{};
+	blink_ = widgets::core::Blink{};
 	blink_.period_ms = 0;
 }
 
@@ -249,11 +251,11 @@ void WorkingScene::clear() {
 	armed_ = false;
 }
 
-void WorkingScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
+void WorkingScene::render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main || !armed_) {
 		return;
 	}
-	ui::oled::working(frame, frame.bounds(), word_, blink_);
+	ui::widgets::oled::working(frame, frame.bounds(), word_, blink_);
 }
 
 void Notices::drain(base::notify::NoticeQueue& queue, uint32_t now_ms) {

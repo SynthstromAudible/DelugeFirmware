@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace deluge::ui::grid {
+namespace deluge::ui::widgets::grid {
 class GridFrame;
 }
 
@@ -31,6 +31,7 @@ struct WaveformFrame {
 
 /// @brief Paint @p read's PEAK columns as full-height monochrome bars across @p f's main columns, centred on @p centre
 ///        and scaled to @p span. A column with no peak stays black.
-void paint_columns(deluge::ui::grid::GridFrame& f, const sample_view::PeakRead& read, int32_t centre, int32_t span);
+void paint_columns(deluge::ui::widgets::grid::GridFrame& f, const sample_view::PeakRead& read, int32_t centre,
+                   int32_t span);
 
 } // namespace deluge::scenes::services

@@ -8,9 +8,9 @@
 
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::ui::LedFrame;
-using deluge::ui::LedId;
-using deluge::ui::LedState;
+using deluge::ui::widgets::core::LedFrame;
+using deluge::ui::widgets::core::LedId;
+using deluge::ui::widgets::core::LedState;
 
 namespace {
 
@@ -180,8 +180,8 @@ describe shell_leds("shell::LedCompose", $ {
 	});
 
 	it("Normal lights 250 then toggles every 110; started dark it waits 110; Fast toggles every 60", _ {
-		using deluge::ui::BlinkPhase;
-		using deluge::ui::BlinkRate;
+		using deluge::ui::widgets::core::BlinkPhase;
+		using deluge::ui::widgets::core::BlinkRate;
 		const LedState normal = LedState::shared(BlinkRate::Normal);
 		const LedState fast = LedState::shared(BlinkRate::Fast);
 		BlinkPhase lit[2] = {{.origin_ms = 1000, .initially_on = true, .running = true},

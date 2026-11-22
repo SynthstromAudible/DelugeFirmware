@@ -139,7 +139,7 @@
 #include "project/mapping_table.h"
 #include "project/midi_command.h"
 
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
@@ -386,7 +386,7 @@ public:
 
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
-	void leds(deluge::ui::LedFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 	std::optional<uint32_t> next_timer() const override;
 	/// @brief The grid, and never the OLED. See the class doc's flash section.

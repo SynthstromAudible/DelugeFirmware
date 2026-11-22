@@ -12,5 +12,5 @@ deluge_specs_driver(scenes_fakes_specs TREES host
           ${_scenes}/timeline/timeline.cpp
           ${_scenes}/services/waveform_paint.cpp
           ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
-  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell deluge_ui_grid deluge_ui_oled
+  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_ui_shell deluge_ui_widgets_grid deluge_ui_widgets_oled
             deluge_base_notify deluge_ui_gfx_grid deluge_sample_view)

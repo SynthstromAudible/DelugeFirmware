@@ -16,7 +16,7 @@
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include "support/song_fixture.h"
 
@@ -66,20 +66,20 @@ struct KitMenu {
 		menu_scene().open(nodes::root_drum, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 	}
-	deluge::ui::LedState ae_led() const {
-		deluge::ui::LedFrame f;
+	deluge::ui::widgets::core::LedState ae_led() const {
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		for (const auto& [id, state] : f.entries()) {
-			if (id == static_cast<deluge::ui::LedId>(ButtonId::AffectEntire)) {
+			if (id == static_cast<deluge::ui::widgets::core::LedId>(ButtonId::AffectEntire)) {
 				return state;
 			}
 		}
-		return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
+		return deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
 	}
 };
 
-bool declared(const deluge::ui::LedState& s) {
-	return s.kind == deluge::ui::LedState::Kind::Shared;
+bool declared(const deluge::ui::widgets::core::LedState& s) {
+	return s.kind == deluge::ui::widgets::core::LedState::Kind::Shared;
 }
 
 } // namespace
@@ -107,7 +107,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		menu_scene().set_affect_entire_hold(true);
 		k.shell.tick(10);
 		expect(declared(k.ae_led())).to_be_true();
-		expect(k.ae_led().rate).to_equal(deluge::ui::BlinkRate::Fast);
+		expect(k.ae_led().rate).to_equal(deluge::ui::widgets::core::BlinkRate::Fast);
 		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_true();
 		menu_scene().set_affect_entire_hold(false);
 		k.shell.tick(20);

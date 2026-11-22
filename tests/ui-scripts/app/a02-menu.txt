@@ -89,7 +89,7 @@
 #     *create* arm instead, and the SELECT that follows then reaches the no-clip `soundEditor.setup()` in
 #     `SessionView::buttonAction` (`origin/main:src/deluge/gui/views/session_view.cpp`) -- site 2, i.e. the crash above.
 #   * **6000 -> 6350, the whole tail.** `SET CLIP LENGTH EQUAL TO SAMPLE LENGTH` is wider than the panel, so the
-#     selected row's label side-scrolls: the menu animates `ui::oled::scroll_text` inside `list` (`ui/oled/list.h`)
+#     selected row's label side-scrolls: the menu animates `ui::widgets::oled::scroll_text` inside `list` (`ui/widgets/oled/list.h`)
 #     where `main` registers `OLED::setupSideScroller` (`Submenu::drawSubmenuItemsForOled` in
 #     `origin/main:src/deluge/gui/menu_item/submenu.cpp`). **They stay in step for the first ~400 ms and drift apart
 #     after it** -- measured at 50 ms granularity: byte-identical at 100/250/300/350/400 ms past the turn, different at

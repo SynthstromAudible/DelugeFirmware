@@ -1,8 +1,8 @@
 #include "deluge.h"
 #include "libdeluge/board.h"
 #include "shell/profile.h"
-#include "ui/core/input.h"
-#include "ui/core/style.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/style.h"
 
 namespace deluge::ui::shell {
 
@@ -66,13 +66,13 @@ static_assert(kLedByButton[static_cast<size_t>(ButtonId::Session)] == 12);
 
 // Encoder order from encoder_input.cpp's interpretEncoders: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1(upper)
 // 5=mod0(lower). 4=mod1=upper gold; 5=mod0=lower gold (encoders.h's mod0/mod1).
-static constexpr EncoderRole kEncoders[] = {
-    EncoderRole::Vertical,   // 0
-    EncoderRole::Horizontal, // 1
-    EncoderRole::Tempo,      // 2
-    EncoderRole::Select,     // 3
-    EncoderRole::GoldUpper,  // 4
-    EncoderRole::GoldLower,  // 5
+static constexpr widgets::core::EncoderRole kEncoders[] = {
+    widgets::core::EncoderRole::Vertical,   // 0
+    widgets::core::EncoderRole::Horizontal, // 1
+    widgets::core::EncoderRole::Tempo,      // 2
+    widgets::core::EncoderRole::Select,     // 3
+    widgets::core::EncoderRole::GoldUpper,  // 4
+    widgets::core::EncoderRole::GoldLower,  // 5
 };
 static_assert(sizeof(kEncoders) / sizeof(kEncoders[0]) == 6);
 
@@ -86,23 +86,23 @@ static constexpr EncoderKind kKinds[] = {
     EncoderKind::Accelerating, // GoldLower
     EncoderKind::Detented,     // Tempo
 };
-static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(EncoderRole::Count));
+static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(widgets::core::EncoderRole::Count));
 
 // OLED roles: Deluge has one main OLED.
 static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
 static_assert(sizeof(kRoles) / sizeof(kRoles[0]) == 1);
 
 // Display styles: Deluge has one 128×48 OLED.
-static constexpr const Style* kStyles[] = {&kDelugeStyle48};
+static constexpr const widgets::core::Style* kStyles[] = {&widgets::core::kDelugeStyle48};
 static_assert(sizeof(kStyles) / sizeof(kStyles[0]) == 1);
 
 // Export table spans for use by test_board and other profiles.
 const std::span<const ButtonId> kDelugeButtonMatrix = kMatrix;
 const std::span<const int8_t> kDelugeLedByButton = kLedByButton;
-const std::span<const EncoderRole> kDelugeEncoders = kEncoders;
+const std::span<const widgets::core::EncoderRole> kDelugeEncoders = kEncoders;
 const std::span<const EncoderKind> kDelugeEncoderKinds = kKinds;
 const std::span<const SurfaceRole> kDelugeOledRoles = kRoles;
-const std::span<const Style* const> kDelugeOledStyles = kStyles;
+const std::span<const widgets::core::Style* const> kDelugeOledStyles = kStyles;
 
 // Deluge board descriptor: 16 main pad columns + 2 sidebar = 18 total, 8 rows, 4 button rows, 9 button cols, 6
 // encoders, 1 OLED.

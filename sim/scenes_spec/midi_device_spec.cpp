@@ -147,7 +147,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -960,7 +961,7 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 	// Both panel geometries for every screen on the page, because a row or a value-band constant
 	// that is right on one panel and wrong on the other is exactly what a single golden cannot see
 	// (`tables_3_spec.cpp`'s own note on the same point). Nothing here hand-computes a rect: the two
-	// selectors lay out through `ui::oled::menu_rect(f)` and the member-channel editor through
+	// selectors lay out through `ui::widgets::oled::menu_rect(f)` and the member-channel editor through
 	// `f.bounds()`, like `MenuView::render_leaf_int`.
 	//
 	// Every screen is reached by *driving* the scene rather than by poking `MenuState`

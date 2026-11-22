@@ -397,7 +397,7 @@ void release_all_legacy_buttons() {
 }
 
 /// @brief The (id, on) pairs a `LedFrame` holds, resolved through `shell::led_is_on` at @p now_ms.
-std::vector<std::pair<uint8_t, bool>> led_pairs(const deluge::ui::LedFrame& f, uint32_t now_ms) {
+std::vector<std::pair<uint8_t, bool>> led_pairs(const deluge::ui::widgets::core::LedFrame& f, uint32_t now_ms) {
 	std::vector<std::pair<uint8_t, bool>> out;
 	for (const auto& [id, state] : f.entries()) {
 		out.emplace_back(static_cast<uint8_t>(id), deluge::ui::shell::led_is_on(state, now_ms));
@@ -406,7 +406,7 @@ std::vector<std::pair<uint8_t, bool>> led_pairs(const deluge::ui::LedFrame& f, u
 }
 
 /// @brief The declared state of one LED in @p f, or `nullopt` when it was not declared.
-std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, ButtonId b) {
+std::optional<deluge::ui::widgets::core::LedState> led_state(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
 		if (static_cast<uint8_t>(id) == static_cast<uint8_t>(b)) {
 			return state;
@@ -419,8 +419,8 @@ std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, But
 ///
 /// A predicate rather than `led_state(f, b)->kind`: an LED nothing declared must FAIL the example,
 /// not abort the process on a disengaged `optional`.
-bool led_is(const deluge::ui::LedFrame& f, ButtonId b, deluge::ui::LedState::Kind k) {
-	const std::optional<deluge::ui::LedState> s = led_state(f, b);
+bool led_is(const deluge::ui::widgets::core::LedFrame& f, ButtonId b, deluge::ui::widgets::core::LedState::Kind k) {
+	const std::optional<deluge::ui::widgets::core::LedState> s = led_state(f, b);
 	return s.has_value() && s->kind == k;
 }
 
@@ -815,11 +815,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		// The port declares the LED rather than writing it, so the comparison is the declaration
 		// resolved through `shell::led_is_on` against the bool legacy left in `ledStates`.
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
-		const std::optional<deluge::ui::LedState> tap = led_state(f, ButtonId::TapTempo);
+		const std::optional<deluge::ui::widgets::core::LedState> tap = led_state(f, ButtonId::TapTempo);
 		expect(tap.has_value()).to_be_true();
-		expect(deluge::ui::shell::led_is_on(tap.value_or(deluge::ui::LedState{}), rig.now_ms)).to_equal(legacy_led);
+		expect(deluge::ui::shell::led_is_on(tap.value_or(deluge::ui::widgets::core::LedState{}), rig.now_ms)).to_equal(legacy_led);
 		rig.press(ButtonId::Shift, false, 7'010);
 	});
 
@@ -1216,7 +1216,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		fixture.song->setInputTickScaleClip(nullptr);
 
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
 		const std::vector<std::pair<uint8_t, bool>> got = led_pairs(f, 0);
 		const std::vector<std::pair<uint8_t, bool>> want{
@@ -1244,19 +1244,19 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		playbackHandler.metronomeOn = true;
 		rig.press(ButtonId::Save, true, 26'000);
 
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::Save, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::Load, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Play, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Save, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Load, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
 		rig.press(ButtonId::Save, false, 26'005 + GlobalControls::kShortPressMs);
 
 		// `PlaybackHandler::setLedStates`: while recording to the arrangement the RECORD LED
 		// is not declared at all.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
-		deluge::ui::LedFrame f2;
+		deluge::ui::widgets::core::LedFrame f2;
 		rig.gc.leds(f2);
 		expect(led_state(f2, ButtonId::Record).has_value()).to_be_false();
 		playbackHandler.recording = RecordingMode::OFF;
@@ -1264,19 +1264,19 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// `View::setTimeBaseScaleLedState`: solid on when some clip is the sync-scaling clip and we are not in a
 		// clip minder.
 		fixture.song->setInputTickScaleClip(fixture.song->getCurrentClip());
-		deluge::ui::LedFrame f3;
+		deluge::ui::widgets::core::LedFrame f3;
 		rig.gc.leds(f3);
-		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::LedState::Kind::On)).to_be_true();
+		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
 
 		// `View::setTimeBaseScaleLedState` (`views/view.cpp`): blinking once the clip minder showing it IS that clip.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
-		deluge::ui::LedFrame f4;
+		deluge::ui::widgets::core::LedFrame f4;
 		rig.gc.leds(f4);
-		expect(led_is(f4, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
-		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::LedState{}).rate)
-		    .to_equal(deluge::ui::BlinkRate::Normal);
+		expect(led_is(f4, ButtonId::SyncScaling, deluge::ui::widgets::core::LedState::Kind::Shared)).to_be_true();
+		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::widgets::core::LedState{}).rate)
+		    .to_equal(deluge::ui::widgets::core::BlinkRate::Normal);
 		fixture.song->setInputTickScaleClip(nullptr);
 	});
 
@@ -1317,13 +1317,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		rig.press(ButtonId::SyncScaling, true, 27'000);
 		rig.gc.tick(27'000, 0);
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::Clip, deluge::ui::LedState::Kind::Shared)).to_be_true();
-		expect(led_state(f, ButtonId::Clip)->rate).to_equal(deluge::ui::BlinkRate::Fast); // `blinkingType` 1
+		expect(led_is(f, ButtonId::Clip, deluge::ui::widgets::core::LedState::Kind::Shared)).to_be_true();
+		expect(led_state(f, ButtonId::Clip)->rate).to_equal(deluge::ui::widgets::core::BlinkRate::Fast); // `blinkingType` 1
 
 		rig.gc.tick(27'000 + GlobalControls::kAlertMs, GlobalControls::kAlertMs);
-		deluge::ui::LedFrame f2;
+		deluge::ui::widgets::core::LedFrame f2;
 		rig.gc.leds(f2);
 		expect(led_state(f2, ButtonId::Clip).has_value()).to_be_false();
 		rig.press(ButtonId::SyncScaling, false, 27'500);
@@ -1382,19 +1382,19 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		rig.gc.tick(0, 0);
 		expect(rig.gc.next_timer().has_value()).to_be_false();
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
-		const deluge::ui::LedState blink = led_state(f, ButtonId::SyncScaling).value_or(deluge::ui::LedState{});
-		expect(blink.rate).to_equal(deluge::ui::BlinkRate::Normal);
-		const deluge::ui::BlinkPhase phases[2] = {{.origin_ms = 0, .initially_on = true, .running = true}, {}};
+		expect(led_is(f, ButtonId::SyncScaling, deluge::ui::widgets::core::LedState::Kind::Shared)).to_be_true();
+		const deluge::ui::widgets::core::LedState blink = led_state(f, ButtonId::SyncScaling).value_or(deluge::ui::widgets::core::LedState{});
+		expect(blink.rate).to_equal(deluge::ui::widgets::core::BlinkRate::Normal);
+		const deluge::ui::widgets::core::BlinkPhase phases[2] = {{.origin_ms = 0, .initially_on = true, .running = true}, {}};
 		expect(deluge::ui::shell::led_next_change(blink, 0, phases).has_value()).to_be_true();
 
 		fixture.song->setInputTickScaleClip(nullptr);
 		rig.gc.tick(0, 0);
-		deluge::ui::LedFrame g;
+		deluge::ui::widgets::core::LedFrame g;
 		rig.gc.leds(g);
-		expect(led_is(g, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_false();
+		expect(led_is(g, ButtonId::SyncScaling, deluge::ui::widgets::core::LedState::Kind::Shared)).to_be_false();
 	});
 
 	// The service on a fake host: what each press asks the installed ports, in order, with no legacy state read.
@@ -1656,28 +1656,28 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_model(&model);
 
 		const auto frame = [&rig] {
-			deluge::ui::LedFrame f;
+			deluge::ui::widgets::core::LedFrame f;
 			rig.gc.leds(f);
 			return f;
 		};
-		deluge::ui::LedFrame f = frame();
-		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
-		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::Off)).to_be_true();
-		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::Off)).to_be_true();
+		deluge::ui::widgets::core::LedFrame f = frame();
+		expect(led_is(f, ButtonId::Play, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
 
 		host.transport.is_playing = true;
 		host.transport.mode = bind::TransportRecording::NORMAL;
 		host.transport.metronome = true;
 		f = frame();
-		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
-		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Play, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
 
 		// An internal recording or the arrangement's own owns the RECORD LED, so the service declares none.
 		host.audio.foreground = bind::ForegroundRecording::INTERNAL;
 		expect(led_state(frame(), ButtonId::Record).has_value()).to_be_false();
 		host.audio.foreground = bind::ForegroundRecording::EXTERNAL;
-		expect(led_is(frame(), ButtonId::Record, deluge::ui::LedState::Kind::On)).to_be_true();
+		expect(led_is(frame(), ButtonId::Record, deluge::ui::widgets::core::LedState::Kind::On)).to_be_true();
 		host.transport.mode = bind::TransportRecording::ARRANGEMENT;
 		expect(led_state(frame(), ButtonId::Record).has_value()).to_be_false();
 	});
@@ -1704,11 +1704,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(playbackHandler.playbackState).to_equal(playback_before);
 		expect(playbackHandler.metronomeOn).to_equal(metronome_before);
 		expect(playbackHandler.recording).to_equal(recording_before);
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::Play, deluge::ui::LedState::Kind::Off)).to_be_true();
-		expect(led_is(f, ButtonId::Record, deluge::ui::LedState::Kind::Off)).to_be_true();
-		expect(led_is(f, ButtonId::TapTempo, deluge::ui::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Play, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::Record, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
+		expect(led_is(f, ButtonId::TapTempo, deluge::ui::widgets::core::LedState::Kind::Off)).to_be_true();
 	});
 });
 // clang-format on

@@ -1,9 +1,9 @@
-#include "ui/oled/starfield.h"
+#include "ui/widgets/oled/starfield.h"
 
 #include "cppspec.hpp"
 #include <cmath>
 
-using deluge::ui::oled::Starfield;
+using deluge::ui::widgets::oled::Starfield;
 
 // Upper depth bound is kMaxDepth + 0.2, not kMaxDepth: scatter() spawns stars in
 // [0.1, kMaxDepth + 0.1) via its `next_random_float() * kMaxDepth + 0.1f` expression,

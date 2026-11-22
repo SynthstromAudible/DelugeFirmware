@@ -14,7 +14,7 @@
 #include "scenes/services/peak_retry.h"
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
-#include "ui/grid/waveform.h"
+#include "ui/widgets/grid/waveform.h"
 
 #include "fakes.h"
 #include "support/printers/transport_action_printer.h"
@@ -44,7 +44,6 @@ using deluge::scenes::bind::test::FakeHost;
 using deluge::scenes::bind::test::FakeWaveforms;
 using deluge::scenes::bind::test::RecordingClipWrites;
 using deluge::scenes::bind::test::RecordingTransportActions;
-using deluge::ui::EncoderRole;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -53,6 +52,7 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 using deluge::ui::test::GridRig;
+using deluge::ui::widgets::core::EncoderRole;
 
 namespace {
 
@@ -124,7 +124,7 @@ AudioClipScene& opened(AudioClipScene& scene, AudioClipHost& h) {
 /// @brief The context an event runs in: the buttons in @p held down, no shift.
 struct Context {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	/// @return The context.
 	[[nodiscard]] UiContext get() const {
 		return UiContext{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
@@ -382,7 +382,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		// The same bars, composed through the toolkit from the entry's own read, centre and span.
 		const deluge::sample_view::PeakRead read = h.host.waveforms.peaks(at_clip(), {.scroll = 0, .zoom = 1000});
 		const FakeWaveforms::Entry& e = h.entry();
-		std::array<deluge::ui::grid::PeakCol, 16> peaks{};
+		std::array<deluge::ui::widgets::grid::PeakCol, 16> peaks{};
 		for (int32_t x = 0; x < 16; x++) {
 			if (const std::optional<deluge::sample_view::Bar> bar = read.bar(x, e.info.centre, e.info.span)) {
 				peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
@@ -391,8 +391,8 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		const int16_t colour_offset = h.model.clip_structure.getOrCreate(kClipId).colour_offset;
 		GridRig expected;
 		expected.begin_tick(0);
-		expected.frame.region(deluge::ui::gfx::grid::Rect{0, 0, 16, expected.frame.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-			deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessColoured,
+		expected.frame.region(deluge::ui::gfx::grid::Rect{0, 0, 16, expected.frame.bounds().h}, [&](deluge::ui::widgets::grid::GridFrame& main) {
+			deluge::ui::widgets::grid::waveform_full(main, peaks, deluge::ui::widgets::grid::kWaveformBarBrightnessColoured,
 			                                RGB::fromHuePastel(colour_offset * -8 / 3));
 		});
 		expect(lit_main_pads(rig)).to_be_greater_than(0);

@@ -119,7 +119,7 @@ ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse 
 std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, int32_t offset);
 /// `stutter::StutterDirection::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`):
 /// "song", or the arrow with ping-pong dots.
-std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value);
+std::optional<deluge::ui::widgets::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value);
 /// `stutter::StutterDirection::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): the
 /// short option.
 ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
@@ -154,7 +154,7 @@ inline constexpr Node eq_treble_freq = with_column_name(
 /// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`) orders the four
 /// as the graph's handles run, left to right: bass, bass frequency, treble frequency, treble.
 inline constexpr const Node* kEqChildren[] = {&eq_bass, &eq_bass_freq, &eq_treble_freq, &eq_treble};
-void eq_page_draw(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
+void eq_page_draw(deluge::ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
 inline constexpr Node eq =
     with_page_draw(submenu(sid(deluge::l10n::String::STRING_FOR_EQ), kEqChildren, Layout::Horizontal), eq_page_draw);
 
@@ -370,7 +370,7 @@ inline constexpr Node mod_fx = with_page_title(
 inline constexpr Node saturation = with_affect_entire(with_value_style(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), Kind::Int,
                  {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar),
-    deluge::ui::oled::ValueStyle{.off_at_zero = true}));
+    deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true}));
 inline constexpr Node bitcrush =
     param(sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
           {deluge::plugin::ParamKind::UNPATCHED_SOUND,

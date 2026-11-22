@@ -58,7 +58,7 @@
 #include "scenes/menu/nodes/sound_osc.h" // the ten `range_specific` nodes this page chains to
 
 #include "instruments/classic/sound_state.h"
-#include "ui/oled/values.h" // RangeEdge
+#include "ui/widgets/oled/values.h" // RangeEdge
 
 #include "shell/profile.h" // ui::shell::TextScratch
 
@@ -76,10 +76,10 @@ class MultiRangeItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The list's turn and select, the horizontal encoder (`MultiRange::horizontalEncoderAction`, every turn),
 	///        and BACK while an edge is edited (`SoundEditor::buttonAction` cancels the edge before going up).
-	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -119,7 +119,7 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 /// @param ctx   What is being edited.
 /// @param index The range whose edge.
 /// @param edge  Which edge; `Off` is never editable.
-bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge);
+bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::widgets::oled::RangeEdge edge);
 
 /// @brief `Range::horizontalEncoderAction` (`origin/main:src/deluge/gui/menu_item/range.cpp`): the edge a horizontal
 /// turn leaves edited.
@@ -131,8 +131,8 @@ bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled
 /// @param current The edge edited now.
 /// @param offset  The turn; only its sign counts.
 /// @return The edge edited after the turn.
-deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge current,
-                                            int32_t offset);
+deluge::ui::widgets::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t index,
+                                                     deluge::ui::widgets::oled::RangeEdge current, int32_t offset);
 
 /// @brief `MultiRange::selectEncoderAction`'s edge arm (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): move
 /// the edited edge one note.
@@ -143,7 +143,7 @@ deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t inde
 /// @param index  The picker's range.
 /// @param edge   The edge edited; `Off` changes nothing.
 /// @param offset The turn; only its sign counts (raising for 0 too, as legacy's `offset >= 0`).
-void step_range_edge(std::vector<synth::SourceRange>& ranges, int32_t index, deluge::ui::oled::RangeEdge edge,
+void step_range_edge(std::vector<synth::SourceRange>& ranges, int32_t index, deluge::ui::widgets::oled::RangeEdge edge,
                      int32_t offset);
 
 /// @brief Where a range insert puts the new range: `MultiRange::selectEncoderAction`'s Shift arm.

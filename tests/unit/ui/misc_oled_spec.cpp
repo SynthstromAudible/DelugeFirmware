@@ -1,9 +1,9 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/style.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/misc.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/misc.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -16,7 +16,7 @@
 #include <string_view>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::Point;
 using deluge::ui::gfx::oled::Rect;
@@ -132,7 +132,7 @@ constexpr std::array<uint8_t, 4> kDigits0123{0x7E, 0x30, 0x6D, 0x79};
 } // namespace
 
 // clang-format off
-describe misc_oled_w("ui::oled::misc", $ {
+describe misc_oled_w("ui::widgets::oled::misc", $ {
 	it("draws the output type and name where drawOutputNameFromDetails does, at 48", _ {
 		uitest::Rig48 r;
 		const OutputNameData data{.type_text = "SYNTH",
@@ -146,8 +146,8 @@ describe misc_oled_w("ui::oled::misc", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
 		// The two y positions, spelled out: OLED_MAIN_TOPMOST_PIXEL + 3 and + 17.
-		expect(r.frame.origin.y + kOutputTypeY48).to_equal(8);
-		expect(r.frame.origin.y + kOutputNameY48).to_equal(22);
+		expect(r.frame.origin.y + deluge::ui::widgets::core::kOutputTypeY48).to_equal(8);
+		expect(r.frame.origin.y + deluge::ui::widgets::core::kOutputNameY48).to_equal(22);
 		expect_golden(self, "ui/widgets/output_name_synth_48.pbm", r.pbm());
 	});
 
@@ -163,8 +163,8 @@ describe misc_oled_w("ui::oled::misc", $ {
 		legacy::drawOutputNameFromDetails(r.reference, "SYNTH", "BASS 1", 128, 64, 0);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
-		expect(kOutputTypeY64).to_equal(12);
-		expect(kOutputNameY64).to_equal(30);
+		expect(deluge::ui::widgets::core::kOutputTypeY64).to_equal(12);
+		expect(deluge::ui::widgets::core::kOutputNameY64).to_equal(30);
 		expect_golden(self, "ui/widgets/output_name_synth_64.pbm", r.pbm());
 
 		// The two panels really do lay the type text out differently.

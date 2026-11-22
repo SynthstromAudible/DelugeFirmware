@@ -28,7 +28,7 @@
 ///
 /// **What this scene may not do.** Like `MenuScene`, `RenameScene` and `ContextMenuScene` it never
 /// calls an `OledFrame` drawing primitive: the title, the row icons, the plain rows and the edited
-/// row all come from `ui::oled` widgets (`title`, `icon`, `text`, `text_edit`), so the layout rules
+/// row all come from `ui::widgets::oled` widgets (`title`, `icon`, `text`, `text_edit`), so the layout rules
 /// stay in one place. It never reads a clock other than the frame's own `now_ms()`.
 ///
 /// @par The listing is asynchronous, and that is the whole shape of this scene
@@ -79,12 +79,12 @@
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/services/favourites.h"
 #include "shell/scene.h"
-#include "ui/core/response.h"
-#include "ui/core/state.h"
-#include "ui/grid/effects.h"
-#include "ui/grid/keyboard.h"
-#include "ui/oled/scroll_text.h"
-#include "ui/oled/text_edit.h"
+#include "ui/widgets/core/response.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/grid/keyboard.h"
+#include "ui/widgets/oled/scroll_text.h"
+#include "ui/widgets/oled/text_edit.h"
 
 #include "sample-view/view.h"
 #include "scenes/services/peak_retry.h"
@@ -431,8 +431,8 @@ public:
 	void open(const menu::MenuContext& ctx);
 
 	deluge::ui::shell::SceneKind kind() const override { return kBrowserSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
@@ -459,7 +459,7 @@ public:
 		return id_ == BrowserId::Sample ? deluge::ui::shell::GridPadClaim::AllButAudition
 		                                : deluge::ui::shell::GridPadClaim::All;
 	}
-	void leds(deluge::ui::LedFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	/// @brief False: the base view still paints its sidebar, and that is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: `Browser::renderOLED` starts with `drawScreenTitle` and fills the rows below
@@ -474,13 +474,13 @@ public:
 	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every
 	/// column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
 	/// (`gui/ui/load/load_midi_device_definition_ui.cpp`).
-	deluge::ui::grid::GreyoutMask greyout_mask() const override {
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override {
 		if (id_ == BrowserId::MidiDeviceDefinition) {
-			return deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0};
+			return deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFFu, 0};
 		}
 		return pads_ != BrowserPads::Root || keyboard_visible_ || ctx_.root_is_keyboard
-		           ? deluge::ui::grid::GreyoutMask{0b10u, 0}
-		           : deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		           ? deluge::ui::widgets::grid::GreyoutMask{0b10u, 0}
+		           : deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFEu, 0};
 	}
 
 	/// @name Observable state, for specs and for whoever wires this up.
@@ -667,11 +667,11 @@ private:
 	/// @brief `Browser::favouritesChanged`: redraw the row, and restart its flash.
 	void favourites_changed();
 	/// @brief The favourites and bank rows, and the current ones' flash, over the keyboard.
-	void render_favourites(deluge::ui::grid::GridFrame& f);
+	void render_favourites(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief The BROWSE pad's flash, over whatever the main pads show, while `browse_blink_` runs.
-	void render_browse_blink(deluge::ui::grid::GridFrame& f);
+	void render_browse_blink(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
-	void render_waveform(deluge::ui::grid::GridFrame& f);
+	void render_waveform(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible`
 	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) asks for one: the file's path, or an empty
 	///        path for a folder or no selection. Only the sample browser previews.
@@ -832,17 +832,17 @@ private:
 	/// The application's half of the browser (`set_host`); null until one is installed.
 	BrowserHost* host_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.
-	deluge::ui::Response favourite_resp_{};
-	deluge::ui::Response bank_resp_{};
+	deluge::ui::widgets::core::Response favourite_resp_{};
+	deluge::ui::widgets::core::Response bank_resp_{};
 	/// The current favourite's flash: when the rows were last drawn afresh, and the last period flashed.
 	std::optional<uint32_t> favourite_flash_anchor_ms_{};
 	uint32_t favourite_flash_step_ = 0;
 	/// The selected row's side-scroller, armed while the cursor is at the start.
-	deluge::ui::ScrollText row_scroll_{};
+	deluge::ui::widgets::core::ScrollText row_scroll_{};
 	/// The host changed the pads, or the list, between ticks; the next tick repaints them.
 	bool pads_changed_ = false;
 	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.
-	std::optional<deluge::ui::PadEvent> reveal_press_{};
+	std::optional<deluge::ui::widgets::core::PadEvent> reveal_press_{};
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample, as main's
 	/// `waveformBasicNavigator.opened()` does.
 	sample_view::WaveformView view_{};
@@ -866,9 +866,9 @@ private:
 	/// Whether the last `on_enter` refused; see `last_enter_refused`.
 	bool last_enter_refused_ = false;
 
-	deluge::ui::oled::TextEditState edit_{};
-	deluge::ui::grid::TextKeyboardState kb_{};
-	deluge::ui::grid::KeyboardLayoutKind layout_ = deluge::ui::grid::KeyboardLayoutKind::Qwerty;
+	deluge::ui::widgets::oled::TextEditState edit_{};
+	deluge::ui::widgets::grid::TextKeyboardState kb_{};
+	deluge::ui::widgets::grid::KeyboardLayoutKind layout_ = deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty;
 
 	/// `Browser::mainButtonAction`'s hold: Select is down, and the release enters. The sample browser answers a hold
 	/// of `kLongPressMs` once, at `hold_deadline_ms_`, which it then clears; a hold that answered with a menu or a
@@ -893,7 +893,7 @@ private:
 	bool awaiting_load_ = false;
 
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.
-	deluge::ui::Blink cursor_blink_{};
+	deluge::ui::widgets::core::Blink cursor_blink_{};
 	uint32_t last_render_ms_ = 0;
 	/// How many rows the last OLED pass had room for, so `clamp` outside a render can use the
 	/// panel's real answer rather than a guess. Seeded to the shipped 48-row panel's 3, which is
@@ -902,7 +902,7 @@ private:
 
 	/// What this tick's `render_grid` observed, for `after_render` to act on -- the same
 	/// render-observes / after_render-acts split `MenuScene` and `RenameScene` use.
-	deluge::ui::Response resp_{};
+	deluge::ui::widgets::core::Response resp_{};
 	/// Did `render_grid` run this tick? `RenameScene::grid_pass_`'s reason, verbatim: the shell
 	/// calls `after_render()` for every scene that drew on *any* surface, so an OLED-only tick
 	/// arrives here with `resp_` default-constructed.

@@ -23,7 +23,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/shell.h"
-#include "ui/core/input.h"
+#include "ui/widgets/core/input.h"
 
 #include <cstdint>
 
@@ -463,7 +463,7 @@ private:
 	/// @param detents The signed detent count legacy handed over.
 	/// @param time_us When the board decoded the turn, on `getSystemTime()`'s clock in microseconds, which the
 	///                lowering hands the turn's consumer with it; 0 for none, which times it on the tick's clock.
-	void feedDetents(deluge::ui::EncoderRole role, int32_t detents, uint64_t time_us = 0);
+	void feedDetents(deluge::ui::widgets::core::EncoderRole role, int32_t detents, uint64_t time_us = 0);
 
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.
@@ -532,7 +532,7 @@ private:
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.
-	deluge::ui::PadMask fedPads_{};
+	deluge::ui::widgets::core::PadMask fedPads_{};
 	/// @brief Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
 	bool visitWithoutEditor_ = false;
 	/// @brief `flushPendingInput`'s tick is running.
@@ -565,7 +565,7 @@ private:
 	/// @brief The greyout the guest reports: the topmost non-empty mask on its stack
 	///        (`SceneStack::topmost_greyout`), whichever regions it draws. Legacy applies it once,
 	///        in its send path.
-	deluge::ui::grid::GreyoutMask greyoutMask();
+	deluge::ui::widgets::grid::GreyoutMask greyoutMask();
 
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
@@ -586,7 +586,7 @@ private:
 	/// it reported when `syncPads` last ran.
 	deluge::ui::shell::PadRegions padsOwned_ = deluge::ui::shell::PadRegions::All;
 	deluge::ui::shell::PadRegions padsAnswered_ = deluge::ui::shell::PadRegions::All;
-	deluge::ui::grid::GreyoutMask padsGreyout_{};
+	deluge::ui::widgets::grid::GreyoutMask padsGreyout_{};
 };
 
 } // namespace deluge::gui::ui

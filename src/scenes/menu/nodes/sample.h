@@ -79,7 +79,7 @@ public:
 	int8_t source_index() const { return source_index_; }
 	int8_t range_source() const final { return source_index_; }
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const final;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const final;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const final;

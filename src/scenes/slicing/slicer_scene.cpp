@@ -8,10 +8,10 @@
 #include "scenes/browser/browser_kind.h"
 #include "scenes/services/waveform_paint.h"
 
-#include "ui/grid/columns.h"
-#include "ui/grid/waveform.h"
-#include "ui/oled/detail/int_to_string.h"
-#include "ui/oled/popup.h"
+#include "ui/widgets/grid/columns.h"
+#include "ui/widgets/grid/waveform.h"
+#include "ui/widgets/oled/detail/int_to_string.h"
+#include "ui/widgets/oled/popup.h"
 
 #include "ui/gfx/grid/palette.h"
 
@@ -65,7 +65,7 @@ constexpr std::string_view kNumSlicesLabel = "Num. slices";
 /// `snprintf_` wherever it is visible, and `model/action/action_logger.h` drags it in through
 /// `io/debug/log.h`, so `std::snprintf` does not compile in this translation unit. The same
 /// substitution is what `tests/integration/scenarios/menu_dump.cpp` records. `int_to_string(v, 1, ...)` is
-/// `intToString(v, buf)` exactly (`ui/oled/detail/int_to_string.h`), and for the one call site
+/// `intToString(v, buf)` exactly (`ui/widgets/oled/detail/int_to_string.h`), and for the one call site
 /// legacy spells with `snprintf("%d")` instead (`Slicer::verticalEncoderAction`) the two agree on
 /// every value: `%d` and `intToString` differ only in zero-padding, which neither asks for.
 ///
@@ -76,8 +76,8 @@ constexpr std::string_view kNumSlicesLabel = "Num. slices";
 std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<char> buf) {
 	const size_t head = std::min(prefix.size(), buf.size());
 	std::copy_n(prefix.begin(), head, buf.begin());
-	const std::string_view digits =
-	    deluge::ui::oled::detail::int_to_string(value, 1, std::span<char>{buf.data() + head, buf.size() - head});
+	const std::string_view digits = deluge::ui::widgets::oled::detail::int_to_string(
+	    value, 1, std::span<char>{buf.data() + head, buf.size() - head});
 	return std::string_view{buf.data(), head + digits.size()};
 }
 
@@ -132,7 +132,7 @@ bool SlicerScene::on_enter(const SceneId& id) {
 	committing_ = false;
 	landed_ = false;
 	playing_ = false;
-	last_ticks_.fill(deluge::ui::grid::kNoTickSquare);
+	last_ticks_.fill(deluge::ui::widgets::grid::kNoTickSquare);
 	reset_state();
 	return true;
 }
@@ -654,14 +654,14 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	switch (event.encoder) {
-	case deluge::ui::EncoderRole::Select:
+	case deluge::ui::widgets::core::EncoderRole::Select:
 		// Applied here, before the tick's render, so the frame that follows already shows the move.
 		return select_encoder(event.delta);
-	case deluge::ui::EncoderRole::Horizontal:
+	case deluge::ui::widgets::core::EncoderRole::Horizontal:
 		// `Buttons::isShiftButtonPressed()`; the shell has already lowered shift, latch
 		// included.
 		return horizontal_encoder(event.delta, ctx.shift);
-	case deluge::ui::EncoderRole::Vertical:
+	case deluge::ui::widgets::core::EncoderRole::Vertical:
 		return vertical_encoder(event.delta);
 	default:
 		return Result::unhandled();
@@ -671,17 +671,17 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 // ---------------------------------------------------------------------------------------------
 // Rendering
 
-void SlicerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
+void SlicerScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
 	// `intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer)`,
 	// into legacy's own 12-byte buffer.
 	char buffer[12];
 	const int32_t value = (mode_ == Mode::Region) ? num_clips_ : num_manual_slices_;
-	const std::string_view digits = deluge::ui::oled::detail::int_to_string(value, 1, std::span<char>{buffer});
-	deluge::ui::oled::count_window(f, kNumSlicesLabel, digits);
+	const std::string_view digits = deluge::ui::widgets::oled::detail::int_to_string(value, 1, std::span<char>{buffer});
+	deluge::ui::widgets::oled::count_window(f, kNumSlicesLabel, digits);
 }
 
-void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
+void SlicerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	render_pads(f);
 	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, handed to
 	// `PadLEDs::setTickSquares` whatever the flash cursor: painted with it Slow, flashed by the PIC with it Fast.
@@ -689,15 +689,15 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (!file_ || ops_ == nullptr) {
 		return;
 	}
-	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
+	std::array<deluge::ui::widgets::grid::TickSquare, kRows> per_row{};
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= view_.scroll()) {
 		const int64_t col = sample_view::floor_div(*pos - view_.scroll(), view_.zoom());
 		if (col < kMainCols) {
 			for (int32_t y = kRows - 4; y < kRows; y++) {
-				per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
-				                                          .colour = deluge::ui::grid::TickColour::Normal};
+				per_row[y] = deluge::ui::widgets::grid::TickSquare{
+				    .col = static_cast<uint8_t>(col), .colour = deluge::ui::widgets::grid::TickColour::Normal};
 			}
 		}
 	}
@@ -705,12 +705,13 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	const deluge::project::FlashCursor cursor = bind::read_device<deluge::project::FlashCursor>(
 	    bind::port_of(ports_, &bind::Ports::device), deluge::project::device_path::kPlayCursor);
 	if (cursor == deluge::project::FlashCursor::SLOW) {
-		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+		deluge::ui::widgets::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
+	deluge::ui::widgets::grid::flash_tick_squares(f, per_row, last_ticks_,
+	                                              cursor == deluge::project::FlashCursor::FAST);
 }
 
-void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
+void SlicerScene::render_pads(deluge::ui::widgets::grid::GridFrame& f) {
 	const bind::Waveforms* port = waveforms();
 	if (!file_ || port == nullptr) {
 		return;
@@ -723,7 +724,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 	// and `(i / 4) % 4`, which has no meaning at any other size. `drawColBar` centres
 	// its bars on `kDisplayHeight >> 1` too (`WaveformRenderer::drawColBar`,
 	// `gui/waveform/waveform_renderer.cpp`), not on whatever height it was handed -- so
-	// asking for exactly `kDisplayHeight` is what makes `ui::grid::waveform_full`, which centres on
+	// asking for exactly `kDisplayHeight` is what makes `ui::widgets::grid::waveform_full`, which centres on
 	// `f.bounds().h >> 1`, agree with it.
 	//
 	// A frame that cannot grant all of that is handled by `GridFrame` itself: `pad()` outside
@@ -745,7 +746,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::widgets::grid::GridFrame& main) {
 		services::paint_columns(main, wf->read, wf->centre, wf->span);
 
 		if (mode_ == Mode::Region) {

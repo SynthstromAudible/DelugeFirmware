@@ -910,8 +910,8 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 });
 
 describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter", $ {
-	using deluge::ui::grid::FlashColour;
-	using deluge::ui::grid::PadFlash;
+	using deluge::ui::widgets::grid::FlashColour;
+	using deluge::ui::widgets::grid::PadFlash;
 
 	// `SoundEditor::blinkShortcut` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the counter's even steps are the
 	// 20 ms source phase, the odd steps the 180 ms param phase; `counter >> 1` is the cycle the
@@ -1003,7 +1003,7 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 
 namespace {
 
-std::string colour_name(deluge::ui::grid::FlashColour c) {
+std::string colour_name(deluge::ui::widgets::grid::FlashColour c) {
 	return deluge::scenes::spec::shortcuts::colour_name(static_cast<uint8_t>(c));
 }
 

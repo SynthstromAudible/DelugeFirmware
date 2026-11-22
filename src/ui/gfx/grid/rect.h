@@ -6,7 +6,7 @@
 namespace deluge::ui::gfx::grid {
 /// @brief Rectangle in pad units (columns, rows).
 ///
-/// Same shape as gfx::oled::Rect; kept separate so the two gfx libraries stay independent.
+/// Same shape as ui::gfx::oled::Rect; kept separate so the two gfx libraries stay independent.
 struct Rect {
 	int32_t x, y, w, h;
 	/// @brief Equality comparison of position and size.
@@ -37,21 +37,21 @@ struct Rect {
 	/// @brief Split into `(top, bottom)` at local row @p at.
 	///
 	/// `top` gets rows `[0, at)`, `bottom` gets the rest. Same two-way-split-at-a-position shape
-	/// as `gfx::oled::Rect::split_rows` and the SDK's `Frame::split_rows`.
+	/// as `ui::gfx::oled::Rect::split_rows` and the SDK's `Frame::split_rows`.
 	/// @param at Row offset to split at, relative to this rect's origin.
 	/// @return The `(top, bottom)` rect pair.
 	constexpr std::pair<Rect, Rect> split_rows(int32_t at) const { return {{x, y, w, at}, {x, y + at, w, h - at}}; }
 
 	/// @brief Split into `(left, right)` at local column @p at, transposed from split_rows().
 	///
-	/// Matches `gfx::oled::Rect::split_cols` and the SDK's `Frame::split_cols`.
+	/// Matches `ui::gfx::oled::Rect::split_cols` and the SDK's `Frame::split_cols`.
 	/// @param at Column offset to split at, relative to this rect's origin.
 	/// @return The `(left, right)` rect pair.
 	constexpr std::pair<Rect, Rect> split_cols(int32_t at) const { return {{x, y, at, h}, {x + at, y, w - at, h}}; }
 
 	/// @brief Shrink by @p d on every side (a negative @p d grows it instead).
 	///
-	/// Mirrors `gfx::oled::Rect::inset`'s naming and shape but with a single uniform amount
+	/// Mirrors `ui::gfx::oled::Rect::inset`'s naming and shape but with a single uniform amount
 	/// rather than per-side `Insets` -- nothing in the grid toolkit needs asymmetric insets yet,
 	/// and the SDK has no `inset` on its `Rect` at all, so this follows the OLED sibling instead.
 	/// @param d Amount to shrink each side by.

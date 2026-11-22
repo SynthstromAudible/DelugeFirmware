@@ -1,6 +1,6 @@
 #pragma once
-#include "ui/core/led_frame.h"
 #include "ui/gfx/grid/rgb.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include <cstdint>
 #include <utility>

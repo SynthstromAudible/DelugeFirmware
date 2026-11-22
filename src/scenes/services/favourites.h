@@ -3,7 +3,7 @@
 /// @file
 /// @brief The browser's favourites bank, as a scene reads and edits it: what the host's favourites manager holds.
 
-#include "ui/grid/favourites.h"
+#include "ui/widgets/grid/favourites.h"
 
 #include <array>
 #include <cstdint>
@@ -31,7 +31,7 @@ public:
 	/// @brief Whether the bank on show has loaded.
 	[[nodiscard]] virtual FavouritesBank bank_state() const = 0;
 	/// @brief Each slot's colour (0-15), or nothing for an empty slot.
-	[[nodiscard]] virtual std::array<std::optional<uint8_t>, ui::grid::kFavourites> colours() const = 0;
+	[[nodiscard]] virtual std::array<std::optional<uint8_t>, ui::widgets::grid::kFavourites> colours() const = 0;
 	/// @brief The slot last recalled, set or unset, which flashes and which SHIFT + vertical recolours.
 	[[nodiscard]] virtual std::optional<uint8_t> current_favourite() const = 0;
 	/// @brief The bank on show.

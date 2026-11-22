@@ -75,7 +75,7 @@ constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_par
 	    (n));                                                                                                          \
 	inline constexpr const Node* kEnv##n##Children[] = {&env##n##_attack, &env##n##_decay, &env##n##_sustain,          \
 	                                                    &env##n##_release};                                            \
-	void env##n##_page_draw(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);              \
+	void env##n##_page_draw(deluge::ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);     \
 	inline constexpr Node env##n =                                                                                     \
 	    with_page_draw(with_title_arg(submenu(sid(deluge::l10n::String::STRING_FOR_ENVELOPE_MENU_TITLE),               \
 	                                          kEnv##n##Children, Layout::Horizontal),                                  \

@@ -2,7 +2,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/profiles/test_board.h"
 #include "support/mocks/fake_surfaces.h"
-#include "ui/core/input.h"
+#include "ui/widgets/core/input.h"
 
 #include "cppspec.hpp"
 
@@ -105,23 +105,23 @@ describe shell_profiles("shell::board profiles", $ {
 	it("encoder index order matches encoder_input.cpp", _ {
 		const BoardProfile& profile = deluge_profile();
 		// 0 = Vertical (scrollY)
-		expect(profile.encoder_by_index[0]).to_equal(EncoderRole::Vertical);
+		expect(profile.encoder_by_index[0]).to_equal(widgets::core::EncoderRole::Vertical);
 		// 1 = Horizontal (scrollX)
-		expect(profile.encoder_by_index[1]).to_equal(EncoderRole::Horizontal);
+		expect(profile.encoder_by_index[1]).to_equal(widgets::core::EncoderRole::Horizontal);
 		// 2 = Tempo
-		expect(profile.encoder_by_index[2]).to_equal(EncoderRole::Tempo);
+		expect(profile.encoder_by_index[2]).to_equal(widgets::core::EncoderRole::Tempo);
 		// 3 = Select
-		expect(profile.encoder_by_index[3]).to_equal(EncoderRole::Select);
+		expect(profile.encoder_by_index[3]).to_equal(widgets::core::EncoderRole::Select);
 		// 4 = GoldUpper (mod1)
-		expect(profile.encoder_by_index[4]).to_equal(EncoderRole::GoldUpper);
+		expect(profile.encoder_by_index[4]).to_equal(widgets::core::EncoderRole::GoldUpper);
 		// 5 = GoldLower (mod0)
-		expect(profile.encoder_by_index[5]).to_equal(EncoderRole::GoldLower);
+		expect(profile.encoder_by_index[5]).to_equal(widgets::core::EncoderRole::GoldLower);
 		// GoldUpper is Accelerating
-		expect(profile.encoder_kind[static_cast<size_t>(EncoderRole::GoldUpper)]).to_equal(EncoderKind::Accelerating);
+		expect(profile.encoder_kind[static_cast<size_t>(widgets::core::EncoderRole::GoldUpper)]).to_equal(EncoderKind::Accelerating);
 		// GoldLower is Accelerating
-		expect(profile.encoder_kind[static_cast<size_t>(EncoderRole::GoldLower)]).to_equal(EncoderKind::Accelerating);
+		expect(profile.encoder_kind[static_cast<size_t>(widgets::core::EncoderRole::GoldLower)]).to_equal(EncoderKind::Accelerating);
 		// Select is Detented
-		expect(profile.encoder_kind[static_cast<size_t>(EncoderRole::Select)]).to_equal(EncoderKind::Detented);
+		expect(profile.encoder_kind[static_cast<size_t>(widgets::core::EncoderRole::Select)]).to_equal(EncoderKind::Detented);
 	});
 	it("the test board has three OLEDs in the expected roles", _ {
 		const BoardProfile& profile = test_board_profile();

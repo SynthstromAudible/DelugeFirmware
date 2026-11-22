@@ -1,5 +1,5 @@
 /// @file
-/// @brief `ScreensaverScene`, and the two animations (`Rainfall`, `Starfield`) in `src/ui/oled/`
+/// @brief `ScreensaverScene`, and the two animations (`Rainfall`, `Starfield`) in `src/ui/widgets/oled/`
 ///        that port the legacy `hid/display/` ones.
 ///
 /// @par Two oracles, because there are two claims
@@ -8,7 +8,7 @@
 /// and `oracle_starfield.{h,cpp}` are the legacy `hid/display/` sources, transcribed by a
 /// three-substitution `sed` recorded verbatim at the top of each of those files (namespace, include
 /// path -- nothing else). They are compiled into this spec under `namespace screensaver_oracle` and
-/// run beside `deluge::ui::oled::Rainfall`/`Starfield` frame by frame, from the same seed, for
+/// run beside `deluge::ui::widgets::oled::Rainfall`/`Starfield` frame by frame, from the same seed, for
 /// **8000 frames** -- longer than `kLogoIntervalMaxFrames` (7200), so at least one complete logo
 /// interval, emission and retirement is inside the window, and this spec asserts that it was. Every
 /// drop's length, speed and every cell's `{x, y, size}`, and every logo cell, is compared by
@@ -72,14 +72,14 @@ using namespace deluge::scenes;
 using deluge::scenes::overlay::kFrameIntervalMs;
 using deluge::scenes::overlay::kScreensaverSceneKind;
 using deluge::scenes::overlay::screensaver_scene;
-using deluge::ui::oled::Rainfall;
-using deluge::ui::oled::Starfield;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+using deluge::ui::widgets::oled::Rainfall;
+using deluge::ui::widgets::oled::Starfield;
 
 using LegacyScreensaver = deluge::hid::display::Screensaver;
 
@@ -99,7 +99,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -159,7 +160,7 @@ std::string legacy_canvas_pbm() {
 ///          rather than failing an expectation (which is exactly what the rejected `kNumDrops`
 ///          34 -> 33 mutation did). The two evidences are complementary, not redundant: those three
 ///          constants are covered by the *textual* half of the argument -- the reverse-mapped diff
-///          of `src/ui/oled/{rainfall,starfield}.{h,cpp}` against
+///          of `src/ui/widgets/oled/{rainfall,starfield}.{h,cpp}` against
 ///          `origin/main:src/deluge/hid/display/rainfall.cpp` and `starfield.cpp` -- which shows every
 ///          constant unmodified. Do not read the 8000-frame run as covering them.
 bool same_field(const Rainfall& a, const screensaver_oracle::Rainfall& b) {

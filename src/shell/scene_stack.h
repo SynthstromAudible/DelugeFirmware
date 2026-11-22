@@ -175,7 +175,7 @@ public:
 	/// all-zero mask, so an empty mask is skipped and the scene beneath is asked instead.
 	/// @return The `greyout_mask()` of the topmost scene whose mask has a column or a row set, or an
 	///         all-zero mask when none has.
-	grid::GreyoutMask topmost_greyout() const;
+	widgets::grid::GreyoutMask topmost_greyout() const;
 	/// @}
 
 	/// @brief Has the stack changed since this was last called, and clear the flag.

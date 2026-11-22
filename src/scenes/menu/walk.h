@@ -7,7 +7,7 @@
 #include "scenes/menu/present.h"
 #include "scenes/menu/value_session.h"
 #include "shell/scene.h"
-#include "ui/oled/columns.h"
+#include "ui/widgets/oled/columns.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -53,12 +53,12 @@ const Node* pad_subject(const MenuContext& ctx, const MenuState& st);
 /// @param label_scratch Backing storage for each column's label text; must outlive @p cols.
 /// @return How many children were written (`visible_children`'s own count).
 size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<const Node*> kids,
-                         std::span<deluge::ui::oled::Column> cols, std::span<NodeText> label_scratch);
+                         std::span<deluge::ui::widgets::oled::Column> cols, std::span<NodeText> label_scratch);
 
 /// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
 ///        read the same.
-/// @return Page, total pages and position, as `ui::oled::paging_of` answers for the focused column.
-deluge::ui::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuState& st);
+/// @return Page, total pages and position, as `ui::widgets::oled::paging_of` answers for the focused column.
+deluge::ui::widgets::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuState& st);
 
 /// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
 ///        `HorizontalMenuGroup::getTitle`.

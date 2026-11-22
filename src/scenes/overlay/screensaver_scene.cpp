@@ -67,7 +67,7 @@ void ScreensaverScene::tick(uint32_t dt_ms) {
 	}
 }
 
-void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) {
+void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		// Legacy substitutes its canvas for `main` and for nothing else
 		// (`OLED::sendMainImage` in `hid/display/oled.cpp`); `oled_transparent` reports the same split.
@@ -78,10 +78,10 @@ void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	// cleared it (`Shell::render_oled`).
 	switch (mode_) {
 	case ScreensaverMode::STARSCAPE:
-		deluge::ui::oled::draw_starfield(frame, starfield_);
+		deluge::ui::widgets::oled::draw_starfield(frame, starfield_);
 		break;
 	case ScreensaverMode::DELUGE:
-		deluge::ui::oled::draw_rainfall(frame, rainfall_);
+		deluge::ui::widgets::oled::draw_rainfall(frame, rainfall_);
 		break;
 	default:
 		break;

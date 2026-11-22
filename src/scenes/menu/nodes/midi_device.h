@@ -176,8 +176,9 @@ public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -195,8 +196,9 @@ public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -220,8 +222,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_reread(const MenuContext& ctx, MenuState& state) const override;
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	void commit(const MenuContext& ctx, MenuState& state) const override;
@@ -276,7 +279,7 @@ inline constexpr Node mpe_direction = with_select_chain(
 inline constexpr Node device_default_velocity_to_level =
     with_value_style(int_item(sid(deluge::l10n::String::STRING_FOR_VELOCITY), get_device_velocity_to_level,
                               set_device_velocity_to_level, IntRange{0, plugin::kMaxMenuSteps, 1}),
-                     deluge::ui::oled::ValueStyle{.off_at_zero = true});
+                     deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true});
 
 inline constexpr Node device_send_clock =
     toggle_item(sid(deluge::l10n::String::STRING_FOR_CLOCK_OUT), get_device_send_clock, set_device_send_clock);

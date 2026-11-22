@@ -1,5 +1,5 @@
 #include "support/frames.h"
-#include "ui/oled/text_edit.h"
+#include "ui/widgets/oled/text_edit.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -7,7 +7,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::BorderRadius;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
@@ -30,7 +30,7 @@ constexpr const char* kLongString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; // 3
 } // namespace
 
 // clang-format off
-describe text_edit_w("ui::oled::text_edit", $ {
+describe text_edit_w("ui::widgets::oled::text_edit", $ {
 	it("keeps the cursor visible by scrolling, within the rect's own character window", _ {
 		// rect.w == 128, kTextSpacingX == 6 -> max_num_chars == 21; a cursor at 30 in a 36-char
 		// string is well past that window from scroll == 0, so the widget must pull scroll in.
@@ -149,8 +149,8 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// primitives (draw_string then draw_vertical_line) rather than against assumptions about which columns the
 		// 'B'/'C' glyphs themselves light up.
 		uitest::Rig48 r;
-		Style plain = kDelugeStyle48;
-		plain.highlighting = Highlighting::NoInversion;
+		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
+		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 2, .scroll = 0};
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);
@@ -169,8 +169,8 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// avoided here: "highlightStartX = 0" (the panel's own left edge), generalised to the
 		// rect's own left edge the same way every other panel-edge constant in this widget is.
 		uitest::Rig48 r;
-		Style plain = kDelugeStyle48;
-		plain.highlighting = Highlighting::NoInversion;
+		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
+		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 0, .scroll = 0}; // scrollAmount == cursor - scroll == 0
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);

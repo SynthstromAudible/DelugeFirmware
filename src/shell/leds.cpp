@@ -1,6 +1,6 @@
 #include "shell/leds.h"
 
-#include "ui/core/metrics.h"
+#include "ui/widgets/core/metrics.h"
 
 #include <utility>
 
@@ -9,31 +9,34 @@ namespace deluge::ui::shell {
 namespace {
 
 /// @brief The phase a shared blink of \p rate reads, or a stopped one.
-ui::BlinkPhase phase_of(ui::BlinkRate rate, std::span<const ui::BlinkPhase> phases) {
+ui::widgets::core::BlinkPhase phase_of(ui::widgets::core::BlinkRate rate,
+                                       std::span<const ui::widgets::core::BlinkPhase> phases) {
 	const size_t i = std::to_underlying(rate);
-	return i < phases.size() ? phases[i] : ui::BlinkPhase{};
+	return i < phases.size() ? phases[i] : ui::widgets::core::BlinkPhase{};
 }
 
 /// @brief `blinkLed`'s first stretch for \p rate: `kFastFlashTime` for a fast blink, else `kInitialFlashTime` started
 ///        lit or `kFlashTime` started dark (`indicator_leds.cpp`).
-uint32_t first_stretch_ms(ui::BlinkRate rate, bool initially_on) {
-	if (rate == ui::BlinkRate::Fast) {
-		return ui::kFastFlashTime;
+uint32_t first_stretch_ms(ui::widgets::core::BlinkRate rate, bool initially_on) {
+	if (rate == ui::widgets::core::BlinkRate::Fast) {
+		return ui::widgets::core::kFastFlashTime;
 	}
-	return initially_on ? ui::kInitialFlashTime : ui::kFlashTime;
+	return initially_on ? ui::widgets::core::kInitialFlashTime : ui::widgets::core::kFlashTime;
 }
 
 /// @brief `ledBlinkTimeout`'s toggle period for \p rate (`indicator_leds.cpp`).
-uint32_t toggle_ms(ui::BlinkRate rate) {
-	return rate == ui::BlinkRate::Fast ? ui::kFastFlashTime : ui::kFlashTime;
+uint32_t toggle_ms(ui::widgets::core::BlinkRate rate) {
+	return rate == ui::widgets::core::BlinkRate::Fast ? ui::widgets::core::kFastFlashTime
+	                                                  : ui::widgets::core::kFlashTime;
 }
 
 } // namespace
 
-bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases) {
+bool led_is_on(const widgets::core::LedState& s, uint32_t now_ms,
+               std::span<const ui::widgets::core::BlinkPhase> phases) {
 	switch (s.kind) {
-	case LedState::Kind::Shared: {
-		const ui::BlinkPhase p = phase_of(s.rate, phases);
+	case widgets::core::LedState::Kind::Shared: {
+		const ui::widgets::core::BlinkPhase p = phase_of(s.rate, phases);
 		if (!p.running) {
 			return true;
 		}
@@ -46,11 +49,11 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 		const bool away = (((elapsed - first) / toggle_ms(s.rate)) & 1u) == 0;
 		return away ? !p.initially_on : p.initially_on;
 	}
-	case LedState::Kind::On:
+	case widgets::core::LedState::Kind::On:
 		return true;
-	case LedState::Kind::Off:
+	case widgets::core::LedState::Kind::Off:
 		return false;
-	case LedState::Kind::Blink:
+	case widgets::core::LedState::Kind::Blink:
 		// The alert deadline wins: legacy's `blinksLeft` countdown ended with
 		// `setLedState(led, returnToState)` (`indicator_leds.cpp`), and every caller that
 		// used it passed an LED that was meant to be *on* afterwards -- `indicateAlertOnLed`
@@ -83,9 +86,10 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 	return false;
 }
 
-std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases) {
-	if (s.kind == LedState::Kind::Shared) {
-		const ui::BlinkPhase p = phase_of(s.rate, phases);
+std::optional<uint32_t> led_next_change(const widgets::core::LedState& s, uint32_t now_ms,
+                                        std::span<const ui::widgets::core::BlinkPhase> phases) {
+	if (s.kind == widgets::core::LedState::Kind::Shared) {
+		const ui::widgets::core::BlinkPhase p = phase_of(s.rate, phases);
 		if (!p.running) {
 			return std::nullopt;
 		}
@@ -93,7 +97,7 @@ std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms, std:
 		const uint32_t first = first_stretch_ms(s.rate, p.initially_on);
 		return elapsed < first ? first - elapsed : toggle_ms(s.rate) - ((elapsed - first) % toggle_ms(s.rate));
 	}
-	if (s.kind != LedState::Kind::Blink) {
+	if (s.kind != widgets::core::LedState::Kind::Blink) {
 		return std::nullopt; // `On` and `Off` never change on their own.
 	}
 	// Already latched solid by the alert deadline, or a period with no phase to be in -- both read
@@ -122,7 +126,7 @@ std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms, std:
 	return next;
 }
 
-void LedCompose::compose(LedFrame& out, std::span<Service* const> services,
+void LedCompose::compose(widgets::core::LedFrame& out, std::span<Service* const> services,
                          std::span<Scene* const> stack_bottom_to_top) {
 	for (Service* service : services) {
 		if (service != nullptr) {
@@ -137,7 +141,7 @@ void LedCompose::compose(LedFrame& out, std::span<Service* const> services,
 }
 
 bool led_send_needed(const LedSurface& s, size_t board_led) {
-	if (board_led >= LedFrame::kMaxEntries || !s.desired_declared[board_led]) {
+	if (board_led >= widgets::core::LedFrame::kMaxEntries || !s.desired_declared[board_led]) {
 		return false;
 	}
 	return !s.sent_once[board_led] || s.last_on[board_led] != s.desired_on[board_led];

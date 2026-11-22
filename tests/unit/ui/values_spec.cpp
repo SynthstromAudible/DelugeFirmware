@@ -1,10 +1,10 @@
 #include "support/frames.h"
-#include "ui/core/blink.h"
-#include "ui/core/metrics.h"
-#include "ui/core/state.h"
-#include "ui/core/style.h"
-#include "ui/oled/list.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/core/blink.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/values.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -18,7 +18,7 @@
 #include <string_view>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::BorderRadius;
 using deluge::ui::gfx::oled::kTextHugeSizeY;
 using deluge::ui::gfx::oled::kTextHugeSpacingX;
@@ -109,14 +109,14 @@ std::string_view fmt_note(int32_t value, const void* hook_ctx, std::span<char> s
 } // namespace
 
 // clang-format off
-describe values_w("ui::oled::values", $ {
+describe values_w("ui::widgets::oled::values", $ {
 
 	// ---------------------------------------------------------------- int_value
 
 	it("draws the legacy huge centred integer at both geometries", _ {
 		uitest::Rig48 r;
 		int32_t value = 42;
-		const Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 128});
+		const widgets::core::Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 128});
 		expect(resp.focused).to_be_true();
 		expect(resp.changed).to_be_false();
 
@@ -226,7 +226,7 @@ describe values_w("ui::oled::values", $ {
 
 		// With rounded corners off the outline is `drawRectangleRounded`'s square arm, `drawRectangle`.
 		uitest::Rig48 square;
-		deluge::ui::Style square_style = square.style;
+		deluge::ui::widgets::core::Style square_style = square.style;
 		square_style.rounded = false;
 		OledFrame square_frame = root_frame(square.canvas, square_style, square.ctx);
 		int32_t sq = 0;
@@ -275,23 +275,23 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 125;
 		r.input.turn = 3;
-		const Response up = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
+		const widgets::core::Response up = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
 		expect(value).to_equal(127);
 		expect(up.changed).to_be_true();       // getValue() + offset, clamped to maxValue
 
-		const Response at_max = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
+		const widgets::core::Response at_max = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
 		expect(value).to_equal(127);            // still clamped
 		expect(at_max.changed).to_be_false();
 
 		int32_t low = 1;
 		r.input.turn = -3;
-		const Response down = int_value(r.frame, r.frame.bounds(), low, Range{.min = 1, .max = 127});
+		const widgets::core::Response down = int_value(r.frame, r.frame.bounds(), low, Range{.min = 1, .max = 127});
 		expect(low).to_equal(1);                // clamps to minValue
 		expect(down.changed).to_be_false();
 
 		int32_t unfocused = 125;
 		r.input.turn = 3;
-		const Response blurred = int_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 1, .max = 127}, {}, false);
+		const widgets::core::Response blurred = int_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 1, .max = 127}, {}, false);
 		expect(unfocused).to_equal(125);       // the select turn moves only the *focused* value
 		expect(blurred.changed).to_be_false();
 		expect(blurred.focused).to_be_false();
@@ -304,7 +304,7 @@ describe values_w("ui::oled::values", $ {
 		int32_t value = 10;
 		r.input.turn = 1;
 		r.input.shift = true;
-		const Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
+		const widgets::core::Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
 		expect(value).to_equal(15);
 		expect(resp.changed).to_be_true();
 	});
@@ -316,7 +316,7 @@ describe values_w("ui::oled::values", $ {
 		int32_t value = 10;
 		r.input.edit[0] = 4;
 		r.input.edit[1] = 4;
-		const Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
+		const widgets::core::Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
 		expect(value).to_equal(10);
 		expect(resp.changed).to_be_false();
 	});
@@ -327,7 +327,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 1234;
 		int8_t edit_pos = 0;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.now_ms = 0;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 
@@ -350,20 +350,20 @@ describe values_w("ui::oled::values", $ {
 			expect(r.lit(x, 42)).to_be_false();
 		}
 		expect(r.gate.next_deadline().has_value()).to_be_true();
-		expect(*r.gate.next_deadline()).to_equal(uint32_t(kFlashTime));
+		expect(*r.gate.next_deadline()).to_equal(uint32_t(widgets::core::kFlashTime));
 
 		// One half-period later performBlink inverts the band: x = ourDigitStartX + 1 = 87,
 		// width digitWidth - 2 = 16, rows 41..42 inclusive. The shell wakes on the deadline and
 		// consumes it first -- RepaintGate keeps the *earliest* request until needs_frame()
 		// clears it, so without this the deadline below would still read 110.
-		expect(r.gate.needs_frame(kFlashTime, false, false)).to_be_true();
-		r.input.now_ms = kFlashTime;
+		expect(r.gate.needs_frame(widgets::core::kFlashTime, false, false)).to_be_true();
+		r.input.now_ms = widgets::core::kFlashTime;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(r.lit(86, 41)).to_be_false();
 		expect(r.lit(87, 41)).to_be_true();
 		expect(r.lit(102, 42)).to_be_true();
 		expect(r.lit(103, 42)).to_be_false();
-		expect(*r.gate.next_deadline()).to_equal(uint32_t(2 * kFlashTime));
+		expect(*r.gate.next_deadline()).to_equal(uint32_t(2 * widgets::core::kFlashTime));
 
 		r.reference.draw_string("12", 23, 20, 18, 20, 0, 128, true);
 		r.reference.draw_string(".", 23 + 2 * 18, 20, 9, 20, 0, 128, true);
@@ -376,10 +376,10 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig64 r64;
 		int32_t v64 = 1234;
 		int8_t pos64 = 0;
-		Blink blink64;
+		widgets::core::Blink blink64;
 		r64.input.now_ms = 0;
 		decimal_value(r64.frame, r64.frame.bounds(), v64, Range{.min = 0, .max = 9999}, 2, pos64, blink64);
-		r64.input.now_ms = kFlashTime;
+		r64.input.now_ms = widgets::core::kFlashTime;
 		decimal_value(r64.frame, r64.frame.bounds(), v64, Range{.min = 0, .max = 9999}, 2, pos64, blink64);
 		expect(r64.lit(33, 20)).to_be_true();
 		expect(r64.lit(87, 41)).to_be_true();
@@ -395,7 +395,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 5;                     // intToString(5, buffer, 3) == "005"
 		int8_t edit_pos = 0;
-		Blink blink;
+		widgets::core::Blink blink;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 999}, 2, edit_pos, blink);
 		// 18*3 + 9 = 63 wide -> starts at (128 - 63) >> 1 = 32: "0" at 32..49, "." at 50..58.
 		r.reference.draw_string("0", 32, 20, 18, 20, 0, 128, true);
@@ -406,7 +406,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 whole;
 		int32_t v = 42;
 		int8_t pos = 0;
-		Blink b;
+		widgets::core::Blink b;
 		decimal_value(whole.frame, whole.frame.bounds(), v, Range{.min = 0, .max = 99}, 0, pos, b);
 		// places 0 skips the whole period branch: 18*2 = 36 wide, at 46.
 		whole.reference.draw_string("42", 46, 20, 18, 20, 0, 128, true);
@@ -417,7 +417,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 1234;
 		int8_t edit_pos = 0;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.now_ms = 5000;
 		r.input.horizontal = -1;               // one place left
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
@@ -428,7 +428,7 @@ describe values_w("ui::oled::values", $ {
 		expect(r.lit(84, 42)).to_be_true();
 		expect(r.lit(85, 41)).to_be_false();
 		expect(r.lit(87, 41)).to_be_false();
-		expect(*r.gate.next_deadline()).to_equal(uint32_t(5000 + kFlashTime));
+		expect(*r.gate.next_deadline()).to_equal(uint32_t(5000 + widgets::core::kFlashTime));
 
 		r.input.horizontal = 1;                // back to the right
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
@@ -448,7 +448,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 1234;
 		int8_t edit_pos = 0;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.now_ms = 5000;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(r.lit(87, 41)).to_be_false();   // plain redraw: dark for the first kFlashTime
@@ -465,7 +465,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 small;
 		int32_t v = 42;
 		int8_t pos = 2;
-		Blink b;
+		widgets::core::Blink b;
 		small.input.now_ms = 5000;
 		small.input.horizontal = -1;
 		decimal_value(small.frame, small.frame.bounds(), v, Range{.min = 0, .max = 99}, 2, pos, b);
@@ -482,19 +482,19 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 100;
 		int8_t edit_pos = 1;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.turn = 2;
-		const Response resp = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
+		const widgets::core::Response resp = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(value).to_equal(120);           // offset * 10^edit_pos
 		expect(resp.changed).to_be_true();
 
 		edit_pos = 3;                           // 10^3 per detent now, so a max int8_t turn clamps
 		r.input.turn = 127;                    // way past the top: clamps
-		const Response clamped = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
+		const widgets::core::Response clamped = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(value).to_equal(9999);
 		expect(clamped.changed).to_be_true();
 
-		const Response stuck = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
+		const widgets::core::Response stuck = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(value).to_equal(9999);           // already at the top: nothing left to move
 		expect(stuck.changed).to_be_false();
 
@@ -502,7 +502,7 @@ describe values_w("ui::oled::values", $ {
 		r.input.turn = 0;
 		int32_t ignored = 1234;
 		int8_t ignored_pos = 2;
-		Blink ignored_blink;
+		widgets::core::Blink ignored_blink;
 		r.input.edit[0] = 3;
 		r.input.edit[1] = 3;
 		decimal_value(r.frame, r.frame.bounds(), ignored, Range{.min = 0, .max = 9999}, 2, ignored_pos, ignored_blink);
@@ -513,7 +513,7 @@ describe values_w("ui::oled::values", $ {
 		r.input.turn = 3;
 		int32_t unfocused = 1234;
 		int8_t pos = 2;
-		Blink b;
+		widgets::core::Blink b;
 		decimal_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 0, .max = 9999}, 2, pos, b, false);
 		expect(unfocused).to_equal(1234);
 	});
@@ -551,7 +551,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 0;
 		int8_t edit_pos = 1;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.horizontal = -1;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
 		              ValueStyle{.label = hz_per_volt});
@@ -581,7 +581,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 0;
 		int8_t edit_pos = 1;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.now_ms = 5000;
 		r.input.horizontal = -1;
 		r.input.turn = 1;
@@ -589,7 +589,7 @@ describe values_w("ui::oled::values", $ {
 		              ValueStyle{.label = hz_per_volt});
 		expect(value).to_equal(10);
 		expect(int(edit_pos)).to_equal(1);
-		expect(blink_lit(blink, 5000)).to_be_false();
+		expect(widgets::core::blink_lit(blink, 5000)).to_be_false();
 	});
 
 	it("restarts a turn up from below zero at minus one step, so the first detent lands on 0", _ {
@@ -597,7 +597,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = -1;
 		int8_t edit_pos = 1;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.input.turn = 1;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = -1, .max = 360}, 0, edit_pos, blink, true,
 		              ValueStyle{.restart_from_negative = true});
@@ -623,9 +623,9 @@ describe values_w("ui::oled::values", $ {
 		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
 		uitest::Rig48 r;
 		int32_t index = 4;
-		ListState st;
-		ScrollText sc;
-		const Response resp = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
+		const widgets::core::Response resp = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(resp.changed).to_be_false();
 		// Selection's window rule over kOLEDMenuNumOptionsVisible = 3: nBefore 3, nAfter 2, pos 1
 		// -> first visible name is index 3.
@@ -650,8 +650,8 @@ describe values_w("ui::oled::values", $ {
 		// nBefore 4, nAfter 2 -> tail 2, pos 3, first visible name is index 1.
 		uitest::Rig64 r64;
 		int32_t i64 = 4;
-		ListState st64;
-		ScrollText sc64;
+		widgets::core::ListState st64;
+		widgets::core::ScrollText sc64;
 		enum_value(r64.frame, menu_rect(r64.frame), i64, names, st64, sc64);
 		expect(st64.scroll).to_equal(int16_t(1));
 		for (int o = 0; o < 5; o++) {
@@ -665,8 +665,8 @@ describe values_w("ui::oled::values", $ {
 		// `SoundEditor::selectEncoderAction`'s scaledOffset reaches `Enumeration::selectEncoderAction` too.
 		const std::string_view names[] = {"A", "B", "C", "D", "E", "F", "G", "H"};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		int32_t index = 1;
 		r.input.turn = 1;
 		r.input.shift = true;
@@ -679,19 +679,19 @@ describe values_w("ui::oled::values", $ {
 	it("clamps by default and wraps when asked", _ {
 		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 
 		// Enumeration::wrapAround() (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`) is false by default, so
 		// the out-of-range turn clamps.
 		int32_t index = 5;
 		r.input.turn = 1;
-		const Response clamped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		const widgets::core::Response clamped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(index).to_equal(5);
 		expect(clamped.changed).to_be_false();
 
 		// mod(nextValue, numOptions), which is positive-valued.
-		const Response wrapped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
+		const widgets::core::Response wrapped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
 		expect(index).to_equal(0);
 		expect(wrapped.changed).to_be_true();
 
@@ -703,15 +703,15 @@ describe values_w("ui::oled::values", $ {
 
 		r.input.turn = 0;
 		r.input.select_pressed = true;
-		const Response entered = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		const widgets::core::Response entered = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(entered.entered).to_be_true();
 	});
 
 	it("turns five options a click while SHIFT is held, and wraps by the scaled offset", _ {
 		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		r.input.shift = true;
 
 		// Five options up from 4 is 9, which wraps to 3; five down from 1 is -4, which wraps to 2.
@@ -741,8 +741,8 @@ describe values_w("ui::oled::values", $ {
 		names[100] = "HERE";
 		uitest::Rig48 r;
 		int32_t index = 100;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(st.scroll).to_equal(int16_t(99));
 		expect(st.rows_last).to_equal(int16_t(200));
@@ -756,15 +756,15 @@ describe values_w("ui::oled::values", $ {
 		// pulls pos to 0, at the tail nAfter < tail pulls the window flush against the end.
 		uitest::Rig48 head;
 		int32_t first = 0;
-		ListState head_st;
-		ScrollText head_sc;
+		widgets::core::ListState head_st;
+		widgets::core::ScrollText head_sc;
 		enum_value(head.frame, menu_rect(head.frame), first, names, head_st, head_sc);
 		expect(head_st.scroll).to_equal(int16_t(0));
 
 		uitest::Rig48 tail;
 		int32_t last = 199;
-		ListState tail_st;
-		ScrollText tail_sc;
+		widgets::core::ListState tail_st;
+		widgets::core::ScrollText tail_sc;
 		enum_value(tail.frame, menu_rect(tail.frame), last, names, tail_st, tail_sc);
 		expect(tail_st.scroll).to_equal(int16_t(197));
 		tail.reference.draw_string("XX", kTextSpacingX, 19, 6, 9);
@@ -790,7 +790,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 d;
 		int32_t dv = 42;
 		int8_t pos = 0;
-		Blink blink;
+		widgets::core::Blink blink;
 		decimal_value(d.frame, Rect{0, 0, 64, 43}, dv, Range{.min = 0, .max = 99}, 0, pos, blink);
 		// x follows the rect -- (64 - 36) >> 1 = 14 -- but y is still the canvas-absolute 20,
 		// not rect.y + anything.
@@ -799,7 +799,7 @@ describe values_w("ui::oled::values", $ {
 
 		uitest::Rig48 t;
 		bool on = true;
-		ScrollText sc;
+		widgets::core::ScrollText sc;
 		toggle(t.frame, Rect{0, 20, 128, 18}, on, "OFF", "ON", sc);
 		// Rows at local 20 and 29, i.e. canvas 25 and 34.
 		t.reference.draw_string("OFF", kTextSpacingX, 25, kTextSpacingX, kTextSpacingY);
@@ -810,8 +810,8 @@ describe values_w("ui::oled::values", $ {
 		const std::string_view names[] = {"AAA", "BBB"};
 		uitest::Rig48 e;
 		int32_t index = 1;
-		ListState st;
-		ScrollText esc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText esc;
 		enum_value(e.frame, Rect{0, 20, 128, 18}, index, names, st, esc);
 		e.reference.draw_string("AAA", kTextSpacingX, 25, kTextSpacingX, kTextSpacingY);
 		e.reference.draw_string("BBB", kTextSpacingX, 34, kTextSpacingX, kTextSpacingY);
@@ -824,8 +824,8 @@ describe values_w("ui::oled::values", $ {
 	it("draws the two legacy toggle rows with the current one highlighted", _ {
 		uitest::Rig48 r;
 		bool value = true;
-		ScrollText sc;
-		const Response resp = toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc);
+		widgets::core::ScrollText sc;
+		const widgets::core::Response resp = toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc);
 		expect(resp.changed).to_be_false();
 
 		// yPixel = 14 + OLED_MAIN_TOPMOST_PIXEL = 19, rows kTextSpacingY apart, drawString at
@@ -844,7 +844,7 @@ describe values_w("ui::oled::values", $ {
 
 		uitest::Rig48 off;
 		bool off_value = false;
-		ScrollText off_sc;
+		widgets::core::ScrollText off_sc;
 		toggle(off.frame, menu_rect(off.frame), off_value, "OFF", "ON", off_sc);
 		off.reference.draw_string("OFF", kTextSpacingX, 19, kTextSpacingX, kTextSpacingY);
 		off.reference.draw_string("ON", kTextSpacingX, 28, kTextSpacingX, kTextSpacingY);
@@ -854,7 +854,7 @@ describe values_w("ui::oled::values", $ {
 		// The 64-row panel puts the same two rows at base-y 15.
 		uitest::Rig64 r64;
 		bool v64 = true;
-		ScrollText sc64;
+		widgets::core::ScrollText sc64;
 		toggle(r64.frame, menu_rect(r64.frame), v64, "OFF", "ON", sc64);
 		r64.reference.draw_string("OFF", kTextSpacingX, 15, kTextSpacingX, kTextSpacingY);
 		r64.reference.draw_string("ON", kTextSpacingX, 24, kTextSpacingX, kTextSpacingY);
@@ -865,7 +865,7 @@ describe values_w("ui::oled::values", $ {
 	it("selects by turn direction and leaves the value alone on a select press", _ {
 		uitest::Rig48 r;
 		bool value = false;
-		ScrollText sc;
+		widgets::core::ScrollText sc;
 
 		// Toggle::selectEncoderAction is setValue(offset > 0), NOT a flip: turning up twice
 		// leaves it on.
@@ -888,7 +888,7 @@ describe values_w("ui::oled::values", $ {
 		r.input.turn = 0;
 		r.input.select_pressed = true;
 		const bool before = value;
-		const Response pressed = toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc);
+		const widgets::core::Response pressed = toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc);
 		expect(value).to_equal(before);
 		expect(pressed.changed).to_be_false();
 		expect(pressed.entered).to_be_true();   // the scene navigates, as it does for enum_value
@@ -907,7 +907,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t lower = 120, upper = 120;
 		RangeEdge edge = RangeEdge::Off;
-		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
 		                                  fmt_int, RangeClamp::Push);
 		expect(resp.focused).to_be_true();
 		expect(resp.changed).to_be_false();
@@ -1022,7 +1022,7 @@ describe values_w("ui::oled::values", $ {
 			int32_t lower = 90, upper = 150;
 			RangeEdge edge = step.from;
 			r.input.horizontal = step.horizontal;
-			const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
+			const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
 			                                  edge, fmt_int, RangeClamp::Push);
 			expect(static_cast<int>(edge)).to_equal(static_cast<int>(step.to));
 			expect(resp.changed).to_equal(step.from != step.to);
@@ -1037,7 +1037,7 @@ describe values_w("ui::oled::values", $ {
 		int32_t lower = 3, upper = 9;
 		RangeEdge edge = RangeEdge::Left;
 		r.input.turn = 2;
-		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 99}, edge,
+		const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 99}, edge,
 		                                  fmt_int, RangeClamp::Push);
 		expect(lower).to_equal(5);
 		expect(resp.changed).to_be_true();
@@ -1049,7 +1049,7 @@ describe values_w("ui::oled::values", $ {
 		RangeEdge edge = RangeEdge::Left;
 		r.input.edit[0] = 5;
 		r.input.edit[1] = 5;
-		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
 		                                  fmt_int, RangeClamp::Push);
 		expect(lower).to_equal(90);
 		expect(upper).to_equal(150);
@@ -1062,7 +1062,7 @@ describe values_w("ui::oled::values", $ {
 		RangeEdge edge = RangeEdge::Left;
 		r.input.horizontal = 1;
 		r.input.turn = 3;
-		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
 		                                  fmt_int, RangeClamp::Push, /*focused=*/false);
 		expect(resp.focused).to_be_false();
 		expect(static_cast<int>(edge)).to_equal(static_cast<int>(RangeEdge::Left));
@@ -1192,7 +1192,7 @@ describe values_w("ui::oled::values", $ {
 		const std::string first = r.pbm();
 		for (uint32_t t = 1; t <= 20; t++) {
 			r.begin_tick(t * 15);
-			const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
+			const widgets::core::Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
 			                                  edge, fmt_int, RangeClamp::Push);
 			expect(resp.changed).to_be_false();
 			expect(r.pbm()).to_equal(first);

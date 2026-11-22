@@ -120,7 +120,7 @@ inline constexpr uint32_t kCountInPollMs = 20;
 class CountInScene final : public deluge::ui::shell::Scene {
 public:
 	deluge::ui::shell::SceneKind kind() const override { return kCountInSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
 	/// @brief The popup routes nothing: legacy never calls `buttonAction`/`padAction` on it either.
 	/// @return Always `Result::unhandled()`.
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

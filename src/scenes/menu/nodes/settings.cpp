@@ -43,12 +43,12 @@
 #include "project/midi_command.h"
 #include "ui/gfx/oled/glyphs.h"
 
-#include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
-#include "ui/core/metrics.h"              // kReadoutValueY
-#include "ui/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
-#include "ui/oled/frame.h"
-#include "ui/oled/scroll_text.h"
-#include "ui/oled/text.h"
+#include "shell/scene.h"                          // UiEvent/UiContext/Result -- CustomItem::handle's signature
+#include "ui/widgets/core/metrics.h"              // kReadoutValueY
+#include "ui/widgets/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
+#include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/scroll_text.h"
+#include "ui/widgets/oled/text.h"
 
 #include <algorithm>
 #include <array>
@@ -127,33 +127,35 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
 }
 
-void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::oled::OledFrame& f,
-                         int32_t value, deluge::ui::ScrollText& scroll) {
+void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::widgets::oled::OledFrame& f,
+                         int32_t value, deluge::ui::widgets::core::ScrollText& scroll) {
 	using deluge::l10n::String;
 	// Legacy's canvas rows 20 / 29 / 38 at the Apple face's height 7, laid out as `MidiCommandItem` lays the same rows
-	// (`ui/core/metrics.h`).
-	const bool tall = f.style.menu_base_y == deluge::ui::kMenuBaseY64;
+	// (`ui/widgets/core/metrics.h`).
+	const bool tall = f.style.menu_base_y == deluge::ui::widgets::core::kMenuBaseY64;
 	const int32_t row0_y =
-	    (tall ? deluge::ui::kMidiCommandRowY64 : deluge::ui::kMidiCommandRowY48) + deluge::ui::kApple7Height7YAdjust;
+	    (tall ? deluge::ui::widgets::core::kMidiCommandRowY64 : deluge::ui::widgets::core::kMidiCommandRowY48)
+	    + deluge::ui::widgets::core::kApple7Height7YAdjust;
 	const int32_t row_h = f.style.row_height;
 	const auto row = [&](int32_t i, int32_t x) {
 		return deluge::ui::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
 	};
-	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
+	const deluge::ui::widgets::oled::TextStyle ts{.font = f.style.row_font};
 
-	deluge::ui::oled::text(f, row(0, 0),
-	                       deluge::scenes::text_lookup(
-	                           sid(bind::read_device_flag(ctx.ports.device, project::device_path::kDifferentiateInputs)
-	                                   ? String::STRING_FOR_INPUT_DIFFERENTIATION_ON
-	                                   : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
-	                       ts);
+	deluge::ui::widgets::oled::text(
+	    f, row(0, 0),
+	    deluge::scenes::text_lookup(
+	        sid(bind::read_device_flag(ctx.ports.device, project::device_path::kDifferentiateInputs)
+	                ? String::STRING_FOR_INPUT_DIFFERENTIATION_ON
+	                : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
+	    ts);
 
 	const std::optional<bind::LearnedBinding> binding = follow_binding(ctx, input);
 	std::string_view device = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
 	if (binding && binding->device) {
 		device = ctx.ports.midi->name(*binding->device);
 	}
-	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
+	deluge::ui::widgets::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 
 	std::string_view channel_text;
 	if (value == project::kMidiChannelLowerZone) {
@@ -170,10 +172,10 @@ void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, del
 		char buf[12];
 		const int32_t shown = value + 1 - (value >= project::kFirstCcChannel ? project::kFirstCcChannel : 0);
 		const std::to_chars_result r = std::to_chars(buf, buf + sizeof(buf), shown);
-		deluge::ui::oled::text(f, row(2, deluge::ui::oled::spacing_x_for(f.style.row_font) * 8),
-		                       std::string_view{buf, static_cast<size_t>(r.ptr - buf)}, ts);
+		deluge::ui::widgets::oled::text(f, row(2, deluge::ui::widgets::oled::spacing_x_for(f.style.row_font) * 8),
+		                                std::string_view{buf, static_cast<size_t>(r.ptr - buf)}, ts);
 	}
-	deluge::ui::oled::text(f, row(2, 0), channel_text, ts);
+	deluge::ui::widgets::oled::text(f, row(2, 0), channel_text, ts);
 }
 
 bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event) {
@@ -238,26 +240,27 @@ const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
 
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief Draw @p text centred at the shared battery/firmware baseline (`kReadoutValueY`), in the
 ///        huge font -- `firmware::Version`/`battery::Level::drawPixelsForOled`'s shared
-///        `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` (`ui/core/metrics.h`'s
+///        `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` (`ui/widgets/core/metrics.h`'s
 ///        `kReadoutValueY` doc comment has the full derivation).
-void draw_readout(deluge::ui::oled::OledFrame& f, std::string_view text) {
-	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kReadoutValueY, f.bounds().w,
-	                                       deluge::ui::oled::text_height_for(f.style.big_font)};
-	deluge::ui::oled::text(f, band, text,
-	                       {.font = f.style.big_font, .align = deluge::ui::oled::Align::Centre, .shrink = true});
+void draw_readout(deluge::ui::widgets::oled::OledFrame& f, std::string_view text) {
+	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::widgets::core::kReadoutValueY,
+	                                       f.bounds().w, deluge::ui::widgets::oled::text_height_for(f.style.big_font)};
+	deluge::ui::widgets::oled::text(
+	    f, band, text, {.font = f.style.big_font, .align = deluge::ui::widgets::oled::Align::Centre, .shrink = true});
 }
 } // namespace
 
-void FirmwareVersionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void FirmwareVersionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                 MenuState& state) const {
 	draw_title_for(f, state);
 	// `firmware::Version::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/firmware/version.h`): the build's
 	// own version string, a build-time constant with nothing to format.
@@ -277,7 +280,7 @@ deluge::ui::shell::Result FirmwareVersionItem::handle(const deluge::ui::shell::U
 	return {}; // `firmware::Version` has no `buttonAction` override; nothing to consume here either
 }
 
-void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void BatteryLevelItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
 	// A context with no UI facts has no reading: 0 mV, which draws as an empty battery.
@@ -387,8 +390,8 @@ std::string_view format_range_integer(int32_t value, const void* /*hook_ctx*/, s
 	// `IntegerRange::getText` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`) spells each end with
 	// `intToString(value, buffer)`, i.e. `intToString(value, buffer, 1)` -- at least one digit, and a
 	// leading '-' for a negative one. `int_to_string` is the toolkit's port of exactly that call
-	// (`ui/oled/detail/int_to_string.h`), which `int_value` uses for the same job.
-	return deluge::ui::oled::detail::int_to_string(value, 1, scratch);
+	// (`ui/widgets/oled/detail/int_to_string.h`), which `int_value` uses for the same job.
+	return deluge::ui::widgets::oled::detail::int_to_string(value, 1, scratch);
 }
 
 std::string_view format_range_key(int32_t value, const void* hook_ctx, std::span<char> scratch) {

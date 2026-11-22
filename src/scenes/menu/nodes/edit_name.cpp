@@ -25,11 +25,11 @@
 #include "scenes/rename/rename_scene.h"
 
 #include "shell/profile.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/text.h"
 
 namespace deluge::scenes::menu::nodes {
 
-void EditNameItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void EditNameItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// A shortcut pad opens the menu on this item, which is then the menu's root: the rename window is all
 	// that is on screen, as `SoundEditor::renderOLED`'s early return at depth 0 leaves it. From a page's
 	// list (depth > 0) the title shows beneath the transparent rename scene.
@@ -42,8 +42,8 @@ void EditNameItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*c
 	// the rename UI before `SoundEditor` gets to render anything.)
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 deluge::ui::shell::Result EditNameItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

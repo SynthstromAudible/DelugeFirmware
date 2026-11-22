@@ -26,9 +26,9 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
+#include "ui/widgets/oled/values.h"
 
 #include <algorithm>
 #include <array>
@@ -56,11 +56,11 @@ int16_t view_mode_cursor(const MenuContext& ctx) {
 
 /// @brief The node on screen, so an item -- which is handed no `Node` of its own -- can draw its own
 ///        title. The same helper `dynamic.cpp` and `nodes/settings.cpp` keep.
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 } // namespace
@@ -68,7 +68,7 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 // ---------------------------------------------------------------------------------------------
 // `ActionItem` -- the four pure verbs
 
-void ActionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void ActionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// **Never reached on the shipped path, and that is the fidelity result, not an oversight.** `after_render` runs
 	// `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's `ascend()` within the *same* call, so the
 	// item is focused for zero renders -- which is exactly legacy, where `shouldEnterSubmenu() == false` means
@@ -104,9 +104,9 @@ void PerformEditorItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// `Selection::beginSession`, which is what reads it, so the read happens here rather than every frame, and a turn
 	// is not undone by the next render.
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
 	state.list[d].cursor = view_mode_cursor(ctx);
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 }
 
 void PerformEditorItem::on_reread(const MenuContext& ctx, MenuState& state) const {
@@ -123,15 +123,16 @@ std::array<std::string_view, 3> PerformEditorItem::option_names() {
 	};
 }
 
-void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void PerformEditorItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                               MenuState& state) const {
 	draw_title_for(f, state);
 
 	const std::array<std::string_view, 3> names = option_names();
 
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.tick.render_resp =
-	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
+	state.tick.render_resp = deluge::ui::widgets::oled::enum_value(f, deluge::ui::widgets::oled::menu_rect(f), index,
+	                                                               names, state.list[d], state.scroll[d]);
 
 	if (!state.tick.render_resp.entered) {
 		return;

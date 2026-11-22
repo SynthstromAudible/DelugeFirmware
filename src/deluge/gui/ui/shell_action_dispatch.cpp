@@ -409,12 +409,12 @@ void saveSettingsBeforeClose() {
 void pushShellHighlighting() {
 	const MenuHighlighting stored = FlashStorage::accessibilityMenuHighlighting;
 	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts = stored != MenuHighlighting::NO_INVERSION;
-	deluge::ui::Highlighting h = deluge::ui::Highlighting::PartialInversion;
+	deluge::ui::widgets::core::Highlighting h = deluge::ui::widgets::core::Highlighting::PartialInversion;
 	if (stored == MenuHighlighting::FULL_INVERSION) {
-		h = deluge::ui::Highlighting::FullInversion;
+		h = deluge::ui::widgets::core::Highlighting::FullInversion;
 	}
 	else if (stored == MenuHighlighting::NO_INVERSION) {
-		h = deluge::ui::Highlighting::NoInversion;
+		h = deluge::ui::widgets::core::Highlighting::NoInversion;
 	}
 	shellHostUI.shell().set_highlighting(h);
 }

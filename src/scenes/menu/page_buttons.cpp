@@ -24,7 +24,7 @@
 
 #include "base/notify/notice_queue.h"
 
-#include "ui/oled/columns.h"
+#include "ui/widgets/oled/columns.h"
 
 #include <span>
 
@@ -82,10 +82,10 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 
 			const Node* node = focused(st);
 			const Node* kids[kMaxMenuColumns];
-			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+			deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 			NodeText label_scratch[kMaxMenuColumns];
 			const size_t n = build_column_list(ctx, *node, std::span<const Node*>{kids, kMaxMenuColumns},
-			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+			                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 			                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
 			const int32_t focused_col =
 			    n == 0 ? 0 : clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
@@ -101,8 +101,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 					repaint = walk.switch_chained_page(core, session, page_dir, chain_root);
 				}
 				else if (n > 0) {
-					const int32_t target = deluge::ui::oled::page_switch(
-					    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, page_dir);
+					const int32_t target = deluge::ui::widgets::oled::page_switch(
+					    std::span<const deluge::ui::widgets::oled::Column>{cols, n}, focused_col, page_dir);
 					if (target != focused_col) {
 						st.columns[st.depth].focused = static_cast<int8_t>(target);
 						// `switchVisiblePage` runs `initializeItem(*current_item_)` on the newly
@@ -119,8 +119,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 				}
 			}
 			else if (n > 0) {
-				const int32_t target = deluge::ui::oled::column_under_button(
-				    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, button);
+				const int32_t target = deluge::ui::widgets::oled::column_under_button(
+				    std::span<const deluge::ui::widgets::oled::Column>{cols, n}, focused_col, button);
 				// `layout == FIXED && !isItemRelevant(item)` (`HorizontalMenu::handleInstrumentButtonPress`): a
 				// disabled column under the button does nothing at all, not even a focus change.
 				if (target >= 0 && cols[target].relevant) {
@@ -173,9 +173,9 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 	return std::nullopt;
 }
 
-void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::LedFrame& f) {
-	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::widgets::core::LedFrame& f) {
+	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 	// SYNTH/KIT/MIDI/CV: `HorizontalMenu::updateSelectedMenuItemLED`
 	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED
 	// update. Both fresh every tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time,
@@ -190,13 +190,13 @@ void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::L
 	if (on_horizontal_page(ctx, st)) {
 		const Node* node = focused(st);
 		const Node* kids[kMaxMenuColumns];
-		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+		deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 		NodeText label_scratch[kMaxMenuColumns];
 		const size_t n = build_column_list(ctx, *node, std::span<const Node*>{kids, kMaxMenuColumns},
-		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+		                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 		                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
 		const int32_t focused_col = n == 0 ? 0 : clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
-		const std::span<const deluge::ui::oled::Column> span{cols, n};
+		const std::span<const deluge::ui::widgets::oled::Column> span{cols, n};
 
 		// `column_under_button(span, focused_col, b) == focused_col` is exactly
 		// `updateSelectedMenuItemLED`'s `i >= start_column && i < end_column` test: both name "does
@@ -204,7 +204,7 @@ void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::L
 		// window, the second by accumulating slots up to the match.
 		bool lit[4] = {};
 		for (int32_t b = 0; b < 4; b++) {
-			lit[b] = deluge::ui::oled::column_under_button(span, focused_col, b) == focused_col;
+			lit[b] = deluge::ui::widgets::oled::column_under_button(span, focused_col, b) == focused_col;
 		}
 		// `page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() <
 		// 4`: legacy suppresses all four only for a *single*, *non-submenu* column spanning the
@@ -218,16 +218,16 @@ void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::L
 		kit = lit[1];
 		midi = lit[2];
 		cv = lit[3];
-		const bool has_pages = deluge::ui::oled::paging_of(span, focused_col).total_pages > 1;
+		const bool has_pages = deluge::ui::widgets::oled::paging_of(span, focused_col).total_pages > 1;
 		cross_screen = has_pages;
 		scale = has_pages;
 	}
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), synth ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), kit ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Midi), midi ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Cv), cv ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), cross_screen ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), scale ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Synth), synth ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Kit), kit ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Midi), midi ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Cv), cv ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::CrossScreen), cross_screen ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Scale), scale ? kOn : kOff);
 }
 
 } // namespace deluge::scenes::menu

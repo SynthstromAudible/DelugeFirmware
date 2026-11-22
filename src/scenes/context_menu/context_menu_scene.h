@@ -9,19 +9,19 @@
 /// `SceneId::arg` selects one, so the subclass hierarchy becomes a table exactly as
 /// `rename::Target` turned `gui/ui/rename/`'s into one.
 ///
-/// **Ports.** `ContextMenu::renderOLED` (the pixels, already in `ui::oled::option_window`),
+/// **Ports.** `ContextMenu::renderOLED` (the pixels, already in `ui::widgets::oled::option_window`),
 /// `selectEncoderAction`, `buttonAction`, `padAction`, `focusRegained`,
 /// `getGreyoutColsAndRows` and `setupAndCheckAvailability`.
 ///
 /// **What this scene may not do.** Like `MenuScene` and `RenameScene`, it never calls an
 /// `OledFrame` drawing primitive: the window, its heading, its rule and its rows all come from
-/// `ui::oled::option_window`, so the layout rules stay in one place. It never allocates and never
+/// `ui::widgets::oled::option_window`, so the layout rules stay in one place. It never allocates and never
 /// reads a wall clock other than the frame's own `now_ms()`.
 
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
-#include "ui/core/state.h"
-#include "ui/grid/effects.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/grid/effects.h"
 
 #include <array>
 #include <cstddef>
@@ -223,8 +223,8 @@ public:
 	void open(const menu::MenuContext& ctx);
 
 	deluge::ui::shell::SceneKind kind() const override { return kContextMenuSceneKind; }
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void leds(deluge::ui::LedFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
@@ -240,7 +240,7 @@ public:
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`, `*rows` left at the
 	///        caller's zero (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`) -- every column, no rows.
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
 	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.
 	bool passes_pads_beneath() const override { return descriptor(id_).pad != nullptr; }
@@ -277,9 +277,9 @@ private:
 	uint8_t available_count_ = 0;
 
 	/// Side-scroller state for the focused row (`OLED::setupSideScroller`).
-	deluge::ui::ScrollText scroll_{};
+	deluge::ui::widgets::core::ScrollText scroll_{};
 	/// Side-scroller state for the footer (`AudioInputSelector`'s scroller 1).
-	deluge::ui::ScrollText footer_scroll_{};
+	deluge::ui::widgets::core::ScrollText footer_scroll_{};
 	/// The clock the render pass last saw, so `next_timer()` can answer without one of its own --
 	/// the same idiom `RenameScene::last_render_ms_` uses.
 	uint32_t last_render_ms_ = 0;

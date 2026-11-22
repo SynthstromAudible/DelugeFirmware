@@ -181,25 +181,25 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 
 /// @brief `PresetMode::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/arpeggiator/preset_mode.h`): OFF
 ///        in the title face, else the preset's icon, DOWN being UP's mirrored.
-inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
+inline std::optional<deluge::ui::widgets::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
 	namespace icons = deluge::ui::gfx::oled::icons;
 	switch (value) {
 	case int32_t{plugin::kArpPresetOff}:
-		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
-		                                   .face = deluge::ui::oled::ArtColumn::Face::Title,
-		                                   .dy = 5};
+		return deluge::ui::widgets::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
+		                                            .face = deluge::ui::widgets::oled::ArtColumn::Face::Title,
+		                                            .dy = 5};
 	case int32_t{plugin::kArpPresetDown}:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
 	case int32_t{plugin::kArpPresetBoth}:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
 	case int32_t{plugin::kArpPresetRandom}:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
 	case int32_t{plugin::kArpPresetWalk}:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
 	case int32_t{plugin::kArpPresetCustom}:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
 	default:
-		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};
 	}
 }
 
@@ -282,7 +282,7 @@ inline constexpr Node arp_rhythm = with_relevant(
                                                   2),
                                        arp_rhythm_art),
                        arp_rhythm_screen_text),
-        deluge::ui::oled::ValueStyle{.label_in_digits = true}),
+        deluge::ui::widgets::oled::ValueStyle{.label_in_digits = true}),
     relevance::not_non_audio_drum_row);
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
 inline constexpr Node arp_rhythm_midi =

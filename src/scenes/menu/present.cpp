@@ -26,7 +26,7 @@
 #include "base/notify/notice_queue.h"
 
 #include "gui/l10n/short_label.h"
-#include "ui/oled/list.h"
+#include "ui/widgets/oled/list.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -35,8 +35,8 @@
 #include "project/song.h"
 #include "scenes/menu/bindings.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/columns.h"
-#include "ui/oled/meters.h"
+#include "ui/widgets/oled/columns.h"
+#include "ui/widgets/oled/meters.h"
 
 #include <algorithm>
 #include <array>
@@ -247,15 +247,15 @@ std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32
 	return copy(music::sync_value_name(value, magnitude, music::SyncNameForm::FULL).view());
 }
 
-void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
+void option_list_column(deluge::ui::widgets::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	const auto* call = static_cast<const ColumnSlot::OptionList*>(ctx);
 	if (call == nullptr || call->node == nullptr || call->ctx == nullptr) {
 		return;
 	}
-	deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(slot_frame);
+	deluge::ui::widgets::oled::OledFrame panel = deluge::ui::widgets::oled::panel_frame(slot_frame);
 	const int32_t top = panel.canvas.geometry().visible_top;
 	const int32_t width = panel.canvas.geometry().width;
-	panel.hline(top + deluge::ui::kTitleSeparatorY, 0, width - 1);
+	panel.hline(top + deluge::ui::widgets::core::kTitleSeparatorY, 0, width - 1);
 
 	std::string_view names[kMaxDynamicNames];
 	TextScratch scratch[kMaxDynamicNames];
@@ -278,22 +278,25 @@ void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*
 		tail = n_after;
 		pos = std::min<int32_t>(visible - tail, n_before);
 	}
-	deluge::ui::oled::ListRow rows[kMaxDynamicNames];
+	deluge::ui::widgets::oled::ListRow rows[kMaxDynamicNames];
 	for (int32_t i = 0; i < n; i++) {
 		rows[i].label = names[i];
 	}
-	deluge::ui::ListState state{.cursor = static_cast<int16_t>(current), .scroll = static_cast<int16_t>(current - pos)};
-	deluge::ui::ScrollText scroll{};
+	deluge::ui::widgets::core::ListState state{.cursor = static_cast<int16_t>(current),
+	                                           .scroll = static_cast<int16_t>(current - pos)};
+	deluge::ui::widgets::core::ScrollText scroll{};
 	const deluge::ui::gfx::oled::Rect below_title{0, top, width, panel.canvas.geometry().height - top};
-	panel.region(below_title, deluge::ui::InputMask::none(), [&](deluge::ui::oled::OledFrame& f) {
-		(void)deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state,
-		                             std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(n)}, scroll,
-		                             /*allow_motion=*/false);
-	});
+	panel.region(below_title, deluge::ui::widgets::core::InputMask::none(),
+	             [&](deluge::ui::widgets::oled::OledFrame& f) {
+		             (void)deluge::ui::widgets::oled::list(
+		                 f, deluge::ui::widgets::oled::menu_rect(f), state,
+		                 std::span<const deluge::ui::widgets::oled::ListRow>{rows, static_cast<size_t>(n)}, scroll,
+		                 /*allow_motion=*/false);
+	             });
 }
 
 void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
-                    deluge::ui::oled::Column& col) {
+                    deluge::ui::widgets::oled::Column& col) {
 	col.label = column_label(node, ctx, slot.label_scratch);
 	col.show_label = node.show_column_label;
 	if (node.bind.value_text != nullptr) {
@@ -305,16 +308,16 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		}
 	}
 
-	const auto draw_art = [&](const deluge::ui::oled::ArtColumn& art) {
+	const auto draw_art = [&](const deluge::ui::widgets::oled::ArtColumn& art) {
 		slot.art = art;
-		col.render = deluge::ui::oled::art_column;
+		col.render = deluge::ui::widgets::oled::art_column;
 		col.ctx = &slot.art;
 	};
 	const auto draw_text = [&](std::string_view text) {
 		const size_t copied = std::min(text.size(), sizeof(slot.value));
 		std::memcpy(slot.value, text.data(), copied);
-		slot.text = deluge::ui::oled::TextColumn{.value = std::string_view{slot.value, copied}};
-		col.render = deluge::ui::oled::text_column;
+		slot.text = deluge::ui::widgets::oled::TextColumn{.value = std::string_view{slot.value, copied}};
+		col.render = deluge::ui::widgets::oled::text_column;
 		col.ctx = &slot.text;
 	};
 
@@ -328,7 +331,7 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 	if (node.bind.column_draw != nullptr) {
 		if (const auto drawing = node.bind.column_draw(ctx, value)) {
 			slot.draw = *drawing;
-			col.render = deluge::ui::oled::draw_column;
+			col.render = deluge::ui::widgets::oled::draw_column;
 			col.ctx = &slot.draw;
 			col.span_next = drawing->span_next;
 			return;
@@ -350,35 +353,35 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		const ValueText vt =
 		    node.bind.value_text(ctx, value, ValueTextUse::Column, std::span<char>{slot.value, sizeof(slot.value)});
 		if (!vt.fallback) {
-			slot.text = deluge::ui::oled::TextColumn{
+			slot.text = deluge::ui::widgets::oled::TextColumn{
 			    .value = std::string_view{slot.value, std::min(vt.length, sizeof(slot.value))},
 			    .strikethrough = vt.strikethrough};
-			col.render = deluge::ui::oled::text_column;
+			col.render = deluge::ui::widgets::oled::text_column;
 			col.ctx = &slot.text;
 			return;
 		}
 	}
 
 	// `Number::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/number.cpp`): the item's rendering style
-	// picks the meter, and a plain number is a `meter_column` with `Hint::None` (`ui/oled/columns.h`'s note on the
-	// missing fifth arm).
+	// picks the meter, and a plain number is a `meter_column` with `Hint::None` (`ui/widgets/oled/columns.h`'s note on
+	// the missing fifth arm).
 	const auto draw_meter = [&] {
 		const IntRange range = bindings::range(node, ctx);
 		slot.meter.hint = node.hint;
 		slot.meter.norm = normalised(value, range);
 		slot.meter.raw = value;
 		slot.meter.raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
-		col.render = deluge::ui::oled::meter_column;
+		col.render = deluge::ui::widgets::oled::meter_column;
 		col.ctx = &slot.meter;
 	};
 
 	switch (node.kind) {
 	case Kind::Submenu:
-		col.render = deluge::ui::oled::submenu_column;
+		col.render = deluge::ui::widgets::oled::submenu_column;
 		break;
 	case Kind::Toggle:
 		slot.toggle.on = value != 0;
-		col.render = deluge::ui::oled::toggle_column;
+		col.render = deluge::ui::widgets::oled::toggle_column;
 		col.ctx = &slot.toggle;
 		break;
 	case Kind::Enum: {

@@ -20,7 +20,7 @@
 ///        ports.
 ///
 /// **Where each thing happens, and why.** The toolkit's rule is that a widget draws and consumes
-/// its inputs in the same call (`ui/core/frame_context.h`, rule 2: *reading is claiming*), so
+/// its inputs in the same call (`ui/widgets/core/frame_context.h`, rule 2: *reading is claiming*), so
 /// `render_oled` is where input is observed -- but it may not touch the model. `after_render()`
 /// is therefore where a `Response` becomes navigation or a `bindings::write`, and `handle()` is
 /// left with only the two things a widget can never claim: a pad press (positional, never masked
@@ -662,7 +662,7 @@ std::optional<AutomationParam> MenuScene::focused_automation_param() const {
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
-void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
+void MenuScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	// One `oled_role_by_index` entry on this board, so every other role is somebody else's panel.
 	// Returning before anything is read keeps the claims clean too.
 	if (role != SurfaceRole::Main) {
@@ -694,7 +694,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	view_.render(core(), f, *node);
 }
 
-void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
+void MenuScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	render_ms_ = f.now_ms();
 	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
 	// input, and a menu under another scene shows no overlay.
@@ -709,7 +709,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	pads_.render_grid(core(), f, kit_global_shortcut_context().has_value());
 }
 
-void MenuScene::leds(deluge::ui::LedFrame& f) {
+void MenuScene::leds(deluge::ui::widgets::core::LedFrame& f) {
 	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is a pad
 	// flash rather than an LED declaration. The set is `SoundEditor::setLedStates`
 	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), minus the parts that belong to services (`playbackHandler`,
@@ -720,9 +720,9 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	if (focused() == nullptr || visit_.leds_held_back) {
 		return;
 	}
-	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
 	// `Save` is never a horizontal-page LED in legacy either -- unaffected by anything below.
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Save), kOff);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Save), kOff);
 
 	page_button_leds(ctx_, st_, f);
 
@@ -734,12 +734,13 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp`).
 	if (visit_.blink_restart) {
 		visit_.blink_restart = false;
-		f.restart(deluge::ui::BlinkRate::Normal);
+		f.restart(deluge::ui::widgets::core::BlinkRate::Normal);
 	}
-	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
+	const deluge::ui::widgets::core::LedState shared_blink =
+	    deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal);
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back), shared_blink);
 	if (visit_.load_blink) {
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), shared_blink);
+		(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Load), shared_blink);
 	}
 	visit_.learn.leds(st_, f, shared_blink);
 
@@ -747,10 +748,10 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// `view.setModLedStates()` shows the clip's own state, which an undeclared LED hands back.
 	if (holding_affect_entire_ && takes_affect_entire()) {
 		if (std::exchange(affect_entire_blink_restart_, false)) {
-			f.restart(deluge::ui::BlinkRate::Fast);
+			f.restart(deluge::ui::widgets::core::BlinkRate::Fast);
 		}
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::AffectEntire),
-		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+		(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::AffectEntire),
+		            deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Fast));
 	}
 }
 
@@ -1110,8 +1111,8 @@ Result MenuScene::after_render_navigation() {
 	return r;
 }
 
-deluge::ui::InputClaims MenuScene::owned_input() const {
-	deluge::ui::InputClaims claims = menu::owned_input(ctx_, st_);
+deluge::ui::widgets::core::InputClaims MenuScene::owned_input() const {
+	deluge::ui::widgets::core::InputClaims claims = menu::owned_input(ctx_, st_);
 	// A BACK the UI mode refuses goes to `handle()`, which swallows it, not to the render, which would go up.
 	if (!select_and_back_act()) {
 		claims.back = false;
@@ -1155,11 +1156,13 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	if (holding_affect_entire_
 	    && (((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) && event.on
 	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
-	        || (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select))) {
+	        || (event.kind == UiEvent::Kind::Encoder
+	            && event.encoder == deluge::ui::widgets::core::EncoderRole::Select))) {
 		affect_entire_blink_restart_ = true;
 	}
 	// A turn the page does not own (a bespoke item that takes it as an event) is routed here instead of the frame.
-	if (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select && event.delta != 0) {
+	if (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::widgets::core::EncoderRole::Select
+	    && event.delta != 0) {
 		st_.tick.select_turned = true;
 	}
 
@@ -1284,7 +1287,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 // ---------------------------------------------------------------------------------------------
 // Composition, saved state and timers
 
-deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
+deluge::ui::widgets::grid::GreyoutMask MenuScene::greyout_mask() const {
 	// While the overlay shows every column is greyed, whatever the root (`getGreyoutColsAndRows`,
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	if (overlay_up()) {

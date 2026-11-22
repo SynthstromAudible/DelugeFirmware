@@ -1,4 +1,4 @@
-#include "ui/grid/favourites.h"
+#include "ui/widgets/grid/favourites.h"
 
 #include "cppspec.hpp"
 
@@ -8,13 +8,13 @@
 #include <cstdint>
 #include <optional>
 
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 
 // `QwertyUI::renderFavourites`: a set favourite in its colour's hue (`colour * colourStep`, the step 192 / 16), an
 // empty one the hue of colour 8 dimmed six times; bank `i` in the hue of colour `i`.
 
 // clang-format off
-describe favourites_row("ui::grid favourites row colours", $ {
+describe favourites_row("ui::widgets::grid favourites row colours", $ {
 	it("paints a set favourite in its colour's hue and an empty one dimmed", _ {
 		std::array<std::optional<uint8_t>, kFavourites> colours{};
 		colours[0] = 4;

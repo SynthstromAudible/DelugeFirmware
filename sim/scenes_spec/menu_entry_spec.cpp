@@ -369,7 +369,7 @@ bool openGuestOnPlayCommand(Song& song) {
 /// @brief LEARN pressed or released on the guest's menu, with nothing else held.
 void press_learn(bool on) {
 	const shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
 	(void)deluge::scenes::menu_scene().handle(
 	    shell::UiEvent{.kind = shell::UiEvent::Kind::Button, .on = on, .button = shell::ButtonId::Learn}, ui);

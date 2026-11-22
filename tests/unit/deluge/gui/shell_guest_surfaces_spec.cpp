@@ -84,9 +84,9 @@ public:
 	SceneKind kind() const override { return kind_; }
 	PadRegions pad_regions() const override { return regions; }
 
-	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override { frame.hline(5, 0, 20); }
+	void render_oled(SurfaceRole, deluge::ui::widgets::oled::OledFrame& frame) override { frame.hline(5, 0, 20); }
 
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
@@ -95,10 +95,10 @@ public:
 		}
 	}
 
-	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.set(static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Play)),
-		                deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
-		(void)frame.indicator(deluge::ui::IndicatorId::Upper, indicator);
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
+		(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(static_cast<uint8_t>(ButtonId::Play)),
+		                deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::On, 0, 0});
+		(void)frame.indicator(deluge::ui::widgets::core::IndicatorId::Upper, indicator);
 	}
 
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
@@ -106,7 +106,7 @@ public:
 	RGB colour{10, 20, 30};
 	int32_t override_x = -1;
 	RGB override_colour{200, 100, 50};
-	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
+	deluge::ui::widgets::core::KnobIndicator indicator{{1, 2, 3, 4}};
 	/// What `pad_regions()` answers.
 	PadRegions regions = PadRegions::All;
 
@@ -490,7 +490,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	// ---- pad flashes ---------------------------------------------------------------------------
 
 	it("turns a flash into PadLEDs::flashMainPad with legacy's colour code", _ {
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		Rig r;
 		r.set.flash_pad(3, 2, FlashColour::Default);
 		r.set.flash_pad(14, 5, FlashColour::Palette6);
@@ -509,8 +509,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("drops a flash on a sidebar column", _ {
 		Rig r;
-		r.set.flash_pad(16, 3, deluge::ui::grid::FlashColour::Default);
-		r.set.flash_pad(17, 0, deluge::ui::grid::FlashColour::Yellow);
+		r.set.flash_pad(16, 3, deluge::ui::widgets::grid::FlashColour::Default);
+		r.set.flash_pad(17, 0, deluge::ui::widgets::grid::FlashColour::Yellow);
 		expect(fakelegacy::pad_flashes.empty()).to_be_true();
 	});
 
@@ -534,7 +534,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	});
 
 	it("BoardSurfaceSet sends deluge_control_flash_pad for Default and deluge_control_flash_pad_colour with the code otherwise", _ {
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		fakelegacy::reset();
 		BoardSurfaceSet board{kDelugeBoard, deluge_profile()};
 		board.flash_pad(3, 2, FlashColour::Default);
@@ -553,7 +553,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	it("BoardSurfaceSet sends nothing for a flash on a sidebar column", _ {
 		// The PIC's SET_PAD_FLASHING covers the 16 main columns only (`24 + y + 8 * x`, bytes
 		// 24..151); a sidebar index would land on the commands after it and switch an LED off.
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		fakelegacy::reset();
 		BoardSurfaceSet board{kDelugeBoard, deluge_profile()};
 		board.flash_pad(16, 3, FlashColour::Default);
@@ -640,7 +640,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("sends all four knob-indicator segments, in order, for the named knob", _ {
 		Rig r;
-		r.set.set_indicator(1, deluge::ui::KnobIndicator{{9, 8, 7, 6}});
+		r.set.set_indicator(1, deluge::ui::widgets::core::KnobIndicator{{9, 8, 7, 6}});
 		expect(fakelegacy::indicator_writes.size()).to_equal(size_t(1));
 		expect(fakelegacy::indicator_writes[0].which).to_equal(uint8_t(1));
 		expect(fakelegacy::indicator_writes[0].count).to_equal(uint8_t(4));

@@ -28,9 +28,9 @@
 #include "scenes/menu/nodes/context_menu_items.h"
 #include "scenes/profile.h"
 
-#include "ui/core/led_frame.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/popup.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/popup.h"
 
 // `Deluge::factoryReset` (`src/deluge/deluge.cpp`). `src/deluge/deluge.h` is a ROOT-LEVEL app header, so it is named
 // explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
@@ -58,7 +58,6 @@
 namespace deluge::scenes::context_menu {
 
 using deluge::l10n::String;
-using deluge::ui::kFlashTime;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -67,6 +66,7 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::TextScratch;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
+using deluge::ui::widgets::core::kFlashTime;
 
 namespace {
 
@@ -453,7 +453,7 @@ Selection step(Selection s, int32_t offset, uint8_t count) {
 	}
 	else if (offset >= 0 && !was_on_scroll_pos) {
 		// The cursor had already left the top row, so the window follows it downwards and the
-		// cursor stays on the *bottom* of the two rows. This is what `ui::oled::list`'s
+		// cursor stays on the *bottom* of the two rows. This is what `ui::widgets::oled::list`'s
 		// centre-the-cursor rule would not do, and why this scene does not use that widget.
 		out.scroll = static_cast<uint8_t>(old_option);
 	}
@@ -492,8 +492,8 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 		sel_.option = wanted < count ? wanted : static_cast<uint8_t>(count - 1);
 		sel_.scroll = sel_.option;
 	}
-	scroll_ = deluge::ui::ScrollText{};
-	footer_scroll_ = deluge::ui::ScrollText{};
+	scroll_ = deluge::ui::widgets::core::ScrollText{};
+	footer_scroll_ = deluge::ui::widgets::core::ScrollText{};
 	last_render_ms_ = 0;
 	blink_restart_ = true;
 	return true;
@@ -506,7 +506,7 @@ void ContextMenuScene::on_exit() {
 	ctx_ = menu::MenuContext{};
 }
 
-void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
+void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
 	last_render_ms_ = f.now_ms();
 
@@ -533,32 +533,32 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 
 	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
 	// `visible_top`.
-	deluge::ui::oled::OledFrame pf = deluge::ui::oled::panel_frame(f);
-	deluge::ui::oled::option_window(pf, deluge_profile().text_or_digits(d.title, heading_scratch),
-	                                std::span<const std::string_view>{options.data(), n}, sel_.option, sel_.scroll,
-	                                scroll_, /*allow_motion=*/true, footer, &footer_scroll_);
+	deluge::ui::widgets::oled::OledFrame pf = deluge::ui::widgets::oled::panel_frame(f);
+	deluge::ui::widgets::oled::option_window(pf, deluge_profile().text_or_digits(d.title, heading_scratch),
+	                                         std::span<const std::string_view>{options.data(), n}, sel_.option,
+	                                         sel_.scroll, scroll_, /*allow_motion=*/true, footer, &footer_scroll_);
 }
 
-void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
+void ContextMenuScene::leds(deluge::ui::widgets::core::LedFrame& f) {
 	// `ContextMenu::focusRegained`: `indicator_leds::blinkLed(IndicatorLED::BACK)`; a saving menu
 	// (`ContextMenuForSaving::focusRegained`) also blinks SAVE and turns LOAD off.
 	//
-	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a literal 110:
+	// The period is `ui::kFlashTime` (`ui/widgets/core/metrics.h`), imported rather than re-spelled as a literal 110:
 	// `indicator_leds::blinkLed` runs at exactly that constant (`ledBlinkTimeout` in `hid/led/indicator_leds.cpp`,
 	// `kFlashTime` in `definitions_cxx.hpp`), and `rename_scene.cpp` imports it the same way. `blinkLed`'s default
 	// blink on the phase every normal blink shares, restarted at the open (`ContextMenu::focusRegained` in
 	// `context_menu.cpp`).
 	if (blink_restart_) {
 		blink_restart_ = false;
-		f.restart(deluge::ui::BlinkRate::Normal);
+		f.restart(deluge::ui::widgets::core::BlinkRate::Normal);
 	}
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back),
+	            deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 	if (descriptor(id_).for_saving) {
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Save),
-		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load),
-		            deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0});
+		(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Save),
+		            deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
+		(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Load),
+		            deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0});
 	}
 }
 
@@ -607,7 +607,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
-		if (event.encoder == deluge::ui::EncoderRole::Select) {
+		if (event.encoder == deluge::ui::widgets::core::EncoderRole::Select) {
 			// `ContextMenu::selectEncoderAction` -> `renderUIsForOled()`. `option_window` is
 			// render-only (it claims nothing), so the turn arrives here, before the tick's render.
 			const Selection before = sel_;

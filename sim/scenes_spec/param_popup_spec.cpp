@@ -4,7 +4,7 @@
 ///        `View::displayModEncoderValuePopup` / `flushPendingModEncoderValuePopup`
 ///        (`gui/views/view.cpp`) for the arbitration and text, and the real
 ///        `OLED::displayNotification` (`hid/display/oled.cpp`) for the pixels the new
-///        `ui::oled::popup::notification` widget draws -- reached end to end through a real
+///        `ui::widgets::oled::popup::notification` widget draws -- reached end to end through a real
 ///        `Shell`, so the comparison is the assembled scene's own pixels, not the widget in
 ///        isolation.
 ///
@@ -106,7 +106,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -211,7 +212,7 @@ void set_legacy_time_ms(uint64_t ms) {
 /// @brief @p count rows of @p pbm starting at row @p first, as a PBM of its own.
 ///
 /// This popup is pinned to the *visible* area's top (frame-local row 0, exactly as
-/// `title()`/`title_badge()` are -- see `ui/oled/popup.h`'s `notification()` doc), not to a fixed
+/// `title()`/`title_badge()` are -- see `ui/widgets/oled/popup.h`'s `notification()` doc), not to a fixed
 /// canvas row: on the shipped 48-row profile that lands on canvas row `visible_top` (5), but the
 /// 64-row profile this spec also records at has `visible_top == 0` (`board_64()`, matching
 /// `marker_scene_spec.cpp`'s/`context_menu_scene_spec.cpp`'s own), so the same content legitimately

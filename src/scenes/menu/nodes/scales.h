@@ -21,23 +21,24 @@
 ///
 /// `ActiveScaleMenu::drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`) says so
 /// itself: its own comment is "adapted from submenu.cpp & toggle.cpp". It is `Submenu::drawSubmenuItemsForOled` with a
-/// checkbox in place of the arrow, and `ui::oled::list` already ports that renderer -- same label origin
-/// (`style.inset_x` == `kTextSpacingX`), same icon x (`rect.right() - kSubmenuIconSpacingX - 3`, `ui/oled/list.cpp`
-/// against `MenuItem::getSubmenuItemTypeRenderIconStart` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), same
-/// label shortening (`4 + kSubmenuIconSpacingX + 3`, `ui/oled/list.cpp` against
-/// `MenuItem::getSubmenuItemTypeRenderLength` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), same
-/// `invertLeftEdgeForMenuHighlighting` highlight, same side scroller on the focused row. So this item composes `list`
-/// and hands it `icons::checkedBox` / `icons::uncheckedBox`, which is the same thing `ContextMenuScene` could *not* do
-/// and had to grow `option_window` for.
+/// checkbox in place of the arrow, and `ui::widgets::oled::list` already ports that renderer -- same label origin
+/// (`style.inset_x` == `kTextSpacingX`), same icon x (`rect.right() - kSubmenuIconSpacingX - 3`,
+/// `ui/widgets/oled/list.cpp` against `MenuItem::getSubmenuItemTypeRenderIconStart` in
+/// `origin/main:src/deluge/gui/menu_item/menu_item.h`), same label shortening (`4 + kSubmenuIconSpacingX + 3`,
+/// `ui/widgets/oled/list.cpp` against `MenuItem::getSubmenuItemTypeRenderLength` in
+/// `origin/main:src/deluge/gui/menu_item/menu_item.h`), same `invertLeftEdgeForMenuHighlighting` highlight, same side
+/// scroller on the focused row. So this item composes `list` and hands it `icons::checkedBox` / `icons::uncheckedBox`,
+/// which is the same thing `ContextMenuScene` could *not* do and had to grow `option_window` for.
 ///
 /// The windowing agrees too, and that is worth stating because it looks like it might not.
 /// `ActiveScaleMenu::drawPixelsForOled` builds its three-row window by hand -- row 0 at the top of the list, row 2 at
-/// the bottom, row 1 everywhere in between -- and `list_window_start` (`ui/oled/list.h`) derives exactly that from
-/// "keep the cursor near the middle as the ends allow" for a three-row window. On the 64-row panel `style.menu_rows` is
-/// five and the port shows five, where legacy's hand-built vector is `kOLEDMenuNumOptionsVisible` (3, `static_assert`ed
-/// at `SourceSelection::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/source_selection.cpp`) whatever the
-/// panel; that is the same let-the-widget-own-the-window simplification `MidiDevicesItem` and `MultiRangeItem` already
-/// make (`nodes/dynamic.h`), and it only differs on a panel geometry no shipped device has.
+/// the bottom, row 1 everywhere in between -- and `list_window_start` (`ui/widgets/oled/list.h`) derives exactly that
+/// from "keep the cursor near the middle as the ends allow" for a three-row window. On the 64-row panel
+/// `style.menu_rows` is five and the port shows five, where legacy's hand-built vector is `kOLEDMenuNumOptionsVisible`
+/// (3, `static_assert`ed at `SourceSelection::drawPixelsForOled` in
+/// `origin/main:src/deluge/gui/menu_item/source_selection.cpp`) whatever the panel; that is the same
+/// let-the-widget-own-the-window simplification `MidiDevicesItem` and `MultiRangeItem` already make
+/// (`nodes/dynamic.h`), and it only differs on a panel geometry no shipped device has.
 ///
 /// ## The cursor
 ///
@@ -80,8 +81,9 @@ class ActiveScalesItem final : public CustomItem {
 public:
 	explicit ActiveScalesItem(ScaleSet set) : set_{set} {}
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

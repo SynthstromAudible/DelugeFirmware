@@ -1,7 +1,7 @@
 #include "support/frames.h"
 #include "ui/gfx/grid/palette.h"
-#include "ui/grid/markers.h"
-#include "ui/grid/waveform.h"
+#include "ui/widgets/grid/markers.h"
+#include "ui/widgets/grid/waveform.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -14,7 +14,7 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;

@@ -6,11 +6,11 @@
 ///
 /// Ports `SoundEditor::updatePadLightsFor` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which sets the
 /// blink up, and `SoundEditor::blinkShortcut`, which plays it. A blink is a pad
-/// flash the control surface plays by itself (`ui::grid::GridFrame::flash`); it paints no pixel.
+/// flash the control surface plays by itself (`ui::widgets::grid::GridFrame::flash`); it paints no pixel.
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcuts.h"
-#include "ui/grid/frame.h"
+#include "ui/widgets/grid/frame.h"
 
 #include <array>
 #include <cstdint>
@@ -45,7 +45,7 @@ struct ParamBlink {
 	bool valid = false;
 	/// The pad flashes on a cycle `c` where `(c & freq_mask) == 0`: 0 is every cycle, 3 every fourth.
 	uint8_t freq_mask = 0;
-	deluge::ui::grid::FlashColour colour = deluge::ui::grid::FlashColour::Default;
+	deluge::ui::widgets::grid::FlashColour colour = deluge::ui::widgets::grid::FlashColour::Default;
 	bool operator==(const ParamBlink&) const = default;
 };
 
@@ -54,7 +54,7 @@ struct ParamBlink {
 struct SourceBlink {
 	/// As `ParamBlink::freq_mask`; `kNoBlink` for a pad that does not blink.
 	uint8_t freq_mask = kNoBlink;
-	deluge::ui::grid::FlashColour colour = deluge::ui::grid::FlashColour::Default;
+	deluge::ui::widgets::grid::FlashColour colour = deluge::ui::widgets::grid::FlashColour::Default;
 	/// Flash yellow instead on a cycle where `(c & (freq_mask + 1)) != 0`: both layers' sources
 	/// share the pad.
 	bool alternates = false;
@@ -119,6 +119,6 @@ uint32_t ms_to_next_step(uint32_t anchor_ms, uint32_t now_ms);
 /// @param f The frame to flash through.
 /// @param plan What blinks.
 /// @param step The counter's value.
-void fire_blink_step(deluge::ui::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step);
+void fire_blink_step(deluge::ui::widgets::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step);
 
 } // namespace deluge::scenes::menu

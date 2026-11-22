@@ -74,11 +74,11 @@ inline constexpr Node voice_priority = with_affect_entire(setting_item(
 // next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
 /// @brief `VoiceCount::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`): infinity at
 /// 0, else the number.
-inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuContext&, int32_t value) {
+inline std::optional<deluge::ui::widgets::oled::ArtColumn> voice_count_art(const MenuContext&, int32_t value) {
 	if (value != 0) {
 		return std::nullopt;
 	}
-	return deluge::ui::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::infinity, .dy = 1};
+	return deluge::ui::widgets::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::infinity, .dy = 1};
 }
 
 inline constexpr Node voice_count = with_affect_entire(with_column_name(
@@ -87,7 +87,7 @@ inline constexpr Node voice_count = with_affect_entire(with_column_name(
                                                       {.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                        .path = "maxVoices",
                                                        .fan_out_when = fan_out::kPolyphonic}),
-                                         deluge::ui::oled::ValueStyle{.off_at_zero = true}),
+                                         deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true}),
                         voice_count_art),
         off_at_zero_text),
     sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT)));

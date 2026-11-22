@@ -1,9 +1,9 @@
 #include "cppspec.hpp"
 #include "support/frames.h"
 #include "support/spec_main.h"
-#include "ui/core/repaint_gate.h"
+#include "ui/widgets/core/repaint_gate.h"
 
-using deluge::ui::RepaintGate;
+using deluge::ui::widgets::core::RepaintGate;
 
 // clang-format off
 describe repaint_gate("ui::RepaintGate", $ {

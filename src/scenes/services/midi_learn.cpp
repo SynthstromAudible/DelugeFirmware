@@ -36,8 +36,8 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 
 constexpr uint32_t kFlashMs = MidiLearn::kFlashMs;
 
@@ -45,8 +45,8 @@ constexpr uint32_t kFlashMs = MidiLearn::kFlashMs;
 ///        numbers its LEDs by their button (`shell/profiles/deluge.h`'s `kDelugeLedByButton`).
 /// @param b The button.
 /// @return Its LED id.
-constexpr deluge::ui::LedId led(ButtonId b) {
-	return static_cast<deluge::ui::LedId>(static_cast<uint8_t>(b));
+constexpr deluge::ui::widgets::core::LedId led(ButtonId b) {
+	return static_cast<deluge::ui::widgets::core::LedId>(static_cast<uint8_t>(b));
 }
 
 /// @brief Whether @p device is one the installed MIDI devices port knows.
@@ -438,7 +438,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 
 // -- LEDs ----------------------------------------------------------------------------------------
 
-void MidiLearn::leds(deluge::ui::LedFrame& frame) {
+void MidiLearn::leds(deluge::ui::widgets::core::LedFrame& frame) {
 	if (!active_) {
 		// `View::endMIDILearn`'s two LED calls (`gui/views/view.cpp`), declaratively: stop declaring
 		// PLAY/RECORD/TAP_TEMPO so `GlobalControls`'s `PlaybackHandler::setLedStates` port -- which
@@ -455,12 +455,13 @@ void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `gui/views/view.cpp`):
 	// forever, on the fast blink every `blinkingType` 1 LED shares -- legacy drives this LED from that blinker phase,
 	// NOT from `midiLearnFlashOn`.
-	(void)frame.set(led(ButtonId::Learn), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+	(void)frame.set(led(ButtonId::Learn),
+	                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Fast));
 
 	// `View::midiLearnFlash`'s three writes (`gui/views/view.cpp`). Each is declared only when its
 	// condition holds, so an unlearned, unheld button keeps whatever `GlobalControls` declared --
 	// which is exactly what legacy's `if` does by simply not calling `setLedState`.
-	const deluge::ui::LedState phase = flash_on_ ? kOn : kOff;
+	const deluge::ui::widgets::core::LedState phase = flash_on_ ? kOn : kOff;
 	if (global_command_learned(project::GlobalCommand::PLAY) || pressed_.kind == LearnKind::PLAY_BUTTON) {
 		(void)frame.set(led(ButtonId::Play), phase);
 	}

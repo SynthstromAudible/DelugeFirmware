@@ -256,7 +256,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 			r.tick(20);
 		}
 		expect(std::ranges::count(r.fake.flashes_sent,
-		                          deluge::ui::grid::PadFlash{8, 7, deluge::ui::grid::FlashColour::Default}))
+		                          deluge::ui::widgets::grid::PadFlash{8, 7, deluge::ui::widgets::grid::FlashColour::Default}))
 		    .to_be_greater_than(0);
 	});
 });

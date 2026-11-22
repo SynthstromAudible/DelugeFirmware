@@ -211,7 +211,7 @@
 #include "scenes/services/learn_mode.h"
 
 #include "project/song.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
@@ -375,7 +375,7 @@ public:
 	/// is. Legacy calls these from wherever something changed; here they are
 	/// recomputed from the model every tick, which is what an `LedFrame` is.
 	/// @param frame The tick's declarations.
-	void leds(deluge::ui::LedFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 	std::optional<uint32_t> next_timer() const override;

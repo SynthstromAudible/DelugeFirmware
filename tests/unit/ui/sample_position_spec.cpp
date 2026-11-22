@@ -1,9 +1,9 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/sample_position.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/sample_position.h"
+#include "ui/widgets/oled/text.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -14,7 +14,7 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
@@ -153,7 +153,7 @@ bool any_ink_on_line(const Rig& r, int32_t y) {
 } // namespace
 
 // clang-format off
-describe sample_position_widget("ui::oled sample_position & title_badge", $ {
+describe sample_position_widget("ui::widgets::oled sample_position & title_badge", $ {
 
 	it("draws milliseconds with two decimal places under a tenth of a second", _ {
 		uitest::Rig48 r;

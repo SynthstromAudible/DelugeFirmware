@@ -35,7 +35,7 @@ bool is_mod_or_gold(const UiEvent& e) {
 	case UiEvent::Kind::EncoderButton:
 		return e.button == ButtonId::ModEnc0 || e.button == ButtonId::ModEnc1;
 	case UiEvent::Kind::Encoder:
-		return e.encoder == EncoderRole::GoldUpper || e.encoder == EncoderRole::GoldLower;
+		return e.encoder == widgets::core::EncoderRole::GoldUpper || e.encoder == widgets::core::EncoderRole::GoldLower;
 	default:
 		return false;
 	}

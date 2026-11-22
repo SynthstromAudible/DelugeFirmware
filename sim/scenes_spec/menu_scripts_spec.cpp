@@ -49,7 +49,7 @@
 /// **The range-permission script is the one target with no real host.** Every `range_specific` node
 /// in the committed tables (`nodes::kRangeSpecificArray`, `nodes/nodes.h`) is a value column of a
 /// `Layout::Horizontal` page (`source0`/`source1`), and a horizontal page's `columns` widget claims
-/// `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so `enter_child` (the only
+/// `entered` only for a `Kind::Submenu` column (`ui/widgets/oled/columns.cpp`) -- so `enter_child` (the only
 /// caller of `permission_for`) is never reached through the real committed tree. To still exercise
 /// the REAL `source0_transpose` node's permission gate, this file declares one small vertical
 /// wrapper submenu naming it as a real child alongside `nodes::lpf_mode` -- the wrapper is
@@ -332,7 +332,7 @@ struct SavedRange {
 // The browser and the marker editor are reached here through the **shortcut-pad jump**, and that is
 // not a shortcut in the convenience sense: `file0_selector` and `sample0_start` are declared only on
 // `Layout::Horizontal` pages (`source0`, `audio_clip_sample`), and a horizontal page's `columns`
-// widget claims `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select
+// widget claims `entered` only for a `Kind::Submenu` column (`ui/widgets/oled/columns.cpp`) -- so no select
 // press in the committed tree descends into either. The shortcut table does
 // (`menu/shortcuts.cpp`, legacy's own `paramShortcutsForSounds` cells), which makes it the only
 // door those two have -- the same Custom-column navigation gap `menu_range_permission`'s synthetic
@@ -340,7 +340,7 @@ struct SavedRange {
 //
 // **The recorder is the exception.**
 // `sample0_recorder` is also a child of the *vertical* `sound_actions` (`nodes/sound_actions.h`)
-// and `drum_actions` (`nodes/roots.h`), and `ui::oled::list` sets `entered` for any selectable
+// and `drum_actions` (`nodes/roots.h`), and `ui::widgets::oled::list` sets `entered` for any selectable
 // row -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
 // presses. `recorder.txt` drives that door first and the shortcut second, in one run, because the
 // two do not end the same way: the ordinary route leaves the item at depth 2 where
@@ -541,7 +541,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// value that has to be pinned.
 		expect(menu_scene().focused()).to_equal(&nodes::saturation);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_SATURATION)));
-		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `int_value` edits on the select encoder, not the gold knobs (`ui/widgets/oled/values.cpp`'s
 		// `select_delta`): the script's `100 encoder Select +1` step -- once a claimed-and-ignored
 		// no-op -- is what moves the value, by exactly 1 select detent * the
 		// node's own `IntRange{0,15,1}.step` (1). A closing `GoldUpper` step would test nothing (gold
@@ -586,7 +586,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// one that moves the value a second time.
 		expect(menu_scene().focused()).to_equal(&nodes::source0_transpose);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
-		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), by `10^edit_pos` per
+		// `decimal_value` edits on the select encoder (`ui/widgets/oled/values.cpp`'s `select_delta`), by `10^edit_pos` per
 		// detent. `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`
 		// (`origin/main:src/deluge/gui/menu_item/decimal.h`)), so the script's `Select +1` moves the value 1.00 and its
 		// closing `Select +2` moves it 2.00, landing at `before + 300`. The `GoldUpper` turn between them reaches
@@ -666,7 +666,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().focused()).to_equal(&nodes::osc_sync);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_OSCILLATOR_SYNC)));
 		// `toggle`'s turn selects the row in the turn's direction: one detent toward ON flips it.
-		// The later SelectEnc press reports `entered` and leaves `changed` false (`ui/oled/values.h`),
+		// The later SelectEnc press reports `entered` and leaves `changed` false (`ui/widgets/oled/values.h`),
 		// and GoldUpper is unclaimed by this widget, so the value stays flipped, not flipped twice.
 		expect(bindings::read(nodes::osc_sync, ctx)).to_equal(int32_t{1});
 	});
@@ -756,7 +756,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))
 		    .to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
-		// `int_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
+		// `int_value` edits on the select encoder (`ui/widgets/oled/values.cpp`'s `select_delta`), so the
 		// script's `200 encoder Select +1` step -- once claimed-and-ignored here too -- is what moves
 		// the value first, by 1 select detent * the node's own step (1). The `GoldUpper` turn that
 		// follows still lands on the source picker the select press opens and still does nothing
@@ -883,7 +883,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// *into* the spread, so the press must not have ascended -- and the second select turn, after
 		// the Back, must have landed on the count again.
 		expect(menu_scene().focused()).to_equal(&nodes::unison_count);
-		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `int_value` edits on the select encoder, not the gold knobs (`ui/widgets/oled/values.cpp`'s
 		// `select_delta`); a `GoldUpper` turn here would test nothing, since `int_value` claims no
 		// gold input. The script's three turns (on the count, on the spread the select press opens, on
 		// the count again after the Back) are `encoder Select` turns, sized at `+/-4` (a select
@@ -921,7 +921,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// `range_value` edits the selected edge on the select encoder, not the gold knobs
-		// (`ui/oled/values.cpp`'s `select_delta`, and its doc's note on the two ported
+		// (`ui/widgets/oled/values.cpp`'s `select_delta`, and its doc's note on the two ported
 		// `selectEncoderAction`s). This script only ever turns `GoldUpper`, so neither edge moves:
 		// `range_value` claims none of those turns, and the unseeded `ModKnobs` behind them (`@par
 		// Every script here installs the real three, unseeded`, above) has no target to write
@@ -1137,7 +1137,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// is 1.00" is pinned rather than inherited -- and so is the arithmetic behind the two frames
 		// the font choice is judged on.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
-		// `decimal_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `decimal_value` edits on the select encoder, not the gold knobs (`ui/widgets/oled/values.cpp`'s
 		// `select_delta`); a `GoldUpper` turn on the strength page would test nothing, since
 		// `decimal_value` claims no gold input. The script's two turns are `encoder Select` turns
 		// sized `+4` and `-64` -- a select detent is not doubled by `edges_per_detent` the way an
@@ -1253,7 +1253,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script picked the SECOND row, the OUT direction and the UPPER zone -- the non-default arm of all three --
 		// and then turned the select encoder twice on the member-channel count. `int_value` edits on the select
-		// encoder, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`); a `GoldUpper` turn would test nothing,
+		// encoder, not the gold knobs (`ui/widgets/oled/values.cpp`'s `select_delta`); a `GoldUpper` turn would test nothing,
 		// since `int_value` claims no gold input. The script's two turns are `encoder Select +2`, landing the count at
 		// `0 -> 4`. `commit` writes `15 - 4` into the UPPER zone's field (`ZoneNumMemberChannels::writeCurrentValue` in
 		// `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).

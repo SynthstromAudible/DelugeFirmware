@@ -11,7 +11,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/shortcuts.h"
 #include "ui/gfx/grid/palette.h"
-#include "ui/grid/frame.h"
+#include "ui/widgets/grid/frame.h"
 
 #include <array>
 
@@ -42,14 +42,14 @@ RGB shortcut_colour(const MenuContext& ctx, project::ShortcutsVersion version, u
 
 /// @brief `renderMainShortcutsOnly` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): every main-grid pad its colour
 ///        from `kShortcutColours` where its shortcut names an item relevant here, asked for source `x % 2`, else black.
-void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& ctx);
+void paint_shortcut_colours(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx);
 
 /// @brief `renderMainPads`' source column (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): with @p focused a patched
 ///        param or a cable strength page, each patching-source pad blue where either layer's source may patch to the
 ///        param -- or, when the items from @p focused up answer "range" for a held source pad, may control a cable's
 ///        range.
 /// @param focused The node the menu edits (`focused_value`).
-void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
+void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
                          const Node* focused);
 
 /// @brief Is (@p x, @p y) a patching-source pad: (14, 5..7) or column 15?
@@ -59,11 +59,12 @@ constexpr bool is_patching_source_pad(uint8_t x, uint8_t y) {
 
 /// @brief `isOtherModSourcePadPressed` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): a patching-source pad other
 ///        than (@p x, @p y) is in @p held.
-bool other_source_pad_held(const deluge::ui::PadMask& held, uint8_t x, uint8_t y);
+bool other_source_pad_held(const deluge::ui::widgets::core::PadMask& held, uint8_t x, uint8_t y);
 
 /// @brief `renderMainShortcutsOnly` under `isDxShortcutLayoutActive`: every main-grid pad its `kDxShortcutColours`.
-void paint_dx_shortcut_colours(deluge::ui::grid::GridFrame& f);
+void paint_dx_shortcut_colours(deluge::ui::widgets::grid::GridFrame& f);
 /// @brief The whole overlay: the colour map (the DX7 layout's on its parameter page), then the source column over it.
-void render_overlay(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st, const Node* focused);
+void render_overlay(deluge::ui::widgets::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st,
+                    const Node* focused);
 
 } // namespace deluge::scenes::menu

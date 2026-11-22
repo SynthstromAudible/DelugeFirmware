@@ -30,11 +30,11 @@
 namespace deluge::gui::ui {
 
 using deluge::hid::display::OLED;
-using deluge::ui::KnobIndicator;
 using deluge::ui::shell::ColumnPair;
 using deluge::ui::shell::kColumnPairLeds;
 using deluge::ui::shell::PadRegions;
 using deluge::ui::shell::SurfaceRole;
+using deluge::ui::widgets::core::KnobIndicator;
 
 // The two framebuffer formats really are byte-identical, which is what the copies below rest on: the shell's Deluge
 // geometry and legacy's OLED macros describe the same 1-bpp page-major 128x48 frame, and legacy's pad image is exactly
@@ -176,7 +176,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	PadLEDs::sortLedsForCol(x0);
 }
 
-void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) {
+void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::widgets::grid::FlashColour colour) {
 	// `SoundEditor::blinkShortcut`'s own call (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the PIC plays the
 	// flash over whatever the pad holds, so it shows whether the guest or the UI underneath drew it.
 	if (x >= kDisplayWidth || y >= kDisplayHeight) {
@@ -261,8 +261,8 @@ void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicato
 	// Replaces `actuallySetKnobIndicatorLevel` (`hid/led/indicator_leds.cpp`), whose whole body is the conversion from
 	// one scalar level to four per-segment brightnesses followed by the boundary call to
 	// `deluge_control_set_indicator`. The shell has already done that conversion -- `KnobIndicator` IS the four segment
-	// levels (`KnobIndicator` in `ui/core/led_frame.h`) -- so there is no scalar to hand the legacy function, and
-	// forwarding to it would mean inventing a level to convert back from.
+	// levels (`KnobIndicator` in `ui/widgets/core/led_frame.h`) -- so there is no scalar to hand the legacy function,
+	// and forwarding to it would mean inventing a level to convert back from.
 	//
 	// `which` passes straight through, as it does in `BoardSurfaceSet::set_indicator`: `IndicatorId` is numbered
 	// `{Lower = 0, Upper = 1}` to match legacy's `whichKnob` mod-encoder number.

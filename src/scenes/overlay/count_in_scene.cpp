@@ -3,7 +3,7 @@
 
 #include "scenes/overlay/count_in_scene.h"
 
-#include "ui/oled/popup.h"
+#include "ui/widgets/oled/popup.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -38,7 +38,7 @@ void CountInScene::tick(uint32_t /*dt_ms*/) {
 	shown_count_ = count;
 }
 
-void CountInScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) {
+void CountInScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main || !showing_) {
 		return;
 	}
@@ -48,7 +48,7 @@ void CountInScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& fr
 	// defaults to `PopupType::GENERAL`, `Display::displayPopup`) -- a framed (non-`NOTIFICATION`) popup box
 	// (`OLED::setupPopup`, `oled.cpp`). See the class doc for why `alignRight`/`blinkSpeed`
 	// play no part in this.
-	deluge::ui::oled::popup_text(frame, shown_text(), deluge::ui::oled::PopupStyle::Framed);
+	deluge::ui::widgets::oled::popup_text(frame, shown_text(), deluge::ui::widgets::oled::PopupStyle::Framed);
 }
 
 Result CountInScene::handle(const deluge::ui::shell::UiEvent& /*event*/, const deluge::ui::shell::UiContext& /*ctx*/) {

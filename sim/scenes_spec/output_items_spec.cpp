@@ -234,10 +234,11 @@ void press_child(Rig& r, const Node& parent, const Node& child, const MenuContex
 }
 
 /// @brief Whether @p f declares LOAD on the shared normal blink, as `blinkLed(IndicatorLED::LOAD)` runs it.
-bool load_blinks(const deluge::ui::LedFrame& f) {
+bool load_blinks(const deluge::ui::widgets::core::LedFrame& f) {
 	for (const auto& [id, state] : f.entries()) {
-		if (id == static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Load)) {
-			return state.kind == deluge::ui::LedState::Kind::Shared && state.rate == deluge::ui::BlinkRate::Normal;
+		if (id == static_cast<deluge::ui::widgets::core::LedId>(deluge::ui::shell::ButtonId::Load)) {
+			return state.kind == deluge::ui::widgets::core::LedState::Kind::Shared
+			       && state.rate == deluge::ui::widgets::core::BlinkRate::Normal;
 		}
 	}
 	return false;
@@ -603,7 +604,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		r.step();
 		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_true();
 		{
-			deluge::ui::LedFrame f;
+			deluge::ui::widgets::core::LedFrame f;
 			browser::browser_scene().leds(f);
 			expect(load_blinks(f)).to_be_true();
 		}
@@ -617,7 +618,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		r.step();
 		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
 		{
-			deluge::ui::LedFrame f;
+			deluge::ui::widgets::core::LedFrame f;
 			menu_scene().leds(f);
 			expect(load_blinks(f)).to_be_true();
 		}
@@ -631,7 +632,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		Rig r;
 		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
 		r.step();
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		expect(load_blinks(f)).to_be_false();
 	});
@@ -842,7 +843,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		// The pixel oracle, and it is what pins the layout: main's rows are `OLED_MAIN_TOPMOST_PIXEL + 14` and `+ 28`
 		// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`), and the port's frame
 		// origin already carries `OLED_MAIN_TOPMOST_PIXEL` (5, `src/board_config.h`), so a port drawing at
-		// `ui::oled::output_name`'s rows (12 and 30) would fail here.
+		// `ui::widgets::oled::output_name`'s rows (12 and 30) would fail here.
 		ClipRig rig;
 		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 

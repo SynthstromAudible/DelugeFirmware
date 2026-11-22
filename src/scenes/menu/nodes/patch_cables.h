@@ -60,12 +60,12 @@
 ///
 /// ## What is ported
 ///
-/// The whole of `renderOLED`: the routing diagram and the BI/UNI box are `ui::oled::routing_chain` and
-/// `ui::oled::segmented_switch`, the number is `ui::oled::cable_strength_value` (`ui/oled/routing.h`), transcribed
-/// coordinate for coordinate and pinned byte-for-byte against legacy in `tests/unit/ui/routing_spec.cpp`. The
-/// scenes layer may not call an `OledFrame` primitive (`scripts/check_layer_rules.py`'s
-/// `scenes-no-frame-primitives`), so the drawing lives in the toolkit and this page composes it. The number's digits
-/// are the exact value, where legacy's build truncates (DIFFERENCES.md D71, accepted).
+/// The whole of `renderOLED`: the routing diagram and the BI/UNI box are `ui::widgets::oled::routing_chain` and
+/// `ui::widgets::oled::segmented_switch`, the number is `ui::widgets::oled::cable_strength_value`
+/// (`ui/widgets/oled/routing.h`), transcribed coordinate for coordinate and pinned byte-for-byte against legacy in
+/// `tests/unit/ui/routing_spec.cpp`. The scenes layer may not call an `OledFrame` primitive
+/// (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`), so the drawing lives in the toolkit and this page
+/// composes it. The number's digits are the exact value, where legacy's build truncates (DIFFERENCES.md D71, accepted).
 ///
 /// The polarity gestures and LEDs: `buttonAction`'s MIDI/CV pair is `PatchCableStrengthItem::handle`,
 /// `updatePolarityUI`'s LEDs are `PatchCableStrengthItem::leds`, and `selectEncoderAction`'s held-Select turn is in
@@ -101,8 +101,9 @@ namespace deluge::scenes::menu::nodes {
 /// (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp` `PatchCables::selectButtonPress`).
 class PatchCablesItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -118,7 +119,7 @@ public:
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	/// Its source every cycle, and the source whose depth it modulates every fourth.
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-	                     deluge::ui::grid::FlashColour& colour) const override;
+	                     deluge::ui::widgets::grid::FlashColour& colour) const override;
 };
 
 /// @brief One of the two source pickers -- `source_selection::Regular` / `source_selection::Range`.
@@ -142,8 +143,9 @@ public:
 	};
 	explicit constexpr SourceSelectionItem(Which which) : which_{which} {}
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -170,7 +172,7 @@ public:
 	/// destination.
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-	                     deluge::ui::grid::FlashColour& colour) const override;
+	                     deluge::ui::widgets::grid::FlashColour& colour) const override;
 
 private:
 	Which which_;
@@ -195,9 +197,10 @@ public:
 	constexpr PatchCableStrengthItem(Which which, uint8_t param = 0, PatchSource source = PatchSource::NOT_AVAILABLE)
 	    : which_{which}, param_{param}, source_{source} {}
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
-		return deluge::ui::InputClaims{.turn = true, .horizontal = true, .select = true};
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
+		return deluge::ui::widgets::core::InputClaims{.turn = true, .horizontal = true, .select = true};
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
@@ -205,7 +208,7 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_reread(const MenuContext& ctx, MenuState& state) const override;
 	void commit(const MenuContext& ctx, MenuState& state) const override;
-	void leds(deluge::ui::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
+	void leds(deluge::ui::widgets::core::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
 
 	/// `Regular::getLearningThing()` / `Range::getLearningThing()`
 	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`,
@@ -244,7 +247,7 @@ public:
 	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/fixed.cpp`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-	                     deluge::ui::grid::FlashColour& colour) const override;
+	                     deluge::ui::widgets::grid::FlashColour& colour) const override;
 
 	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (MIDI, CV, or a turn
 	///        under a held Select); a cable the page makes later takes it. Restarts the cursor's blink dark, as

@@ -178,7 +178,7 @@ static void collect_state(HostSnapshotLines* s) {
 			continue; // never written: reporting 0 0 0 0 would invent a fact the app never stated
 		}
 		// which == 0 is mod encoder 0, the LOWER gold knob -- see this file's header comment, and
-		// `IndicatorId` (`src/ui/core/led_frame.h`), which is numbered to agree.
+		// `IndicatorId` (`src/ui/widgets/core/led_frame.h`), which is numbered to agree.
 		host_snapshot_add_indicator(s, which != 0, levels);
 	}
 }

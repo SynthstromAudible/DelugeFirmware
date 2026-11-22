@@ -279,7 +279,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 	});
 
 	it("carries a scene's flash to PadLEDs::flashMainPad while it owns no pads", _ {
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
@@ -318,7 +318,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
-		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFE, 0};
+		r.base.greyout = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFE, 0};
 		expect(r.open()).to_be_true();
 		const fakelegacyui::RenderRequest none{nullptr, 0, 0xDEAD};
 		expect(fakelegacyui::render_requests.size()).to_equal(size_t(1));
@@ -334,7 +334,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
-		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFC, 0};
+		r.base.greyout = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFC, 0};
 		expect(r.open()).to_be_true();
 		const int reassessments = fakelegacy::greyout_reassessments;
 		r.base.greyout = {};
@@ -558,7 +558,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(rows).to_equal(uint32_t(0xFEEDFACE));
 
 		// A non-zero mask is legacy's `doGreyout == true`, and both halves have to arrive: cols and
-		// rows are separate masks that OR into a cross, not a rectangle (`ui/grid/effects.h`).
+		// rows are separate masks that OR into a cross, not a rectangle (`ui/widgets/grid/effects.h`).
 		r.base.greyout = {0xFFFFFFFEu, 0x00000005u};
 		cols = 0;
 		rows = 0;

@@ -1,7 +1,7 @@
 #include "support/frames.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/icons.h"
-#include "ui/oled/meters.h"
+#include "ui/widgets/oled/meters.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
+using namespace deluge::ui::widgets::oled;
 using deluge::ui::gfx::oled::Canvas;
 using deluge::ui::gfx::oled::Rect;
 namespace icons = deluge::ui::gfx::oled::icons;
@@ -479,7 +479,7 @@ void dispatch_matches_legacy(Self& self, Hint hint, legacy::RenderingStyle style
 } // namespace
 
 // clang-format off
-describe meters_w("ui::oled::meters", $ {
+describe meters_w("ui::widgets::oled::meters", $ {
 
 	// -------------------------------------------------------------------- percent
 

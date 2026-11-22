@@ -75,8 +75,8 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 
 /// @brief `IndicatorLED`'s value for @p b, as the toolkit's opaque `LedId`.
 ///
@@ -84,8 +84,8 @@ constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 /// (`shell/profiles/deluge.h`'s `kDelugeLedByButton`), so this is the whole of the mapping.
 /// @param b The button whose LED to name.
 /// @return The LED id.
-constexpr deluge::ui::LedId led(ButtonId b) {
-	return static_cast<deluge::ui::LedId>(b);
+constexpr deluge::ui::widgets::core::LedId led(ButtonId b) {
+	return static_cast<deluge::ui::widgets::core::LedId>(b);
 }
 
 /// @brief Append a `displayPopup` to @p r -- the port of `display->displayPopup(...)`, which
@@ -634,7 +634,7 @@ bind::TransportActions* GlobalControls::actions() const {
 
 // -- LEDs ----------------------------------------------------------------------------------------
 
-void GlobalControls::leds(deluge::ui::LedFrame& frame) {
+void GlobalControls::leds(deluge::ui::widgets::core::LedFrame& frame) {
 	// `PlaybackHandler::setLedStates` (`playback/playback_handler.cpp`).
 	(void)frame.set(led(ButtonId::Play), playing() ? kOn : kOff);
 
@@ -658,7 +658,8 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 		//
 		// A sync-scaling clip must exist: legacy's `getCurrentClip() == getSyncScalingClip()` is also true when both
 		// are null, which the device never reaches (a clip minder always has a clip).
-		(void)frame.set(led(ButtonId::SyncScaling), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+		(void)frame.set(led(ButtonId::SyncScaling),
+		                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Normal));
 	}
 	else {
 		(void)frame.set(led(ButtonId::SyncScaling),
@@ -681,7 +682,8 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	const bool alerting =
 	    clip_view_alert_until_ms_.has_value() && static_cast<int32_t>(now_ms_ - *clip_view_alert_until_ms_) < 0;
 	if (alerting) {
-		(void)frame.set(led(ButtonId::Clip), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+		(void)frame.set(led(ButtonId::Clip),
+		                deluge::ui::widgets::core::LedState::shared(deluge::ui::widgets::core::BlinkRate::Fast));
 	}
 }
 

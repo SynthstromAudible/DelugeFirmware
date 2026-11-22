@@ -54,10 +54,11 @@ public:
 	///                number so a swapped pair is a type-checked mistake rather than a silent one.
 	explicit constexpr MidiCommandItem(deluge::project::GlobalCommand command) : command_{command} {}
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The select press, which leaves the item. The select turn is not claimed, so it reaches `handle` as an
 	///        event, where it unlearns the command.
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return {.select = true};
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

@@ -28,8 +28,8 @@
 #include "scenes/profile.h"
 
 #include "shell/scene.h"
-#include "ui/oled/frame.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/text.h"
 
 #include "instruments/classic/state_access.h"
 #include "instruments/classic/words.h"
@@ -46,14 +46,15 @@ using deluge::l10n::String;
 // ---------------------------------------------------------------------------------------------
 // The placeholder for the four bespoke items. See `sound_osc.h`'s note.
 
-void PendingCustom::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void PendingCustom::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                           MenuState& state) const {
 	// Deliberately the same "honest placeholder" `MenuScene`'s own unimplemented-kind arm draws
 	// (`MenuView::render`'s `default:` arm, `menu/view.cpp`): the user sees which item they are on rather than the
 	// previous screen.
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 deluge::ui::shell::Result PendingCustom::handle(const deluge::ui::shell::UiEvent& /*event*/,

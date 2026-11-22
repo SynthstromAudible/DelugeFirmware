@@ -33,7 +33,7 @@ public:
 		}
 		return services::FavouritesBank::Unavailable;
 	}
-	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours() const override {
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::widgets::grid::kFavourites> colours() const override {
 		return favouritesManager.getFavouriteColours();
 	}
 	[[nodiscard]] std::optional<uint8_t> current_favourite() const override {

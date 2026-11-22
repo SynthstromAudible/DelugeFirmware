@@ -99,7 +99,7 @@ constexpr Node with_range(Node n, IntRange r) {
 
 /// @brief @p n with an explicit `Binding::style` -- the unit suffix, or "OFF" in place of 0.
 ///
-/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h`) and
+/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/widgets/oled/values.h`) and
 /// `MenuView::render_leaf_int` hands it `node.bind.style`, but no builder has an argument for one.
 /// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
 /// (`IntegerWithOff::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/integer.cpp`), which is `off_at_zero`.
@@ -112,7 +112,7 @@ constexpr Node with_range(Node n, IntRange r) {
 /// @param n     The node.
 /// @param style How the leaf draws its value.
 /// @return @p n with its value style set.
-constexpr Node with_value_style(Node n, deluge::ui::oled::ValueStyle style) {
+constexpr Node with_value_style(Node n, deluge::ui::widgets::oled::ValueStyle style) {
 	n.bind.style = style;
 	return n;
 }

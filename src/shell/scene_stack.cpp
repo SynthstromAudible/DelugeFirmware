@@ -235,9 +235,9 @@ bool SceneStack::has_input_scene() const {
 	return false;
 }
 
-grid::GreyoutMask SceneStack::topmost_greyout() const {
+widgets::grid::GreyoutMask SceneStack::topmost_greyout() const {
 	for (size_t i = n_; i > 0; i--) {
-		const grid::GreyoutMask m = stack_[i - 1]->greyout_mask();
+		const widgets::grid::GreyoutMask m = stack_[i - 1]->greyout_mask();
 		if (m.cols != 0 || m.rows != 0) {
 			return m;
 		}

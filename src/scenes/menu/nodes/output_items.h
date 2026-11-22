@@ -55,8 +55,8 @@
 ///     row in the parent list and, when checked, the linked file's base name under it. The `CustomItem::row_icon` hook
 ///     (`scenes/menu/node.h`) carries the box and `MidiDeviceLinkedItem::row_icon` below answers it, so the row shows
 ///     the item's state. The node stays `Kind::Custom`, because the committed menu-dump JSON carries the node's type.
-///     **The second text row is still owed**: `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`),
-///     and a second line of text under a row is a `list` change rather than an item's.
+///     **The second text row is still owed**: `ui::widgets::oled::ListRow` carries one label and one icon
+///     (`ui/widgets/oled/list.h`), and a second line of text under a row is a `list` change rather than an item's.
 ///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs `enter_leaf` on the leaf
 ///     a saved menu was parked on, which reaches `on_focus` (`menu_scene.cpp`'s note there, which argues that this is
 ///     right for an item that opens a scene). Legacy's `Toggle::beginSession` does **not** toggle -- only
@@ -72,10 +72,10 @@
 ///     `origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) has no port: the shell
 ///     renders every tick, and `after_render`'s own repaint arm covers the frames a navigation or a commit invalidates.
 ///   * **The long-name side-scroller** (the `else` arm of main's `SpecificSourceOutputSelector::drawPixelsForOled`) is
-///     not ported, for `ui::oled::output_name`'s reason (`ui/oled/misc.h`): `OLED::setupSideScroller` registers a
-///     scroller composited after the renderer has returned, and `ui::oled::scroll_text` is the widget that would
-///     replace it. A name too wide for the panel is left-aligned and clipped, which is what legacy draws on the first
-///     frame anyway.
+///     not ported, for `ui::widgets::oled::output_name`'s reason (`ui/widgets/oled/misc.h`): `OLED::setupSideScroller`
+///     registers a scroller composited after the renderer has returned, and `ui::widgets::oled::scroll_text` is the
+///     widget that would replace it. A name too wide for the panel is left-aligned and clipped, which is what legacy
+///     draws on the first frame anyway.
 
 #include "scenes/menu/node.h"
 
@@ -143,7 +143,7 @@ public:
 	///        after its last `/`.
 	std::string_view row_note(const MenuContext& ctx, std::span<char> out) const override;
 
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -156,8 +156,9 @@ private:
 /// @brief `audio_clip::SpecificSourceOutputSelector` -- which track this audio track records from.
 class SpecificOutputItem final : public CustomItem {
 public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+	void render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::widgets::core::InputClaims owned_input(const MenuContext& /*ctx*/,
+	                                                   const MenuState& /*state*/) const override {
 		return kListInput;
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

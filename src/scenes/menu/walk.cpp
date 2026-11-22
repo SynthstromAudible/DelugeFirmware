@@ -28,7 +28,7 @@
 
 #include "gui/l10n/strings.h"
 #include "scenes/menu/bindings.h"
-#include "ui/oled/columns.h"
+#include "ui/widgets/oled/columns.h"
 
 #include <algorithm>
 #include <cstring>
@@ -49,9 +49,9 @@ void MenuWalk::retarget(MenuCore core, ValueSession& session, const Node& node) 
 		st.path[i] = nullptr;
 	}
 	st.depth = 0;
-	st.list[0] = deluge::ui::ListState{};
-	st.columns[0] = deluge::ui::ColumnsState{};
-	st.scroll[0] = deluge::ui::ScrollText{};
+	st.list[0] = deluge::ui::widgets::core::ListState{};
+	st.columns[0] = deluge::ui::widgets::core::ColumnsState{};
+	st.scroll[0] = deluge::ui::widgets::core::ScrollText{};
 	// The tick's observations and everything the walk chose -- a pending range, the selectors' choices, the patch-cable
 	// and MPE pages' selection, a custom item's scene or action request, the recorded opener -- belong to the path this
 	// re-rooting abandons. Cleared before `enter_leaf` below, which may file a fresh request (landing straight on an
@@ -195,11 +195,11 @@ void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left
 }
 
 size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<const Node*> kids,
-                         std::span<deluge::ui::oled::Column> cols, std::span<NodeText> label_scratch) {
+                         std::span<deluge::ui::widgets::oled::Column> cols, std::span<NodeText> label_scratch) {
 	const size_t n = visible_children(ctx, node, kids);
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
-		cols[i] = deluge::ui::oled::Column{};
+		cols[i] = deluge::ui::widgets::oled::Column{};
 		cols[i].label = column_label(kid, ctx, label_scratch[i]);
 		cols[i].slots = kid.slots;
 		cols[i].show_label = kid.show_column_label;
@@ -225,19 +225,19 @@ size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<con
 	return n;
 }
 
-deluge::ui::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuState& st) {
+deluge::ui::widgets::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuState& st) {
 	const Node* node = focused(st);
 	if (node == nullptr || !on_horizontal_page(ctx, st)) {
 		return {};
 	}
 	const Node* kids[kMaxMenuColumns];
-	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+	deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 	NodeText label_scratch[kMaxMenuColumns];
 	const size_t n = build_column_list(ctx, *node, std::span<const Node*>{kids, kMaxMenuColumns},
-	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+	                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-	return deluge::ui::oled::paging_of(std::span<const deluge::ui::oled::Column>{cols, n},
-	                                   st.columns[st.depth].focused);
+	return deluge::ui::widgets::oled::paging_of(std::span<const deluge::ui::widgets::oled::Column>{cols, n},
+	                                            st.columns[st.depth].focused);
 }
 
 std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeText& scratch) {
@@ -251,18 +251,18 @@ std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeTex
 	if (titled.page_title != nullptr) {
 		// The member's own page: legacy's `paging.visiblePageNumber` counts the member menu's pages alone.
 		const Node* kids[kMaxMenuColumns];
-		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+		deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 		NodeText label_scratch[kMaxMenuColumns];
 		const size_t n = build_column_list(ctx, *node, std::span<const Node*>{kids, kMaxMenuColumns},
-		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+		                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 		                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-		const std::span<const deluge::ui::oled::Column> span{cols, n};
+		const std::span<const deluge::ui::widgets::oled::Column> span{cols, n};
 		int32_t first = std::min<int32_t>(focus, static_cast<int32_t>(n) - 1);
 		while (first > 0 && bindings::group_member_of(*node, ctx, static_cast<size_t>(first - 1)) == member) {
 			first--;
 		}
-		const auto page = static_cast<uint8_t>(deluge::ui::oled::paging_of(span, focus).page
-		                                       - deluge::ui::oled::paging_of(span, first).page);
+		const auto page = static_cast<uint8_t>(deluge::ui::widgets::oled::paging_of(span, focus).page
+		                                       - deluge::ui::widgets::oled::paging_of(span, first).page);
 		const ValueText vt = titled.page_title(ctx, page, std::span<char>{scratch.chars, sizeof(scratch.chars)});
 		if (!vt.fallback) {
 			return {scratch.chars, std::min(vt.length, sizeof(scratch.chars))};
@@ -331,9 +331,9 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	remember_path(ctx, st);
 	st.depth++;
 	st.path[st.depth] = &child;
-	st.list[st.depth] = deluge::ui::ListState{};
-	st.columns[st.depth] = deluge::ui::ColumnsState{};
-	st.scroll[st.depth] = deluge::ui::ScrollText{};
+	st.list[st.depth] = deluge::ui::widgets::core::ListState{};
+	st.columns[st.depth] = deluge::ui::widgets::core::ColumnsState{};
+	st.scroll[st.depth] = deluge::ui::widgets::core::ScrollText{};
 	if (is_leaf(child.kind)) {
 		session.begin(core, &child);                           // `Submenu::selectButtonPress`'s permission check
 		session.enter_leaf(core, child, FocusCause::RowPress); // the one path with a select press behind it
@@ -572,17 +572,17 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
 		// `switchHorizontalMenu` begins the page before it moves the focus: the column the page remembers decides
 		// whether the range stays (`HorizontalMenu::beginSession`).
 		begin_submenu_range(ctx, st, nullptr);
-		st.columns[0] = deluge::ui::ColumnsState{};
+		st.columns[0] = deluge::ui::widgets::core::ColumnsState{};
 		// Mod FX opens on its second page, the selected effect's controls (`HorizontalMenu::switchHorizontalMenu`).
 		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {
 			const Node* page_kids[kMaxMenuColumns];
-			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+			deluge::ui::widgets::oled::Column cols[kMaxMenuColumns]{};
 			NodeText label_scratch[kMaxMenuColumns];
 			const size_t n = build_column_list(ctx, target, std::span<const Node*>{page_kids, kMaxMenuColumns},
-			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+			                                   std::span<deluge::ui::widgets::oled::Column>{cols, kMaxMenuColumns},
 			                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-			st.columns[0].focused = static_cast<int8_t>(
-			    deluge::ui::oled::page_switch(std::span<const deluge::ui::oled::Column>{cols, n}, 0, 1));
+			st.columns[0].focused = static_cast<int8_t>(deluge::ui::widgets::oled::page_switch(
+			    std::span<const deluge::ui::widgets::oled::Column>{cols, n}, 0, 1));
 		}
 		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 		return true;

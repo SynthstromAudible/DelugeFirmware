@@ -2,7 +2,7 @@
 #include "shell/scene.h"
 #include "shell/service.h"
 #include "shell/surfaces.h"
-#include "ui/core/led_frame.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -34,7 +34,8 @@ namespace deluge::ui::shell {
 /// @return `true` for `On`; `false` for `Off`; for `Blink`, `true` once \p now_ms has reached a
 ///         non-zero `until_ms`, otherwise the even half of the `period_ms` phase. A `Blink` with a
 ///         zero `period_ms` has no phase to be in and reads as lit, rather than dividing by zero.
-bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases = {});
+bool led_is_on(const widgets::core::LedState& s, uint32_t now_ms,
+               std::span<const ui::widgets::core::BlinkPhase> phases = {});
 
 /// @brief When will `led_is_on(s, …)` next answer differently?
 ///
@@ -53,8 +54,8 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 /// @return Milliseconds from now until the answer flips, or `std::nullopt` for a state that never
 ///         changes on its own (`On`, `Off`, a zero-period blink, a blink whose `until_ms` has
 ///         already latched it solid, and a shared blink whose rate has not started).
-std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms,
-                                        std::span<const ui::BlinkPhase> phases = {});
+std::optional<uint32_t> led_next_change(const widgets::core::LedState& s, uint32_t now_ms,
+                                        std::span<const ui::widgets::core::BlinkPhase> phases = {});
 
 /// @brief Composes one tick's LED declarations from the services and the scene stack.
 ///
@@ -75,7 +76,8 @@ struct LedCompose {
 	/// @param services              The services, consulted first and therefore outranked by
 	///                              every scene.
 	/// @param stack_bottom_to_top   The scene stack, root first.
-	static void compose(LedFrame& out, std::span<Service* const> services, std::span<Scene* const> stack_bottom_to_top);
+	static void compose(widgets::core::LedFrame& out, std::span<Service* const> services,
+	                    std::span<Scene* const> stack_bottom_to_top);
 };
 
 /// @brief Does board LED \p board_led's desired state differ from what was last sent?

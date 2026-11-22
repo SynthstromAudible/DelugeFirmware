@@ -22,7 +22,7 @@
 /// (`Permission::MustSelectRange`).
 ///
 /// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
-/// (`pixel`/`hline`/`rect`/`glyphs`/...): everything on screen comes from a `ui::oled` widget, so
+/// (`pixel`/`hline`/`rect`/`glyphs`/...): everything on screen comes from a `ui::widgets::oled` widget, so
 /// the layout rules live in one place and the count of primitive calls here stays at zero.
 /// It never allocates, never reads a wall clock (the frame's `now_ms()` is the only time it
 /// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
@@ -48,12 +48,12 @@
 #include "scenes/menu/voice_usage.h"
 #include "scenes/menu/walk.h"
 #include "shell/scene.h"
-#include "ui/core/encoder_acceleration.h"
-#include "ui/core/response.h"
-#include "ui/core/state.h"
 #include "ui/gfx/oled/icon.h"
-#include "ui/grid/effects.h"
-#include "ui/oled/columns.h"
+#include "ui/widgets/core/encoder_acceleration.h"
+#include "ui/widgets/core/response.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/oled/columns.h"
 
 #include <algorithm>
 #include <array>
@@ -116,9 +116,9 @@ public:
 	void reset_process_state();
 
 	deluge::ui::shell::SceneKind kind() const override;
-	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
-	void render_grid(deluge::ui::grid::GridFrame& frame) override;
-	void leds(deluge::ui::LedFrame& frame) override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
@@ -167,7 +167,7 @@ public:
 	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
 	// (`SceneStack::input_top`), which is what makes its frames the focused ones.
 
-	deluge::ui::grid::GreyoutMask greyout_mask() const override;
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override;
 	void save_state(deluge::ui::shell::SceneState& state) const override;
 	void restore_state(const deluge::ui::shell::SceneState& state) override;
 	std::optional<uint32_t> next_timer() const override;
@@ -537,10 +537,10 @@ public:
 	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
 	///        `render_*` functions it dispatches to, answered before they run.
 	/// @return The claim set.
-	deluge::ui::InputClaims owned_input() const;
+	deluge::ui::widgets::core::InputClaims owned_input() const;
 	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
 	///        read the same.
-	deluge::ui::oled::Paging horizontal_paging() const { return menu::horizontal_paging(ctx_, st_); }
+	deluge::ui::widgets::oled::Paging horizontal_paging() const { return menu::horizontal_paging(ctx_, st_); }
 	/// @brief The focused page's title (`menu::page_title`).
 	std::string_view page_title(NodeText& scratch) const { return menu::page_title(ctx_, st_, scratch); }
 

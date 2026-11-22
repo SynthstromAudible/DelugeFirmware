@@ -1,6 +1,6 @@
 #include "support/frames.h"
 #include "ui/gfx/grid/tween.h"
-#include "ui/grid/zoom_transition.h"
+#include "ui/widgets/grid/zoom_transition.h"
 
 #include "cppspec.hpp"
 
@@ -10,7 +10,7 @@
 #include <optional>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 using deluge::ui::gfx::grid::GridDimensions;
 using deluge::ui::gfx::grid::PadGrid;
 using deluge::ui::gfx::grid::ZoomParams;

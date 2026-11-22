@@ -1,5 +1,5 @@
 #include "support/frames.h"
-#include "ui/grid/sidebar.h"
+#include "ui/widgets/grid/sidebar.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
+using namespace deluge::ui::widgets::grid;
 using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
@@ -58,7 +58,7 @@ struct AuditionCase {
 } // namespace
 
 // clang-format off
-describe sidebar("ui::grid sidebar", $ {
+describe sidebar("ui::widgets::grid sidebar", $ {
 	it("ports every branch of View::getClipMuteSquareColour", _ {
 		const StatusCase cases[] = {
 		    // record arming, armed, blinking, can begin linear recording.
@@ -189,18 +189,18 @@ describe sidebar("ui::grid sidebar", $ {
 	});
 	it("paints and hit-tests a status square", _ {
 		uitest::GridRig r;
-		PadEvent ev[] = {{16, 3, 120, true}};
+		widgets::core::PadEvent ev[] = {{16, 3, 120, true}};
 		r.input.pads = ev;
-		const Response resp = status_pad(r.frame, 16, 3, StatusPad{.active = true}, kC);
+		const widgets::core::Response resp = status_pad(r.frame, 16, 3, StatusPad{.active = true}, kC);
 		expect(resp.pressed).to_be_true();
 		expect(int(resp.velocity)).to_equal(120);
 		expect(r.grid.at(16, 3)).to_equal(kC.active);
 	});
 	it("paints and hit-tests an audition square", _ {
 		uitest::GridRig r;
-		PadEvent ev[] = {{17, 5, 90, true}};
+		widgets::core::PadEvent ev[] = {{17, 5, 90, true}};
 		r.input.pads = ev;
-		const Response resp = audition_pad(r.frame, 17, 5, AuditionPad{.row_colour = kRow, .pressed = true});
+		const widgets::core::Response resp = audition_pad(r.frame, 17, 5, AuditionPad{.row_colour = kRow, .pressed = true});
 		expect(resp.pressed).to_be_true();
 		expect(r.grid.at(17, 5)).to_equal(kRow);
 	});

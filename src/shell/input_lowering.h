@@ -3,10 +3,10 @@
 #include "libdeluge/control_surface.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
-#include "ui/core/encoder_acceleration.h"
-#include "ui/core/frame_context.h"
-#include "ui/core/input.h"
-#include "ui/core/repaint_gate.h"
+#include "ui/widgets/core/encoder_acceleration.h"
+#include "ui/widgets/core/frame_context.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/repaint_gate.h"
 
 #include <cstdint>
 #include <optional>
@@ -191,7 +191,7 @@ public:
 	/// @brief Which buttons are down right now.
 	const ButtonSet& held() const { return held_; }
 	/// @brief Which pads are down right now, in absolute grid coordinates.
-	const PadMask& held_pads() const { return held_pads_; }
+	const widgets::core::PadMask& held_pads() const { return held_pads_; }
 	/// @brief Is shift active, physically held or latched?
 	bool shift() const { return shift_pressed_ || shift_stuck_; }
 	/// @brief Is the sticky-shift latch engaged?
@@ -222,7 +222,7 @@ public:
 	void seed_shift(bool pressed, bool stuck, uint32_t now_ms);
 	/// @brief Forget every held pad without a release event: the shell is starting over, and the scenes that heard
 	///        those presses are gone. Unlike `clear_all_held`, nothing is emitted.
-	void forget_held_pads() { held_pads_ = PadMask{}; }
+	void forget_held_pads() { held_pads_ = widgets::core::PadMask{}; }
 	/// @brief Drop what was lowered and not yet routed: the queue, the events carried to the next tick, and this
 	///        tick's detent sums, edges and pads. The held buttons and pads, the shift machine and each encoder's
 	///        partial detent stay, as a physical encoder's remainder does. Events held back while the card is busy
@@ -317,7 +317,7 @@ public:
 	///          being refilled in place -- `begin_tick` resets the buffer's length without zeroing
 	///          it. `pads` also views this object's own storage, so the snapshot must not outlive
 	///          the lowering.
-	const ui::InputSnapshot& snapshot() const { return snap_; }
+	const ui::widgets::core::InputSnapshot& snapshot() const { return snap_; }
 
 	/// @brief The clock an encoder's acceleration is timed on, which the next `end_tick` puts in the snapshot.
 	/// @param ms The host's reading, in milliseconds (`ui::InputSnapshot::acceleration_clock_ms`).
@@ -331,13 +331,13 @@ public:
 	/// there is one turn detent, one pair of gold knobs, one select encoder and one back button
 	/// per tick however many surfaces exist, so a claim made deep inside one surface's frame tree
 	/// has to land where the shell's ownership audit reads it back.
-	ui::FrameContext& ctx() { return ctx_; }
+	ui::widgets::core::FrameContext& ctx() { return ctx_; }
 	/// @brief The gate a widget arms through `f.gate()`.
 	///
 	/// @note The shell evaluates `needs_frame()` on this once per tick and folds the answer into
 	///       every surface's own gate check, rather than trying to attribute one widget's
 	///       animation to the surface it happened to be drawn on. Nothing else may consume it.
-	ui::RepaintGate& widgets_gate() { return widgets_gate_; }
+	ui::widgets::core::RepaintGate& widgets_gate() { return widgets_gate_; }
 	/// @}
 
 	/// @name Deferral and locking
@@ -393,7 +393,7 @@ public:
 	/// @param delta  The signed turn.
 	/// @param now_ms The wall clock.
 	/// @return A multiplier in [1.0, 3.0].
-	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
+	double calc_next_knob_speed(widgets::core::EncoderRole role, int8_t delta, uint32_t now_ms);
 
 private:
 	/// @brief One board event waiting out the SD routine, with the clock it arrived at.
@@ -454,7 +454,7 @@ private:
 	void push_out(const UiEvent& e);
 
 	static constexpr size_t kButtonCount = static_cast<size_t>(ButtonId::Count);
-	static constexpr size_t kEncoderCount = static_cast<size_t>(EncoderRole::Count);
+	static constexpr size_t kEncoderCount = static_cast<size_t>(widgets::core::EncoderRole::Count);
 
 	BoardProfile profile_;
 	LoweringConfig cfg_;
@@ -464,7 +464,7 @@ private:
 	ButtonSet held_;
 	ButtonSet used_up_;
 	ButtonSet ever_pressed_; ///< Whether `press_time_` has ever been written, for `was_short_press`.
-	PadMask held_pads_{};
+	widgets::core::PadMask held_pads_{};
 	uint32_t press_time_[kButtonCount]{}; ///< The clock of each button's most recent press.
 	bool shift_pressed_ = false;
 	bool shift_stuck_ = false;
@@ -474,10 +474,11 @@ private:
 
 	/// @name Encoder state
 	/// @{
-	int32_t edge_accumulator_[kEncoderCount]{};                  ///< Partial detents, carried between ticks.
-	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
-	uint32_t acceleration_clock_ms_ = 0;                         ///< See set_acceleration_clock_ms().
-	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
+	int32_t edge_accumulator_[kEncoderCount]{}; ///< Partial detents, carried between ticks.
+	int8_t tick_delta_[kEncoderCount]{};        ///< What each encoder contributed to this tick.
+	uint32_t acceleration_clock_ms_ = 0;        ///< See set_acceleration_clock_ms().
+	ui::widgets::core::EncoderAcceleration
+	    knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
 	/// @}
 
 	/// @name Queues
@@ -499,8 +500,9 @@ private:
 
 	/// @name Per-tick state, reset by `begin_tick`
 	/// @{
-	base::FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
-	base::FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
+	base::FixedVector<ui::widgets::core::PadEvent, kPadEventCapacity> pad_events_;
+	base::FixedVector<ui::widgets::core::TimedTurn, kTurnCapacity>
+	    turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
 	/// The first of @ref turns_ still in the snapshot: the ones before it were routed (`withdraw`).
 	uint8_t turns_first_ = 0;
 	uint32_t now_ms_ = 0;
@@ -514,9 +516,9 @@ private:
 	bool sd_busy_ = false;
 	bool input_locked_ = false;
 
-	ui::InputSnapshot snap_{};
-	ui::RepaintGate widgets_gate_;
-	ui::FrameContext ctx_{snap_, widgets_gate_};
+	ui::widgets::core::InputSnapshot snap_{};
+	ui::widgets::core::RepaintGate widgets_gate_;
+	ui::widgets::core::FrameContext ctx_{snap_, widgets_gate_};
 };
 
 /// @brief Is \p b an encoder's own push rather than a plain matrix button?
@@ -542,11 +544,11 @@ bool is_widget_owned_shape(const UiEvent& e);
 /// @param claims The claim set.
 /// @param e      The event.
 /// @return False for a shape no widget can own.
-bool claim_covers(const ui::InputClaims& claims, const UiEvent& e);
+bool claim_covers(const ui::widgets::core::InputClaims& claims, const UiEvent& e);
 
 /// @brief Set the bit `claim_covers` reads for \p e's shape; nothing for a shape no widget can own.
 /// @param claims The claim set to add to.
 /// @param e      The event.
-void add_claim(ui::InputClaims& claims, const UiEvent& e);
+void add_claim(ui::widgets::core::InputClaims& claims, const UiEvent& e);
 
 } // namespace deluge::ui::shell

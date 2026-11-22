@@ -1,6 +1,6 @@
 #pragma once
-#include "ui/core/input.h"
-#include "ui/core/style.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/style.h"
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -113,13 +113,13 @@ struct BoardProfile {
 	/// 3=select, 4=mod1, 5=mod0 (`hid/encoder_input.cpp`'s `interpretEncoders`), and `mod0` is the *lower* gold
 	/// encoder with `mod1` the upper (`hid/encoders.h`'s `mod0`/`mod1`) -- so index 4 is `GoldUpper` and
 	/// index 5 is `GoldLower`, which is the pair most easily got backwards.
-	std::span<const EncoderRole> encoder_by_index;
+	std::span<const widgets::core::EncoderRole> encoder_by_index;
 	std::span<const EncoderKind> encoder_kind;       ///< [EncoderRole]
 	std::span<const SurfaceRole> oled_role_by_index; ///< libdeluge display index -> role
 	/// libdeluge display index -> toolkit `Style`. A board with more than one OLED, or a
 	/// panel-height-64 second frontend, needs a `Style` per surface; `OledSurface::style` is chosen
 	/// from here at build time.
-	std::span<const Style* const> style_by_index;
+	std::span<const widgets::core::Style* const> style_by_index;
 	TextLookup text;
 	ErrorLookup error_text;
 	uint8_t button_cols, button_rows;

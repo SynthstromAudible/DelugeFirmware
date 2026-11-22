@@ -13,7 +13,7 @@
 #include "shell/screensaver.h"
 #include "shell/service.h"
 #include "shell/surfaces.h"
-#include "ui/grid/effects.h"
+#include "ui/widgets/grid/effects.h"
 
 #include <array>
 #include <cstdint>
@@ -129,7 +129,7 @@ const char* scene_kind_name(SceneKind k);
 /// # What a scene may read, and where
 ///
 /// **A scene reads any one input in at most one render pass per tick.** Reading through a frame
-/// *is* claiming it (`ui/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds
+/// *is* claiming it (`ui/widgets/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds
 /// two independent `FrameInput`s in the same tick -- so reading `f.turn()` in both `render_oled`
 /// and `render_grid` claims the same detent twice and trips `InputClaims::double_claim`. A scene
 /// that wants one input to affect both surfaces reads it in the pass that owns it and lets the
@@ -260,7 +260,7 @@ public:
 	/// @brief Restyle the menus' highlighting on every surface and repaint them: the host calls it at boot from the
 	///        card's setting and whenever the setting changes.
 	/// @param h The highlighting the card stores.
-	void set_highlighting(ui::Highlighting h);
+	void set_highlighting(ui::widgets::core::Highlighting h);
 
 	/// @brief Restyle the rounded primitives on every surface and repaint them: the host calls it once the card's
 	///        settings are read and whenever the RoundedCorners setting changes.
@@ -303,12 +303,12 @@ public:
 	/// snapshot from an unrelated moment.
 	///
 	/// \p tw.param's meaning depends on `tw.kind`:
-	/// - `Fade`: `gfx::grid::fade(from, live, t, live)`; `param` is unused.
-	/// - `ScrollH`: `gfx::grid::scroll_horizontal(from, live, param * t / 65536, live)`; `param` is the
+	/// - `Fade`: `ui::gfx::grid::fade(from, live, t, live)`; `param` is unused.
+	/// - `ScrollH`: `ui::gfx::grid::scroll_horizontal(from, live, param * t / 65536, live)`; `param` is the
 	///   target offset, in main columns (`scroll_horizontal`'s own `offset`).
-	/// - `ScrollV`: `gfx::grid::scroll_vertical(from, live, param * t / 65536, live)`; `param` is the
+	/// - `ScrollV`: `ui::gfx::grid::scroll_vertical(from, live, param * t / 65536, live)`; `param` is the
 	///   target offset, in rows.
-	/// - `GreyOut`: `ui::grid::greyout(live, greyout_mask, param * t / 65536)`; `param` is the target
+	/// - `GreyOut`: `ui::widgets::grid::greyout(live, greyout_mask, param * t / 65536)`; `param` is the target
 	///   `RGB::greyOut` proportion (the ~0..6500000 scale, e.g. `kGreyoutAmountFull`), reached at
 	///   `t == 65535`; ramps **in** only -- there is no ramp-out kind.
 	///
@@ -364,7 +364,7 @@ public:
 	/// @param offset The turn, as the host's knob path hands it over.
 	/// @param now_ms The wall clock, for the `UiContext` and the screensaver.
 	/// @return True if the top scene or a service reported `handled`.
-	bool route_lowered_turn(EncoderRole role, int8_t offset, uint32_t now_ms);
+	bool route_lowered_turn(widgets::core::EncoderRole role, int8_t offset, uint32_t now_ms);
 	/// @}
 
 	/// @brief Take or release the SD-routine lock, deferring board input while it is held.
@@ -463,7 +463,7 @@ public:
 	const SurfaceSet& surfaces() const { return surfaces_; }
 	/// @brief The topmost non-empty `greyout_mask()` on the stack (`SceneStack::topmost_greyout`),
 	///        as re-queried on the last tick the stack changed.
-	grid::GreyoutMask greyout() const { return greyout_; }
+	widgets::grid::GreyoutMask greyout() const { return greyout_; }
 	/// @brief How many LED declarations were dropped for naming a board LED past
 	///        `LedFrame::kMaxEntries`.
 	uint32_t leds_dropped() const { return leds_dropped_; }
@@ -645,7 +645,7 @@ private:
 	SongHooks song_hooks_;
 
 	/// The stack's topmost non-empty `greyout_mask()`, re-queried whenever the stack changes.
-	grid::GreyoutMask greyout_{};
+	widgets::grid::GreyoutMask greyout_{};
 	/// The sysex/MIDI display mirror `flush` drives after a real blit of the `Main` surface.
 	Mirror mirror_;
 	/// The grid tween's "from" frame: a snapshot taken by `start_tween` of the grid as it stood at
@@ -654,7 +654,7 @@ private:
 	/// pool has no business owning a whole extra framebuffer) and `PadGrid` has no default
 	/// constructor for a plain array member to hold before a tween's first snapshot.
 	std::optional<ui::gfx::grid::PadGrid> tween_from_;
-	/// Scratch storage for `ScrollH`/`ScrollV` tween steps: `gfx::grid::scroll_horizontal`/
+	/// Scratch storage for `ScrollH`/`ScrollV` tween steps: `ui::gfx::grid::scroll_horizontal`/
 	/// `scroll_vertical` read `incoming` at column/row indices other than the one they are
 	/// writing, so blending straight into the live grid could read a cell this same pass already
 	/// overwrote. Reused every step rather than a per-tick stack local (~1.5 KB for `kMaxGridRows`
@@ -663,9 +663,9 @@ private:
 	std::optional<ui::gfx::grid::PadGrid> tween_scratch_;
 	/// The shared blink phases, indexed by `ui::BlinkRate`, and the rate each board LED blinked on at the last
 	/// `derive_leds` (-1 for none), so an LED that starts blinking restarts its rate.
-	ui::BlinkPhase blink_phases_[2]{};
-	std::array<int8_t, LedFrame::kMaxEntries> shared_rate_ = [] {
-		std::array<int8_t, LedFrame::kMaxEntries> a{};
+	ui::widgets::core::BlinkPhase blink_phases_[2]{};
+	std::array<int8_t, widgets::core::LedFrame::kMaxEntries> shared_rate_ = [] {
+		std::array<int8_t, widgets::core::LedFrame::kMaxEntries> a{};
 		a.fill(-1);
 		return a;
 	}();
@@ -674,9 +674,9 @@ private:
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.
 	base::FixedVector<Scene*, kStackDepth> rendered_this_tick_;
 	/// The widget-owned shapes `pump_input` left in the snapshot this tick.
-	InputClaims owned_{};
+	widgets::core::InputClaims owned_{};
 	/// The widget-owned shapes `pump_input` withdrew and routed this tick.
-	InputClaims routed_{};
+	widgets::core::InputClaims routed_{};
 	/// The scenes stacked, and those of them that could read pads, when this tick's first pad event came off the
 	/// queue, and whether one did.
 	base::FixedVector<Scene*, kStackDepth> stacked_at_pads_;

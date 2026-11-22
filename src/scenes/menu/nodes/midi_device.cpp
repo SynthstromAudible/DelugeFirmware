@@ -28,10 +28,10 @@
 
 #include "plugin/types/display_mapping.h"
 #include "shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
-#include "ui/oled/frame.h"
-#include "ui/oled/list.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/text.h"
+#include "ui/widgets/oled/values.h"
 
 #include "scenes/bind/ports/midi_devices.h"
 
@@ -99,11 +99,11 @@ const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
 
-void draw_title(deluge::ui::oled::OledFrame& f, std::string_view text) {
-	deluge::ui::oled::title(f, text);
+void draw_title(deluge::ui::widgets::oled::OledFrame& f, std::string_view text) {
+	deluge::ui::widgets::oled::title(f, text);
 }
 
-void draw_node_title(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_node_title(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
 	draw_title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch) : std::string_view{});
@@ -115,11 +115,12 @@ void draw_node_title(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 /// The cursor lives in `list[depth]` rather than in `enum_index` for the reason
 /// `dynamic.cpp`'s `render_output_selection` gives: it has to survive the descent into the page the
 /// select press opens and the walk back up, which is what legacy's `Selection` value member does.
-void render_selection(deluge::ui::oled::OledFrame& f, MenuState& state, std::span<const std::string_view> names) {
+void render_selection(deluge::ui::widgets::oled::OledFrame& f, MenuState& state,
+                      std::span<const std::string_view> names) {
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.tick.render_resp =
-	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
+	state.tick.render_resp = deluge::ui::widgets::oled::enum_value(f, deluge::ui::widgets::oled::menu_rect(f), index,
+	                                                               names, state.list[d], state.scroll[d]);
 }
 
 /// @brief The cursor, clamped into @p count options.
@@ -149,8 +150,8 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 /// and `MPE_ZONE_LOWER_NUMBERED_FROM_0`.
 void focus_selection(MenuState& state) {
 	const size_t d = depth_of(state);
-	state.list[d] = deluge::ui::ListState{};
-	state.scroll[d] = deluge::ui::ScrollText{};
+	state.list[d] = deluge::ui::widgets::core::ListState{};
+	state.scroll[d] = deluge::ui::widgets::core::ScrollText{};
 }
 
 /// @brief `ZoneNumMemberChannels::getPort()` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`):
@@ -280,7 +281,8 @@ void MpeDirectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) co
 	state.walk.mpe_direction = std::to_underlying(MidiDirection::IN);
 }
 
-void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void MpeDirectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
+                              MenuState& state) const {
 	// `DirectionSelector::getTitle()` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) -- computed
 	// from the value, which is why this item cannot be a data node with a static `Node::title`.
 	const uint8_t direction = chosen(state, 2);
@@ -316,7 +318,7 @@ void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	state.walk.mpe_zone = std::to_underlying(MpeZone::LOWER);
 }
 
-void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void MpeZoneItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// `ZoneSelector` has no name and no `getTitle()`, so legacy's title is empty: the separator alone.
 	draw_title(f, {});
 
@@ -352,16 +354,17 @@ void MpeZoneChannelsItem::on_reread(const MenuContext& ctx, MenuState& state) co
 	state.edit_int = mpe_zone_channels_value(ctx, state);
 }
 
-void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void MpeZoneChannelsItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                 MenuState& state) const {
 	draw_node_title(f, state);
 
 	// `IntegerWithOff::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): the huge centred
 	// number, or "OFF" at 0. `f.bounds()`, not `menu_rect(f)`, for the reason
 	// `MenuView::render_leaf_int` spells out -- `int_value` places its digits at a rect-relative
 	// `kValueY` calibrated for the full panel.
-	const deluge::ui::Response r =
-	    deluge::ui::oled::int_value(f, f.bounds(), state.edit_int, mpe_zone_channels_range(ctx, state),
-	                                deluge::ui::oled::ValueStyle{.off_at_zero = true}, /*focused=*/true);
+	const deluge::ui::widgets::core::Response r = deluge::ui::widgets::oled::int_value(
+	    f, f.bounds(), state.edit_int, mpe_zone_channels_range(ctx, state),
+	    deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true}, /*focused=*/true);
 	state.tick.render_resp = r;
 	if (r.changed) {
 		state.tick.value_changed = true;

@@ -24,7 +24,8 @@ constexpr SceneKind kBase = SceneKind::FirstApp;
 /// `LedId`'s values equal `ButtonId`'s for the LEDs under buttons (the rule `shell/leds.h` states), and
 /// the extended `uitest::test_profile_input`'s `led_by_button` (`tests/support/mocks/fake_surfaces.h`) wires `Play` to
 /// board LED 9 -- exactly the id/board-index pair this file's LED-diff spec needs.
-constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Play));
+constexpr deluge::ui::widgets::core::LedId kPlayLed =
+    static_cast<deluge::ui::widgets::core::LedId>(static_cast<uint8_t>(ButtonId::Play));
 constexpr uint8_t kPlayBoardLed = 9;
 
 /// Legacy's byte budget for one main-grid column-pair send, independently of `surfaces.h`'s
@@ -69,12 +70,12 @@ class FlushScene final : public Scene {
 public:
 	SceneKind kind() const override { return kBase; }
 
-	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole, deluge::ui::widgets::oled::OledFrame& frame) override {
 		oled_renders++;
 		frame.hline(5, 0, 20);
 	}
 
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
 		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
@@ -95,46 +96,47 @@ public:
 				(void)frame.pad(x, y, c);
 			}
 		}
-		for (const deluge::ui::grid::PadFlash& f : flashes) {
+		for (const deluge::ui::widgets::grid::PadFlash& f : flashes) {
 			frame.flash(f.x, f.y, f.colour);
 		}
 	}
 
-	void leds(deluge::ui::LedFrame& frame) override {
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
 		if (!declare_play) {
 			if (declare_indicator) {
-				(void)frame.indicator(deluge::ui::IndicatorId::Upper, indicator);
+				(void)frame.indicator(deluge::ui::widgets::core::IndicatorId::Upper, indicator);
 			}
 			return;
 		}
-		(void)frame.set(kPlayLed,
-		                play_override.value_or(deluge::ui::LedState{
-		                    play_on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0}));
+		(void)frame.set(kPlayLed, play_override.value_or(deluge::ui::widgets::core::LedState{
+		                              play_on ? deluge::ui::widgets::core::LedState::Kind::On
+		                                      : deluge::ui::widgets::core::LedState::Kind::Off,
+		                              0, 0}));
 		if (declare_indicator) {
-			(void)frame.indicator(deluge::ui::IndicatorId::Upper, indicator);
+			(void)frame.indicator(deluge::ui::widgets::core::IndicatorId::Upper, indicator);
 		}
 	}
 
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return mask; }
 
 	RGB colour{10, 20, 30};
 	std::vector<std::pair<int32_t, RGB>> column_overrides;
 	std::vector<RGB> column_colours;
 	std::vector<RGB> row_colours;
-	deluge::ui::grid::GreyoutMask mask{};
+	deluge::ui::widgets::grid::GreyoutMask mask{};
 	bool play_on = true;
 	/// When false, `leds()` leaves `kPlayLed` undeclared.
 	bool declare_play = true;
 	/// When set, `leds()` declares `kPlayLed` with this state instead of the plain on/off pair --
 	/// the blink-wake example below is the only user.
-	std::optional<deluge::ui::LedState> play_override;
+	std::optional<deluge::ui::widgets::core::LedState> play_override;
 	bool declare_indicator = true;
-	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
+	deluge::ui::widgets::core::KnobIndicator indicator{{1, 2, 3, 4}};
 	int oled_renders = 0;
 	/// The pads `render_grid` flashes each time it runs.
-	std::vector<deluge::ui::grid::PadFlash> flashes;
+	std::vector<deluge::ui::widgets::grid::PadFlash> flashes;
 };
 
 std::array<Scene*, 18> table_for(Scene& base) {
@@ -147,7 +149,8 @@ std::array<Scene*, 18> table_for(Scene& base) {
 ///        matrix.
 BoardProfile flush_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
-	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
+	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48,
+	                                                                      &deluge::ui::widgets::core::kDelugeStyle64};
 	BoardProfile p = uitest::test_profile_input();
 	p.oled_role_by_index = kRoles;
 	p.style_by_index = kStyles;
@@ -316,8 +319,8 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("sends this tick's pad flashes through flash_pad after the columns, then clears them", _ {
-		using deluge::ui::grid::FlashColour;
-		using deluge::ui::grid::PadFlash;
+		using deluge::ui::widgets::grid::FlashColour;
+		using deluge::ui::widgets::grid::PadFlash;
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -337,7 +340,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a tick whose only output is a flash still flushes once", _ {
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -562,7 +565,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		Rig r;
 		// Grey every row (and therefore every pad, regardless of column) -- sidesteps
 		// `GreyoutMask`'s right-to-left column numbering (see `tests/unit/shell/tick_spec.cpp`'s greyout test).
-		r.base.mask = deluge::ui::grid::GreyoutMask{.cols = 0, .rows = 0xFF};
+		r.base.mask = deluge::ui::widgets::grid::GreyoutMask{.cols = 0, .rows = 0xFF};
 		r.shell.init({kBase, 0});
 		RGB colour{120, 90, 60};
 		r.base.colour = colour;
@@ -602,7 +605,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// makes the example fail without the fix rather than pass by accident.
 		deluge::base::notify::dirty().drain();
 		Rig r;
-		r.base.play_override = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 110, 0};
+		r.base.play_override = deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, 110, 0};
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		expect(r.shell.next_wake().has_value()).to_be_true();
@@ -624,7 +627,7 @@ describe shell_flush("shell::Shell::flush", $ {
 
 		// A bounded blink wakes at its own deadline too, and stops asking once it has latched
 		// solid -- `led_is_on`'s `until_ms` arm.
-		r.base.play_override = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 110, 250};
+		r.base.play_override = deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Blink, 110, 250};
 		r.shell.tick(230);
 		expect(*r.shell.next_wake()).to_equal(uint32_t(250)); // the deadline beats the 330 boundary
 		r.shell.tick(250);

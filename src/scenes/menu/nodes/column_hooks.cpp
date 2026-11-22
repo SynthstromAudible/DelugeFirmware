@@ -48,7 +48,7 @@ namespace deluge::scenes::menu::nodes {
 
 using deluge::l10n::String;
 using deluge::ui::gfx::oled::Icon;
-using deluge::ui::oled::ArtColumn;
+using deluge::ui::widgets::oled::ArtColumn;
 namespace icons = deluge::ui::gfx::oled::icons;
 
 namespace {
@@ -468,10 +468,10 @@ deluge::effects::FilterFamily filter_family_of(const MenuContext& ctx, bool hpf)
 	return deluge::effects::filter_family(filter_mode_of(ctx, hpf));
 }
 
-std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, const Node& reso, const Node& morph,
-                                          bool hpf) {
-	return ui::oled::DrawColumn{
-	    .shape = ui::oled::DrawColumn::Shape::FilterGraph,
+std::optional<ui::widgets::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, const Node& reso,
+                                                   const Node& morph, bool hpf) {
+	return ui::widgets::oled::DrawColumn{
+	    .shape = ui::widgets::oled::DrawColumn::Shape::FilterGraph,
 	    .filter = {.freq_raw = freq,
 	               .reso_raw = bindings::read(reso, ctx),
 	               .morph_raw = bindings::read(morph, ctx),
@@ -489,12 +489,13 @@ ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> o
 	return put(deluge::l10n::filter_morph_name(filter_mode_of(ctx, hpf), use == ValueTextUse::Label), out);
 }
 
-std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
+std::optional<ui::widgets::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
 	if (filter_family_of(ctx, hpf) != deluge::effects::FilterFamily::SVF) {
 		return std::nullopt;
 	}
 	const int32_t shown = hpf ? 50 - value : value;
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Slider, .norm = static_cast<float>(shown) / 50.f};
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::Slider,
+	                                     .norm = static_cast<float>(shown) / 50.f};
 }
 
 } // namespace
@@ -566,52 +567,54 @@ std::optional<ArtColumn> file_selector_art(const MenuContext&, int32_t) {
 	return ArtColumn{.icon = &icons::folderBig, .dy = kAboveRegion};
 }
 
-std::optional<ui::oled::DrawColumn> recorder0_draw(const MenuContext&, int32_t) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Recorder, .raw = 0};
+std::optional<ui::widgets::oled::DrawColumn> recorder0_draw(const MenuContext&, int32_t) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::Recorder, .raw = 0};
 }
 
-std::optional<ui::oled::DrawColumn> recorder1_draw(const MenuContext&, int32_t) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Recorder, .raw = 1};
+std::optional<ui::widgets::oled::DrawColumn> recorder1_draw(const MenuContext&, int32_t) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::Recorder, .raw = 1};
 }
 
-std::optional<ui::oled::DrawColumn> loop_start_draw(const MenuContext&, int32_t) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::LoopStart};
+std::optional<ui::widgets::oled::DrawColumn> loop_start_draw(const MenuContext&, int32_t) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::LoopStart};
 }
 
-std::optional<ui::oled::DrawColumn> loop_end_draw(const MenuContext&, int32_t) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::LoopEnd};
+std::optional<ui::widgets::oled::DrawColumn> loop_end_draw(const MenuContext&, int32_t) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::LoopEnd};
 }
 
-std::optional<ui::oled::DrawColumn> clip_end_draw(const MenuContext&, int32_t) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::ClipEnd};
+std::optional<ui::widgets::oled::DrawColumn> clip_end_draw(const MenuContext&, int32_t) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::ClipEnd};
 }
 
-std::optional<ui::oled::DrawColumn> glide_draw(const MenuContext&, int32_t value) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Glide, .norm = static_cast<float>(value) / 50.f};
+std::optional<ui::widgets::oled::DrawColumn> glide_draw(const MenuContext&, int32_t value) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::Glide,
+	                                     .norm = static_cast<float>(value) / 50.f};
 }
 
-std::optional<ui::oled::DrawColumn> detune_draw(const MenuContext&, int32_t value) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Detune, .norm = static_cast<float>(value) / 50.f};
+std::optional<ui::widgets::oled::DrawColumn> detune_draw(const MenuContext&, int32_t value) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::Detune,
+	                                     .norm = static_cast<float>(value) / 50.f};
 }
 
-std::optional<ui::oled::DrawColumn> pulse_width_draw(const MenuContext&, int32_t value) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::PulseWidth, .raw = value};
+std::optional<ui::widgets::oled::DrawColumn> pulse_width_draw(const MenuContext&, int32_t value) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::PulseWidth, .raw = value};
 }
 
-std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext&, int32_t value) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::DelayAmount, .raw = value};
+std::optional<ui::widgets::oled::DrawColumn> delay_amount_draw(const MenuContext&, int32_t value) {
+	return ui::widgets::oled::DrawColumn{.shape = ui::widgets::oled::DrawColumn::Shape::DelayAmount, .raw = value};
 }
 
-std::optional<ui::oled::DrawColumn> lpf_graph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> lpf_graph_draw(const MenuContext& ctx, int32_t value) {
 	return graph(ctx, value, lpf_res, lpf_morph, false);
 }
-std::optional<ui::oled::DrawColumn> hpf_graph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> hpf_graph_draw(const MenuContext& ctx, int32_t value) {
 	return graph(ctx, value, hpf_res, hpf_morph, true);
 }
-std::optional<ui::oled::DrawColumn> global_lpf_graph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> global_lpf_graph_draw(const MenuContext& ctx, int32_t value) {
 	return graph(ctx, value, global_lpf_res, global_lpf_morph, false);
 }
-std::optional<ui::oled::DrawColumn> global_hpf_graph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> global_hpf_graph_draw(const MenuContext& ctx, int32_t value) {
 	return graph(ctx, value, global_hpf_res, global_hpf_morph, true);
 }
 ValueText lpf_morph_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
@@ -620,10 +623,10 @@ ValueText lpf_morph_text(const MenuContext& ctx, int32_t, ValueTextUse use, std:
 ValueText hpf_morph_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
 	return morph_text(ctx, use, out, true);
 }
-std::optional<ui::oled::DrawColumn> lpf_morph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> lpf_morph_draw(const MenuContext& ctx, int32_t value) {
 	return morph_draw(ctx, value, false);
 }
-std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32_t value) {
+std::optional<ui::widgets::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32_t value) {
 	return morph_draw(ctx, value, true);
 }
 bool hpf_morph_reversed(const MenuContext& ctx) {

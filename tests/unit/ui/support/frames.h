@@ -1,13 +1,13 @@
 #pragma once
-#include "ui/core/frame_context.h"
-#include "ui/core/input.h"
-#include "ui/core/repaint_gate.h"
-#include "ui/core/style.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/oled/canvas.h"
 #include "ui/gfx/oled/geometry.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/core/frame_context.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/repaint_gate.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/frame.h"
 #include "unit/ui/gfx/support/grid_state.h"
 #include "unit/ui/gfx/support/pbm.h"
 
@@ -20,8 +20,8 @@ namespace deluge::ui::test {
 /// The baseline a spec starts from before setting the one or two fields it cares about.
 /// @param now_ms The snapshot's simulated wall-clock time.
 /// @return A zeroed InputSnapshot with `now_ms` set.
-inline InputSnapshot null_input(uint32_t now_ms = 0) {
-	return InputSnapshot{
+inline widgets::core::InputSnapshot null_input(uint32_t now_ms = 0) {
+	return widgets::core::InputSnapshot{
 	    .turn = 0,
 	    .edit = {0, 0},
 	    .horizontal = 0,
@@ -51,17 +51,18 @@ struct OledRig {
 	/// The framebuffer the frame draws into.
 	deluge::ui::gfx::oled::OwnedCanvas<G> canvas;
 	/// Tracks which of the rig's frames still owe a repaint.
-	deluge::ui::RepaintGate gate;
+	deluge::ui::widgets::core::RepaintGate gate;
 	/// The tick's input; a spec mutates this directly before reading `frame`'s response.
-	deluge::ui::InputSnapshot input = null_input();
+	deluge::ui::widgets::core::InputSnapshot input = null_input();
 	/// The tick's context, built over the two members above and read by every frame in the rig.
 	/// Declared before `frame` so it is alive when the root frame binds to it; `ctx.claims` is
 	/// what a spec inspects to see what a widget consumed.
-	deluge::ui::FrameContext ctx{input, gate};
+	deluge::ui::widgets::core::FrameContext ctx{input, gate};
 	/// The panel style matching `G`'s height (48px or 64px).
-	const deluge::ui::Style& style = (G.height == 64) ? deluge::ui::kDelugeStyle64 : deluge::ui::kDelugeStyle48;
+	const deluge::ui::widgets::core::Style& style =
+	    (G.height == 64) ? deluge::ui::widgets::core::kDelugeStyle64 : deluge::ui::widgets::core::kDelugeStyle48;
 	/// The root frame under test; focused by default (see the rig's class note).
-	deluge::ui::oled::OledFrame frame = deluge::ui::oled::root_frame(canvas, style, ctx);
+	deluge::ui::widgets::oled::OledFrame frame = deluge::ui::widgets::oled::root_frame(canvas, style, ctx);
 
 	OledRig() {
 		canvas.clear();
@@ -111,7 +112,7 @@ using Rig64 = OledRig<deluge::ui::gfx::oled::Geometry{128, 64, 0}>;
 ///
 /// `input` is a live member, so a spec sets `r.input.pads` / `r.input.held_pads` *after*
 /// constructing the rig and `r.frame` still sees it -- frames read the snapshot through the
-/// reference they hold rather than copying the event span (see ui/grid/frame.h).
+/// reference they hold rather than copying the event span (see ui/widgets/grid/frame.h).
 ///
 /// @note As `OledRig`: the rig's root frame defaults to a focused root, and `begin_tick` must be
 ///       called once per simulated tick.
@@ -119,16 +120,16 @@ struct GridRig {
 	/// The pad surface the frame draws into and hit-tests against.
 	deluge::ui::gfx::grid::PadGrid grid{deluge::ui::gfx::grid::kDelugeGrid};
 	/// Tracks which of the rig's frames still owe a repaint.
-	deluge::ui::RepaintGate gate;
+	deluge::ui::widgets::core::RepaintGate gate;
 	/// The tick's input; a spec mutates this directly before reading `frame`'s response.
-	deluge::ui::InputSnapshot input = null_input();
+	deluge::ui::widgets::core::InputSnapshot input = null_input();
 	/// The tick's context, built over the two members above and read by every frame in the rig.
-	deluge::ui::FrameContext ctx{input, gate};
+	deluge::ui::widgets::core::FrameContext ctx{input, gate};
 	/// The pad flashes the root frame and its regions record, in absolute coordinates.
-	deluge::ui::grid::PadFlashList flashes;
+	deluge::ui::widgets::grid::PadFlashList flashes;
 	/// The root frame under test; focused by default (see the rig's class note).
-	deluge::ui::grid::GridFrame frame =
-	    deluge::ui::grid::root_grid_frame(grid, ctx, deluge::ui::InputMask::all(), &flashes);
+	deluge::ui::widgets::grid::GridFrame frame =
+	    deluge::ui::widgets::grid::root_grid_frame(grid, ctx, deluge::ui::widgets::core::InputMask::all(), &flashes);
 
 	/// @brief Begin a new simulated tick. As `OledRig::begin_tick`.
 	/// @param now_ms The simulated wall-clock time for the new tick.

@@ -32,11 +32,11 @@
 #include "scenes/profile.h"
 
 #include "base/notify/notice_queue.h"
-#include "ui/core/led_frame.h"
-#include "ui/oled/list.h"
-#include "ui/oled/routing.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/routing.h"
+#include "ui/widgets/oled/text.h"
+#include "ui/widgets/oled/values.h"
 
 #include "gui/l10n/param_names.h"
 #include "instruments/classic/cable_acceptance.h"
@@ -289,11 +289,11 @@ const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
 
-void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-	                                           : std::string_view{});
+	deluge::ui::widgets::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                                    : std::string_view{});
 }
 
 /// @brief The per-depth widget state a list page borrows (`MenuState::list` / `::scroll`).
@@ -361,20 +361,20 @@ void PatchCablesItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 	// holding the value `savedVal` would restore is exactly what makes the default correct here, unlike
 	// `GateSelectionItem`'s (`nodes/dynamic.cpp`), which needs the hook because its own cursor is
 	// not what legacy restores.
-	state.list[depth_of(state)] = deluge::ui::ListState{};
-	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
+	state.list[depth_of(state)] = deluge::ui::widgets::core::ListState{};
+	state.scroll[depth_of(state)] = deluge::ui::widgets::core::ScrollText{};
 }
 
 void PatchCablesItem::on_reread(const MenuContext& ctx, MenuState& state) const {
 	// `PatchCables::readValueAgain`: a cable deleted under the cursor leaves it on the last one.
-	deluge::ui::ListState& list = state.list[depth_of(state)];
+	deluge::ui::widgets::core::ListState& list = state.list[depth_of(state)];
 	const auto count = static_cast<int32_t>(cables_of(ctx).size());
 	if (list.cursor >= count) {
 		list.cursor = static_cast<int16_t>(std::max(0, count - 1));
 	}
 }
 
-void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void PatchCablesItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
 	// `PatchCables::renderOptions` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`). Legacy keeps its row
@@ -384,7 +384,7 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	constexpr size_t kRowChars = 32;
 	static_assert(instruments::classic::kMaxCables <= 64, "the row buffer below is sized for legacy's 32 cables");
 	char bufs[instruments::classic::kMaxCables][kRowChars];
-	deluge::ui::oled::ListRow rows[instruments::classic::kMaxCables];
+	deluge::ui::widgets::oled::ListRow rows[instruments::classic::kMaxCables];
 	size_t n = 0;
 
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
@@ -411,12 +411,12 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 
 	// `PatchCables::drawPixelsForOled` is `drawItemsForOled(options, ...)`, i.e. exactly
-	// the vertical list `ui::oled::list` is the port of -- including `selectEncoderAction`'s clamp
+	// the vertical list `ui::widgets::oled::list` is the port of -- including `selectEncoderAction`'s clamp
 	// and scroll (`PatchCables::selectEncoderAction`), which `list` already owns.
-	state.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
-	                           /*allow_motion=*/true, /*accelerate=*/true);
+	state.tick.render_resp = deluge::ui::widgets::oled::list(
+	    f, deluge::ui::widgets::oled::menu_rect(f), state.list[depth_of(state)],
+	    std::span<const deluge::ui::widgets::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
+	    /*allow_motion=*/true, /*accelerate=*/true);
 	if (n == 0 && f.select_pressed()) {
 		// `PatchCables::selectButtonPress`'s "There were no items" arm: with nothing to select, the
 		// press goes up a level -- `MenuItem::selectButtonPress`'s own `return nullptr`. `list` never
@@ -485,23 +485,24 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 			break;
 		}
 	}
-	state.list[depth_of(state)] = deluge::ui::ListState{};
+	state.list[depth_of(state)] = deluge::ui::widgets::core::ListState{};
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(cursor);
-	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
+	state.scroll[depth_of(state)] = deluge::ui::widgets::core::ScrollText{};
 	if (n != 0) {
 		PatchSource& chosen = which_ == Which::Range ? state.walk.patch_range_source : state.walk.patch_source;
 		chosen = sources[cursor];
 	}
 }
 
-void SourceSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void SourceSelectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                 MenuState& state) const {
 	draw_title_for(f, state);
 
 	const deluge::synth::CableTarget destination = destination_for(state, which_ == Which::Range);
 	PatchSource sources[kNumPatchSources];
 	const size_t n = allowed_sources(ctx, destination, sources);
 
-	deluge::ui::oled::ListRow rows[kNumPatchSources];
+	deluge::ui::widgets::oled::ListRow rows[kNumPatchSources];
 	deluge::ui::shell::TextScratch scratch[kNumPatchSources];
 	for (size_t i = 0; i < n; i++) {
 		// The names alone: `shouldDrawDotOnValue` (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`) is the
@@ -514,10 +515,10 @@ void SourceSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 	// disallowed entries as it walks. This port filters first and hands `list` the allowed sources only, which shows
 	// the same rows in the same order and gets the windowing, the clamp and `selectEncoderAction`'s allowed-only walk
 	// (`SourceSelection::selectEncoderAction`) from the widget instead of re-deriving them.
-	state.tick.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
-	                           /*allow_motion=*/true, /*accelerate=*/true);
+	state.tick.render_resp = deluge::ui::widgets::oled::list(
+	    f, deluge::ui::widgets::oled::menu_rect(f), state.list[depth_of(state)],
+	    std::span<const deluge::ui::widgets::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
+	    /*allow_motion=*/true, /*accelerate=*/true);
 
 	// `selectEncoderAction`'s `s = sourceMenuContents[newValue]`: the cursor IS the value,
 	// so it is republished every frame rather than only when it moves.
@@ -643,7 +644,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): the cursor starts on the hundredths' place.
 	state.edit_int = strength_read(ctx, state, which_);
 	state.decimal_pos = 2;
-	state.cursor_blink = deluge::ui::Blink{};
+	state.cursor_blink = deluge::ui::widgets::core::Blink{};
 }
 
 void PatchCableStrengthItem::on_reread(const MenuContext& ctx, MenuState& state) const {
@@ -681,8 +682,8 @@ constexpr int32_t kValueBandHeight = deluge::ui::gfx::oled::kTextBigSizeY + 4;
 /// @brief The polarity switch's slot band, frame-local -- legacy's `startY = 34`
 ///        (`patch_cable_strength.cpp renderOLED`).
 ///
-/// `segmented_switch` inks two rows *above* this one for its bracket (`ui/oled/routing.h`), so the page's real ink
-/// starts at 27; the number's band ends at 21. Five clear rows between them, which is legacy's own gap.
+/// `segmented_switch` inks two rows *above* this one for its bracket (`ui/widgets/oled/routing.h`), so the page's real
+/// ink starts at 27; the number's band ends at 21. Five clear rows between them, which is legacy's own gap.
 constexpr int32_t kPolaritySwitchY = 29;
 /// @}
 
@@ -693,27 +694,28 @@ constexpr std::array<int32_t, 2> kPolarityWidths{{25, 28}};
 constexpr std::array<int32_t, 1> kNoPolarityWidth{{53}};
 /// @}
 
-void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+void PatchCableStrengthItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& ctx,
+                                    MenuState& state) const {
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
 	const deluge::ui::gfx::oled::Rect bounds = f.bounds();
 
 	// `PatchCableStrength::renderOLED`'s first block (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`),
-	// through the toolkit widget that ports it (`ui/oled/routing.h`). The stage order is legacy's: the cable's own
-	// source first, then -- for a cable modulating another cable's depth -- that outer cable's source, then the
+	// through the toolkit widget that ports it (`ui/widgets/oled/routing.h`). The stage order is legacy's: the cable's
+	// own source first, then -- for a cable modulating another cable's depth -- that outer cable's source, then the
 	// destination param.
 	//
 	// **No title.** Legacy draws none on this page: `renderOLED` replaces `drawPixelsForOled`
 	// wholesale, and the diagram is the page's identity.
-	std::array<std::string_view, deluge::ui::oled::kMaxRoutingStages> stages{};
+	std::array<std::string_view, deluge::ui::widgets::oled::kMaxRoutingStages> stages{};
 	size_t n = 0;
 	stages[n++] = source_short_name(source);
 	if (!destination.is_param()) {
 		stages[n++] = source_short_name(destination.top_source());
 	}
 	stages[n++] = destination_short_name(ctx, static_cast<uint8_t>(destination.param_index()));
-	deluge::ui::oled::routing_chain(f, deluge::ui::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
-	                                std::span<const std::string_view>{stages.data(), n});
+	deluge::ui::widgets::oled::routing_chain(f, deluge::ui::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
+	                                         std::span<const std::string_view>{stages.data(), n});
 
 	// `PatchCableStrength::renderOLED`'s polarity switcher, through `segmented_switch`. The band's left
 	// edge is `bounds.w - 55`, which is legacy's own `startX` of 73 on a 128-column panel, and its
@@ -723,15 +725,15 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	                                              deluge::ui::gfx::oled::kTextSpacingY};
 	if (instruments::classic::has_polarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}};
-		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
-		                                   state.walk.patch_polarity == instruments::classic::Polarity::UNIPOLAR ? 1
-		                                                                                                         : 0);
+		deluge::ui::widgets::oled::segmented_switch(
+		    f, switch_area, kPolarityLabels, kPolarityWidths,
+		    state.walk.patch_polarity == instruments::classic::Polarity::UNIPOLAR ? 1 : 0);
 	}
 	else {
 		// A param with no polarity shows only the default one, full width, uninverted.
 		const std::string_view only = instruments::classic::to_string(default_polarity(ctx, source));
-		deluge::ui::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
-		                                   kNoPolarityWidth, -1);
+		deluge::ui::widgets::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
+		                                            kNoPolarityWidth, -1);
 	}
 
 	// `getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`).
@@ -751,7 +753,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 
 	// `renderOLED`'s number, right of the diagram.
 	const deluge::ui::gfx::oled::Rect value_rect{kValueBandX, kValueTextY, bounds.w - kValueBandX, kValueBandHeight};
-	const deluge::ui::Response r = deluge::ui::oled::cable_strength_value(
+	const deluge::ui::widgets::core::Response r = deluge::ui::widgets::oled::cable_strength_value(
 	    f, value_rect, state.edit_int, kRange, state.decimal_pos, state.cursor_blink, /*take_turn=*/!polarity_turn);
 	state.tick.render_resp = r;
 	if (r.changed) {
@@ -770,7 +772,7 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	// no-op while no cable exists -- `commit` makes a new cable with it.
 	state.walk.patch_polarity = polarity;
 	// `updatePolarityUI`'s `renderUIsForOled` restarts the cursor's blink dark (`OLED::setupBlink`).
-	state.cursor_blink = deluge::ui::Blink{};
+	state.cursor_blink = deluge::ui::widgets::core::Blink{};
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
 	if (ctx.ports.writes != nullptr && find_cable(ctx, source, destination).has_value()) {
@@ -826,15 +828,16 @@ deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell
 	return deluge::ui::shell::Result{.handled = true};
 }
 
-void PatchCableStrengthItem::leds(deluge::ui::LedFrame& f, const MenuContext& /*ctx*/, const MenuState& state) const {
+void PatchCableStrengthItem::leds(deluge::ui::widgets::core::LedFrame& f, const MenuContext& /*ctx*/,
+                                  const MenuState& state) const {
 	// `updatePolarityUI` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`): MIDI for a bipolar cable,
 	// CV for a unipolar one, neither for a source with no polarity.
-	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};
 	const bool polarised = instruments::classic::has_polarity(strength_source(state, which_));
-	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Midi),
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(deluge::ui::shell::ButtonId::Midi),
 	            polarised && state.walk.patch_polarity == instruments::classic::Polarity::BIPOLAR ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Cv),
+	(void)f.set(static_cast<deluge::ui::widgets::core::LedId>(deluge::ui::shell::ButtonId::Cv),
 	            polarised && state.walk.patch_polarity == instruments::classic::Polarity::UNIPOLAR ? kOn : kOff);
 }
 
@@ -924,13 +927,13 @@ uint8_t PatchCablesItem::patched_param_to_blink(const MenuContext& ctx, const Me
 }
 
 uint8_t PatchCablesItem::source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-                                      deluge::ui::grid::FlashColour& colour) const {
+                                      deluge::ui::widgets::grid::FlashColour& colour) const {
 	const std::optional<CableEnds> cable = cable_under_cursor(ctx, state);
 	if (!cable) {
 		return 255;
 	}
 	if (source == cable->from) {
-		colour = deluge::ui::grid::FlashColour::Palette6;
+		colour = deluge::ui::widgets::grid::FlashColour::Palette6;
 		return 0;
 	}
 	if (!cable->destination.is_param() && source == cable->destination.top_source()) {
@@ -944,7 +947,7 @@ uint8_t SourceSelectionItem::patched_param_to_blink(const MenuContext& /*ctx*/, 
 }
 
 uint8_t SourceSelectionItem::source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-                                          deluge::ui::grid::FlashColour& /*colour*/) const {
+                                          deluge::ui::widgets::grid::FlashColour& /*colour*/) const {
 	return patching::source_is_patched(ctx, source, destination_for(state, which_ == Which::Range)) ? 3 : 255;
 }
 
@@ -953,7 +956,7 @@ uint8_t PatchCableStrengthItem::patched_param_to_blink(const MenuContext& /*ctx*
 }
 
 uint8_t PatchCableStrengthItem::source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
-                                             deluge::ui::grid::FlashColour& colour) const {
+                                             deluge::ui::widgets::grid::FlashColour& colour) const {
 	switch (which_) {
 	case Which::Regular:
 		// The source being edited, then a source on that cable's depth.
@@ -961,14 +964,14 @@ uint8_t PatchCableStrengthItem::source_blink(const MenuContext& ctx, const MenuS
 			return 0;
 		}
 		if (find_cable(ctx, source, learn_descriptor(ctx, state)).has_value()) {
-			colour = deluge::ui::grid::FlashColour::Palette6;
+			colour = deluge::ui::widgets::grid::FlashColour::Palette6;
 			return 3;
 		}
 		return 255;
 	case Which::Range:
 		// The depth's own source, then the cable's source whose depth it controls.
 		if (source == state.walk.patch_range_source) {
-			colour = deluge::ui::grid::FlashColour::Palette6;
+			colour = deluge::ui::widgets::grid::FlashColour::Palette6;
 			return 0;
 		}
 		return source == state.walk.patch_source ? 3 : 255;

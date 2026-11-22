@@ -53,10 +53,10 @@
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/columns.h"
-#include "ui/oled/sample_position.h"
-#include "ui/oled/text.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/columns.h"
+#include "ui/widgets/oled/sample_position.h"
+#include "ui/widgets/oled/text.h"
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
@@ -165,7 +165,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -176,7 +177,7 @@ const BoardProfile& profile_64() {
 /// @brief Events handed to the marker scene itself, so the actions it files come back for the example to read.
 struct DirectEvents {
 	deluge::ui::shell::ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 
 	/// @brief One main-pad event.
 	/// @param shift Is shift held?
@@ -193,10 +194,11 @@ struct DirectEvents {
 	/// @brief One turn of the horizontal encoder.
 	deluge::ui::shell::Result horizontal(int32_t delta, bool shift) {
 		const deluge::ui::shell::UiContext ctx{held, pads, shift, false, 0, deluge_profile()};
-		return marker_scene().handle(deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
-		                                                        .encoder = deluge::ui::EncoderRole::Horizontal,
-		                                                        .delta = static_cast<int8_t>(delta)},
-		                             ctx);
+		return marker_scene().handle(
+		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
+		                               .encoder = deluge::ui::widgets::core::EncoderRole::Horizontal,
+		                               .delta = static_cast<int8_t>(delta)},
+		    ctx);
 	}
 };
 
@@ -1459,7 +1461,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(1);
 		r.tick(20);
-		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const RGB tick = deluge::ui::widgets::grid::tick_colour(deluge::ui::widgets::grid::TickColour::Normal, RGB{});
 		for (uint8_t y = 0; y < 8; y++) {
 			expect(r.fake.grid().grid().at(7, y)).to_equal(tick);
 		}
@@ -2021,7 +2023,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		const int32_t ported_zoom = static_cast<int32_t>(marker_scene().x_zoom());
 		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
-		const deluge::ui::grid::ZoomTransition slide = marker_scene().zoom_slide();
+		const deluge::ui::widgets::grid::ZoomTransition slide = marker_scene().zoom_slide();
 		// A second detent while the first slides.
 		r.turn_horizontal(1, 30);
 		r.tick(30);
@@ -2207,11 +2209,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::START);
 		r.tick(0);
 		deluge::ui::test::Rig48 reference;
-		deluge::ui::oled::title(reference.frame, "Start point");
-		deluge::ui::oled::sample_position(
+		deluge::ui::widgets::oled::title(reference.frame, "Start point");
+		deluge::ui::widgets::oled::sample_position(
 		    reference.frame,
 		    deluge::ui::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
-		                            2 * deluge::ui::oled::kSamplePositionLineGap},
+		                            2 * deluge::ui::widgets::oled::kSamplePositionLineGap},
 		    2147483655, 44100);
 		expect(r.oled()).to_equal(reference.pbm());
 	});

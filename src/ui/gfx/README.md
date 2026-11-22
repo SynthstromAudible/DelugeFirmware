@@ -39,13 +39,13 @@ dimensions, would otherwise read or write past caller memory on the first real c
 report through the app's `FREEZE_WITH_ERROR` path (it is a leaf and may not reach `display`), so a
 leaf precondition can only stop, not report — an unconditional trap is the correct trade: a halt
 at the violating frame's PC and backtrace, rather than a heap smash discovered later. Used by
-`Canvas`'s constructor (storage long enough for the geometry), `gfx::grid::Rect::split_rows`/
+`Canvas`'s constructor (storage long enough for the geometry), `ui::gfx::grid::Rect::split_rows`/
 `split_cols`'s `at` bound, `composite`'s dimension match, and every one of the tween functions
 below (row/column bounds, `zoom`'s magnitude ceiling). Never used for a condition a caller can
 legitimately produce at runtime — clipping, an out-of-range value arriving from the model, a full
 queue — those stay return values.
 
-## `gfx::oled::Canvas`: the clip rect
+## `ui::gfx::oled::Canvas`: the clip rect
 
 `Canvas::set_clip(Rect)`/`clear_clip()`/`clip() -> optional<Rect>` (`ui/gfx/oled/canvas.h`) bound
 *every* drawing routine to a rectangle, pixel for pixel: a glyph, an icon or a rounded invert that
@@ -55,21 +55,21 @@ private `ClipBox` of four inclusive ints intersected with the canvas, so no draw
 this existed — the clip simply starts out as the whole canvas. The byte-at-a-time blitters
 (`draw_graphic_multi_line`, and everything that routes through it: `draw_char`, the string family,
 icons) clip vertically with one precomputed bit mask per page rather than a per-pixel test.
-`ui::oled::ClipScope` (`src/ui/README.md`) is the frame-layer type built on top of this that every
+`ui::widgets::oled::ClipScope` (`src/ui/widgets/README.md`) is the frame-layer type built on top of this that every
 `OledFrame` drawing method opens for its own region.
 
-## `gfx::grid::Rect`: splits and inset
+## `ui::gfx::grid::Rect`: splits and inset
 
 `split_rows(at)`/`split_cols(at)` (`ui/gfx/grid/rect.h`) split into a `(before, after)` pair at a
-single row/column position `at` -- the same two-way-at-a-position shape as `gfx::oled::Rect`'s
-siblings (`split_rows`/`split_cols`, `oled/geometry.h`, used in `vu` (`ui/oled/misc.cpp`) as
+single row/column position `at` -- the same two-way-at-a-position shape as `ui::gfx::oled::Rect`'s
+siblings (`split_rows`/`split_cols`, `oled/geometry.h`, used in `vu` (`ui/widgets/oled/misc.cpp`) as
 `rect.split_rows(rect.h / 2)`) and the SDK's `deluge-grid-toolkit::Frame::split_rows`/`split_cols`
 (the `imode` module of `deluge-grid-toolkit`). There is no `(n, i)` n-way form (slice `i` of `n` equal
 bands): neither sibling has one, and no call site needs it. `inset(int32_t)`
 shrinks by one uniform amount on every side (negative grows it) -- the OLED sibling's shape, not
 its per-side `Insets`; nothing in the grid toolkit needs asymmetric insets yet.
 
-## `gfx::grid::composite`
+## `ui::gfx::grid::composite`
 
 `composite(base, overlay, mode, out)` (`ui/gfx/grid/composite.{h,cpp}`) flattens one `PadGrid`
 overlay onto another per a `BlendMode`, writing into `out` (which may alias `base`) and marking
@@ -90,7 +90,7 @@ overlay pad, a black base pad, a full-white tint identity, and a truncating tint
 dirty-row marking and in-place aliasing, and freezes a golden `.state` per mode
 (`tests/golden/gfx/grid/composite_{replace,overlay,tint}.state`).
 
-## `gfx::grid` tweens
+## `ui::gfx::grid` tweens
 
 `ui/gfx/grid/tween.{h,cpp}`: pure `from -> to` frame transitions over `PadGrid`; the caller owns
 timing and calls one of these once per tick with its own progress parameter. `fade`,
@@ -115,7 +115,7 @@ black on its flash-off frame and marks it occupied anyway, and that reaches both
 golden is unaffected); a non-empty one must be exactly `cols()` long (`DELUGE_GFX_CONTRACT`).
 
 Five legacy quirks are reproduced rather than fixed in `zoom`/`explode`/`expand_collapse` — see
-`src/ui/README.md`'s "Legacy quirks reproduced on purpose" section, which lists them alongside the
+`src/ui/widgets/README.md`'s "Legacy quirks reproduced on purpose" section, which lists them alongside the
 ones from the widget layer.
 
 Deferred to later phases (tracked in the UI redesign spec): `RGB` into the `deluge::ui::gfx::grid`

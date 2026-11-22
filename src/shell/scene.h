@@ -3,12 +3,12 @@
 #include "base/notify/dirty_set.h"
 #include "midi/device_id.h"
 #include "shell/profile.h"
-#include "ui/core/frame_context.h"
-#include "ui/core/input.h"
-#include "ui/core/led_frame.h"
-#include "ui/grid/effects.h"
-#include "ui/grid/frame.h"
-#include "ui/oled/frame.h"
+#include "ui/widgets/core/frame_context.h"
+#include "ui/widgets/core/input.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/oled/frame.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -134,9 +134,9 @@ struct UiEvent {
 	/// over the instrument clip view, the other half of `SoundEditor::potentialShortcutPadAction`'s gate). Never set
 	/// on a release, nor on a pad from the board.
 	bool shortcut_without_shift = false;
-	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
-	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
-	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+	ButtonId button = ButtonId::None;     ///< `Button`/`EncoderButton`: which button.
+	widgets::core::EncoderRole encoder{}; ///< `Encoder`: which encoder turned.
+	int8_t delta = 0;                     ///< `Encoder`: signed turn magnitude.
 	/// `Encoder`: when the board decoded the turn, on `getSystemTime()`'s clock in microseconds; 0 when the host gave
 	/// no time.
 	uint64_t time_us = 0;
@@ -159,12 +159,12 @@ struct UiEvent {
 /// An aggregate of borrowed references built on the stack once per delivered event. It owns
 /// nothing and outlives nothing.
 struct UiContext {
-	const ButtonSet& held;       ///< Buttons down right now, this event included.
-	const PadMask& held_pads;    ///< Pads down right now, absolute coordinates.
-	bool shift;                  ///< Is shift held (latched or physical)?
-	bool sticky;                 ///< Is the shift latch engaged rather than the physical hold?
-	uint32_t now_ms;             ///< The tick's wall clock.
-	const BoardProfile& profile; ///< The board this event came from.
+	const ButtonSet& held;                   ///< Buttons down right now, this event included.
+	const widgets::core::PadMask& held_pads; ///< Pads down right now, absolute coordinates.
+	bool shift;                              ///< Is shift held (latched or physical)?
+	bool sticky;                             ///< Is the shift latch engaged rather than the physical hold?
+	uint32_t now_ms;                         ///< The tick's wall clock.
+	const BoardProfile& profile;             ///< The board this event came from.
 	/// The lowering that produced the event, or null in a context built without one (a spec, or a
 	/// synthesised event). Null makes `press_used_up` false and `held_since` zero.
 	const InputLowering* lowering = nullptr;
@@ -406,14 +406,14 @@ public:
 	/// @brief Draw this scene's contents on one OLED surface.
 	/// @param role  Which surface is being drawn (`Main` on a single-panel board).
 	/// @param frame The root frame for that surface, already clipped to its visible region.
-	virtual void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {}
+	virtual void render_oled(SurfaceRole role, ui::widgets::oled::OledFrame& frame) {}
 	/// @brief Draw this scene's contents on the pad grid.
 	/// @param frame The root grid frame, spanning the main pads and the sidebar in one coordinate
 	///              space.
-	virtual void render_grid(ui::grid::GridFrame& frame) {}
+	virtual void render_grid(ui::widgets::grid::GridFrame& frame) {}
 	/// @brief Declare this scene's LED and knob-indicator states for the tick.
 	/// @param frame The tick's LED declarations, to be composed and flushed by the shell.
-	virtual void leds(LedFrame& frame) {}
+	virtual void leds(widgets::core::LedFrame& frame) {}
 	/// @}
 
 	/// @brief Navigation derived from what this tick's render observed.
@@ -560,7 +560,7 @@ public:
 	virtual GridPadClaim grid_pad_claim() const { return GridPadClaim::All; }
 	/// @brief Which pad rows and columns this scene wants greyed out.
 	/// @return The mask; all-zero (the default) greys nothing.
-	virtual grid::GreyoutMask greyout_mask() const { return {}; }
+	virtual widgets::grid::GreyoutMask greyout_mask() const { return {}; }
 	/// @brief Whether a change of this scene's greyout applies at once rather than fading: legacy's
 	///        `PadLEDs::reassessGreyout(true)`, which the sample browser asks for at every change of its pads.
 	/// @return False (the default): the change fades, as `reassessGreyout()` does.

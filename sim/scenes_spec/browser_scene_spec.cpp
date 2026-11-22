@@ -43,9 +43,9 @@
 #include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/favourites.h"
-#include "ui/grid/keyboard.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/favourites.h"
+#include "ui/widgets/grid/keyboard.h"
 
 #include "ui/gfx/oled/icons.h"
 
@@ -177,7 +177,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -277,7 +278,7 @@ struct PreviewHeld {
 };
 
 /// @brief The pad flashes the rig's grid surface was sent since @p from.
-std::vector<deluge::ui::grid::PadFlash> flashes_since(Rig& r, size_t from) {
+std::vector<deluge::ui::widgets::grid::PadFlash> flashes_since(Rig& r, size_t from) {
 	return {r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
 }
 
@@ -299,7 +300,7 @@ const ShellAction* find_action(const Result& r, ShellAction::Kind k) {
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
@@ -995,9 +996,9 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -1277,9 +1278,9 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.size()).to_be_between(4, 5);
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -1682,7 +1683,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1651);
 		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 0, 1652);
 		r.tick(1652);
-		const Pad enter = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad enter = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 64, 1653);
 		r.tick(1653);
 		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 0, 1654);
@@ -1737,11 +1738,11 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1000);
 		const std::optional<uint32_t> first = browser_scene().next_timer();
 		expect(first.has_value()).to_be_true();
-		to_be_at_most(expect(first.value()), deluge::ui::grid::kBackspaceRepeatDelayMs);
+		to_be_at_most(expect(first.value()), deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
 		r.tick(1500);
 		const std::optional<uint32_t> next = browser_scene().next_timer();
 		expect(next.has_value()).to_be_true();
-		to_be_at_most(expect(next.value()), deluge::ui::grid::kBackspaceRepeatMs);
+		to_be_at_most(expect(next.value()), deluge::ui::widgets::grid::kBackspaceRepeatMs);
 		r.pad_backspace(false, 1520);
 		r.tick(1520);
 	});
@@ -2346,9 +2347,9 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -3381,7 +3382,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		taken[1] = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
 		taken[2] = browser_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Select, .delta = 1}, d.ctx);
 		taken[3] = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
 		// BACK, SELECT, the Select turn and the mute column: each is claimed and does nothing.
@@ -3648,7 +3649,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		expect(r.fake.grid().grid().at(2, 7)).to_equal(RGB{}); // no keyboard yet: the root view's
 		tap(r, 9, 7);
 		r.settle();
-		const std::array<RGB, 16> want = deluge::ui::grid::favourite_row_colours(fake.slots);
+		const std::array<RGB, 16> want = deluge::ui::widgets::grid::favourite_row_colours(fake.slots);
 		for (uint8_t x = 0; x < 16; x++) {
 			expect(r.fake.grid().grid().at(x, 7)).to_equal(want[x]);
 		}
@@ -3713,7 +3714,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		DirectCtx d;
 		d.ctx.shift = true;
 		(void)browser_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Vertical, .delta = 2}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Vertical, .delta = 2}, d.ctx);
 		expect(fake.slots[1]).to_equal(std::optional<uint8_t>{6});
 	});
 
@@ -3732,9 +3733,9 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		run_until(r, r.clock + 400);
 		expect(flashes_since(r, from).empty()).to_be_true();
 		run_until(r, r.clock + 700); // 1100 ms from the draw: the flashes at 500 and 1000
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.size()).to_equal(size_t(2));
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(4);
 			expect(fl.y).to_equal(7);
 		}
@@ -3776,7 +3777,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		expect(browser_scene().favourite_row()).to_equal(6);
 		tap(r, 9, 7);
 		r.settle();
-		const std::array<RGB, 16> banks = deluge::ui::grid::favourite_bank_colours();
+		const std::array<RGB, 16> banks = deluge::ui::widgets::grid::favourite_bank_colours();
 		expect(r.fake.grid().grid().at(5, 7)).to_equal(banks[5]);
 		tap(r, 5, 7);
 		expect(fake.bank).to_equal(uint8_t(5));
