@@ -83,6 +83,21 @@ class NamespaceRenames(unittest.TestCase):
     def test_no_pairs_changes_nothing(self):
         self.assertEqual(namespace_renamer([])("deluge::ui::f"), "deluge::ui::f")
 
+    def test_a_rust_v0_symbol_compares_across_a_crate_rename_and_a_new_hash(self):
+        names = [
+            "_RNvCsfyMmxT3IFJN_12deluge_alloc11deluge_free",
+            "_RNvCs1234567890a_17deluge_base_alloc11deluge_free",
+        ]
+        texts = [f"<{n}>" for n in names]
+        rename = demangler(
+            "llvm-cxxfilt",
+            texts,
+            namespace_renamer([("deluge_alloc", "deluge_base_alloc")]),
+            images=[[t] for t in texts],
+        )
+        self.assertEqual(rename(names[0]), rename(names[1]))
+        self.assertEqual(rename(names[1]), "deluge_base_alloc::deluge_free")
+
 
 SAMPLE = """\
 20001000 <foo>:

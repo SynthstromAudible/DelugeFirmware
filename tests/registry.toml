@@ -1870,6 +1870,13 @@ gates = "a library move respells the includes resolving into it, rewrites its pa
 run = ["python3", "-m", "unittest", "test_relocate"]
 
 [[harness]]
+name = "compare-strings-selftest"
+template = "unittest"
+path = "tools"
+gates = "the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change"
+run = ["python3", "-m", "unittest", "test_compare_strings"]
+
+[[harness]]
 name = "stream-bench-parser"
 template = "unittest"
 path = "tools"

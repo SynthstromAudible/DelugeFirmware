@@ -197,6 +197,7 @@ builds only `golden-vt-render`.
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
+| compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
 | device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
