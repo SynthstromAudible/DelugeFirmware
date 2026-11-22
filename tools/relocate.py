@@ -29,17 +29,17 @@ under third_party/, toolchain/, lib/ or website/. An include spelled from tests/
 --repo-move OLD NEW moves any tracked directory (both relative to the repo root) with git mv, and cannot be combined
 with --move. In every tracked text file outside the never-rewritten set, and never in a Cargo.lock, the token OLD is
 respelled NEW wherever it starts a path: after the start of a line, whitespace, a quote, a backtick, `(`, `=`, `:`, `,`
-or `[`, `|` or `^` (before a `/` only), a variable prefix (`${X}/`, `$X/`), `./` or a `../` chain (never after a `word/` component), and before `/`, a
-quote, a backtick, whitespace, `)` or the end. `OLD/` is also respelled after `|` or `^` (a regex alternative). A single-component OLD (`sim`) is respelled only before a `/` and as the
-bare directory of a CMake `-S`, `add_subdirectory(` or `${X}/` position; every other bare mention is listed under "bare
-mentions, not rewritten". The tool's own tests and fixtures (tools/test_relocate.py, test_compare_*.py, tools/testdata/)
+or `[`, `|` or `^` (before a `/` only), a variable prefix (`${X}/`, `$X/`), `./` or a `../` chain (never after a
+`word/` component), and before `/`, a quote, a backtick, whitespace, `)` or the end. A single-component OLD (`sim`)
+is respelled only before a `/` and as the bare directory of a CMake `-S`, `add_subdirectory(` or `${X}/` position;
+every other bare mention is listed under "bare mentions, not rewritten". The tool's own tests and fixtures (tools/test_relocate.py, test_compare_*.py, tools/testdata/)
 are never rewritten. In every Cargo.toml, each `path = "..."`, `workspace = "..."` and
 `members`/`exclude`/`default-members` entry whose target lies in OLD, or whose manifest lies in OLD, is recomputed as
 the relative path from the manifest's new directory to the target's new location (the edits are line-level, so comments
 and formatting stay). A package that was a workspace member and would no longer sit under its root gets
 `workspace = "<path to the root>"` in `[package]`. Each --crate OLD=NEW renames a crate: `name =` in `[package]` and
-`[lib]`, dependency keys, dotted ones too (a key that aliases another package, `x = { package = "OLD", ... }`, keeps its key and gets the
-new package name), `package = "OLD"`, `[profile.*.package.OLD]` and `dep:OLD` / `OLD/feature` entries in every
+`[lib]`, dependency keys, dotted ones too (a key that aliases another package, `x = { package = "OLD", ... }`, keeps
+its key and gets the new package name), `package = "OLD"`, `[profile.*.package.OLD]` and `dep:OLD` / `OLD/feature` entries in every
 Cargo.toml; the identifiers `OLD` in `use`, `extern crate` and `OLD::` position of every .rs file; and `libOLD.a`,
 `-p OLD` and `--package OLD` in every text file. A hyphenated OLD also renames its underscore spelling in `[lib] name`,
 those .rs positions and `libOLD.a`. A crate name in prose, a comment or a backtick is never rewritten (a C-ABI function

@@ -16,8 +16,8 @@ repos:
         types_or: [c, c++]
   - repo: local
     hooks:
-      # Rust has two separate workspaces (crates/ and src/platform/device/); cargo fmt
-      # is per-manifest, so each needs its own hook. --check only (no rewrite) to
+      # Rust has several separate Cargo roots (crates/, src/platform/device/, src/storage/sample/convert/, the
+      # harnesses); cargo fmt is per-manifest, so each needs its own hook. --check only (no rewrite) to
       # match the other formatters' fail-and-report behaviour in this file.
       - id: cargo-fmt-crates
         name: rustfmt (crates)
@@ -127,7 +127,7 @@ repos:
         language: system
         pass_filenames: false
         # Its rows cover all of src/ (the legacy tree, the toolkit, the shell, the scenes, the host build) and tests/.
-        files: ^(src/deluge/|src/ui/|src/platform/host/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        files: ^(src/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
         description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it

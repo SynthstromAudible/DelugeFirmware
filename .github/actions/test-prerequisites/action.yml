@@ -25,7 +25,8 @@ runs:
 
     - uses: ./.github/actions/clang
 
-    # deluge_storage_sample_convert's build.rs compiles its armv7a-NEON check with the dbt toolchain's arm-none-eabi-g++.
+    # deluge_storage_sample_convert's build.rs compiles its armv7a-NEON check with the dbt toolchain's
+    # arm-none-eabi-g++.
     - name: Cache the dbt toolchain
       uses: actions/cache@v6
       with:

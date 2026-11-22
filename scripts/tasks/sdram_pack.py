@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 """Compresses the image's SDRAM content into its load copy, after the link.
 
-`.sdram_init` and `.sdram_exidx`, which follows it (src/platform/device/linker/sdram_sections.x), are linked at their SDRAM
-addresses only, so the ELF carries their bytes but the image does not. They are packed as one span, the gap between them
+`.sdram_init` and `.sdram_exidx`, which follows it (src/platform/device/linker/sdram_sections.x), are linked at
+their SDRAM addresses only, so the ELF carries their bytes but the image does not. They are packed as one span, the gap between them
 zero-filled. `.sdram_init_pack`, in the image's SRAM tail, is reserved zero-filled at link time; this
 module writes the deflated content into it, and the boot (src/platform/device/src/sdram_pack.rs) inflates it back.
 

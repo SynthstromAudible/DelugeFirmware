@@ -1,7 +1,7 @@
 """Checks, after the link, that the zero-initialised sections the boot clears hold only zero-initialised objects.
 
-`.sdram_bss` and `.frunk_bss` (src/platform/device/linker/sdram_sections.x) take the objects placed with PLACE_SDRAM_BSS and
-PLACE_INTERNAL_FRUNK, and the boot zeroes them (src/platform/device/src/boot_mem.rs). An object whose constructor the
+`.sdram_bss` and `.frunk_bss` (src/platform/device/linker/sdram_sections.x) take the objects placed with
+PLACE_SDRAM_BSS and PLACE_INTERNAL_FRUNK, and the boot zeroes them (src/platform/device/src/boot_mem.rs). An object whose constructor the
 compiler evaluates at build time gets a non-zero initial value in its object file instead of a constructor run at boot;
 in a section the boot zeroes, that value is lost and the object starts as zeros. The linker script keeps these
 sections' content (they are not NOLOAD), so this reads it, names the objects whose bytes are not zero (they belong in
