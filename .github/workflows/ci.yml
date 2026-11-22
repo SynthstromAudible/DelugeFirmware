@@ -112,43 +112,30 @@ jobs:
       # The crates' build scripts compile C++26.
       - uses: ./.github/actions/clang
 
-      # Toolchains (nightly + components) are pinned by each rust-toolchain.toml; rustup installs them on first use.
+      # The toolchain (nightly + components) is pinned by the root rust-toolchain.toml; rustup installs it on first use.
       - run: rustup component add rustfmt clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            crates
-            src/platform/device
-            tests/component/differential/audio_format_corpus
-            tests/component/differential/fs_differential
-            tests/component/differential/region_fill_differential
-            tests/component/differential/region_read_differential
-            tests/component/differential/region_source_differential
+          workspaces: .
 
-      # deluge_storage_sample_convert is outside the crates/ workspace, so each step names it too. Every cargo runs from
-      # its crate's directory: rustup picks the toolchain from the working directory's rust-toolchain.toml, not the
-      # manifest's, and the repository root has none, so a --manifest-path run from the root gets the runner's stable.
+      # One workspace at the root (Cargo.toml). Packages are named with -p rather than --workspace: Cargo unifies features
+      # across the packages of one build, and the device crate's platform features are exclusive with the host ones.
       - name: rustfmt
-        run: |
-          (cd crates && cargo fmt --all --check)
-          (cd src/platform/device && cargo fmt --check)
-          (cd src/storage/sample/convert && cargo fmt --check)
-          for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml \
-              src/platform/host/link/Cargo.toml; do
-            (cd "$(dirname "$m")" && cargo fmt --check)
-          done
+        run: cargo fmt --all --check
 
-      # Host target only: the BSP's device lint runs with the device build (build.yml), which has its C++ tree.
+      # Host target only: the BSP's device lint runs with the device build (build.yml), which has its C++ tree, and
+      # golden_vt_render needs the CMake host tree. --no-deps: fs-differential depends on the BSP, a workspace member
+      # clippy would otherwise lint here too.
       - name: clippy
         run: |
-          (cd crates && cargo clippy --all-targets -- -D warnings)
-          (cd src/storage/sample/convert && cargo clippy --all-targets -- -D warnings)
-          (cd src/platform/host/link && cargo clippy --all-targets -- -D warnings)
-          for m in tests/component/differential/*/Cargo.toml; do
-            echo "== $m"
-            (cd "$(dirname "$m")" && cargo clippy --all-targets -- -D warnings)
-          done
+          cargo clippy --no-deps --all-targets \
+            -p deluge_base_alloc -p deluge_storage_resource -p deluge_storage_stream -p deluge_storage_sample_convert \
+            -p deluge_storage_sample_fill -p deluge_storage_sample_reader -p deluge_storage_sample_source -p deluge_test_rust \
+            -p deluge_platform_host_link \
+            -p audio_format_corpus -p fs-differential -p region-fill-differential -p region-read-differential \
+            -p region-source-differential \
+            -- -D warnings
 
       # Private items too: most of this code is crate-internal, and its links break as easily. golden_vt_render and
       # the BSP's `host_app` build need the CMake host tree, so they are checked locally
@@ -157,11 +144,12 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: |
-          for m in crates/Cargo.toml src/storage/sample/convert/Cargo.toml src/platform/device/Cargo.toml \
-                   tests/component/differential/*/Cargo.toml; do
-            echo "== $m"
-            (cd "$(dirname "$m")" && cargo doc --workspace --no-deps --document-private-items)
-          done
+          cargo doc --no-deps --document-private-items \
+            -p deluge_base_alloc -p deluge_storage_resource -p deluge_storage_stream -p deluge_storage_sample_convert \
+            -p deluge_storage_sample_fill -p deluge_storage_sample_reader -p deluge_storage_sample_source -p deluge_test_rust \
+            -p deluge_platform_device \
+            -p audio_format_corpus -p fs-differential -p region-fill-differential -p region-read-differential \
+            -p region-source-differential
 
       - name: The test registry's table is current
         run: |
@@ -504,7 +492,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: toolchain
-          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/platform/device/rust-toolchain.toml') }}
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'rust-toolchain.toml') }}
 
       - name: Compare sizes
         if: steps.baseline.outputs.found == 'true'
