@@ -8,7 +8,7 @@
 ///        `after_render` are all public overrides, and this rig's `input` is a plain field a spec
 ///        sets directly -- `unit/ui/support/frames.h`'s own doc on `OledRig`).
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: the
+/// The tree under test is declared here rather than taken from `src/ui/scenes/menu/nodes/`: the
 /// shipped nodes that set these hooks (`nodes/note.cpp`) sit behind the note bridge, so
 /// this file declares small trees that exercise each hook on its own.
 ///
@@ -18,18 +18,18 @@
 /// `menu_horizontal_controls_spec.cpp` already covers.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "ui/oled/columns.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/widgets/oled/columns.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -51,7 +51,7 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::Result;
@@ -63,12 +63,12 @@ using deluge::ui::shell::SurfaceRole;
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
+namespace menu = deluge::ui::scenes::menu;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 constexpr uint16_t sid(String s) {
@@ -94,9 +94,10 @@ void do_adjust_col(const menu::MenuContext&, int32_t offset) {
 	g_adjust_calls++;
 	g_adjust_last_offset = offset;
 }
-constexpr menu::Node adjust_col = menu::with_adjust(menu::int_item(sid(String::STRING_FOR_VELOCITY), get_adjust_col,
-                                                                   set_adjust_col, deluge::ui::oled::Range{0, 127, 1}),
-                                                    do_adjust_col);
+constexpr menu::Node adjust_col =
+    menu::with_adjust(menu::int_item(sid(String::STRING_FOR_VELOCITY), get_adjust_col, set_adjust_col,
+                                     deluge::ui::widgets::oled::Range{0, 127, 1}),
+                      do_adjust_col);
 constexpr const menu::Node* kAdjustKids[] = {&adjust_col};
 constexpr menu::Node adjust_page =
     menu::submenu(sid(String::STRING_FOR_VELOCITY), kAdjustKids, menu::Layout::Horizontal);
@@ -115,9 +116,10 @@ int32_t get_permit_col(const menu::MenuContext&) {
 void set_permit_col(const menu::MenuContext&, int32_t) {
 	g_permit_set_calls++;
 }
-constexpr menu::Node permit_col = menu::with_permitted(
-    menu::int_item(sid(String::STRING_FOR_PAN), get_permit_col, set_permit_col, deluge::ui::oled::Range{0, 50, 1}),
-    permitted_permit_col);
+constexpr menu::Node permit_col =
+    menu::with_permitted(menu::int_item(sid(String::STRING_FOR_PAN), get_permit_col, set_permit_col,
+                                        deluge::ui::widgets::oled::Range{0, 50, 1}),
+                         permitted_permit_col);
 constexpr const menu::Node* kPermitKids[] = {&permit_col};
 constexpr menu::Node permit_page = menu::submenu(sid(String::STRING_FOR_PAN), kPermitKids, menu::Layout::Horizontal);
 
@@ -139,9 +141,10 @@ menu::ValueText value_text_text_col(const menu::MenuContext&, int32_t, menu::Val
 	std::memcpy(out.data(), s.data(), n);
 	return menu::ValueText{.length = n, .strikethrough = false};
 }
-constexpr menu::Node text_col = menu::with_value_text(
-    menu::int_item(sid(String::STRING_FOR_FILL), get_text_col, set_text_col, deluge::ui::oled::Range{0, 100, 1}),
-    value_text_text_col);
+constexpr menu::Node text_col =
+    menu::with_value_text(menu::int_item(sid(String::STRING_FOR_FILL), get_text_col, set_text_col,
+                                         deluge::ui::widgets::oled::Range{0, 100, 1}),
+                          value_text_text_col);
 constexpr const menu::Node* kTextKids[] = {&text_col};
 constexpr menu::Node text_page = menu::submenu(sid(String::STRING_FOR_FILL), kTextKids, menu::Layout::Horizontal);
 
@@ -157,9 +160,10 @@ int32_t get_strike_col(const menu::MenuContext&) {
 }
 void set_strike_col(const menu::MenuContext&, int32_t) {
 }
-constexpr menu::Node strike_col = menu::with_value_text(
-    menu::int_item(sid(String::STRING_FOR_FILL), get_strike_col, set_strike_col, deluge::ui::oled::Range{0, 1, 1}),
-    value_text_strike_col);
+constexpr menu::Node strike_col =
+    menu::with_value_text(menu::int_item(sid(String::STRING_FOR_FILL), get_strike_col, set_strike_col,
+                                         deluge::ui::widgets::oled::Range{0, 1, 1}),
+                          value_text_strike_col);
 constexpr const menu::Node* kStrikeKids[] = {&strike_col};
 constexpr menu::Node strike_page = menu::submenu(sid(String::STRING_FOR_FILL), kStrikeKids, menu::Layout::Horizontal);
 
@@ -206,9 +210,9 @@ struct Rig {
 };
 
 std::string last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -216,10 +220,10 @@ std::string last_notice() {
 
 /// @brief Pop every queued notice and return the last one, whole -- for the examples that read a
 ///        `Notice::Kind::Notification`'s (title, value) pair rather than a single text.
-deluge::notify::Notice last_raised_notice() {
-	deluge::notify::Notice n;
-	deluge::notify::Notice last{};
-	while (deluge::notify::notices().pop(n)) {
+deluge::base::notify::Notice last_raised_notice() {
+	deluge::base::notify::Notice n;
+	deluge::base::notify::Notice last{};
+	while (deluge::base::notify::notices().pop(n)) {
 		last = n;
 	}
 	return last;
@@ -231,7 +235,7 @@ deluge::notify::Notice last_raised_notice() {
 describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, value_text, permitted)", $ {
 	it("a select turn on an adjust node calls adjust once, with the accumulated offset, at commit -- never set", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		r.shell.tick(0);
@@ -253,7 +257,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   _ {
 		// Regression guard: driven without the `Shell` at all, since
 		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
-		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
+		// (`MenuScene`, `ui/scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
 		// directly (`unit/ui/support/frames.h`'s own doc on `OledRig`).
 		//
 		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset apart from `on_resume`'s
@@ -264,7 +268,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// turn's own accumulation (`st_.tick.edit_offset += detents`) would add onto the first turn's abandoned offset
 		// instead of starting fresh from it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		g_adjust_get_value = 64;
@@ -305,7 +309,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// names, not back onto `adjust_page` -- fine here, since the assertion is only about
 		// `edit_offset`, not about which node ends up focused.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 
@@ -330,7 +334,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// `commit_value` applies it once and clears it. Three turns between ticks exercise the
 		// accumulation itself, not just a single-turn passthrough.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		r.shell.tick(0);
@@ -350,7 +354,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   "and raises no notification",
 	   _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(permit_page);
 		r.shell.tick(0);
@@ -377,7 +381,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// Confirms the false case above is really the hook's answer and not some other block on
 		// this node -- flipping `g_permit` to true and turning again edits it like any plain node.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(permit_page);
 		r.shell.tick(0);
@@ -393,7 +397,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 	it("a value_text node's post-edit notification is (name, its Notification text)", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(text_page);
 		r.shell.tick(0);
@@ -405,11 +409,11 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 		// Legacy's `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the pair, as one `Notification`.
-		const deluge::notify::Notice notice = last_raised_notice();
+		const deluge::base::notify::Notice notice = last_raised_notice();
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
-		    deluge::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
-		expect(notice.kind).to_equal(deluge::notify::Notice::Kind::Notification);
+		    deluge::ui::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
+		expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
 		expect(std::string(notice.notification_title())).to_equal(expected_name);
 		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));
 	});
@@ -422,7 +426,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// (`TextColumn::strikethrough`'s own example); this only proves `render_horizontal` wires the flag through to
 		// begin with.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(strike_page);
 

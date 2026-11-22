@@ -7,12 +7,10 @@
 /// The writes are observed from outside: the undo log lists each param written, every value is read back through the
 /// param's address, and a feedback CC leaves the sample time it was sent at in `MidiFollow::timeLastCCSent`.
 
-#include "controls/knob_math.h"
-#include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -35,7 +33,9 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/menu/bind_host.h"
+#include "project/mapping_table.h"
+#include "ui/controls/knob_math.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include <algorithm>
 #include <array>
@@ -53,13 +53,13 @@
 
 using namespace deluge;
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 namespace project = deluge::project;
 
 using project::OwnerId;
 using project::ParamAddress;
-using namespace deluge::scenes::spec::learned;
+using namespace deluge::ui::scenes::spec::learned;
 
 namespace {
 
@@ -483,7 +483,7 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 			mismatches += " [no lane: " + name + "]";
 			return;
 		}
-		const plugin::ParamInfo* info = deluge::scenes::menu::host_ports().controls->param_info(plugin, address.target());
+		const plugin::ParamInfo* info = deluge::ui::scenes::menu::host_ports().controls->param_info(plugin, address.target());
 		std::vector<int32_t> words{INT32_MIN, INT32_MIN + 1, -0x40000000, -1, 0, 1, 0x40000000, INT32_MAX - 1, INT32_MAX,
 		                           0x12345678, -0x12345678};
 		for (int32_t pos = -64; pos <= 64; pos++) {
@@ -492,13 +492,13 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 		for (const int32_t word : words) {
 			compared++;
 			const int32_t legacy = stack->paramCollection->paramValueToKnobPos(word, stack);
-			if (deluge::controls::knob_pos_of(address, info, word) != legacy) {
+			if (deluge::ui::controls::knob_pos_of(address, info, word) != legacy) {
 				mismatches += " [" + name + " word " + std::to_string(word) + "]";
 			}
 		}
 		for (int32_t pos = -64; pos <= 64; pos++) {
 			compared++;
-			if (deluge::controls::value_of_knob(address, info, pos)
+			if (deluge::ui::controls::value_of_knob(address, info, pos)
 			    != stack->paramCollection->knobPosToParamValue(pos, stack)) {
 				mismatches += " [" + name + " pos " + std::to_string(pos) + "]";
 			}
@@ -543,14 +543,14 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 		for (int32_t index = 0; index < params::GLOBAL_NONE; index++) {
 			const auto target = deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, index);
 			if (target) {
-				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+				expect(deluge::instruments::classic::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
 			}
 		}
 		for (int32_t index = 0; index < params::UNPATCHED_SOUND_MAX_NUM; index++) {
 			const auto target =
 			    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, index);
 			if (target) {
-				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+				expect(deluge::instruments::classic::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
 			}
 		}
 	});

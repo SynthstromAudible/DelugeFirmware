@@ -23,7 +23,7 @@
 # them, unlike the other scripts here: `menu_scripts_spec.cpp`'s twelve gold-turn scripts install the real three
 # UNSEEDED, so they carry the two `indicator` lines but no `led Mod*` line, because an unseeded `ModKnobs` declares both
 # rings dark and lights no mod LED. **An LED declared `Off` is not written to `.state` at all**
-# (`tests/unit/shell/support/script_runner.h`'s `state_text`), which is why TAP TEMPO, SYNC SCALING, SAVE, LOAD and CLIP
+# (`tests/unit/ui/shell/support/script_runner.h`'s `state_text`), which is why TAP TEMPO, SYNC SCALING, SAVE, LOAD and CLIP
 # do not appear: this fixture has no metronome, no sync-scaling clip and nothing held. `MidiLearn` contributes nothing
 # here either -- LEARN is off unless learn mode is entered, which no script on this stack does.
 0     snapshot idle              # the audio clip view: the output name on the OLED, the waveform on
@@ -63,7 +63,7 @@
                                  # delete a popup the device shows.
 # ---- the transport, which is what makes the REAL services worth passing -------------------------
 # Deliberately after t = 1400, so the bars-and-beats popup raised at 600 ms has timed out
-# (`kPopupTimeoutMs`, `shell/notices.cpp`) and these two frames show the clip view itself with the
+# (`kPopupTimeoutMs`, `ui/shell/notices.cpp`) and these two frames show the clip view itself with the
 # LED lines as their only difference -- rather than three frames sharing one popup box.
 #
 # `services::GlobalControls` only gets a look at these two buttons because the top scene is a ROOT

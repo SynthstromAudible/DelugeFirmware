@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
 
 #include <format>
 #include <ostream>
@@ -29,7 +29,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::context_menu {
+namespace deluge::ui::scenes::context_menu {
 
 /// @brief Prints a selection as its cursor and its scroll window, as numbers, e.g. `{option 4, scroll 3}`.
 /// @param os The stream to print to.
@@ -39,4 +39,4 @@ inline std::ostream& operator<<(std::ostream& os, const Selection& s) {
 	return os << std::format("{{option {}, scroll {}}}", s.option, s.scroll);
 }
 
-} // namespace deluge::scenes::context_menu
+} // namespace deluge::ui::scenes::context_menu

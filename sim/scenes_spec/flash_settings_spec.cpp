@@ -5,10 +5,10 @@
 #include "gui/colour/colour.h"
 #include "gui/colour/pad_colour.h"
 #include "libdeluge/flash.h"
-#include "scenes/menu/shortcuts.h"
 #include "storage/flash_storage.h"
 #include "support/host_flash.h"
 #include "support/printers/rgb_printer.h"
+#include "ui/scenes/menu/shortcuts.h"
 #include "util/functions.h"
 #include "util/synth_noise.h"
 
@@ -21,8 +21,8 @@
 #include "support/shortcut_layout.h"
 #include "support/spec_main.h"
 
-namespace menu = deluge::scenes::menu;
-namespace spec = deluge::scenes::spec;
+namespace menu = deluge::ui::scenes::menu;
+namespace spec = deluge::ui::scenes::spec;
 
 namespace {
 /// @brief Flash byte 60, put back however the example ends.
@@ -105,7 +105,7 @@ describe flash_pad_colours("a pad-colour setting paints main's colour for its va
 
 	it("reads a stored colour past the nine as the slot's default, which has a colour to paint", _ {
 		SettingsGuard guard;
-		deluge::scenes::spec::ErasedFlash flash;
+		deluge::ui::scenes::spec::ErasedFlash flash;
 		FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE] = deluge::gui::PINK;
 		read_settings_with_byte(74, deluge::gui::kNumPadColours); // byte 74 is the active colour
 		expect(static_cast<int32_t>(FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE]))
@@ -151,7 +151,7 @@ describe flash_default_draws("a new song's tempo, swing and key are drawn from t
 
 	it("reads a key bound past the octave as stored and draws it unreduced, as main's readSettings keeps it", _ {
 		SettingsGuard guard;
-		deluge::scenes::spec::ErasedFlash flash;
+		deluge::ui::scenes::spec::ErasedFlash flash;
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {120, 120}; // byte 53 nonzero: the ranges read
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {0, 200};
 		read_settings_with_byte(57, 200); // byte 57 is the key's lower bound

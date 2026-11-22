@@ -1,11 +1,11 @@
 #pragma once
 
-#include "ui/core/encoder_acceleration.h"
+#include "ui/widgets/core/encoder_acceleration.h"
 
 namespace deluge::hid::encoders {
 
-using ui::EncoderAcceleration;
-using ui::kGoldEncoderAcceleration;
-using ui::kHorizontalMenuAcceleration;
+using ui::widgets::core::EncoderAcceleration;
+using ui::widgets::core::kGoldEncoderAcceleration;
+using ui::widgets::core::kHorizontalMenuAcceleration;
 
 } // namespace deluge::hid::encoders

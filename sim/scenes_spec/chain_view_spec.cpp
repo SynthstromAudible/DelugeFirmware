@@ -1,16 +1,16 @@
-// The Deluge's reading of a chain's view (scenes::bind::chain_view), through the pages the controls assemble from it:
-// the filter button on the chain's filter type (EQ past it), the mod FX button on its mod FX view, and the song's
+// The Deluge's reading of a chain's view (ui::scenes::bind::chain_view), through the pages the controls assemble from
+// it: the filter button on the chain's filter type (EQ past it), the mod FX button on its mod FX view, and the song's
 // reverb button on the compressor setting the knobs' compressor view edits, each a page the chain publishes.
 
 #include "board_controls.hpp"
-#include "scenes/bind/page_sources.h"
+#include "ui/scenes/bind/page_sources.h"
 
-#include "controls/pages.h"
-#include "deluge-project/song.h"
-#include "effects/host_chain/pages.h"
-#include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
+#include "host/chains/pages.h"
+#include "host/chains/params.h"
+#include "project/song.h"
+#include "ui/controls/pages.h"
 
 #include "cppspec.hpp"
 #include "support/printers/param_id_printer.h"
@@ -23,10 +23,10 @@
 
 namespace {
 
-namespace bind = deluge::scenes::bind;
-namespace controls = deluge::controls;
+namespace bind = deluge::ui::scenes::bind;
+namespace controls = deluge::ui::controls;
 namespace project = deluge::project;
-namespace ge = deluge::host_chain::param;
+namespace ge = deluge::host::chains::param;
 
 const controls::KnobFocus kSong{.owner = controls::SongFocus{}};
 const controls::KnobFocus kKitChain{.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, 8}}};
@@ -57,7 +57,7 @@ describe chain_view("the Deluge's reading of a chain's view", ${
 		expect(int(pages_of(song, kSong).current.page_id)).to_equal(1);
 		song.master_effects.filter_type = 7;
 		const controls::SectionPages pages = pages_of(song, kSong);
-		expect(int(pages.current.page_id)).to_equal(int(deluge::host_chain::kEqPage));
+		expect(int(pages.current.page_id)).to_equal(int(deluge::host::chains::kEqPage));
 		expect(turned(pages.current, 1)).to_equal(ge::kTreble, "the EQ page's second knob");
 	});
 	it("puts a chain's mod FX knobs on the view its record holds, even one its type has no param for", _ {

@@ -1,5 +1,5 @@
 /// @file
-/// @brief How a file press in the browser reaches the browser's host (`scenes/browser/browser_scene.h`'s
+/// @brief How a file press in the browser reaches the browser's host (`ui/scenes/browser/browser_scene.h`'s
 ///        `Descriptor::accept` / `DeferAndWait`) and the claim it requests, driven through a real `Shell` and a
 ///        real `ShellHostUI` over the real scene registry.
 ///
@@ -23,7 +23,7 @@
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
-/// (in `scenes/menu/nodes/sample.cpp`) opens the scene and files `MenuWalkState::pending_scene`
+/// (in `ui/scenes/menu/nodes/sample.cpp`) opens the scene and files `MenuWalkState::pending_scene`
 /// (`FileBrowserItem::on_focus`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment the claim's completion closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm -- `closeUI` on a guest that is not
@@ -34,25 +34,25 @@
 /// @note The spec may include `gui/` (for the browser host and the guest); the library may not. Same
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/menu_view_of.h"
-#include "notify/dirty_set.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sample.h"
-#include "scenes/menu/walk.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sample.h"
+#include "ui/scenes/menu/walk.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/grid/keyboard.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/grid/keyboard.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -116,15 +116,15 @@ namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
 } // namespace Buttons
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::gui::ui::SampleClaimTarget;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 
@@ -307,7 +307,7 @@ bool scene_on_stack(Shell& shell, SceneKind kind) {
 // ---------------------------------------------------------------------------------------------
 // Typing on the grid keyboard, which is how the browser is committed
 
-constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
+constexpr int32_t kHomeRow = deluge::ui::widgets::grid::kTextKeyboardHomeRow;
 
 struct Pad {
 	int32_t x = -1, y = -1;
@@ -317,9 +317,9 @@ struct Pad {
 ///        rather than transcribing the table a second time (`browser_scene_spec.cpp`'s `pad_for`).
 Pad pad_for(char c) {
 	for (int32_t y = 0; y < 8; y++) {
-		for (int32_t x = 0; x < deluge::ui::grid::kTextKeyboardCols; x++) {
-			if (deluge::ui::grid::text_keyboard_char_at(deluge::ui::grid::KeyboardLayoutKind::Qwerty, x, y, kHomeRow,
-			                                            false)
+		for (int32_t x = 0; x < deluge::ui::widgets::grid::kTextKeyboardCols; x++) {
+			if (deluge::ui::widgets::grid::text_keyboard_char_at(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty,
+			                                                     x, y, kHomeRow, false)
 			    == c) {
 				return Pad{x, y};
 			}
@@ -430,7 +430,7 @@ struct ShellRig {
 	/// Split out for the re-rooting group's control leg, which needs a menu that was opened the same
 	/// way and simply never pushed a scene. **Opening at a node is the shortcut-pad shape, not a
 	/// contrivance**: `MenuScene::on_enter` re-roots from `SceneId::arg` unconditionally
-	/// (`scenes/menu/menu_scene.cpp`'s `on_enter`), which is exactly what the jump's `Action::Kind::
+	/// (`ui/scenes/menu/menu_scene.cpp`'s `on_enter`), which is exactly what the jump's `Action::Kind::
 	/// Replace` produces (`handle`'s pad arm) -- and today the pad is the only way to focus a file
 	/// selector at all (see the group's own note).
 	void open_menu_at(const Node& node) { open_menu_at(node, model.ctx()); }
@@ -461,7 +461,7 @@ struct ShellRig {
 
 	/// @brief Press and release the enter pad, then settle -- the commit, through the real input path.
 	void enter() {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		pad(p, 64);
 		pad(p, 0);
 		step();
@@ -512,7 +512,7 @@ struct GuestRig {
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
 	///        `ShellHostUI::padAction` only queues, and a tick is what routes.
 	void press_enter(void (GuestRig::*tick)()) {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		(void)ui.padAction(p.x, p.y, 64);
 		(this->*tick)();
 		(void)ui.padAction(p.x, p.y, 0);
@@ -530,7 +530,7 @@ struct GuestRig {
 /// wiring leaves it there.
 ///
 /// It pushes the browser's `SceneId` directly, the way `browser_scene_spec.cpp`'s own rig does,
-/// rather than re-deriving `nodes::MidiDeviceLinkedItem` (`scenes/menu/nodes/output_items.h`): what
+/// rather than re-deriving `nodes::MidiDeviceLinkedItem` (`ui/scenes/menu/nodes/output_items.h`): what
 /// is under test here is what the browser host does with a descriptor's answer, not how that item's
 /// toggle opens the scene. And it is a bare `Shell`, not the guest, so the empty stack that `Close`
 /// leaves behind reaches no `closeGuest()` arm (`ShellHostUI::timerCallback`'s).
@@ -579,7 +579,7 @@ struct MidiRig {
 	}
 
 	void enter() {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		pad(p, 64);
 		pad(p, 0);
 		step();
@@ -595,10 +595,10 @@ struct MidiRig {
 /// process inside `std::optional::operator->` before the rest of the file has run.
 /// @brief Which column @p item is on @p page, counting only the children @p ctx admits; -1 if none.
 ///
-/// `menu::visible_children`'s filter (`scenes/menu/menu_core.cpp`) re-derived, deliberately:
+/// `menu::visible_children`'s filter (`ui/scenes/menu/menu_core.cpp`) re-derived, deliberately:
 /// hard-coding "the file selector is column 1" would make the focus assertion agree with a mutant
 /// that renumbered the page, and reading the index back off the scene would make it agree with
-/// itself. `Node::relevant` is public data (`scenes/menu/node.h`), so this is the same rule the
+/// itself. `Node::relevant` is public data (`ui/scenes/menu/node.h`), so this is the same rule the
 /// interpreter applies, spelled independently of it.
 int32_t visible_index_of(const MenuContext& ctx, const Node& page, const Node& item) {
 	// A group's columns are its member pages' children, in order.
@@ -1178,7 +1178,7 @@ describe browser_choice_reroot(
 	    //       overridden true by `FileSelector`, `origin/main:src/deluge/gui/menu_item/file_selector.h`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
 	    //       notification instead of opening the browser (`MenuView::render_horizontal`'s
-	    //       `column_press`, and `ui/oled/columns.cpp` behind it). The shortcut pad is what is
+	    //       `column_press`, and `ui/widgets/oled/columns.cpp` behind it). The shortcut pad is what is
 	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm).
 
 	    before_each([] {
@@ -1228,7 +1228,7 @@ describe browser_choice_reroot(
 		        expect(column).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(column);
 		        // The group pages across its members, so the counter reads `main`'s 1/6, not the member page's 1/3.
-		        const deluge::ui::oled::Paging paging =
+		        const deluge::ui::widgets::oled::Paging paging =
 		            menu::horizontal_paging(menu_scene().menu_context(), menu_scene().state());
 		        expect(static_cast<int32_t>(paging.page)).to_equal(0);
 		        expect(static_cast<int32_t>(paging.total_pages)).to_equal(6);
@@ -1272,19 +1272,19 @@ describe browser_choice_reroot(
 		        r.enter();
 		        deluge::gui::ui::pollShellBrowserHost();
 		        r.step();
-		        (void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+		        (void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell);
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
-		        expect(deluge::notify::dirty()
-		                   .drain(deluge::notify::DirtyConsumer::Shell)
-		                   .has(deluge::notify::Dirty::Oled))
+		        expect(deluge::base::notify::dirty()
+		                   .drain(deluge::base::notify::DirtyConsumer::Shell)
+		                   .has(deluge::base::notify::Dirty::Oled))
 		            .to_be_true();
 
 		        // A refusal moves nothing and asks for nothing.
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
-		        expect(deluge::notify::dirty()
-		                   .drain(deluge::notify::DirtyConsumer::Shell)
-		                   .has(deluge::notify::Dirty::Oled))
+		        expect(deluge::base::notify::dirty()
+		                   .drain(deluge::base::notify::DirtyConsumer::Shell)
+		                   .has(deluge::base::notify::Dirty::Oled))
 		            .to_be_false();
 	        });
 
@@ -1479,7 +1479,7 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 		}
 		expect(currentUIMode).to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
-		const deluge::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
 		int32_t differ = 0;
 		int32_t lit = 0;
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -1597,14 +1597,14 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 		for (int32_t i = 0; i < 4; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_true();
+		expect(deluge::ui::scenes::recorder::recorder_scene().recording()).to_be_true();
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true)).to_equal(ActionResult::DEALT_WITH);
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false)).to_equal(ActionResult::NOT_DEALT_WITH);
 		// The press ended the take; tear the stack down so the recorder is ended rather than left armed, and settle it.
 		while (shellHostUI.shell().stack().depth() > 0) {
 			shellHostUI.shell().stack().pop(SceneKind::Null);
 		}
-		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
+		expect(deluge::ui::scenes::recorder::recorder_scene().recording()).to_be_false();
 		spec::settle_torn_down_take();
 		expect(AudioEngine::foregroundRecorder()).to_be_null();
 	});

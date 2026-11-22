@@ -23,12 +23,12 @@
 #include "effects/bitcrush.h"
 #include "effects/equalizer.h"
 #include "effects/filter.h"
-#include "effects/host_chain/params.h"
 #include "effects/mod_fx.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <array>
 #include <cassert>
@@ -36,8 +36,8 @@
 
 namespace deluge::model {
 
-static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
-                  && instrument::kUnpatchedFirstId == modulation::params::UNPATCHED_START,
+static_assert(host::chains::kFirstId == modulation::params::UNPATCHED_START
+                  && instruments::classic::kUnpatchedFirstId == modulation::params::UNPATCHED_START,
               "both owners keep their unpatched params from the runtime's first unpatched id");
 
 /// @brief The runtime's index of an owner's unpatched param.
@@ -51,7 +51,7 @@ static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
 
 /// @brief The filters' words, in effects::Filter::Words order.
 /// @param set The owner's unpatched params.
-/// @param ids The owner's filter ids (host_chain::kFilterIds).
+/// @param ids The owner's filter ids (host::chains::kFilterIds).
 /// @return The words.
 [[nodiscard]] inline effects::Filter::Words filterWords(UnpatchedParamSet& set,
                                                         const std::array<plugin::ParamId, 6>& ids) {
@@ -67,7 +67,7 @@ static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
 
 /// @brief The mod FX's words, in effects::ModFx::Words order.
 /// @param set The owner's unpatched params.
-/// @param ids The owner's mod FX ids (host_chain::kModFxIds).
+/// @param ids The owner's mod FX ids (host::chains::kModFxIds).
 /// @return The words.
 [[nodiscard]] inline effects::ModFx::Words modFxWords(UnpatchedParamSet& set,
                                                       const std::array<plugin::ParamId, 4>& ids) {
@@ -81,7 +81,7 @@ static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
 
 /// @brief The EQ's knobs, in effects::EqualizerParams order.
 /// @param set The owner's unpatched params.
-/// @param ids The owner's EQ ids (host_chain::kEqIds, instrument::kEqIds).
+/// @param ids The owner's EQ ids (host::chains::kEqIds, instruments::classic::kEqIds).
 /// @return The knobs.
 [[nodiscard]] inline effects::EqualizerParams eqKnobs(UnpatchedParamSet& set,
                                                       const std::array<plugin::ParamId, 4>& ids) {
@@ -95,7 +95,7 @@ static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
 
 /// @brief The bitcrush's knobs, in effects::BitcrushParams order.
 /// @param set The owner's unpatched params.
-/// @param ids The owner's bitcrush ids (host_chain::kBitcrushIds, instrument::kBitcrushIds).
+/// @param ids The owner's bitcrush ids (host::chains::kBitcrushIds, instruments::classic::kBitcrushIds).
 /// @return The knobs.
 [[nodiscard]] inline effects::BitcrushParams bitcrushKnobs(UnpatchedParamSet& set,
                                                            const std::array<plugin::ParamId, 2>& ids) {

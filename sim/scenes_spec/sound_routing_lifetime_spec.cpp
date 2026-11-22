@@ -2,10 +2,10 @@
 /// @brief A sound's routing through its lifetime: the routing a row holds before a kit adopts it moves into the row's
 /// slot and is played from there; when the row's record goes, the row takes it back; the runtime's copies follow.
 
-#include "deluge-project/instrument_slot.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
+#include "project/instrument_slot.h"
 #include "support/learned_fixture.h"
 #include "support/printers/sound_routing_printer.h"
 #include "support/song_fixture.h"
@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 
 namespace {
 

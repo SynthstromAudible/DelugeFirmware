@@ -81,7 +81,7 @@ goes from 39 KB to **386 KB** (+346.5 KB).
 
 Applied with per-source `COMPILE_OPTIONS` to `gui/`, `hid/`, `storage/`, `io/debug/`,
 `model/{project_bridge,edits,action,consequence,favourite}/` and `processing/stem_export/`, plus `target_compile_options`
-on `deluge_project`, `deluge_serialization` and `deluge_music_theory`. DSP, voices, playback, modulation and the clip
+on `deluge_project`, `deluge_serialization` and `deluge_music`. DSP, voices, playback, modulation and the clip
 model stay at `-O2`.
 
 The `optsize`/`minsize` function attributes survive ThinLTO, so per-source levels work. An earlier `-Os` trial on the
@@ -97,7 +97,7 @@ Three small definitions:
 - `snprintf` forwards to `vsnprintf_` from `eyalroz_printf`, which is already linked. Today the 4 app `snprintf` calls
   reach newlib's float `_svfprintf_r`. Every format in use (`%d`, `%s`, `%03d`, `%.4f`) is supported by
   `eyalroz_printf`. A production version could instead set `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD` in
-  `src/lib/printf.h`.
+  `third_party/printf/printf.h`.
 
 In production, the traps should report through `FREEZE_WITH_ERROR`, not `__builtin_trap`.
 
@@ -116,7 +116,7 @@ addresses.
 
 ### The scenes in the device image
 
-Linking `deluge_ui_shell`, `deluge_scenes`, `deluge_scenes_bind` and the `gui/ui/shell_*` guest beside the legacy
+Linking `deluge_ui_shell`, `deluge_ui_scenes`, `deluge_ui_scenes_bind` and the `gui/ui/shell_*` guest beside the legacy
 menu, measured on `RelWithDebInfo`:
 
 | | Before (`f882c6678`) | After |
@@ -132,10 +132,10 @@ menu, measured on `RelWithDebInfo`:
   (`miniz_oxide`, no allocator, about 9 KB of SRAM text and tables). The inflate code stays in `.text`: in the reclaimed
   tail, `--icf=safe` would fold other crates' identical functions onto its copies, and their callers would run heap
   memory.
-- In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::scenes::menu`, ASSERTed over 64 KB), the
+- In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::ui::scenes::menu`, ASSERTed over 64 KB), the
   scenes' vtables, and the code under `src/deluge/gui/` (`libdeluge_app_gui.a`, the guest's `gui/ui/shell_*` among
   it). In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes' statics (13 KB). The UI tier alone reads any of them.
-- What stays in SRAM is the code of `deluge_scenes` (98 KB) and `deluge_ui_shell`.
+- What stays in SRAM is the code of `deluge_ui_scenes` (98 KB) and `deluge_ui_shell`.
 - Deleting the legacy menu, measured on `RelWithDebInfo` from `c5b0f7e0d`: the SRAM heap 556,784 B -> 584,592 B
   (+27,808 B). By then the GUI's code ran from SDRAM, so most of what left was SDRAM content: `.sdram_init`
   783,096 B -> 581,928 B (its pack 325,348 B -> 230,086 B, in a 273,034 B reserve), the SDRAM text 420,138 B ->

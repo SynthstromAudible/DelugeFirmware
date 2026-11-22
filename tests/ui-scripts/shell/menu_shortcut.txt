@@ -2,7 +2,7 @@
 # paramShortcutsForSounds, &lpfFreqMenu) from the sound root, then the generic recipe on the
 # landed-on node.
 #
-# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), never the gold
+# `int_value` edits with the select turn (`ui/widgets/oled/values.cpp`'s `select_delta`), never the gold
 # pair, so the first select turn (`200`, below) edits `nodes::lpf_freq` too, which
 # `after_select_press`'s golden shows.
 0     snapshot idle

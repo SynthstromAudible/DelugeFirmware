@@ -21,7 +21,7 @@ static FS_ALLOCATOR: fs_alloc::DelugeGlobalAlloc = fs_alloc::DelugeGlobalAlloc::
 
 unsafe extern "C" {
     /// Draws a fault's call chain on the pads and flushes it to the PIC (`io/debug/fault_pattern.h`).
-    /// `fault_type` is a `DelugeCpuFault` (`foundation/panic.h`).
+    /// `fault_type` is a `DelugeCpuFault` (`base/panic.h`).
     fn deluge_fault_pattern_draw(fault_pc: u32, fault_type: u32, sys_lr: u32, sys_sp: u32);
 }
 

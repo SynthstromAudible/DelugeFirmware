@@ -3,21 +3,21 @@
 ///        the menu: what learn mode does with a note-on, a CC, a pitch bend and a gold knob on a param, a note-on on a
 ///        global command, and SHIFT + LEARN's unlearn, each as the learn fake records it.
 
-#include "scenes/bind/ports/learn_sink.h"
-#include "scenes/bind/ports/midi_devices.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
+#include "ui/scenes/bind/ports/learn_sink.h"
+#include "ui/scenes/bind/ports/midi_devices.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/param_address.h"
 #include "midi/device_id.h"
-#include "shell/profile.h"
-#include "shell/scene.h"
-#include "ui/core/input.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
+#include "project/param_address.h"
+#include "ui/shell/profile.h"
+#include "ui/shell/scene.h"
+#include "ui/widgets/core/input.h"
 
 #include "support/fake_menu_shell.h"
 
@@ -30,19 +30,19 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::GlobalCommand;
 using deluge::project::MappingTarget;
 using deluge::project::OwnerParamTarget;
-using deluge::scenes::bind::LearnedBinding;
-using deluge::scenes::spec::FakeHostRig;
-using deluge::scenes::spec::FakeMenuShell;
+using deluge::ui::scenes::bind::LearnedBinding;
+using deluge::ui::scenes::spec::FakeHostRig;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using deluge::ui::shell::UiEvent;
-using Call = deluge::scenes::bind::test::RecordingLearnSink::Call;
+using Call = deluge::ui::scenes::bind::test::RecordingLearnSink::Call;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// A hosted device, which the MIDI devices fake learns of through `FakeMidiDevices::connect`.
 constexpr deluge::midi::DeviceId kHosted = deluge::midi::kFirstHosted;
@@ -97,7 +97,7 @@ describe menu_learn_fakes("the menu's MIDI learn over the ports' fakes and a mod
 		                                      .device = deluge::midi::kDin}))
 		    .to_be_true();
 		expect(r.offer_while_learning(UiEvent{.kind = UiEvent::Kind::Encoder,
-		                                      .encoder = deluge::ui::EncoderRole::GoldUpper, .delta = 1}))
+		                                      .encoder = deluge::ui::widgets::core::EncoderRole::GoldUpper, .delta = 1}))
 		    .to_be_true();
 		const std::vector<Call> knobs = calls_of(r, Call::Kind::LEARN_KNOB);
 		expect(knobs.size()).to_equal(size_t{2});

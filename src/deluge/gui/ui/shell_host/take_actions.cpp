@@ -10,14 +10,14 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The input take the recorder screen runs: one recorder, held from `begin` to `finish` or `orphan`.
-class HostTakeActions final : public scenes::bind::TakeActions {
+class HostTakeActions final : public deluge::ui::scenes::bind::TakeActions {
 public:
-	[[nodiscard]] bool begin(scenes::bind::TakeChannels channels) override {
+	[[nodiscard]] bool begin(deluge::ui::scenes::bind::TakeChannels channels) override {
 		if (take_ != nullptr) {
 			// One take at a time: a second would leave the first published with nothing to finish it.
 			return false;
 		}
-		const bool stereo = channels == scenes::bind::TakeChannels::STEREO;
+		const bool stereo = channels == deluge::ui::scenes::bind::TakeChannels::STEREO;
 		const AudioInputChannel mode = stereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT;
 		take_ = AudioEngine::getNewRecorder(stereo ? 2 : 1, AudioRecordingFolder::RECORD, mode, false, false,
 		                                    kInternalButtonPressLatency, false, nullptr, {false});
@@ -37,7 +37,7 @@ public:
 			take_->endSyncedRecording(kInternalButtonPressLatency);
 		}
 	}
-	[[nodiscard]] scenes::bind::InputLevels take_levels() override {
+	[[nodiscard]] deluge::ui::scenes::bind::InputLevels take_levels() override {
 		if (take_ == nullptr) {
 			return {};
 		}
@@ -84,7 +84,7 @@ constinit HostTakeActions host_take_actions;
 
 } // namespace
 
-scenes::bind::TakeActions& take_actions() {
+deluge::ui::scenes::bind::TakeActions& take_actions() {
 	return host_take_actions;
 }
 

@@ -138,7 +138,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		// and can assert about, rather than in whatever follows `image` in the fake's data segment.
 		// (The suite's sanitizers are opt-in, `DELUGE_TEST_SANITIZERS` defaulting OFF in
 		// `tests/support/cmake/specs.cmake`, so an out-of-bounds write is otherwise silent here.)
-		RGB oversized[deluge::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
+		RGB oversized[deluge::ui::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
 
 		const bool usedUp = r.guest.renderMainPads(0xFFFFFFFF, oversized, PadLEDs::occupancyMask, true);
 		expect(usedUp).to_be_true();
@@ -155,7 +155,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		}
 		// Rows past legacy's eight: never written, however many rows the board's grid has. This is
 		// the assertion that would have caught a write past the end of `PadLEDs::image`.
-		for (int32_t y = kDisplayHeight; y < deluge::gfx::grid::kMaxGridRows; y++) {
+		for (int32_t y = kDisplayHeight; y < deluge::ui::gfx::grid::kMaxGridRows; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 				expect(oversized[y][x]).to_equal(RGB{0, 0, 0});
 			}
@@ -239,7 +239,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
-		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+		expect(r.open(deluge::ui::scenes::marker::kMarkerSceneKind)).to_be_true();
 
 		fakelegacyui::marker_sidebar_answer = true;
 		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_true();
@@ -279,7 +279,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 	});
 
 	it("carries a scene's flash to PadLEDs::flashMainPad while it owns no pads", _ {
-		using deluge::ui::grid::FlashColour;
+		using deluge::ui::widgets::grid::FlashColour;
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
@@ -318,7 +318,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
-		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFE, 0};
+		r.base.greyout = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFE, 0};
 		expect(r.open()).to_be_true();
 		const fakelegacyui::RenderRequest none{nullptr, 0, 0xDEAD};
 		expect(fakelegacyui::render_requests.size()).to_equal(size_t(1));
@@ -334,7 +334,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
-		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFC, 0};
+		r.base.greyout = deluge::ui::widgets::grid::GreyoutMask{0xFFFFFFFC, 0};
 		expect(r.open()).to_be_true();
 		const int reassessments = fakelegacy::greyout_reassessments;
 		r.base.greyout = {};
@@ -478,7 +478,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
-		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::marker::kMarkerSceneKind, 0})).to_be_true();
+		expect(r.guest.shell().stack().push(SceneId{deluge::ui::scenes::marker::kMarkerSceneKind, 0})).to_be_true();
 		size_t requests = fakelegacyui::render_requests.size();
 		set_clock_ms(10);
 		(void)r.guest.timerCallback();
@@ -488,7 +488,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
 
 		// Gone: its main pads and the sidebar it answered for are both the root's again.
-		r.guest.shell().stack().pop(deluge::scenes::marker::kMarkerSceneKind);
+		r.guest.shell().stack().pop(deluge::ui::scenes::marker::kMarkerSceneKind);
 		requests = fakelegacyui::render_requests.size();
 		set_clock_ms(20);
 		(void)r.guest.timerCallback();
@@ -502,7 +502,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
 		r.marker.remove_self_on_event = true;
-		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+		expect(r.open(deluge::ui::scenes::marker::kMarkerSceneKind)).to_be_true();
 		r.guest.shell().tick(0);
 		fakelegacyui::reset();
 
@@ -522,7 +522,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
+		// `MenuScene::occludes_grid()` is false (`ui/scenes/menu/menu_scene.h`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`origin/main:src/deluge/gui/ui/sound_editor.h`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp`).
@@ -547,7 +547,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask (`menu::greyout_mask`,
-		// `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me" (`UI::getGreyoutColsAndRows` in
+		// `ui/scenes/menu/pads.cpp`), and legacy's false means "obey UI under me" (`UI::getGreyoutColsAndRows` in
 		// `gui/ui/ui.h`). The two out-parameters are accumulators the caller zeroed and the next UI down is about to be
 		// asked with (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`), so a false answer must leave them alone.
 		r.base.greyout = {};
@@ -558,7 +558,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(rows).to_equal(uint32_t(0xFEEDFACE));
 
 		// A non-zero mask is legacy's `doGreyout == true`, and both halves have to arrive: cols and
-		// rows are separate masks that OR into a cross, not a rectangle (`ui/grid/effects.h`).
+		// rows are separate masks that OR into a cross, not a rectangle (`ui/widgets/grid/effects.h`).
 		r.base.greyout = {0xFFFFFFFEu, 0x00000005u};
 		cols = 0;
 		rows = 0;

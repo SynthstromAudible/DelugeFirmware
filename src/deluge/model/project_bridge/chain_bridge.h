@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "deluge-project/fx_chain.h"
 #include "effects/chain.h"
 #include "effects/state.h"
 #include "model/fx/effects_owner.h"
+#include "project/fx_chain.h"
 
 #include <cstdint>
 #include <optional>

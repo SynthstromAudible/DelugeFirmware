@@ -515,7 +515,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		Error error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error != Error::NONE) {
-			deluge::notify::notice(error);
+			deluge::base::notify::notice(error);
 			return false;
 		}
 
@@ -851,7 +851,7 @@ void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 }
 
 void Clip::notify_content_changed() {
-	using namespace deluge::notify;
+	using namespace deluge::base::notify;
 	const int32_t i = currentSong ? currentSong->live.clips.session_clips.getIndexForClip(this) : -1;
 	if (i >= 0) {
 		raise_clip(Dirty::ClipContent, static_cast<uint16_t>(i));

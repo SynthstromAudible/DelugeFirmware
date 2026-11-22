@@ -17,14 +17,14 @@
 
 #include "model/project_bridge/param_ids.h"
 
-#include "controls/follow.h"
+#include "ui/controls/follow.h"
 
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
-#include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 
 #include <optional>
 #include <span>
@@ -32,8 +32,8 @@
 namespace deluge::bridge {
 
 namespace params = deluge::modulation::params;
-namespace instrument = deluge::instrument;
-namespace host_chain = deluge::host_chain;
+namespace instrument = deluge::instruments::classic;
+namespace host_chain = deluge::host::chains;
 
 // The runtime's numbering may move only with the engines' maps; these anchor each run's ends and sizes.
 static_assert(instrument::param::kVolumePostFX.value == params::FIRST_GLOBAL);
@@ -285,7 +285,7 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	if (kind == params::Kind::NONE) { // an unpatched set its owner's init has not named yet
 		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	}
-	return deluge::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
+	return deluge::ui::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {

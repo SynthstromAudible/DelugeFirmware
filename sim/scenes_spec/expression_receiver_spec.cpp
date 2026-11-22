@@ -19,7 +19,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 using deluge::model::expressionReceiverOf;
 
 // clang-format off

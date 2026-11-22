@@ -16,14 +16,14 @@
  */
 
 #pragma once
-// FACADE (remove after UI phase 5): the firmware's OLED canvas is gfx/oled/canvas.h plus four pieces of policy
+// FACADE (remove after UI phase 5): the firmware's OLED canvas is ui/gfx/oled/canvas.h plus four pieces of policy
 // (rounded-corner and menu-highlighting settings, the highlighting primitive, an etl
 // overload) and the 2-D image-store accessor that hid/display/oled.cpp still composites
 // with. New code must call the gfx (snake_case) names directly; the camelCase forwarders
 // below exist only so the legacy call sites compile unchanged.
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/font.h"
-#include "gfx/oled/icon.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/icon.h"
 #include "util/etl_string.h"
 #include <cstdint>
 #include <string_view>
@@ -31,21 +31,21 @@
 namespace deluge::hid::display {
 class OLED;
 
-using Icon = deluge::gfx::oled::Icon;
+using Icon = deluge::ui::gfx::oled::Icon;
 
 namespace oled_canvas {
-using deluge::gfx::oled::BorderRadius;
-using deluge::gfx::oled::DrawLineOptions;
-using deluge::gfx::oled::Point;
+using deluge::ui::gfx::oled::BorderRadius;
+using deluge::ui::gfx::oled::DrawLineOptions;
+using deluge::ui::gfx::oled::Point;
 
 // Legacy spellings of the two BorderRadius values, kept for the app call sites and the golden
-// specs; the library enum is `deluge::gfx::oled::BorderRadius::{Small, Big}`. This façade is
+// specs; the library enum is `deluge::ui::gfx::oled::BorderRadius::{Small, Big}`. This façade is
 // the app layer, where the legacy names belong.
 inline constexpr BorderRadius SMALL = BorderRadius::Small;
 inline constexpr BorderRadius BIG = BorderRadius::Big;
 
-class Canvas : public deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled> {
-	using Base = deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled>;
+class Canvas : public deluge::ui::gfx::oled::OwnedCanvas<deluge::ui::gfx::oled::kDelugeOled> {
+	using Base = deluge::ui::gfx::oled::OwnedCanvas<deluge::ui::gfx::oled::kDelugeOled>;
 
 public:
 	Canvas() = default;
@@ -87,11 +87,11 @@ public:
 		draw_circle(centerX, centerY, radius, fill);
 	}
 	void drawString(std::string_view str, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                int32_t scrollPos = 0, int32_t endX = deluge::gfx::oled::kEdge, bool useTextWidth = false) {
+	                int32_t scrollPos = 0, int32_t endX = deluge::ui::gfx::oled::kEdge, bool useTextWidth = false) {
 		draw_string(str, pixelX, pixelY, textWidth, textHeight, scrollPos, endX, useTextWidth);
 	}
 	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                       int32_t centrePos = deluge::gfx::oled::kCentre) {
+	                       int32_t centrePos = deluge::ui::gfx::oled::kCentre) {
 		draw_string_centred(string, pixelY, textWidth, textHeight, centrePos);
 	}
 	void drawStringCentered(char const* string, int32_t startX, int32_t startY, int32_t textSpacingX,
@@ -108,14 +108,14 @@ public:
 		draw_string_centred_shrink_if_necessary(string, pixelY, textWidth, textHeight);
 	}
 	void drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                          int32_t rightPos = deluge::gfx::oled::kEdge) {
+	                          int32_t rightPos = deluge::ui::gfx::oled::kEdge) {
 		draw_string_align_right(string, pixelY, textWidth, textHeight, rightPos);
 	}
 	void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	              int32_t scrollPos = 0, int32_t endX = deluge::gfx::oled::kEdge) {
+	              int32_t scrollPos = 0, int32_t endX = deluge::ui::gfx::oled::kEdge) {
 		draw_char(theChar, pixelX, pixelY, textWidth, textHeight, scrollPos, endX);
 	}
-	int32_t getCharIndex(uint8_t theChar) { return deluge::gfx::oled::glyph_index(theChar); }
+	int32_t getCharIndex(uint8_t theChar) { return deluge::ui::gfx::oled::glyph_index(theChar); }
 	int32_t getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 		return get_char_width_in_pixels(theChar, textHeight);
 	}
@@ -152,9 +152,9 @@ public:
 	/// @}
 
 	/// Height of the image in bytes
-	static constexpr uint32_t kImageHeight = deluge::gfx::oled::kDelugeOled.pages();
+	static constexpr uint32_t kImageHeight = deluge::ui::gfx::oled::kDelugeOled.pages();
 	/// Width of the image in pixels
-	static constexpr uint32_t kImageWidth = deluge::gfx::oled::kDelugeOled.width;
+	static constexpr uint32_t kImageWidth = deluge::ui::gfx::oled::kDelugeOled.width;
 
 	using ImageStore = uint8_t[kImageHeight][kImageWidth];
 

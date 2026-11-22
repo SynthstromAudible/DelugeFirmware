@@ -1,0 +1,97 @@
+#pragma once
+
+/// @brief The four envelope subtrees as data: `env1` .. `env4`, each an ADSR page.
+///
+/// `inline constexpr` for the reason `sound_filters.h` explains. From `origin/main:src/deluge/gui/ui/menus.cpp`'s
+/// envelope block, from `env1AttackMenu`. Every leaf is an `envelope::Segment`
+/// (`origin/main:src/deluge/gui/menu_item/envelope/segment.h`), which is a `source::PatchedParam` -- a patched param
+/// whose index is `p + source_id_` (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`), with the envelope
+/// number playing the part of the source id. Main's menu therefore uses `LOCAL_ENV_0_ATTACK` with an envelope
+/// index of 0..3 and the four attack params come out consecutive (`instruments::classic::param::kEnv1Attack` to
+/// `kEnv4Attack`), which is exactly what a `ParamRef` carries directly here.
+///
+// clang-format off
+/// | node | legacy global | param |
+/// |---|---|---|
+/// | `env<n>_attack` | `env<n>AttackMenu` | `LOCAL_ENV_<n-1>_ATTACK` |
+/// | `env<n>_decay` | `env<n>DecayMenu` | `LOCAL_ENV_<n-1>_DECAY` |
+/// | `env<n>_sustain` | `env<n>SustainMenu` | `LOCAL_ENV_<n-1>_SUSTAIN` |
+/// | `env<n>_release` | `env<n>ReleaseMenu` | `LOCAL_ENV_<n-1>_RELEASE` |
+/// | `env<n>` | `env<n>Menu` | -- (`envelope::EnvelopeMenu`, `origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) |
+// clang-format on
+///
+/// @note **A known gap, `envelope::EnvelopeMenu`'s.** It overrides `renderMenuItems`
+///       (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) to draw one ADSR curve across the whole page
+///       instead of four column meters -- a page-level renderer `Node` has no field for, so the four columns fall back
+///       to their own hints (`Number`'s default knob: `Segment` overrides no `getRenderingStyle`). Its name and title
+///       are a `FormattedTitle` (`EnvelopeMenu::getName` and `EnvelopeMenu::getTitle`) substituting the envelope number
+///       into `STRING_FOR_ENVELOPE_MENU_TITLE`, as each `Segment`'s title is
+///       (`origin/main:src/deluge/gui/menu_item/envelope/segment.h`); every node here carries that number as its
+///       `title_arg`.
+
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/detail.h"
+#include "ui/scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
+
+#include <span>
+
+namespace deluge::ui::scenes::menu::nodes {
+
+/// @brief One segment of envelope @p index.
+///
+/// The first of the four envelopes' ids + @p index is `source::PatchedParam::getP()`
+/// (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`) written out: the four envelopes' copies of each
+/// parameter are consecutive enumerators (`instruments::classic::param::kEnv1Attack` to `kEnv4Attack`).
+constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index) {
+	return with_patch_chain(param(name, {deluge::plugin::ParamKind::PATCHED, static_cast<uint8_t>(first_param + index)},
+	                              Hint::Knob, nullptr, title));
+}
+
+/// @brief One envelope page. A macro rather than a function because the four `Node`s have to be
+///        distinct objects with static storage for their addresses to go in a `children` array --
+///        a `constexpr` factory returning an aggregate cannot hand back pointers into itself.
+#define DELUGE_ENVELOPE(n, index)                                                                                      \
+	inline constexpr Node env##n##_attack = with_title_arg(                                                            \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_ATTACK), sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE), \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Attack), (index)),   \
+	    (n));                                                                                                          \
+	inline constexpr Node env##n##_decay = with_title_arg(                                                             \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_DECAY), sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),   \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Decay), (index)),    \
+	    (n));                                                                                                          \
+	inline constexpr Node env##n##_sustain = with_title_arg(                                                           \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_SUSTAIN),                                                             \
+	        sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),                                              \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Sustain), (index)),  \
+	    (n));                                                                                                          \
+	inline constexpr Node env##n##_release = with_title_arg(                                                           \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_RELEASE),                                                             \
+	        sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),                                              \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Release), (index)),  \
+	    (n));                                                                                                          \
+	inline constexpr const Node* kEnv##n##Children[] = {&env##n##_attack, &env##n##_decay, &env##n##_sustain,          \
+	                                                    &env##n##_release};                                            \
+	void env##n##_page_draw(deluge::ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);     \
+	inline constexpr Node env##n =                                                                                     \
+	    with_page_draw(with_title_arg(submenu(sid(deluge::l10n::String::STRING_FOR_ENVELOPE_MENU_TITLE),               \
+	                                          kEnv##n##Children, Layout::Horizontal),                                  \
+	                                  (n)),                                                                            \
+	                   env##n##_page_draw)
+
+DELUGE_ENVELOPE(1, 0);
+DELUGE_ENVELOPE(2, 1);
+DELUGE_ENVELOPE(3, 2);
+DELUGE_ENVELOPE(4, 3);
+
+#undef DELUGE_ENVELOPE
+
+/// @brief This file's four contributions to `kBatch1Roots`: `env1` .. `env4`.
+///
+/// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
+extern const std::span<const Node* const> kSoundEnvChildren;
+
+} // namespace deluge::ui::scenes::menu::nodes

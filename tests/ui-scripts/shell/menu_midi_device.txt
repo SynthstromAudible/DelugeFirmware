@@ -7,7 +7,7 @@
 #   * which CABLE  -- `MidiDevicesItem` publishes `MenuState::midi_device_choice`, and
 #     `MenuScene::after_render` copies it into `MenuContext::midi_device` (mailbox 3);
 #   * which DIRECTION -- `MpeDirectionItem` republishes `MenuState::mpe_direction` every frame
-#     (`scenes/menu/nodes/midi_device.cpp`, main's `DirectionSelector::writeCurrentValue` in
+#     (`ui/scenes/menu/nodes/midi_device.cpp`, main's `DirectionSelector::writeCurrentValue` in
 #     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`);
 #   * which ZONE -- `MpeZoneItem` does the same for `MenuState::mpe_zone`;
 #   * which VALUE -- `MpeZoneChannelsItem::commit` turns all three into one `MIDIPort` field
@@ -36,7 +36,7 @@
 700   button SelectEnc down
 720   button SelectEnc up
 740   snapshot after_channels_press  # the member-channel count for out/upper: 15-15 = 0, drawn OFF
-# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`): both turns below act, two
+# `int_value` edits with the select turn (`ui/widgets/oled/values.cpp`'s `select_delta`): both turns below act, two
 # edits of `+2` each.
 800   encoder Select +2              # 0 -> 2
 820   encoder Select +2              # 2 -> 4

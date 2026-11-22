@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/note_address.h"
 #include "model/edits/edit.h"
+#include "project/note_address.h"
 #include <optional>
 
 class ModelStackWithNoteRow;

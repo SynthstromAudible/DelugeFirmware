@@ -29,20 +29,20 @@
 #include "util/note_editor_open.h"
 #include "util/sound_menu_open.h" // menuCurrent
 
-#include "scenes/menu/chains.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/note.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/chains.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/note.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
 namespace deluge::gui::ui {
 namespace {
 
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-namespace nodes = deluge::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 // The real calls, one per `instrumentClipView` member `SoundEditor` names for the mode.
 
@@ -126,13 +126,13 @@ NoteModeKind activeNoteMode() {
 	//
 	// Identity against `menu_scene()`, for `menuCurrent`'s own reason: the registry maps several
 	// application kinds, and only one object is the menu.
-	const deluge::ui::shell::Scene* const menu = &deluge::scenes::menu_scene();
+	const deluge::ui::shell::Scene* const menu = &deluge::ui::scenes::menu_scene();
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
 		if (scene == menu) {
 			// `MenuScene::menu_context()` is replaced only by `MenuScene::open`
 			// and by a song swap (`MenuScene::on_model_changed`, which resets the
 			// root to `Settings`), so while the menu is stacked this is the root it was opened at.
-			return modeForRoot(deluge::scenes::menu_scene().menu_context().root);
+			return modeForRoot(deluge::ui::scenes::menu_scene().menu_context().root);
 		}
 	}
 	return NoteModeKind::None;
@@ -248,7 +248,7 @@ void exitNoteModeBeforeClose() {
 	//     that scene would re-root a note-mode session at `Settings`, and this function would skip the
 	//     note exit on close.
 	//   * A song swap resets the root to `Settings` (`MenuScene::on_model_changed`).
-	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
+	switch (modeForRoot(deluge::ui::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
 		// `SoundEditor::exitCompletely`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`
 		noteModeLegacyCalls().exitNoteEditor();
@@ -278,7 +278,7 @@ namespace {
 /// The six note and row leaves are `note::SelectedNote`s and `note_row::SelectedNoteRow`s, whose
 /// `selectEncoderActionIsPermitted()` is `return shouldEnterSubmenu();` (`note::SelectedNote`,
 /// `note_row::SelectedNoteRow`) -- and `Binding::permitted` is that function's port
-/// (`scenes/menu/nodes/note.h`'s note on the two guards), popup included. The two roots are
+/// (`ui/scenes/menu/nodes/note.h`'s note on the two guards), popup included. The two roots are
 /// `HorizontalMenu`s, which take `MenuItem::shouldEnterSubmenu`'s `return true`; their
 /// nodes carry no `permitted` hook, and that answers the same.
 bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
@@ -290,7 +290,7 @@ bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
 	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]` (`SoundEditor::getCurrentMenuItem` in
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`); `MenuScene::focused()` is `path[depth]`, its port.
-	const Node* const focused = deluge::scenes::menu_scene().focused();
+	const Node* const focused = deluge::ui::scenes::menu_scene().focused();
 	switch (item) {
 	case NoteModeMenuItem::NoteEditorRoot:
 		return focused == &nodes::note_editor_root;
@@ -305,7 +305,7 @@ bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
 void noteModeReadValueAgain() {
 	// `MenuScene::read_value_again` is `MenuItem::readValueAgain`'s port, the one
 	// `services::ModKnobs` already calls for `View`'s own `readValueAgain()`.
-	deluge::scenes::menu_scene().read_value_again();
+	deluge::ui::scenes::menu_scene().read_value_again();
 }
 
 bool noteModeVelocityShown() {
@@ -313,16 +313,16 @@ bool noteModeVelocityShown() {
 	if (!menuCurrent()) {
 		return false;
 	}
-	const deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	const deluge::ui::scenes::menu::MenuScene& menu = deluge::ui::scenes::menu_scene();
 	const Node* const focused = menu.focused();
 	return focused == &nodes::note_velocity
 	       || (focused == &nodes::note_editor_root
-	           && deluge::scenes::menu::renders_horizontal(nodes::note_editor_root, menu.menu_context()));
+	           && deluge::ui::scenes::menu::renders_horizontal(nodes::note_editor_root, menu.menu_context()));
 }
 
 bool portedMenuOnAuditionedRowDirection() {
 	// `getCurrentUI() == &soundEditor`: the guest current, with the menu taking its input.
-	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	deluge::ui::scenes::menu::MenuScene& menu = deluge::ui::scenes::menu_scene();
 	if (getCurrentUI() != &shellHostUI
 	    || &shellHostUI.shell().stack().input_top() != static_cast<deluge::ui::shell::Scene*>(&menu)) {
 		return false;
@@ -331,7 +331,7 @@ bool portedMenuOnAuditionedRowDirection() {
 }
 
 void noteModeGoUpOneLevel() {
-	if (!deluge::scenes::menu_scene().go_up_one_level()) {
+	if (!deluge::ui::scenes::menu_scene().go_up_one_level()) {
 		// `SoundEditor::buttonAction`'s BACK arm's `exitCompletely()`, ported as `shell_pad_forward.cpp` ports
 		// `SoundEditor::padAction`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): remove the menu, and let the
 		// guest close itself (`closePortedMenu`'s own docblock). The note arm of that exit runs from `closeGuest`
@@ -341,7 +341,7 @@ void noteModeGoUpOneLevel() {
 }
 
 void noteModeToggleNoteEditorParamMenu(int32_t on) {
-	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	deluge::ui::scenes::menu::MenuScene& menu = deluge::ui::scenes::menu_scene();
 	// Main's `SoundEditor::toggleNoteEditorParamMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), arm for arm.
 	const Node* const currentMenuItem = menu.focused();
 	const Node* newMenuItem = nullptr;

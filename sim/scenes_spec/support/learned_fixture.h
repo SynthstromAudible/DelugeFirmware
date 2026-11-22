@@ -20,7 +20,7 @@
 
 #include "support/song_fixture.h"
 
-namespace deluge::scenes::spec::learned {
+namespace deluge::ui::scenes::spec::learned {
 
 /// @brief A view as the root UI, so an undo step can open, for one example.
 struct RootView {
@@ -136,4 +136,4 @@ inline void addRow(SongFixture& f, Drum* drum) {
 	row->setDrum(drum, static_cast<Kit*>(f.instrument), stack->addNoteRow(index, row));
 }
 
-} // namespace deluge::scenes::spec::learned
+} // namespace deluge::ui::scenes::spec::learned

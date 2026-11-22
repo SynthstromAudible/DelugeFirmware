@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/setting_group.h"
 #include "model/edits/edit.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 
 #include <string>
@@ -10,7 +10,7 @@ namespace deluge::edits {
 
 /// @brief Set one song setting: write its record, then project the record onto the engine object that plays it.
 ///
-/// The record (`deluge-project/setting_group.h`) is the setting's truth; the projection
+/// The record (`project/setting_group.h`) is the setting's truth; the projection
 /// (`model/project_bridge/setting_projection.h`) brings the engine's copy into line and runs what the change sets off.
 ///
 /// @note Settings record no undo.

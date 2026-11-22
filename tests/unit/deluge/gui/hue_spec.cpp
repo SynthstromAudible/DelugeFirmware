@@ -1,6 +1,6 @@
 #include "cppspec.hpp"
 #include "gui/colour/rgb.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "support/spec_main.h"
 #include <sstream>

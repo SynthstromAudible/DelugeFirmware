@@ -11,9 +11,9 @@
 #include "support/descriptor_cases.h"
 #include "support/menu_engine.h"
 
-#include "effects/host_chain/params.h"
 #include "gui/l10n/setting_names.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "support/matchers/value_matchers.h"
 
@@ -37,7 +37,7 @@ struct OwnedTable {
 std::vector<OwnedTable> owned_tables() {
 	using deluge::project::table_of;
 	return {
-	    {plugin::kDelugeInstrument, "instrument", deluge::instrument::kSettings},
+	    {plugin::kDelugeInstrument, "instrument", deluge::instruments::classic::kSettings},
 	    {plugin::kDelugeInstrument, "instrument effects", deluge::effects::kEffectSettings},
 	    {plugin::kGlobalEffectable, "global effectable effects", deluge::effects::kEffectSettings},
 	    {plugin::kDelugeInstrument, "instrument arp", deluge::plugin::kArpSettingRows},
@@ -206,7 +206,8 @@ struct Legacy {
 Legacy legacy_of(deluge::plugin::ParamId id, plugin::PluginId which) {
 	params::Kind kind = params::Kind::UNPATCHED_GLOBAL;
 	if (which == plugin::kDelugeInstrument) {
-		kind = id.value < deluge::instrument::kUnpatchedFirstId ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND;
+		kind = id.value < deluge::instruments::classic::kUnpatchedFirstId ? params::Kind::PATCHED
+		                                                                  : params::Kind::UNPATCHED_SOUND;
 	}
 	return {kind, deluge::bridge::runtimeIndexOf(kind, id).value_or(-1)};
 }
@@ -235,10 +236,10 @@ void check_morphs(auto& self) {
 		plugin::PluginId engine;
 	};
 	const Morph morphs[] = {
-	    {deluge::instrument::param::kLpfMorph, plugin::kDelugeInstrument},
-	    {deluge::instrument::param::kHpfMorph, plugin::kDelugeInstrument},
-	    {deluge::host_chain::param::kLpfMorph, plugin::kGlobalEffectable},
-	    {deluge::host_chain::param::kHpfMorph, plugin::kGlobalEffectable},
+	    {deluge::instruments::classic::param::kLpfMorph, plugin::kDelugeInstrument},
+	    {deluge::instruments::classic::param::kHpfMorph, plugin::kDelugeInstrument},
+	    {deluge::host::chains::param::kLpfMorph, plugin::kGlobalEffectable},
+	    {deluge::host::chains::param::kHpfMorph, plugin::kGlobalEffectable},
 	};
 	using deluge::effects::FilterMode;
 	const FilterMode lpf_modes[] = {
@@ -249,14 +250,14 @@ void check_morphs(auto& self) {
 		for (const FilterMode hpf_mode : hpf_modes) {
 			const int lpf = static_cast<int>(lpf_mode);
 			const int hpf = static_cast<int>(hpf_mode);
-			deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
+			deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
 			                                "lpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(lpf_mode)}));
-			deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
+			deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
 			                                "hpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(hpf_mode)}));
 			const std::optional<deluge::model::EffectsOwner> owner =
-			    deluge::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod->effectsOwner();
+			    deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod->effectsOwner();
 			for (const Morph& morph : morphs) {
 				const Legacy legacy = legacy_of(morph.id, morph.engine);
 				const ParamNameContext state{.lpf_mode = lpf_mode, .hpf_mode = hpf_mode};
@@ -358,10 +359,10 @@ describe setting_names_spec_body("The host's name table", $ {
 		run_names(self, group_cases());
 	});
 	it("names every instrument param as getParamDisplayName does", _ {
-		check_params(self, deluge::instrument::kParams, plugin::kDelugeInstrument);
+		check_params(self, deluge::instruments::classic::kParams, plugin::kDelugeInstrument);
 	});
 	it("names every global effectable param as getParamDisplayName does", _ {
-		check_params(self, deluge::host_chain::kParams, plugin::kGlobalEffectable);
+		check_params(self, deluge::host::chains::kParams, plugin::kGlobalEffectable);
 	});
 	it("names the morph params as legacy does under each pair of filter modes", _ {
 		check_morphs(self);

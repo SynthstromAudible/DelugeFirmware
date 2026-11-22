@@ -18,14 +18,14 @@
 
 #include "support/descriptor_cases.h"
 
-#include "effects/host_chain/params.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "model/project_bridge/param_ids.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
 
 #include "support/oracle_tree.h"
 #include "support/record_state.h"
@@ -42,11 +42,11 @@
 
 namespace {
 
-using deluge::scenes::menu::IntRange;
-using deluge::scenes::menu::Kind;
-using deluge::scenes::menu::Node;
-namespace bindings = deluge::scenes::menu::bindings;
-namespace nodes = deluge::scenes::menu::nodes;
+using deluge::ui::scenes::menu::IntRange;
+using deluge::ui::scenes::menu::Kind;
+using deluge::ui::scenes::menu::Node;
+namespace bindings = deluge::ui::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 // ---------------------------------------------------------------------------------------------
 // The pairing of items with nodes.
@@ -131,10 +131,10 @@ struct NodeException {
 struct UnsetProbe {
 	std::string_view path;
 	int32_t stored;
-	void (*set)(const deluge::scenes::menu::MenuContext&, Song&);
+	void (*set)(const deluge::ui::scenes::menu::MenuContext&, Song&);
 };
 
-void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx, Song& song) {
+void unset_note_for_drum(const deluge::ui::scenes::menu::MenuContext& ctx, Song& song) {
 	Sound& sound = *spec::menu_engine(ctx, song).sound;
 	// Unset is outside the note row, so no setting write makes it; the sound's routing holds it.
 	sound.routingRecord().midi_note = std::nullopt;
@@ -170,7 +170,7 @@ const NodeException* exception_of(Family family, std::string_view path) {
 
 std::string node_text(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
-	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
+	return std::string{deluge::ui::scenes::deluge_profile().text_or_digits(id, scratch)};
 }
 
 /// @brief A node's title with its `*` replaced by the owner's number, which the path's first digit gives.
@@ -195,9 +195,9 @@ std::string menu_show(const Case& c, std::string_view what, int64_t at, int64_t 
 }
 
 /// @brief The node's names, as the menu lists them.
-std::vector<std::string> node_names(const Node& node, const deluge::scenes::menu::MenuContext& ctx) {
-	std::array<std::string_view, deluge::scenes::menu::kMaxDynamicNames> out{};
-	std::array<deluge::ui::shell::TextScratch, deluge::scenes::menu::kMaxDynamicNames> scratch{};
+std::vector<std::string> node_names(const Node& node, const deluge::ui::scenes::menu::MenuContext& ctx) {
+	std::array<std::string_view, deluge::ui::scenes::menu::kMaxDynamicNames> out{};
+	std::array<deluge::ui::shell::TextScratch, deluge::ui::scenes::menu::kMaxDynamicNames> scratch{};
 	const size_t count = bindings::names(node, ctx, out, scratch);
 	std::vector<std::string> list;
 	for (size_t i = 0; i < count; ++i) {
@@ -245,7 +245,7 @@ bool undriven(const Case& c, Aspect aspect) {
 
 Findings compare(const Case& c, const Node& node, const NodeException* exception) {
 	Findings f;
-	const deluge::scenes::menu::MenuContext& ctx = enter(c.where, c.source);
+	const deluge::ui::scenes::menu::MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
 	const SettingContext shown = context_of(c.where, c.family);
 	const bool listed_choice = row.kind == SettingKind::CHOICE
@@ -269,16 +269,16 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 			continue;
 		}
 		// The name and title the menu shows in this context, as `getName()`/`getTitle()` answer them.
-		deluge::scenes::menu::NodeText name_scratch;
-		const std::string have_name{
-		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Name, ctx, name_scratch)};
+		deluge::ui::scenes::menu::NodeText name_scratch;
+		const std::string have_name{deluge::ui::scenes::menu::display_text(
+		    node, deluge::ui::scenes::menu::ValueTextUse::Name, ctx, name_scratch)};
 		const std::string want_name = text(names->name);
 		if (have_name != want_name) {
 			f.names.push_back(std::string{c.path} + " name node '" + have_name + "' row '" + want_name + "'");
 		}
-		deluge::scenes::menu::NodeText title_scratch;
-		const std::string shown_title{
-		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Title, ctx, title_scratch)};
+		deluge::ui::scenes::menu::NodeText title_scratch;
+		const std::string shown_title{deluge::ui::scenes::menu::display_text(
+		    node, deluge::ui::scenes::menu::ValueTextUse::Title, ctx, title_scratch)};
 		const std::string have_title =
 		    shown_title.find('*') != std::string::npos ? node_title(node, c.path) : shown_title;
 		const std::string want_title = title_of(*names, c.path);
@@ -774,15 +774,15 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		(void)ctx;
 		spec::OracleTable& reference = spec::OracleTable::named("tables_3");
 		for (const Node* node : all) {
-			const deluge::scenes::menu::ParamRef ref = node->bind.param;
+			const deluge::ui::scenes::menu::ParamRef ref = node->bind.param;
 			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
 				continue;
 			}
 			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
 			const bool global = ref.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			const std::span<const deluge::plugin::ParamInfo> table =
-			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::host_chain::kParams}
-			           : std::span<const deluge::plugin::ParamInfo>{deluge::instrument::kParams};
+			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
+			           : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
 			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(table, id);
 			expect(row).not_().to_be_null();
 			if (row == nullptr) {

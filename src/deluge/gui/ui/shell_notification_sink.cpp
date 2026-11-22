@@ -26,7 +26,7 @@
 
 #include "gui/ui/notify_drain.h"
 
-#include "shell/notices.h"
+#include "ui/shell/notices.h"
 
 namespace deluge::gui::ui {
 namespace {

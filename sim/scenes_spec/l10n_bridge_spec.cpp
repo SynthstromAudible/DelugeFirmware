@@ -1,4 +1,4 @@
-#include "scenes/l10n_bridge.h"
+#include "ui/scenes/l10n_bridge.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -32,18 +32,18 @@ describe scenes_l10n_bridge("scenes::l10n_bridge", $ {
 	before_all([] { l10n::chosenLanguage = &l10n::built_in::english; });
 
 	it("text_lookup matches l10n::getView for the same string id", _ {
-		expect(std::string(scenes::text_lookup(static_cast<uint16_t>(l10n::String::STRING_FOR_LPF))))
+		expect(std::string(ui::scenes::text_lookup(static_cast<uint16_t>(l10n::String::STRING_FOR_LPF))))
 		    .to_equal(std::string(l10n::getView(l10n::String::STRING_FOR_LPF)));
 	});
 
 	it("error_lookup matches the legacy getErrorMessage for a representative code", _ {
-		expect(std::string(scenes::error_lookup(static_cast<int16_t>(Error::SD_CARD_FULL))))
+		expect(std::string(ui::scenes::error_lookup(static_cast<int16_t>(Error::SD_CARD_FULL))))
 		    .to_equal(std::string(hid::display::getErrorMessage(Error::SD_CARD_FULL)));
 	});
 
 	it("every Error value 0..32 yields a non-empty string, matching the legacy switch exactly", _ {
 		for (int16_t code = 0; code <= 32; code++) {
-			const std::string ported(scenes::error_lookup(code));
+			const std::string ported(ui::scenes::error_lookup(code));
 			const std::string legacy(hid::display::getErrorMessage(static_cast<Error>(code)));
 			expect(ported.empty()).to_be_false();
 			expect(ported).to_equal(legacy);

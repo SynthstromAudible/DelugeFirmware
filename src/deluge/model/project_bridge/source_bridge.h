@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 
 #include <cstdint>
 #include <optional>
@@ -53,7 +53,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRang
 ///
 /// @param source The runtime source.
 /// @return The patch, or nullopt.
-[[nodiscard]] std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResources& source);
+[[nodiscard]] std::optional<deluge::instruments::classic::DxPatchState> dxPatchOf(const ::SourceResources& source);
 
 /// @brief Give source @p s of @p sound the patch @p patch: its 156 voice bytes, its engine mode and its random detune.
 /// Its voices take the new patch at their next note, as a menu edit does.
@@ -62,6 +62,6 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRang
 /// @param s     The source index.
 /// @param patch The patch to give.
 /// @return Error::UNSPECIFIED unless the source is a DX7 oscillator.
-Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch);
+Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch);
 
 } // namespace deluge::bridge

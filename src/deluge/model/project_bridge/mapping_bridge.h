@@ -22,10 +22,10 @@
 // kit change), the sections' launch commands, and the table's entries projected onto the engine fields that play them.
 
 #include "definitions_cxx.hpp" // Error
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
 #include "model/fx/effects_owner.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
 #include "serialization/value.h"
 
 #include <cstdint>

@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "deluge-project/param_address.h"
+#include "project/param_address.h"
 #include "support/printers/optional_printer.h"
 #include "support/printers/owner_id_printer.h"
 #include "support/printers/param_id_printer.h"

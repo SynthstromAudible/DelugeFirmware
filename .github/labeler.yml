@@ -45,7 +45,7 @@
   - changed-files:
       - any-glob-to-any-file:
           - src/deluge/gui/ui/browser/**
-          - src/scenes/browser/**
+          - src/ui/scenes/browser/**
 
 "area: files":
   - changed-files:
@@ -55,7 +55,7 @@
 "area: menus":
   - changed-files:
       - any-glob-to-any-file:
-          - src/scenes/menu/**
+          - src/ui/scenes/menu/**
           - src/deluge/gui/context_menu/**
 
 "area: ui":

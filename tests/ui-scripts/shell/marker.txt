@@ -5,7 +5,7 @@
 # (0,7) of `kSoundCells` (`menu/shortcuts.cpp`) is legacy's own `paramShortcutsForSounds` cell
 # for `sampleStartMenu`, and it is the only door: `sample0_start` sits on `nodes::source0`, a
 # `Layout::Horizontal` page, whose `columns` widget claims `entered` only for a `Kind::Submenu`
-# column (`ui/oled/columns.cpp`).
+# column (`ui/widgets/oled/columns.cpp`).
 #
 # **The blink needs quiet ticks and nothing else, and it is invisible in the `.pbm`.** `MarkerScene::tick` advances a
 # four-phase counter every `kBlinkPhaseMs` (200 ms, `definitions_cxx.hpp` `kSampleMarkerBlinkTime`) and phase 3
@@ -23,7 +23,7 @@
 # blink held still the only thing that can move between them is the marker itself.
 #
 # **`after_select_turn` is the frame that found a bug.** `MarkerScene::handle` files
-# `Action::Kind::RepaintAll` for the turn, which `shell/scene.h` documents as "invalidate every
+# `Action::Kind::RepaintAll` for the turn, which `ui/shell/scene.h` documents as "invalidate every
 # surface" -- but `Shell::tick`'s grid step consulted only the grid's own gate, so this frame first
 # recorded the marker one column further along on the OLED and still in column 0 on the pads, and
 # stayed that way until the blink timer fired up to 200 ms later. `Router::grid_repaint_requested()`

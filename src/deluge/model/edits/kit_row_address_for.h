@@ -1,6 +1,6 @@
 #pragma once
 
-#include "deluge-project/kit_row_address.h"
+#include "project/kit_row_address.h"
 #include <optional>
 
 class Kit;

@@ -16,7 +16,7 @@
 /// **Card.** The listing examples run on the fixture card (`tests/fixtures/card`), installed in
 /// memory before boot, so nothing here can write to it.
 
-#include "scenes/browser/listing.h"
+#include "ui/scenes/browser/listing.h"
 
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
@@ -54,9 +54,9 @@ namespace {
 
 /// `SdRoot` and `QuietAudio` live in `support/card_access.h`, whose documentation says what each
 /// holds and why shipped code must NOT hold that latch.
-using namespace deluge::scenes::spec::catalogue;
-using deluge::scenes::spec::SdRoot;
+using namespace deluge::ui::scenes::spec::catalogue;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::spec::SdRoot;
 
 /// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an
 ///        order rather than as a container diff.
@@ -645,7 +645,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 
 	// ---- the single-flight claim ---------------------------------------------------------------
 	//
-	// The catalogue is process-global and `deluge::scenes::browser::Listing` reads it after the
+	// The catalogue is process-global and `deluge::ui::scenes::browser::Listing` reads it after the
 	// listing completes, so one claimant holds it from request to collect.
 
 	it("admits exactly one claimant, and only the claimant can release", _ {
@@ -680,14 +680,14 @@ describe file_catalogue("the browser's file catalogue", $ {
 		const int other = 0;
 		expect(deluge::storage::FileCatalogue::claim(&other)).to_be_true();
 
-		deluge::scenes::browser::Listing seam;
-		expect(static_cast<int>(seam.request({.action = deluge::scenes::browser::ListingAction::Open})))
-		    .to_equal(static_cast<int>(deluge::scenes::browser::RequestOutcome::Busy));
+		deluge::ui::scenes::browser::Listing seam;
+		expect(static_cast<int>(seam.request({.action = deluge::ui::scenes::browser::ListingAction::Open})))
+		    .to_equal(static_cast<int>(deluge::ui::scenes::browser::RequestOutcome::Busy));
 		expect(seam.has_result()).to_be_false();
 
 		deluge::storage::FileCatalogue::release(&other);
-		expect(static_cast<int>(seam.request({.action = deluge::scenes::browser::ListingAction::Open})))
-		    .to_equal(static_cast<int>(deluge::scenes::browser::RequestOutcome::Accepted));
+		expect(static_cast<int>(seam.request({.action = deluge::ui::scenes::browser::ListingAction::Open})))
+		    .to_equal(static_cast<int>(deluge::ui::scenes::browser::RequestOutcome::Accepted));
 		expect(seam.take_result().has_value()).to_be_true();
 	});
 

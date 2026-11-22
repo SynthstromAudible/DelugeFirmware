@@ -97,8 +97,8 @@
 #include <string_view>
 #include <vector>
 
-// The app headers above can reach `src/lib/printf.h`, which aliases `printf` to an embedded printf this harness does
-// not link; the lines this file prints are the gate's output, so they go to the real stdout.
+// The app headers above can reach `third_party/printf/printf.h`, which aliases `printf` to an embedded printf this
+// harness does not link; the lines this file prints are the gate's output, so they go to the real stdout.
 #ifdef printf
 #undef printf
 #endif

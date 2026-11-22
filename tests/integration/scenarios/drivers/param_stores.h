@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "deluge-project/param_automation.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
+#include "project/param_automation.h"
 
 #include <optional>
 

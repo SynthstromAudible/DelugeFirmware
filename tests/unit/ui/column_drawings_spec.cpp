@@ -1,9 +1,9 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/core/style.h"
-#include "ui/oled/column_drawings.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/column_drawings.h"
 
 #include "cppspec.hpp"
 
@@ -14,9 +14,9 @@
 #include <initializer_list>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
+using namespace deluge::ui::widgets::oled;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // Each drawing is drawn into a value region the size `columns` gives a labelled one-slot column (`render_slot`: the
@@ -185,7 +185,7 @@ void legacy_loop_point(Canvas& image, bool start) {
 		image.draw_pixel(line_x, y);
 	}
 	const int32_t icon_x = start ? line_x + 4 : kStartX - 2;
-	image.draw_icon(deluge::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
+	image.draw_icon(deluge::ui::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
 }
 
 /// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
@@ -195,13 +195,13 @@ void legacy_clip_end(Canvas& image) {
 	for (int32_t y = kStartY + 1; y <= kStartY + kHeight - 5; y += 2) {
 		image.draw_pixel(line_x, y);
 	}
-	image.draw_icon(deluge::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
+	image.draw_icon(deluge::ui::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
 }
 
 } // namespace
 
 // clang-format off
-describe column_drawings_w("ui::oled::column_drawings", $ {
+describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 
 	it("draws the portamento glide as main's, at zero, mid and full", _ {
 		for (const int32_t v : {0, 17, 50}) {
@@ -234,16 +234,16 @@ describe column_drawings_w("ui::oled::column_drawings", $ {
 		constexpr int32_t kTwoSlots = 63;
 		for (const int32_t source : {0, 1}) {
 			for (const bool focused : {false, true}) {
-				for (const Highlighting h : {Highlighting::PartialInversion, Highlighting::FullInversion}) {
+				for (const widgets::core::Highlighting h : {widgets::core::Highlighting::PartialInversion, widgets::core::Highlighting::FullInversion}) {
 					uitest::Rig48 r;
-					Style style = r.style;
+					widgets::core::Style style = r.style;
 					style.highlighting = h;
 					OledFrame frame = root_frame(r.canvas, style, r.ctx);
 					DrawColumn data{.shape = DrawColumn::Shape::Recorder, .raw = source};
 					// No label (`showColumnLabel()` false), so the whole 25-row box.
 					frame.region(Rect{kStartX, kStartY - 5, kTwoSlots, 25}, false,
 					             [&](OledFrame& slot) { draw_column(slot, focused, &data); });
-					legacy_recorder(r.reference, kTwoSlots, source, focused, h == Highlighting::FullInversion);
+					legacy_recorder(r.reference, kTwoSlots, source, focused, h == widgets::core::Highlighting::FullInversion);
 					expect(r.pbm()).to_equal(r.reference_pbm());
 				}
 			}

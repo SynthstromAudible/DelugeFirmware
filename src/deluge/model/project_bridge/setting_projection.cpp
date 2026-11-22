@@ -1,8 +1,5 @@
 #include "model/project_bridge/setting_projection.h"
 
-#include "deluge-project/audio_input.h"
-#include "deluge-project/fraction.h"
-#include "deluge-project/sequence_direction.h"
 #include "effects/reverb.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -26,11 +23,14 @@
 #include "modulation/params/param_set.h"
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/sync.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/audio_input.h"
+#include "project/fraction.h"
+#include "project/sequence_direction.h"
 #include "serialization/tree.h"
 
 #include <utility>

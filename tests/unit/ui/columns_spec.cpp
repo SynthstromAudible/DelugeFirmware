@@ -1,9 +1,9 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
-#include "ui/core/style.h"
-#include "ui/oled/columns.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
+#include "ui/widgets/core/style.h"
+#include "ui/widgets/oled/columns.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -17,11 +17,11 @@
 #include <vector>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
-using deluge::gfx::oled::BorderRadius;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
-namespace icons = deluge::gfx::oled::icons;
+using namespace deluge::ui::widgets::oled;
+using deluge::ui::gfx::oled::BorderRadius;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
+namespace icons = deluge::ui::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
 // The horizontal menu page is pinned three ways at once, as `tests/unit/ui/meters_spec.cpp` and
@@ -414,12 +414,12 @@ std::vector<legacy::Item> four_columns() {
 
 /// Draw one scene both ways into \p r and compare the whole canvas.
 template <class Self, class Rig>
-void matches_legacy(Self& self, Rig& r, Page& p, ColumnsState& state, size_t first, size_t last, int32_t total_pages,
-                    const char* title) {
+void matches_legacy(Self& self, Rig& r, Page& p, widgets::core::ColumnsState& state, size_t first, size_t last,
+                    int32_t total_pages, const char* title) {
 	columns(r.frame, r.frame.bounds(), state, p.span(), title == nullptr ? std::string_view{} : title);
 	legacy::renderOLED(r.reference, title, p.page(first, last), state.focused - static_cast<int32_t>(first), state.page,
 	                   total_pages, r.canvas.geometry().width, r.canvas.geometry().height, r.frame.origin.y,
-	                   r.style.highlighting == Highlighting::FullInversion, r.style.rounded);
+	                   r.style.highlighting == widgets::core::Highlighting::FullInversion, r.style.rounded);
 	expect(r.pbm()).to_equal(r.reference_pbm());
 }
 
@@ -427,10 +427,10 @@ void matches_legacy(Self& self, Rig& r, Page& p, ColumnsState& state, size_t fir
 /// (now `PartialInversion`) style -- for the two examples that still exercise legacy's
 /// `FULL_INVERSION` arm.
 template <class Self, class Rig>
-void matches_legacy_full_inversion(Self& self, Rig& r, Page& p, ColumnsState& state, size_t first, size_t last,
-                                   int32_t total_pages, const char* title) {
-	Style full = kDelugeStyle48;
-	full.highlighting = Highlighting::FullInversion;
+void matches_legacy_full_inversion(Self& self, Rig& r, Page& p, widgets::core::ColumnsState& state, size_t first,
+                                   size_t last, int32_t total_pages, const char* title) {
+	widgets::core::Style full = widgets::core::kDelugeStyle48;
+	full.highlighting = widgets::core::Highlighting::FullInversion;
 	OledFrame f = root_frame(r.canvas, full, r.ctx);
 	columns(f, f.bounds(), state, p.span(), title == nullptr ? std::string_view{} : title);
 	legacy::renderOLED(r.reference, title, p.page(first, last), state.focused - static_cast<int32_t>(first), state.page,
@@ -442,17 +442,17 @@ void matches_legacy_full_inversion(Self& self, Rig& r, Page& p, ColumnsState& st
 } // namespace
 
 // clang-format off
-describe columns_w("ui::oled::columns", $ {
+describe columns_w("ui::widgets::oled::columns", $ {
 	it("draws the legacy four-column page at both geometries", _ {
 		uitest::Rig48 r;
 		Page p{four_columns()};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 4, 1, "FILTER");
 		expect_golden(self, "ui/widgets/columns_four_48.pbm", r.pbm());
 
 		uitest::Rig64 r64;
 		Page p64{four_columns()};
-		ColumnsState state64{};
+		widgets::core::ColumnsState state64{};
 		matches_legacy(self, r64, p64, state64, 0, 4, 1, "FILTER");
 		expect_golden(self, "ui/widgets/columns_four_64.pbm", r64.pbm());
 	});
@@ -466,11 +466,11 @@ describe columns_w("ui::oled::columns", $ {
 		// Pinned to FullInversion: the shipped profile now ships PartialInversion (the
 		// underline), but this example still exercises legacy's FULL_INVERSION arm.
 		uitest::Rig48 r;
-		Style full48 = kDelugeStyle48;
-		full48.highlighting = Highlighting::FullInversion;
+		widgets::core::Style full48 = widgets::core::kDelugeStyle48;
+		full48.highlighting = widgets::core::Highlighting::FullInversion;
 		OledFrame f = root_frame(r.canvas, full48, r.ctx);
 		Page p{four_columns()};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		columns(f, f.bounds(), state, p.span());
 
 		expect(r.lit(2, 34)).to_be_false(); // one row above the label box
@@ -493,11 +493,11 @@ describe columns_w("ui::oled::columns", $ {
 		// And on a 64-row panel with no bezel, the same literal base_y puts the label row at
 		// 14 + 25 - 9 = 30..38 -- one row *above* where list's kMenuBaseY64 would have put it.
 		uitest::Rig64 r64;
-		Style full64 = kDelugeStyle64;
-		full64.highlighting = Highlighting::FullInversion;
+		widgets::core::Style full64 = widgets::core::kDelugeStyle64;
+		full64.highlighting = widgets::core::Highlighting::FullInversion;
 		OledFrame f64 = root_frame(r64.canvas, full64, r64.ctx);
 		Page p64{four_columns()};
-		ColumnsState s64{};
+		widgets::core::ColumnsState s64{};
 		columns(f64, f64.bounds(), s64, p64.span());
 		expect(r64.lit(2, 29)).to_be_false();
 		expect(r64.lit(2, 30)).to_be_true();
@@ -511,10 +511,10 @@ describe columns_w("ui::oled::columns", $ {
 		// owns the encoder (`MenuView::render_horizontal`).
 		uitest::Rig48 r;
 		Page p{four_columns()};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 
 		r.input.turn = 1;
-		const Response resp = columns(r.frame, r.frame.bounds(), state, p.span());
+		const widgets::core::Response resp = columns(r.frame, r.frame.bounds(), state, p.span());
 		expect(resp.changed).to_be_false();
 		expect(static_cast<int32_t>(state.focused)).to_equal(0);
 
@@ -527,9 +527,9 @@ describe columns_w("ui::oled::columns", $ {
 		// A negative turn does nothing either.
 		uitest::Rig48 r2;
 		Page p2{four_columns()};
-		ColumnsState at_start{.focused = 2};
+		widgets::core::ColumnsState at_start{.focused = 2};
 		r2.input.turn = -1;
-		const Response stuck = columns(r2.frame, r2.frame.bounds(), at_start, p2.span());
+		const widgets::core::Response stuck = columns(r2.frame, r2.frame.bounds(), at_start, p2.span());
 		expect(stuck.changed).to_be_false();
 		expect(static_cast<int32_t>(at_start.focused)).to_equal(2);
 	});
@@ -541,7 +541,7 @@ describe columns_w("ui::oled::columns", $ {
 		with_gap[1].relevant = false;
 		uitest::Rig48 r;
 		Page p{with_gap};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 4, 1, nullptr);
 	});
 
@@ -592,7 +592,7 @@ describe columns_w("ui::oled::columns", $ {
 		};
 		cols[1].render = [](OledFrame&, bool, void*) { seen_covered.calls++; };
 		uitest::Rig48 r;
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		columns(r.frame, r.frame.bounds(), state, std::span<const Column>{cols.data(), cols.size()});
 		expect(seen_first.calls).to_equal(1);
 		expect(seen_first.width).to_equal(64);
@@ -613,7 +613,7 @@ describe columns_w("ui::oled::columns", $ {
 		cols[0].render = [](OledFrame&, bool, void*) { column_calls++; };
 		cols[1].render = [](OledFrame&, bool, void*) { column_calls++; };
 		uitest::Rig48 r;
-		ColumnsState state{.focused = 1};
+		widgets::core::ColumnsState state{.focused = 1};
 		const PageRender page{.draw = [](OledFrame&, int32_t focused, void*) {
 			page_calls++;
 			page_focused = focused;
@@ -638,7 +638,7 @@ describe columns_w("ui::oled::columns", $ {
 		expect(static_cast<int32_t>(paging_of(p.span(), 5).focused_on_page)).to_equal(1);
 
 		uitest::Rig48 r;
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 4, 2, "FILTER");
 		expect_golden(self, "ui/widgets/columns_paged_48.pbm", r.pbm());
 
@@ -658,7 +658,7 @@ describe columns_w("ui::oled::columns", $ {
 		// A single page draws no counters at all.
 		uitest::Rig48 unpaged;
 		Page p4{four_columns()};
-		ColumnsState s4{};
+		widgets::core::ColumnsState s4{};
 		columns(unpaged.frame, unpaged.frame.bounds(), s4, p4.span(), "FILTER");
 		bool anything = false;
 		for (int32_t x = 100; x < 128; x++) {
@@ -674,14 +674,14 @@ describe columns_w("ui::oled::columns", $ {
 		// walks the select turn -- see this file's own note on the "does not move focus on a turn"
 		// example above): seed `ColumnsState{.focused = 4}` directly, with no turn at all, and
 		// `paging_of` still lands the widget on page 1 for it (`state.page = w.paging.page` in
-		// `ui/oled/columns.cpp`).
+		// `ui/widgets/oled/columns.cpp`).
 		std::vector<legacy::Item> six = four_columns();
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
 		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
 
 		Page p{six};
 		uitest::Rig48 r;
-		ColumnsState state{.focused = 4};
+		widgets::core::ColumnsState state{.focused = 4};
 		matches_legacy(self, r, p, state, 4, 6, 2, "FILTER");
 		expect_golden(self, "ui/widgets/columns_page2_48.pbm", r.pbm());
 	});
@@ -740,7 +740,7 @@ describe columns_w("ui::oled::columns", $ {
 		// underline), but this example still exercises legacy's FULL_INVERSION arm.
 		uitest::Rig48 r;
 		Page p{four_columns()};
-		ColumnsState state{.focused = 3};
+		widgets::core::ColumnsState state{.focused = 3};
 		matches_legacy_full_inversion(self, r, p, state, 0, 4, 1, nullptr);
 		// The box is `invertAreaRounded(current_x + 1, box_width - 3, base_y - 1, base_y + 24)`,
 		// i.e. canvas x 97..125 and rows 18..43, with the four corner pixels cleared back off by
@@ -756,7 +756,7 @@ describe columns_w("ui::oled::columns", $ {
 		bare[0].show_label = false;
 		uitest::Rig48 r2;
 		Page p2{bare};
-		ColumnsState s2{};
+		widgets::core::ColumnsState s2{};
 		matches_legacy_full_inversion(self, r2, p2, s2, 0, 4, 1, nullptr);
 	});
 
@@ -765,11 +765,11 @@ describe columns_w("ui::oled::columns", $ {
 		// rig, which already ships `PartialInversion`; this example pins it explicitly and reads
 		// the pixels.
 		uitest::Rig48 r;
-		Style plain = kDelugeStyle48;
-		plain.highlighting = Highlighting::PartialInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::PartialInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		Page p{four_columns()};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		columns(f, f.bounds(), state, p.span());
 		legacy::renderMenuItems(r.reference, p.page(0, 4), 0, 128, 48, f.origin.y, false, plain.rounded);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -791,19 +791,19 @@ describe columns_w("ui::oled::columns", $ {
 		// shared one -- and this pins that down as an example rather than leaving it implicit: NoInversion's pixels
 		// must equal PartialInversion's, byte for byte.
 		uitest::Rig48 r;
-		Style no_inv = kDelugeStyle48;
-		no_inv.highlighting = Highlighting::NoInversion;
+		widgets::core::Style no_inv = widgets::core::kDelugeStyle48;
+		no_inv.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, no_inv, r.ctx);
 		Page p{four_columns()};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		columns(f, f.bounds(), state, p.span());
 
 		uitest::Rig48 partial;
-		Style partial_style = kDelugeStyle48;
-		partial_style.highlighting = Highlighting::PartialInversion;
+		widgets::core::Style partial_style = widgets::core::kDelugeStyle48;
+		partial_style.highlighting = widgets::core::Highlighting::PartialInversion;
 		OledFrame pf = root_frame(partial.canvas, partial_style, partial.ctx);
 		Page pp{four_columns()};
-		ColumnsState pstate{};
+		widgets::core::ColumnsState pstate{};
 		columns(pf, pf.bounds(), pstate, pp.span());
 
 		expect(r.pbm()).to_equal(partial.pbm());
@@ -819,14 +819,14 @@ describe columns_w("ui::oled::columns", $ {
 		};
 		uitest::Rig48 r;
 		Page p{wide};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 3, 1, nullptr);
 		expect_golden(self, "ui/widgets/columns_wide_48.pbm", r.pbm());
 
 		// And with the wide column focused, where the ticks are suppressed.
 		uitest::Rig48 r2;
 		Page p2{wide};
-		ColumnsState s2{.focused = 1};
+		widgets::core::ColumnsState s2{.focused = 1};
 		matches_legacy(self, r2, p2, s2, 0, 3, 1, nullptr);
 	});
 
@@ -842,7 +842,7 @@ describe columns_w("ui::oled::columns", $ {
 		};
 		uitest::Rig48 r;
 		Page p{icons_only};
-		ColumnsState state{};
+		widgets::core::ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 3, 1, nullptr);
 
 		// The knob arc is 21 columns centred across the 31px region, so it starts at canvas
@@ -873,13 +873,13 @@ describe columns_w("ui::oled::columns", $ {
 	it("reports entered for a select press on a submenu column only", _ {
 		uitest::Rig48 r;
 		Page p{four_columns()};
-		ColumnsState on_submenu{.focused = 3};
+		widgets::core::ColumnsState on_submenu{.focused = 3};
 		r.input.select_pressed = true;
 		expect(columns(r.frame, r.frame.bounds(), on_submenu, p.span()).entered).to_be_true();
 
 		uitest::Rig48 r2;
 		Page p2{four_columns()};
-		ColumnsState on_value{.focused = 0};
+		widgets::core::ColumnsState on_value{.focused = 0};
 		r2.input.select_pressed = true;
 		expect(columns(r2.frame, r2.frame.bounds(), on_value, p2.span()).entered).to_be_false();
 	});
@@ -919,15 +919,15 @@ describe columns_w("ui::oled::columns", $ {
 		// falls straight through to the placeholder loop with current_x == 0 -- four dotted
 		// frames under the title. totalPages is 0, so renderPageCounters draws nothing.
 		uitest::Rig48 r;
-		ColumnsState state{};
-		const Response resp = columns(r.frame, r.frame.bounds(), state, std::span<const Column>{}, "FILTER");
+		widgets::core::ColumnsState state{};
+		const widgets::core::Response resp = columns(r.frame, r.frame.bounds(), state, std::span<const Column>{}, "FILTER");
 		expect(resp.changed).to_be_false();
 		expect(resp.entered).to_be_false();
 		expect(static_cast<int32_t>(paging_of(std::span<const Column>{}, 0).total_pages)).to_equal(0);
 		expect(static_cast<int32_t>(state.page)).to_equal(0);
 
 		legacy::renderOLED(r.reference, "FILTER", std::span<const legacy::Item>{}, 0, 0, 0, 128, 48, r.frame.origin.y,
-		                   r.style.highlighting == Highlighting::FullInversion, r.style.rounded);
+		                   r.style.highlighting == widgets::core::Highlighting::FullInversion, r.style.rounded);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "ui/widgets/columns_empty_48.pbm", r.pbm());
 
@@ -968,9 +968,9 @@ describe columns_w("ui::oled::columns", $ {
 		// `(start_x + 4, OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8)`, the box one pixel wider than the letter cleared
 		// first.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::saw, 0, 128, 5 + 2 + 2);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::saw, 0, 128, 5 + 2 + 2);
 		r.reference.clear_area_exact(4 - 1, 31 - 1, 4 + 6 + 1, 31 + 9 + 1);
 		r.reference.draw_char('A', 4, 31, 6, 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -980,9 +980,9 @@ describe columns_w("ui::oled::columns", $ {
 		// `stutter::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): a
 		// pixel at the centre column, on the icon's first row and seven below.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .reversed = true, .dots = true};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::direction, .reversed = true, .dots = true};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 0, 128, 5 + 2, true);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, 0, 128, 5 + 2, true);
 		r.reference.draw_pixel(64, 5 + 2);
 		r.reference.draw_pixel(64, 5 + 2 + 7);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -992,10 +992,10 @@ describe columns_w("ui::oled::columns", $ {
 		// `sequence::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`):
 		// the icon at `start_x + 2`, and again mirrored at `start_x - 2`.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .twin_dx = 2};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::direction, .twin_dx = 2};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 2, 128, 5 + 2);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, -2, 128, 5 + 2, true);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, 2, 128, 5 + 2);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, -2, 128, 5 + 2, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 

@@ -17,9 +17,9 @@
 
 #include "gui/l10n/param_names.h"
 
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 
 #include <optional>
 
@@ -31,115 +31,115 @@ namespace {
 /// @brief The name of a patched param, nullopt for an id that names no param.
 std::optional<std::string_view> patched_name(plugin::ParamId id) {
 	switch (id.value) {
-	case instrument::param::kOscAVolume.value:
+	case instruments::classic::param::kOscAVolume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
-	case instrument::param::kOscBVolume.value:
+	case instruments::classic::param::kOscBVolume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
-	case instrument::param::kVolume.value:
+	case instruments::classic::param::kVolume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_VOLUME);
-	case instrument::param::kNoiseVolume.value:
+	case instruments::classic::param::kNoiseVolume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
-	case instrument::param::kModulator1Volume.value:
+	case instruments::classic::param::kModulator1Volume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
-	case instrument::param::kModulator2Volume.value:
+	case instruments::classic::param::kModulator2Volume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
-	case instrument::param::kWaveFold.value:
+	case instruments::classic::param::kWaveFold.value:
 		return getView(String::STRING_FOR_WAVEFOLDER);
-	case instrument::param::kModulator1Feedback.value:
+	case instruments::classic::param::kModulator1Feedback.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
-	case instrument::param::kModulator2Feedback.value:
+	case instruments::classic::param::kModulator2Feedback.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
-	case instrument::param::kCarrier1Feedback.value:
+	case instruments::classic::param::kCarrier1Feedback.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
-	case instrument::param::kCarrier2Feedback.value:
+	case instruments::classic::param::kCarrier2Feedback.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
-	case instrument::param::kLpfResonance.value:
+	case instruments::classic::param::kLpfResonance.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
-	case instrument::param::kHpfResonance.value:
+	case instruments::classic::param::kHpfResonance.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
-	case instrument::param::kEnv1Sustain.value:
+	case instruments::classic::param::kEnv1Sustain.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
-	case instrument::param::kEnv2Sustain.value:
+	case instruments::classic::param::kEnv2Sustain.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
-	case instrument::param::kEnv3Sustain.value:
+	case instruments::classic::param::kEnv3Sustain.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN);
-	case instrument::param::kEnv4Sustain.value:
+	case instruments::classic::param::kEnv4Sustain.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN);
-	case instrument::param::kLpfMorph.value:
+	case instruments::classic::param::kLpfMorph.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_LPF_MORPH);
-	case instrument::param::kHpfMorph.value:
+	case instruments::classic::param::kHpfMorph.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_HPF_MORPH);
-	case instrument::param::kOscAPhaseWidth.value:
+	case instruments::classic::param::kOscAPhaseWidth.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
-	case instrument::param::kOscBPhaseWidth.value:
+	case instruments::classic::param::kOscBPhaseWidth.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
-	case instrument::param::kOscAWavetablePosition.value:
+	case instruments::classic::param::kOscAWavetablePosition.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
-	case instrument::param::kOscBWavetablePosition.value:
+	case instruments::classic::param::kOscBWavetablePosition.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
-	case instrument::param::kPan.value:
+	case instruments::classic::param::kPan.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_PAN);
-	case instrument::param::kLpfFrequency.value:
+	case instruments::classic::param::kLpfFrequency.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_LPF_FREQ);
-	case instrument::param::kPitch.value:
+	case instruments::classic::param::kPitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
-	case instrument::param::kOscAPitch.value:
+	case instruments::classic::param::kOscAPitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
-	case instrument::param::kOscBPitch.value:
+	case instruments::classic::param::kOscBPitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
-	case instrument::param::kModulator1Pitch.value:
+	case instruments::classic::param::kModulator1Pitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
-	case instrument::param::kModulator2Pitch.value:
+	case instruments::classic::param::kModulator2Pitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
-	case instrument::param::kHpfFrequency.value:
+	case instruments::classic::param::kHpfFrequency.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_HPF_FREQ);
-	case instrument::param::kLfo2Rate.value:
+	case instruments::classic::param::kLfo2Rate.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1);
-	case instrument::param::kLfo4Rate.value:
+	case instruments::classic::param::kLfo4Rate.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2);
-	case instrument::param::kEnv1Attack.value:
+	case instruments::classic::param::kEnv1Attack.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
-	case instrument::param::kEnv2Attack.value:
+	case instruments::classic::param::kEnv2Attack.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
-	case instrument::param::kEnv3Attack.value:
+	case instruments::classic::param::kEnv3Attack.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK);
-	case instrument::param::kEnv4Attack.value:
+	case instruments::classic::param::kEnv4Attack.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK);
-	case instrument::param::kEnv1Decay.value:
+	case instruments::classic::param::kEnv1Decay.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
-	case instrument::param::kEnv2Decay.value:
+	case instruments::classic::param::kEnv2Decay.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
-	case instrument::param::kEnv3Decay.value:
+	case instruments::classic::param::kEnv3Decay.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_2_DECAY);
-	case instrument::param::kEnv4Decay.value:
+	case instruments::classic::param::kEnv4Decay.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_3_DECAY);
-	case instrument::param::kEnv1Release.value:
+	case instruments::classic::param::kEnv1Release.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
-	case instrument::param::kEnv2Release.value:
+	case instruments::classic::param::kEnv2Release.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
-	case instrument::param::kEnv3Release.value:
+	case instruments::classic::param::kEnv3Release.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE);
-	case instrument::param::kEnv4Release.value:
+	case instruments::classic::param::kEnv4Release.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE);
-	case instrument::param::kVolumePostFX.value:
+	case instruments::classic::param::kVolumePostFX.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
-	case instrument::param::kVolumePostReverbSend.value:
+	case instruments::classic::param::kVolumePostReverbSend.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
-	case instrument::param::kReverbAmount.value:
+	case instruments::classic::param::kReverbAmount.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
-	case instrument::param::kModFXDepth.value:
+	case instruments::classic::param::kModFXDepth.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
-	case instrument::param::kDelayFeedback.value:
+	case instruments::classic::param::kDelayFeedback.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
-	case instrument::param::kDelayRate.value:
+	case instruments::classic::param::kDelayRate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
-	case instrument::param::kModFXRate.value:
+	case instruments::classic::param::kModFXRate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
-	case instrument::param::kLfo1Rate.value:
+	case instruments::classic::param::kLfo1Rate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1);
-	case instrument::param::kLfo3Rate.value:
+	case instruments::classic::param::kLfo3Rate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2);
-	case instrument::param::kArpRate.value:
+	case instruments::classic::param::kArpRate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_ARP_RATE);
 	}
 	return std::nullopt;
@@ -148,59 +148,59 @@ std::optional<std::string_view> patched_name(plugin::ParamId id) {
 /// @brief The name of a sound's unpatched param, nullopt for an id that names no param.
 std::optional<std::string_view> unpatched_sound_name(plugin::ParamId id) {
 	switch (id.value) {
-	case instrument::param::kStutterRate.value:
+	case instruments::classic::param::kStutterRate.value:
 		return getView(String::STRING_FOR_STUTTER_RATE);
-	case instrument::param::kBass.value:
+	case instruments::classic::param::kBass.value:
 		return getView(String::STRING_FOR_BASS);
-	case instrument::param::kTreble.value:
+	case instruments::classic::param::kTreble.value:
 		return getView(String::STRING_FOR_TREBLE);
-	case instrument::param::kBassFreq.value:
+	case instruments::classic::param::kBassFreq.value:
 		return getView(String::STRING_FOR_BASS_FREQUENCY);
-	case instrument::param::kTrebleFreq.value:
+	case instruments::classic::param::kTrebleFreq.value:
 		return getView(String::STRING_FOR_TREBLE_FREQUENCY);
-	case instrument::param::kSampleRateReduction.value:
+	case instruments::classic::param::kSampleRateReduction.value:
 		return getView(String::STRING_FOR_DECIMATION);
-	case instrument::param::kBitcrushAmount.value:
+	case instruments::classic::param::kBitcrushAmount.value:
 		return getView(String::STRING_FOR_BITCRUSH);
-	case instrument::param::kModFXOffset.value:
+	case instruments::classic::param::kModFXOffset.value:
 		return getView(String::STRING_FOR_MODFX_OFFSET);
-	case instrument::param::kModFXFeedback.value:
+	case instruments::classic::param::kModFXFeedback.value:
 		return getView(String::STRING_FOR_MODFX_FEEDBACK);
-	case instrument::param::kCompressorShape.value:
+	case instruments::classic::param::kCompressorShape.value:
 		return getView(String::STRING_FOR_SIDECHAIN_SHAPE);
-	case instrument::param::kCompressorThreshold.value:
+	case instruments::classic::param::kCompressorThreshold.value:
 		return getView(String::STRING_FOR_THRESHOLD);
-	case instrument::param::kArpGate.value:
+	case instruments::classic::param::kArpGate.value:
 		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
-	case instrument::param::kRhythm.value:
+	case instruments::classic::param::kRhythm.value:
 		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
-	case instrument::param::kSequenceLength.value:
+	case instruments::classic::param::kSequenceLength.value:
 		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
-	case instrument::param::kChordPolyphony.value:
+	case instruments::classic::param::kChordPolyphony.value:
 		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
-	case instrument::param::kRatchetAmount.value:
+	case instruments::classic::param::kRatchetAmount.value:
 		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
-	case instrument::param::kNoteProbability.value:
+	case instruments::classic::param::kNoteProbability.value:
 		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
-	case instrument::param::kReverseProbability.value:
+	case instruments::classic::param::kReverseProbability.value:
 		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
-	case instrument::param::kBassProbability.value:
+	case instruments::classic::param::kBassProbability.value:
 		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
-	case instrument::param::kSwapProbability.value:
+	case instruments::classic::param::kSwapProbability.value:
 		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
-	case instrument::param::kGlideProbability.value:
+	case instruments::classic::param::kGlideProbability.value:
 		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
-	case instrument::param::kChordProbability.value:
+	case instruments::classic::param::kChordProbability.value:
 		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
-	case instrument::param::kRatchetProbability.value:
+	case instruments::classic::param::kRatchetProbability.value:
 		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
-	case instrument::param::kSpreadGate.value:
+	case instruments::classic::param::kSpreadGate.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
-	case instrument::param::kSpreadOctave.value:
+	case instruments::classic::param::kSpreadOctave.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
-	case instrument::param::kSpreadVelocity.value:
+	case instruments::classic::param::kSpreadVelocity.value:
 		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
-	case instrument::param::kPortamento.value:
+	case instruments::classic::param::kPortamento.value:
 		return getView(String::STRING_FOR_PORTAMENTO);
 	}
 	return std::nullopt;
@@ -209,91 +209,91 @@ std::optional<std::string_view> unpatched_sound_name(plugin::ParamId id) {
 /// @brief The name of a global effectable's unpatched param, nullopt for an id that names no param.
 std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 	switch (id.value) {
-	case host_chain::param::kStutterRate.value:
+	case host::chains::param::kStutterRate.value:
 		return getView(String::STRING_FOR_STUTTER_RATE);
-	case host_chain::param::kBass.value:
+	case host::chains::param::kBass.value:
 		return getView(String::STRING_FOR_BASS);
-	case host_chain::param::kTreble.value:
+	case host::chains::param::kTreble.value:
 		return getView(String::STRING_FOR_TREBLE);
-	case host_chain::param::kBassFreq.value:
+	case host::chains::param::kBassFreq.value:
 		return getView(String::STRING_FOR_BASS_FREQUENCY);
-	case host_chain::param::kTrebleFreq.value:
+	case host::chains::param::kTrebleFreq.value:
 		return getView(String::STRING_FOR_TREBLE_FREQUENCY);
-	case host_chain::param::kSampleRateReduction.value:
+	case host::chains::param::kSampleRateReduction.value:
 		return getView(String::STRING_FOR_DECIMATION);
-	case host_chain::param::kBitcrushAmount.value:
+	case host::chains::param::kBitcrushAmount.value:
 		return getView(String::STRING_FOR_BITCRUSH);
-	case host_chain::param::kModFXOffset.value:
+	case host::chains::param::kModFXOffset.value:
 		return getView(String::STRING_FOR_MODFX_OFFSET);
-	case host_chain::param::kModFXFeedback.value:
+	case host::chains::param::kModFXFeedback.value:
 		return getView(String::STRING_FOR_MODFX_FEEDBACK);
-	case host_chain::param::kCompressorShape.value:
+	case host::chains::param::kCompressorShape.value:
 		return getView(String::STRING_FOR_SIDECHAIN_SHAPE);
-	case host_chain::param::kCompressorThreshold.value:
+	case host::chains::param::kCompressorThreshold.value:
 		return getView(String::STRING_FOR_THRESHOLD);
-	case host_chain::param::kArpGate.value:
+	case host::chains::param::kArpGate.value:
 		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
-	case host_chain::param::kRhythm.value:
+	case host::chains::param::kRhythm.value:
 		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
-	case host_chain::param::kSequenceLength.value:
+	case host::chains::param::kSequenceLength.value:
 		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
-	case host_chain::param::kChordPolyphony.value:
+	case host::chains::param::kChordPolyphony.value:
 		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
-	case host_chain::param::kRatchetAmount.value:
+	case host::chains::param::kRatchetAmount.value:
 		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
-	case host_chain::param::kNoteProbability.value:
+	case host::chains::param::kNoteProbability.value:
 		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kReverseProbability.value:
+	case host::chains::param::kReverseProbability.value:
 		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kBassProbability.value:
+	case host::chains::param::kBassProbability.value:
 		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kSwapProbability.value:
+	case host::chains::param::kSwapProbability.value:
 		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kGlideProbability.value:
+	case host::chains::param::kGlideProbability.value:
 		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kChordProbability.value:
+	case host::chains::param::kChordProbability.value:
 		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kRatchetProbability.value:
+	case host::chains::param::kRatchetProbability.value:
 		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kSpreadGate.value:
+	case host::chains::param::kSpreadGate.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
-	case host_chain::param::kSpreadOctave.value:
+	case host::chains::param::kSpreadOctave.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
-	case host_chain::param::kSpreadVelocity.value:
+	case host::chains::param::kSpreadVelocity.value:
 		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
-	case host_chain::param::kModFXRate.value:
+	case host::chains::param::kModFXRate.value:
 		return getView(String::STRING_FOR_MOD_FX_RATE);
-	case host_chain::param::kModFXDepth.value:
+	case host::chains::param::kModFXDepth.value:
 		return getView(String::STRING_FOR_MOD_FX_DEPTH);
-	case host_chain::param::kDelayRate.value:
+	case host::chains::param::kDelayRate.value:
 		return getView(String::STRING_FOR_DELAY_RATE);
-	case host_chain::param::kDelayFeedback.value:
+	case host::chains::param::kDelayFeedback.value:
 		return getView(String::STRING_FOR_DELAY_AMOUNT);
-	case host_chain::param::kArpRate.value:
+	case host::chains::param::kArpRate.value:
 		return getView(String::STRING_FOR_ARP_RATE_MENU_TITLE);
-	case host_chain::param::kPan.value:
+	case host::chains::param::kPan.value:
 		return getView(String::STRING_FOR_PAN);
-	case host_chain::param::kLpfFrequency.value:
+	case host::chains::param::kLpfFrequency.value:
 		return getView(String::STRING_FOR_LPF_FREQUENCY);
-	case host_chain::param::kLpfResonance.value:
+	case host::chains::param::kLpfResonance.value:
 		return getView(String::STRING_FOR_LPF_RESONANCE);
-	case host_chain::param::kLpfMorph.value:
+	case host::chains::param::kLpfMorph.value:
 		return getView(String::STRING_FOR_LPF_MORPH);
-	case host_chain::param::kHpfFrequency.value:
+	case host::chains::param::kHpfFrequency.value:
 		return getView(String::STRING_FOR_HPF_FREQUENCY);
-	case host_chain::param::kHpfResonance.value:
+	case host::chains::param::kHpfResonance.value:
 		return getView(String::STRING_FOR_HPF_RESONANCE);
-	case host_chain::param::kHpfMorph.value:
+	case host::chains::param::kHpfMorph.value:
 		return getView(String::STRING_FOR_HPF_MORPH);
-	case host_chain::param::kReverbAmount.value:
+	case host::chains::param::kReverbAmount.value:
 		return getView(String::STRING_FOR_REVERB_AMOUNT);
-	case host_chain::param::kVolume.value:
+	case host::chains::param::kVolume.value:
 		return getView(String::STRING_FOR_MASTER_LEVEL);
-	case host_chain::param::kSidechainCompressorVolume.value:
+	case host::chains::param::kSidechainCompressorVolume.value:
 		return getView(String::STRING_FOR_SIDECHAIN_LEVEL);
-	case host_chain::param::kPitchAdjust.value:
+	case host::chains::param::kPitchAdjust.value:
 		return getView(String::STRING_FOR_MASTER_PITCH);
-	case host_chain::param::kTempo.value:
+	case host::chains::param::kTempo.value:
 		return getView(String::STRING_FOR_TEMPO);
 	}
 	return std::nullopt;
@@ -302,11 +302,11 @@ std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 /// @brief The name of an expression axis, nullopt for an id that names no param.
 std::optional<std::string_view> expression_name(plugin::ParamId id) {
 	switch (id.value) {
-	case instrument::kExpressionPitchBend.value:
+	case instruments::classic::kExpressionPitchBend.value:
 		return getView(String::STRING_FOR_PITCH_BEND);
-	case instrument::kExpressionSlide.value:
+	case instruments::classic::kExpressionSlide.value:
 		return getView(String::STRING_FOR_MOD_WHEEL);
-	case instrument::kExpressionPressure.value:
+	case instruments::classic::kExpressionPressure.value:
 		return getView(String::STRING_FOR_CHANNEL_PRESSURE);
 	}
 	return std::nullopt;
@@ -315,115 +315,115 @@ std::optional<std::string_view> expression_name(plugin::ParamId id) {
 /// @brief A patched param's short name, nullopt for an id that names no param.
 std::optional<std::string_view> patched_short(plugin::ParamId id) {
 	switch (id.value) {
-	case instrument::param::kOscAVolume.value:
+	case instruments::classic::param::kOscAVolume.value:
 		return "Osc1 level";
-	case instrument::param::kOscBVolume.value:
+	case instruments::classic::param::kOscBVolume.value:
 		return "Osc2 level";
-	case instrument::param::kVolume.value:
+	case instruments::classic::param::kVolume.value:
 		return "Level";
-	case instrument::param::kNoiseVolume.value:
+	case instruments::classic::param::kNoiseVolume.value:
 		return "Noise";
-	case instrument::param::kModulator1Volume.value:
+	case instruments::classic::param::kModulator1Volume.value:
 		return "Mod1 level";
-	case instrument::param::kModulator2Volume.value:
+	case instruments::classic::param::kModulator2Volume.value:
 		return "Mod2 level";
-	case instrument::param::kWaveFold.value:
+	case instruments::classic::param::kWaveFold.value:
 		return "Wavefold";
-	case instrument::param::kModulator1Feedback.value:
+	case instruments::classic::param::kModulator1Feedback.value:
 		return "Mod1 feed";
-	case instrument::param::kModulator2Feedback.value:
+	case instruments::classic::param::kModulator2Feedback.value:
 		return "Mod2 feed";
-	case instrument::param::kCarrier1Feedback.value:
+	case instruments::classic::param::kCarrier1Feedback.value:
 		return "Osc1 feed";
-	case instrument::param::kCarrier2Feedback.value:
+	case instruments::classic::param::kCarrier2Feedback.value:
 		return "Osc2 feed";
-	case instrument::param::kLpfResonance.value:
+	case instruments::classic::param::kLpfResonance.value:
 		return "LPF reso";
-	case instrument::param::kHpfResonance.value:
+	case instruments::classic::param::kHpfResonance.value:
 		return "HPF reso";
-	case instrument::param::kEnv1Sustain.value:
+	case instruments::classic::param::kEnv1Sustain.value:
 		return "Env1 sus";
-	case instrument::param::kEnv2Sustain.value:
+	case instruments::classic::param::kEnv2Sustain.value:
 		return "Env2 sus";
-	case instrument::param::kEnv3Sustain.value:
+	case instruments::classic::param::kEnv3Sustain.value:
 		return "Env3 sus";
-	case instrument::param::kEnv4Sustain.value:
+	case instruments::classic::param::kEnv4Sustain.value:
 		return "Env4 sus";
-	case instrument::param::kLpfMorph.value:
+	case instruments::classic::param::kLpfMorph.value:
 		return "LPF Morph";
-	case instrument::param::kHpfMorph.value:
+	case instruments::classic::param::kHpfMorph.value:
 		return "HPF Morph";
-	case instrument::param::kOscAPhaseWidth.value:
+	case instruments::classic::param::kOscAPhaseWidth.value:
 		return "Osc1 PW";
-	case instrument::param::kOscBPhaseWidth.value:
+	case instruments::classic::param::kOscBPhaseWidth.value:
 		return "Osc2 PW";
-	case instrument::param::kOscAWavetablePosition.value:
+	case instruments::classic::param::kOscAWavetablePosition.value:
 		return "Osc1 wave";
-	case instrument::param::kOscBWavetablePosition.value:
+	case instruments::classic::param::kOscBWavetablePosition.value:
 		return "Osc2 wave";
-	case instrument::param::kPan.value:
+	case instruments::classic::param::kPan.value:
 		return "Pan";
-	case instrument::param::kLpfFrequency.value:
+	case instruments::classic::param::kLpfFrequency.value:
 		return "LPf freq";
-	case instrument::param::kPitch.value:
+	case instruments::classic::param::kPitch.value:
 		return "Pitch";
-	case instrument::param::kOscAPitch.value:
+	case instruments::classic::param::kOscAPitch.value:
 		return "Osc1 pitch";
-	case instrument::param::kOscBPitch.value:
+	case instruments::classic::param::kOscBPitch.value:
 		return "Osc2 pitch";
-	case instrument::param::kModulator1Pitch.value:
+	case instruments::classic::param::kModulator1Pitch.value:
 		return "Mod1 pitch";
-	case instrument::param::kModulator2Pitch.value:
+	case instruments::classic::param::kModulator2Pitch.value:
 		return "Mod1 pitch";
-	case instrument::param::kHpfFrequency.value:
+	case instruments::classic::param::kHpfFrequency.value:
 		return "HPF freq";
-	case instrument::param::kLfo2Rate.value:
+	case instruments::classic::param::kLfo2Rate.value:
 		return "LFO2 rate";
-	case instrument::param::kLfo4Rate.value:
+	case instruments::classic::param::kLfo4Rate.value:
 		return "LFO4 rate";
-	case instrument::param::kEnv1Attack.value:
+	case instruments::classic::param::kEnv1Attack.value:
 		return "Env1attack";
-	case instrument::param::kEnv2Attack.value:
+	case instruments::classic::param::kEnv2Attack.value:
 		return "Env2attack";
-	case instrument::param::kEnv3Attack.value:
+	case instruments::classic::param::kEnv3Attack.value:
 		return "Env3attack";
-	case instrument::param::kEnv4Attack.value:
+	case instruments::classic::param::kEnv4Attack.value:
 		return "Env4attack";
-	case instrument::param::kEnv1Decay.value:
+	case instruments::classic::param::kEnv1Decay.value:
 		return "Env1 decay";
-	case instrument::param::kEnv2Decay.value:
+	case instruments::classic::param::kEnv2Decay.value:
 		return "Env2 decay";
-	case instrument::param::kEnv3Decay.value:
+	case instruments::classic::param::kEnv3Decay.value:
 		return "Env3 decay";
-	case instrument::param::kEnv4Decay.value:
+	case instruments::classic::param::kEnv4Decay.value:
 		return "Env4 decay";
-	case instrument::param::kEnv1Release.value:
+	case instruments::classic::param::kEnv1Release.value:
 		return "Env1 rel";
-	case instrument::param::kEnv2Release.value:
+	case instruments::classic::param::kEnv2Release.value:
 		return "Env2 rel";
-	case instrument::param::kEnv3Release.value:
+	case instruments::classic::param::kEnv3Release.value:
 		return "Env3 rel";
-	case instrument::param::kEnv4Release.value:
+	case instruments::classic::param::kEnv4Release.value:
 		return "Env4 rel";
-	case instrument::param::kVolumePostFX.value:
+	case instruments::classic::param::kVolumePostFX.value:
 		return "POSTFXLVL";
-	case instrument::param::kVolumePostReverbSend.value:
+	case instruments::classic::param::kVolumePostReverbSend.value:
 		return "Side level";
-	case instrument::param::kReverbAmount.value:
+	case instruments::classic::param::kReverbAmount.value:
 		return "Reverb amt";
-	case instrument::param::kModFXDepth.value:
+	case instruments::classic::param::kModFXDepth.value:
 		return "ModFXdepth";
-	case instrument::param::kDelayFeedback.value:
+	case instruments::classic::param::kDelayFeedback.value:
 		return "Delay feed";
-	case instrument::param::kDelayRate.value:
+	case instruments::classic::param::kDelayRate.value:
 		return "Delay rate";
-	case instrument::param::kModFXRate.value:
+	case instruments::classic::param::kModFXRate.value:
 		return "ModFX rate";
-	case instrument::param::kLfo1Rate.value:
+	case instruments::classic::param::kLfo1Rate.value:
 		return "LFO1 rate";
-	case instrument::param::kLfo3Rate.value:
+	case instruments::classic::param::kLfo3Rate.value:
 		return "LFO3 rate";
-	case instrument::param::kArpRate.value:
+	case instruments::classic::param::kArpRate.value:
 		return "Arp. rate";
 	}
 	return std::nullopt;
@@ -436,14 +436,14 @@ bool is_family(effects::FilterMode mode, effects::FilterFamily family) {
 
 /// @brief Whether the param is a low-pass morph.
 bool is_lpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
-	return (kind == plugin::ParamKind::PATCHED && id == instrument::param::kLpfMorph)
-	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host_chain::param::kLpfMorph);
+	return (kind == plugin::ParamKind::PATCHED && id == instruments::classic::param::kLpfMorph)
+	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kLpfMorph);
 }
 
 /// @brief Whether the param is a high-pass morph.
 bool is_hpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
-	return (kind == plugin::ParamKind::PATCHED && id == instrument::param::kHpfMorph)
-	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host_chain::param::kHpfMorph);
+	return (kind == plugin::ParamKind::PATCHED && id == instruments::classic::param::kHpfMorph)
+	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kHpfMorph);
 }
 
 } // namespace
@@ -486,13 +486,13 @@ std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id, effects:
 }
 
 std::string_view param_name_at(plugin::ParamKind kind, uint32_t index) {
-	const std::optional<plugin::ParamId> id = instrument::runtime_param_id(kind, index);
+	const std::optional<plugin::ParamId> id = instruments::classic::runtime_param_id(kind, index);
 	return id ? param_name(kind, *id) : getView(String::STRING_FOR_NONE);
 }
 
 std::string_view param_name_at(plugin::ParamKind kind, uint32_t index, effects::FilterMode lpf,
                                effects::FilterMode hpf) {
-	const std::optional<plugin::ParamId> id = instrument::runtime_param_id(kind, index);
+	const std::optional<plugin::ParamId> id = instruments::classic::runtime_param_id(kind, index);
 	return id ? param_name(kind, *id, lpf, hpf) : getView(String::STRING_FOR_NONE);
 }
 
@@ -501,10 +501,10 @@ std::string_view patched_param_short_name(plugin::ParamId id) {
 }
 
 std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMode lpf, effects::FilterMode hpf) {
-	if (id == instrument::param::kLpfMorph && is_family(lpf, effects::FilterFamily::LP_LADDER)) {
+	if (id == instruments::classic::param::kLpfMorph && is_family(lpf, effects::FilterFamily::LP_LADDER)) {
 		return "LPF Drive";
 	}
-	if (id == instrument::param::kHpfMorph && is_family(hpf, effects::FilterFamily::HP_LADDER)) {
+	if (id == instruments::classic::param::kHpfMorph && is_family(hpf, effects::FilterFamily::HP_LADDER)) {
 		return "HPF FM";
 	}
 	return patched_short(id).value_or(std::string_view{""});

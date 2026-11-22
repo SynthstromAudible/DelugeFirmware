@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 
 #include <format>
 #include <ostream>
@@ -30,7 +30,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 
 /// @brief Prints a slot as its set's number (0 patched, 1 unpatched) and its index there, e.g. `{set 1, index 4}`.
 /// @param os The stream to print to.
@@ -40,4 +40,4 @@ inline std::ostream& operator<<(std::ostream& os, const RuntimeSlot& s) {
 	return os << std::format("{{set {}, index {}}}", std::to_underlying(s.set), s.index);
 }
 
-} // namespace deluge::instrument
+} // namespace deluge::instruments::classic

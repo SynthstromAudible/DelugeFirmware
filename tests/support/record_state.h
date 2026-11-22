@@ -22,10 +22,10 @@
 #pragma push_macro("context")
 #undef context
 
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/state_rules.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/state_rules.h"
 #include "serialization/value.h"
 
 #include <cstdio>
@@ -48,22 +48,23 @@ namespace deluge::test {
 /// @param path A `kSettings` row's path, e.g. "osc1/transpose".
 /// @param text The value as a file writes it, e.g. "5" or "sample".
 /// @return The record written, or nothing.
-[[nodiscard]] inline std::optional<instrument::SoundState> try_set(instrument::SoundState state, std::string_view path,
-                                                                   std::string_view text) {
+[[nodiscard]] inline std::optional<instruments::classic::SoundState>
+try_set(instruments::classic::SoundState state, std::string_view path, std::string_view text) {
 	const std::optional<serialization::Value> value =
-	    instrument::canonical_setting(path, serialization::Value::makeScalar(std::string(text)));
-	if (!value || !instrument::allows_setting(state, path, *value)) {
+	    instruments::classic::canonical_setting(path, serialization::Value::makeScalar(std::string(text)));
+	if (!value || !instruments::classic::allows_setting(state, path, *value)) {
 		return std::nullopt;
 	}
-	(void)instrument::write_setting(state, path, *value);
+	(void)instruments::classic::write_setting(state, path, *value);
 	return state;
 }
 
 /// @brief @p state with settings row @p path written as the file text @p text (try_set()). A row or value the
 /// instrument refuses stops the run: a fixture that builds a sound must build the sound it names.
 /// @return @p state, written.
-inline instrument::SoundState& set(instrument::SoundState& state, std::string_view path, std::string_view text) {
-	std::optional<instrument::SoundState> written = try_set(state, path, text);
+inline instruments::classic::SoundState& set(instruments::classic::SoundState& state, std::string_view path,
+                                             std::string_view text) {
+	std::optional<instruments::classic::SoundState> written = try_set(state, path, text);
 	if (!written) {
 		std::fprintf(stderr, "record_state: %.*s refuses %.*s\n", static_cast<int>(path.size()), path.data(),
 		             static_cast<int>(text.size()), text.data());
@@ -74,17 +75,19 @@ inline instrument::SoundState& set(instrument::SoundState& state, std::string_vi
 }
 
 /// @brief A copy of @p state with settings row @p path written as @p text (set()).
-[[nodiscard]] inline instrument::SoundState with(instrument::SoundState state, std::string_view path,
-                                                 std::string_view text) {
+[[nodiscard]] inline instruments::classic::SoundState with(instruments::classic::SoundState state,
+                                                           std::string_view path, std::string_view text) {
 	set(state, path, text);
 	return state;
 }
 
 /// @brief A copy of @p state with slot @p id switched to kind @p type, as the menu's type row switches it.
-[[nodiscard]] inline instrument::SoundState with_kind(const instrument::SoundState& state, instrument::SourceId id,
-                                                      instrument::OscType type) {
-	return instrument::switch_source(state, id, type, instrument::source_ranges(state, id),
-	                                 instrument::source_type(state, id) == instrument::OscType::WAVETABLE);
+[[nodiscard]] inline instruments::classic::SoundState with_kind(const instruments::classic::SoundState& state,
+                                                                instruments::classic::SourceId id,
+                                                                instruments::classic::OscType type) {
+	return instruments::classic::switch_source(state, id, type, instruments::classic::source_ranges(state, id),
+	                                           instruments::classic::source_type(state, id)
+	                                               == instruments::classic::OscType::WAVETABLE);
 }
 
 } // namespace deluge::test

@@ -3,40 +3,40 @@
 ///        song behind the menu: what a page shows is the fake's value, and what a turn writes reaches the fake's
 ///        store.
 
-#include "scenes/bind/device_reader.h"
-#include "scenes/bind/ports/device_settings.h"
-#include "scenes/bind/ports/midi_devices.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/midi_command.h"
-#include "scenes/menu/nodes/multi_range.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/menu/present.h"
-#include "scenes/menu/walk.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/bind/device_reader.h"
+#include "ui/scenes/bind/ports/device_settings.h"
+#include "ui/scenes/bind/ports/midi_devices.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/midi_command.h"
+#include "ui/scenes/menu/nodes/multi_range.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/menu/walk.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/midi_command.h"
-#include "gfx/oled/glyphs.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
 #include "midi/device_id.h"
-#include "music-theory/preset_scales.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
-#include "shell/profile.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
-#include "shell/shell.h"
-#include "ui/core/input.h"
+#include "music/preset_scales.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/instrument_slot.h"
+#include "project/midi_command.h"
+#include "ui/gfx/oled/glyphs.h"
+#include "ui/shell/profile.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/input.h"
 
 #include "support/fake_host_rig.h"
 #include "support/fake_menu_shell.h"
@@ -57,17 +57,17 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::LearnedBinding;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-using deluge::scenes::spec::FakeMenuShell;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::bind::LearnedBinding;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using device_path = deluge::project::device_path;
 using deluge::project::Feature;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 using spec::row_of;
 
@@ -161,7 +161,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.turn(row_of(nodes::defaults_settings, nodes::default_patch_cable_polarity, ctx).value_or(0), 10);
 		r.select(30);
 		expect(menu_scene().focused()).to_equal(&nodes::default_patch_cable_polarity);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		r.turn(-1, 50);
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		if (!r.fakes.host.device.stores.empty()) {
@@ -180,27 +180,27 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kPatchCablePolarity},
 		                                            deluge::serialization::Value::makeScalar("tripolar"));
 		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 2);
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, -1);
 		expect(r.fakes.host.device.stores.empty()).to_be_true();
 		expect(r.fakes.host.device.values.at(std::string{device_path::kPatchCablePolarity}).str())
 			.to_equal(std::string{"tripolar"});
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
 	});
 
 	it("raises nothing for a write the device port refuses", _ {
 		FakeMenuShell r;
 		const MenuContext ctx = r.open_settings(nodes::defaults_settings);
 		r.fakes.host.device.refuse.insert(std::string{device_path::kPatchCablePolarity});
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 0);
 		// The write reached the port, which kept nothing and said so.
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
-		deluge::notify::Notice notice{};
-		expect(deluge::notify::notices().pop(notice)).to_be_false();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
+		deluge::base::notify::Notice notice{};
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
 	});
 
 	it("says restart to apply for a USB audio enable the device takes at its next start, and only then", _ {
@@ -210,15 +210,15 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(menu::bindings::read(nodes::usb_audio_enabled, ctx)).to_equal(1);
 		// A write the device has in effect at once says nothing.
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 0);
-		deluge::notify::Notice notice{};
-		expect(deluge::notify::notices().pop(notice)).to_be_false();
+		deluge::base::notify::Notice notice{};
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
 		// One it takes only at its next start says so.
 		r.fakes.host.device.accept_restart.insert(std::string{device_path::kUsbAudioEnabled});
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 1);
 		expect(last_stores(r.fakes, 2))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kUsbAudioEnabled} + "=0",
 		                                       std::string{device_path::kUsbAudioEnabled} + "=1"});
-		expect(deluge::notify::notices().pop(notice)).to_be_true();
+		expect(deluge::base::notify::notices().pop(notice)).to_be_true();
 		expect(static_cast<int>(notice.string_id))
 			.to_equal(static_cast<int>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();
@@ -352,8 +352,8 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		MenuContext ctx = r.fakes.settings_context(/*with_model=*/false);
 		ctx.addresses.slot = deluge::project::SlotAddress{.kind = deluge::project::SlotAddress::Kind::OUTPUT, .id = 7};
 		ctx.source_index = 0;
-		deluge::instrument::SoundState& state = r.fakes.host.sound.states[7];
-		state = deluge::instrument::with_ranges(state, deluge::instrument::SourceId::A,
+		deluge::instruments::classic::SoundState& state = r.fakes.host.sound.states[7];
+		state = deluge::instruments::classic::with_ranges(state, deluge::instruments::classic::SourceId::A,
 		                                        {deluge::synth::SourceRange{.top_note = 60},
 		                                         deluge::synth::SourceRange{.top_note = 72}});
 		// Range 1 starts at the note above range 0's top, 61: C sharp 3 or D flat 3.
@@ -364,7 +364,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
 		                                            deluge::serialization::Value::makeNumber(0));
 		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
-			.to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph + "3    - top");
+			.to_equal(std::string{"D"} + deluge::ui::gfx::oled::kFlatGlyph + "3    - top");
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
 		                                            deluge::serialization::Value::makeNumber(1));
 		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
@@ -395,7 +395,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		hold(r.fakes, device_path::kTempoUpper, 150);
 		(void)r.open_settings(nodes::default_tempo);
 		// A split range opens on its left end.
-		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Left));
 		r.turn(60, 20);
 		expect(last_stores(r.fakes, 2))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kTempoLower} + "=160",
@@ -409,7 +409,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		hold(r.fakes, device_path::kKeyUpper, 9);
 		(void)r.open_settings(nodes::default_key);
 		// A key range opens on neither end; the horizontal encoder picks the left one.
-		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Off));
 		r.horizontal(-1, 20);
 		r.turn(10, 40);
 		expect(last_stores(r.fakes, 2))
@@ -420,11 +420,11 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 	it("spells the key range's ends as the device's useSharps row says", _ {
 		FakeMenuShell r;
 		const MenuContext ctx = r.open_settings(nodes::default_key);
-		std::array<char, deluge::ui::oled::kRangeTextMax> scratch{};
+		std::array<char, deluge::ui::widgets::oled::kRangeTextMax> scratch{};
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)}).to_equal(std::string{"C#"});
 		hold(r.fakes, device_path::kUseSharps, 0);
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)})
-		    .to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph);
+		    .to_equal(std::string{"D"} + deluge::ui::gfx::oled::kFlatGlyph);
 	});
 
 	it("names the default swing interval against the magnitude row, which a resolution turn writes", _ {

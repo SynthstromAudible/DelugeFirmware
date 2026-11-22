@@ -30,7 +30,7 @@ using deluge::gui::SoundTarget;
 /// A synth whose source 0 holds @p count sample ranges, and a target on it naming range @p index while it still points
 /// at range 0: a pointer only a re-point can move.
 struct SourceRig {
-	deluge::scenes::spec::SongFixture song = deluge::scenes::spec::make_synth_song();
+	deluge::ui::scenes::spec::SongFixture song = deluge::ui::scenes::spec::make_synth_song();
 	Sound* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	SourceResources* source = &sound->sourceResources[0];
 	SoundTarget target{};
@@ -54,7 +54,7 @@ struct SourceRig {
 		const RangesRetypeWatch watch{*source};
 		deluge::edits::settingFor(
 		    *sound, deluge::edits::oscSettingPath(0, "type"),
-		    deluge::serialization::Value::makeScalar(std::string{deluge::instrument::to_string(type)}));
+		    deluge::serialization::Value::makeScalar(std::string{deluge::instruments::classic::to_string(type)}));
 		return watch.result();
 	}
 };

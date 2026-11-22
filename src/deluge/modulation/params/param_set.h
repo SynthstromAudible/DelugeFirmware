@@ -108,10 +108,10 @@ public:
 	/// @copydoc ParamCollection::findDocParamForId
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 	/// @copydoc ParamCollection::forEachLane
-	void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
+	void forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
 	/// @copydoc ParamCollection::forEachAppendedKey
 	void forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-	                        deluge::function_ref<void(int32_t)> visit) override;
+	                        deluge::base::function_ref<void(int32_t)> visit) override;
 	/// @copydoc ParamCollection::laneToAppendTo
 	deluge::project::DocAutoParam* laneToAppendTo(int32_t paramId) override;
 	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }

@@ -1,4 +1,4 @@
-# Level-2 acceptance: the action seam (`scenes/menu/action.h`) -- a
+# Level-2 acceptance: the action seam (`ui/scenes/menu/action.h`) -- a
 # `nodes::ActionItem` whose whole body is "file one `MenuAction` and get out of the way".
 #
 # Main's four (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`,

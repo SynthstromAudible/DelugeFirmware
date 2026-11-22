@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "support/printers/effect_states_printer.h"
 #include "support/printers/fixed_point_printer.h"
 #include "support/printers/list_printer.h"
@@ -165,7 +165,7 @@ inline std::ostream& operator<<(std::ostream& os, const LfoState& l) {
 
 } // namespace deluge::synth
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 
 /// @brief Prints what a sound plays, every component's state.
 inline std::ostream& operator<<(std::ostream& os, const ComposedState& s) {
@@ -194,4 +194,4 @@ inline std::ostream& operator<<(std::ostream& os, const SoundState& s) {
 	return os << "{plays " << s.plays << ", recall " << s.recall << "}";
 }
 
-} // namespace deluge::instrument
+} // namespace deluge::instruments::classic

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "deluge-project/instrument_slot.h"
+#include "project/instrument_slot.h"
 
 #include <ostream>
 

@@ -18,7 +18,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/fx/stutter_gesture.h"
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit_cable.h"
@@ -202,7 +202,7 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 	switch (address.space) {
 	case project::ParamSpace::ENGINE:
 		if (owner.holder == Holder::SOUND) {
-			return instrument::is_cable_depth(address.id)
+			return instruments::classic::is_cable_depth(address.id)
 			           ? cableIn(owner.stack, address.id, create && make_cable)
 			           : paramIn(owner.stack, address.id, {params::Kind::PATCHED, params::Kind::UNPATCHED_SOUND});
 		}
@@ -431,15 +431,15 @@ std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& a
 	return stack->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(pos), stack);
 }
 
-ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const controls::KnobFocus& focus, void* memory) {
-	if (const auto* midi = std::get_if<controls::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
+ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const ui::controls::KnobFocus& focus, void* memory) {
+	if (const auto* midi = std::get_if<ui::controls::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
 		::Output* output = outputWithId(song, midi->track.output_id);
 		return output != nullptr && output->type == OutputType::MIDI_OUT
 		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output->toModControllable(), nullptr,
 		                                                            output->getParamManager(&song))
 		           : nullptr;
 	}
-	const std::optional<project::ParamAddress> owner = controls::knob_owner(focus);
+	const std::optional<project::ParamAddress> owner = ui::controls::knob_owner(focus);
 	if (!owner) {
 		return nullptr;
 	}
@@ -456,7 +456,7 @@ PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void
 
 ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address, Polarity polarity,
                                       void* memory) {
-	if (address.space != project::ParamSpace::ENGINE || !instrument::is_cable_depth(address.id)) {
+	if (address.space != project::ParamSpace::ENGINE || !instruments::classic::is_cable_depth(address.id)) {
 		return nullptr;
 	}
 	const OwnerStack owner = ownerStackAt(song, address, memory);

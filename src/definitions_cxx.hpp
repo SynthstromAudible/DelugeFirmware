@@ -18,19 +18,19 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
-#include "deluge-project/arrangement.h"
-#include "deluge-project/drum_type.h"
-#include "deluge-project/launch_style.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/sequence_direction.h"
 #include "effects/words.h"
-#include "gfx/oled/font.h"
-#include "gfx/oled/glyphs.h"
-#include "instruments/deluge/words.h"
-#include "plugin-api/types/interpolation_mode.h"
-#include "plugin-api/types/voice_priority.h"
+#include "instruments/classic/words.h"
+#include "plugin/types/interpolation_mode.h"
+#include "plugin/types/voice_priority.h"
+#include "project/arrangement.h"
+#include "project/drum_type.h"
+#include "project/launch_style.h"
+#include "project/midi_command.h"
+#include "project/sequence_direction.h"
 #include "sequence/iterance.h"
 #include "synth/modulation/patch_source.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/glyphs.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -54,7 +54,7 @@
 
 // Constants for the char value of the flat(♭) accidental glyph
 #define FLAT_CHAR_STR "\x81"
-inline constexpr char FLAT_CHAR = deluge::gfx::oled::kFlatGlyph;
+inline constexpr char FLAT_CHAR = deluge::ui::gfx::oled::kFlatGlyph;
 static_assert(FLAT_CHAR_STR[0] == FLAT_CHAR, "the flat sign has one code point");
 
 constexpr uint8_t kOctaveSize = 12;
@@ -326,7 +326,7 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-using deluge::instrument::OscType;
+using deluge::instruments::classic::OscType;
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
@@ -352,14 +352,14 @@ enum LFO_ID {
 	LFO_COUNT = 4,
 };
 
-using deluge::instrument::LFOType;
+using deluge::instruments::classic::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 using deluge::effects::kNumModFXTypes;
 using deluge::effects::ModFXType;
 
-using deluge::instrument::SynthMode;
+using deluge::instruments::classic::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -370,7 +370,7 @@ enum WavFormat : uint8_t {
 	WAV_FORMAT_FLOAT = 3,
 };
 
-using deluge::instrument::PolyphonyMode;
+using deluge::instruments::classic::PolyphonyMode;
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
@@ -444,14 +444,14 @@ enum class Error {
 	LISTING_DEFERRED,
 };
 
-using deluge::instrument::SampleRepeatMode;
+using deluge::instruments::classic::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 using FilterType = deluge::effects::FilterType;
 constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
-constexpr int32_t kNumSources =
-    static_cast<int32_t>(deluge::instrument::kSourceCount); // sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources = static_cast<int32_t>(
+    deluge::instruments::classic::kSourceCount); // sources as in oscillators - within a Sound (synth).
 
 enum class OldArpMode {
 	OFF,
@@ -906,20 +906,20 @@ constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 constexpr int32_t kTextSmallSpacingX = 4;
 constexpr int32_t kTextSmallSizeY = 5;
 
-// non-title characters (defined in gfx/oled/font.h)
-using deluge::gfx::oled::kTextSizeYUpdated;
-using deluge::gfx::oled::kTextSpacingX;
-using deluge::gfx::oled::kTextSpacingY;
+// non-title characters (defined in ui/gfx/oled/font.h)
+using deluge::ui::gfx::oled::kTextSizeYUpdated;
+using deluge::ui::gfx::oled::kTextSpacingX;
+using deluge::ui::gfx::oled::kTextSpacingY;
 
 // title characters
-using deluge::gfx::oled::kTextTitleSizeY;
-using deluge::gfx::oled::kTextTitleSpacingX;
+using deluge::ui::gfx::oled::kTextTitleSizeY;
+using deluge::ui::gfx::oled::kTextTitleSpacingX;
 
 constexpr int32_t kTextBigSpacingX = 11;
-using deluge::gfx::oled::kTextBigSizeY;
+using deluge::ui::gfx::oled::kTextBigSizeY;
 
-using deluge::gfx::oled::kTextHugeSizeY;
-using deluge::gfx::oled::kTextHugeSpacingX;
+using deluge::ui::gfx::oled::kTextHugeSizeY;
+using deluge::ui::gfx::oled::kTextHugeSpacingX;
 
 // submenu icons
 constexpr int32_t kSubmenuIconSpacingX = 7;

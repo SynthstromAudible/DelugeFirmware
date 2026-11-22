@@ -92,8 +92,9 @@
 #include <unistd.h>
 #include <vector>
 
-// The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
-// harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
+// The firmware headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded
+// `printf_`. This harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the
+// gate's output.
 #ifdef printf
 #undef printf
 #endif

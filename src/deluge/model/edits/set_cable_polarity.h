@@ -1,11 +1,11 @@
 #pragma once
 
-#include "deluge-project/param_address.h"
 #include "model/edits/edit.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 enum class Polarity : uint8_t;
 }
 
@@ -17,7 +17,8 @@ class SetCablePolarity final : public Edit {
 public:
 	/// @param cable    The cable's depth address on a synth or a sound drum (with its clip).
 	/// @param polarity The polarity it takes.
-	SetCablePolarity(project::ParamAddress cable, instrument::Polarity polarity) : cable_(cable), polarity_(polarity) {}
+	SetCablePolarity(project::ParamAddress cable, instruments::classic::Polarity polarity)
+	    : cable_(cable), polarity_(polarity) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED where the sound does not hold the cable.
@@ -25,7 +26,7 @@ public:
 
 private:
 	project::ParamAddress cable_;
-	instrument::Polarity polarity_;
+	instruments::classic::Polarity polarity_;
 };
 
 } // namespace deluge::edits

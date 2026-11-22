@@ -10,12 +10,12 @@
 /// `--logo` forces a logo emission immediately. Without it you would wait out the real interval,
 /// which is minutes long by design, so the feature would be effectively uninspectable here.
 
-#include "ui/oled/rainfall.h"
+#include "ui/widgets/oled/rainfall.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-using deluge::ui::oled::Rainfall;
+using deluge::ui::widgets::oled::Rainfall;
 
 namespace {
 

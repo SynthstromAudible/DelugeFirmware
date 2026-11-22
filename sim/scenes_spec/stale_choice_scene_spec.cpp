@@ -3,24 +3,24 @@
 // leaves the list.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "support/mocks/fake_surfaces.h"
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/song_fixture.h"
 
@@ -32,9 +32,9 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::instrument::OscType;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::instruments::classic::OscType;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
@@ -85,11 +85,11 @@ describe stale_choice_scene("the menu scene over a stored choice that no longer 
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		LeafRig r;
 		r.open(menu::nodes::osc0_type, ctx);
-		const OscType first = deluge::instrument::source_type(drum->state(), deluge::instrument::SourceId::A);
+		const OscType first = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
 		r.turn(1, 20);
-		const OscType second = deluge::instrument::source_type(drum->state(), deluge::instrument::SourceId::A);
+		const OscType second = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
 		r.turn(1, 40);
-		const OscType third = deluge::instrument::source_type(drum->state(), deluge::instrument::SourceId::A);
+		const OscType third = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
 		expect("stored " + std::to_string(static_cast<int>(first))).to_equal("stored " + std::to_string(static_cast<int>(OscType::DX7)));
 		expect("one turn " + std::to_string(static_cast<int>(second)))
 		    .to_equal("one turn " + std::to_string(static_cast<int>(OscType::INPUT_L)));

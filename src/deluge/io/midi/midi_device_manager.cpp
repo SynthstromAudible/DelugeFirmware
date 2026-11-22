@@ -601,7 +601,7 @@ bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.

@@ -13,7 +13,7 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Put @p sample in the preview drum's range under @p path, as a landed preview does, for an example.
 ///
@@ -48,4 +48,4 @@ private:
 	std::string path_;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

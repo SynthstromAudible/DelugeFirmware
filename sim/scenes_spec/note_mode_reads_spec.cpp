@@ -22,8 +22,8 @@
 #include "gui/ui/shell_note_mode.h"
 #include "util/note_editor_open.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/sequence_direction.h"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/shell_pad_forward.h" // wireShellNoteBridge
@@ -44,17 +44,17 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/notice_queue.h"
 #include "playback/mode/session.h"
 #include "processing/sound/sound_drum.h"
+#include "project/sequence_direction.h"
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/note_bridge.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/note_bridge.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
 #include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
@@ -82,18 +82,18 @@ extern bool shiftCurrentlyStuck;
 } // namespace Buttons
 /// @}
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::gui::ui::NoteModeKind;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-using deluge::scenes::spec::FeatureSetting;
-using deluge::scenes::spec::GlobalGuestGuard;
-using deluge::scenes::spec::open_note_mode_over_clip_view;
-using deluge::scenes::spec::SongFixture;
-using deluge::scenes::spec::UiStackGuard;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::spec::FeatureSetting;
+using deluge::ui::scenes::spec::GlobalGuestGuard;
+using deluge::ui::scenes::spec::open_note_mode_over_clip_view;
+using deluge::ui::scenes::spec::SongFixture;
+using deluge::ui::scenes::spec::UiStackGuard;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 namespace guest = deluge::gui::ui;
 
 namespace {
@@ -138,7 +138,7 @@ struct HeldShift {
 /// @name Two spec-local pages for `MenuScene::go_up_one_level`'s refusal arm
 ///
 /// A root whose `relevant` hook refuses makes `permission_for` answer `No` for it
-/// (`scenes/menu/context.cpp`'s base rule), which is the refusal `SoundEditor::goUpOneLevel`'s loop
+/// (`ui/scenes/menu/context.cpp`'s base rule), which is the refusal `SoundEditor::goUpOneLevel`'s loop
 /// meets in the same function. No production root refuses at depth 0, so these stand in.
 /// @{
 bool never_relevant(const MenuContext&) {
@@ -261,8 +261,8 @@ struct LegacyViewGuard {
 	}
 
 	static void drain_notices() {
-		deluge::notify::Notice n;
-		while (deluge::notify::notices().pop(n)) {}
+		deluge::base::notify::Notice n;
+		while (deluge::base::notify::notices().pop(n)) {}
 	}
 };
 
@@ -286,9 +286,9 @@ void set_row_direction(LegacyViewGuard& legacy, int32_t y, SequenceDirection dir
 
 /// @brief The last notice queued since the previous drain, or empty.
 std::string drain_last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -312,7 +312,7 @@ describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's questio
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		expect(guest::noteEditorOpen()).to_be_false();
 		expect(guest::noteRowEditorOpen()).to_be_false();
@@ -326,7 +326,7 @@ describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's questio
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		expect(guest::noteEditorOpen()).to_be_true();
@@ -343,7 +343,7 @@ describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's questio
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
@@ -360,7 +360,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -379,7 +379,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -395,7 +395,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -415,7 +415,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.add_square_note(1, 0, 10);
 		legacy.press(0, 0);
@@ -440,7 +440,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.add_square_note(1, 0, 10);
 		legacy.press(0, 0);
@@ -458,7 +458,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues); // velocity 80
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -477,18 +477,18 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		deluge::hid::display::OLED::removePopup();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 
 		instrumentClipView.adjustVelocity(5);
 
 		expect(display->hasPopup()).to_be_false();
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 	});
 
@@ -497,7 +497,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -518,7 +518,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -542,7 +542,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -566,7 +566,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -582,7 +582,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -603,7 +603,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_row_probability);
@@ -627,7 +627,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.add_square_note(1, 0, 10);
 		LegacyViewGuard::audition_row(0);
@@ -652,7 +652,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		HeldButton shift_for_silence(deluge::hid::button::SHIFT); // `auditionPadAction`'s silent arm: no synth voice
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.row_at(0)->probabilityValue = 5;
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -670,7 +670,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		NoteRow* row = legacy.row_at(0);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -694,7 +694,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		NoteRow* row = legacy.row_at(0);
 		row->probabilityValue = 5;
 		LegacyViewGuard::audition_row(0);
@@ -711,10 +711,10 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
 		fx.clip->yScroll = 0; // `note_bridge_spec.cpp`'s kit example says why
-		auto* first = deluge::scenes::spec::add_drum<GateDrum>(fx);
-		auto* second = deluge::scenes::spec::add_drum<GateDrum>(fx);
+		auto* first = deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
+		auto* second = deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
 		Drum* const row_drum = fx.clip->getNoteRowOnScreen(1, currentSong)->drum;
 		Drum* const other = row_drum == first ? static_cast<Drum*>(second) : static_cast<Drum*>(first);
 		Kit* const kit = static_cast<Kit*>(fx.clip->output);
@@ -732,9 +732,9 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
 		fx.clip->yScroll = 0; // `note_bridge_spec.cpp`'s kit example says why
-		auto* drum = deluge::scenes::spec::add_drum<GateDrum>(fx);
+		auto* drum = deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
 		Kit* const kit = static_cast<Kit*>(fx.clip->output);
 		kit->selectedDrum = drum;
 		const auto rows = std::ssize(fx.clip->noteRows);
@@ -756,10 +756,10 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
 		fx.clip->yScroll = 0;
-		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
-		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
+		(void)deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
+		(void)deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
 		expect(fx.clip->getNoteRowOnScreen(2, currentSong)).to_be_null();
 		LegacyViewGuard::audition_row(1);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -774,7 +774,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		const auto colour = fx.clip->colourOffset();
@@ -791,11 +791,11 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
 		fx.clip->yScroll = 0;
 		fx.clip->affectEntire = false;
-		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
-		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
+		(void)deluge::ui::scenes::spec::add_drum<SoundDrum>(fx);
+		(void)deluge::ui::scenes::spec::add_drum<SoundDrum>(fx);
 		Drum* const row0 = fx.clip->getNoteRowOnScreen(0, currentSong)->drum;
 		Drum* const row1 = fx.clip->getNoteRowOnScreen(1, currentSong)->drum;
 		Kit* const kit = static_cast<Kit*>(fx.clip->output);
@@ -821,7 +821,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		legacy.add_note(0, /*pos=*/0, /*length=*/1, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -846,8 +846,8 @@ describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submen
 		// `SoundEditor::goUpOneLevel` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): `exitCompletely` on the
 		// loop's first pass at depth 0, and again on a later pass when the loop's `checkPermissionToBeginSession` test
 		// refuses the level it stepped down to.
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
-		const MenuContext ctx = deluge::scenes::spec::menu_context_at(fx, Root::Song);
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		const MenuContext ctx = deluge::ui::scenes::spec::menu_context_at(fx, Root::Song);
 
 		menu_scene().open(kOpenRoot, ctx);
 		expect(menu_scene().go_up_one_level()).to_be_false(); // first pass, at depth 0
@@ -879,7 +879,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		legacy.press(0, 0);
@@ -896,10 +896,10 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
 		fx.clip->yScroll = 0;
-		auto* first = deluge::scenes::spec::add_drum<GateDrum>(fx);
-		auto* second = deluge::scenes::spec::add_drum<GateDrum>(fx);
+		auto* first = deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
+		auto* second = deluge::ui::scenes::spec::add_drum<GateDrum>(fx);
 		setRootUILowLevel(&instrumentClipView);
 		Drum* const row_drum = fx.clip->getNoteRowOnScreen(1, currentSong)->drum;
 		Drum* const other = row_drum == first ? static_cast<Drum*>(second) : static_cast<Drum*>(first);
@@ -917,7 +917,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		expect(menu_on_guest_stack()).to_be_false();
 		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).not_().to_be_null();
@@ -936,7 +936,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 
 		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
 		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).to_be_null();
@@ -952,7 +952,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting fill(RuntimeFeatureSettingType::SyncScalingAction, RuntimeFeatureStateSyncScalingAction::Fill);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		LegacyViewGuard::audition_row(0);
 		currentSong->changeFillMode(false);
@@ -967,7 +967,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		FeatureSetting fill(RuntimeFeatureSettingType::SyncScalingAction, RuntimeFeatureStateSyncScalingAction::Fill);
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		LegacyViewGuard::audition_row(0);
 		currentSong->changeFillMode(false);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -985,7 +985,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
 		instrumentClipView.lastAuditionedYDisplay = 0;
@@ -998,7 +998,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
 		LegacyViewGuard::audition_row(0);
@@ -1011,7 +1011,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
 		LegacyViewGuard::audition_row(0);
@@ -1026,7 +1026,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
 		set_row_direction(legacy, 1, SequenceDirection::FORWARD);
@@ -1035,16 +1035,16 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		menu_scene().enter_submenu(nodes::sequence_direction);
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		instrumentClipView.lastAuditionedYDisplay = 1;
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
 		// `Value::readValueAgain`'s `renderUIsForOled()` (`origin/main:src/deluge/gui/menu_item/value.h`): a re-read
 		// value is shown on the shell's next tick, which a pending fact asks for, whatever the legacy drain takes
 		// first.
-		expect(deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)).to_be_true();
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		expect(deluge::base::notify::dirty().pending(deluge::base::notify::DirtyConsumer::Shell)).to_be_true();
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 		// And nothing holds a 0 ms timer for it.
 		expect(menu_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{0});
@@ -1055,7 +1055,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		HeldButton shift_for_silence(deluge::hid::button::SHIFT); // `auditionPadAction`'s silent arm: no synth voice
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 4, SequenceDirection::PINGPONG);
 		set_row_direction(legacy, 5, SequenceDirection::FORWARD);
@@ -1075,7 +1075,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
-		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		set_clip_direction(fx, SequenceDirection::REVERSE);
 		set_row_direction(legacy, 1, SequenceDirection::FORWARD);
 		instrumentClipView.lastAuditionedYDisplay = 0;

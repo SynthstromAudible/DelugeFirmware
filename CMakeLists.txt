@@ -1,6 +1,6 @@
-# 3.27: src/scenes/CMakeLists.txt links deluge_app via $<COMPILE_ONLY:...> (fix round 1,
+# 3.27: src/ui/scenes/CMakeLists.txt links deluge_app via $<COMPILE_ONLY:...> (fix round 1,
 # spec E1 task 1) to take its usage requirements without archiving its objects into
-# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+# libdeluge_ui_scenes.a -- that generator expression needs CMake >= 3.27.
 cmake_minimum_required(VERSION 3.27)
 cmake_policy(SET CMP0135 NEW)
 
@@ -275,7 +275,7 @@ add_subdirectory(lib)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS.
 # Also included by sim/CMakeLists.txt and tests/trees/host/CMakeLists.txt so the leaf libraries
-# (deluge_gfx_*, deluge_ui_*, deluge_notify) get the same warning set in all three projects.
+# (deluge_ui_gfx_*, deluge_ui_*, deluge_base_notify) get the same warning set in all three projects.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_common_options.cmake)
 
 # Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable

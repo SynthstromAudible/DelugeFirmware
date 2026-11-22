@@ -3,12 +3,11 @@
 // where the chain's filter is on, and a kit's own-effects write reaches no drum.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/sound_fx.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/sound_fx.h"
 
-#include "deluge-project/param_address.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
@@ -20,6 +19,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 
@@ -30,10 +30,10 @@
 
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuContext;
 namespace params = deluge::modulation::params;
 
 namespace {

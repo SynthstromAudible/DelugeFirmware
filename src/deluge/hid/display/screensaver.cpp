@@ -31,20 +31,20 @@ namespace deluge::hid::display {
 bool Screensaver::active_ = false;
 bool Screensaver::frameDirty_ = false;
 oled_canvas::Canvas Screensaver::canvas_;
-ui::oled::Starfield Screensaver::starfield_;
-ui::oled::Rainfall Screensaver::rainfall_;
+ui::widgets::oled::Starfield Screensaver::starfield_;
+ui::widgets::oled::Rainfall Screensaver::rainfall_;
 
 // Rainfall repeats the panel dimensions, and Starfield derives its projection centre from them,
 // rather than including cpu_specific.h -- it is target-only and would break the host specs. This
 // file does see the real macros, so it is where the two are held to them.
-static_assert(ui::oled::Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
-static_assert(ui::oled::Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
-static_assert(ui::oled::Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
+static_assert(ui::widgets::oled::Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
+static_assert(ui::widgets::oled::Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
+static_assert(ui::widgets::oled::Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
 
 // kCentreY is deliberately the truncated integer division (26.0f), not the true centre (26.5) --
 // project() truncates float positions the same way, so this matches what actually renders.
-static_assert(ui::oled::Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
-static_assert(ui::oled::Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
+static_assert(ui::widgets::oled::Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
+static_assert(ui::widgets::oled::Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
 
 /// Frame interval for the animated modes (STARSCAPE, DELUGE). For comparison, scrolling text
 /// re-arms at 15ms and 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
@@ -200,9 +200,9 @@ void Screensaver::timerEvent() {
 void Screensaver::settingsChanged() {
 	// **Re-supply the shell screensaver's copy of the same two settings.**
 	// `deluge::ui::shell::Screensaver` is the policy half of this class, as a `Service`
-	// (`shell/screensaver.h`), and `src/shell` may not read `storage/` -- so it holds one number
+	// (`ui/shell/screensaver.h`), and `src/ui/shell` may not read `storage/` -- so it holds one number
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
-	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
+	// push a change in. That is what `ui/scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a
 	// change to either setting funnels through, from all of its writers -- `deluge_boot` (`deluge.cpp`, after
 	// `FlashStorage::readSettings()`), the menu's two items (below) and a settings reset
@@ -251,16 +251,16 @@ void Screensaver::render() {
 }
 
 void Screensaver::renderStarfield() {
-	for (size_t i = 0; i < ui::oled::Starfield::kNumStars; i++) {
-		const ui::oled::Starfield::Projected star = starfield_.project(i);
+	for (size_t i = 0; i < ui::widgets::oled::Starfield::kNumStars; i++) {
+		const ui::widgets::oled::Starfield::Projected star = starfield_.project(i);
 		drawBlock(canvas_, star.x, star.y, star.size);
 	}
 }
 
 void Screensaver::renderRainfall() {
-	for (size_t drop = 0; drop < ui::oled::Rainfall::kNumDrops; drop++) {
+	for (size_t drop = 0; drop < ui::widgets::oled::Rainfall::kNumDrops; drop++) {
 		for (size_t cell = 0; cell < rainfall_.length_of(drop); cell++) {
-			const ui::oled::Rainfall::Block block = rainfall_.cell_at(drop, cell);
+			const ui::widgets::oled::Rainfall::Block block = rainfall_.cell_at(drop, cell);
 			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}
@@ -268,8 +268,8 @@ void Screensaver::renderRainfall() {
 	// Every few minutes a whole logo falls through the field. It draws through the same clipped
 	// block helper as the rain, because it is built from the same shapes.
 	if (rainfall_.logo_active()) {
-		for (size_t cell = 0; cell < ui::oled::Rainfall::kLogoCells; cell++) {
-			const ui::oled::Rainfall::Block block = rainfall_.logo_cell_at(cell);
+		for (size_t cell = 0; cell < ui::widgets::oled::Rainfall::kLogoCells; cell++) {
+			const ui::widgets::oled::Rainfall::Block block = rainfall_.logo_cell_at(cell);
 			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}

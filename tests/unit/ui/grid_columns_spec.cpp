@@ -1,6 +1,6 @@
 #include "support/frames.h"
-#include "ui/grid/columns.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/widgets/grid/columns.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -13,8 +13,8 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using namespace deluge::ui::widgets::grid;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
@@ -77,7 +77,7 @@ constexpr RGB kBlack = RGB{0, 0, 0};
 } // namespace
 
 // clang-format off
-describe grid_columns("ui::grid columns", $ {
+describe grid_columns("ui::widgets::grid columns", $ {
 
 	// -----------------------------------------------------------------------------------------
 	// VU meter -- View::renderVUMeter / getMaxYDisplayForVUMeter

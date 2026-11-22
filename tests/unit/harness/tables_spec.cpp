@@ -16,14 +16,14 @@
  */
 
 /// Level 3's copy of the button-matrix and encoder-order tables (`tests/harness/level3/host_script_tables.c`)
-/// cross-checked against the profile it is a copy of (`src/shell/profiles/deluge.cpp`'s
+/// cross-checked against the profile it is a copy of (`src/ui/shell/profiles/deluge.cpp`'s
 /// `deluge_profile()`). A mismatch here is exactly the drift the split into
 /// `host_script_tables.c` exists to catch -- see that file's header comment.
 
 #include "harness/level3/host_script_tables.h"
-#include "shell/profile.h"
-#include "shell/profiles/deluge.h"
-#include "ui/core/input.h"
+#include "ui/shell/profile.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/widgets/core/input.h"
 
 #include "cppspec.hpp"
 
@@ -37,13 +37,13 @@ using namespace deluge::ui::shell;
 
 namespace {
 
-/// `EncoderRole` names, in the enum's own declaration order (`ui/core/input.h`) -- `EncoderRole`
+/// `EncoderRole` names, in the enum's own declaration order (`ui/widgets/core/input.h`) -- `EncoderRole`
 /// carries no name table of its own in `src/ui` (nothing on the firmware side ever prints one),
-/// so every harness that names a role (this spec, `tests/unit/shell/support/script_runner.h`)
+/// so every harness that names a role (this spec, `tests/unit/ui/shell/support/script_runner.h`)
 /// keeps its own copy of the same table.
 constexpr const char* kEncoderRoleNames[] = {"Select", "Horizontal", "Vertical", "GoldUpper", "GoldLower", "Tempo"};
 static_assert(sizeof(kEncoderRoleNames) / sizeof(kEncoderRoleNames[0])
-              == static_cast<size_t>(deluge::ui::EncoderRole::Count));
+              == static_cast<size_t>(deluge::ui::widgets::core::EncoderRole::Count));
 
 } // namespace
 
@@ -84,8 +84,8 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 
 	it("agrees with the profile's encoder order for every EncoderRole", _ {
 		const BoardProfile& profile = deluge_profile();
-		for (uint8_t i = 0; i < static_cast<uint8_t>(deluge::ui::EncoderRole::Count); i++) {
-			const auto role = static_cast<deluge::ui::EncoderRole>(i);
+		for (uint8_t i = 0; i < static_cast<uint8_t>(deluge::ui::widgets::core::EncoderRole::Count); i++) {
+			const auto role = static_cast<deluge::ui::widgets::core::EncoderRole>(i);
 			bool found = false;
 			uint8_t want_index = 0;
 			for (size_t pos = 0; pos < profile.encoder_by_index.size(); pos++) {

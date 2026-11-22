@@ -320,9 +320,9 @@ void StemExport::finishExport() {
 	}
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
-	deluge::notify::raise(deluge::notify::Dirty::GridMain);
-	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 
 	exportPhase = ExportPhase::NONE;
 }
@@ -339,7 +339,7 @@ void StemExport::abortStemExportProcess(deluge::l10n::String reason) {
 	highestUsedStemFolderNumber++;
 	// `reason` is already an l10n id, so raise it as one: the notice carries the id and the drain
 	// looks the text up, instead of copying a resolved string into the notice's fixed text buffer.
-	deluge::notify::notice(reason);
+	deluge::base::notify::notice(reason);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	// The export sees the cancel on its next run, wherever it is parked.
 	deluge::runtime::appLoop.request(jobId);
@@ -813,8 +813,8 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	}
 
 	// re-render song view since we scrolled and updated mutes
-	deluge::notify::raise(deluge::notify::Dirty::GridMain);
-	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 
 	// set wav file name for stem to be exported
 	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum)) {

@@ -1,5 +1,5 @@
 #include "definitions_cxx.hpp"
-#include "plugin-api/types/arp_rhythm.h"
+#include "plugin/types/arp_rhythm.h"
 #include "util/value_scaling.h"
 
 #include <utility>

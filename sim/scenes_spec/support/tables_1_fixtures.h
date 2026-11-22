@@ -6,9 +6,9 @@
 ///        ranges. The spec and the menu oracle freezer share them.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -31,11 +31,11 @@
 #include <string>
 #include <vector>
 
-namespace deluge::scenes::spec::tables1 {
+namespace deluge::ui::scenes::spec::tables1 {
 
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 /// The song and clip install every root's comparison starts from, and the text helpers around it, are
 /// the sound root's.
@@ -147,4 +147,4 @@ inline std::vector<std::string> spans_of(std::span<const int32_t> tops) {
 	return out;
 }
 
-} // namespace deluge::scenes::spec::tables1
+} // namespace deluge::ui::scenes::spec::tables1

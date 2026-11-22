@@ -9,7 +9,7 @@
 #include "gui/ui/root_ui.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
 
 #include "model/song/song.h"
 #include "processing/dx7/dx_patch.h"
@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <string>
 
-namespace deluge::scenes::spec::dxpages {
+namespace deluge::ui::scenes::spec::dxpages {
 
-namespace dx = deluge::scenes::menu::dx;
+namespace dx = deluge::ui::scenes::menu::dx;
 
 /// @brief A runtime feature set for one example, put back as it was after.
 struct Feature {
@@ -62,7 +62,7 @@ struct IsomorphicRoot {
 ///        is called whenever @p patch changed and @p shot once per panel, with its name and the param it shows.
 /// @param patch The patch to change; @p write puts it where the page reads it.
 template <typename Write, typename Shot>
-void for_each_layout(deluge::instrument::DxPatchState& patch, Write&& write, Shot&& shot) {
+void for_each_layout(deluge::instruments::classic::DxPatchState& patch, Write&& write, Shot&& shot) {
 	for (size_t b = 0; b < 155; b++) {
 		patch.params[b] = static_cast<uint8_t>((b * 7 + 3) % (dx::upper_limit(static_cast<int16_t>(b)) + 1));
 	}
@@ -111,4 +111,4 @@ inline constexpr int32_t kBreakpointEnd = 100;
 /// @brief A scaling param no pad picks: where a pad press is asked from.
 inline constexpr int16_t kUntouched = 2 * 21 + 8;
 
-} // namespace deluge::scenes::spec::dxpages
+} // namespace deluge::ui::scenes::spec::dxpages

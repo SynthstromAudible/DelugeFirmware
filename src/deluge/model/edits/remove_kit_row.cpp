@@ -1,13 +1,13 @@
 #include "model/edits/remove_kit_row.h"
 
-#include "deluge-project/param_address.h" // OwnerId
-#include "deluge-project/song.h"          // project: param_backup / backed_params
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_address.h" // OwnerId
+#include "project/song.h"          // project: param_backup / backed_params
 
 namespace deluge::edits {
 

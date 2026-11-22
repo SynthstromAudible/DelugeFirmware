@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "deluge-project/param_address.h"
 #include "model/consequence/consequence.h"
 #include "processing/sound/mod_matrix_host.h"
+#include "project/param_address.h"
 
 /// @brief The undo record of one cable topology edit on one sound: reverting applies the edit through the sound's mod
 /// matrix, the sound found by its address exactly.

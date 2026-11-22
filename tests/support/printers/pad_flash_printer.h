@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "ui/grid/frame.h"
+#include "ui/widgets/grid/frame.h"
 
 #include <format>
 #include <ostream>
@@ -30,7 +30,7 @@
 /// of a type it cannot stream. The operator lives in the type's own namespace so that lookup finds it from inside
 /// CppSpec. Every spec that compares pad flashes includes this header: whether a type streams is decided once per type
 /// in a binary, so a spec linked with others that print the same type must agree with them.
-namespace deluge::ui::grid {
+namespace deluge::ui::widgets::grid {
 
 /// @brief Prints a pad flash as its column, row and colour code, e.g. `{x 15, y 6, colour 6}`.
 /// @param os The stream to print to.
@@ -40,4 +40,4 @@ inline std::ostream& operator<<(std::ostream& os, const PadFlash& f) {
 	return os << std::format("{{x {}, y {}, colour {}}}", f.x, f.y, std::to_underlying(f.colour));
 }
 
-} // namespace deluge::ui::grid
+} // namespace deluge::ui::widgets::grid

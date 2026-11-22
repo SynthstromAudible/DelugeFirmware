@@ -6,27 +6,27 @@
 /// Each example writes the param with the edit a gold knob makes (`edits::SetParamValue`, which
 /// `HostEditSink::write_param` applies), then runs the timer's callback itself: the harness fires no UI timer.
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_param_value.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound_instrument.h"
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
 #include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
@@ -38,21 +38,21 @@
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
-using deluge::scenes::menu_scene;
-using deluge::scenes::spec::FeatureSetting;
+using deluge::ui::scenes::menu_scene;
+using deluge::ui::scenes::spec::FeatureSetting;
 
 /// @brief The synth's LPF frequency on the fixture's clip, by address (`knob_writes_spec.cpp`'s shape).
 ParamAddress lpf_on(spec::SongFixture& fx) {
 	auto* synth = static_cast<SoundInstrument*>(fx.instrument);
 	return ParamAddress{.owner = OwnerId::instrument(*synth->id()),
 	                    .space = ParamSpace::ENGINE,
-	                    .id = deluge::instrument::param::kLpfFrequency,
+	                    .id = deluge::instruments::classic::param::kLpfFrequency,
 	                    .clip_id = fx.clip->id()};
 }
 
@@ -81,8 +81,10 @@ bool open_sound_menu_at(spec::SongFixture& fx, const menu::Node& node) {
 
 /// @brief Did something ask the guest's shell for an OLED frame since the last drain?
 bool shell_asked_for_a_frame() {
-	(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-	return deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled);
+	(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+	return deluge::base::notify::dirty()
+	    .drain(deluge::base::notify::DirtyConsumer::Shell)
+	    .has(deluge::base::notify::Dirty::Oled);
 }
 
 } // namespace
@@ -114,7 +116,7 @@ describe menu_value_follow("View::displayAutomation under the menu scene", $ {
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_sound_menu_at(fx, nodes::lpf)).to_be_true();
 		expect(knob_write(fx, 0)).to_be_true();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		display_automation_fires();
 		expect(shell_asked_for_a_frame()).to_be_true();
 	});
@@ -125,7 +127,7 @@ describe menu_value_follow("View::displayAutomation under the menu scene", $ {
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(spec::open_note_mode_over_clip_view(fx, menu::MenuContext::Root::Settings)).to_be_true();
 		(void)shellHostUI.timerCallback();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		display_automation_fires();
 		expect(shell_asked_for_a_frame()).to_be_true();
 	});

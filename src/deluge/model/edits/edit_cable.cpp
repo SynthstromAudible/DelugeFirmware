@@ -80,37 +80,37 @@ void settleCableDepth(ModelStackWithAutoParam const* modelStack) {
 }
 
 EditCable EditCable::add(ModelStackWithThreeMainThings* modelStack, deluge::synth::CableRecord cable) {
-	return {modelStack, deluge::instrument::CableDelta::Op::ADD, cable, 0};
+	return {modelStack, deluge::instruments::classic::CableDelta::Op::ADD, cable, 0};
 }
 
 EditCable EditCable::remove(ModelStackWithThreeMainThings* modelStack, size_t index) {
-	return {modelStack, deluge::instrument::CableDelta::Op::REMOVE, {}, index};
+	return {modelStack, deluge::instruments::classic::CableDelta::Op::REMOVE, {}, index};
 }
 
 EditCable EditCable::setPolarity(ModelStackWithThreeMainThings* modelStack, size_t index,
                                  deluge::synth::CablePolarity polarity) {
-	return {modelStack, deluge::instrument::CableDelta::Op::SET_POLARITY, {.polarity = polarity}, index};
+	return {modelStack, deluge::instruments::classic::CableDelta::Op::SET_POLARITY, {.polarity = polarity}, index};
 }
 
 EditCable EditCable::reroute(ModelStackWithThreeMainThings* modelStack, size_t index,
                              deluge::synth::CableTarget target) {
-	return {modelStack, deluge::instrument::CableDelta::Op::REROUTE, {.target = target}, index};
+	return {modelStack, deluge::instruments::classic::CableDelta::Op::REROUTE, {.target = target}, index};
 }
 
 Error EditCable::apply(Context& /*ctx*/) {
 	ModMatrixHost matrix{*static_cast<Sound*>(modelStack_->modControllable), *modelStack_->paramManager};
 	std::optional<CableEdit> edit;
 	switch (op_) {
-	case deluge::instrument::CableDelta::Op::ADD:
+	case deluge::instruments::classic::CableDelta::Op::ADD:
 		edit = matrix.addCable(cable_);
 		break;
-	case deluge::instrument::CableDelta::Op::REMOVE:
+	case deluge::instruments::classic::CableDelta::Op::REMOVE:
 		edit = matrix.removeCable(index_);
 		break;
-	case deluge::instrument::CableDelta::Op::SET_POLARITY:
+	case deluge::instruments::classic::CableDelta::Op::SET_POLARITY:
 		edit = matrix.setPolarity(index_, cable_.polarity);
 		break;
-	case deluge::instrument::CableDelta::Op::REROUTE:
+	case deluge::instruments::classic::CableDelta::Op::REROUTE:
 		edit = matrix.reroute(index_, cable_.target);
 		break;
 	}

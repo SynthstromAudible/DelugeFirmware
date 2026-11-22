@@ -2,26 +2,26 @@
 /// @brief The SHIFT shortcut colour overlay under a sound menu: when it shows, what it paints, and that it takes and
 ///        gives back the main pads and the greyout with SHIFT, as `main`'s `SoundEditor::renderMainPads` does.
 
-#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/patch_cables.h"
-#include "scenes/menu/nodes/patching.h"
-#include "scenes/menu/pads.h"
-#include "scenes/menu/shortcut_overlay.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "project/device_settings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/patch_cables.h"
+#include "ui/scenes/menu/nodes/patching.h"
+#include "ui/scenes/menu/pads.h"
+#include "ui/scenes/menu/shortcut_overlay.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
-#include "gfx/grid/palette.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "modulation/params/param.h"
@@ -41,10 +41,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::MenuScene;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuScene;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::PadRegions;
 using deluge::ui::shell::SceneId;
@@ -54,7 +54,7 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 namespace colours = deluge::gui::colours;
 
@@ -62,8 +62,8 @@ constexpr uint8_t kShiftX = 8, kShiftY = 0;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -241,7 +241,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		r.shift(true);
 		expect(menu_scene().pad_regions()).to_equal(PadRegions::Main);
 		menu_scene().state_for_spec().walk.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
-		deluge::notify::raise(deluge::notify::Dirty::Oled); // a render, so `after_render` drains the push
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // a render, so `after_render` drains the push
 		r.tick();
 		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 	});
@@ -256,7 +256,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 			r.tick(20);
 		}
 		expect(std::ranges::count(r.fake.flashes_sent,
-		                          deluge::ui::grid::PadFlash{8, 7, deluge::ui::grid::FlashColour::Default}))
+		                          deluge::ui::widgets::grid::PadFlash{8, 7, deluge::ui::widgets::grid::FlashColour::Default}))
 		    .to_be_greater_than(0);
 	});
 });

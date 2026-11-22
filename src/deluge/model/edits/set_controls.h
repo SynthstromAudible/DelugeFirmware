@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/controller_mapping.h"
 #include "model/edits/edit.h"
+#include "project/controller_mapping.h"
 
 #include <vector>
 

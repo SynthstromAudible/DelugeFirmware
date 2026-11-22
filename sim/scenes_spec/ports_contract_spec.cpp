@@ -1,13 +1,12 @@
 #include "port_contracts.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/services/waveform_paint.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/services/waveform_paint.h"
 
-#include "sample-view/view.h"
+#include "ui/views/waveform/view.h"
 
-#include "deluge-project/device_settings.h"
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
@@ -15,7 +14,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -23,6 +22,7 @@
 #include "io/usb/usb_audio.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "project/device_settings.h"
 #include "storage/flash_storage.h"
 
 #include "dsp-next/core/stereo_sample.h"
@@ -33,11 +33,11 @@
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -71,7 +71,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 
 // The main loop's battery voltage (src/deluge/deluge.cpp), declared at global scope as the host does.
 extern uint16_t batteryMV;
@@ -124,13 +124,13 @@ constexpr int32_t kScrolledMin = -kScrolledMax;
 /// The fixture's whole-sample zoom, `ceil(length / 16)`: two clusters a column.
 constexpr int64_t kWholeZoom = static_cast<int64_t>(((kSampleLength - 1) >> 4) + 1);
 
-using deluge::sample_view::ColumnMask;
-using deluge::sample_view::ColumnRead;
-using deluge::sample_view::ColumnState;
-using deluge::sample_view::Peak;
-using deluge::sample_view::PeakCache;
-using deluge::sample_view::PeakRead;
-using deluge::sample_view::Window;
+using deluge::app::ports::waveforms::ColumnMask;
+using deluge::app::ports::waveforms::PeakCache;
+using deluge::ui::views::waveform::ColumnRead;
+using deluge::ui::views::waveform::ColumnState;
+using deluge::ui::views::waveform::Peak;
+using deluge::ui::views::waveform::PeakRead;
+using deluge::ui::views::waveform::Window;
 
 /// @brief A synth song whose source 0, range 0 holds a sample, made current for one example; the song before it is
 ///        put back after, and the range emptied.
@@ -162,7 +162,7 @@ struct RangeHeld {
 /// @brief How many columns of @p read are in @p state.
 int32_t count_of(const PeakRead& read, ColumnState state) {
 	int32_t n = 0;
-	for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+	for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 		n += read.column(c).state() == state ? 1 : 0;
 	}
 	return n;
@@ -479,11 +479,11 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		}
 		expect(static_cast<int>(PadLEDs::flashCursor)).to_equal(5); // reading heals nothing
 		PadLEDs::flashCursor = cursor;
-		const deluge::instrument::Polarity polarity = FlashStorage::defaultPatchCablePolarity;
+		const deluge::instruments::classic::Polarity polarity = FlashStorage::defaultPatchCablePolarity;
 		expect(static_cast<int>(p.device->write(device_path::kPatchCablePolarity, 0)))
 		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<int>(FlashStorage::defaultPatchCablePolarity))
-		    .to_equal(static_cast<int>(deluge::instrument::Polarity::UNIPOLAR));
+		    .to_equal(static_cast<int>(deluge::instruments::classic::Polarity::UNIPOLAR));
 		FlashStorage::defaultPatchCablePolarity = polarity;
 		// The row's words are the cable's own.
 		const deluge::plugin::SettingInfo* polarity_row =
@@ -495,8 +495,8 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 				words.emplace_back(word);
 			}
 			expect(words).to_equal(std::vector<std::string>{
-			    std::string{deluge::instrument::to_string(deluge::instrument::Polarity::UNIPOLAR)},
-			    std::string{deluge::instrument::to_string(deluge::instrument::Polarity::BIPOLAR)}});
+			    std::string{deluge::instruments::classic::to_string(deluge::instruments::classic::Polarity::UNIPOLAR)},
+			    std::string{deluge::instruments::classic::to_string(deluge::instruments::classic::Polarity::BIPOLAR)}});
 		}
 		// A shortcut byte other than V1's reads as the current layout, as the shortcut lookups read it.
 		const uint8_t version = FlashStorage::shortcutsVersion;
@@ -1027,11 +1027,11 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,
 		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()}};
 		const int64_t zoom = ((kSampleLength - 1) >> 4) + 1;
-		const deluge::sample_view::PeakRead through = app_waveforms().peaks(range, {.scroll = 0, .zoom = zoom});
-		deluge::sample_view::PeakCache cache;
-		const deluge::sample_view::PeakRead direct =
+		const deluge::ui::views::waveform::PeakRead through = app_waveforms().peaks(range, {.scroll = 0, .zoom = zoom});
+		deluge::app::ports::waveforms::PeakCache cache;
+		const deluge::ui::views::waveform::PeakRead direct =
 		    deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
-		expect(through.column(0).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		expect(through.column(0).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		expect(through).to_equal(direct);
 		multisample->sampleHolder.audioFile = nullptr;
 		currentSong = saved;
@@ -1042,7 +1042,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		sample->maxValueFound = INT32_MIN;
 		sample->minValueFound = INT32_MAX;
 		const int64_t zoom = ((kSampleLength - 1) >> 4) + 1;
-		deluge::sample_view::PeakCache cache;
+		deluge::app::ports::waveforms::PeakCache cache;
 		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
 		expect(sample->maxValueFound).to_equal(kFreshMax);
 		expect(sample->minValueFound).to_equal(kFreshMin);
@@ -1057,7 +1057,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		sample->minValueFound = INT32_MAX;
 		const int64_t zoom = kClusterSize;
 		static_assert(kClusterSize * kClusters / 2 / kClusterSize >= 20);
-		deluge::sample_view::PeakCache cache;
+		deluge::app::ports::waveforms::PeakCache cache;
 		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
 		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 3 * zoom, .zoom = zoom}, cache);
 		expect(sample->maxValueFound).to_equal(kScrolledMax);
@@ -1134,7 +1134,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		int32_t max = INT32_MIN;
 		int32_t min = INT32_MAX;
 		int32_t folded = 0;
-		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 			if (const std::optional<Peak> p = first.column(c).peak(); p && c != 9) {
 				max = std::max(max, p->max);
 				min = std::min(min, p->min);
@@ -1157,7 +1157,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const auto counting = [&](ColumnMask wanted) {
 			asked = wanted.count();
 			PeakRead read;
-			for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+			for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 				read.set(c, ColumnRead::of({.min = -c, .max = c}));
 			}
 			return read;
@@ -1329,7 +1329,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const std::optional<bind::WaveformInfo> found = waveforms.info(preview);
 		expect(found.has_value()).to_be_true();
 		const bind::WaveformInfo info = found.value_or(bind::WaveformInfo{});
-		const deluge::sample_view::WaveformView view = deluge::sample_view::WaveformView::open(info.length_samples, std::nullopt);
+		const deluge::ui::views::waveform::WaveformView view = deluge::ui::views::waveform::WaveformView::open(info.length_samples, std::nullopt);
 
 		deluge::ui::test::GridRig rig;
 		rig.begin_tick(0);
@@ -1340,7 +1340,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		}
 
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		deluge::sample_view::PeakCache cache;
+		deluge::app::ports::waveforms::PeakCache cache;
 		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
 		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
 		int32_t differ = 0;

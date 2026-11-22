@@ -35,10 +35,10 @@
 #include "model/favourite/favourite_manager.h"
 #include "model/favourite/favourites_policy.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "shell/shell.h"
 #include "storage/file_catalogue.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/shell/shell.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -62,7 +62,7 @@ inline bool guestTop(deluge::ui::shell::SceneKind kind) {
 }
 
 inline bool browserOnTop() {
-	return guestTop(deluge::scenes::browser::kBrowserSceneKind);
+	return guestTop(deluge::ui::scenes::browser::kBrowserSceneKind);
 }
 
 /// The guest closed as its long-press BACK closes it, if it is open.
@@ -92,7 +92,7 @@ inline void guestBack() {
 inline void guestLongPressSelect() {
 	using namespace deluge::hid::button;
 	(void)shellHostUI.buttonAction(SELECT_ENC, true);
-	for (uint32_t t = 0; t <= deluge::scenes::browser::kLongPressMs + 20; t += 10) {
+	for (uint32_t t = 0; t <= deluge::ui::scenes::browser::kLongPressMs + 20; t += 10) {
 		guestTick();
 	}
 	(void)shellHostUI.buttonAction(SELECT_ENC, false);
@@ -103,7 +103,7 @@ inline void guestLongPressSelect() {
 /// accept it.
 /// @return Whether the menu reached the option; nothing is accepted when it did not.
 inline bool guestPickOption(uint8_t option) {
-	auto& menu = deluge::scenes::context_menu::context_menu_scene();
+	auto& menu = deluge::ui::scenes::context_menu::context_menu_scene();
 	for (int32_t i = 0; i < 8 && menu.selected_option() != option; i++) {
 		shellHostUI.selectEncoderAction(1);
 		guestTick();
@@ -119,7 +119,7 @@ inline bool guestPickOption(uint8_t option) {
 /// browser selects by index into the shared listing. Empty with no browser on top or nothing selected.
 inline std::string guestSelectedName() {
 	const auto& items = deluge::storage::FileCatalogue::fileItems;
-	const int32_t index = deluge::scenes::browser::browser_scene().file_index();
+	const int32_t index = deluge::ui::scenes::browser::browser_scene().file_index();
 	if (!browserOnTop() || index < 0 || index >= static_cast<int32_t>(items.size())) {
 		return {};
 	}
@@ -139,7 +139,7 @@ inline bool guestTurnTo(std::string_view name) {
 			return false;
 		}
 		const int32_t offset =
-		    static_cast<int32_t>(found - items.begin()) - deluge::scenes::browser::browser_scene().file_index();
+		    static_cast<int32_t>(found - items.begin()) - deluge::ui::scenes::browser::browser_scene().file_index();
 		shellHostUI.selectEncoderAction(static_cast<int8_t>(std::clamp<int32_t>(offset, -63, 63)));
 		guestTick();
 	}
@@ -150,7 +150,7 @@ inline bool guestTurnTo(std::string_view name) {
 inline std::string guestSelectedPath() {
 	const std::string name = guestSelectedName();
 	return name.empty() ? std::string{}
-	                    : std::string{deluge::scenes::browser::browser_scene().current_dir()} + "/" + name;
+	                    : std::string{deluge::ui::scenes::browser::browser_scene().current_dir()} + "/" + name;
 }
 
 /// Land the browser on @p path from a favourite, as a user lands on a file they saved: once the bank has loaded, the
@@ -163,7 +163,7 @@ inline bool guestRecallFavourite(std::string_view path) {
 		return false;
 	}
 	favouritesManager.setFavorite(0, FavouritesManager::favouriteDefaultColor, std::string{path});
-	auto& browser = deluge::scenes::browser::browser_scene();
+	auto& browser = deluge::ui::scenes::browser::browser_scene();
 	if (!browser.keyboard_always_visible()) {
 		guestPress(deluge::hid::button::KEYBOARD);
 	}
@@ -177,7 +177,7 @@ inline bool guestRecallFavourite(std::string_view path) {
 
 /// KEYBOARD again, once a recall's listing is in: the keyboard goes back to showing only while typing.
 inline void guestHideKeyboard() {
-	if (browserOnTop() && deluge::scenes::browser::browser_scene().keyboard_always_visible()) {
+	if (browserOnTop() && deluge::ui::scenes::browser::browser_scene().keyboard_always_visible()) {
 		guestPress(deluge::hid::button::KEYBOARD);
 	}
 }

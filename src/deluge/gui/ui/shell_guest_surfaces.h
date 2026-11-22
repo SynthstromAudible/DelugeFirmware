@@ -18,9 +18,9 @@
 #pragma once
 #include "board_config.h"
 #include "board_layout.hpp"
-#include "gfx/grid/rgb.h"
-#include "shell/scene_stack.h"
-#include "shell/surfaces.h"
+#include "ui/gfx/grid/rgb.h"
+#include "ui/shell/scene_stack.h"
+#include "ui/shell/surfaces.h"
 
 #include <array>
 #include <cstddef>
@@ -41,14 +41,14 @@ namespace deluge::gui::ui {
 /// free: the guest's `Main` surface cannot simply *be* `OLED::main`'s storage, and the grid
 /// surface's rows cannot alias `PadLEDs::image` through `PadGrid::row(y)`. Neither half works:
 ///
-///  - The **grid cannot alias at all.** `PadGrid` (`gfx/grid/pad_grid.h`) stores
+///  - The **grid cannot alias at all.** `PadGrid` (`ui/gfx/grid/pad_grid.h`) stores
 ///    `cells_[kMaxGridRows][kMaxGridCols]` inline -- a 32-column row stride -- while
 ///    `PadLEDs::image` (`hid/led/pad_leds.h`) is `[kDisplayHeight][kDisplayWidth +
 ///    kSideBarWidth]`, an 18-column stride. The strides differ, the storage is a member rather than
 ///    a span, and `PadGrid`'s doc says so in as many words: `row(y)` is the seam for *copying* a
 ///    single row to or from that legacy buffer, never for reinterpreting the whole array.
 ///  - The **OLED could alias but must not.** `OLED::main` is an `OwnedCanvas`
-///    (`gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
+///    (`ui/gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
 ///    (`hid/display/oled.cpp`) zeroes it -- from seventeen legacy call sites (grep
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`), which clears it immediately before
@@ -72,7 +72,7 @@ public:
 	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
-	/// (`src/scenes/recorder/recorder_scene.h`), which takes `Scene::timer_repaints()`'s
+	/// (`src/ui/scenes/recorder/recorder_scene.h`), which takes `Scene::timer_repaints()`'s
 	/// `{.oled = true, .grid = true}` default because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
@@ -93,7 +93,7 @@ public:
 	///
 	/// **The bound here is the diff, not a cadence** -- a shipped scene already exceeds any fixed
 	/// ceiling. `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
-	/// (`src/scenes/audio_clip/audio_clip_scene.cpp`) with `{.oled = false, .grid = true}`
+	/// (`src/ui/scenes/audio_clip/audio_clip_scene.cpp`) with `{.oled = false, .grid = true}`
 	/// (`AudioClipScene::timer_repaints`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
 	/// against `last_sent` before calling `send_columns` at all (`Shell::flush`): a tick
@@ -123,7 +123,7 @@ public:
 	/// @param x Pad column.
 	/// @param y Pad row.
 	/// @param colour The flash's colour code.
-	void flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) override;
+	void flash_pad(uint8_t x, uint8_t y, deluge::ui::widgets::grid::FlashColour colour) override;
 	void set_led(uint8_t board_led, bool on) override;
 	/// @brief Restore legacy's state for an LED the shell has stopped declaring.
 	///
@@ -133,7 +133,7 @@ public:
 	/// that blinker.
 	/// @param board_led An `indicator_leds::LED` value.
 	void release_led(uint8_t board_led) override;
-	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override;
+	void set_indicator(uint8_t which, const deluge::ui::widgets::core::KnobIndicator& indicator) override;
 	void flush() override;
 
 	/// @brief Does this board's `SurfaceRole::Main` surface have somewhere to go?

@@ -37,7 +37,7 @@ extern "C" {
 
 void deluge_scenario_menu_dump_begin(void) {
 	std::string json;
-	if (!deluge::scenes::menu::dump_menu_tree(json)) {
+	if (!deluge::ui::scenes::menu::dump_menu_tree(json)) {
 		g_failures++;
 		return;
 	}

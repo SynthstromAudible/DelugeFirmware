@@ -6,20 +6,20 @@
 ///        that parks the listing op, and one side's answer (the navigation numbers, the text and the panel).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/grid/keyboard.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/grid/keyboard.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "model/sample/last_file_path_loaded.h"
-#include "notify/dirty_set.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -39,13 +39,13 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec::browser_fx {
+namespace deluge::ui::scenes::spec::browser_fx {
 
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserId;
-using deluge::scenes::browser::kBrowserSceneKind;
-using deluge::scenes::menu::MenuContext;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserId;
+using deluge::ui::scenes::browser::kBrowserSceneKind;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -125,7 +125,7 @@ struct CleanBrowser {
 	QuietAudio quiet;
 	deluge::hid::Display* saved_display;
 	/// The host installed before the example, which `reset` replaces with the recording one.
-	deluge::scenes::browser::BrowserHost* saved_host;
+	deluge::ui::scenes::browser::BrowserHost* saved_host;
 	BrowserDisplay display_impl;
 
 	CleanBrowser() : saved_display(display), saved_host(browser_scene().installed_host()) {
@@ -163,9 +163,9 @@ struct CleanBrowser {
 		shouldInterpretNoteNames = false;
 		octaveStartsFromA = false;
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
 	}
 	CleanBrowser(const CleanBrowser&) = delete;
 	CleanBrowser& operator=(const CleanBrowser&) = delete;
@@ -192,20 +192,20 @@ struct ScratchCard {
 	SdRoot root{dir.string()};
 };
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
+/// Board encoder indices and matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kSelectEncoder = 3;
 inline constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-/// SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
+/// SHIFT, at matrix (8, 0) (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kShiftX = 8, kShiftY = 0;
 inline constexpr uint8_t kBackX = 7, kBackY = 1;
-/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`shell/profiles/deluge.cpp`).
+/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kXEncX = 0, kXEncY = 1;
 inline constexpr uint8_t kLoadX = 6, kLoadY = 1;
 inline constexpr uint8_t kKeyboardX = 3, kKeyboardY = 3;
 inline constexpr uint8_t kRecordX = 8, kRecordY = 2;
 inline constexpr uint8_t kSaveX = 6, kSaveY = 3;
 inline constexpr uint8_t kHorizontalEncoder = 1, kVerticalEncoder = 0;
-inline constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
+inline constexpr int32_t kHomeRow = deluge::ui::widgets::grid::kTextKeyboardHomeRow;
 
 struct Pad {
 	int32_t x = -1, y = -1;
@@ -215,9 +215,9 @@ struct Pad {
 ///        rather than transcribing the table a second time.
 inline Pad pad_for(char c) {
 	for (int32_t y = 0; y < 8; y++) {
-		for (int32_t x = 0; x < deluge::ui::grid::kTextKeyboardCols; x++) {
-			if (deluge::ui::grid::text_keyboard_char_at(deluge::ui::grid::KeyboardLayoutKind::Qwerty, x, y, kHomeRow,
-			                                            false)
+		for (int32_t x = 0; x < deluge::ui::widgets::grid::kTextKeyboardCols; x++) {
+			if (deluge::ui::widgets::grid::text_keyboard_char_at(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty,
+			                                                     x, y, kHomeRow, false)
 			    == c) {
 				return Pad{x, y};
 			}
@@ -239,7 +239,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `BrowserScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `BrowserScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -333,12 +333,12 @@ struct Rig {
 		}
 	}
 	/// @brief Press the enter pad -- the commit, through the real input path.
-	void enter() { type(deluge::ui::grid::kTextKeyboardEnter); }
-	void backspace() { type(deluge::ui::grid::kTextKeyboardBackspace); }
+	void enter() { type(deluge::ui::widgets::grid::kTextKeyboardEnter); }
+	void backspace() { type(deluge::ui::widgets::grid::kTextKeyboardBackspace); }
 
 	/// @brief Press or release the backspace pad at @p at, without ticking.
 	void pad_backspace(bool on, uint32_t at) {
-		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardBackspace);
+		const Pad p = pad_for(deluge::ui::widgets::grid::kTextKeyboardBackspace);
 		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), on ? 64 : 0, at);
 	}
 
@@ -392,4 +392,4 @@ inline bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }
 
-} // namespace deluge::scenes::spec::browser_fx
+} // namespace deluge::ui::scenes::spec::browser_fx

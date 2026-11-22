@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/bind/ports/midi_devices.h"
+#include "ui/scenes/bind/ports/midi_devices.h"
 
 #include <ostream>
 
@@ -27,7 +27,7 @@
 /// CppSpec prints a value through `operator<<` when argument-dependent lookup finds one, so the operator lives in the
 /// type's own namespace. Every spec that compares the type includes this header: whether a type streams is decided
 /// once per type in a binary.
-namespace deluge::scenes::bind {
+namespace deluge::ui::scenes::bind {
 
 /// @brief Prints a binding as its device's handle (or any), its channel or zone (or none) and its number (or none):
 ///        `{device 1, channel_or_zone 21, note_or_cc 42}`, for example.
@@ -59,4 +59,4 @@ inline std::ostream& operator<<(std::ostream& os, const LearnedBinding& b) {
 	return os << "}";
 }
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::ui::scenes::bind

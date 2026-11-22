@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"

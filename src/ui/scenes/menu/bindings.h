@@ -1,0 +1,267 @@
+#pragma once
+
+/// @brief The only place the menu system reads and writes the model.
+///
+/// A `Node`'s `Binding` is plain data: a target (a setting or a param, which `ui/scenes/bind` reads and the menu's sink
+/// writes) or a `get`/`set` pair. These functions turn that data into a read, a write, a range, a name list and a
+/// MIDI-learn descriptor. (Items whose value has no target keep their own logic, as a `get`/`set` pair the tree
+/// supplies -- nothing here scales or interprets what those hooks return.)
+///
+/// @note **No model stack.** Neither `model/model_stack.h` nor `modulation/automation/auto_param.h` is included
+///       anywhere under `src/ui/scenes` (`scenes-model-stack-outside-context` and `scenes-model-stack`,
+///       `scripts/check_layer_rules.py`); `bindings.cpp` reads and writes through `bind::Target` and the write sink.
+///
+/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends) is the
+///       plugin API's menu mapping (`plugin/types/param_mapping.h`), which main's menu items
+///       (`origin/main:src/deluge/gui/menu_item/`) use too.
+
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/shell/profile.h" // ui::shell::TextScratch
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <string_view>
+
+namespace deluge::ui::scenes::menu {
+struct MenuContext;
+} // namespace deluge::ui::scenes::menu
+
+namespace deluge::ui::scenes::menu::bindings {
+
+/// @brief Whether @p node is shown: a target node when its descriptor's conditions hold (and its target resolves), any
+///        other node by its `relevant` hook (none: always).
+/// @param node The node.
+/// @param ctx  The menu's context.
+/// @return Whether the node is shown.
+[[nodiscard]] bool relevant(const Node& node, const MenuContext& ctx);
+
+/// @brief Which listing a caller wants: a vertical page's rows, or a horizontal page's columns.
+enum class ListFor : uint8_t { Rows, Columns };
+
+/// @brief @p node's children a menu lists, in order: `dynamic_children` resolved first, then each child `relevant`
+///        admits. The one rule every list and column of the menu applies.
+/// @param node The page.
+/// @param ctx  The menu's context.
+/// @param out  Where the listed children go.
+/// @param list_for `Columns` keeps a `Node::fixed_columns` page's irrelevant children in place.
+/// @return How many were written.
+size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out,
+                       ListFor list_for = ListFor::Rows);
+
+/// @brief What a MIDI/CV arpeggiator or randomizer column edits on the kit's own effects.
+///
+/// There the kit's arp reads each of these from the kit's params on every render (`Kit::setupAndRenderArpPreOutput`),
+/// so the column reads and writes its sound twin's param on the kit, and is listed by main's own rule for the column
+/// (`editingNonAudioDrumRow()`, `editingMidiDrumRow()` and the arp's mode, read off the kit's selected drum).
+struct KitFxTwin {
+	/// The sound column whose param the MIDI/CV column edits.
+	const Node* param;
+	/// Main's `isRelevant` for the MIDI/CV column, on the kit's own effects.
+	bool (*listed)(const MenuContext& ctx);
+};
+
+/// @brief @p node's twin on the kit's own effects, or null for a node that has none (`nodes/sound_randomizer.cpp`).
+const KitFxTwin* kit_fx_twin(const Node& node);
+
+/// @brief The member page column @p column of @p group's listed columns belongs to.
+/// @param group  A group (`Node::is_group`); any other node is its own member.
+/// @param ctx    The menu's context.
+/// @param column An index into `listed_children(group, ctx, ..., ListFor::Columns)`.
+/// @return The member, or null past the last column.
+const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t column);
+
+/// @brief The value @p target's record holds now, as its descriptor stores it (a CHOICE row: the choice's index), for a
+///        select chain or a relevance rule that branches on a setting.
+/// @param target The setting.
+/// @param ctx    The menu's context.
+/// @return The stored value, or nullopt where the target does not resolve.
+[[nodiscard]] std::optional<int32_t> stored(const deluge::ui::scenes::bind::Target& target, const MenuContext& ctx);
+
+/// @brief The choice the listed entry @p value of @p node's list stands for: a CHOICE row's choice index, which a
+///        menu that filters its choices does not show as the entry's position. For a column whose drawing names the
+///        choice itself (an LFO's or oscillator's shape icon).
+/// @param node  A target node.
+/// @param ctx   The menu's context.
+/// @param value The entry's position, as `read` gives it.
+/// @return The choice, or nullopt for a node with no target, an entry no choice stands for (the stale one), or a
+///         target that does not resolve.
+[[nodiscard]] std::optional<int32_t> listed_choice(const Node& node, const MenuContext& ctx, int32_t value);
+
+/// @brief Read what @p node currently shows, in menu units (0..50 for a standard param).
+///
+/// A target binding reads through `bind::read` (a PARAM target: the value its param plays, scaled to
+/// menu units); a `get`/`set` binding just calls `get`. A binding with neither reads 0.
+///
+/// @param node The item to read.
+/// @param ctx  What is being edited (`context_for`'s output).
+/// @return The menu-unit value.
+int32_t read(const Node& node, const MenuContext& ctx);
+
+/// @brief Write @p value (menu units) into the model, exactly as legacy's `writeCurrentValue` did.
+///
+/// A target binding hands its write to the app's sink (a PARAM target: `SetParamValue`, or
+/// `SetKitParamValue` when affect-entire is held on a kit row) and raises `Dirty::Oled`, plus
+/// `Dirty::ParamAutomation`, `Dirty::ModTarget` and `Dirty::GridMain` for a param. A `get`/`set`
+/// binding calls `set` and raises `Dirty::Oled`.
+///
+/// @param node  The item to write.
+/// @param ctx   What is being edited.
+/// @param value The new value, in menu units.
+/// @return Whether the value now stands: false where a target's write was refused -- the sink or the device port
+///         refused it, or the target did not resolve -- so the stored value is still the one before. A `get`/`set`
+///         binding's hook reports no refusal, and a binding with neither writes nothing; both answer true.
+bool write(const Node& node, const MenuContext& ctx, int32_t value);
+
+/// @brief The upper edge of the `Kind::Range` @p node, in menu units: its `RangeSpec::upper_path` row, read as the
+///        node's own target reads the lower edge.
+/// @param node A range node.
+/// @param ctx  What is being edited.
+/// @return The value; 0 for a node with no upper row, or one the menu cannot read.
+int32_t read_upper(const Node& node, const MenuContext& ctx);
+
+/// @brief Writes @p value to the upper edge of the `Kind::Range` @p node, as `write` writes the lower edge.
+/// @param node  A range node.
+/// @param ctx   What is being edited.
+/// @param value The new value, in menu units.
+/// @return Whether the upper edge now stands, as `write` answers; true for a node with no DEVICE upper row.
+bool write_upper(const Node& node, const MenuContext& ctx, int32_t value);
+
+/// @brief Commit an offset edit through `node.bind.adjust`.
+///
+/// Mirrors `write`'s `get`/`set` hook arm: call the hook, then raise `Dirty::Oled` -- the hook
+/// itself performs whatever model write legacy's `adjustVelocity`/`adjustProbability`/
+/// `adjustNoteIterance`/`adjustNoteFillWithOffset` did, so this layer knows only that something
+/// the OLED shows has changed. A node with no `bind.adjust` does nothing (`validate_tree` reports
+/// this arm being reached with `adjust == nullptr` as a table bug, not something to guess at here).
+///
+/// @param node   The item to write. `node.bind.adjust` must be set.
+/// @param ctx    What is being edited.
+/// @param offset The accumulated detents since the last commit.
+void adjust(const Node& node, const MenuContext& ctx, int32_t offset);
+
+/// @brief The bounds and coarse step @p node is edited inside.
+///
+/// `bind.range(ctx)` if the node has one, else `bind.fixed_range` if it has one, else the legacy
+/// default for its kind. @see `bindings.cpp` for each default's legacy citation.
+///
+/// @param node The item to bound.
+/// @param ctx  What is being edited (a dynamic `range` hook reads it).
+/// @return The range.
+IntRange range(const Node& node, const MenuContext& ctx);
+
+/// @brief Fill @p out with @p node's `Kind::Enum` option names.
+///
+/// Static `bind.names` ids are resolved through `scenes::deluge_profile().text_or_digits(id,
+/// scratch[i])` -- the one sanctioned text path (`BoardProfile::text_or_digits`), which already implements
+/// the digits fallback for an unresolvable id. A `bind.dynamic_names` hook fills `out` itself and
+/// never touches @p scratch.
+///
+/// @param node    The item to name.
+/// @param ctx     What is being edited.
+/// @param out     Where the names land; written up to `kMaxDynamicNames` entries.
+/// @param scratch Digit storage backing @p out, one entry per @p out entry, living in the caller's
+///                frame for at least as long as @p out is read. Must be the same length as @p out;
+///                the shorter of the two bounds the result if they differ.
+/// @return How many names were written.
+/// @brief Which spelling of an option `names` writes.
+enum class NameForm : uint8_t {
+	Full,  ///< the option's name: a list row, a notification
+	Short, ///< a horizontal column's: the short form where the node takes one (`Node::short_options`)
+};
+
+size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_view> out,
+             std::span<deluge::ui::shell::TextScratch> scratch, NameForm form = NameForm::Full);
+
+/// @brief What a MIDI knob learned on @p node turns: the param, on the controls of the owner @p ctx edits --
+///        `PatchedParam`/`UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`,
+///        `origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`), by address.
+/// @param node The item to learn.
+/// @param ctx  What is being edited.
+/// @return The target, or none for a node with no learnable param or a context that edits no owner.
+std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, const MenuContext& ctx);
+
+/// @brief The controls a learn on @p ctx's owner lands on: its sound's, or its chain's owner's.
+std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext& ctx);
+
+/// @brief Write the song's row @p path to @p value (its menu value) through @p ctx's sink: a SONG request. A
+///        context with no sink -- a song the app does not play -- writes nothing.
+/// @param ctx   What is being edited.
+/// @param path  The row, which outlives the call.
+/// @param value The menu value.
+void write_song(const MenuContext& ctx, std::string_view path, int32_t value);
+
+/// @brief Would a write from @p ctx sweep every `SoundDrum` in the kit?
+///
+/// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`
+/// (`UnpatchedParam::writeCurrentValue`): the request a hook makes then names the whole kit
+/// (`Addresses::affect_entire`). Exposed because a couple of legacy items take a *different code path* rather than a
+/// filtered one when it is false -- `sample::PitchSpeed` and `sample::Interpolation` write `getCurrentSampleControls()`
+/// (which is the audio clip's, on an audio clip) instead of a source's (`PitchSpeed::writeCurrentValue` in
+/// `origin/main:src/deluge/gui/menu_item/sample/pitch_speed.h`, `Interpolation::writeCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/sample/interpolation.h`)).
+/// @param ctx The menu's context.
+/// @return Whether a write names the whole kit.
+bool writes_whole_kit(const MenuContext& ctx);
+
+/// @name Value scaling for `get`/`set` items that hold a full-range integer of their own
+///
+/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But some items are
+/// `get`/`set` items that nonetheless store the same INT32-range value a param would (the MIDI/CV arpeggiator and
+/// randomizer settings live on `ArpeggiatorSettings`, not in a param set) and call the same `util/value_scaling.cpp`
+/// helpers themselves (`Rate` in `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rate.h`, `SpreadGate` in
+/// `origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_gate.h`, ...). Rather than re-transcribing the
+/// arithmetic in each table file, the transcription this file already owns is exposed, including the `unsigned` pair
+/// that only these items use.
+/// @{
+
+/// @brief A STANDARD param's menu value (`plugin::to_menu`): INT32 range -> 0..50.
+int32_t standard_to_menu(int32_t stored);
+/// @brief A STANDARD param's word (`plugin::from_menu`): 0..50 -> INT32 range.
+int32_t menu_to_standard(int32_t menu_value);
+/// @brief A PAN param's menu value (`plugin::to_menu`): INT32 range -> -25..25.
+int32_t pan_to_menu(int32_t stored);
+/// @brief A PAN param's word (`plugin::from_menu`): -25..25 -> INT32 range.
+int32_t menu_to_pan(int32_t menu_value);
+/// @brief `computeCurrentValueForUnsignedMenuItem` (`util/value_scaling.cpp`): 0..UINT32_MAX ->
+///        0..50.
+/// @param stored The stored value, 0..UINT32_MAX.
+/// @return The menu value, 0..50.
+int32_t unsigned_to_menu(uint32_t stored);
+/// @brief `computeFinalValueForUnsignedMenuItem` (`util/value_scaling.cpp`): 0..50 ->
+///        0..UINT32_MAX. Note it has no `kMaxMenuValue` special case, unlike its signed sibling.
+/// @param menu_value The menu value, 0..50.
+/// @return The stored value, 0..UINT32_MAX.
+uint32_t menu_to_unsigned(int32_t menu_value);
+/// @}
+
+/// @brief Read the play direction `sequence::Direction` would show
+/// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
+///
+/// The direction is a kit row's note row's, where a kit row the clip is not on affect-entire for has one, else the
+/// clip's: read from that record.
+///
+/// @param ctx           What is being edited.
+/// @param from_note_row Optional out-parameter: true when an individual note row supplied the value, which is also the
+///                      condition under which legacy offers the fourth option, NONE (`Direction::getOptions` in
+///                      `origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
+/// @return The `SequenceDirection` as an `int32_t`.
+///
+/// @note On a non-kit clip with `MenuContext::selected_note_row` latched (always so under `Root::NoteRowEditor`),
+///       the value is the auditioned row's -- `getIndividualNoteRow`'s third arm, which reads
+///       the row at `instrumentClipView.lastAuditionedYDisplay` through `note_bridge()` and creates it if none
+///       exists. Otherwise, or with no bridge answer, the kit-row arm and then the clip's own mode.
+int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
+
+/// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,
+///        `origin/main:src/deluge/gui/menu_item/sequence/direction.h`): a request to the sink on the record legacy
+///        chooses -- the kit row's note row, or the clip.
+///
+/// @param ctx   What is being edited.
+/// @param value The new `SequenceDirection`.
+void write_sequence_direction(const MenuContext& ctx, int32_t value);
+
+} // namespace deluge::ui::scenes::menu::bindings

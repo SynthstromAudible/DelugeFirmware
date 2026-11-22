@@ -46,8 +46,8 @@
 #include <optional>
 #include <stdexcept>
 
-// The engine headers reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
-// `putchar_` for.
+// The engine headers reach `third_party/printf/printf.h`, which soft-aliases printf to an implementation this harness
+// has no `putchar_` for.
 #ifdef printf
 #undef printf
 #endif

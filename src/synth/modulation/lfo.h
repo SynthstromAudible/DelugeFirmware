@@ -23,7 +23,7 @@
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
-#include "plugin-api/types/sync.h"            // SyncType, SyncLevel
+#include "plugin/types/sync.h"                // SyncType, SyncLevel
 #include "synth/modulation/lfo_state.h"
 #include <cstdint>
 #include <variant>

@@ -41,7 +41,7 @@ DOM (it's the live source of truth) and *separately* holds transient state. Two 
 
 Today the Deluge has **one representation that is simultaneously the document (what serializes) and
 the runtime (what the engine renders).** `deluge::project::Song`'s components split into two tiers
-(see the class comment in `src/deluge-project/song.h`):
+(see the class comment in `src/project/song.h`):
 
 - **Document / value tier** — `metadata`, `groove`, `transport`, `scale`, `reverb`, the
   `arrangement` sections. Already value-typed and serializable.
@@ -150,7 +150,7 @@ sequence (A and B were the "either-fork on-ramps"; they remain the right first s
 needs both). Each is still golden-gated:
 
 - **Phase A — serialization seam. ✅ DONE** (`deluge::project::saveSong`/`loadSong`,
-  `src/deluge-project/serialization.{h,cpp}`). Whole-song save/load now funnels through one narrow
+  `src/project/serialization.{h,cpp}`). Whole-song save/load now funnels through one narrow
   boundary that delegates to the legacy per-class serialization; `Song::writeToFile` takes an explicit
   `Serializer&` (no more global grab); all callers (SaveSongUI, `writeTemplateSong`, LoadSongUI, the
   golden harness) routed through it. Pure relocation — golden byte-identical (OK=15), host +

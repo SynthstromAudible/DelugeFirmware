@@ -21,6 +21,7 @@
 
 #include "gui/ui/shell_pad_forward.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // kDisplayWidth, the same include sound_editor.cpp itself uses
 #include "extern.h"            // picFirmwareVersion
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -34,14 +35,13 @@
 #include "model/clip/clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // currentSong, getCurrentClip()
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h" // nodes::firmware_version
-#include "scenes/menu/shortcuts.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h" // nodes::firmware_version
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/registry.h"
 
 #include <charconv>
 #include <iterator>
@@ -69,8 +69,8 @@ namespace {
 /// not a fix to `origin/main:src/deluge/gui/ui/sound_editor.cpp`; main's copy is untouched.
 bool menuShowsAutomationParam() {
 	// Main's `kind != NONE && paramID != kNoParamID` test is `focused_automation_param()` answering at all.
-	const std::optional<deluge::scenes::menu::AutomationParam> param =
-	    deluge::scenes::menu_scene().focused_automation_param();
+	const std::optional<deluge::ui::scenes::menu::AutomationParam> param =
+	    deluge::ui::scenes::menu_scene().focused_automation_param();
 	if (!param) {
 		return false;
 	}
@@ -93,7 +93,7 @@ bool menuShowsAutomationParam() {
 /// path writes. The equivalent of "the firmware-version item is what's open" is the focused
 /// node's identity, the same shape the automation arm already asks for.
 bool onFirmwareVersionMenu() {
-	return deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::firmware_version;
+	return deluge::ui::scenes::menu_scene().focused() == &deluge::ui::scenes::menu::nodes::firmware_version;
 }
 
 /// @brief The number a firmware-version diagnostic pad shows: (15, 7) the internal memory's size, (14, 7) the voices
@@ -131,7 +131,7 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 		char text[24] = {};
 		const auto [end, ec] = std::to_chars(std::begin(text), std::end(text) - 1, firmwareDiagnostic(x));
 		(void)ec;
-		deluge::notify::notice_text(std::string_view{text, static_cast<size_t>(end - text)});
+		deluge::base::notify::notice_text(std::string_view{text, static_cast<size_t>(end - text)});
 		break;
 	}
 	case PadForwardTarget::NoteEditorEdit:
@@ -239,18 +239,18 @@ ShortcutPadGate shortcutPadGate(bool shift) {
 }
 
 bool takeSequenceDirectionShortcut(int32_t x, int32_t y) {
-	const auto& scene = deluge::scenes::menu_scene();
+	const auto& scene = deluge::ui::scenes::menu_scene();
 	const Clip* clip = getCurrentClip();
 	if (clip == nullptr || clip->type != ClipType::INSTRUMENT || getRootUI() == &automationView
 	    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus) != RuntimeFeatureStateToggle::On
 	    || instrumentClipView.getNumNoteRowsAuditioning() != 1) {
 		return false;
 	}
-	const deluge::scenes::menu::MenuContext& ctx = scene.menu_context();
-	const deluge::scenes::menu::Node* item =
-	    deluge::scenes::menu::shortcut_node(ctx.root, deluge::scenes::menu::shortcuts_version(ctx), false,
-	                                        static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-	if (item != &deluge::scenes::menu::nodes::sequence_direction) {
+	const deluge::ui::scenes::menu::MenuContext& ctx = scene.menu_context();
+	const deluge::ui::scenes::menu::Node* item =
+	    deluge::ui::scenes::menu::shortcut_node(ctx.root, deluge::ui::scenes::menu::shortcuts_version(ctx), false,
+	                                            static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	if (item != &deluge::ui::scenes::menu::nodes::sequence_direction) {
 		return false;
 	}
 	(void)instrumentClipView.enterNoteRowEditor(/*onPlayDirection=*/true);

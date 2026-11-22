@@ -9,7 +9,7 @@
 ///
 /// @par Why every example installs a deferring dispatcher
 ///
-/// **The shipped dispatcher, `deluge::scenes::run_inline` (`scenes/run_inline.h`), runs the op on the
+/// **The shipped dispatcher, `deluge::ui::scenes::run_inline` (`ui/scenes/run_inline.h`), runs the op on the
 /// caller's stack**, so with it a listing has already finished by the time `request()` returns, and the in-flight
 /// state -- which is most of this scene -- can never be observed at all. `BrowserScene::set_dispatch`
 /// exists for that and nothing else; `Deferred` below stores the op and runs it when an example says
@@ -31,23 +31,23 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
-#include "notify/notice_queue.h"
-#include "shell/notices.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/favourites.h"
-#include "ui/grid/keyboard.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/notices.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/favourites.h"
+#include "ui/widgets/grid/keyboard.h"
 
-#include "gfx/oled/icons.h"
+#include "ui/gfx/oled/icons.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -87,7 +87,7 @@
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/browser_request_printer.h"
 #include "support/printers/rgb_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -103,23 +103,23 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::browser::AcceptOutcome;
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserId;
-using deluge::scenes::browser::BrowserPads;
-using deluge::scenes::browser::BrowserScene;
-using deluge::scenes::browser::kBrowserSceneKind;
-using deluge::scenes::browser::kListingPollMs;
-using deluge::scenes::browser::PreviewRequest;
-using deluge::scenes::browser::ScrollRequest;
-using deluge::scenes::context_menu::context_menu_scene;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::spec::fake_browser_host;
-using deluge::scenes::spec::QuietAudio;
-using deluge::scenes::spec::SdRoot;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::AcceptOutcome;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserId;
+using deluge::ui::scenes::browser::BrowserPads;
+using deluge::ui::scenes::browser::BrowserScene;
+using deluge::ui::scenes::browser::kBrowserSceneKind;
+using deluge::ui::scenes::browser::kListingPollMs;
+using deluge::ui::scenes::browser::PreviewRequest;
+using deluge::ui::scenes::browser::ScrollRequest;
+using deluge::ui::scenes::context_menu::context_menu_scene;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::spec::fake_browser_host;
+using deluge::ui::scenes::spec::QuietAudio;
+using deluge::ui::scenes::spec::SdRoot;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -138,7 +138,7 @@ namespace {
 /// the model closure); the shell's is a different type with the same name.
 using ShellAction = deluge::ui::shell::Action;
 
-namespace bf = deluge::scenes::spec::browser_fx;
+namespace bf = deluge::ui::scenes::spec::browser_fx;
 using bf::blank_start_path;
 using bf::BrowserState;
 using bf::CleanBrowser;
@@ -177,7 +177,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -277,7 +278,7 @@ struct PreviewHeld {
 };
 
 /// @brief The pad flashes the rig's grid surface was sent since @p from.
-std::vector<deluge::ui::grid::PadFlash> flashes_since(Rig& r, size_t from) {
+std::vector<deluge::ui::widgets::grid::PadFlash> flashes_since(Rig& r, size_t from) {
 	return {r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
 }
 
@@ -299,7 +300,7 @@ const ShellAction* find_action(const Result& r, ShellAction::Kind k) {
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
@@ -364,18 +365,18 @@ void select_folder(Rig& r, bool folder) {
 }
 
 /// @brief A favourites bank in memory, recording what the browser asks of it.
-struct FakeFavourites final : deluge::scenes::services::Favourites {
+struct FakeFavourites final : deluge::ui::scenes::services::Favourites {
 	std::array<std::optional<uint8_t>, 16> slots{};
 	std::array<std::string, 16> paths{};
 	std::optional<uint8_t> current{};
 	uint8_t bank = 0;
-	deluge::scenes::services::FavouritesBank state = deluge::scenes::services::FavouritesBank::Loaded;
+	deluge::ui::scenes::services::FavouritesBank state = deluge::ui::scenes::services::FavouritesBank::Loaded;
 	std::string category;
 	int closes = 0;
 
 	void set_category(std::string_view c) override { category = c; }
 	void close() override { closes++; }
-	[[nodiscard]] deluge::scenes::services::FavouritesBank bank_state() const override { return state; }
+	[[nodiscard]] deluge::ui::scenes::services::FavouritesBank bank_state() const override { return state; }
 	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
 	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
 	[[nodiscard]] uint8_t current_bank() const override { return bank; }
@@ -491,22 +492,22 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		// (`LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` in `load_midi_device_definition_ui.cpp`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
-		expect(sample.file_icon).to_equal(&deluge::gfx::oled::icons::browserWave);
+		expect(sample.file_icon).to_equal(&deluge::ui::gfx::oled::icons::browserWave);
 		expect(sample.file_icon_pt2).to_be_null();
-		expect(midi.file_icon).to_equal(&deluge::gfx::oled::icons::browserMidi);
-		expect(midi.file_icon_pt2).to_equal(&deluge::gfx::oled::icons::browserMidiEdge);
+		expect(midi.file_icon).to_equal(&deluge::ui::gfx::oled::icons::browserMidi);
+		expect(midi.file_icon_pt2).to_equal(&deluge::ui::gfx::oled::icons::browserMidiEdge);
 		expect(static_cast<int>(midi.file_icon_pt2->width)).to_equal(1);
 		expect(static_cast<int>(sample.file_icon->width)).to_equal(8);
 	});
 
 	it("ports the legacy icon bitmaps byte for byte", _ {
-		// The four `Icon`s added to `gfx/oled/icons.cpp` are the legacy arrays (`OLED::folderIcon`, `OLED::waveIcon`,
+		// The four `Icon`s added to `ui/gfx/oled/icons.cpp` are the legacy arrays (`OLED::folderIcon`, `OLED::waveIcon`,
 		// `OLED::midiIcon` and `OLED::midiIconPt2` in `hid/display/oled_icons.cpp`), and this compares them against
 		// those arrays rather than re-spelling the bits: a transcription typo would otherwise only show up as a golden
 		// nobody could read.
-		const deluge::gfx::oled::Icon& folder = deluge::gfx::oled::icons::browserFolder;
-		const deluge::gfx::oled::Icon& wave = deluge::gfx::oled::icons::browserWave;
-		const deluge::gfx::oled::Icon& midi = deluge::gfx::oled::icons::browserMidi;
+		const deluge::ui::gfx::oled::Icon& folder = deluge::ui::gfx::oled::icons::browserFolder;
+		const deluge::ui::gfx::oled::Icon& wave = deluge::ui::gfx::oled::icons::browserWave;
+		const deluge::ui::gfx::oled::Icon& midi = deluge::ui::gfx::oled::icons::browserMidi;
 		for (int i = 0; i < 8; i++) {
 			expect(static_cast<int>(folder.data[i]))
 			    .to_equal(static_cast<int>(deluge::hid::display::OLED::folderIcon[i]));
@@ -516,7 +517,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 			    .to_equal(static_cast<int>(deluge::hid::display::OLED::midiIcon[i]));
 		}
 		// Legacy blits only the first column of `midiIconPt2` (`fileIconPt2Width = 1`).
-		expect(static_cast<int>(deluge::gfx::oled::icons::browserMidiEdge.data[0]))
+		expect(static_cast<int>(deluge::ui::gfx::oled::icons::browserMidiEdge.data[0]))
 		    .to_equal(static_cast<int>(deluge::hid::display::OLED::midiIconPt2[0]));
 	});
 });
@@ -837,9 +838,9 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		expect(browser_scene().listing_in_flight()).to_be_false();
 		expect(Deferred::pending()).to_be_false();
 		// Nothing was raised, so nothing in `Notices` will redraw this scene for us.
-		deluge::notify::Notice n;
+		deluge::base::notify::Notice n;
 		int raised = 0;
-		while (deluge::notify::notices().pop(n)) {
+		while (deluge::base::notify::notices().pop(n)) {
 			raised++;
 		}
 		expect(raised).to_equal(0);
@@ -859,7 +860,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	});
 
 	it("keeps a dropped dispatch and retries it on a later tick", _ {
-		// A dispatcher answering false is a drop, not a failure: `Listing::request` (`scenes/browser/listing.cpp`) puts
+		// A dispatcher answering false is a drop, not a failure: `Listing::request` (`ui/scenes/browser/listing.cpp`) puts
 		// the seam back to idle, so the request can be filed again. Here the request is kept and re-filed from
 		// `after_render`, which is what makes the retry happen with no input at all.
 		CleanBrowser clean;
@@ -995,9 +996,9 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -1035,10 +1036,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		// The `renderFullScreen` of main's `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), zoomed all the way out.
-		const deluge::sample_view::WaveformView view =
-		    deluge::sample_view::WaveformView::open(sample->lengthInSamples, std::nullopt);
+		const deluge::ui::views::waveform::WaveformView view =
+		    deluge::ui::views::waveform::WaveformView::open(sample->lengthInSamples, std::nullopt);
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		deluge::sample_view::PeakCache cache;
+		deluge::app::ports::waveforms::PeakCache cache;
 		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
 		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
 		int32_t differ = 0;
@@ -1068,7 +1069,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		browser_scene().preview_settled(true);
 		r.step(); // the settle asks for the repaint on the next tick
 		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(1);
-		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 		browser_scene().preview_settled(true); // the same sample again: a second frame
 		r.step();
 		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(2);
@@ -1098,16 +1099,16 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().shown_waveform(waveform_identity(*sample)).has_value()).to_be_false(); // nothing drawn
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		const std::optional<deluge::sample_view::ShownWaveform> shown =
+		const std::optional<deluge::ui::views::waveform::ShownWaveform> shown =
 		    browser_scene().shown_waveform(waveform_identity(*sample));
 		expect(shown.has_value()).to_be_true();
 		if (shown) {
 			expect(shown->view).to_equal(browser_scene().waveform_view());
 		}
 		// The columns the preview read are the waveforms port's, kept by file.
-		const deluge::sample_view::PeakRead read = menu::host_ports().waveforms->peaks(
-		    {.kind = deluge::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
-		expect(read.column(0).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		const deluge::ui::views::waveform::PeakRead read = menu::host_ports().waveforms->peaks(
+		    {.kind = deluge::ui::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
+		expect(read.column(0).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		Sample* other = make_overview_sample();
 		expect(browser_scene().shown_waveform(waveform_identity(*other)).has_value()).to_be_false();
 		expect(browser_scene().shown_waveform(0).has_value()).to_be_false();
@@ -1237,7 +1238,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
 		held.range->sampleHolder.audioFile = nullptr;
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_false();
 	});
@@ -1277,9 +1278,9 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.size()).to_be_between(4, 5);
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -1682,7 +1683,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1651);
 		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 0, 1652);
 		r.tick(1652);
-		const Pad enter = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		const Pad enter = pad_for(deluge::ui::widgets::grid::kTextKeyboardEnter);
 		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 64, 1653);
 		r.tick(1653);
 		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 0, 1654);
@@ -1737,11 +1738,11 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1000);
 		const std::optional<uint32_t> first = browser_scene().next_timer();
 		expect(first.has_value()).to_be_true();
-		to_be_at_most(expect(first.value()), deluge::ui::grid::kBackspaceRepeatDelayMs);
+		to_be_at_most(expect(first.value()), deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
 		r.tick(1500);
 		const std::optional<uint32_t> next = browser_scene().next_timer();
 		expect(next.has_value()).to_be_true();
-		to_be_at_most(expect(next.value()), deluge::ui::grid::kBackspaceRepeatMs);
+		to_be_at_most(expect(next.value()), deluge::ui::widgets::grid::kBackspaceRepeatMs);
 		r.pad_backspace(false, 1520);
 		r.tick(1520);
 	});
@@ -2346,9 +2347,9 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(0);
 			expect(fl.y).to_equal(5);
 		}
@@ -2750,12 +2751,12 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		// The spec's sample has no lease, so a stop's unbind would freeze on it (E220): the open must not unbind.
 		Sample* const sample = make_overview_sample();
-		const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/HELD.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{sample, "SAMPLES/HELD.WAV"};
 		held.open();
 		const auto* range = static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		expect(range->sampleHolder.audioFile).to_equal(sample);
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
-		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::ui::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 	});
 
 	it("drops an open still loading when the slicer opens on the file the preview holds", _ {
@@ -2764,10 +2765,10 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		// An open of another file, its load not yet run: the slicer waits on it.
 		deluge::gui::ui::openShellSlice("SAMPLES/OTHER.WAV");
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_true();
-		const deluge::scenes::spec::SliceHeld held{make_overview_sample(), "SAMPLES/HELD.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{make_overview_sample(), "SAMPLES/HELD.WAV"};
 		held.open();
 		// The slicer is open on the held file, and nothing is left to land over it.
-		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::ui::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 	});
 
@@ -3173,7 +3174,7 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		const Result oled_only = browser_scene().after_render(); // a tick that drew no pads
 		expect(browser_scene().take_scroll().has_value()).to_be_false(); // the waveform is not on the grid yet
 		expect(find_action(oled_only, ShellAction::Kind::RepaintAll)).not_().to_be_null();
-		deluge::notify::raise(deluge::notify::Dirty::GridMain); // the repaint that after_render asked for
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain); // the repaint that after_render asked for
 		run_until(r, r.clock + 30);
 		expect(browser_scene().take_scroll()).to_equal(ScrollRequest{.direction = 1});
 		expect(browser_scene().scroll_pending()).to_be_false();
@@ -3381,7 +3382,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		taken[1] = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
 		taken[2] = browser_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Select, .delta = 1}, d.ctx);
 		taken[3] = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
 		// BACK, SELECT, the Select turn and the mute column: each is claimed and does nothing.
@@ -3612,7 +3613,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		run_until(r, r.clock + 50);
 		const std::string shown = r.fake.state();
 		held.range->sampleHolder.audioFile = nullptr;
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		expect(r.fake.state()).to_equal(shown);
@@ -3648,7 +3649,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		expect(r.fake.grid().grid().at(2, 7)).to_equal(RGB{}); // no keyboard yet: the root view's
 		tap(r, 9, 7);
 		r.settle();
-		const std::array<RGB, 16> want = deluge::ui::grid::favourite_row_colours(fake.slots);
+		const std::array<RGB, 16> want = deluge::ui::widgets::grid::favourite_row_colours(fake.slots);
 		for (uint8_t x = 0; x < 16; x++) {
 			expect(r.fake.grid().grid().at(x, 7)).to_equal(want[x]);
 		}
@@ -3713,7 +3714,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		DirectCtx d;
 		d.ctx.shift = true;
 		(void)browser_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Vertical, .delta = 2}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Vertical, .delta = 2}, d.ctx);
 		expect(fake.slots[1]).to_equal(std::optional<uint8_t>{6});
 	});
 
@@ -3732,9 +3733,9 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		run_until(r, r.clock + 400);
 		expect(flashes_since(r, from).empty()).to_be_true();
 		run_until(r, r.clock + 700); // 1100 ms from the draw: the flashes at 500 and 1000
-		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		const std::vector<deluge::ui::widgets::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.size()).to_equal(size_t(2));
-		for (const deluge::ui::grid::PadFlash& fl : seen) {
+		for (const deluge::ui::widgets::grid::PadFlash& fl : seen) {
 			expect(fl.x).to_equal(4);
 			expect(fl.y).to_equal(7);
 		}
@@ -3751,7 +3752,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		FakeFavourites fake;
 		fake.slots[3] = 1;
 		fake.paths[3] = "SAMPLES/TOM.WAV";
-		fake.state = deluge::scenes::services::FavouritesBank::Loading;
+		fake.state = deluge::ui::scenes::services::FavouritesBank::Loading;
 		UseFavourites use(fake);
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
@@ -3759,7 +3760,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 9, 7);
 		tap(r, 3, 7);
 		expect(fake.current.has_value()).to_be_false();
-		fake.state = deluge::scenes::services::FavouritesBank::Unavailable;
+		fake.state = deluge::ui::scenes::services::FavouritesBank::Unavailable;
 		tap(r, 3, 7);
 		r.step();
 		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_SD_CARD_ERROR)});
@@ -3776,7 +3777,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		expect(browser_scene().favourite_row()).to_equal(6);
 		tap(r, 9, 7);
 		r.settle();
-		const std::array<RGB, 16> banks = deluge::ui::grid::favourite_bank_colours();
+		const std::array<RGB, 16> banks = deluge::ui::widgets::grid::favourite_bank_colours();
 		expect(r.fake.grid().grid().at(5, 7)).to_equal(banks[5]);
 		tap(r, 5, 7);
 		expect(fake.bank).to_equal(uint8_t(5));

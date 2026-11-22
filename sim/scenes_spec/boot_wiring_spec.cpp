@@ -1,12 +1,12 @@
 /// @file
-/// @brief The boot wiring `src/scenes/registry.h`'s note asked for, driven against the real
+/// @brief The boot wiring `src/ui/scenes/registry.h`'s note asked for, driven against the real
 ///        application globals.
 ///
 /// Three settings the scene library and the guest's `Shell` cannot read for themselves, plus the
 /// three services the wiring installs. This is the spec level they
 /// can be checked at: the host suite (`tests/unit/deluge/gui/shell_host_ui_lifecycle_spec.cpp`) deliberately never
-/// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
-/// but not what the wiring installs; this executable links the real `deluge_scenes` **and** the real
+/// builds the `deluge_ui_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
+/// but not what the wiring installs; this executable links the real `deluge_ui_scenes` **and** the real
 /// `deluge_app`, so `FlashStorage`, `view` and `shellHostUI` are all the shipped
 /// objects.
 ///
@@ -14,18 +14,18 @@
 ///       spec in this binary -- `shortcuts_spec.cpp`'s own `LegacyVersion1` guard exists for the
 ///       same reason -- so each example saves and puts back the setting it drives.
 
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/registry.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/midi_learn.h"
-#include "scenes/services/mod_knobs.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/midi_learn.h"
+#include "ui/scenes/services/mod_knobs.h"
 
-#include "shell/router.h"
-#include "shell/service.h"
-#include "shell/shell.h"
+#include "ui/shell/router.h"
+#include "ui/shell/service.h"
+#include "ui/shell/shell.h"
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
@@ -34,11 +34,11 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/screensaver.h"
-#include "scenes/audio_clip/audio_clip_scene.h"
-#include "scenes/overlay/count_in_scene.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/overlay/screensaver_scene.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
+#include "ui/scenes/overlay/count_in_scene.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/overlay/screensaver_scene.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include "memory/heaps.h"
 #include "model/model_stack.h"
@@ -46,8 +46,8 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "sample-view/view.h"
 #include "storage/flash_storage.h"
+#include "ui/views/waveform/view.h"
 
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/project_address_printer.h"
@@ -65,9 +65,9 @@
 #include "support/spec_main.h"
 
 using deluge::project::ShortcutsVersion;
-namespace menu = deluge::scenes::menu;
-namespace spec = deluge::scenes::spec;
-namespace services = deluge::scenes::services;
+namespace menu = deluge::ui::scenes::menu;
+namespace spec = deluge::ui::scenes::spec;
+namespace services = deluge::ui::scenes::services;
 
 namespace {
 
@@ -127,22 +127,22 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 	it("numbers the real tree, and every statically reachable root has an id", _ {
 		// `menu::assign_node_ids` had no caller outside the specs until `assigned_node_ids` was
 		// added, and three features no-op on an unnumbered tree -- `MenuScene::save_state`,
-		// `restore_state` and the shortcut-pad jump (`scenes/registry.h`). `deluge_boot` calls this
+		// `restore_state` and the shortcut-pad jump (`ui/scenes/registry.h`). `deluge_boot` calls this
 		// explicitly; in this binary `shellHostUI`'s own construction has already called it through
 		// `scene_registry()`, which is exactly why the boot call is spelled out rather than left to
 		// static-initialisation order.
-		const uint16_t assigned = deluge::scenes::assigned_node_ids();
+		const uint16_t assigned = deluge::ui::scenes::assigned_node_ids();
 		expect(assigned).to_be_greater_than(0);
 
 		// Idempotent: a second call reports the same number rather than re-numbering.
-		expect(deluge::scenes::assigned_node_ids()).to_equal(assigned);
+		expect(deluge::ui::scenes::assigned_node_ids()).to_equal(assigned);
 
 		// And the ids are on the nodes, not merely counted. Two roots from different tables, so a
 		// walk that numbered only the first would fail.
-		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root)).not_().to_equal(0);
-		expect(menu::node_id(deluge::scenes::menu::nodes::root_settings)).not_().to_equal(0);
-		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root))
-		    .not_().to_equal(menu::node_id(deluge::scenes::menu::nodes::root_settings));
+		expect(menu::node_id(deluge::ui::scenes::menu::nodes::sound_root)).not_().to_equal(0);
+		expect(menu::node_id(deluge::ui::scenes::menu::nodes::root_settings)).not_().to_equal(0);
+		expect(menu::node_id(deluge::ui::scenes::menu::nodes::sound_root))
+		    .not_().to_equal(menu::node_id(deluge::ui::scenes::menu::nodes::root_settings));
 	});
 });
 
@@ -169,10 +169,10 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		// `(0, 6)` of the sound table is interpolation under V3 and the sample end point under V1,
 		// which `shortcuts_spec.cpp` establishes is one of the only two cells that genuinely move.
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, spec::shortcut_layout(), false, 0, 6))
-		    .to_equal(&deluge::scenes::menu::nodes::sample0_end);
+		    .to_equal(&deluge::ui::scenes::menu::nodes::sample0_end);
 		spec::set_shortcut_layout(ShortcutsVersion::V3);
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, spec::shortcut_layout(), false, 0, 6))
-		    .to_equal(&deluge::scenes::menu::nodes::sample0_interpolation);
+		    .to_equal(&deluge::ui::scenes::menu::nodes::sample0_interpolation);
 
 		// And a byte that is neither enumerator takes the V3 layout, as legacy's own `default` does.
 		FlashStorage::shortcutsVersion = 7;
@@ -258,7 +258,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 
 	it("seeds ModKnobs from View's own active mod controllable, so its LEDs are not blank", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
 
@@ -271,7 +271,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
 		// The focus is the synth on its clip: the owner legacy's stack resolved, as addresses.
-		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&knobs->focus().owner);
+		const auto* sound = std::get_if<deluge::ui::scenes::bind::SoundFocus>(&knobs->focus().owner);
 		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
 			expect(sound->slot.id).to_equal(*f.instrument->id());
@@ -285,7 +285,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 		// The global controls take the app's ports and the song's record.
 		const auto* const controls = static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls);
-		expect(controls->ports()).to_equal(&deluge::scenes::menu::host_ports());
+		expect(controls->ports()).to_equal(&deluge::ui::scenes::menu::host_ports());
 		expect(controls->model()).to_equal(static_cast<const deluge::project::Song*>(&f.song->project));
 
 		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.
@@ -301,7 +301,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		NotificationDisplay stub;
 		deluge::hid::Display* const saved = display;
 		display = &stub;
-		auto& popup = deluge::scenes::overlay::param_popup_scene();
+		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
 		popup.tick(100'000);
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		(void)popup.show(deluge::modulation::params::Kind::UNPATCHED_GLOBAL,
@@ -348,7 +348,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		expect(stub.draws).to_equal(1);
 
 		// The guest's popup moves the knob on, and its close hands that popup to legacy's display.
-		auto& popup = deluge::scenes::overlay::param_popup_scene();
+		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
 		popup.tick(100'000);
 		(void)popup.show(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME, 30, PatchSource::NONE,
 		                 PatchSource::NONE, 6'000'000, {});
@@ -366,7 +366,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 
 	it("tells the guest's knobs whether the UI mode lets a mod button act, as View answers it", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
 		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
@@ -387,7 +387,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 
 	it("the guest's knobs are View's: a mod button pressed in the guest moves View's mode and VU flag", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
 		f.song->persistentView.affectEntire = true;
@@ -408,7 +408,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		expect(view.knobFocus().vu_meter).to_be_true();
 
 		view.setModRegion(96, 48, 0);
-		expect(knobs->focus().region).to_equal(deluge::controls::ModRegion{.pos = 96, .length = 48});
+		expect(knobs->focus().region).to_equal(deluge::ui::controls::ModRegion{.pos = 96, .length = 48});
 
 		view.setModRegion();
 		view.knobFocus().vu_meter = false;
@@ -420,7 +420,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 describe boot_overlays("the overlays', the slicer's and the audio clip scene's ports, installed with the services", $ {
 	it("gives the count-in the app's transport: a count-in the playback handler holds shows as its digit", _ {
-		auto& scene = deluge::scenes::overlay::count_in_scene();
+		auto& scene = deluge::ui::scenes::overlay::count_in_scene();
 		const int32_t saved = playbackHandler.currentVisualCountForCountIn;
 		scene.set_transport(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
@@ -437,21 +437,21 @@ describe boot_overlays("the overlays', the slicer's and the audio clip scene's p
 	});
 
 	it("gives the screensaver the app's device settings: it shows the mode the flash storage holds", _ {
-		auto& scene = deluge::scenes::overlay::screensaver_scene();
+		auto& scene = deluge::ui::scenes::overlay::screensaver_scene();
 		const ScreensaverMode saved = FlashStorage::screensaverMode;
 		scene.set_device(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
 		// BLANK scatters no field, so the scene's animations stay as the other specs expect them; with no port it
 		// would read the row's default, DELUGE.
 		FlashStorage::screensaverMode = ScreensaverMode::BLANK;
-		expect(scene.on_enter(deluge::ui::shell::SceneId{deluge::scenes::overlay::kScreensaverSceneKind, 0}))
+		expect(scene.on_enter(deluge::ui::shell::SceneId{deluge::ui::scenes::overlay::kScreensaverSceneKind, 0}))
 		    .to_be_true();
 		expect(scene.mode()).to_equal(deluge::project::ScreensaverMode::BLANK);
 		FlashStorage::screensaverMode = saved;
 	});
 
 	it("gives the slicer the app's ports: it opens over the length the app's waveforms answer at SLICE", _ {
-		auto& scene = deluge::scenes::slicing::slicer_scene();
+		auto& scene = deluge::ui::scenes::slicing::slicer_scene();
 		scene.set_ports(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
 		auto* sample = new (deluge::memory::alloc_fast(sizeof(Sample))) Sample();
@@ -460,10 +460,10 @@ describe boot_overlays("the overlays', the slicer's and the audio clip scene's p
 		sample->sampleRate = 44100;
 		sample->lengthInSamples = 16000;
 		{
-			const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
+			const deluge::ui::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
 			held.open();
 			// With no ports the scene would read no length, and open at a zoom of 1.
-			expect(scene.x_zoom()).to_equal(deluge::sample_view::WaveformView::open(16000, std::nullopt).zoom());
+			expect(scene.x_zoom()).to_equal(deluge::ui::views::waveform::WaveformView::open(16000, std::nullopt).zoom());
 		}
 		// The host and the preview drum have let it go.
 		sample->~Sample();
@@ -471,7 +471,7 @@ describe boot_overlays("the overlays', the slicer's and the audio clip scene's p
 	});
 
 	it("gives the audio clip scene the app's ports: it opens on the clip navigation the current song holds", _ {
-		auto& scene = deluge::scenes::audio_clip::audio_clip_scene();
+		auto& scene = deluge::ui::scenes::audio_clip::audio_clip_scene();
 		scene.set_ports(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
 		Song* const saved = currentSong;
@@ -492,13 +492,13 @@ describe boot_overlays("the overlays', the slicer's and the audio clip scene's p
 
 describe boot_browser_host("the browser's host, installed with the services", $ {
 	it("gives the browser the application's host, not the one that performs nothing", _ {
-		deluge::scenes::browser::BrowserHost* const saved = deluge::scenes::browser::browser_scene().installed_host();
-		deluge::scenes::browser::browser_scene().set_host(nullptr);
+		deluge::ui::scenes::browser::BrowserHost* const saved = deluge::ui::scenes::browser::browser_scene().installed_host();
+		deluge::ui::scenes::browser::browser_scene().set_host(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
-		const deluge::scenes::browser::BrowserHost* host = deluge::scenes::browser::browser_scene().installed_host();
+		const deluge::ui::scenes::browser::BrowserHost* host = deluge::ui::scenes::browser::browser_scene().installed_host();
 		expect(host).not_().to_be_null();
-		expect(host).not_().to_equal(&deluge::scenes::browser::null_browser_host());
-		deluge::scenes::browser::browser_scene().set_host(saved);
+		expect(host).not_().to_equal(&deluge::ui::scenes::browser::null_browser_host());
+		deluge::ui::scenes::browser::browser_scene().set_host(saved);
 	});
 });
 // clang-format on

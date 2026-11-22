@@ -16,14 +16,7 @@
  */
 
 #include "io/midi/midi_follow.h"
-#include "controls/facts.h"
-#include "controls/follow.h"
-#include "controls/knob_math.h"
-#include "controls/learned.h"
-#include "controls/sink.h"
-#include "controls/takeover.h"
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -32,7 +25,8 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "io/file.hpp"
 #include "io/midi/follow_host.h"
 #include "io/midi/midi_device.h"
@@ -60,6 +54,12 @@
 #include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "ui/controls/facts.h"
+#include "ui/controls/follow.h"
+#include "ui/controls/knob_math.h"
+#include "ui/controls/learned.h"
+#include "ui/controls/sink.h"
+#include "ui/controls/takeover.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
 #include "util/notify.h"
@@ -92,10 +92,10 @@ using deluge::project::ParamTarget;
 
 namespace {
 
-static_assert(deluge::controls::kFollowRefusedOnKitRow == deluge::instrument::param::kPortamento.value);
+static_assert(deluge::ui::controls::kFollowRefusedOnKitRow == deluge::instruments::classic::param::kPortamento.value);
 
 /// The tables of which param each CC follows, as the controls library reads them.
-controls::FollowTables followTablesOf(const MidiFollow& follow) {
+deluge::ui::controls::FollowTables followTablesOf(const MidiFollow& follow) {
 	return {.sound = follow.ccToSoundTarget, .global = follow.ccToGlobalTarget};
 }
 
@@ -165,7 +165,7 @@ void MidiFollow::init() {
 
 void MidiFollow::factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW);
+		deluge::base::notify::notice(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
@@ -206,13 +206,13 @@ void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
 }
 
 void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
-	globalParamToCC[*deluge::host_chain::find_runtime_index(target.id)] = cc;
+	globalParamToCC[*deluge::host::chains::find_runtime_index(target.id)] = cc;
 	ccToGlobalTarget[cc] = target;
 }
 
 void MidiFollow::initDefaultMappings() {
-	namespace ip = deluge::instrument::param;
-	namespace gp = deluge::host_chain::param;
+	namespace ip = deluge::instruments::classic::param;
+	namespace gp = deluge::host::chains::param;
 	auto mapSound = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapSound(cc, deluge::project::engine_target(id.value));
 	};
@@ -462,7 +462,7 @@ void MidiFollow::displayParamControlError(Target sound, Target global) {
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);
 		}
-		deluge::notify::notice(std::string_view(popupMsg));
+		deluge::base::notify::notice(std::string_view(popupMsg));
 	}
 }
 
@@ -477,7 +477,7 @@ std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) c
 			cc = soundParamToCC[target.id.value];
 		}
 	}
-	else if (std::optional<uint8_t> index = deluge::host_chain::find_runtime_index(target.id)) {
+	else if (std::optional<uint8_t> index = deluge::host::chains::find_runtime_index(target.id)) {
 		cc = globalParamToCC[*index];
 	}
 	if (cc == MIDI_CC_NONE) {
@@ -854,8 +854,8 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 	if (currentSong == nullptr || clip == nullptr) {
 		return;
 	}
-	const controls::Facts& facts = deluge::midi::followFacts();
-	controls::Sink& sink = deluge::midi::followSink();
+	const deluge::ui::controls::Facts& facts = deluge::midi::followFacts();
+	deluge::ui::controls::Sink& sink = deluge::midi::followSink();
 
 	// Only if this exact clip is having automation step-edited, we can set the value for just a region. It is read
 	// before the arrangement's take is made, which holds the region the clip it records does.
@@ -877,11 +877,11 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 		return;
 	}
 
-	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
+	const deluge::ui::controls::KnobFocus focus = deluge::midi::followFocus(*clip);
 	const std::optional<deluge::project::ParamAddress> address =
-	    controls::resolve_follow(focus, followTablesOf(*this), static_cast<uint8_t>(ccNumber));
+	    deluge::ui::controls::resolve_follow(focus, followTablesOf(*this), static_cast<uint8_t>(ccNumber));
 	const std::optional<int32_t> currentValue =
-	    address ? controls::value_for_move(facts, *address, region) : std::nullopt;
+	    address ? deluge::ui::controls::value_for_move(facts, *address, region) : std::nullopt;
 	if (!currentValue) {
 		if (midiEngine.midiFollowDisplayParam) {
 			displayParamControlError(sound, global);
@@ -890,18 +890,18 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 	}
 
 	// Turn the knob through takeover from where this CC last left it, and write the param where its position moved.
-	controls::TakeoverState state;
+	deluge::ui::controls::TakeoverState state;
 	if (previousKnobPos[ccNumber] != kNoSelection) {
 		state.previous = previousKnobPos[ccNumber];
 	}
-	const std::optional<int32_t> newKnobPos =
-	    controls::move_by_cc({.address = *address,
-	                          .info = facts.param_info(controls::follow_plugin(focus), address->target()),
-	                          .value = *currentValue,
-	                          .region = region,
-	                          .cc_value = static_cast<uint8_t>(ccValue),
-	                          .cable_relative = cable.is_relative},
-	                         state, facts, sink);
+	const std::optional<int32_t> newKnobPos = deluge::ui::controls::move_by_cc(
+	    {.address = *address,
+	     .info = facts.param_info(deluge::ui::controls::follow_plugin(focus), address->target()),
+	     .value = *currentValue,
+	     .region = region,
+	     .cc_value = static_cast<uint8_t>(ccValue),
+	     .cable_relative = cable.is_relative},
+	    state, facts, sink);
 	if (state.previous) {
 		previousKnobPos[ccNumber] = *state.previous;
 	}
@@ -1095,7 +1095,7 @@ size_t MidiFollow::collectFollowFeedback(bool isAutomation, std::array<FollowFee
 	if (clip == nullptr || currentSong == nullptr) {
 		return 0;
 	}
-	const controls::Facts& facts = deluge::midi::followFacts();
+	const deluge::ui::controls::Facts& facts = deluge::midi::followFacts();
 
 	// Only if this exact clip is having automation step-edited, we can send the value for just a region.
 	const std::optional<std::pair<int32_t, int32_t>> region = facts.step_region(clip->id());
@@ -1107,14 +1107,14 @@ size_t MidiFollow::collectFollowFeedback(bool isAutomation, std::array<FollowFee
 	    region ? std::optional{static_cast<uint32_t>(region->first)} : std::nullopt;
 
 	// loop through all params to see if any parameters have been learned
-	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
-	const plugin::PluginId plugin = controls::follow_plugin(focus);
-	const controls::FollowTables tables = followTablesOf(*this);
+	const deluge::ui::controls::KnobFocus focus = deluge::midi::followFocus(*clip);
+	const plugin::PluginId plugin = deluge::ui::controls::follow_plugin(focus);
+	const deluge::ui::controls::FollowTables tables = followTablesOf(*this);
 	size_t count = 0;
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		// the param that has been learned to this cc
 		const std::optional<deluge::project::ParamAddress> address =
-		    controls::resolve_follow(focus, tables, static_cast<uint8_t>(ccNumber));
+		    deluge::ui::controls::resolve_follow(focus, tables, static_cast<uint8_t>(ccNumber));
 		if (!address || (isAutomation && !facts.param_automated(*address))) {
 			continue;
 		}
@@ -1124,8 +1124,9 @@ size_t MidiFollow::collectFollowFeedback(bool isAutomation, std::array<FollowFee
 			continue;
 		}
 		// convert current value to a knob position
-		out[count++] = {static_cast<uint8_t>(ccNumber),
-		                controls::knob_pos_of(*address, facts.param_info(plugin, address->target()), *currentValue)};
+		out[count++] = {
+		    static_cast<uint8_t>(ccNumber),
+		    deluge::ui::controls::knob_pos_of(*address, facts.param_info(plugin, address->target()), *currentValue)};
 	}
 	return count;
 }

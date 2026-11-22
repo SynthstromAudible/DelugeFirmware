@@ -6,9 +6,9 @@
 ///        both the spec and the menu oracle freezer run.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
 
 // `NonAudioInstrument` is named by the output headers without being included.
 #include "model/instrument/non_audio_instrument.h"
@@ -26,9 +26,9 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace deluge::scenes::spec::outputitems {
+namespace deluge::ui::scenes::spec::outputitems {
 
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuContext;
 
 /// @brief The minimum `Display` the output items need: `display` is null in a spec process.
 struct QuietDisplay final : deluge::hid::Display {
@@ -184,4 +184,4 @@ inline void store_source(ClipRig& rig, Start start) {
 	rig.song.output->setOutputRecordingFrom(from);
 }
 
-} // namespace deluge::scenes::spec::outputitems
+} // namespace deluge::ui::scenes::spec::outputitems

@@ -7,8 +7,6 @@
 /// `edits::changeEffect`, the owner's own lifecycle call) and observes from outside the owner: the song's stutter, the
 /// UI mode, the param values, the delay's reserve and the settings an owner plays.
 
-#include "deluge-project/fx_chain.h"
-#include "deluge-project/mapping_table.h"
 #include "effects/words.h"
 #include "gui/ui/ui.h"
 #include "model/clip/audio_clip.h"
@@ -26,6 +24,8 @@
 #include "modulation/params/param_set.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/fx_chain.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
 #include <cstdint>
@@ -39,7 +39,7 @@
 #include "support/printers/effect_sections_printer.h"
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 namespace project = deluge::project;
 using deluge::serialization::Value;

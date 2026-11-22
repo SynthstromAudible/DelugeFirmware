@@ -21,7 +21,7 @@ retrofitted onto the lift over the legacy layout.
 
 ## Current model (what we'd be migrating from)
 
-- **Config** is the sound's record (`instrument::SoundState`) and the render's copy derived from it
+- **Config** is the sound's record (`instruments::classic::SoundState`) and the render's copy derived from it
   (`synth::SoundConfig`, its `sources[s]` the oscillators' playback settings); `Source` (`processing/source.h`) keeps
   the oscillator type, the ranges' files and the DX7 patch until they become the sound's resources.
 - **Modulated per-block values**: the **Patcher** reads a `ControlBlock` (patched preset values + cables) and writes

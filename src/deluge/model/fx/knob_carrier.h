@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/mapping_table.h"
+#include "project/mapping_table.h"
 
 #include <cstdint>
 #include <optional>

@@ -1,8 +1,8 @@
-// The panic contract (foundation/panic.h) for spec binaries linking a standalone library: a freeze is recorded,
+// The panic contract (base/panic.h) for spec binaries linking a standalone library: a freeze is recorded,
 // not terminal, so a spec can check which code an impossible state froze with.
 #include "mock_panic.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 
 namespace {
 std::string last;

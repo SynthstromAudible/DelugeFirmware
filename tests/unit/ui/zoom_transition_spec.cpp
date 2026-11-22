@@ -1,6 +1,6 @@
-#include "gfx/grid/tween.h"
 #include "support/frames.h"
-#include "ui/grid/zoom_transition.h"
+#include "ui/gfx/grid/tween.h"
+#include "ui/widgets/grid/zoom_transition.h"
 
 #include "cppspec.hpp"
 
@@ -10,14 +10,14 @@
 #include <optional>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
-using deluge::gfx::grid::GridDimensions;
-using deluge::gfx::grid::PadGrid;
-using deluge::gfx::grid::ZoomParams;
+using namespace deluge::ui::widgets::grid;
+using deluge::ui::gfx::grid::GridDimensions;
+using deluge::ui::gfx::grid::PadGrid;
+using deluge::ui::gfx::grid::ZoomParams;
 namespace uitest = deluge::ui::test;
 
 // The slide `PadLEDs::renderZoom` draws from `imageStore` (`pad_leds.cpp`), as a component. The blend itself is
-// `gfx::grid::zoom`'s, pinned in tests/unit/gfx/tween_spec.cpp; what is pinned here is the clock around it.
+// `gfx::grid::zoom`'s, pinned in tests/unit/ui/gfx/tween_spec.cpp; what is pinned here is the clock around it.
 
 namespace {
 
@@ -52,7 +52,7 @@ bool shows(const uitest::GridRig& r, const PadGrid& g) {
 } // namespace
 
 // clang-format off
-describe zoom_transition_grid("ui/grid/zoom_transition", $ {
+describe zoom_transition_grid("ui::widgets::grid::zoom_transition", $ {
 	it("paints the zoom's step at the clock's progress, every 50 ms, until 110 ms have passed", _ {
 		const PadGrid from = pattern(1);
 		const PadGrid to = pattern(77);
@@ -67,7 +67,7 @@ describe zoom_transition_grid("ui/grid/zoom_transition", $ {
 		PadGrid half(kMain);
 		ZoomParams at_half = kIn;
 		at_half.t = 32768;
-		deluge::gfx::grid::zoom(from, to, at_half, half);
+		deluge::ui::gfx::grid::zoom(from, to, at_half, half);
 		expect(shows(r, half)).to_be_true();
 		expect(r.gate.next_deadline()).to_equal(std::optional<uint32_t>{1105});
 		// The sidebar is the owner's.
@@ -94,7 +94,7 @@ describe zoom_transition_grid("ui/grid/zoom_transition", $ {
 		begin_zoom(z, from, kIn, 0) = to;
 		expect(zoom_transition(r.frame, z)).to_be_true();
 		PadGrid start(kMain);
-		deluge::gfx::grid::zoom(from, to, kIn, start);
+		deluge::ui::gfx::grid::zoom(from, to, kIn, start);
 		expect(shows(r, start)).to_be_true();
 		expect(shows(r, to)).to_be_false();
 	});

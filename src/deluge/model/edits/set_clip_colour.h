@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/clip_address.h"
 #include "model/edits/edit.h"
+#include "project/clip_address.h"
 #include <cstdint>
 
 namespace deluge::edits {

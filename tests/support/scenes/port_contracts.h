@@ -4,16 +4,16 @@
 /// @brief Cases every implementation of a port must pass, the fake and the host's alike. Each takes the port under
 ///        test and returns whether it holds; a spec states the case and expects true.
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
-#include "deluge-project/transport.h"
-#include "plugin-api/types/display_mapping.h"
-#include "sample-view/divide.h"
-#include "sample-view/peaks.h"
-#include "scenes/bind/device_reader.h"
-#include "scenes/bind/ports/ports.h"
+#include "base/divide.h"
+#include "plugin/types/display_mapping.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
+#include "project/transport.h"
+#include "ui/scenes/bind/device_reader.h"
+#include "ui/scenes/bind/ports/ports.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::scenes::bind::contract {
+namespace deluge::ui::scenes::bind::contract {
 
 /// @brief A port answers the same thing twice when nothing changed between the calls.
 [[nodiscard]] inline bool ui_facts_are_stable(const UiFacts& ui) {
@@ -112,7 +112,7 @@ namespace deluge::scenes::bind::contract {
 
 /// @brief Every sound edit on a sound no song holds is refused. A fake that accepts everything is set to refuse first.
 [[nodiscard]] inline bool unknown_sound_is_refused(SoundWrites& writes, project::SlotAddress nowhere) {
-	const instrument::DxPatchState patch{};
+	const instruments::classic::DxPatchState patch{};
 	return !writes.write_ranges(nowhere, 0, {}, {}) && !writes.insert_range(nowhere, 0, 0, 40, std::nullopt)
 	       && !writes.delete_range(nowhere, 0, 0, std::nullopt)
 	       && !writes.attach_recording(nowhere, 0, 0, "NOWHERE.WAV") && !writes.write_dx_patch(nowhere, 0, patch)
@@ -149,15 +149,16 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief A param of an owner no song holds has no value and is not automated.
-[[nodiscard]] inline bool unknown_param_has_no_value(const controls::Facts& controls,
+[[nodiscard]] inline bool unknown_param_has_no_value(const ui::controls::Facts& controls,
                                                      const project::ParamAddress& nowhere) {
 	return !controls.param_value(nowhere).has_value() && !controls.param_automated(nowhere);
 }
 
 /// @brief A knob's write to, and the making of, a param of an owner no song holds are refused. A recording fake
 ///        refuses only with `accept` false, so set that first.
-[[nodiscard]] inline bool unknown_param_write_is_refused(controls::Sink& sink, const project::ParamAddress& nowhere) {
-	return !sink.write_param(nowhere, 1, 0, 0, controls::Resolution::KNOB) && !sink.make_param(nowhere);
+[[nodiscard]] inline bool unknown_param_write_is_refused(ui::controls::Sink& sink,
+                                                         const project::ParamAddress& nowhere) {
+	return !sink.write_param(nowhere, 1, 0, 0, ui::controls::Resolution::KNOB) && !sink.make_param(nowhere);
 }
 
 /// @brief Every connected device has a name and settings, and no device names none.
@@ -437,13 +438,13 @@ namespace deluge::scenes::bind::contract {
 /// @brief An address nothing is loaded at answers no info, nothing to draw or wait for, and no position.
 [[nodiscard]] inline bool waveforms_unknown_address_reads_nothing(const Waveforms& w, const WaveformAddress& nowhere) {
 	return !w.info(nowhere).has_value()
-	       && w.peaks(nowhere, {.scroll = 0, .zoom = 1}) == sample_view::PeakRead::all_past_end()
+	       && w.peaks(nowhere, {.scroll = 0, .zoom = 1}) == views::waveform::PeakRead::all_past_end()
 	       && !w.play_position(nowhere).has_value();
 }
 
 /// @brief A window that covers no frames has nothing to draw.
 [[nodiscard]] inline bool waveforms_empty_window_reads_past_end(const Waveforms& w, const WaveformAddress& at) {
-	return w.peaks(at, {.scroll = 0, .zoom = 0}) == sample_view::PeakRead::all_past_end();
+	return w.peaks(at, {.scroll = 0, .zoom = 0}) == views::waveform::PeakRead::all_past_end();
 }
 
 /// @brief Over a finished file, a column from the length on is past the end, and a column wholly inside a file of
@@ -455,11 +456,11 @@ namespace deluge::scenes::bind::contract {
 	}
 	const auto length = static_cast<int64_t>(info->length_samples);
 	// Twice the whole-waveform zoom, so about half the columns lie past the end.
-	const int64_t zoom = std::max<int64_t>(1, sample_view::ceil_div(length, sample_view::kColumns) << 1);
-	const sample_view::PeakRead read = w.peaks(at, {.scroll = 0, .zoom = zoom});
-	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+	const int64_t zoom = std::max<int64_t>(1, base::ceil_div(length, views::waveform::kColumns) << 1);
+	const views::waveform::PeakRead read = w.peaks(at, {.scroll = 0, .zoom = zoom});
+	for (int32_t c = 0; c < views::waveform::kColumns; c++) {
 		// Past the end exactly where the column starts at or past the length.
-		const bool past_end = read.column(c).state() == sample_view::ColumnState::PAST_END;
+		const bool past_end = read.column(c).state() == views::waveform::ColumnState::PAST_END;
 		if ((int64_t{c} * zoom >= length) != past_end) {
 			return false;
 		}
@@ -474,14 +475,14 @@ namespace deluge::scenes::bind::contract {
 	if (!info || info->recording) {
 		return false;
 	}
-	const sample_view::Window window{
+	const views::waveform::Window window{
 	    .scroll = 0,
 	    .zoom = std::max<int64_t>(
-	        1, sample_view::ceil_div(static_cast<int64_t>(info->length_samples), sample_view::kColumns))};
-	const sample_view::PeakRead first = w.peaks(at, window);
-	const sample_view::PeakRead second = w.peaks(at, window);
+	        1, base::ceil_div(static_cast<int64_t>(info->length_samples), views::waveform::kColumns))};
+	const views::waveform::PeakRead first = w.peaks(at, window);
+	const views::waveform::PeakRead second = w.peaks(at, window);
 	bool drawn = false;
-	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+	for (int32_t c = 0; c < views::waveform::kColumns; c++) {
 		if (first.column(c).peak() && first.column(c) != second.column(c)) {
 			return false;
 		}
@@ -559,4 +560,4 @@ namespace deluge::scenes::bind::contract {
 
 /// @}
 
-} // namespace deluge::scenes::bind::contract
+} // namespace deluge::ui::scenes::bind::contract

@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_holder.h"
 #include "hid/display/display.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
@@ -38,7 +38,7 @@ static DelugeLoadMode loadModeFor(int32_t clusterLoadInstruction) {
 
 SampleHolder::SampleHolder() {
 	startPos = 0;
-	endPos = deluge::instrument::kUnsetEndPos;
+	endPos = deluge::instruments::classic::kUnsetEndPos;
 	audioFileType = AudioFileType::SAMPLE;
 }
 
@@ -132,7 +132,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		// Otherwise, simply make sure that the zone doesn't exceed the length of the sample
 		else {
 			startPos = std::min<uint64_t>(startPos, lengthInSamples);
-			if (endPos == 0 || endPos == deluge::instrument::kUnsetEndPos) {
+			if (endPos == 0 || endPos == deluge::instruments::classic::kUnsetEndPos) {
 				endPos = lengthInSamples;
 			}
 			if (endPos <= startPos) {

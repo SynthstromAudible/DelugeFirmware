@@ -63,10 +63,6 @@
 ///     deletes never (self-checking)
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/arrangement.h"
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/mapping_index.h"
@@ -97,6 +93,10 @@
 #include "modulation/params/param_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "project/arrangement.h"
+#include "project/controller_mapping.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "storage/document_format.h"

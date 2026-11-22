@@ -2,12 +2,12 @@
 // stuttering while held and ending on release or on leaving the view, and the gold knob's popup suppressed for the
 // param the view already shows.
 
-#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "host/chains/params.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -79,7 +79,7 @@ std::vector<uint8_t> column_display(char const* name, char const* value) {
 
 /// @brief A song with the performance view over it, its knobs on the song, as its focusRegained leaves them.
 struct PerformanceRig {
-	deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+	deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 	Song* const saved_song = currentSong;
 	PerformanceRig() {
 		currentSong = f.song;
@@ -143,7 +143,7 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 	it("takes over the gold knob's popup for the param it shows, and only that one", _ {
 		PerformanceRig rig;
 		performanceView.lastPadPress.isActive = true;
-		performanceView.lastPadPress.param = deluge::host_chain::param::kLpfFrequency;
+		performanceView.lastPadPress.param = deluge::host::chains::param::kLpfFrequency;
 		expect(performanceView.possiblyRefreshPerformanceViewDisplay(params::Kind::UNPATCHED_GLOBAL,
 		                                                             params::UNPATCHED_LPF_FREQ, 10))
 		    .to_be_true();
@@ -182,7 +182,7 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 	});
 
 	it("leaves the LOAD LED alone when its defaults arrive after it was left", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = f.song;
 		nullifyUIs();

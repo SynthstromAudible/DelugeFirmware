@@ -7,7 +7,7 @@
 # a chained page being USED. This one does: the target is an `int_item`, and the turn after the
 # press moves the target's value, not the source's.
 #
-# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), one raw detent per
+# `int_value` edits with the select turn (`ui/widgets/oled/values.cpp`'s `select_delta`), one raw detent per
 # select click (unlike a gold knob, the select encoder is not `EncoderKind::Accelerating`). Every
 # turn below is `Select`, sized at `+/-4` (4 raw edges each, at this leaf's `range.step` of 1).
 0     snapshot idle                  # UNISON NUMBER, the count's own value

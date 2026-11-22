@@ -16,8 +16,6 @@
  */
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_note.h"
-#include "deluge-project/doc_note_row.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -48,6 +46,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/doc_note.h"
+#include "project/doc_note_row.h"
 #include "sequence/iterance_migration.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -2508,7 +2508,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		deluge::notify::notice("E336"); // Popup only
+		deluge::base::notify::notice("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -3792,7 +3792,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						deluge::notify::notice("E073");
+						deluge::base::notify::notice("E073");
 					}
 				}
 			}

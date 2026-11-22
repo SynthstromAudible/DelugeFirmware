@@ -2,7 +2,7 @@
 /// @brief An FM sound saved before community 1.2.0 can carry filter modes that never rendered then: a load turns them
 /// off, in the record and in what the sound plays; a later save's filter modes are kept.
 
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
@@ -14,7 +14,7 @@
 #include <string>
 #include <string_view>
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 using deluge::effects::FilterMode;
 
 namespace {
@@ -53,7 +53,7 @@ describe old_fm_filter_load("an old FM sound's filter modes as a load reads them
 		if (synth == nullptr) {
 			return;
 		}
-		const deluge::effects::EffectStates& recorded = deluge::instrument::sound_effects(synth->state());
+		const deluge::effects::EffectStates& recorded = deluge::instruments::classic::sound_effects(synth->state());
 		expect(recorded.filter.lpf_mode).to_equal(FilterMode::OFF);
 		expect(recorded.filter.hpf_mode).to_equal(FilterMode::OFF);
 		expect(synth->effects().filter.lpf_mode).to_equal(FilterMode::OFF);
@@ -67,7 +67,7 @@ describe old_fm_filter_load("an old FM sound's filter modes as a load reads them
 		if (synth == nullptr) {
 			return;
 		}
-		expect(deluge::instrument::sound_effects(synth->state()).filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
+		expect(deluge::instruments::classic::sound_effects(synth->state()).filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
 		expect(synth->effects().filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
 	});
 });

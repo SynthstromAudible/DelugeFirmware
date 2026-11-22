@@ -1,7 +1,7 @@
 #pragma once
 
-#include "deluge-project/setting_group.h"
 #include "model/edits/edit.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 #include <optional>

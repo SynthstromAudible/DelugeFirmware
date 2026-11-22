@@ -22,7 +22,7 @@
 ///        flags.
 
 #include "effects/param_fragment.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <cstddef>
 #include <cstdint>

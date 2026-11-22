@@ -93,7 +93,7 @@ missing from the description; it never blocks a merge.
 When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
 
 1. **Declare the Setting**:
-   - In `src/deluge-project/features.h`, add your feature to `enum class Feature` after the last one (and point the `static_assert` below `kFeatures` at it), and its entry to `kFeatures`: the name `CommunityFeatures.XML` writes it under, the words for its values (`kFeatureToggleWords` for On/Off) and its factory value. The menu's DEVICE row `features/<name>` is made from that entry.
+   - In `src/project/features.h`, add your feature to `enum class Feature` after the last one (and point the `static_assert` below `kFeatures` at it), and its entry to `kFeatures`: the name `CommunityFeatures.XML` writes it under, the words for its values (`kFeatureToggleWords` for On/Off) and its factory value. The menu's DEVICE row `features/<name>` is made from that entry.
    - If your setting has more states than simple On/Off, give it a neutral `enum class` and its words beside `ShortcutOverlay` in `features.h`.
    - In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`); `runtime_feature_settings.cpp` asserts each identifier equal to its `Feature`.
 
@@ -106,7 +106,7 @@ When introducing a new feature or behavior modification that should be toggleabl
    - In `src/deluge/gui/l10n/setting_names.cpp`, add the row's names and its `Entry` under `SettingGroupId::DEVICE` at `features/<name>`, keeping `kEntries` sorted. A setting with more states names its choices there, in its values' order. `RuntimeFeatureSettings::init()` gives every feature its factory value from `kFeatures`.
 
 4. **Create the Associated Menu Item**:
-   - In `src/scenes/menu/nodes/settings.h`, in the "Community features" section, declare the node: `feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_...), project::Feature::YOUR_SETTING)`, with `Kind::Enum` as a third argument for a setting with more states (see `feature_shortcut_overlay`). A setting that must take effect the moment it is written does so in the host's store, `store_feature` in `src/deluge/gui/ui/shell_host/device_settings.cpp` (see sticky shift); one the open menu lays itself out by also takes `with_after_write` (see `feature_horizontal_menus`).
+   - In `src/ui/scenes/menu/nodes/settings.h`, in the "Community features" section, declare the node: `feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_...), project::Feature::YOUR_SETTING)`, with `Kind::Enum` as a third argument for a setting with more states (see `feature_shortcut_overlay`). A setting that must take effect the moment it is written does so in the host's store, `store_feature` in `src/deluge/gui/ui/shell_host/device_settings.cpp` (see sticky shift); one the open menu lays itself out by also takes `with_after_write` (see `feature_horizontal_menus`).
    - Add a pointer to the node at the end of `kRuntimeFeatureChildren`, the list the Community Features menu shows.
    - The menu's specs check every node against upstream `main`'s menu, recorded in `tests/golden/ui/menu_oracle/tables_3.tsv`: the Community Features rows are those whose path starts `settings/11/`, and `settings/11`'s `kids` row counts them. Its rows hold what `main`'s source answers (`tests/golden/README.md`, "Menu reference tables"), never what the scenes' menu renders, except the rows that README lists as accepted differences.
    - A setting `main` also has: write its rows from `main`'s item (`git show origin/main:src/deluge/gui/menu_item/runtime_feature/settings.cpp`) under `settings/11/N`, `N` being the node's index in `kRuntimeFeatureChildren` (the paths count the scenes' menu's children, which D156 leaves two short of `main`'s). Copy a neighbouring toggle's rows (every row whose path is `settings/11/0`), give them the item's own name and title, and raise the `kids` row by one.
@@ -120,7 +120,7 @@ When introducing a new feature or behavior modification that should be toggleabl
        /// @brief Community Features nodes `main`'s menu does not have: their `tables_3` rows are the port's own, each an
        ///        accepted row of `tests/ui-scripts/parity/DIFFERENCES.md`.
        inline bool port_only_setting(const menu::Node& node) {
-       	namespace nodes = deluge::scenes::menu::nodes;
+       	namespace nodes = deluge::ui::scenes::menu::nodes;
        	return &node == &nodes::feature_your_setting;
        }
 

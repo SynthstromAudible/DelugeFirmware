@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gfx/oled/geometry.h"
+#include "ui/gfx/oled/geometry.h"
 
 #include <format>
 #include <ostream>
@@ -29,7 +29,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::gfx::oled {
+namespace deluge::ui::gfx::oled {
 
 /// @brief Prints a point as its coordinates, e.g. `{x 20, y 20}`.
 /// @param os The stream to print to.
@@ -47,4 +47,4 @@ inline std::ostream& operator<<(std::ostream& os, const Rect& r) {
 	return os << std::format("{{x {}, y {}, w {}, h {}}}", r.x, r.y, r.w, r.h);
 }
 
-} // namespace deluge::gfx::oled
+} // namespace deluge::ui::gfx::oled

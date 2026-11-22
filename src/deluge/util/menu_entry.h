@@ -27,11 +27,11 @@
 /// @par Why this is its own translation unit
 ///
 /// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the gated call sites are
-/// ordinary legacy views, and making each of them name `deluge::scenes::menu::context_for`,
-/// `MenuScene::roots()` and `SceneId` would put `src/scenes` includes into eight `gui/views/` and
+/// ordinary legacy views, and making each of them name `deluge::ui::scenes::menu::context_for`,
+/// `MenuScene::roots()` and `SceneId` would put `src/ui/scenes` includes into eight `gui/views/` and
 /// `model/clip/` translation units for four lines of work apiece. `MenuNode` below exists for
 /// exactly that reason: it is how a caller names a *specific node* without naming the
-/// `deluge::scenes::menu::nodes` namespace.
+/// `deluge::ui::scenes::menu::nodes` namespace.
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
 ///
@@ -48,9 +48,9 @@
 /// **The load-bearing fact:** `src/deluge/util` is *itself* inside `check_layer_rules.py`'s
 /// `NON_UI` glob (`src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,
 /// dsp}/**`). So this header is judged by the very rule the split is about, and it passes on its
-/// own terms -- it includes only `definitions_cxx.hpp`, `gfx/grid/rgb.h` and `<cstdint>`, and forward-declares `class
-/// Clip`. Every `src/scenes` and `gui/` dependency stays in `gui/ui/menu_entry.cpp`, where the rule would judge
-/// it if it moved.
+/// own terms -- it includes only `definitions_cxx.hpp`, `ui/gfx/grid/rgb.h` and `<cstdint>`, and forward-declares
+/// `class Clip`. Every `src/ui/scenes` and `gui/` dependency stays in `gui/ui/menu_entry.cpp`, where the rule would
+/// judge it if it moved.
 ///
 /// @par What works, and what does not
 ///
@@ -63,7 +63,7 @@
 ///  2. **A file chosen in the browser scene is claimed.** The browser's host
 ///     (`gui/ui/browser_host.cpp`, installed by `wireShellGuestServices`) performs the sample
 ///     claim (`SampleClaim`) on the press, so the sample really loads; and `shellSampleClaimDone`'s success arm
-///     then calls `MenuScene::reroot_to_scene_opener_page()` (`scenes/menu/menu_scene.h`), which is
+///     then calls `MenuScene::reroot_to_scene_opener_page()` (`ui/scenes/menu/menu_scene.h`), which is
 ///     legacy's `maybeGetParentMenu` re-rooting in `MenuState`'s own terms rather than the heading
 ///     pair's -- so a claimed file lands on the source page with the file selector focused, not one
 ///     BACK press further in. **One qualification**: the recorder's identical pair is unpaid
@@ -77,7 +77,7 @@
 ///     items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <cstdint>
 
@@ -88,24 +88,25 @@ namespace deluge::gui::ui {
 /// @brief Which node a caller wants open, for the callers that want something other than the root
 ///        `context_for` resolves.
 ///
-/// An enum rather than a `const deluge::scenes::menu::Node*` so that a view in `src/deluge/gui/views` can
-/// name a menu node without including `src/scenes` -- see the file header. Every value other than
-/// `ContextRoot` is resolved to a stable node id (`scenes/menu/node_id.h`) inside
+/// An enum rather than a `const deluge::ui::scenes::menu::Node*` so that a view in `src/deluge/gui/views` can
+/// name a menu node without including `src/ui/scenes` -- see the file header. Every value other than
+/// `ContextRoot` is resolved to a stable node id (`ui/scenes/menu/node_id.h`) inside
 /// `openMenu`, which is what `SceneId::arg` carries.
 enum class MenuNode : uint8_t {
 	/// @brief Whatever root `MenuContext::root` resolved -- `SceneId::arg == 0`.
 	ContextRoot,
-	/// @brief `deluge::scenes::menu::nodes::file0_selector`, the port of `file0SelectorMenu`
+	/// @brief `deluge::ui::scenes::menu::nodes::file0_selector`, the port of `file0SelectorMenu`
 	///        (`origin/main:src/deluge/gui/menu_item/file_selector.h`; the correspondence is stated at
 	///        `nodes::file0_selector`).
 	Osc0FileSelector,
-	/// @brief `deluge::scenes::menu::nodes::sample0_recorder`, the port of `sample0RecorderMenu`: the item whose hook
+	/// @brief `deluge::ui::scenes::menu::nodes::sample0_recorder`, the port of `sample0RecorderMenu`: the item whose
+	/// hook
 	///        pushes the recorder on source 0.
 	Osc0Recorder,
-	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source",
+	/// @brief `deluge::ui::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source",
 	/// `origin/main:src/deluge/gui/ui/menus.cpp`).
 	Dx,
-	/// @brief `deluge::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param
+	/// @brief `deluge::ui::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param
 	///        `MenuScene`'s `DxState` holds.
 	DxParam,
 };
@@ -138,7 +139,7 @@ enum class NoteMode : uint8_t {
 /// The port of the half of `SoundEditor::setup` that decides *what* and *which root*,
 /// plus the `openUI` the fifteen sites do afterwards. The
 /// arguments are `menu::context_for`'s own, in its order, because they are the four UI facts
-/// `src/scenes` may not read for itself (`scenes/menu/context.h`'s "No UI reads" note) -- each
+/// `src/ui/scenes` may not read for itself (`ui/scenes/menu/context.h`'s "No UI reads" note) -- each
 /// caller already knows all four statically from the arm it is in.
 ///
 /// @param clip                   The clip being edited, or null for a song-level/settings menu --
@@ -153,7 +154,7 @@ enum class NoteMode : uint8_t {
 ///                               the latch then says, under the root the clip's affect-entire picks.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
 /// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
-///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
+///                               `src/ui/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
 ///                               `enterNoteEditor`/`enterNoteRowEditor`'s explicit item: no undo-log wipe, and the
 ///                               kit `affectEntire` clear. `NoteEditorFromUiMode` is `setup(clip)`'s own inference:
 ///                               the wipe, no clear. `None` for every other caller.

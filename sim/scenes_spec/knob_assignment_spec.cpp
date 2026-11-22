@@ -4,7 +4,7 @@
 // setting the knob edits instead.
 
 #include "board_controls.hpp"
-#include "scenes/bind/knob_assignment.h"
+#include "ui/scenes/bind/knob_assignment.h"
 
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -39,7 +39,7 @@
 
 namespace {
 
-namespace bind = deluge::scenes::bind;
+namespace bind = deluge::ui::scenes::bind;
 using deluge::edits::KnobModeOwner;
 using deluge::project::ModKnobCc;
 
@@ -105,7 +105,7 @@ std::vector<std::string> over_views(ModControllable& ge,
 // clang-format off
 describe knob_assignment("what a gold knob moves, from the records", ${
 	it("names what the recorded engine named on a synth, for every mode and knob", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
@@ -123,8 +123,8 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names what the recorded engine named on a kit row, with the kit's mode", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
-		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(f);
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::ui::scenes::spec::add_drum<SoundDrum>(f);
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* kit = static_cast<Kit*>(f.instrument);
@@ -149,7 +149,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names what the recorded engine named on a kit's chain, for every filter and mod-FX view", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_kit_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* kit = static_cast<Kit*>(f.instrument);
@@ -170,7 +170,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names what the recorded engine named on an audio track, for every filter and mod-FX view", _ {
-		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
+		deluge::ui::scenes::spec::AudioSongFixture f = deluge::ui::scenes::spec::make_audio_clip_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		AudioOutput* audio = f.output;
@@ -190,7 +190,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names what the recorded engine named on the song, for every filter, mod-FX and compressor view", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		ModControllable& ge = f.song->live.master_channel;
@@ -214,7 +214,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names the song's compressor setting where its compressor button names no param", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		(void)deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, 4);
@@ -236,7 +236,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names what the recorded engine named on a MIDI track: CCs, bend, the Y axis and aftertouch", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
@@ -257,7 +257,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 	});
 
 	it("names nothing for a CV track, a non-sound kit row or no focus", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		const bind::KnobFocus none{};
 		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 0, kDelugeControls).target)).to_be_true();
 		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 1, kDelugeControls).target)).to_be_true();

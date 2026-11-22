@@ -42,7 +42,7 @@
 #include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -70,7 +70,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -110,7 +110,7 @@
 // the headers above that name util:: from inside namespace deluge.
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "processing/engines/render_domain.h"
 
 namespace params = deluge::modulation::params;
@@ -2080,9 +2080,9 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX =
-	        deluge::plugin::find_param(deluge::instrument::kParams, deluge::instrument::param::kVolumePostFX)
-	            ->default_value,
+	    .volumePostFX = deluge::plugin::find_param(deluge::instruments::classic::kParams,
+	                                               deluge::instruments::classic::param::kVolumePostFX)
+	                        ->default_value,
 	    .localVolume = 0,
 	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
@@ -2216,7 +2216,7 @@ void doRecorderCardRoutines() {
 
 		Error error = recorder->cardRoutine();
 		if (error != Error::NONE) {
-			deluge::notify::notice(error);
+			deluge::base::notify::notice(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
@@ -2240,7 +2240,7 @@ void doRecorderCardRoutines() {
 	}
 
 	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
-		deluge::notify::notice("MORE");
+		deluge::base::notify::notice("MORE");
 	}
 }
 

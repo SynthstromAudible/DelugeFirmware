@@ -40,16 +40,16 @@
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/dx_tables.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcut_overlay.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcut_overlay.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 #include "util/sound_menu_open.h"
 
 #include <cstddef>
@@ -73,7 +73,7 @@
 /// | 6 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order |
 /// | 7 | `gui/views/automation_view.cpp` `AutomationView::handleSelectEncoderButtonAction` | `setup(clip)` as site 6, except the clip is `nullptr` on the arranger (so: the song root), and the arm also runs under `UI_MODE_NOTES_PRESSED` with pad selection on, where `setup()` infers `noteEditorRootMenu` for an instrument clip | the same six, `Root::Song` when `onArrangerView`, and `Root::NoteEditor` through `NoteMode::NoteEditorFromUiMode` under `UI_MODE_NOTES_PRESSED` on an instrument clip |
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
-/// | 12 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openMenu` overrides the resolved root with it |
+/// | 12 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/ui/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openMenu` overrides the resolved root with it |
 /// | 13 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Inside the menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
 /// | 9 | `util/sound_menu_open.h` `menuShortcutPadAction`, from a clip view, the keyboard screen or the performance view | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad, behind the Shift/audition gate, the coming-soon popup and the sequence-direction arm | `menuShortcutPadAction`, the whole press: with the guest closed the kit-global-FX latch first (`menuKitGlobalFx`), as legacy's first statement writes `setupKitGlobalFXMenu`; then the gate (`shortcutPadGate`), the coming-soon popup (`menu::shortcut_coming_soon`), the sequence-direction arm, then `openMenuAtShortcut` on the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`); off a clip minder, the song view's table and the song, as legacy's call reads them. A node that does not apply says "PARAMETER NOT APPLICABLE"; the DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). With the guest open, a pad the Settings root forwards re-roots it in place. |
 /// | 11 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`origin/main:src/deluge/gui/ui/menus.cpp`) | `MenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
@@ -86,13 +86,13 @@
 namespace deluge::gui::ui {
 namespace {
 
-namespace menu = deluge::scenes::menu;
+namespace menu = deluge::ui::scenes::menu;
 
 /// @brief Resolve @p node to the stable node id `SceneId::arg` carries, or 0 for the context root.
 ///
-/// @return `false` when a named node has no id, which means `scenes::assigned_node_ids()` never
+/// @return `false` when a named node has no id, which means `ui::scenes::assigned_node_ids()` never
 ///         ran over a tree containing it. Refusing is deliberate: id 0 means "the context's root"
-///         to `MenuScene::on_enter` (`scenes/menu/menu_scene.cpp`), so a silently-zero id
+///         to `MenuScene::on_enter` (`ui/scenes/menu/menu_scene.cpp`), so a silently-zero id
 ///         would open the wrong menu rather than none.
 bool resolveNodeId(MenuNode node, uint16_t& out) {
 	switch (node) {
@@ -118,7 +118,7 @@ bool resolveNodeId(MenuNode node, uint16_t& out) {
 /// @brief `menuKitGlobalFx`'s latch.
 bool kitGlobalFxLatch = false;
 
-/// @brief `menu::context_for` plus the two facts about the root UI that `src/scenes` may not read.
+/// @brief `menu::context_for` plus the two facts about the root UI that `src/ui/scenes` may not read.
 menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                                  bool sessionViewRoot, bool kitGlobalFx) {
 	// The menu opens in the song the app plays, which the app's ports act on.
@@ -148,7 +148,7 @@ void clearKitAffectEntireForNoteMode(menu::MenuContext& ctx, Clip* clip) {
 	// reads `clip->affectEntire` LIVE (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after legacy's own
 	// identical clear. So the installed context must agree with the clip it just edited, or
 	// the play-direction binding's `!ctx.affect_entire && ctx.is_kit` test
-	// (`scenes/menu/bindings.cpp`) would still read `true` and the note-row editor would keep
+	// (`ui/scenes/menu/bindings.cpp`) would still read `true` and the note-row editor would keep
 	// editing the kit's own `sequenceDirectionMode` instead of the selected drum's row.
 	ctx.affect_entire = false;
 	view.setActiveModControllableTimelineCounter(clip);
@@ -190,10 +190,10 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		// view arrives here; `openUI` would push the guest over itself.
 		// As the closed arm below: a shortcut's landing wins over a page column.
 		if (shortcut == nullptr && pageColumn != nullptr) {
-			deluge::scenes::menu_scene().reroot(root, ctx, *pageColumn);
+			deluge::ui::scenes::menu_scene().reroot(root, ctx, *pageColumn);
 		}
 		else {
-			deluge::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
+			deluge::ui::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
 		}
 		shellHostUI.refreshRootFacts();
 		display->cancelPopup();
@@ -201,12 +201,12 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 	}
 	// A guest torn down without its close (`nullifyUIs`) leaves the creator's drum behind; a new guest is not its.
 	forgetShellDrumCreator();
-	deluge::scenes::menu_scene().open(root, ctx);
+	deluge::ui::scenes::menu_scene().open(root, ctx);
 	if (shortcut != nullptr) {
-		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
+		arg = deluge::ui::scenes::menu_scene().arm_shortcut_landing(*shortcut);
 	}
 	else if (pageColumn != nullptr) {
-		arg = deluge::scenes::menu_scene().arm_page_landing(root, *pageColumn);
+		arg = deluge::ui::scenes::menu_scene().arm_page_landing(root, *pageColumn);
 	}
 	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
 	// `setup()` cancels whatever popup legacy's display holds once it has found its item: a drum name an audition
@@ -252,9 +252,9 @@ void latchMenuKitGlobalFxOnReentry() {
 }
 
 void wireShellKitGlobalShortcuts() {
-	deluge::scenes::menu_scene().set_kit_global_shortcut_source(&kitGlobalShortcutContext);
-	deluge::scenes::menu_scene().set_context_adopted_hook(&publishMenuTarget);
-	deluge::scenes::menu_scene().set_reentry_hook(&latchMenuKitGlobalFxOnReentry);
+	deluge::ui::scenes::menu_scene().set_kit_global_shortcut_source(&kitGlobalShortcutContext);
+	deluge::ui::scenes::menu_scene().set_context_adopted_hook(&publishMenuTarget);
+	deluge::ui::scenes::menu_scene().set_reentry_hook(&latchMenuKitGlobalFxOnReentry);
 }
 
 bool openMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot, bool sessionViewRoot,
@@ -299,9 +299,9 @@ bool openMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessio
 
 	// **`SoundEditor::setup`'s one side effect that is neither UI nor context, picked up here.** `SoundEditor::setup`
 	// in `origin/main:src/deluge/gui/ui/sound_editor.cpp` wipes the undo history on every menu open, in exactly the
-	// `item == nullptr && clip != nullptr` arm this condition spells. `scenes/menu/context.cpp`'s header lists it among
-	// the `setup()` behaviour that is neither UI nor context and that whoever opens a menu must pick up -- this is that
-	// call site. Without it a user could undo past a menu edit where legacy stops them.
+	// `item == nullptr && clip != nullptr` arm this condition spells. `ui/scenes/menu/context.cpp`'s header lists it
+	// among the `setup()` behaviour that is neither UI nor context and that whoever opens a menu must pick up -- this
+	// is that call site. Without it a user could undo past a menu edit where legacy stops them.
 	//
 	// Remembering the previously selected range across sessions (`SoundEditor::setup` in
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not done here either: the source keeps it
@@ -467,14 +467,14 @@ ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on) {
 
 bool openShellDxColumn(int32_t op) {
 	if (isUIOpen(&shellHostUI)) {
-		deluge::scenes::menu_scene().dx_column_press(op);
+		deluge::ui::scenes::menu_scene().dx_column_press(op);
 		return true;
 	}
 	// `openForOpOrGlobal`'s `setup(getCurrentClip(), this, 0)`, then the param, set after the screen began.
-	menu::DxState dx = deluge::scenes::menu_scene().state().dx;
+	menu::DxState dx = deluge::ui::scenes::menu_scene().state().dx;
 	dx.param = menu::dx::column_param(dx.param, op, false);
 	dx.blink_on_focus = true;
-	deluge::scenes::menu_scene().land_dx(dx);
+	deluge::ui::scenes::menu_scene().land_dx(dx);
 	return openMenu(getCurrentClip(), 0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
 	                /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, MenuNode::DxParam);
 }
@@ -504,7 +504,7 @@ bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection) {
 }
 
 void landMenuOnFileSelectorIfRecorderRefuses() {
-	deluge::scenes::menu_scene().arm_refused_recorder_landing(menu::nodes::file0_selector);
+	deluge::ui::scenes::menu_scene().arm_refused_recorder_landing(menu::nodes::file0_selector);
 }
 
 } // namespace deluge::gui::ui

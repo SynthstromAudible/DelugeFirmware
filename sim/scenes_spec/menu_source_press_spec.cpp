@@ -3,20 +3,20 @@
 ///        what the menu shows, as `SoundEditor::potentialShortcutPadAction`'s source arm does in `main`.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/patch_cables.h"
-#include "scenes/menu/pads.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/patch_cables.h"
+#include "ui/scenes/menu/pads.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "modulation/params/param.h"
@@ -35,10 +35,10 @@
 #include <algorithm>
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::MenuScene;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuScene;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -47,7 +47,7 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
@@ -56,13 +56,13 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kMidiX = 5, kMidiY = 2;
 constexpr uint8_t kCvX = 5, kCvY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
-/// The MIDI and CV buttons' board LEDs on the Deluge profile (`shell/profiles/deluge.cpp`).
+/// The MIDI and CV buttons' board LEDs on the Deluge profile (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kMidiLed = 23, kCvLed = 32;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -200,7 +200,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		menu::MenuWalk walk;
 		menu::ValueSession session;
 		const deluge::ui::shell::ButtonSet held{};
-		const deluge::ui::PadMask held_pads{};
+		const deluge::ui::widgets::core::PadMask held_pads{};
 		const deluge::ui::shell::UiContext ui{held, held_pads, true, false, 0, deluge_profile()};
 		const std::optional<deluge::ui::shell::Result> got =
 		    pads.source_press(menu::MenuCore{core_ctx, st}, walk, session, 15, 2, ui);
@@ -230,8 +230,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);
-		deluge::notify::Notice notice;
-		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
+		deluge::base::notify::Notice notice;
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused()).to_equal(&nodes::master_volume);
 	});

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "effects/words.h"
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>

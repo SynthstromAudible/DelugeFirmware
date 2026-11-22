@@ -4,23 +4,23 @@
 /// @brief `FakeMenuShell`: a real `Shell` and `MenuScene` over fake surfaces, with the menu's contexts over
 ///        `FakeHostRig`'s fakes, and the walk's read-backs a fake-only menu spec asserts on.
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
 
 #include "support/fake_host_rig.h"
 #include "support/mocks/fake_surfaces.h"
@@ -30,13 +30,14 @@
 #include <optional>
 #include <string>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A `Shell` over fake surfaces with the app's scene registry, and the menu's contexts over a `FakeHostRig`.
 ///        Each one starts the menu as a boot leaves it and pops every scene when it goes, so examples do not see
 ///        each other's walk.
 struct FakeMenuShell {
-	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s (`shell/profiles/deluge.cpp`).
+	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s
+	/// (`ui/shell/profiles/deluge.cpp`).
 	/// @{
 	static constexpr uint8_t kHorizontalEncoder = 1;
 	static constexpr uint8_t kSelectEncoder = 3;
@@ -58,9 +59,9 @@ struct FakeMenuShell {
 
 	FakeMenuShell() {
 		l10n::chosenLanguage = &l10n::built_in::english;
-		notify::Notice discard;
-		while (notify::notices().pop(discard)) {}
-		(void)notify::dirty().drain();
+		base::notify::Notice discard;
+		while (base::notify::notices().pop(discard)) {}
+		(void)base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 	}
 	FakeMenuShell(const FakeMenuShell&) = delete;
@@ -179,7 +180,7 @@ struct FakeMenuShell {
 		using ui::shell::ButtonId;
 		using ui::shell::UiEvent;
 		const ui::shell::ButtonSet held{};
-		const ui::PadMask pads{};
+		const ui::widgets::core::PadMask pads{};
 		const ui::shell::UiContext ui_ctx{held, pads, false, false, 0, deluge_profile()};
 		(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn},
 		                          ui_ctx);
@@ -235,4 +236,4 @@ inline const menu::Node* listed_at(const menu::Node& page, size_t row, const men
 	return row < count ? rows[row] : nullptr;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

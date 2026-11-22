@@ -66,7 +66,8 @@ src/                      directories and CMakeLists.txt only
     block_device/         block-device driver and adapters (crates)
   ui/                     deluge::ui
     gfx/                  oled/, grid/, seg7/: pure drawing
-    widgets/              core/, oled/, grid/: the immediate-mode toolkit
+    widgets/              core/, oled/, grid/: the immediate-mode toolkit, namespaces
+                          deluge::ui::widgets::{core,oled,grid}
     views/                pure view models, e.g. waveform/ (scroll, zoom, columns, peaks, marker pins)
     controls/             gold-knob pages, takeover, follow, learned bindings
     l10n/                 string tables
@@ -117,6 +118,8 @@ Rules inside the layers:
 ### Where today's directories go
 
 The libraries that are already clean move as they are; legacy directories are rewritten into their destinations.
+The library rows are done (every `src/` row except `src/synth`'s `Fixed` instantiations, the `src/OSLikeStuff` row and
+the `src/*.h` row); the paths in the left column are the pre-relocation ones.
 
 | today | target |
 |---|---|
@@ -140,13 +143,13 @@ The libraries that are already clean move as they are; legacy directories are re
 | `crates/embedded-fatfs` | `storage/fs/` |
 | `crates/block-device-*` | `storage/block_device/` |
 | `crates/deluge_rust` | split by what each module serves |
-| `src/gsl`, `src/lib` | `third_party/` |
+| `src/gsl`, `src/lib` | `third_party/gsl/`, `third_party/printf/` |
 | `src/bsp/rust` | `platform/device/` |
 | `sim` | `platform/host/` |
 | `src/OSLikeStuff` | retires with the Embassy scheduler; what remains goes to `platform/` |
 | `src/*.h`, `src/*.hpp` (board config and layout, `definitions*`, the NEON shim, `mem_functions.h`) | dissolved into their owners: `ui/shell/` profiles, `platform/`, `third_party/`, `base/` |
 
-`sample-view` (on `feat/r2c2-waveforms`) is three things and lands in three places:
+`sample-view` is three things and sits in three places:
 
 | file | target | why |
 |---|---|---|
@@ -202,27 +205,8 @@ library-boundary rules now spread over `check_library_boundary.py`, `check_layer
 the top-level and shadowing checks, with today's directories grandfathered in. Nothing moves; the target table
 becomes the enforced one.
 
-**Step 2: the relocation pass.** Each clean library moves in its own commit: `git mv`, include rewrites, the
-namespace rename its path calls for, and the CMake, checker, labeler and doc-hygiene tree updates. No behaviour
-changes; every commit is gated on the goldens (bit-exact), the x86 virtual-clock parity diff (0 diffs) and the
-nightly tier with both song corpora, and the pass ends with one emulator sweep against `main`.
-
-| library | namespace rename |
-|---|---|
-| `foundation`, `notify` → `base/` | `deluge::notify` → `deluge::base::notify` |
-| `plugin-api` → `plugin/` | none |
-| `deluge-project` → `project/` | none |
-| `music-theory` → `music/` | none |
-| `instruments/deluge` → `instruments/classic/` | `deluge::instrument` → `deluge::instruments::classic` |
-| `effects/host_chain` → `host/chains/` | `deluge::host_chain` → `deluge::host::chains` |
-| `gfx` → `ui/gfx/` | `deluge::gfx` → `deluge::ui::gfx` |
-| `ui` → `ui/widgets/` | `deluge::ui::{oled,grid}` → `deluge::ui::widgets::{oled,grid}` |
-| `shell` → `ui/shell/` | none |
-| `controls` → `ui/controls/` | `deluge::controls` → `deluge::ui::controls` |
-| `scenes` → `ui/scenes/` | `deluge::scenes` → `deluge::ui::scenes` |
-| `crates/*` → their layers | crate names to `deluge_<path>` |
-| `gsl`, `lib` → `third_party/` | none |
-| `bsp/rust` → `platform/device/`, `sim` → `platform/host/` | none |
+**Step 2: the relocation pass.** The clean C++ libraries are at their paths, each with the namespace its path calls
+for. The Rust crates and the platform directories (`crates/*`, `src/bsp/rust`, `sim`) are the remaining relocation.
 
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.
@@ -230,8 +214,8 @@ in this pass: that is a design change, gated on the goldens like any other.
 **Step 3: `dsp-next` → `dsp/`.** After the legacy `dsp/` is retired by the time-stretcher rewrite: until then both
 trees hold `dsp/…` paths and rule 6 refuses the move.
 
-**Step 4 onward: extraction lands in place.** Branches in flight are re-cut to the final paths before they merge
-(`feat/r2c2-waveforms` as above, giving `app/` its first content); work started after step 2 uses only final paths.
+**Step 4 onward: extraction lands in place.** Branches in flight are re-cut to the final paths before they merge;
+work started after step 2 uses only final paths.
 The existing programs (the UI read interface, the model line, the synth's tracks, the storage lanes) extract from
 `src/deluge` by rewrite into their destinations, and `instruments/modern/` is created at its final path.
 `src/deluge` is deleted when it is empty; `app/` is the composition root from its first file, never a rename of the

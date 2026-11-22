@@ -1,4 +1,4 @@
-#include "ui/oled/rainfall.h"
+#include "ui/widgets/oled/rainfall.h"
 
 #include "cppspec.hpp"
 #include <array>
@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-using deluge::ui::oled::Rainfall;
+using deluge::ui::widgets::oled::Rainfall;
 
 namespace {
 

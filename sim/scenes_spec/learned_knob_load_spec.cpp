@@ -3,7 +3,6 @@
 ///        the pitch-adjust zeroing reads them: a pitch adjust a learned knob turns keeps its preset value, whether the
 ///        knob is in the table, still on its owner before the table takes it, or handed over by a preset change.
 
-#include "deluge-project/mapping_table.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
@@ -17,6 +16,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/cable.h"
 
@@ -29,17 +29,17 @@
 #include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
-#include "scenes/menu/bind_host.h"
 #include "support/indexed_knobs.h"
 #include "support/printers/param_target_printer.h"
 #include "support/song_fixture.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include "cppspec.hpp"
 #include "support/song_load.h"
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ControlsAddress;
@@ -293,7 +293,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		if (backed == nullptr) {
 			return;
 		}
-		expect(deluge::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::ui::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(f.song->project.mappings.find(knob)).to_be_null("the unlearned knob's mapping");
 		expect(valueOf(*backed, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);
 		// The zeroing main's unlearn runs does reach those params: with no knob left, it zeroes the pitch adjust.

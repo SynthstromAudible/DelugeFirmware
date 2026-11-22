@@ -16,8 +16,8 @@
  */
 #pragma once
 
+#include "base/function_ref.h"
 #include "definitions_cxx.hpp"
-#include "foundation/function_ref.h"
 
 #include <cstdint>
 
@@ -63,9 +63,9 @@ const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
 void noteRenderLaneWrite();
 
 /// Lanes visited as ParamCollection::forEachLane() visits a collection's: each with nodes, by its paramId.
-using LaneVisit = deluge::function_ref<void(int32_t, const project::DocAutoParam&)>;
+using LaneVisit = deluge::base::function_ref<void(int32_t, const project::DocAutoParam&)>;
 /// A set of lanes: called with a visit, it visits each.
-using LaneSource = deluge::function_ref<void(LaneVisit)>;
+using LaneSource = deluge::base::function_ref<void(LaneVisit)>;
 
 /// @brief [interaction] A snapshot of the lanes @p lanes visits, sharing each lane @p old holds unchanged and copying
 ///        the rest. Not published: publish it, or free it with discardSnapshot().

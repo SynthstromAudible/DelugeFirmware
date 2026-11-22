@@ -20,13 +20,13 @@
 ///        stays on the other side of the wall.
 ///
 /// One static function per `NoteBridge` entry, each a transcription of the legacy statement cited
-/// on it -- `gui/menu_item/note/*.h` and `gui/menu_item/note_row/*.h`, which `src/scenes` may not
+/// on it -- `gui/menu_item/note/*.h` and `gui/menu_item/note_row/*.h`, which `src/ui/scenes` may not
 /// include. Every read that legacy leaves unanswered when nothing is selected (no pressed note, no
 /// note row) returns 0 here; the popup and the edit guard belong to the leaves' `Binding::permitted`
 /// hook.
 
 #include "gui/ui/shell_note_bridge.h"
-#include "deluge-project/sequence_direction.h"
+#include "project/sequence_direction.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
@@ -40,7 +40,7 @@
 #include "sequence/iterance.h"
 #include "util/lookuptables/lookuptables.h"
 
-#include "scenes/menu/note_bridge.h"
+#include "ui/scenes/menu/note_bridge.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -49,7 +49,7 @@
 namespace deluge::gui::ui {
 namespace {
 
-namespace menu = deluge::scenes::menu;
+namespace menu = deluge::ui::scenes::menu;
 
 // -----------------------------------------------------------------------------------------------
 // Note editor -- `gui/menu_item/note/*.h`.
@@ -111,7 +111,7 @@ void adjust_note_probability(int32_t offset) {
 /// @brief Leftmost pressed note's `getIterance().toInt()` (`IterancePreset::readCurrentValue` in
 ///        `origin/main:src/deluge/gui/menu_item/note/iterance_preset.h` reads the same note's iterance, as a raw int
 ///        rather than a preset index -- the scenes' leaf converts with `Iterance::toPresetIndex()` itself, since
-///        `model/iterance/` is includable from `src/scenes`); a null leftmost note returns 0.
+///        `model/iterance/` is includable from `src/ui/scenes`); a null leftmost note returns 0.
 int32_t note_iterance() {
 	Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 	if (leftMostNote != nullptr) {

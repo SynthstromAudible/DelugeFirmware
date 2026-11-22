@@ -20,10 +20,10 @@
 // A model patch cable is named by its depth's id and stores its polarity raw; these read and write them as the
 // runtime's words (its source, its destination descriptor, its polarity).
 
-#include "deluge-project/param_automation.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/patch/patch_cable.h"
+#include "project/param_automation.h"
 #include "synth/modulation/cable.h"
 #include "util/misc.h"
 
@@ -45,7 +45,7 @@ namespace deluge::bridge {
 /// @param destination The cable's destination descriptor.
 /// @return The cable's depth id.
 [[nodiscard]] inline deluge::plugin::ParamId cable_depth(PatchSource from, deluge::synth::CableTarget destination) {
-	return deluge::instrument::cable_depth_of(from, destination);
+	return deluge::instruments::classic::cable_depth_of(from, destination);
 }
 
 } // namespace deluge::bridge

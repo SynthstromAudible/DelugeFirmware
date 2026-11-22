@@ -4,14 +4,14 @@
 /// @brief The engine side of a setting group: copying a group's record onto the engine object that plays it, and
 ///        reading that copy back.
 ///
-/// A setting's record (`deluge-project/setting_group.h`) is its truth; the engine objects (the song's reverb and
+/// A setting's record (`project/setting_group.h`) is its truth; the engine objects (the song's reverb and
 /// clock, an `Output`, a `Drum`, a `NoteRow`, an `AudioClip`) hold a copy the render reads. `projectSetting` makes the
 /// copy equal the record and runs what a change of that setting sets off. The `apply*Setting` functions are that copy
 /// and its follow-ups for one owner: the projection calls them with the record's value, and a gesture on an owner
 /// outside the current song (being loaded, previewed, built) calls them directly, there being no record to write.
 
 #include "definitions_cxx.hpp" // Error
-#include "deluge-project/setting_group.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 
 #include <functional>

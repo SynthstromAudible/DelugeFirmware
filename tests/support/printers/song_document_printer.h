@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/document.h"
+#include "project/document.h"
 #include "support/printers/doc_clip_printer.h"
 #include "support/printers/doc_output_printer.h"
 #include "support/printers/fx_chain_printer.h"

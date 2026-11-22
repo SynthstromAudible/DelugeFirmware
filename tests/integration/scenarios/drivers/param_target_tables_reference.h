@@ -23,7 +23,7 @@
 // global map's runtime index), their kind its kind, and their index the CC that follows it (-1 none).
 #pragma once
 
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 
 #include <array>
 #include <cstdint>

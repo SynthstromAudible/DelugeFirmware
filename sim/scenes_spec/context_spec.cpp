@@ -1,5 +1,5 @@
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/menu/context.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
@@ -8,19 +8,19 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/menu/node.h"
 #include "support/menu_engine.h"
 #include "support/printers/bind_addresses_printer.h"
 #include "support/song_fixture.h"
+#include "ui/scenes/menu/node.h"
 
 #include "cppspec.hpp"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Permission;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Permission;
 using Root = MenuContext::Root;
 
 namespace {
@@ -65,7 +65,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.addresses.slot).to_equal(std::optional{instrument_slot(f)});
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod)
+		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)
 		    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
@@ -87,7 +87,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
+		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::KIT);
@@ -181,7 +181,7 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiOrCv));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).to_be_null();
+		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).to_be_null();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
 	});
 
@@ -203,7 +203,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.is_song_view).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::SONG);
-		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
+		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
 	});
 
 	it("resolves a session/arranger root with no clip to the song root", _ {
@@ -237,8 +237,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(session.is_session_view).to_be_true();
 		// The narrow bool steers no branch: same root, same addresses, same mod controllable.
 		expect(session.addresses).to_equal(arranger.addresses);
-		expect(deluge::scenes::spec::menu_engine(session, *f.song).mod)
-		    .to_equal(deluge::scenes::spec::menu_engine(arranger, *f.song).mod);
+		expect(deluge::ui::scenes::spec::menu_engine(session, *f.song).mod)
+		    .to_equal(deluge::ui::scenes::spec::menu_engine(arranger, *f.song).mod);
 
 		// A clip minder: neither fact holds, and the narrow bool is not silently inherited.
 		const MenuContext clip = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);

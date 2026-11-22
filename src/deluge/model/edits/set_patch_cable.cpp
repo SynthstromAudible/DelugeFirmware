@@ -1,6 +1,5 @@
 #include "model/edits/set_patch_cable.h"
 
-#include "deluge-project/song.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
@@ -8,6 +7,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable.h"
+#include "project/song.h"
 
 namespace deluge::edits {
 

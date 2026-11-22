@@ -1,6 +1,6 @@
 #include "support/frames.h"
-#include "ui/grid/keyboard.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/widgets/grid/keyboard.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -12,8 +12,8 @@
 #include <vector>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using namespace deluge::ui::widgets::grid;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
@@ -54,10 +54,11 @@ constexpr int32_t kHomeRow = kTextKeyboardHomeRow;
 // the same tick the way a player does. The events live in the struct, not in a shared static, so
 // several rigs can coexist in one example without reseating each other's spans.
 struct KeyRig {
-	std::vector<PadEvent> events;
+	std::vector<widgets::core::PadEvent> events;
 	uitest::GridRig rig;
 
-	KeyRig(std::vector<PadEvent> pads, const std::vector<std::pair<int, int>>& held) : events(std::move(pads)) {
+	KeyRig(std::vector<widgets::core::PadEvent> pads, const std::vector<std::pair<int, int>>& held)
+	    : events(std::move(pads)) {
 		rig.input.pads = events;
 		for (auto [x, y] : held) {
 			rig.input.held_pads.set(static_cast<uint8_t>(x), static_cast<uint8_t>(y), true);
@@ -66,7 +67,7 @@ struct KeyRig {
 };
 
 // --- Fakes for the two adapters ---------------------------------------------------------------
-// Deliberately *not* the real gui/ classes: the adapters exist so ui/grid never includes gui/,
+// Deliberately *not* the real gui/ classes: the adapters exist so ui/widgets/grid never includes gui/,
 // and a spec that reached for KeyboardLayout would defeat the point. These carry the exact method
 // shapes the header documents.
 struct FakeLayout {
@@ -103,7 +104,7 @@ struct FakeColumn {
 } // namespace
 
 // clang-format off
-describe keyboard_grid("ui/grid/keyboard", $ {
+describe keyboard_grid("ui::widgets::grid::keyboard", $ {
 
 	// --- text_keyboard_char_at ----------------------------------------------------------------
 
@@ -219,7 +220,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 	it("returns the typed character in the response index, and the pad velocity in velocity", _ {
 		KeyRig k({{.x = 3, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(resp.pressed).to_be_true();
 		expect((char)resp.index).to_equal('Q');
@@ -230,7 +231,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 	it("reports no character for a pad that types nothing", _ {
 		KeyRig k({{.x = 0, .y = 0, .velocity = 64, .pressed = true}}, {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect(resp.pressed).to_be_true();
 		expect((int32_t)resp.index).to_equal(-1);
 	});
@@ -238,7 +239,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 	it("shifts the digit row while a shift pad is held", _ {
 		KeyRig k({{.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}}, {{1, kHomeRow - 1}});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(state.shift).to_be_true();     // the shift pad's own event
 		expect((char)resp.index).to_equal('!'); // the digit-row event, shifted
@@ -253,7 +254,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 		          {.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
 		         {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(state.shift).to_be_true();
 		expect((char)resp.index).to_equal('!');
@@ -264,7 +265,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 		          {.x = 4, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, // 'W'
 		         {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect((char)resp.index).to_equal('W');
 	});
 
@@ -278,7 +279,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 			KeyRig k({{.x = 14, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
 			         {{14, kHomeRow + 2}});
 			TextKeyboardState state;
-			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 			expect((char)resp.index).to_equal(kTextKeyboardBackspace);
 			expect((char)resp.held_index).to_equal(kTextKeyboardBackspace);
 		}
@@ -286,7 +287,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 			// A later tick of the same hold: no event, still held.
 			KeyRig k({}, {{14, kHomeRow + 2}});
 			TextKeyboardState state;
-			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 			expect((int32_t)resp.index).to_equal(-1);
 			expect((char)resp.held_index).to_equal(kTextKeyboardBackspace);
 		}
@@ -294,7 +295,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 			// Released: nothing held, so nothing to repeat.
 			KeyRig k({{.x = 14, .y = kHomeRow + 2, .velocity = 0, .pressed = false}}, {});
 			TextKeyboardState state;
-			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 			expect(resp.released).to_be_true();
 			expect((int32_t)resp.held_index).to_equal(-1);
 		}
@@ -305,7 +306,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 		// sweep and types nothing, so it must not shadow the digit held with it.
 		KeyRig k({}, {{1, kHomeRow - 1}, {3, kHomeRow + 2}});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect(state.shift).to_be_true();
 		expect((char)resp.held_index).to_equal('!'); // the digit, shifted -- not the shift pad
 	});
@@ -313,7 +314,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 	it("leaves held_index at -1 when a held pad is outside the key rectangle", _ {
 		KeyRig k({}, {{0, 0}});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		const widgets::core::Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect(resp.held).to_be_true();
 		expect((int32_t)resp.held_index).to_equal(-1);
 	});

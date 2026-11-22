@@ -1,20 +1,20 @@
 // The sound's instrument settings on targets: every node of the sound editor's tree that edits a row
-// of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
-// library, on a synth and on a kit row.
+// of instruments::classic::kSettings names it as its target, and the menu reads, ranges and writes it through the
+// binding library, on a synth and on a kit row.
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/settings.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/menu_engine.h"
@@ -32,10 +32,10 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-namespace bindings = deluge::scenes::menu::bindings;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 namespace {
 
@@ -87,7 +87,8 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 	if (range.min != shown->least || range.max != shown->greatest) {
 		found += path + " range ";
 	}
-	const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
+	const deluge::plugin::SettingInfo& row =
+	    *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, path);
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
 	bind::test::RecordingWrites recorded;
@@ -125,14 +126,14 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 		std::vector<std::string> invalid;
 		for (const Node* node : target_nodes(std::nullopt)) {
 			for (const auto& condition : node->bind.target.fan_out_when) {
-				if (!deluge::plugin::condition_is_valid(deluge::instrument::kSettings, condition)) {
+				if (!deluge::plugin::condition_is_valid(deluge::instruments::classic::kSettings, condition)) {
 					invalid.emplace_back(node->bind.target.path);
 				}
 			}
 		}
 		expect(invalid).to_equal(std::vector<std::string>{});
 		constexpr std::array<int32_t, 1> poly{1};
-		expect(deluge::plugin::condition_is_valid(deluge::instrument::kSettings,
+		expect(deluge::plugin::condition_is_valid(deluge::instruments::classic::kSettings,
 		                                          deluge::plugin::setting_is("polyphonc", poly)))
 		    .to_be_false();
 	});

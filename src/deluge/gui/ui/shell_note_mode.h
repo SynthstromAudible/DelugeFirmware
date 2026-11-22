@@ -33,11 +33,11 @@
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
 /// `shell_pad_forward.h`'s two reasons. **In `gui/ui/`** because the half that forwards gets to name
-/// `instrumentClipView`, which `src/scenes` may not. **Its own translation unit** because
-/// `activeNoteMode` reads `deluge::scenes::menu_scene()` -- the `deluge_scenes` closure the host
+/// `instrumentClipView`, which `src/ui/scenes` may not. **Its own translation unit** because
+/// `activeNoteMode` reads `deluge::ui::scenes::menu_scene()` -- the `deluge_ui_scenes` closure the host
 /// spec suite never builds (`tests/trees/host/CMakeLists.txt`) -- so `shell_host_ui.cpp` names only the
 /// four functions, and `tests/unit/deluge/gui/support/fake_legacy_ui.cpp` fakes them. This header names no
-/// `scenes/` or `shell/` type, so it is not a `LEGACY_PORT_SEAMS` entry; its `.cpp` is.
+/// `ui/scenes/` or `ui/shell/` type, so it is not a `LEGACY_PORT_SEAMS` entry; its `.cpp` is.
 
 #include "definitions_cxx.hpp" // ActionResult
 #include "hid/button.h"
@@ -101,7 +101,7 @@ void exitNoteModeBeforeClose();
 /// @{
 
 /// @brief The three main menu items a note-mode handler compares
-///        `soundEditor.getCurrentMenuItem()` against, named without naming `src/scenes`.
+///        `soundEditor.getCurrentMenuItem()` against, named without naming `src/ui/scenes`.
 enum class NoteModeMenuItem : uint8_t {
 	/// `noteEditorRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `nodes::note_editor_root`.
 	NoteEditorRoot,

@@ -193,13 +193,13 @@ class TableLoading(unittest.TestCase):
 RULES = textwrap.dedent(
     """
     [[directory]]
-    path = "scenes"
-    target = "src/ui/scenes"
+    path = "ui"
+    target = "src/ui"
 
     [[rule]]
     name = "scenes-reads-outside-bind"
-    files = ["src/scenes/**"]
-    exclude = ["src/scenes/bind/**"]
+    files = ["src/ui/scenes/**"]
+    exclude = ["src/ui/scenes/bind/**"]
     pattern = '^(model|modulation|io|processing|storage|playback)/'
     shrink_only = true
     reason = "scenes read the model through bind"
@@ -232,22 +232,24 @@ class CountedRules(unittest.TestCase):
 
     def test_each_matching_include_counts_in_either_spelling(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp",
+            "src/ui/scenes/menu/planted.cpp",
             '#include "model/song/song.h"\n#include <storage/flash_storage.h>\n#include "modulation/sync.h"\n',
         )
         self.assertEqual(
             self.counts(),
-            {("src/scenes/menu/planted.cpp", "scenes-reads-outside-bind"): 3},
+            {("src/ui/scenes/menu/planted.cpp", "scenes-reads-outside-bind"): 3},
         )
 
     def test_an_excluded_glob_is_not_counted(self):
-        self.repo.plant("src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n')
+        self.repo.plant(
+            "src/ui/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
+        )
         self.assertEqual(self.counts(), {})
 
     def test_other_families_are_not_counted(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp",
-            '#include "scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/oled/columns.h"\n',
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "ui/scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/widgets/oled/columns.h"\n',
         )
         self.assertEqual(self.counts(), {})
 
@@ -272,7 +274,7 @@ class CountedRules(unittest.TestCase):
 
     def test_a_commented_out_include_is_not_counted(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp", '// #include "model/song/song.h"\n'
+            "src/ui/scenes/menu/planted.cpp", '// #include "model/song/song.h"\n'
         )
         self.assertEqual(self.counts(), {})
 
@@ -297,10 +299,11 @@ class CommandLine(unittest.TestCase):
 
     def plant(self, includes: int, baseline: int) -> None:
         self.repo.plant(
-            "src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n' * includes
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "model/song/song.h"\n' * includes,
         )
         self.baseline.write_text(
-            f"# header\nsrc/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
+            f"# header\nsrc/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
         )
 
     def test_a_count_at_the_baseline_passes(self):
@@ -331,7 +334,7 @@ class CommandLine(unittest.TestCase):
         self.plant(includes=1, baseline=2)
         self.assertEqual(self.run_main("--update"), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
             self.baseline.read_text(),
         )
 
@@ -349,10 +352,12 @@ class CommandLine(unittest.TestCase):
         )
 
     def test_update_writes_a_first_baseline_whatever_the_counts(self):
-        self.repo.plant("src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n')
+        self.repo.plant(
+            "src/ui/scenes/menu/planted.cpp", '#include "model/song/song.h"\n'
+        )
         self.assertEqual(self.run_main("--update"), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
             self.baseline.read_text(),
         )
 
@@ -365,7 +370,7 @@ class CommandLine(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             self.assertEqual(cl.main(["--repo", str(self.repo.root), "--list"]), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t2\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t2\n",
             out.getvalue(),
         )
 
@@ -379,8 +384,8 @@ SYNTH_RULE = textwrap.dedent(
     [[rule]]
     name = "synth-boundary"
     files = ["src/synth/**"]
-    pattern = '^(model|gui|util|deluge-project)/'
-    allow = ["util/misc.h", "deluge-project/drum_type.h"]
+    pattern = '^(model|gui|util|project)/'
+    allow = ["util/misc.h", "project/drum_type.h"]
     transitive = true
     reason = "the synth reaches no app layer, directly or through another header"
     """
@@ -423,10 +428,10 @@ class TransitiveRules(unittest.TestCase):
         self.repo.plant("src/synth/a.h", '#include "synth/b.h"\n')
         self.repo.plant(
             "src/synth/b.h",
-            '#include "util/misc.h"\n#include "deluge-project/drum_type.h"\n',
+            '#include "util/misc.h"\n#include "project/drum_type.h"\n',
         )
         self.repo.plant("src/deluge/util/misc.h", "#pragma once\n")
-        self.repo.plant("src/deluge-project/drum_type.h", "#pragma once\n")
+        self.repo.plant("src/project/drum_type.h", "#pragma once\n")
         self.assertEqual(self.reached("src/synth/a.h"), {})
 
     def test_an_unresolved_forbidden_include_is_counted_as_written(self):
@@ -596,26 +601,35 @@ class RealTable(unittest.TestCase):
             len(self.library_found("effects", '#include "dsp/stereo_sample.h"\n')), 1
         )
 
+    def test_base_may_use_the_standard_library_and_its_own_headers_only(self):
+        accepted = (
+            '#include <stdint.h>\n#include "base/panic.h"\n#include "board_config.h"\n'
+        )
+        self.assertEqual(self.library_found("base", accepted), [])
+        self.assertEqual(
+            len(self.library_found("base", '#include "model/song.h"\n')), 1
+        )
+
     def test_the_plugin_api_may_use_the_document_tree_but_not_the_model(self):
         self.assertEqual(
-            self.library_found("plugin-api", '#include "serialization/value.h"\n'), []
+            self.library_found("plugin", '#include "serialization/value.h"\n'), []
         )
         self.assertEqual(
-            len(self.library_found("plugin-api", '#include "deluge-project/song.h"\n')),
+            len(self.library_found("plugin", '#include "project/song.h"\n')),
             1,
         )
 
     def test_controls_may_use_the_model_and_plugin_api_but_not_instruments(self):
         self.assertEqual(
-            self.library_found("controls", '#include "deluge-project/song.h"\n'), []
+            self.library_found("ui-controls", '#include "project/song.h"\n'), []
         )
         self.assertEqual(
-            self.library_found("controls", '#include "plugin-api/plugin.h"\n'), []
+            self.library_found("ui-controls", '#include "plugin/plugin.h"\n'), []
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "controls", '#include "instruments/deluge/words.h"\n'
+                    "ui-controls", '#include "instruments/classic/words.h"\n'
                 )
             ),
             1,
@@ -623,12 +637,13 @@ class RealTable(unittest.TestCase):
 
     def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
         self.assertEqual(
-            self.library_found("instrument", '#include "plugin-api/plugin.h"\n'), []
+            self.library_found("instruments-classic", '#include "plugin/plugin.h"\n'),
+            [],
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "instrument", '#include "processing/sound/sound.h"\n'
+                    "instruments-classic", '#include "processing/sound/sound.h"\n'
                 )
             ),
             1,
@@ -636,16 +651,16 @@ class RealTable(unittest.TestCase):
 
     def test_the_host_chain_table_may_use_only_the_plugin_types(self):
         self.assertEqual(
-            self.library_found("host-chain", '#include "plugin-api/types/param.h"\n'),
+            self.library_found("host-chains", '#include "plugin/types/param.h"\n'),
             [],
         )
         self.assertEqual(
-            len(self.library_found("host-chain", '#include "plugin-api/plugin.h"\n')), 1
+            len(self.library_found("host-chains", '#include "plugin/plugin.h"\n')), 1
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "host-chain", '#include "instruments/deluge/params.h"\n'
+                    "host-chains", '#include "instruments/classic/params.h"\n'
                 )
             ),
             1,
@@ -653,17 +668,21 @@ class RealTable(unittest.TestCase):
 
     def test_gfx_oled_and_grid_never_include_each_other(self):
         self.assertEqual(
-            len(self.library_found("gfx-oled", '#include "gfx/grid/rgb.h"\n')), 1
+            len(self.library_found("ui-gfx-oled", '#include "ui/gfx/grid/rgb.h"\n')), 1
         )
         self.assertEqual(
-            len(self.library_found("gfx-grid", '#include "gfx/oled/canvas.h"\n')), 1
+            len(self.library_found("ui-gfx-grid", '#include "ui/gfx/oled/canvas.h"\n')),
+            1,
         )
         self.assertEqual(
-            self.library_found("gfx-grid", '#include "gfx/contract.h"\n'), []
+            self.library_found("ui-gfx-grid", '#include "ui/gfx/contract.h"\n'), []
         )
 
     def test_a_scene_including_an_edit_is_counted(self):
-        for rel in ("src/scenes/menu/nodes/planted.cpp", "src/scenes/menu/context.cpp"):
+        for rel in (
+            "src/ui/scenes/menu/nodes/planted.cpp",
+            "src/ui/scenes/menu/context.cpp",
+        ):
             with self.subTest(rel=rel):
                 self.assertEqual(
                     self.counts(rel, '#include "model/edits/setting_edit.h"\n').get(
@@ -679,14 +698,14 @@ class RealTable(unittest.TestCase):
             "scenes-no-edits": '#include "model/edits/param_address_for.h"\n',
         }
         for rel in (
-            "src/scenes/menu/context.cpp",
-            "src/scenes/menu/context.h",
-            "src/scenes/menu/bindings.cpp",
-            "src/scenes/overlay/param_popup_scene.h",
-            "src/scenes/overlay/param_popup_scene.cpp",
-            "src/scenes/services/mod_knobs.cpp",
-            "src/scenes/services/mod_knobs.h",
-            "src/scenes/services/mod_target.h",
+            "src/ui/scenes/menu/context.cpp",
+            "src/ui/scenes/menu/context.h",
+            "src/ui/scenes/menu/bindings.cpp",
+            "src/ui/scenes/overlay/param_popup_scene.h",
+            "src/ui/scenes/overlay/param_popup_scene.cpp",
+            "src/ui/scenes/services/mod_knobs.cpp",
+            "src/ui/scenes/services/mod_knobs.h",
+            "src/ui/scenes/services/mod_target.h",
         ):
             for rule, text in plants.items():
                 with self.subTest(rel=rel, rule=rule):
@@ -703,14 +722,16 @@ class RealTable(unittest.TestCase):
         ):
             for spelling in (f'#include "{header}"\n', f"#include <{header}>\n"):
                 with self.subTest(spelling=spelling):
-                    counts = self.counts("src/scenes/menu/nodes/planted.cpp", spelling)
+                    counts = self.counts(
+                        "src/ui/scenes/menu/nodes/planted.cpp", spelling
+                    )
                     self.assertEqual(counts.get("scenes-reads-outside-bind"), 1)
 
     def test_bind_reads_are_not_counted(self):
         self.assertNotIn(
             "scenes-reads-outside-bind",
             self.counts(
-                "src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
+                "src/ui/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
             ),
         )
 

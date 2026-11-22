@@ -18,7 +18,7 @@ std::optional<project::ClipAddress> clipAddressOf(const ::Clip* clip) {
 }
 
 /// The focus on @p output's own mod controllable, in @p clip (none for an arranger row).
-controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
+deluge::ui::controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 	if (!output.id()) {
 		return {};
 	}
@@ -26,32 +26,34 @@ controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 	const std::optional<project::ClipAddress> at = clipAddressOf(clip);
 	switch (output.type) {
 	case OutputType::SYNTH:
-		return {.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, id}, .clip = at}};
+		return {.owner =
+		            deluge::ui::controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, id}, .clip = at}};
 	case OutputType::KIT:
-		return {.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
-		                                      .owner = controls::ChainOwner::KIT,
-		                                      .clip = at}};
+		return {.owner = deluge::ui::controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
+		                                                  .owner = deluge::ui::controls::ChainOwner::KIT,
+		                                                  .clip = at}};
 	case OutputType::AUDIO:
-		return {.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
-		                                      .owner = controls::ChainOwner::AUDIO_TRACK,
-		                                      .clip = at}};
+		return {.owner = deluge::ui::controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
+		                                                  .owner = deluge::ui::controls::ChainOwner::AUDIO_TRACK,
+		                                                  .clip = at}};
 	case OutputType::MIDI_OUT:
-		return {.owner = controls::MidiFocus{.track = project::TrackAddress{id}, .clip = at}};
+		return {.owner = deluge::ui::controls::MidiFocus{.track = project::TrackAddress{id}, .clip = at}};
 	case OutputType::CV:
-		return {.owner = controls::NoControlsFocus{.kind = controls::NoControlsFocus::Kind::CV_TRACK,
-		                                           .track = project::TrackAddress{id},
-		                                           .clip_id = at ? std::optional{at->clip_id} : std::nullopt}};
+		return {.owner =
+		            deluge::ui::controls::NoControlsFocus{.kind = deluge::ui::controls::NoControlsFocus::Kind::CV_TRACK,
+		                                                  .track = project::TrackAddress{id},
+		                                                  .clip_id = at ? std::optional{at->clip_id} : std::nullopt}};
 	default:
 		return {};
 	}
 }
 
 /// The focus on the sound drum @p drum of @p kit, in @p clip.
-controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip) {
+deluge::ui::controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip) {
 	if (!drum.id() || !kit.id()) {
 		return {};
 	}
-	controls::SoundFocus sound{.slot = {project::SlotAddress::Kind::DRUM, *drum.id()}, .kit = *kit.id()};
+	deluge::ui::controls::SoundFocus sound{.slot = {project::SlotAddress::Kind::DRUM, *drum.id()}, .kit = *kit.id()};
 	if (clip != nullptr) {
 		sound.clip = project::ClipAddress{clip->id()};
 		sound.row = project::NoteRowAddress{clip->id(), true, static_cast<int32_t>(*drum.id())};
@@ -61,22 +63,23 @@ controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip)
 
 /// The focus on the MIDI or gate drum @p drum of @p kit, in @p clip: a drum with no knobs. A stack names such a drum
 /// only when it is hand-built, as `InstrumentClip::getActiveModControllable` has no controllable for it.
-controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum, const ::Clip* clip) {
+deluge::ui::controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum, const ::Clip* clip) {
 	if (!drum.id() || !kit.id()) {
 		return {};
 	}
 	const bool gate = drum.type == DrumType::GATE;
-	return {.owner = controls::NoControlsFocus{.kind = gate ? controls::NoControlsFocus::Kind::GATE_DRUM
-	                                                        : controls::NoControlsFocus::Kind::MIDI_DRUM,
-	                                           .track = project::TrackAddress{*kit.id()},
-	                                           .drum = project::KitRowAddress{*kit.id(), *drum.id()},
-	                                           .clip_id = clip != nullptr ? std::optional{clip->id()} : std::nullopt}};
+	return {.owner = deluge::ui::controls::NoControlsFocus{
+	            .kind = gate ? deluge::ui::controls::NoControlsFocus::Kind::GATE_DRUM
+	                         : deluge::ui::controls::NoControlsFocus::Kind::MIDI_DRUM,
+	            .track = project::TrackAddress{*kit.id()},
+	            .drum = project::KitRowAddress{*kit.id(), *drum.id()},
+	            .clip_id = clip != nullptr ? std::optional{clip->id()} : std::nullopt}};
 }
 
 } // namespace
 
-controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
-	controls::KnobFocus focus;
+deluge::ui::controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
+	deluge::ui::controls::KnobFocus focus;
 	ModControllable* controllable = stack.modControllable;
 	if (controllable != nullptr && controllable != static_cast<ModControllable*>(&song.live.master_channel)) {
 		TimelineCounter* counter = stack.getTimelineCounterAllowNull();
@@ -113,12 +116,12 @@ controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMa
 		}
 	}
 	else if (controllable != nullptr) {
-		focus.owner = controls::SongFocus{};
+		focus.owner = deluge::ui::controls::SongFocus{};
 	}
 	return focus;
 }
 
-controls::KnobFocus knobFocusOfClip(::Clip& clip) {
+deluge::ui::controls::KnobFocus knobFocusOfClip(::Clip& clip) {
 	if (clip.output == nullptr) {
 		return {};
 	}

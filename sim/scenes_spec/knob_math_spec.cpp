@@ -2,11 +2,11 @@
 // the engine's own param collections give, for every param of the Deluge's and the global effectable's tables, a
 // patch cable, the three expression dimensions and a MIDI CC.
 
-#include "controls/knob_math.h"
+#include "ui/controls/knob_math.h"
 
-#include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
@@ -40,7 +40,7 @@ using deluge::plugin::ParamInfo;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
-namespace controls = deluge::controls;
+namespace controls = deluge::ui::controls;
 
 constexpr std::array<int32_t, 7> kValues{std::numeric_limits<int32_t>::min(), -(1 << 30), -1, 0, 1, 1 << 30,
                                          std::numeric_limits<int32_t>::max()};
@@ -81,20 +81,20 @@ std::string disagreement(::Song& song, const ParamAddress& address, const ParamI
 // clang-format off
 describe knob_math("the gold knob's position, from the param's descriptor", ${
 	it("agrees with the engine for every Deluge param, a patch cable, expression 0-2 and a MIDI CC", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		const OwnerId synth = OwnerId::instrument(*f.instrument->id());
 		std::vector<std::string> found;
-		for (const ParamInfo& info : deluge::instrument::kParams) {
+		for (const ParamInfo& info : deluge::instruments::classic::kParams) {
 			const ParamAddress address{.owner = synth, .space = ParamSpace::ENGINE, .id = info.id, .clip_id = f.clip->id()};
 			if (std::string why = disagreement(*f.song, address, &info); !why.empty()) {
 				found.push_back(why);
 			}
 		}
 		// A cable: LFO 1 to pitch, made first.
-		const std::optional<deluge::plugin::ParamId> depth = deluge::instrument::cable_depth_id(
-		    deluge::instrument::PatchSource::LFO_GLOBAL_1, deluge::instrument::param::kPitch);
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_1, deluge::instruments::classic::param::kPitch);
 		expect(depth.has_value()).to_be_true();
 		if (depth) {
 			const ParamAddress cable{.owner = synth, .space = ParamSpace::ENGINE, .id = *depth, .clip_id = f.clip->id()};
@@ -122,11 +122,11 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 	});
 
 	it("agrees with the engine for every global-effectable param", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		std::vector<std::string> found;
-		for (const ParamInfo& info : deluge::host_chain::kParams) {
+		for (const ParamInfo& info : deluge::host::chains::kParams) {
 			const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = info.id};
 			if (std::string why = disagreement(*f.song, address, &info); !why.empty()) {
 				found.push_back(why);
@@ -140,7 +140,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 	});
 
 	it("agrees with the engine for a MIDI CC", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
@@ -160,7 +160,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 
 	it("indicates the middle of a stutter rate unless it is quantized, or while stuttering", _ {
 		const ParamInfo* rate =
-		    deluge::plugin::find_param(deluge::host_chain::kParams, deluge::host_chain::param::kStutterRate);
+		    deluge::plugin::find_param(deluge::host::chains::kParams, deluge::host::chains::param::kStutterRate);
 		const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = rate->id};
 		expect(controls::indicates_middle(address, rate, false, false)).to_be_true();
 		expect(controls::indicates_middle(address, rate, true, false)).to_be_false();

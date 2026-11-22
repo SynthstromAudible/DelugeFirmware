@@ -16,13 +16,6 @@
  */
 
 #include "model/project_bridge/song_serialization.h"
-#include "deluge-project/arrangement.h"
-#include "deluge-project/arrangement_codec.h"
-#include "deluge-project/codec.h"
-#include "deluge-project/groove.h"
-#include "deluge-project/scale_settings.h"
-#include "deluge-project/song_codec.h"
-#include "deluge-project/transport.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h" // MIDICable::writeReferenceToFile
@@ -33,6 +26,13 @@
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "project/arrangement.h"
+#include "project/arrangement_codec.h"
+#include "project/codec.h"
+#include "project/groove.h"
+#include "project/scale_settings.h"
+#include "project/song_codec.h"
+#include "project/transport.h"
 #include "storage/storage_manager.h" // Serializer / Deserializer
 #include "storage/value_tree_deserializer.h"
 #include <algorithm>

@@ -21,9 +21,9 @@
 /// @brief The menu shell's gold knobs, for the root views to share.
 ///
 /// Its own header, not `shell_guest_services.h`'s, because it names a port type: `shell_guest_services.h` names none,
-/// so `shell_host_ui.cpp` and the host spec suite include it without the `deluge_scenes` closure.
+/// so `shell_host_ui.cpp` and the host spec suite include it without the `deluge_ui_scenes` closure.
 
-namespace deluge::scenes::services {
+namespace deluge::ui::scenes::services {
 class ModKnobs;
 }
 
@@ -32,6 +32,6 @@ namespace deluge::gui::ui {
 /// @brief The one `ModKnobs`: the guest's service, which the root views drive too (`root_knobs`). Built over
 ///        `shellHostUI`'s `Shell` on first use.
 /// @return The knobs. Call `refreshKnobsForRoot()` before a root gesture reads them.
-deluge::scenes::services::ModKnobs& sharedModKnobs();
+deluge::ui::scenes::services::ModKnobs& sharedModKnobs();
 
 } // namespace deluge::gui::ui

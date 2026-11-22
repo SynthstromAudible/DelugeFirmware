@@ -1869,7 +1869,7 @@ void SampleRecorder::finishCapturing() {
 	// the background scan, which may have gone idle after all previously-loaded samples were scanned (#4460).
 	audioFileManager.overviewScanAllDone = false;
 	if (getRootUI()) {
-		deluge::notify::raise(deluge::notify::Dirty::SampleReady);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::SampleReady);
 	}
 	if (outputRecordingFrom) {
 		outputRecordingFrom->removeRecorder();

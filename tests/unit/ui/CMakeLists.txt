@@ -1,4 +1,4 @@
-# Specs for the immediate-mode toolkit (src/ui: core/, oled/ and grid/), and two previews that print the OLED starfield
+# Specs for the immediate-mode toolkit (src/ui/widgets: core/, oled/ and grid/), and two previews that print the OLED starfield
 # and rainfall as ASCII, so their animations can be checked by eye without hardware. The previews assert nothing, and
 # their file names avoid the *_spec.cpp glob, so they are no ctest tests.
 deluge_specs_driver(ui_specs TREES host LIBRARIES deluge_spec deluge_midi)

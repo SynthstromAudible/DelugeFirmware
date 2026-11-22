@@ -26,13 +26,13 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
-#include "lib/printf.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "util/etl_string.h"
 #include "util/note_editor_open.h"
 #include <algorithm>
+#include <printf/printf.h>
 #include <string.h>
 
 void TimelineView::scrollFinished() {

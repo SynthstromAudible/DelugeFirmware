@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
 #include "serialization/value.h"
@@ -29,10 +29,10 @@ namespace deluge::test {
 
 /// @brief Change @p sound's oscillator @p s to @p type as its oscillator-type menu does (the setting's Edit, or the
 /// unslotted path for a sound in no slot): its record, its runtime and its ranges' kind change together.
-inline void setOscType(::Sound& sound, int32_t s, deluge::instrument::OscType type) {
+inline void setOscType(::Sound& sound, int32_t s, deluge::instruments::classic::OscType type) {
 	deluge::edits::settingFor(
 	    sound, deluge::edits::oscSettingPath(s, "type"),
-	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type))));
+	    deluge::serialization::Value::makeScalar(std::string(deluge::instruments::classic::to_string(type))));
 }
 
 } // namespace deluge::test

@@ -18,11 +18,11 @@
 #include "gui/ui/shell_guest_surfaces.h"
 
 #include "definitions_cxx.hpp"
-#include "gfx/oled/geometry.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/control_surface.h"
+#include "ui/gfx/oled/geometry.h"
 
 #include <algorithm>
 #include <iterator>
@@ -30,20 +30,20 @@
 namespace deluge::gui::ui {
 
 using deluge::hid::display::OLED;
-using deluge::ui::KnobIndicator;
 using deluge::ui::shell::ColumnPair;
 using deluge::ui::shell::kColumnPairLeds;
 using deluge::ui::shell::PadRegions;
 using deluge::ui::shell::SurfaceRole;
+using deluge::ui::widgets::core::KnobIndicator;
 
 // The two framebuffer formats really are byte-identical, which is what the copies below rest on: the shell's Deluge
 // geometry and legacy's OLED macros describe the same 1-bpp page-major 128x48 frame, and legacy's pad image is exactly
 // the nine column pairs the shell sends. These are what make the copies below whole-buffer copies rather than
 // conversions.
-static_assert(deluge::gfx::oled::kDelugeOled.width == OLED_MAIN_WIDTH_PIXELS);
-static_assert(deluge::gfx::oled::kDelugeOled.height == OLED_MAIN_HEIGHT_PIXELS);
-static_assert(deluge::gfx::oled::kDelugeOled.visible_top == OLED_MAIN_TOPMOST_PIXEL);
-static_assert(deluge::gfx::oled::kDelugeOled.bytes() == GuestSurfaceSet::kOledCopyBytesPerBlit);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.width == OLED_MAIN_WIDTH_PIXELS);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.height == OLED_MAIN_HEIGHT_PIXELS);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.visible_top == OLED_MAIN_TOPMOST_PIXEL);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.bytes() == GuestSurfaceSet::kOledCopyBytesPerBlit);
 static_assert(sizeof(PadLEDs::image) == GuestSurfaceSet::kGridCopyBytesPerFullFlush);
 static_assert(GuestSurfaceSet::kGridCopyBytesPerColumnPair == 48);
 static_assert(GuestSurfaceSet::kOledCopyBytesPerBlit == 768);
@@ -85,7 +85,7 @@ bool GuestSurfaceSet::oled_busy(uint8_t index) {
 	// pad-output-space `if`, whose body covers the grid render as well. This forwards to the second
 	// of those, negated, and to nothing else.
 	//
-	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`shell/board_surfaces.cpp`):
+	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`ui/shell/board_surfaces.cpp`):
 	// no file under `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all
 	// (grepped repo-wide; the only callers are the BSPs that define them and `board_surfaces.cpp`).
 	// A guest that consulted it would be inventing a policy legacy does not have. There is no
@@ -157,7 +157,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	if (x1 >= kDisplayWidth + kSideBarWidth) {
 		return; // A pair past legacy's 18 columns has no cells in `image` to write.
 	}
-	// Unpacked exactly the way `read_column_pair` packed it (`read_column_pair` in `shell/shell.cpp`): `rows`
+	// Unpacked exactly the way `read_column_pair` packed it (`read_column_pair` in `ui/shell/shell.cpp`): `rows`
 	// colours from column x0, then `rows` from x1, where `rows` is the grid's row count clamped to
 	// half a pair. Mirroring that expression rather than hardcoding 8 is what stops a board with
 	// fewer rows silently reading the second column from the wrong offset.
@@ -176,7 +176,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	PadLEDs::sortLedsForCol(x0);
 }
 
-void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) {
+void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::widgets::grid::FlashColour colour) {
 	// `SoundEditor::blinkShortcut`'s own call (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the PIC plays the
 	// flash over whatever the pad holds, so it shows whether the guest or the UI underneath drew it.
 	if (x >= kDisplayWidth || y >= kDisplayHeight) {
@@ -202,7 +202,7 @@ bool GuestSurfaceSet::pair_owned(PadRegions owned, uint8_t pair_index) {
 }
 
 void GuestSurfaceSet::take_grid() {
-	const deluge::gfx::grid::PadGrid& g = grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = grid().grid();
 	const PadRegions owned = owned_regions();
 	const int32_t rows = std::min<int32_t>(g.dims().rows, kDisplayHeight);
 	const int32_t cols = std::min<int32_t>(g.dims().cols(), kDisplayWidth + kSideBarWidth);
@@ -229,7 +229,7 @@ void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
 	//
 	// `board_led` passes straight through: the board profile's `led_by_button` values ARE
 	// `indicator_leds::LED`'s underlying values, `x + y * NUM_LED_COLS`
-	// (`shell/profiles/deluge.cpp`, each entry citing its own line of `indicator_leds.h`).
+	// (`ui/shell/profiles/deluge.cpp`, each entry citing its own line of `indicator_leds.h`).
 	if (board_led < kLegacyLeds && !held_[board_led]) {
 		held_[board_led] = true;
 		legacyState_[board_led] = indicator_leds::ledStates[board_led];
@@ -261,8 +261,8 @@ void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicato
 	// Replaces `actuallySetKnobIndicatorLevel` (`hid/led/indicator_leds.cpp`), whose whole body is the conversion from
 	// one scalar level to four per-segment brightnesses followed by the boundary call to
 	// `deluge_control_set_indicator`. The shell has already done that conversion -- `KnobIndicator` IS the four segment
-	// levels (`KnobIndicator` in `ui/core/led_frame.h`) -- so there is no scalar to hand the legacy function, and
-	// forwarding to it would mean inventing a level to convert back from.
+	// levels (`KnobIndicator` in `ui/widgets/core/led_frame.h`) -- so there is no scalar to hand the legacy function,
+	// and forwarding to it would mean inventing a level to convert back from.
 	//
 	// `which` passes straight through, as it does in `BoardSurfaceSet::set_indicator`: `IndicatorId` is numbered
 	// `{Lower = 0, Upper = 1}` to match legacy's `whichKnob` mod-encoder number.

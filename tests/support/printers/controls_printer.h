@@ -17,16 +17,16 @@
 
 #pragma once
 
-#include "controls/knob_math.h"
-#include "controls/page.h"
-#include "controls/resolve.h"
-#include "controls/section.h"
-#include "controls/sink.h"
 #include "support/printers/list_printer.h"
 #include "support/printers/optional_printer.h"
 #include "support/printers/param_id_printer.h"
 #include "support/printers/param_target_printer.h"
 #include "support/printers/remote_controls_printer.h"
+#include "ui/controls/knob_math.h"
+#include "ui/controls/page.h"
+#include "ui/controls/resolve.h"
+#include "ui/controls/section.h"
+#include "ui/controls/sink.h"
 
 #include <ostream>
 #include <span>
@@ -41,7 +41,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::controls {
+namespace deluge::ui::controls {
 
 /// @brief Prints a slot field by field, an empty target as `none`, e.g.
 ///        `{target {space 0, ParamId 12}, kind 1, press 3, press_param none}`.
@@ -99,4 +99,4 @@ inline std::ostream& operator<<(std::ostream& os, const SectionResult& r) {
 	          << int{r.toggle_vu_meter} << ", taken " << int{r.taken} << "}";
 }
 
-} // namespace deluge::controls
+} // namespace deluge::ui::controls

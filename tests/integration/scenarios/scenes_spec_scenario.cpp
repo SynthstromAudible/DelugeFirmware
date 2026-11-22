@@ -27,7 +27,7 @@
 #include "gui/ui/ui.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "processing/engines/audio_engine.h"
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include <cstdio>
 #include <cstdlib>

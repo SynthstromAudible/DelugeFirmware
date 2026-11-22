@@ -1,7 +1,7 @@
 # Level-2 acceptance: `overlay::ParamPopupScene`, pushed by `services::ModKnobs`.
 #
 # **How the scene gets on the stack: nothing in this script pushes it.** A gold-knob turn is offered
-# to the top scene first (`shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
+# to the top scene first (`ui/shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
 # `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
 # encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp`), and
 # `ModKnobs::turn_knob` then writes the param and calls `show_popup`, whose presentation runs

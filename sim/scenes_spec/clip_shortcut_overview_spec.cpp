@@ -17,8 +17,8 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
-namespace clip_overview = deluge::scenes::spec::clip_overview;
+namespace spec = deluge::ui::scenes::spec;
+namespace clip_overview = deluge::ui::scenes::spec::clip_overview;
 
 namespace {
 

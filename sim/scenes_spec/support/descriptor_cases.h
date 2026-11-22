@@ -9,11 +9,10 @@
 
 #include "effects/settings.h"
 #include "gui/ui/menu_view_of.h"
-#include "instruments/deluge/settings.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/setting.h"
+#include "instruments/classic/settings.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/setting.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/setting_names.h"
 #include "gui/l10n/short_label.h"
@@ -36,7 +35,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/context.h"
+#include "project/setting_group.h"
+#include "ui/scenes/menu/context.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/menu_engine.h"
@@ -62,7 +62,7 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 
 /// The cases and rigs, in a named namespace (and inline) so every spec that includes this header shares one copy.
 namespace descriptor_cases {
@@ -73,8 +73,8 @@ using deluge::plugin::SettingContext;
 using deluge::plugin::SettingInfo;
 using deluge::plugin::SettingKind;
 using deluge::plugin::to_menu;
-using deluge::scenes::menu::MenuContext;
 using deluge::serialization::Value;
+using deluge::ui::scenes::menu::MenuContext;
 using Owner = SettingContext::Owner;
 using Range = std::pair<int32_t, int32_t>;
 
@@ -118,8 +118,8 @@ inline Synth& synth() {
 		Synth r;
 		r.song = spec::make_synth_song();
 		currentSong = r.song.song; // the app binds through the song it plays
-		r.ctx = deluge::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                     false);
+		r.ctx = deluge::ui::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                         false, false);
 		return r;
 	}();
 	return s;
@@ -137,8 +137,8 @@ inline KitLane& kit_lane() {
 		r.drum = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum;
 		currentSong = r.song.song; // the app binds through the song it plays
-		r.ctx = deluge::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                     false);
+		r.ctx = deluge::ui::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                         false, false);
 		return r;
 	}();
 	return k;
@@ -170,8 +170,8 @@ inline MidiClip& midi_clip() {
 		MidiClip r;
 		r.song = spec::make_midi_song();
 		currentSong = r.song.song; // the app binds through the song it plays
-		r.ctx = deluge::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                     false);
+		r.ctx = deluge::ui::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                         false, false);
 		return r;
 	}();
 	return m;
@@ -186,8 +186,8 @@ inline CvClip& cv_clip() {
 		CvClip r;
 		r.song = spec::make_cv_song();
 		currentSong = r.song.song; // the app binds through the song it plays
-		r.ctx = deluge::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                     false);
+		r.ctx = deluge::ui::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                         false, false);
 		return r;
 	}();
 	return c;
@@ -202,8 +202,8 @@ inline AudioClipRig& audio_clip() {
 		AudioClipRig r;
 		r.song = spec::make_audio_clip_song();
 		currentSong = r.song.song; // the app binds through the song it plays
-		r.ctx = deluge::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                     false);
+		r.ctx = deluge::ui::scenes::spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                         false, false);
 		return r;
 	}();
 	return a;
@@ -246,8 +246,8 @@ inline const MenuContext& settle(Where where) {
 	Song& song = song_of(where);
 	const bool song_root = where == Where::SONG;
 	currentSong = &song; // the app binds through the song it plays
-	ctx = deluge::scenes::spec::ctx_of(song, deluge::gui::menuViewOf(clip_of(where)), 0, false, song_root, song_root,
-	                                   where == Where::KIT || where == Where::KIT_GATE_ROW);
+	ctx = deluge::ui::scenes::spec::ctx_of(song, deluge::gui::menuViewOf(clip_of(where)), 0, false, song_root,
+	                                       song_root, where == Where::KIT || where == Where::KIT_GATE_ROW);
 	install(ctx, &song);
 	return ctx;
 }
@@ -272,8 +272,8 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 			sound_setting(sound, "mode", "ringmod");
 		}
 		currentSong = s.song.song; // the app binds through the song it plays
-		s.ctx = deluge::scenes::spec::ctx_of(*s.song.song, deluge::gui::menuViewOf(s.song.clip), source, false, false,
-		                                     false, false);
+		s.ctx = deluge::ui::scenes::spec::ctx_of(*s.song.song, deluge::gui::menuViewOf(s.song.clip), source, false,
+		                                         false, false, false);
 		install(s.ctx, s.song.song);
 		return s.ctx;
 	}
@@ -281,8 +281,8 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 		KitLane& k = kit_lane();
 		sound_setting(*k.drum, "mode", "subtractive");
 		currentSong = k.song.song; // the app binds through the song it plays
-		k.ctx = deluge::scenes::spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(k.song.clip), source, false, false,
-		                                     false, false);
+		k.ctx = deluge::ui::scenes::spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(k.song.clip), source, false,
+		                                         false, false, false);
 		install(k.ctx, k.song.song);
 		return k.ctx;
 	}
@@ -437,7 +437,7 @@ inline SettingContext context_of(Where where, Family family) {
 inline std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
 	case Family::INSTRUMENT:
-		return deluge::instrument::kSettings;
+		return deluge::instruments::classic::kSettings;
 	case Family::EFFECT:
 		return deluge::effects::kEffectSettings;
 	case Family::ARP:
@@ -538,7 +538,8 @@ inline void set_stored(Family family, const MenuContext& ctx, Where where, const
 		deluge::edits::settingFor(*spec::menu_engine(ctx, song_of(where)).sound, row.path, value);
 		return;
 	case Family::EFFECT:
-		deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx, song_of(where)).mod, row.path, value);
+		deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod, row.path,
+		                                value);
 		return;
 	case Family::ARP:
 	case Family::ARP_HOST:
@@ -581,11 +582,12 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
-		value = deluge::instrument::setting_value(spec::menu_engine(ctx, song_of(where)).sound->state(), row.path);
+		value = deluge::instruments::classic::setting_value(spec::menu_engine(ctx, song_of(where)).sound->state(),
+		                                                    row.path);
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(
-		    deluge::scenes::spec::menu_engine(ctx, song_of(where)).mod->effectsOwner()->effects(), row.path);
+		    deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod->effectsOwner()->effects(), row.path);
 		break;
 	case Family::ARP:
 	case Family::ARP_HOST:
@@ -916,7 +918,7 @@ struct SpecReader {
 			        }
 			        switch (owner.family) {
 			        case Family::INSTRUMENT: {
-				        const std::optional<int32_t> held = deluge::instrument::held_setting(
+				        const std::optional<int32_t> held = deluge::instruments::classic::held_setting(
 				            spec::menu_engine(owner.ctx, song_of(owner.where)).sound->state(), path);
 				        if (!held) {
 					        owner.unknown.emplace_back(path);

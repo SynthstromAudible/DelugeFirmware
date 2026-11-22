@@ -56,7 +56,7 @@ describe descriptor_oracle_voice("The voice rows' descriptors against the items'
 		run(self, voice_cases());
 	});
 	it("offers choke on a kit lane alone", _ {
-		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "polyphonic");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "polyphonic");
 		expect(applicable(row, Where::SYNTH, Family::INSTRUMENT).size()).to_equal(4u);
 		expect(applicable(row, Where::KIT_LANE, Family::INSTRUMENT).size()).to_equal(5u);
 	});
@@ -74,10 +74,10 @@ describe descriptor_oracle_oscillators("The oscillator rows' descriptors against
 		AudioEngine::micPluggedIn = false;
 	});
 	it("drops the sample and inputs under ring mod, and DX7 off the second oscillator", _ {
-		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc1/type");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc1/type");
 		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,"});
 		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
-		const SettingInfo& second = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc2/type");
+		const SettingInfo& second = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc2/type");
 		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
 		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
 		const MenuContext& ctx = enter(Where::SYNTH);
@@ -204,7 +204,7 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 		}
 	});
 	it("offers DX7 to the whole kit's sounds, as `osc::Type::mayUseDx` does", _ {
-		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc1/type");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc1/type");
 		const MenuContext& ctx = enter(Where::SYNTH);
 		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = SettingContext::Instrument::KIT};
 		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
@@ -230,7 +230,7 @@ describe descriptor_oracle_validity("Every table's conditions", $ {
 			    .to_equal("group " + std::to_string(id) + " mappings valid");
 		}
 		expect(deluge::plugin::conditions_are_valid(deluge::plugin::kArpRows)).to_be_true();
-		expect(deluge::plugin::conditions_are_valid(deluge::instrument::kSettings)).to_be_true();
+		expect(deluge::plugin::conditions_are_valid(deluge::instruments::classic::kSettings)).to_be_true();
 		expect(deluge::plugin::conditions_are_valid(deluge::effects::kEffectSettings)).to_be_true();
 	});
 });
@@ -247,7 +247,7 @@ describe descriptor_oracle_coverage("Every engine and model row with a menu", $ 
 			std::span<const SettingInfo> rows;
 		};
 		const OwnedRows tables[] = {
-		    {deluge::plugin::kDelugeInstrument, deluge::instrument::kSettings},
+		    {deluge::plugin::kDelugeInstrument, deluge::instruments::classic::kSettings},
 		    {deluge::plugin::kDelugeInstrument, deluge::effects::kEffectSettings},
 		    {deluge::plugin::kDelugeInstrument, deluge::plugin::kArpSettingRows},
 		    {SettingGroupId::CLIP_ARP, deluge::plugin::kArpHostRows},

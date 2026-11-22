@@ -1,6 +1,6 @@
 /// @file
 /// @brief The note editor and note-row editor menu trees
-///        (`scenes/menu/nodes/note.h`), tested against `FakeNoteBridgeGuard`
+///        (`ui/scenes/menu/nodes/note.h`), tested against `FakeNoteBridgeGuard`
 ///        (`support/fake_note_bridge.h`), and their shape against main's note editors.
 ///
 /// Covered:
@@ -18,15 +18,15 @@
 ///   * `validate_tree` over `kAllRoots` reports nothing about any node this file declares.
 ///
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/note.h"
-#include "scenes/menu/validate.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/note.h"
+#include "ui/scenes/menu/validate.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "definitions_cxx.hpp"
 #include "sequence/iterance.h"
@@ -51,15 +51,15 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
-namespace spec = deluge::scenes::spec;
-using deluge::scenes::menu::Node;
-using deluge::scenes::menu::ValueText;
-using deluge::scenes::menu::ValueTextUse;
-using deluge::scenes::spec::FakeNoteBridge;
-using deluge::scenes::spec::FakeNoteBridgeGuard;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
+namespace spec = deluge::ui::scenes::spec;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::menu::ValueText;
+using deluge::ui::scenes::menu::ValueTextUse;
+using deluge::ui::scenes::spec::FakeNoteBridge;
+using deluge::ui::scenes::spec::FakeNoteBridgeGuard;
 using String = deluge::l10n::String;
 using deluge::test::matchers::address_of;
 
@@ -70,9 +70,9 @@ void select_language() {
 }
 
 std::string drain_last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -407,7 +407,7 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		// node outside its own chain_targets" sweep (`tables_3_spec.cpp`) call these hooks
 		// over the whole tree, including this one, with no bridge installed at all -- boot's real one
 		// taken down for the scope, and no fake put up.
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		expect(menu::note_bridge()).to_be_null();
 		menu::MenuContext ctx{};
 		menu::MenuState state{};
@@ -421,7 +421,7 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		// A harness that opens a note root without `wireShellNoteBridge()`: every read through the bridge answers as if
 		// nothing were selected, both guards refuse, and the iterance label falls back.
 		select_language();
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		(void)drain_last_notice();
 
@@ -442,19 +442,19 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 	});
 	// Each write below has its own guard on the bridge: it goes nowhere, and the value it would change reads the same.
 	it("leaves the note velocity as it was on a turn", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		nodes::adjust_note_velocity(ctx, 1);
 		expect(nodes::get_note_velocity(ctx)).to_equal(int32_t(0));
 	});
 	it("leaves the note probability as it was on a turn", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		nodes::adjust_note_probability(ctx, 1);
 		expect(nodes::get_note_probability(ctx)).to_equal(int32_t(0));
 	});
 	it("leaves the note iterance, its divisor and its steps as they were on a turn or a set", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		const int32_t divisor = nodes::get_note_iterance_divisor(ctx);
 		const int32_t step = nodes::get_note_iterance_step_1(ctx);
@@ -466,19 +466,19 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		expect(nodes::get_note_iterance_step_1(ctx)).to_equal(step);
 	});
 	it("leaves the note fill as it was on a turn", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		nodes::adjust_note_fill(ctx, 1);
 		expect(nodes::get_note_fill(ctx)).to_equal(int32_t(0));
 	});
 	it("leaves the row probability as it was on a turn", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		nodes::adjust_note_row_probability(ctx, 1);
 		expect(nodes::get_note_row_probability(ctx)).to_equal(int32_t(0));
 	});
 	it("leaves the row iterance, its divisor and its steps as they were on a turn or a set", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		const int32_t divisor = nodes::get_note_row_iterance_divisor(ctx);
 		const int32_t step = nodes::get_note_row_iterance_step_1(ctx);
@@ -490,7 +490,7 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		expect(nodes::get_note_row_iterance_step_1(ctx)).to_equal(step);
 	});
 	it("leaves the row fill as it was on a turn", _ {
-		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
 		nodes::adjust_note_row_fill(ctx, 1);
 		expect(nodes::get_note_row_fill(ctx)).to_equal(int32_t(0));

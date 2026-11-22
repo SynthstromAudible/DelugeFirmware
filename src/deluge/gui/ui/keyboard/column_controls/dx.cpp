@@ -102,7 +102,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 	else if (op < 6) {
 		// The column's patch is the current synth's first source's (getCurrentDxPatch).
 		auto* sound = static_cast<SoundInstrument*>(getCurrentInstrument());
-		if (std::optional<deluge::instrument::DxPatchState> changed =
+		if (std::optional<deluge::instruments::classic::DxPatchState> changed =
 		        deluge::bridge::dxPatchOf(sound->sourceResources[0])) {
 			changed->params[155] ^=
 			    static_cast<uint8_t>(1 << op); // the op switches: one bit per op, as DxPatch::opSwitch reads them

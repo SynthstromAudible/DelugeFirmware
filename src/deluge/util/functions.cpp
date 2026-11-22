@@ -24,7 +24,7 @@
 #include "hid/display/display.h"
 #include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
-#include "music-theory/note_length.h"
+#include "music/note_length.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
@@ -328,35 +328,35 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 }
 
 char const* oscTypeToString(OscType oscType) {
-	return deluge::instrument::to_string(oscType).data();
+	return deluge::instruments::classic::to_string(oscType).data();
 }
 
 OscType stringToOscType(char const* string) {
-	return deluge::instrument::parse_osc_type(string);
+	return deluge::instruments::classic::parse_osc_type(string);
 }
 
 char const* lfoTypeToString(LFOType oscType) {
-	return deluge::instrument::to_string(oscType).data();
+	return deluge::instruments::classic::to_string(oscType).data();
 }
 
 LFOType stringToLFOType(char const* string) {
-	return deluge::instrument::parse_lfo_type(string);
+	return deluge::instruments::classic::parse_lfo_type(string);
 }
 
 char const* synthModeToString(SynthMode synthMode) {
-	return deluge::instrument::to_string(synthMode).data();
+	return deluge::instruments::classic::to_string(synthMode).data();
 }
 
 SynthMode stringToSynthMode(char const* string) {
-	return deluge::instrument::parse_synth_mode(string);
+	return deluge::instruments::classic::parse_synth_mode(string);
 }
 
 char const* polyphonyModeToString(PolyphonyMode synthMode) {
-	return deluge::instrument::to_string(synthMode).data();
+	return deluge::instruments::classic::to_string(synthMode).data();
 }
 
 PolyphonyMode stringToPolyphonyMode(char const* string) {
-	return deluge::instrument::parse_polyphony_mode(string);
+	return deluge::instruments::classic::parse_polyphony_mode(string);
 }
 
 char const* fxTypeToString(ModFXType fxType) {

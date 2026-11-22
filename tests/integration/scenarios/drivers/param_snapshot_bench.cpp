@@ -21,13 +21,13 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "deluge-project/param_edit.h" // setNodeAtPos
-#include "deluge-project/song.h"       // deluge::project::Song::resolveParam
 #include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/snapshot/param_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "project/param_edit.h" // setNodeAtPos
+#include "project/song.h"       // deluge::project::Song::resolveParam
 #include <cstring>
 
 #include "memory/general_memory_allocator.h"

@@ -147,9 +147,10 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_controls deluge_instrument deluge_effects deluge_host_chain deluge_midi \
-             deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
-             deluge_notify deluge_scenes deluge_scenes_bind",
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_ui_controls deluge_instruments_classic deluge_effects deluge_host_chains deluge_midi \
+             deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_oled \
+             deluge_ui_widgets_grid deluge_ui_shell \
+             deluge_base_notify deluge_ui_scenes deluge_ui_scenes_bind",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -197,29 +198,29 @@ fn archive_app_objects(
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
     let deps: [(&str, &str); 23] = [
-        ("src/lib", "libeyalroz_printf.a"),
+        ("printf", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
         ("src/synth", "libdeluge_synth.a"),
-        ("src/foundation", "libdeluge_foundation.a"),
+        ("src/base", "libdeluge_base.a"),
         ("src/serialization", "libdeluge_serialization.a"),
-        ("src/music-theory", "libdeluge_music_theory.a"),
-        ("src/deluge-project", "libdeluge_project.a"),
-        ("src/controls", "libdeluge_controls.a"),
-        ("src/instruments/deluge", "libdeluge_instrument.a"),
+        ("src/music", "libdeluge_music.a"),
+        ("src/project", "libdeluge_project.a"),
+        ("src/ui/controls", "libdeluge_ui_controls.a"),
+        ("src/instruments/classic", "libdeluge_instruments_classic.a"),
         ("src/effects", "libdeluge_effects.a"),
-        ("src/effects/host_chain", "libdeluge_host_chain.a"),
+        ("src/host/chains", "libdeluge_host_chains.a"),
         ("src/midi", "libdeluge_midi.a"),
-        ("src/gfx", "libdeluge_gfx_oled.a"),
-        ("src/gfx", "libdeluge_gfx_grid.a"),
-        ("src/ui", "libdeluge_ui_core.a"),
-        ("src/ui", "libdeluge_ui_oled.a"),
-        ("src/ui", "libdeluge_ui_grid.a"),
-        ("src/shell", "libdeluge_ui_shell.a"),
-        ("src/notify", "libdeluge_notify.a"),
-        ("src/scenes", "libdeluge_scenes.a"),
-        ("src/scenes/bind", "libdeluge_scenes_bind.a"),
+        ("src/ui/gfx", "libdeluge_ui_gfx_oled.a"),
+        ("src/ui/gfx", "libdeluge_ui_gfx_grid.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_core.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_oled.a"),
+        ("src/ui/widgets", "libdeluge_ui_widgets_grid.a"),
+        ("src/ui/shell", "libdeluge_ui_shell.a"),
+        ("src/base/notify", "libdeluge_base_notify.a"),
+        ("src/ui/scenes", "libdeluge_ui_scenes.a"),
+        ("src/ui/scenes/bind", "libdeluge_ui_scenes_bind.a"),
     ];
 
     println!("cargo:rustc-link-arg=-Wl,--start-group");

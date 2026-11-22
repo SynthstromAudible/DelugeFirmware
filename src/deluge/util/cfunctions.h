@@ -18,12 +18,12 @@
 #pragma once
 
 // The pure number formatting (intToString, …) and the board timer-count math
-// (msToSlowTimerCount, …) moved to the foundation tier. This header forwards to
-// them so existing includers keep working; new code should include the
-// foundation headers directly. Only the busy-wait delays remain here — they wrap
-// the libdeluge clock boundary, so they sit above the foundation.
-#include "foundation/string_format.h"
-#include "foundation/timer_count.h"
+// (msToSlowTimerCount, …) live in src/base. This header forwards to them so
+// existing includers keep working; new code should include the base headers
+// directly. Only the busy-wait delays are here — they wrap the libdeluge clock
+// boundary, so they sit above base.
+#include "base/string_format.h"
+#include "base/timer_count.h"
 #include <stdint.h>
 
 #ifdef __cplusplus

@@ -17,8 +17,6 @@
 
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_note_row.h"
-#include "deluge-project/edit_guard.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -59,6 +57,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/doc_note_row.h"
+#include "project/edit_guard.h"
 #include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -747,7 +747,7 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 
 void InstrumentClip::forEachRowWithOwnLength(
     ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
-    deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
+    deluge::base::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
 	(void)forEachRepeatedRow(
 	    *this, thisModelStack, otherModelStack,
 	    [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
@@ -759,7 +759,7 @@ void InstrumentClip::forEachRowWithOwnLength(
 
 void InstrumentClip::forEachRepeatedManager(
     ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
-    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
+    deluge::base::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 	const int32_t otherLength = otherInstrumentClip->loopLength();
 	int32_t whichRepeatThisIs = (uint32_t)offset / (uint32_t)otherLength;
@@ -3919,7 +3919,7 @@ bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
 		if (displayPopup) {
-			deluge::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
+			deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
 		}
 		return false;
 	}
@@ -4015,7 +4015,7 @@ bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelS
 Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
                                                   const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
-		deluge::notify::notice(acquired.error);
+		deluge::base::notify::notice(acquired.error);
 		return nullptr;
 	}
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
@@ -4397,7 +4397,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		deluge::notify::notice(Error::INSUFFICIENT_RAM);
+		deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -4405,7 +4405,7 @@ ramError:
 
 	Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error != Error::NONE) {
-		deluge::notify::notice(error);
+		deluge::base::notify::notice(error);
 		return nullptr;
 	}
 

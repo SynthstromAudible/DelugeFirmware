@@ -22,7 +22,7 @@
 
 #include "effects/codec.h"
 #include "effects/state.h"
-#include "plugin-api/plugin.h"
+#include "plugin/plugin.h"
 
 namespace deluge::effects {
 

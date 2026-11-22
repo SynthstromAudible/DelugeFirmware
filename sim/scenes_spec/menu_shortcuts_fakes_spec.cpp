@@ -4,21 +4,21 @@
 ///        blink for a param the sound fake patches, and the SHIFT overlay following the device fake's
 ///        `features/shortcutOverlay` row.
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/menu_state.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcut_blink.h"
-#include "scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/menu_state.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcut_blink.h"
+#include "ui/scenes/menu/shortcuts.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/sound_state.h"
-#include "shell/scene.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/sound_state.h"
+#include "project/device_settings.h"
+#include "project/features.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
+#include "ui/shell/scene.h"
 
 #include "support/fake_menu_shell.h"
 #include "support/record_state.h"
@@ -32,22 +32,22 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::DevicePath;
 using deluge::project::Feature;
 using deluge::project::ShortcutOverlay;
 using deluge::project::ShortcutsVersion;
-using deluge::scenes::menu::kNoBlink;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::spec::FakeHostRig;
-using deluge::scenes::spec::FakeMenuShell;
 using deluge::synth::PatchSource;
+using deluge::ui::scenes::menu::kNoBlink;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::spec::FakeHostRig;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using deluge::ui::shell::PadRegions;
 using device_path = deluge::project::device_path;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// The sample pad that differs between the layouts: interpolation under V3, the sample's end point under V1.
 constexpr uint8_t kSamplePadX = 0, kSamplePadY = 6;
@@ -65,8 +65,9 @@ void hold_device(FakeHostRig& fakes, DevicePath path, int32_t menu_value) {
 
 /// @brief The synth's first source a loaded sample, so the menu lists the sample's own pages.
 void hold_sample_synth(FakeHostRig& fakes) {
-	fakes.hold_synth(deluge::test::with_kind(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
-	                                         deluge::instrument::OscType::SAMPLE));
+	fakes.hold_synth(deluge::test::with_kind(deluge::instruments::classic::SoundState{},
+	                                         deluge::instruments::classic::SourceId::A,
+	                                         deluge::instruments::classic::OscType::SAMPLE));
 	fakes.host.sound.loaded[FakeHostRig::kSynthSlot.id] = 0b01;
 }
 
@@ -74,7 +75,7 @@ void hold_sample_synth(FakeHostRig& fakes) {
 void patch_to_cutoff(FakeHostRig& fakes, std::initializer_list<PatchSource> sources) {
 	const auto cutoff = deluge::synth::CableTarget::param(nodes::lpf_freq.bind.param.index);
 	for (const PatchSource source : sources) {
-		fakes.host.sound.cable_list.push_back({.depth = deluge::instrument::cable_depth_of(source, cutoff)});
+		fakes.host.sound.cable_list.push_back({.depth = deluge::instruments::classic::cable_depth_of(source, cutoff)});
 	}
 }
 

@@ -14,17 +14,17 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
 #include "menu_context.h"
 #include "song_fixture.h"
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Put the legacy UI hierarchy back to "nothing open" after an example seats a root with
 ///        `setRootUILowLevel` or opens the guest with `openUI`.
@@ -146,4 +146,4 @@ inline bool open_note_mode_over_clip_view(SongFixture& fx, menu::MenuContext::Ro
 	return openUI(&shellHostUI);
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

@@ -5,7 +5,7 @@ AudioEngine::routine() -> AudioEngine::routine_task() -> scheduler.rs) is copied
 from a real 2026-08-06 fresh-run finding (logs/run_1.log's audio_engine.cpp:562:3 instance);
 only the LEAF (the actual racing access, frames #0-#1 below) is hypothetical: a
 deluge_resource::chunk::StreamedChunk::fill / Manager::evict_chunk storage-path memcpy, with
-NO src/lib/printf.c or core::str::validations frame anywhere in the block. Expected verdict:
+NO third_party/printf/printf.c or core::str::validations frame anywhere in the block. Expected verdict:
 uncatalogued (see ancestor_absorption_negative.expect) -- this MUST fail the gate, because
 under the pre-fix full-block-matching bug (commit 4a42871dd, before the 2026-08-06 fix round)
 this exact block would have matched `src/deluge/processing/engines/audio_engine\.cpp` via the

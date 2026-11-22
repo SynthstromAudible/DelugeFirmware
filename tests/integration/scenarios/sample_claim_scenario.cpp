@@ -25,7 +25,7 @@
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
-#include "instruments/deluge/deluge_synth.h"
+#include "instruments/classic/deluge_synth.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 #include "support/sound_fixtures.h"
@@ -91,20 +91,20 @@
 
 #include "unit/deluge/dsp-next/wavetable_band_crc.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "instruments/deluge/state_access.h"
-#include "notify/notice_queue.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/sample.h"
-#include "scenes/menu/nodes/sound_root.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "instruments/classic/state_access.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/sample.h"
+#include "ui/scenes/menu/nodes/sound_root.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 #include "util/functions.h"
 #include "util/menu_entry.h"
 
@@ -114,8 +114,8 @@
 #include <string_view>
 #include <vector>
 
-// The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
-// `putchar_` for -- every line below would become an undefined symbol at link time.
+// The GUI headers above reach `third_party/printf/printf.h`, which soft-aliases printf to an implementation this
+// harness has no `putchar_` for -- every line below would become an undefined symbol at link time.
 #ifdef printf
 #undef printf
 #endif
@@ -697,7 +697,7 @@ using deluge::harness::guestTop;
 /// Tick the guest while a browser listing runs, and say whether it still is.
 bool listingBusy() {
 	guestTick();
-	return deluge::scenes::browser::browser_scene().listing_in_flight();
+	return deluge::ui::scenes::browser::browser_scene().listing_in_flight();
 }
 
 /// Step a pad scroll the browser started (a preview's entry animation) to its end, as PadLEDs::timerRoutine() does on
@@ -739,7 +739,7 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 	                                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0FileSelector);
 	for (int32_t t = 0; opened && t < 16 && !browserOnTop(); t++) {
 		guestTick();
-		if (t > 0 && guestTop(deluge::scenes::menu::kMenuSceneKind)) {
+		if (t > 0 && guestTop(deluge::ui::scenes::menu::kMenuSceneKind)) {
 			// A sound with several ranges sends its file selector to the range menu first; a user picks a range
 			// there before the browser opens, and the browser reads the range it opens on: the first row, range 0.
 			guestSelect();
@@ -767,10 +767,12 @@ Sample* previewedSample() {
 /// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
-	const deluge::instrument::SoundState& state = preview.state();
-	const bool derived = preview.config() == deluge::instrument::DelugeSynth::derive(state);
+	const deluge::instruments::classic::SoundState& state = preview.state();
+	const bool derived = preview.config() == deluge::instruments::classic::DelugeSynth::derive(state);
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
-	if (!derived || deluge::instrument::source_type(state, deluge::instrument::SourceId::A) != OscType::SAMPLE
+	if (!derived
+	    || deluge::instruments::classic::source_type(state, deluge::instruments::classic::SourceId::A)
+	           != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {
 		g_report.fail("PREVIEW leg=%s the preview does not play its sample sound's config (derived=%d smooth=%d)",
 		              legName(g_leg), derived ? 1 : 0, osc.interpolation_mode == InterpolationMode::SMOOTH ? 1 : 0);
@@ -865,7 +867,7 @@ bool openOsc2Claim() {
 	}
 	frontClip(legName(g_leg), clip, &instrumentClipView, nullptr);
 	if (g_leg == Leg::WaveTableOsc2) {
-		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->oscType(1))};
+		g_osc2TypeBefore = std::string{deluge::instruments::classic::to_string(g_synth->oscType(1))};
 		deluge::edits::settingFor(*g_synth, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 	}
 	return true;
@@ -1518,7 +1520,7 @@ void tickImportGate() {
 	// have listed yet in this window.)
 	const int32_t requestsBefore = deluge::gui::folderImport.requestsReceived();
 	guestBack();
-	g_imGateBackRefused = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+	g_imGateBackRefused = guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 	guestSelect();
 	g_imGateSecondRefused = deluge::gui::folderImport.requestsReceived() == requestsBefore;
 }
@@ -1569,11 +1571,11 @@ void actShellSlice() {
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
 	// What the menu edits: the kit's drum, as the clip view selected it, in the song the app's ports act on.
-	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
-	    currentSong->project, &deluge::scenes::menu::host_ports(), deluge::gui::menuViewOf(g_kitClip), 0, false, false,
-	    false, /*kit_global_fx=*/false);
-	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
-	auto& scene = deluge::scenes::slicing::slicer_scene();
+	const deluge::ui::scenes::menu::MenuContext ctx = deluge::ui::scenes::menu::context_for(
+	    currentSong->project, &deluge::ui::scenes::menu::host_ports(), deluge::gui::menuViewOf(g_kitClip), 0, false,
+	    false, false, /*kit_global_fx=*/false);
+	deluge::ui::scenes::menu_scene().open(deluge::ui::scenes::menu::nodes::sound_root, ctx);
+	auto& scene = deluge::ui::scenes::slicing::slicer_scene();
 	scene.open(std::nullopt);
 	if (g_leg == Leg::ShellSliceBack) {
 		// A first drum that holds no file, as a brand-new kit's has: main dereferences its missing sample here.
@@ -1620,7 +1622,7 @@ void actShellSlice() {
 /// A press on the slicer before the slice, which holds a load for the first drum, then every UI taken down as a song
 /// load takes them, and the root and the menu's context (which the teardown forgets) put back for the rest of the leg,
 /// which goes on in the same song.
-void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
+void checkTeardownDropsAudition(deluge::ui::scenes::slicing::SlicerScene& scene) {
 	if (scene.ops() == nullptr) {
 		return;
 	}
@@ -1628,18 +1630,18 @@ void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
 	g_teardownHeld = deluge::gui::ui::shellSlicerBusy();
 	UI* const root = getRootUI();
 	g_teardownRootKept = getCurrentUI() == root;
-	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu_scene().menu_context();
+	const deluge::ui::scenes::menu::MenuContext ctx = deluge::ui::scenes::menu_scene().menu_context();
 	nullifyUIs();
 	g_teardownDropped = !deluge::gui::ui::shellSlicerBusy();
 	if (g_teardownRootKept) {
 		setRootUILowLevel(root);
 	}
-	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
+	deluge::ui::scenes::menu_scene().open(deluge::ui::scenes::menu::nodes::sound_root, ctx);
 }
 
 /// A slice auditioned and released before its load lands: the press names the slicer's file for the first drum, and
 /// once the release drops the load, that drum's record and slot must say what it holds.
-void checkAuditionReleaseCoherent(deluge::scenes::slicing::SlicerScene& scene) {
+void checkAuditionReleaseCoherent(deluge::ui::scenes::slicing::SlicerScene& scene) {
 	if (scene.ops() == nullptr) {
 		return;
 	}
@@ -1669,13 +1671,13 @@ void sendNextSongDuringSlice() {
 	command.channelOrZone = kNextSongChannel;
 	command.noteOrCC = kNextSongNote;
 	bool thru = false;
-	const size_t queuedBefore = deluge::notify::notices().size();
+	const size_t queuedBefore = deluge::base::notify::notices().size();
 	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, true, kNextSongChannel, kNextSongNote, 64,
 	                                    &thru);
 	g_nextHeld = playbackHandler.nextSongPending_;
 	// Read the notices the command raised and put every one back, in order, for the UI to drain as it would.
-	std::vector<deluge::notify::Notice> queued;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	std::vector<deluge::base::notify::Notice> queued;
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		queued.push_back(n);
 	}
 	for (size_t i = 0; i < queued.size(); i++) {
@@ -1683,7 +1685,7 @@ void sendNextSongDuringSlice() {
 		                || (i >= queuedBefore
 		                    && queued[i].string_id
 		                           == static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_SLICE));
-		(void)deluge::notify::notices().push(queued[i]);
+		(void)deluge::base::notify::notices().push(queued[i]);
 	}
 	// The job that lets it go, run while the slice is still out: it must keep holding it.
 	playbackHandler.slowRoutine();
@@ -1697,7 +1699,7 @@ void sendNextSongDuringSlice() {
 /// leg ends when nothing of the slicer's is out.
 void tickShellSlice() {
 	deluge::gui::ui::pollShellSlicer();
-	auto& scene = deluge::scenes::slicing::slicer_scene();
+	auto& scene = deluge::ui::scenes::slicing::slicer_scene();
 	if (g_shellEnded) {
 		return;
 	}
@@ -1714,7 +1716,7 @@ void tickShellSlice() {
 		if (!g_shellFileChecked) {
 			g_shellFileChecked = true;
 			const ::Sample* bound = deluge::gui::ui::shellSlicedSample();
-			const std::optional<deluge::scenes::slicing::SliceFile>& file = scene.file();
+			const std::optional<deluge::ui::scenes::slicing::SliceFile>& file = scene.file();
 			if (bound == nullptr || !file || file->path != bound->filePath
 			    || file->identity != deluge::gui::shell_host::waveform_identity(*bound)) {
 				g_report.fail("leg=%s the slicer's file is not the sample the host bound", legName(g_leg));
@@ -1745,7 +1747,7 @@ void tickShellSlice() {
 			       g_report.failures() == failuresBefore ? 1 : 0);
 			g_landedAuditionChecked = true;
 		}
-		deluge::scenes::slicing::SliceCommit commit{};
+		deluge::ui::scenes::slicing::SliceCommit commit{};
 		commit.is_manual = g_leg == Leg::ShellSliceManual;
 		commit.slice_count = commit.is_manual ? kManualSliceCount : kSliceRegions;
 		for (int32_t i = 0; i < kManualSliceCount; i++) {
@@ -1827,7 +1829,7 @@ void actLeg() {
 		deluge::harness::guestPress(LOAD);
 		const bool recalled = deluge::harness::guestRecallFavourite(legFile());
 		printf("SC-PROBE leg=%s autoLoad=%d recalled=%d\n", legName(g_leg),
-		       deluge::scenes::browser::browser_scene().auto_load() ? 1 : 0, recalled ? 1 : 0);
+		       deluge::ui::scenes::browser::browser_scene().auto_load() ? 1 : 0, recalled ? 1 : 0);
 		if (!recalled) {
 			setupFailed(legName(g_leg), "the leg's file could not be recalled with auto-load on");
 		}
@@ -1864,7 +1866,7 @@ void actLeg() {
 		g_imEmptySucceeded = false;
 		deluge::gui::ui::setFolderImportDispatch(&observeEmptyImport);
 		guestLongPressSelect();
-		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool menuOnTop = guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 		const bool picked = guestPickOption(kImportOption);
 		deluge::gui::ui::setFolderImportDispatch(nullptr);
 		printf("SC-SETUP leg=import-empty menuOnTop=%d picked=%d inFlight=%d\n", menuOnTop ? 1 : 0, picked ? 1 : 0,
@@ -1886,14 +1888,14 @@ void actLeg() {
 		}
 		// A long press on Select opens the context menu for the kind of instrument the browser is choosing for.
 		guestLongPressSelect();
-		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool menuOnTop = guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
 		(void)guestPickOption(kImportOption);
 		return;
 	}
 	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
 		guestLongPressSelect();
-		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool menuOnTop = guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
 		(void)guestPickOption(kWaveTableOption);
 		return;
@@ -1928,7 +1930,7 @@ bool legEnded() {
 	if (g_leg == Leg::ImportStall) {
 		// An import that aborts closes just the menu and releases the gate; one that finishes closes the browser too.
 		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
-		       && !guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		       && !guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 	}
 	if (g_leg == Leg::RandomizeCancelScan) {
 		// Every round releases the gate as it cancels, so the mode says nothing until the ordinary randomize the
@@ -2048,16 +2050,17 @@ void checkLeg() {
 		// ...and the menu beneath re-enters on the page that lists the file selector, focused on it, as main's claim
 		// re-enters on `parentMenuHeadingTo` with `menuItemHeadingTo` focused: with horizontal menus on, a page of the
 		// source's group; with them off, the file selector the menu was opened on.
-		const auto& menu = deluge::scenes::menu_scene();
+		const auto& menu = deluge::ui::scenes::menu_scene();
 		const bool horizontal = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
-		const bool onPage = guestTop(deluge::scenes::menu::kMenuSceneKind)
-		                    && menu.focused_value() == &deluge::scenes::menu::nodes::file0_selector
-		                    && (menu.state().path[0] != &deluge::scenes::menu::nodes::file0_selector) == horizontal;
+		const bool onPage = guestTop(deluge::ui::scenes::menu::kMenuSceneKind)
+		                    && menu.focused_value() == &deluge::ui::scenes::menu::nodes::file0_selector
+		                    && (menu.state().path[0] != &deluge::ui::scenes::menu::nodes::file0_selector) == horizontal;
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
-		       static_cast<int>(
-		           deluge::instrument::sample_playback(*g_synth->state_, deluge::instrument::SourceId::A).repeat_mode),
+		       static_cast<int>(deluge::instruments::classic::sample_playback(*g_synth->state_,
+		                                                                      deluge::instruments::classic::SourceId::A)
+		                            .repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2275,15 +2278,14 @@ void checkLeg() {
 		SoundDrum* drum = kitDrum();
 		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		printf(
-		    "SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
-		    holder != nullptr ? holder->filePath.c_str() : "",
-		    drum != nullptr
-		        ? static_cast<int>(
-		              deluge::instrument::sample_playback(*drum->state_, deluge::instrument::SourceId::A).repeat_mode)
-		        : -1,
-		    drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
-		    g_wait.ticks());
+		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
+		       holder != nullptr ? holder->filePath.c_str() : "",
+		       drum != nullptr ? static_cast<int>(deluge::instruments::classic::sample_playback(
+		                                              *drum->state_, deluge::instruments::classic::SourceId::A)
+		                                              .repeat_mode)
+		                       : -1,
+		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
+		       g_wait.ticks());
 		if (!bound) {
 			g_report.fail("KIT the claim bound no file");
 		}
@@ -2345,7 +2347,7 @@ void checkLeg() {
 			drums++;
 		}
 		const bool ended = g_shellEnded && !deluge::gui::ui::shellSlicerBusy();
-		const bool opened = deluge::scenes::slicing::slicer_scene().has_sample();
+		const bool opened = deluge::ui::scenes::slicing::slicer_scene().has_sample();
 		printf("SC-SHELL-SLICE-FAIL drums=%d ended=%d opened=%d ticks=%d\n", drums, ended ? 1 : 0, opened ? 1 : 0,
 		       g_wait.ticks());
 		if (drums != 1 || !ended || opened) {
@@ -2408,7 +2410,7 @@ void checkLeg() {
 			reasonsKept =
 			    reasonsKept && g_imStallKept[i] != nullptr && g_imStallKept[i]->leaseCount() == g_imStallKeptLeases[i];
 		}
-		const bool menuClosed = !guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool menuClosed = !guestTop(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 		const bool browserOpen = browserOnTop();
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 		// How the import ended: on the async sample load's stall bound, not on some other failure.
@@ -2452,9 +2454,9 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(
-				           deluge::instrument::sample_playback(*soundDrum->state_, deluge::instrument::SourceId::A)
-				               .repeat_mode),
+				       static_cast<int>(deluge::instruments::classic::sample_playback(
+				                            *soundDrum->state_, deluge::instruments::classic::SourceId::A)
+				                            .repeat_mode),
 				       soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]
@@ -2498,7 +2500,7 @@ void checkLeg() {
 			}
 			// The range the import made current (`rangeChosen`), as the menu context keeps it: the guest has closed, so
 			// no menu is open on it.
-			const int32_t menuRange = deluge::scenes::menu_scene().menu_context().range_index;
+			const int32_t menuRange = deluge::ui::scenes::menu_scene().menu_context().range_index;
 			const int32_t editorRange = menuRange >= 0 && menuRange < ranges ? menuRange : -1;
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
@@ -2772,7 +2774,7 @@ LandState landStep() {
 		return LandState::GaveUp;
 	}
 	const std::string_view dir = std::string_view{target}.substr(0, target.rfind('/'));
-	const std::string_view current = deluge::scenes::browser::browser_scene().current_dir();
+	const std::string_view current = deluge::ui::scenes::browser::browser_scene().current_dir();
 	if (legItemIsFolder() && current == dir
 	    && deluge::harness::guestTurnTo(std::string_view{target}.substr(dir.size() + 1))) {
 		g_browseSteps++;

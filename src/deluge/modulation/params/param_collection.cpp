@@ -17,7 +17,6 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_edit.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/mod_controllable/delay_type.h"
@@ -28,7 +27,8 @@
 #include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
+#include "project/param_edit.h"
 #include <algorithm>
 #include <vector>
 
@@ -73,7 +73,7 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 void ParamCollection::forEachLaneAppended(
     ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
     int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+    deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	// The keys the repeat changes: those the other collection has nodes to repeat in
 	std::vector<int32_t> appended;
 	forEachAppendedKey(other, otherSummary, [&](int32_t key) {

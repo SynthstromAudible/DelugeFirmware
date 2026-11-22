@@ -18,7 +18,7 @@ namespace {
 /// The transport's actions, each the call the legacy button handling makes, popups included. PLAY, RECORD, the tempo
 /// encoder and the output recording are `Buttons::buttonAction`'s (`origin/main:src/deluge/hid/buttons.cpp`); tap
 /// tempo, the metronome, undo and fill are `View::buttonAction`'s (`origin/main:src/deluge/gui/views/view.cpp`).
-class HostTransportActions final : public scenes::bind::TransportActions {
+class HostTransportActions final : public deluge::ui::scenes::bind::TransportActions {
 public:
 	void play() override { playbackHandler.playButtonPressed(kInternalButtonPressLatency); }
 	void record() override { playbackHandler.recordButtonPressed(); }
@@ -58,7 +58,7 @@ public:
 
 } // namespace
 
-scenes::bind::TransportActions& transport_actions() {
+deluge::ui::scenes::bind::TransportActions& transport_actions() {
 	static HostTransportActions actions;
 	return actions;
 }

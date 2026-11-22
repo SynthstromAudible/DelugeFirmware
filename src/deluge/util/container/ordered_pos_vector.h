@@ -3,7 +3,7 @@
 // The sorted container is defined by the model (deluge_project); this header exposes it under the app's name and
 // translates its failures into the app's Error.
 #include "definitions_cxx.hpp"
-#include "deluge-project/ordered_pos_vector.h"
+#include "project/ordered_pos_vector.h"
 
 #include <expected>
 

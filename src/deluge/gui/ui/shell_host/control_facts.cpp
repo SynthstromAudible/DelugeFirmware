@@ -1,6 +1,5 @@
 #include "gui/ui/shell_host/shell_host.h"
 
-#include "controls/facts.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
@@ -17,8 +16,9 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/ports/param_info.h"
+#include "ui/controls/facts.h"
+#include "ui/scenes/bind/knob_assignment.h"
+#include "ui/scenes/bind/ports/param_info.h"
 
 #include <optional>
 #include <span>
@@ -30,7 +30,7 @@ namespace {
 
 /// The knobs' reads, answered from the running app: params' live values, stutter, note tails, the playing outputs and
 /// the params' rows.
-class HostControlFacts final : public deluge::controls::Facts {
+class HostControlFacts final : public deluge::ui::controls::Facts {
 public:
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot,
 	                                     std::optional<deluge::project::ClipAddress> clip) const override;
@@ -48,14 +48,14 @@ public:
 	[[nodiscard]] bool alt_delay() const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	}
-	[[nodiscard]] std::span<const deluge::controls::PlayingOutput> playing_outputs() const override;
-	[[nodiscard]] std::span<const deluge::controls::KitRow> sound_rows(uint32_t clip_id) const override;
+	[[nodiscard]] std::span<const deluge::ui::controls::PlayingOutput> playing_outputs() const override;
+	[[nodiscard]] std::span<const deluge::ui::controls::KitRow> sound_rows(uint32_t clip_id) const override;
 	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId plugin,
 	                                                  const project::ParamTarget& target) const override {
-		return scenes::bind::deluge_param_info(plugin, target);
+		return deluge::ui::scenes::bind::deluge_param_info(plugin, target);
 	}
-	[[nodiscard]] deluge::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
-		return {.mode = static_cast<deluge::controls::TakeoverMode>(midiEngine.midiTakeover),
+	[[nodiscard]] deluge::ui::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return {.mode = static_cast<deluge::ui::controls::TakeoverMode>(midiEngine.midiTakeover),
 		        .cable_relative = cable_relative,
 		        .recording = playbackHandler.isEitherClockActive() && playbackHandler.recording != RecordingMode::OFF};
 	}
@@ -70,8 +70,8 @@ public:
 
 private:
 	/// What playing_outputs() and sound_rows() answer, rebuilt by each call.
-	mutable std::vector<deluge::controls::PlayingOutput> outputs_;
-	mutable std::vector<deluge::controls::KitRow> rows_;
+	mutable std::vector<deluge::ui::controls::PlayingOutput> outputs_;
+	mutable std::vector<deluge::ui::controls::KitRow> rows_;
 };
 
 bool HostControlFacts::allows_note_tails(deluge::project::SlotAddress slot,
@@ -99,7 +99,8 @@ bool HostControlFacts::allows_note_tails(deluge::project::SlotAddress slot,
 		}
 		clip = deluge::project::ClipAddress{active->id()};
 	}
-	const deluge::scenes::bind::KnobFocus focus{.owner = deluge::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
+	const deluge::ui::scenes::bind::KnobFocus focus{
+	    .owner = deluge::ui::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
 	ModelStackWithThreeMainThings* owner = deluge::bridge::knobOwnerStackAt(*currentSong, focus, memory);
 	return owner == nullptr || sound->allowNoteTails(owner->addSoundFlags());
 }
@@ -138,8 +139,8 @@ std::optional<int32_t> HostControlFacts::clip_param_value(const deluge::project:
 	           : stack->autoParam->getCurrentValue();
 }
 
-std::span<const deluge::controls::PlayingOutput> HostControlFacts::playing_outputs() const {
-	using Kind = deluge::controls::PlayingOutput::Kind;
+std::span<const deluge::ui::controls::PlayingOutput> HostControlFacts::playing_outputs() const {
+	using Kind = deluge::ui::controls::PlayingOutput::Kind;
 	outputs_.clear();
 	if (currentSong == nullptr) {
 		return outputs_;
@@ -173,7 +174,7 @@ std::span<const deluge::controls::PlayingOutput> HostControlFacts::playing_outpu
 	return outputs_;
 }
 
-std::span<const deluge::controls::KitRow> HostControlFacts::sound_rows(uint32_t clip_id) const {
+std::span<const deluge::ui::controls::KitRow> HostControlFacts::sound_rows(uint32_t clip_id) const {
 	rows_.clear();
 	const ::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip_id) : nullptr;
 	if (found == nullptr || found->type != ClipType::INSTRUMENT) {
@@ -190,7 +191,7 @@ std::span<const deluge::controls::KitRow> HostControlFacts::sound_rows(uint32_t 
 
 } // namespace
 
-const controls::Facts& control_facts() {
+const deluge::ui::controls::Facts& control_facts() {
 	static const HostControlFacts facts;
 	return facts;
 }

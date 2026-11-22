@@ -2,7 +2,7 @@ Self-test fixture (printf_c_bare_intrinsic_known): a REAL finding captured verba
 logs/run_4.log (2026-08-06 fresh run, cordae fixture) -- the one instance across all 5
 runs where the SUMMARY site is a bare, source-free runtime intercept ("in strlen", no
 file:line:col) instead of the real logDebug shared-buffer site. Proves the DEEP tag on
-races.txt's intrinsic src/lib/printf\.c entry (the old DEEP pattern) still classifies this class correctly:
+races.txt's intrinsic third_party/printf/printf\.c entry (the old DEEP pattern) still classifies this class correctly:
 the OTHER thread's stack (Previous write, thread T1) carries printf.c's _out_buffer /
 _out_rev / _ftoa / _vsnprintf / logDebug frames, which a SITE-only match on the bare
 "in strlen" summary would miss entirely. Expected verdict: known.
@@ -53,11 +53,11 @@ WARNING: ThreadSanitizer: data race (pid=1607880)
     #42 <std::sys::thread::unix::Thread>::new::thread_start /home/user/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:123:17 (deluge-rust+0x5affb4) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
 
   Previous write of size 1 at 0x5650090e4ac2 by thread T1:
-    #0 _out_buffer src/lib/printf.c:129:24 (deluge-rust+0xb16b68) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
-    #1 _out_rev src/lib/printf.c:199:3 (deluge-rust+0xb1865a) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
-    #2 _ftoa src/lib/printf.c:447:9 (deluge-rust+0xb179e9) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
-    #3 _vsnprintf src/lib/printf.c:779:10 (deluge-rust+0xb15fd6) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
-    #4 snprintf_ src/lib/printf.c:903:18 (deluge-rust+0xb16c68) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #0 _out_buffer third_party/printf/printf.c:129:24 (deluge-rust+0xb16b68) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #1 _out_rev third_party/printf/printf.c:199:3 (deluge-rust+0xb1865a) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #2 _ftoa third_party/printf/printf.c:447:9 (deluge-rust+0xb179e9) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #3 _vsnprintf third_party/printf/printf.c:779:10 (deluge-rust+0xb15fd6) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #4 snprintf_ third_party/printf/printf.c:903:18 (deluge-rust+0xb16c68) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #5 logDebug src/deluge/io/debug/log.cpp:43:3 (deluge-rust+0x84b972) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #6 AudioEngine::cullVoices(unsigned long, int, int) src/deluge/processing/engines/audio_engine.cpp:475:4 (deluge-rust+0xa13fbb) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #7 AudioEngine::setDireness(unsigned long) src/deluge/processing/engines/audio_engine.cpp:510:4 (deluge-rust+0xa14a8c) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)

@@ -18,7 +18,7 @@
 /// the specs share a process and cannot rely on the boot wiring having run.
 ///
 /// The one gap: `drain_notifications` (`notify_drain.cpp`)'s masked `UI_MODE_RECORD_COUNT_IN` clear has no port to
-/// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/scenes` may never
+/// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/ui/scenes` may never
 /// include (Global Constraint 3; see `count_in_scene.h`'s class doc). Counted here as uncovered,
 /// not silently assumed.
 ///
@@ -26,7 +26,7 @@
 ///
 /// The 48-row profile is compared whole-panel against the real `OLED` singleton, which is the only
 /// live oracle there is (`OLED_MAIN_HEIGHT_PIXELS` is a compile-time 48; there is no 64-row legacy
-/// singleton to ask). The widget this scene calls, `ui::oled::popup_text`, is already proven byte
+/// singleton to ask). The widget this scene calls, `ui::widgets::oled::popup_text`, is already proven byte
 /// for byte against a *height-parameterised* transcription of `OLED::popupText` at both 48 and 64
 /// rows in `tests/unit/ui/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
 /// example -- so the 64-row example here does not re-derive that; it instead confirms this scene
@@ -47,21 +47,21 @@
 /// between a sentinel change and the render it expects to see, exactly as
 /// `recorder_scene_spec.cpp`'s own quiet-tick examples advance by `kRecorderPollMs`.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/overlay/count_in_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/overlay/count_in_scene.h"
+#include "ui/scenes/registry.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/display/oled.h"
 #include "playback/playback_handler.h"
 #include "util/c_string.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -71,10 +71,10 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::overlay::count_in_scene;
-using deluge::scenes::overlay::kCountInPollMs;
-using deluge::scenes::overlay::kCountInSceneKind;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::overlay::count_in_scene;
+using deluge::ui::scenes::overlay::kCountInPollMs;
+using deluge::ui::scenes::overlay::kCountInSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::SceneId;
@@ -98,7 +98,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -140,7 +141,7 @@ struct Rig {
 /// @brief The 128x48 canvas `OLED::displayPopup`/`cancelPopup` would have left, as a PBM.
 ///
 /// Always 48 rows: `deluge::hid::display::OLED::popup` is a fixed `kDelugeOled` canvas
-/// (`kDelugeOled` in `gfx/oled/geometry.h`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
+/// (`kDelugeOled` in `ui/gfx/oled/geometry.h`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
 /// mode to compare against.
 std::string legacy_popup_pbm() {
 	return page_major_to_pbm(deluge::hid::display::OLED::popup.bytes().data(), 128, 48);
@@ -213,7 +214,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 	});
 
 	it("centres the same box content at both panel geometries, at the geometry-correct offset", _ {
-		// The widget itself (`ui::oled::popup_text`) is already proven byte for byte against a
+		// The widget itself (`ui::widgets::oled::popup_text`) is already proven byte for byte against a
 		// height-parameterised legacy transcription at both 48 and 64 rows
 		// (`tests/unit/ui/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
 		// not the widget's own arithmetic again.

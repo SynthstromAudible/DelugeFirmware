@@ -5,16 +5,16 @@
 ///        opened over, and the facts the spec and the menu oracle freezer both need to decide what to ask.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/profile.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/profile.h"
 
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
@@ -46,11 +46,11 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec::tables3 {
+namespace deluge::ui::scenes::spec::tables3 {
 
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 /// @brief Make the song, clip and UI mode those @p ctx is read over. A write leaves the model where it wrote, so every
 ///        comparison installs the fixture it reads.
@@ -399,4 +399,4 @@ inline std::string device_name(deluge::midi::DeviceId device) {
 	return std::string{menu::host_ports().midi->name(device)};
 }
 
-} // namespace deluge::scenes::spec::tables3
+} // namespace deluge::ui::scenes::spec::tables3

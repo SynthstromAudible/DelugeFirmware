@@ -21,7 +21,7 @@
 /// @brief The browser scene's host: the claims, imports, slices, deletions, MIDI definition loads, `.syx` reads and
 ///        previews `BrowserScene` asks for, performed with the legacy objects the scenes layer may not name.
 ///
-/// The browser hands each request to its `BrowserHost` (`scenes/browser/browser_scene.h`) when it decides, and
+/// The browser hands each request to its `BrowserHost` (`ui/scenes/browser/browser_scene.h`) when it decides, and
 /// `wireShellBrowserHost` installs this file's host there. `SampleBrowser::enterKeyPress`'s file arm requests a claim
 /// from `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
 /// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`: `gui/` and `hid/` symbols the scenes layer may not name
@@ -36,10 +36,10 @@
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
 /// **In `gui/ui/`** because performing a request is exactly the half that gets to name the symbols above. **Its own
-/// translation unit** because it names `deluge::scenes::browser::browser_scene()`, and so belongs to the
-/// `deluge_scenes` closure the host spec suite never builds (`tests/trees/host/CMakeLists.txt`). The host suite stubs
-/// the two functions the guest calls (`pollShellBrowserHost`, `deliverShellBrowserAnswers`) in
-/// `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`. This header names no `scenes/` type.
+/// translation unit** because it names `deluge::ui::scenes::browser::browser_scene()`, and so belongs to the
+/// `deluge_ui_scenes` closure the host spec suite never builds (`tests/trees/host/CMakeLists.txt`). The host suite
+/// stubs the two functions the guest calls (`pollShellBrowserHost`, `deliverShellBrowserAnswers`) in
+/// `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`. This header names no `ui/scenes/` type.
 
 #include "gui/ui/sound_target.h"
 
@@ -84,7 +84,7 @@ struct SampleClaimTarget {
 /// Declared here, not in the `.cpp`'s anonymous namespace, so a spec can drive the decision over
 /// every path shape without reaching the claim.
 ///
-/// @param path A `BrowserChoice::path` (`scenes/browser/browser_scene.h`).
+/// @param path A `BrowserChoice::path` (`ui/scenes/browser/browser_scene.h`).
 /// @return The directory and filename, or `std::nullopt` for an empty path or one whose last
 ///         separator is the last character -- neither of which names a file to claim.
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);

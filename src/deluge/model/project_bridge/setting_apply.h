@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "model/fx/effects_owner.h"
 #include "serialization/value.h"
 
@@ -64,7 +64,7 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 /// @param path  The setting's path.
 /// @param value The new value.
 /// @return The reshaped state, or nullopt for any other setting.
-[[nodiscard]] std::optional<deluge::instrument::SoundState>
+[[nodiscard]] std::optional<deluge::instruments::classic::SoundState>
 stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
 /// @brief Whether @p sound's runtime takes a setting at @p path in its current engine and oscillator types: not sample
@@ -84,7 +84,7 @@ stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::seri
 /// @param after  The state the record holds now.
 /// @param song   The song the sound plays in.
 /// @return The first refusal from taking the ranges or a DX7 patch, else Error::NONE.
-Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
-                  const deluge::instrument::SoundState& after, ::Song& song);
+Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState& before,
+                  const deluge::instruments::classic::SoundState& after, ::Song& song);
 
 } // namespace deluge::bridge

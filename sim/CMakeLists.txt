@@ -6,9 +6,9 @@
 # product, built into build/host-app). Nothing links here: the harnesses' build
 # scripts archive these objects.
 
-# 3.27: src/scenes/CMakeLists.txt (add_subdirectory'd below) links deluge_app via
+# 3.27: src/ui/scenes/CMakeLists.txt (added through src/ui) links deluge_app via
 # $<COMPILE_ONLY:...> to take its usage requirements without archiving its objects into
-# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+# libdeluge_ui_scenes.a -- that generator expression needs CMake >= 3.27.
 cmake_minimum_required(VERSION 3.27)
 
 # ---------------------------------------------------------------------------
@@ -78,6 +78,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
+# Vendored headers (<gsl/gsl>) come from third_party/, as system includes.
+include_directories(SYSTEM ${REPO_ROOT}/third_party)
 
 # ---------------------------------------------------------------------------
 # Target matrix. DELUGE_SIM_NEON_NATIVE: the SIMD backend is real NEON (<arm_neon.h> exists)
@@ -226,30 +228,24 @@ endif()
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
-add_subdirectory(${REPO_ROOT}/src/plugin-api/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
-add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
+add_subdirectory(${REPO_ROOT}/src/plugin/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
+add_subdirectory(${REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/base) # deluge_base
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
-add_subdirectory(${REPO_ROOT}/src/plugin-api ${CMAKE_BINARY_DIR}/plugin-api) # deluge_plugin_api
+add_subdirectory(${REPO_ROOT}/src/plugin ${CMAKE_BINARY_DIR}/plugin) # deluge_plugin
 add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects
-add_subdirectory(${REPO_ROOT}/src/instruments/deluge ${CMAKE_BINARY_DIR}/instruments-deluge) # deluge_instrument
-add_subdirectory(${REPO_ROOT}/src/effects/host_chain ${CMAKE_BINARY_DIR}/host-chain) # deluge_host_chain
-add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
-add_subdirectory(${REPO_ROOT}/src/sample-view ${CMAKE_BINARY_DIR}/sample-view) # deluge_sample_view
-add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
-add_subdirectory(${REPO_ROOT}/src/controls ${CMAKE_BINARY_DIR}/controls) # deluge_controls
+add_subdirectory(${REPO_ROOT}/src/instruments/classic ${CMAKE_BINARY_DIR}/instruments-classic) # deluge_instruments_classic
+add_subdirectory(${REPO_ROOT}/src/host/chains ${CMAKE_BINARY_DIR}/host-chains) # deluge_host_chains
+add_subdirectory(${REPO_ROOT}/src/music ${CMAKE_BINARY_DIR}/music) # deluge_music
+add_subdirectory(${REPO_ROOT}/src/project ${CMAKE_BINARY_DIR}/project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
-add_subdirectory(${REPO_ROOT}/src/gfx        ${CMAKE_BINARY_DIR}/gfx)        # deluge_gfx_oled / deluge_gfx_grid
-add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid
-add_subdirectory(${REPO_ROOT}/src/notify     ${CMAKE_BINARY_DIR}/notify)     # deluge_notify
-add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # deluge_ui_shell
-add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
+add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_*: see src/ui/CMakeLists.txt
+add_subdirectory(${REPO_ROOT}/src/app        ${CMAKE_BINARY_DIR}/app-ports)  # deluge_app_ports_waveforms
+add_subdirectory(${REPO_ROOT}/third_party/printf ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # deluge_synth
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
-# deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes after it.
-add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 add_subdirectory(${REPO_ROOT}/sim/scenes_spec ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_scenes_spec: the scenes' specs
 
 # The UI's level-3 scripts, the menu dump and the scenes' specs run as golden_vt_render scenarios (the ui-scripts,

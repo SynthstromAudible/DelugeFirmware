@@ -17,10 +17,7 @@
 
 #include "modulation/automation/working_copies.h"
 
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
-#include "foundation/function_ref.h"
+#include "base/function_ref.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -41,6 +38,9 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/staged_repeat.h"
 #include "processing/engines/audio_engine.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 
 #include <array>
 #include <atomic>
@@ -118,7 +118,7 @@ project::DocAutoParam* copyOf(const project::DocAutoParam& model, size_t room) {
 }
 
 /// Call @p visit with the stack of each param manager @p song plays: its own, each clip's and each note row's.
-void forEachOwner(Song& song, deluge::function_ref<void(ModelStackWithThreeMainThings&)> visit) {
+void forEachOwner(Song& song, deluge::base::function_ref<void(ModelStackWithThreeMainThings&)> visit) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	visit(*song.setupModelStackWithSongAsTimelineCounter(memory));
 	for (Clip* clip : AllClips::everywhere(&song)) {

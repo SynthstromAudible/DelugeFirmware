@@ -43,19 +43,19 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // getCurrentOutputType
 #include "processing/stem_export/stem_export.h"
-#include "scenes/menu/action.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
-#include "shell/scene.h" // SceneKind
 #include "storage/flash_storage.h"
+#include "ui/scenes/menu/action.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h" // SceneKind
 
 #include <optional>
 
 namespace deluge::gui::ui {
 
-using deluge::scenes::menu_scene;
-using deluge::scenes::menu::MenuAction;
-using deluge::scenes::menu::MenuActionRequest;
+using deluge::ui::scenes::menu_scene;
+using deluge::ui::scenes::menu::MenuAction;
+using deluge::ui::scenes::menu::MenuActionRequest;
 using deluge::ui::shell::SceneKind;
 
 namespace {
@@ -72,7 +72,7 @@ namespace {
 /// **It returns, doing nothing** -- and the reason is that legacy's `DISABLED` arm has no meaning on this side of the
 /// seam. `EditingMode::selectButtonPress`
 /// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) answers it with `return nullptr`,
-/// which is `SelectChainFn`'s "go up a level" (`scenes/menu/node.h`): a *navigation* answer to the select press. The
+/// which is `SelectChainFn`'s "go up a level" (`ui/scenes/menu/node.h`): a *navigation* answer to the select press. The
 /// dispatcher runs after `MenuScene::after_render` has finished with that press, so there is no navigation left for it
 /// to ask for.
 ///
@@ -351,8 +351,8 @@ void performMenuAction(const MenuActionRequest& req) {
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
-		// `scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
-		// (`scenes/menu/context.cpp`, reached because `ClipType` has
+		// `ui/scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
+		// (`ui/scenes/menu/context.cpp`, reached because `ClipType` has
 		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openMenu` is the
 		// one opener (`openMenu`). The gap both
 		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
@@ -394,7 +394,7 @@ void saveSettingsBeforeClose() {
 	// main's `SoundEditor::inSettingsMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) reads the navigation
 	// record's root; the menu's is its context's, which outlives the stack on both close paths
 	// (`exitNoteModeBeforeClose`'s note).
-	if (deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings) {
+	if (deluge::ui::scenes::menu_scene().menu_context().root != deluge::ui::scenes::menu::MenuContext::Root::Settings) {
 		return;
 	}
 	uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
@@ -409,12 +409,12 @@ void saveSettingsBeforeClose() {
 void pushShellHighlighting() {
 	const MenuHighlighting stored = FlashStorage::accessibilityMenuHighlighting;
 	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts = stored != MenuHighlighting::NO_INVERSION;
-	deluge::ui::Highlighting h = deluge::ui::Highlighting::PartialInversion;
+	deluge::ui::widgets::core::Highlighting h = deluge::ui::widgets::core::Highlighting::PartialInversion;
 	if (stored == MenuHighlighting::FULL_INVERSION) {
-		h = deluge::ui::Highlighting::FullInversion;
+		h = deluge::ui::widgets::core::Highlighting::FullInversion;
 	}
 	else if (stored == MenuHighlighting::NO_INVERSION) {
-		h = deluge::ui::Highlighting::NoInversion;
+		h = deluge::ui::widgets::core::Highlighting::NoInversion;
 	}
 	shellHostUI.shell().set_highlighting(h);
 }

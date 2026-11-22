@@ -4,7 +4,6 @@
 ///        binding the table holds is written even when the engine has lost it, and one it does not hold is not. An
 ///        owner the song does not hold writes the knobs it holds outside any table, if any.
 
-#include "deluge-project/mapping_table.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/clip.h"
@@ -15,6 +14,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "serialization/value.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
@@ -29,7 +29,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ClipMuteTarget;

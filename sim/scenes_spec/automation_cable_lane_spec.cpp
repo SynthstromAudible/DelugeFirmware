@@ -9,13 +9,13 @@
 /// Runs over the real `automationView` and a fresh synth (`spec::make_synth_song`), whose default patching has neither
 /// cable.
 
-#include "gfx/grid/palette.h"
 #include "gui/ui/ui.h" // currentUIMode, UI_MODE_NONE
 #include "gui/views/automation_view.h"
 #include "model/clip/instrument_clip.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "synth/modulation/cable.h"
+#include "ui/gfx/grid/palette.h"
 
 #include "support/printers/rgb_printer.h"
 #include "support/song_fixture.h"
@@ -28,7 +28,7 @@
 #include <cstring>
 
 namespace params = deluge::modulation::params;
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace colours = deluge::gui::colours;
 using deluge::synth::CableTarget;
 

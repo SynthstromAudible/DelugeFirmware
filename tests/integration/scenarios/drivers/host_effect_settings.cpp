@@ -7,7 +7,6 @@
 // Prints `HOST-EFFECTS OK=<n> FAIL=<n>` and each failure as `HOST-EFFECTS-FAIL <song> <owner> <path> <value>: <why>`.
 // Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails.
 
-#include "deluge-project/fx_chain.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
 #include "memory/general_memory_allocator.h"
@@ -25,6 +24,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/audio_output.h"
+#include "project/fx_chain.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"

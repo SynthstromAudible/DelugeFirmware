@@ -4,7 +4,6 @@
 // record, a turn while recording records automation, and an address naming nothing is refused. Their undo steps are
 // edit-substrate's (an Action opens only with a UI on the hierarchy).
 
-#include "deluge-project/param_address.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/delete_param_automation.h"
@@ -27,6 +26,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 
@@ -36,7 +36,7 @@
 
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;

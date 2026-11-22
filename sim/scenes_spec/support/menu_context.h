@@ -3,16 +3,16 @@
 /// @file
 /// @brief `ctx_of`: the menu's context over a spec's legacy song, bound as the app binds one.
 
-#include "scenes/bind/ports/ports.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/ports.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "model/song/song.h"
 
 #include <cstdint>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief `menu::context_for` over @p song's record, with the app's ports when the app plays @p song (it is
 ///        `currentSong`) and the app's device port alone otherwise -- the binding the app's own callers make.
@@ -35,4 +35,4 @@ namespace deluge::scenes::spec {
 	                         session_view_root, kit_global_fx);
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

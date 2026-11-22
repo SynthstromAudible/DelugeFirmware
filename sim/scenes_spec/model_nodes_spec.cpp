@@ -4,31 +4,31 @@
 // descriptor's, and a voice priority or pitch/speed menu edits an audio clip's own row there.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/sound_bend.h"
-#include "scenes/menu/nodes/sound_fx.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/menu/nodes/sound_voice.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/sound_bend.h"
+#include "ui/scenes/menu/nodes/sound_fx.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/menu/nodes/sound_voice.h"
 
-#include "deluge-project/setting_group.h"
+#include "base/notify/dirty_set.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -37,11 +37,11 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 namespace {
 
@@ -223,9 +223,9 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 	it("repaints the grid when an audio clip's reverse changes", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const MenuContext ctx = at(*f.song, f.clip);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::audio_clip_reverse, ctx, 1);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::GridMain)).to_be_true();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::GridMain)).to_be_true();
 	});
 
 	it("edits a synth's voice priority on its sound, and an audio clip's on the clip", _ {
@@ -233,7 +233,7 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		const MenuContext on_synth = at(*synth.song, synth.clip);
 		expect(bind::setting_address(nodes::voice_priority.bind.target, on_synth.addresses).has_value()).to_be_false();
 		menu::bindings::write(nodes::voice_priority, on_synth, 2);
-		expect(static_cast<int>(deluge::instrument::voicing(
+		expect(static_cast<int>(deluge::instruments::classic::voicing(
 		                            static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument))->state())
 		                            .priority))
 		    .to_equal(2);

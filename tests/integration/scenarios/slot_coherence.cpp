@@ -20,12 +20,11 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
 
-#include "deluge-project/instrument_slot.h"
 #include "effects/codec.h"
 #include "effects/plugin.h"
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/state_access.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -38,6 +37,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/instrument_slot.h"
 #include "serialization/tree.h"
 
 #include <cstdio>
@@ -52,12 +52,14 @@ using deluge::serialization::Value;
 /// @p record with what @p sound's runtime still holds of it in its place: each oscillator's type, DX7 patch and
 /// ranges, and the effects the render plays. The rest the sound plays through its config, which the snapshot check
 /// holds to the record; its routing's runtime copies the song-settings check holds to the routing's record.
-deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
-	deluge::instrument::sound_effects(record) = sound.renderEffects();
+deluge::instruments::classic::SoundState heldBy(const ::Sound& sound, deluge::instruments::classic::SoundState record) {
+	deluge::instruments::classic::sound_effects(record) = sound.renderEffects();
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch());
-		record = deluge::instrument::with_ranges(std::move(record), id, sound.sourceResources[s].heldRanges());
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		record =
+		    deluge::instruments::classic::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch());
+		record =
+		    deluge::instruments::classic::with_ranges(std::move(record), id, sound.sourceResources[s].heldRanges());
 	}
 	return record;
 }
@@ -129,28 +131,28 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 	if (!address) {
 		return {};
 	}
-	const deluge::instrument::SoundState& record = sound.state();
+	const deluge::instruments::classic::SoundState& record = sound.state();
 	const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
 	if (slot == nullptr) {
 		return "slot missing";
 	}
 	if (checks.runtime) {
-		const deluge::instrument::SoundState held = heldBy(sound, record);
-		const std::string d = deluge::serialization::first_difference(deluge::instrument::dump_state(held),
-		                                                              deluge::instrument::dump_state(record));
+		const deluge::instruments::classic::SoundState held = heldBy(sound, record);
+		const std::string d = deluge::serialization::first_difference(deluge::instruments::classic::dump_state(held),
+		                                                              deluge::instruments::classic::dump_state(record));
 		if (!d.empty()) {
 			return "runtime at " + d;
 		}
-		if (const deluge::effects::EffectStates& played = deluge::instrument::sound_effects(held);
-		    !(played == deluge::instrument::sound_effects(record))) {
+		if (const deluge::effects::EffectStates& played = deluge::instruments::classic::sound_effects(held);
+		    !(played == deluge::instruments::classic::sound_effects(record))) {
 			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
 			       + deluge::serialization::first_difference(
 			           deluge::effects::encode(played, context),
-			           deluge::effects::encode(deluge::instrument::sound_effects(record), context));
+			           deluge::effects::encode(deluge::instruments::classic::sound_effects(record), context));
 		}
 	}
-	if (checks.bound && slot->state.as<deluge::instrument::DelugeSynth>() != &record) {
+	if (checks.bound && slot->state.as<deluge::instruments::classic::DelugeSynth>() != &record) {
 		return "bound: the sound plays a copy of its slot's state";
 	}
 	if (checks.controls) {
@@ -166,18 +168,18 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 	}
 	if (checks.decode) {
 		const deluge::plugin::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
-		const auto decoded =
-		    deluge::instrument::decode_onto(deluge::instrument::encode(record, context), record, context);
+		const auto decoded = deluge::instruments::classic::decode_onto(
+		    deluge::instruments::classic::encode(record, context), record, context);
 		if (!decoded) {
 			return "decode refused";
 		}
-		if (!(deluge::instrument::SoundState(*decoded) == record)) {
+		if (!(deluge::instruments::classic::SoundState(*decoded) == record)) {
 			return "decode at "
-			       + deluge::serialization::first_difference(deluge::instrument::dump_state(*decoded),
-			                                                 deluge::instrument::dump_state(record));
+			       + deluge::serialization::first_difference(deluge::instruments::classic::dump_state(*decoded),
+			                                                 deluge::instruments::classic::dump_state(record));
 		}
 	}
-	if (checks.snapshot && !(sound.config() == deluge::instrument::DelugeSynth::derive(record))) {
+	if (checks.snapshot && !(sound.config() == deluge::instruments::classic::DelugeSynth::derive(record))) {
 		return "config"; // the sound plays what its record derives
 	}
 	return {};

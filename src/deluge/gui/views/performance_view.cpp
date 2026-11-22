@@ -17,7 +17,6 @@
 
 #include "gui/views/performance_view.h"
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/params.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
@@ -34,6 +33,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "host/chains/params.h"
 #include "io/file.hpp"
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
@@ -68,7 +68,7 @@ namespace {
 
 /// Are the gold knobs on the song, which the performance view's columns act on?
 bool knobsOnSong() {
-	return std::holds_alternative<deluge::controls::SongFocus>(view.knobFocus().owner);
+	return std::holds_alternative<deluge::ui::controls::SongFocus>(view.knobFocus().owner);
 }
 
 /// @p paramID of @p kind's name, as the song's filter modes name it.
@@ -118,7 +118,7 @@ params::Kind kindOf(const std::optional<deluge::plugin::ParamId>& param) {
 
 /// The runtime index of a performance param in a global effectable's unpatched set, or kNoParamID.
 int32_t indexOf(const std::optional<deluge::plugin::ParamId>& param) {
-	return param ? static_cast<int32_t>(*deluge::host_chain::find_runtime_index(*param))
+	return param ? static_cast<int32_t>(*deluge::host::chains::find_runtime_index(*param))
 	             : static_cast<int32_t>(kNoParamID);
 }
 
@@ -132,7 +132,7 @@ std::optional<deluge::plugin::ParamId> paramOf(params::Kind kind, int32_t index)
 } // namespace
 
 // list of parameters available for assignment to FX columns in performance view
-namespace gp = deluge::host_chain::param;
+namespace gp = deluge::host::chains::param;
 constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
     {gp::kLpfFrequency, 8, 7, colours::red, colours::red.forTail()},
     {gp::kLpfResonance, 8, 6, colours::red, colours::red.forTail()},
@@ -180,7 +180,7 @@ constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerfor
 // clang-format off
 constexpr std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>
     kPerformanceShortcuts = [] {
-	namespace gp = deluge::host_chain::param;
+	namespace gp = deluge::host::chains::param;
 	return std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>{{
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
@@ -855,7 +855,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 				// `PerformanceView`, which is exactly `setup()`'s
 				// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
 				// (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
-				// `context_for`'s `performance_view` (`scenes/menu/context.cpp`).
+				// `context_for`'s `performance_view` (`ui/scenes/menu/context.cpp`).
 				(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
 				                                /*performanceView=*/true,
 				                                /*sessionOrArrangerRoot=*/false,

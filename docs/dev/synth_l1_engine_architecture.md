@@ -10,7 +10,7 @@ two tiers, in the synth library:
   decides how the two slots relate.
 
 Engines are loaded by the Deluge instrument, never by the host: what the host loads is a plugin
-(`src/plugin-api/`). The CLAP boundary stays at the instrument (L3); this tier is a lean native C++ interface.
+(`src/plugin/`). The CLAP boundary stays at the instrument (L3); this tier is a lean native C++ interface.
 
 ## The tiers
 
@@ -91,7 +91,7 @@ the voice config and per-voice block, the noise stream, and one control struct p
 ## Component states
 
 Beside each contract sits the state its component saves: plain value types the instrument's record
-(`instrument::SoundState`) composes, so what a file writes is exactly what the components hold.
+(`instruments::classic::SoundState`) composes, so what a file writes is exactly what the components hold.
 
 - `src/synth/sources/source_state.h`: `Tuning`, `Pitch` (a tuning and an optional retrigger phase), and one state per
   source kind (`VaState`, `WavetableState`, `SampleState`, `Dx7State`, `InputState`) in the `SlotState` variant.

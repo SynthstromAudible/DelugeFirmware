@@ -56,7 +56,7 @@ Both are STATIC libs mirroring the existing `deluge_dsp` target (unity build,
 host-sim link whichever primitives have migrated. Targets: `deluge_dsp_fixed`,
 `deluge_dsp_float` (output names `libdeluge-dsp-fixed`, `libdeluge-dsp-float`).
 Follows the repo's existing multi-lib pattern (`deluge_midi`,
-`deluge_foundation`).
+`deluge_base`).
 
 ## Idioms enforced in `dsp-next` (the migration's core focus)
 

@@ -1,8 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
@@ -12,6 +10,8 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/project_bridge/midi_command.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
 
 #include <cstddef>
 #include <optional>
@@ -23,11 +23,11 @@
 namespace deluge::gui::shell_host {
 namespace {
 
+using deluge::ui::scenes::bind::LearnedBinding;
+using deluge::ui::scenes::bind::MidiDeviceSettings;
+using deluge::ui::scenes::bind::MidiDirection;
 using project::FollowInput;
 using project::GlobalCommand;
-using scenes::bind::LearnedBinding;
-using scenes::bind::MidiDeviceSettings;
-using scenes::bind::MidiDirection;
 
 // The ports' own indices, which `MidiDeviceSettings::zones` is ordered by.
 static_assert(std::to_underlying(MidiDirection::IN) == MIDI_DIRECTION_INPUT_TO_DELUGE);
@@ -72,7 +72,7 @@ LearnedBinding binding_of(const ::LearnedMIDI& learned) {
 }
 
 /// The MIDI devices: the cables `MIDIDeviceManager` keeps, by their session handles.
-class HostMidiDevices final : public scenes::bind::MidiDevices {
+class HostMidiDevices final : public deluge::ui::scenes::bind::MidiDevices {
 public:
 	[[nodiscard]] std::span<const midi::DeviceId> connected() const override {
 		// `Devices::getCable` and `Devices::drawPixelsForOled`
@@ -153,8 +153,8 @@ public:
 		}
 		MIDIDeviceManager::anyChangesToSave = true;
 		const auto out = static_cast<size_t>(std::to_underlying(MidiDirection::OUT));
-		const scenes::bind::MpeZones& now = settings.zones[out];
-		const scenes::bind::MpeZones& before = was.zones[out];
+		const deluge::ui::scenes::bind::MpeZones& now = settings.zones[out];
+		const deluge::ui::scenes::bind::MpeZones& before = was.zones[out];
 		if (now.lower_last_member != before.lower_last_member) {
 			cable->sendRPN(0, 0, 6, now.lower_last_member);
 		}
@@ -203,7 +203,7 @@ private:
 
 } // namespace
 
-scenes::bind::MidiDevices& midi_devices() {
+deluge::ui::scenes::bind::MidiDevices& midi_devices() {
 	static HostMidiDevices devices;
 	return devices;
 }

@@ -33,7 +33,7 @@
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"

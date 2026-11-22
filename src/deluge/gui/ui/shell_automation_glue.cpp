@@ -41,34 +41,34 @@
 #include "processing/engines/audio_engine.h"
 #include "synth/modulation/cable.h"
 
-#include "scenes/browser/browser_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/transition.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/transition.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 
 namespace deluge::gui::ui {
 namespace {
 
 namespace params = deluge::modulation::params;
-using deluge::scenes::menu::AutomationParam;
-using deluge::scenes::menu::MenuTransition;
-using deluge::scenes::menu::Node;
-using deluge::scenes::menu::TransitionCause;
+using deluge::ui::scenes::menu::AutomationParam;
+using deluge::ui::scenes::menu::MenuTransition;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::menu::TransitionCause;
 
 /// The automation view's identity of the param @p node edits, if it edits one.
 std::optional<AutomationParam> paramOf(const Node* node) {
 	if (node == nullptr) {
 		return std::nullopt;
 	}
-	const auto& scene = deluge::scenes::menu_scene();
-	return deluge::scenes::menu::automation_param(*node, scene.menu_context(), scene.state());
+	const auto& scene = deluge::ui::scenes::menu_scene();
+	return deluge::ui::scenes::menu::automation_param(*node, scene.menu_context(), scene.state());
 }
 
 /// Whether the menu is what takes the guest's input (not a scene it opened over itself).
 bool menuTakesInput() {
-	return &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
+	return &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
 }
 
 /// Whether `Automation::buttonAction` acts at all: over a clip minder, or the arranger. @p clipMinder is set to which.
@@ -205,7 +205,7 @@ void keyboardFromAutomationView(Clip& clip) {
 } // namespace
 
 void dispatchMenuTransitions() {
-	const std::optional<MenuTransition> t = deluge::scenes::menu_scene().take_transition();
+	const std::optional<MenuTransition> t = deluge::ui::scenes::menu_scene().take_transition();
 	if (!t) {
 		return;
 	}
@@ -223,7 +223,7 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool 
 	}
 	// CLIP and X_ENC are the param item's own (`Automation::buttonAction`); on a horizontal page, its focused column's.
 	bool clipMinder = false;
-	const std::optional<AutomationParam> param = deluge::scenes::menu_scene().focused_automation_param();
+	const std::optional<AutomationParam> param = deluge::ui::scenes::menu_scene().focused_automation_param();
 	if (!param || !automationButtonsAct(clipMinder)) {
 		return std::nullopt;
 	}
@@ -309,12 +309,12 @@ bool automationEditorTakesKnobs() {
 
 void forwardAutomationGoldTurn(int32_t whichModEncoder, int32_t offset) {
 	automationView.modEncoderAction(whichModEncoder, offset);
-	deluge::scenes::menu_scene().read_value_again();
+	deluge::ui::scenes::menu_scene().read_value_again();
 }
 
 void forwardAutomationGoldPush(uint8_t whichModEncoder, bool on) {
 	automationView.modEncoderButtonAction(whichModEncoder, on);
-	deluge::scenes::menu_scene().read_value_again();
+	deluge::ui::scenes::menu_scene().read_value_again();
 }
 
 bool forwardAutomationSelectTurn(int8_t offset) {
@@ -324,7 +324,7 @@ bool forwardAutomationSelectTurn(int8_t offset) {
 	}
 	const int32_t scaled = Buttons::isButtonPressed(deluge::hid::button::SHIFT) ? offset * 5 : offset;
 	automationView.modEncoderAction(0, scaled);
-	deluge::scenes::menu_scene().read_value_again();
+	deluge::ui::scenes::menu_scene().read_value_again();
 	return true;
 }
 
@@ -337,8 +337,8 @@ std::optional<ActionResult> forwardMenuHorizontal(int32_t offset, uint32_t now_m
 	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
 		return keyboardScreen.horizontalEncoderAction(offset);
 	}
-	using HorizontalTurn = deluge::scenes::menu::MenuScene::HorizontalTurn;
-	const HorizontalTurn route = deluge::scenes::menu_scene().route_horizontal_turn(
+	using HorizontalTurn = deluge::ui::scenes::menu::MenuScene::HorizontalTurn;
+	const HorizontalTurn route = deluge::ui::scenes::menu_scene().route_horizontal_turn(
 	    offset, Buttons::isButtonPressed(deluge::hid::button::X_ENC), now_ms);
 	if (route == HorizontalTurn::Menu) {
 		return std::nullopt;
@@ -366,21 +366,21 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset) {
 }
 
 bool browserTakesRecord() {
-	const deluge::scenes::browser::BrowserScene& browser = deluge::scenes::browser::browser_scene();
+	const deluge::ui::scenes::browser::BrowserScene& browser = deluge::ui::scenes::browser::browser_scene();
 	return &shellHostUI.shell().stack().input_top() == &browser
-	       && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample
+	       && browser.browser_id() == deluge::ui::scenes::browser::BrowserId::Sample
 	       && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE && getCurrentClip() != nullptr
 	       && getCurrentClip()->type != ClipType::AUDIO;
 }
 
 bool recorderTakesRecord(bool on) {
-	const deluge::scenes::recorder::RecorderScene& recorder = deluge::scenes::recorder::recorder_scene();
+	const deluge::ui::scenes::recorder::RecorderScene& recorder = deluge::ui::scenes::recorder::recorder_scene();
 	return on && &shellHostUI.shell().stack().input_top() == &recorder && recorder.recording();
 }
 
 bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
 	return !on && b == deluge::hid::button::SYNC_SCALING && currentSong != nullptr && currentSong->isFillModeActive()
-	       && &shellHostUI.shell().stack().input_top() == &deluge::scenes::recorder::recorder_scene();
+	       && &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::recorder::recorder_scene();
 }
 
 ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
@@ -388,9 +388,9 @@ ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
 }
 
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
-	const deluge::scenes::browser::BrowserScene& browser = deluge::scenes::browser::browser_scene();
+	const deluge::ui::scenes::browser::BrowserScene& browser = deluge::ui::scenes::browser::browser_scene();
 	if (&shellHostUI.shell().stack().input_top() != &browser
-	    || browser.browser_id() != deluge::scenes::browser::BrowserId::Sample || Buttons::isShiftButtonPressed()
+	    || browser.browser_id() != deluge::ui::scenes::browser::BrowserId::Sample || Buttons::isShiftButtonPressed()
 	    || getRootUI() != &instrumentClipView) {
 		return std::nullopt;
 	}
@@ -401,7 +401,7 @@ std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
 }
 
 std::optional<ActionResult> forwardMarkerVertical(int32_t offset) {
-	if (&shellHostUI.shell().stack().input_top() != &deluge::scenes::marker::marker_scene()) {
+	if (&shellHostUI.shell().stack().input_top() != &deluge::ui::scenes::marker::marker_scene()) {
 		return std::nullopt;
 	}
 	const Clip* clip = getCurrentClip();

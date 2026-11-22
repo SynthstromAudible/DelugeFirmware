@@ -1,6 +1,7 @@
 # The include layers: the directories under src/, what each library may include, and the include rules whose
 # counts scripts/layers_baseline.txt holds. scripts/check_layers.py checks the tree against it, and
-# docs/dev/code_layout_north_star.md is the layout it moves towards: each directory's target is its place there.
+# docs/dev/code_layout_north_star.md is the layout it moves towards: a directory with a `target` is not yet at its
+# place in it.
 
 [tree]
 # The roots the build searches for a quoted include, in the build's order: the legacy tree comes before src/.
@@ -29,95 +30,67 @@ path = "bsp"
 target = "src/platform/device"
 
 [[directory]]
-path = "controls"
-target = "src/ui/controls"
-
-[[directory]]
 path = "deluge"
 target = "legacy: shrinks to zero by rewrite, then is deleted"
 
 [[directory]]
-path = "deluge-project"
-target = "src/project"
+path = "project"
 
 [[directory]]
 path = "effects"
-target = "src/effects"
 
 [[directory]]
-path = "foundation"
-target = "src/base"
+path = "app"
 
 [[directory]]
-path = "gfx"
-target = "src/ui/gfx"
+path = "base"
 
 [[directory]]
-path = "gsl"
-target = "third_party/gsl"
+path = "host"
 
 [[directory]]
 path = "instruments"
-target = "src/instruments"
-
-[[directory]]
-path = "lib"
-target = "third_party/printf"
 
 [[directory]]
 path = "midi"
-target = "src/midi"
 
 [[directory]]
-path = "music-theory"
-target = "src/music"
+path = "music"
 
 [[directory]]
-path = "notify"
-target = "src/base/notify"
-
-[[directory]]
-path = "plugin-api"
-target = "src/plugin"
-
-[[directory]]
-path = "sample-view"
-target = "divide.h to src/base, peaks.h and view.h to src/ui/views/waveform, peak_cache.h to src/app/ports/waveforms"
-
-[[directory]]
-path = "scenes"
-target = "src/ui/scenes"
+path = "plugin"
 
 [[directory]]
 path = "serialization"
-target = "src/serialization"
-
-[[directory]]
-path = "shell"
-target = "src/ui/shell"
 
 [[directory]]
 path = "synth"
-target = "src/synth"
 
 [[directory]]
 path = "ui"
-target = "src/ui/widgets"
 
 # Libraries: each may include only the C++ standard library, its system headers, itself and its may_include.
 
+# The bottom of the stack: the standard library, the C headers the C files use and the board's clock constant only.
 [[library]]
-name = "plugin-types"
-root = "src/plugin-api/types"
-prefix = "plugin-api/types/"
+name = "base"
+root = "src/base"
+prefix = "base/"
+may_include = ["board_config.h"]
+system = ["stdbool.h", "stdint.h", "string.h"]
 
 [[library]]
-name = "plugin-api"
-root = "src/plugin-api"
-prefix = "plugin-api/"
+name = "plugin-types"
+root = "src/plugin/types"
+prefix = "plugin/types/"
+
+[[library]]
+name = "plugin"
+root = "src/plugin"
+prefix = "plugin/"
 may_include = [
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
@@ -125,21 +98,22 @@ name = "effects"
 root = "src/effects"
 prefix = "effects/"
 may_include = [
-    "plugin-api/",
+    "plugin/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
     "dsp-next/",
 ]
 
 [[library]]
-name = "instrument"
-root = "src/instruments/deluge"
-prefix = "instruments/deluge/"
+name = "instruments-classic"
+root = "src/instruments/classic"
+prefix = "instruments/classic/"
 may_include = [
-    "plugin-api/",
+    "plugin/",
     "effects/",
+    "host/chains/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
     "synth/modulation/patch_source.h",
     "synth/modulation/cable.h",
     # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
@@ -160,15 +134,15 @@ may_include = [
 ]
 
 [[library]]
-name = "host-chain"
-root = "src/effects/host_chain"
-prefix = "effects/host_chain/"
+name = "host-chains"
+root = "src/host/chains"
+prefix = "host/chains/"
 may_include = [
-    "plugin-api/types/",
-    # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state it
-    # publishes
-    "plugin-api/remote_controls_publisher.h",
-    "plugin-api/state_handle.h",
+    "plugin/types/",
+    # the library publishes the chains' remote-controls pages, so it reads the plugin contract's publisher and state
+    # handle and the effect state it publishes
+    "plugin/remote_controls_publisher.h",
+    "plugin/state_handle.h",
     "effects/plugin.h",
     "effects/words.h",
     "effects/setting_params.h",
@@ -182,67 +156,79 @@ name = "serialization"
 root = "src/serialization"
 prefix = "serialization/"
 may_include = [
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
-name = "music-theory"
-root = "src/music-theory"
-prefix = "music-theory/"
+name = "music"
+root = "src/music"
+prefix = "music/"
 may_include = [
     # the sync words a note length is named from (header-only vocabulary)
-    "plugin-api/types/sync.h",
-    "plugin-api/types/display_mapping.h",
-    "foundation/panic.h",
+    "plugin/types/sync.h",
+    "plugin/types/display_mapping.h",
+    "base/panic.h",
 ]
 
 [[library]]
-name = "sample-view"
-root = "src/sample-view"
-prefix = "sample-view/"
+name = "ui-views-waveform"
+root = "src/ui/views/waveform"
+prefix = "ui/views/waveform/"
+may_include = [
+    "base/divide.h",
+]
 
 [[library]]
-name = "model"
-root = "src/deluge-project"
-prefix = "deluge-project/"
+name = "app-ports-waveforms"
+root = "src/app/ports/waveforms"
+prefix = "app/ports/waveforms/"
 may_include = [
-    "plugin-api/types/",
+    "base/divide.h",
+    "ui/views/waveform/peaks.h",
+]
+
+[[library]]
+name = "project"
+root = "src/project"
+prefix = "project/"
+may_include = [
+    "plugin/types/",
     # an engine's state, held without naming its type (a record owns its instrument's state)
-    "plugin-api/state_handle.h",
-    "plugin-api/plugin.h",
+    "plugin/state_handle.h",
+    "plugin/plugin.h",
     "serialization/",
-    "music-theory/",
-    "foundation/panic.h",
+    "music/",
+    "base/panic.h",
 ]
 
 [[library]]
-name = "controls"
-root = "src/controls"
-prefix = "controls/"
+name = "ui-controls"
+root = "src/ui/controls"
+prefix = "ui/controls/"
 may_include = [
-    "deluge-project/",
-    "plugin-api/",
+    "project/",
+    "plugin/",
     "serialization/",
-    "foundation/panic.h",
+    "base/panic.h",
 ]
 
 [[library]]
-name = "scenes-bind"
-root = "src/scenes/bind"
-prefix = "scenes/bind/"
+name = "ui-scenes-bind"
+root = "src/ui/scenes/bind"
+prefix = "ui/scenes/bind/"
 may_include = [
-    "deluge-project/",
-    "controls/",
-    "plugin-api/",
-    "instruments/deluge/",
+    "project/",
+    "ui/controls/",
+    "plugin/",
+    "instruments/classic/",
     "effects/",
-    "effects/host_chain/",
+    "host/chains/",
     "serialization/",
     "midi/device_id.h",
-    "music-theory/",
+    "music/",
     # a waveform's columns and peaks, the Waveforms port's vocabulary (header-only)
-    "sample-view/peaks.h",
-    "foundation/panic.h",
+    "ui/views/waveform/peaks.h",
+    "base/panic.h",
     "gui/l10n/setting_names.h",
     "gui/l10n/strings.h",
 ]
@@ -250,22 +236,22 @@ may_include = [
 # The drawing primitives: geometry, dimensions and style arrive as values, and oled and grid never include each
 # other.
 [[library]]
-name = "gfx"
-root = "src/gfx"
-prefix = "gfx/"
+name = "ui-gfx"
+root = "src/ui/gfx"
+prefix = "ui/gfx/"
 
 [[library]]
-name = "gfx-oled"
-root = "src/gfx/oled"
-prefix = "gfx/oled/"
-may_include = ["gfx/contract.h"]
+name = "ui-gfx-oled"
+root = "src/ui/gfx/oled"
+prefix = "ui/gfx/oled/"
+may_include = ["ui/gfx/contract.h"]
 system = ["stdint.h"]
 
 [[library]]
-name = "gfx-grid"
-root = "src/gfx/grid"
-prefix = "gfx/grid/"
-may_include = ["gfx/contract.h"]
+name = "ui-gfx-grid"
+root = "src/ui/gfx/grid"
+prefix = "ui/gfx/grid/"
+may_include = ["ui/gfx/contract.h"]
 
 # Rules: a forbidden include pattern, counted per file. A count above its baseline row (zero when there is none)
 # fails.
@@ -295,7 +281,7 @@ exclude = [
     "src/deluge/gui/ui/shell_guest_knobs.h",
     "src/deluge/gui/ui/shell_host/*",
 ]
-pattern = '^(scenes/|shell/)'
+pattern = '^(ui/scenes/|ui/shell/)'
 reason = "the legacy tree reaches the scenes and the shell only through the host files that wire them"
 
 [[rule]]
@@ -306,77 +292,77 @@ reason = "the model and the engine raise notifications; they do not include the 
 
 [[rule]]
 name = "notify-is-leaf"
-files = ["src/notify/**"]
-pattern = '^(?!notify/).*/'
+files = ["src/base/notify/**"]
+pattern = '^(?!base/notify/).*/'
 reason = "the notification channel includes only itself and the standard library"
 
 [[rule]]
 name = "ui-includes-outside"
-files = ["src/ui/**"]
-pattern = '^(?!ui/|gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+files = ["src/ui/widgets/**"]
+pattern = '^(?!ui/widgets/|ui/gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
 [[rule]]
 name = "ui-oled-no-grid"
-files = ["src/ui/oled/**"]
-pattern = '^ui/grid/'
+files = ["src/ui/widgets/oled/**"]
+pattern = '^ui/widgets/grid/'
 reason = "the OLED widgets and the pad components never include each other"
 
 [[rule]]
 name = "ui-grid-no-oled"
-files = ["src/ui/grid/**"]
-pattern = '^ui/oled/'
+files = ["src/ui/widgets/grid/**"]
+pattern = '^ui/widgets/oled/'
 reason = "the OLED widgets and the pad components never include each other"
 
 [[rule]]
 name = "shell-includes-outside"
-files = ["src/shell/**"]
-pattern = '^(?!shell/|ui/|gfx/|notify/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+files = ["src/ui/shell/**"]
+pattern = '^(?!ui/shell/|ui/widgets/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi ids and libdeluge"
 
 [[rule]]
 name = "scenes-includes-outside"
-files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
+files = ["src/ui/scenes/**"]
+pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|music/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]
 name = "scenes-model-stack-outside-context"
-files = ["src/scenes/**"]
+files = ["src/ui/scenes/**"]
 pattern = '^model/model_stack\.h$'
 reason = "no scene builds a model stack"
 
 [[rule]]
 name = "scenes-includes-gui"
-files = ["src/scenes/**"]
+files = ["src/ui/scenes/**"]
 pattern = '^(gui/(?!l10n/)|hid/)'
 reason = "the scenes draw through the toolkit, never the legacy gui or hid"
 
 [[rule]]
 name = "scenes-model-stack"
-files = ["src/scenes/**"]
+files = ["src/ui/scenes/**"]
 pattern = '^(model/model_stack\.h|modulation/automation/auto_param\.h)'
 reason = "a node edits through bind::Target, not a model stack"
 
 [[rule]]
 name = "scenes-no-edits"
-files = ["src/scenes/**"]
+files = ["src/ui/scenes/**"]
 pattern = '^model/edits/'
 reason = "a scene's write leaves as a request; it names no Edit"
 
 [[rule]]
 name = "scenes-no-peak-cache"
-files = ["src/scenes/**"]
-pattern = '^sample-view/peak_cache\.h$'
+files = ["src/ui/scenes/**"]
+pattern = '^app/ports/waveforms/peak_cache\.h$'
 reason = "a scene asks the waveforms port for a window's columns and draws the answer; the column cache is the host's"
 
 [[rule]]
 name = "scenes-reads-outside-bind"
-files = ["src/scenes/**"]
-exclude = ["src/scenes/bind/**"]
+files = ["src/ui/scenes/**"]
+exclude = ["src/ui/scenes/bind/**"]
 pattern = '^(model|modulation|io|processing|storage|playback)/'
 shrink_only = true
-reason = "the scenes read the model only through scenes/bind; the count only falls as reads move there"
+reason = "the scenes read the model only through ui/scenes/bind; the count only falls as reads move there"
 
 [[rule]]
 name = "platform-boundary"
@@ -394,7 +380,7 @@ reason = "the L0 kernels reach no app layer, the legacy dsp library or the platf
 [[rule]]
 name = "synth-boundary"
 files = ["src/synth/**"]
-pattern = '^(storage|model|processing|gui|playback|hid|io|dsp|bench|RZA1|bsp|drivers|memory|util|modulation|deluge-project)/'
+pattern = '^(storage|model|processing|gui|playback|hid|io|dsp|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
 allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",
@@ -403,11 +389,11 @@ allow = [
     "modulation/params/param.h",
     "modulation/sync.h",
     # the vocabulary definitions_cxx.hpp brings; synth-no-project-vocabulary keeps a synth file from naming it
-    "deluge-project/arrangement.h",
-    "deluge-project/drum_type.h",
-    "deluge-project/launch_style.h",
-    "deluge-project/midi_command.h",
-    "deluge-project/sequence_direction.h",
+    "project/arrangement.h",
+    "project/drum_type.h",
+    "project/launch_style.h",
+    "project/midi_command.h",
+    "project/sequence_direction.h",
 ]
 transitive = true
 reason = "the synth library reaches no app layer, the legacy dsp library or the platform, directly or through another header"
@@ -415,5 +401,5 @@ reason = "the synth library reaches no app layer, the legacy dsp library or the 
 [[rule]]
 name = "synth-no-project-vocabulary"
 files = ["src/synth/**"]
-pattern = '^deluge-project/'
+pattern = '^project/'
 reason = "the project vocabulary reaches the synth only through definitions_cxx.hpp"

@@ -1,6 +1,6 @@
 /// @file
 /// @brief `dump_menu_tree` -- walks every root of the declarative menu tree (`nodes::kAllRoots`,
-///        `scenes/menu/nodes/nodes.h`) and prints it as JSON, in the schema the Python `DocEmitter` of main's menu
+///        `ui/scenes/menu/nodes/nodes.h`) and prints it as JSON, in the schema the Python `DocEmitter` of main's menu
 ///        generator emits.
 ///
 /// ## The schema
@@ -116,17 +116,17 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/dx.h"
-#include "scenes/menu/nodes/dx_tables.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/profile.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/dx.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/profile.h"
 
 #include <algorithm>
 #include <array>
@@ -136,28 +136,28 @@
 #include <optional>
 #include <string>
 
-#include "instruments/deluge/settings.h"
-#include "plugin-api/types/plugin_id.h"
-#include "plugin-api/types/setting.h"
+#include "instruments/classic/settings.h"
+#include "plugin/types/plugin_id.h"
+#include "plugin/types/setting.h"
 #include <string_view>
 #include <vector>
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace relevance = deluge::scenes::menu::relevance;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace relevance = deluge::ui::scenes::menu::relevance;
 
 namespace {
 
 /// Whether @p target's row says when it applies (its descriptor carries conditions); a row with none is always shown.
-bool target_is_conditional(const deluge::scenes::bind::Target& target) {
+bool target_is_conditional(const deluge::ui::scenes::bind::Target& target) {
 	if (!target.valid()) {
 		return false;
 	}
 	// A sound's routing rows are its group's; every other setting's the dump names by the instrument's table
-	const bool routing = target.kind == deluge::scenes::bind::Target::Kind::MODEL
+	const bool routing = target.kind == deluge::ui::scenes::bind::Target::Kind::MODEL
 	                     && target.group == deluge::project::SettingGroupId::SOUND_ROUTING;
 	const std::span<const deluge::plugin::SettingInfo> table =
-	    routing ? deluge::project::table_of(target.group) : deluge::instrument::kSettings;
+	    routing ? deluge::project::table_of(target.group) : deluge::instruments::classic::kSettings;
 	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(table, target.path);
 	return row != nullptr && row->extras != nullptr
 	       && (!row->extras->applies_when.empty() || !row->extras->applies_any.empty());
@@ -193,7 +193,7 @@ void write_json_string(std::string& out, std::string_view s) {
 			break;
 		default:
 			if (c < 0x20) {
-				// Not `std::snprintf`: the firmware's own `src/lib/printf.h` `#define`s
+				// Not `std::snprintf`: the firmware's own `third_party/printf/printf.h` `#define`s
 				// `snprintf` to its custom `snprintf_` everywhere it is visible (which
 				// `support/song_fixture.h`'s model includes drag in transitively), so a plain
 				// hex formatter avoids the collision rather than fighting it.
@@ -214,7 +214,7 @@ void write_json_string(std::string& out, std::string_view s) {
 ///        `website/.../menu_hierarchies.mdx` lists first for each entry.
 std::string text_of(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
-	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
+	return std::string{deluge::ui::scenes::deluge_profile().text_or_digits(id, scratch)};
 }
 
 /// @brief Add @p more to @p into, in list order: the values @p more lists before any @p into already has go in front
@@ -247,8 +247,8 @@ void merge_names(std::vector<std::string>& into, const std::vector<std::string>&
 /// A sound's settings and effects are named as the Deluge instrument names them, a host chain's effects as the global
 /// effectable names them where the instrument has no entry, and a model row as its setting group names it. A param or
 /// a cable has no values to name.
-std::vector<std::string> row_option_names(const deluge::scenes::bind::Target& target) {
-	using Kind = deluge::scenes::bind::Target::Kind;
+std::vector<std::string> row_option_names(const deluge::ui::scenes::bind::Target& target) {
+	using Kind = deluge::ui::scenes::bind::Target::Kind;
 	const deluge::l10n::SettingNames* names = nullptr;
 	switch (target.kind) {
 	case Kind::SOUND:
@@ -288,15 +288,15 @@ std::vector<std::string> row_option_names(const deluge::scenes::bind::Target& ta
 /// @brief The names @p target's rows give their values. A source-indexed target names one row per output, and an
 ///        output may offer values the others do not (gate output 3's CLOCK), so it gives each output's, each value
 ///        once, in list order (`merge_names`).
-std::vector<std::string> target_option_names(const deluge::scenes::bind::Target& target) {
+std::vector<std::string> target_option_names(const deluge::ui::scenes::bind::Target& target) {
 	if (!target.source_indexed) {
 		return row_option_names(target);
 	}
 	std::vector<std::string> out;
-	deluge::scenes::bind::Addresses where{};
+	deluge::ui::scenes::bind::Addresses where{};
 	for (uint8_t index = 0;; ++index) {
 		where.source_index = index;
-		const std::optional<deluge::scenes::bind::Target> named = deluge::scenes::bind::concrete(target, where);
+		const std::optional<deluge::ui::scenes::bind::Target> named = deluge::ui::scenes::bind::concrete(target, where);
 		if (!named) {
 			return out;
 		}
@@ -384,7 +384,7 @@ struct DrawnRow {
 	std::vector<DrawnRow> rows;
 };
 
-namespace dx = deluge::scenes::menu::dx;
+namespace dx = deluge::ui::scenes::menu::dx;
 
 /// @brief The params a DX7 row lists, by the param its select press opens, as main's website reference lists them
 ///        (`extractDxParamDescriptorContext` and `selectDescriptorIndicesForItem`,
@@ -634,15 +634,14 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///       output selectors (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`,
 ///       `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
 ///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`). A submenu's rows are labelled by `display_text`
-///       (`MenuView::render_vertical`; `src/scenes/menu/present.cpp`) -- a `Binding::name_text` hook with no row index,
-///       or the `Node::name` l10n id -- and `Devices` labels every row with
-///       `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
-///       `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime string with no id at all -- while the two
-///       selectors' option lists are *static* in main (`getOptions` in
+///       (`MenuView::render_vertical`; `src/ui/scenes/menu/present.cpp`) -- a `Binding::name_text` hook with no row
+///       index, or the `Node::name` l10n id -- and `Devices` labels every row with `MIDICable::getDisplayName()`
+///       (`Devices::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime string
+///       with no id at all -- while the two selectors' option lists are *static* in main (`getOptions` in
 ///       `origin/main:src/deluge/gui/menu_item/cv/selection.h` and in
 ///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
-///       `NUM_GATE_CHANNELS`. All three are `CustomItem`s that draw their own list (`scenes/menu/nodes/dynamic.h`), as
-///       main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is no
+///       `NUM_GATE_CHANNELS`. All three are `CustomItem`s that draw their own list (`ui/scenes/menu/nodes/dynamic.h`),
+///       as main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is no
 ///       placeholder" example pins that zero, so the day a node does set the hook, that example fails and
 ///       points here.
 ///
@@ -740,7 +739,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 
 } // namespace
 
-bool deluge::scenes::menu::dump_menu_tree(std::string& out) {
+bool deluge::ui::scenes::menu::dump_menu_tree(std::string& out) {
 	// Load-bearing: `text_of` below
 	// resolves every "name"/"title" through `deluge_profile().text_or_digits`, which reads
 	// `l10n::chosenLanguage` -- normally set once at boot by the real app (`OLED()`'s

@@ -1,5 +1,5 @@
 #pragma once
-// Typed raisers over deluge_notify. The library stores plain integers so it stays a leaf;
+// Typed raisers over deluge_base_notify. The library stores plain integers so it stays a leaf;
 // this header, in the app layer, knows Error and l10n::String. PopupType (hid/display/display.h)
 // is deliberately NOT included here -- that header pulls in l10n.h and more, and this library
 // must stay light. Callers pass static_cast<uint8_t>(PopupType::X) instead of a typed overload.
@@ -10,10 +10,10 @@
 // model/playback/storage/io translation units. Callers that name an actual l10n::String
 // enumerator (not just the type) must already include "gui/l10n/strings.h" or "gui/l10n/l10n.h"
 // themselves, same as they would for any other enum they use by value.
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // Error
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
-#include <cstddef> // size_t, for the enum's underlying type below
+#include <cstddef>             // size_t, for the enum's underlying type below
 #include <cstdint>
 #include <string_view>
 
@@ -21,7 +21,7 @@ namespace deluge::l10n {
 enum class String : size_t;
 }
 
-namespace deluge::notify {
+namespace deluge::base::notify {
 
 /// @brief Raise an error notice.
 /// @param e The error to report.
@@ -70,4 +70,4 @@ inline deluge::l10n::String string_of(const Notice& n) {
 	return static_cast<deluge::l10n::String>(n.string_id);
 }
 
-} // namespace deluge::notify
+} // namespace deluge::base::notify

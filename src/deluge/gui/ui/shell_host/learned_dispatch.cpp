@@ -1,5 +1,4 @@
 #include "io/midi/learned_dispatch.h"
-#include "controls/learned.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/views/knob_focus_from_stack.h"
 #include "io/midi/follow_host.h"
@@ -7,7 +6,8 @@
 #include "io/midi/midi_device.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "scenes/menu/bind_host.h"
+#include "ui/controls/learned.h"
+#include "ui/scenes/menu/bind_host.h"
 #include "util/containers.h"
 
 #include <cstddef>
@@ -22,7 +22,7 @@ namespace {
 ///        rebuild it) into a list kept from message to message. Each hit is assigned over the one before it in its
 ///        place, so a message reuses the list's room and its device names' storage, and allocates only where it
 ///        outgrows them.
-class KnobHitsOf final : public controls::HitsOf {
+class KnobHitsOf final : public ui::controls::HitsOf {
 public:
 	/// @brief Aim at the knobs a message moves, raw (a knob learned on an MPE zone never matches it).
 	/// @param from    The cable it came on.
@@ -36,7 +36,7 @@ public:
 		return *this;
 	}
 	[[nodiscard]] bool any() override { return mappingIndex().anyKnob(*from_, channel_, number_); }
-	[[nodiscard]] controls::KnobHits of(project::ControlsAddress owner) override {
+	[[nodiscard]] ui::controls::KnobHits of(project::ControlsAddress owner) override {
 		size_t count = 0;
 		mappingIndex().forEachKnobWithSource(
 		    owner, *from_, channel_, number_, [&](const IndexedEntry& hit, const project::MidiCommand& source) {
@@ -45,7 +45,7 @@ public:
 				    return;
 			    }
 			    if (count < hits_.size()) {
-				    controls::LearnedHit& kept = hits_[count];
+				    ui::controls::LearnedHit& kept = hits_[count];
 				    kept.target = *target;
 				    kept.source = source;
 				    kept.relative = hit.relative;
@@ -55,14 +55,14 @@ public:
 			    }
 			    count++;
 		    });
-		return controls::KnobHits{hits_.data(), count};
+		return ui::controls::KnobHits{hits_.data(), count};
 	}
 
 private:
-	MIDICable* from_{nullptr};                       ///< the cable the message came on
-	uint8_t channel_{0};                             ///< its channel, raw
-	uint8_t number_{0};                              ///< its CC number, or 128 for a pitch bend
-	deluge::fast_vector<controls::LearnedHit> hits_; ///< the hits, kept from message to message
+	MIDICable* from_{nullptr};                           ///< the cable the message came on
+	uint8_t channel_{0};                                 ///< its channel, raw
+	uint8_t number_{0};                                  ///< its CC number, or 128 for a pitch bend
+	deluge::fast_vector<ui::controls::LearnedHit> hits_; ///< the hits, kept from message to message
 };
 
 /// @brief The one list of hits, aimed at a message: the dispatch runs on the app loop only.
@@ -84,18 +84,19 @@ void learnedCcToSong(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t valu
 	if (currentSong == nullptr) {
 		return;
 	}
-	controls::dispatch_song_cc(knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
-	                           *scenes::menu::host_ports().controls_sink, takeoverStore(),
-	                           {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
+	ui::controls::dispatch_song_cc(
+	    knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
+	    *deluge::ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
 void learnedCcToOutput(const Output& output, MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) {
 	if (currentSong == nullptr || !output.id()) {
 		return;
 	}
-	controls::dispatch_output_cc(
+	ui::controls::dispatch_output_cc(
 	    *output.id(), knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
-	    *scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    *ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
 	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
@@ -103,22 +104,22 @@ bool learnedPitchBendToOutput(const Output& output, MIDICable& cable, uint8_t ch
 	if (currentSong == nullptr || !output.id()) {
 		return false;
 	}
-	return controls::dispatch_output_bend(
+	return ui::controls::dispatch_output_bend(
 	    *output.id(), knob_hits(cable, channel, kPitchBend), gui::shell_host::control_facts(),
-	    *scenes::menu::host_ports().controls_sink,
+	    *ui::scenes::menu::host_ports().controls_sink,
 	    {.channel = channel, .number = kPitchBend, .value = value14, .cable_relative = cable.is_relative});
 }
 
-const controls::Facts& followFacts() {
+const ui::controls::Facts& followFacts() {
 	return gui::shell_host::control_facts();
 }
 
-controls::KnobFocus followFocus(Clip& clip) {
+ui::controls::KnobFocus followFocus(Clip& clip) {
 	return gui::knobFocusOfClip(clip);
 }
 
-controls::Sink& followSink() {
-	return *scenes::menu::host_ports().controls_sink;
+ui::controls::Sink& followSink() {
+	return *deluge::ui::scenes::menu::host_ports().controls_sink;
 }
 
 } // namespace deluge::midi

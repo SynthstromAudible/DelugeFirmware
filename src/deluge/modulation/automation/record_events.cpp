@@ -16,7 +16,6 @@
  */
 
 #include "modulation/automation/record_events.h"
-#include "deluge-project/param_edit.h"
 #include "io/debug/log.h"
 #include "libdeluge/system.h"
 #include "model/edits/param_address_for.h"
@@ -27,6 +26,7 @@
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/staged_repeat.h"
 #include "playback/playback_handler.h"
+#include "project/param_edit.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
 #include <cstddef>

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // LFOType
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 namespace deluge::synth {
 

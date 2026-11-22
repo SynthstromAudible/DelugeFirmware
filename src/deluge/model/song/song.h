@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/song.h"
 #include "effects/master_chain.h"
 #include "effects/words.h"
 #include "gui/ui/browser/file_listing.h"
@@ -38,6 +37,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/sync.h"
+#include "project/song.h"
 #include "storage/flash_storage.h"
 #include "storage/preset_acquisition.h"
 #include "util/c_string.h"

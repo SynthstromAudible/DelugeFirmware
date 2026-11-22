@@ -36,7 +36,7 @@ describe dx7_lfo_delay_spec_body("dx7::LfoDelay", ${
 		for (int delay = 0; delay < 100; ++delay) {
 			static dx7_reference::Patch patch;
 			static dx7_reference::Voice<dx7_workloads::SeededStatic> reference;
-			std::ranges::copy(deluge::instrument::kDx7InitVoice, patch.params);
+			std::ranges::copy(deluge::instruments::classic::kDx7InitVoice, patch.params);
 			patch.params[kLfoDelay] = static_cast<uint8_t>(delay);
 			reference = {};
 			reference.init(tables, patch, 60, 100);

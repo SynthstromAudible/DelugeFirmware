@@ -1,6 +1,5 @@
 #include "model/edits/paste_param_automation.h"
 
-#include "deluge-project/param_edit.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/edits/edit_cable.h"
@@ -10,6 +9,7 @@
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
+#include "project/param_edit.h"
 
 namespace deluge::edits {
 

@@ -1,19 +1,19 @@
 // clang-format off
 #include "board_controls.hpp"
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/pages.h"
-#include "scenes/profile.h"
-#include "shell/profile.h"
+#include "host/chains/pages.h"
+#include "ui/scenes/profile.h"
+#include "ui/shell/profile.h"
 #include <cppspec.hpp>
 
 #include <algorithm>
 #include <span>
 
 using deluge::ui::shell::ButtonId;
-using deluge::ui::EncoderRole;
+using deluge::ui::widgets::core::EncoderRole;
 
 describe board_consistency("the Deluge's controls board and the shell's profile", ${
-	const deluge::ui::shell::BoardProfile& profile = deluge::scenes::deluge_profile();
+	const deluge::ui::shell::BoardProfile& profile = deluge::ui::scenes::deluge_profile();
 
 	// The profile the spec reads. The neuter test swaps its gold roles in a copy.
 	const auto role_index = [](std::span<const EncoderRole> roles, EncoderRole role) {
@@ -33,7 +33,7 @@ describe board_consistency("the Deluge's controls board and the shell's profile"
 		expect(static_cast<int32_t>(kDelugeControls.sections)).to_equal(mods);
 	});
 	it("has as many section buttons as the chain publisher has sections", _{
-		expect(static_cast<uint32_t>(kDelugeControls.sections)).to_equal(deluge::host_chain::kSections);
+		expect(static_cast<uint32_t>(kDelugeControls.sections)).to_equal(deluge::host::chains::kSections);
 	});
 	it("names the Mod buttons contiguously, as ModKnobs::handle's range test assumes", _{
 		expect(static_cast<int32_t>(ButtonId::Mod7) - static_cast<int32_t>(ButtonId::Mod0) + 1).to_equal(static_cast<int32_t>(kDelugeControls.sections));

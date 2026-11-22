@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include "deluge-project/setting_group.h"
 #include "effects/words.h"
 #include "gui/l10n/strings.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/plugin_id.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/param.h"
+#include "plugin/types/plugin_id.h"
+#include "plugin/types/setting.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 #include <optional>

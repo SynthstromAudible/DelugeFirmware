@@ -14,7 +14,7 @@
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/song/song.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -35,7 +35,7 @@
 
 using namespace deluge;
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 using deluge::model::EffectsOwner;
 using deluge::serialization::Value;

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/controller_mapping.h"
+#include "project/controller_mapping.h"
 #include "support/printers/param_id_printer.h"
 
 #include <format>

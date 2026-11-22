@@ -20,10 +20,10 @@
 # input in short notes while recording (run_live_input.sh). Not the whole firmware.
 # Rows come from triage.sh over the run logs.
 
-intrinsic	DEEP	src/lib/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
+intrinsic	DEEP	third_party/printf/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
 intrinsic	DEEP	core::ffi::c_str::strlen::runtime	-	strlen intercept inside CStr; the SUMMARY site is a bare intercept
 
-open	src/lib/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
+open	third_party/printf/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
 open	src/deluge/gui/ui/ui.cpp	^getCurrentUI\(\)$	audio×interaction	state: global 'uiNavigationHierarchy'
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::workOutNextEventTime\(\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAudio\(unsigned long\)$	audio×interaction	state: global 'currentSong'
@@ -91,7 +91,7 @@ open	src/deluge/dsp-next/fixed/filter/high_pass_ladder.h	^deluge::dsp::Linked<de
 open	src/deluge/model/song/song.h	^Song::Song\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen after the host render block became one excluded section, 2026-09-27)
-open	src/deluge/model/fx/track_channel.cpp	^deluge::model::TrackChannel::render\(ModelStackWithTimelineCounter\*, ParamManager&, std::span<(deluge::dsp::)?StereoSample, [0-9]+ul>, deluge::model::ChannelBlock const&, deluge::function_ref<bool \(deluge::model::ContentBlock const&\)>\)$	audio×interaction	state: global 'playbackHandler' (ticksLeftInCountIn; first seen after the rendering-drums list, 2026-09-27)
+open	src/deluge/model/fx/track_channel.cpp	^deluge::model::TrackChannel::render\(ModelStackWithTimelineCounter\*, ParamManager&, std::span<(deluge::dsp::)?StereoSample, [0-9]+ul>, deluge::model::ChannelBlock const&, deluge::base::function_ref<bool \(deluge::model::ContentBlock const&\)>\)$	audio×interaction	state: global 'playbackHandler' (ticksLeftInCountIn; first seen after the rendering-drums list, 2026-09-27)
 open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::resetInterpolationIncrement\(\)$	audio×interaction	state: an automated param's play position, set by the interaction tier's setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::processCurrentPos\(ModelStackWithAutoParam const\*, bool, bool, bool, bool\)$	audio×interaction	state: an automated param's play position, set by the interaction tier's setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/modulation/params/param_collection_summary.h	^ParamCollectionSummary::resetInterpolationRecord\(int\)$	audio×interaction	state: a param collection's interpolation record, reset by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)

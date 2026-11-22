@@ -38,25 +38,25 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/peak_retry.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/view_state.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/core/metrics.h"
-#include "ui/grid/columns.h"
-#include "ui/oled/sample_position.h"
-#include "ui/oled/text.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/grid/columns.h"
+#include "ui/widgets/oled/sample_position.h"
+#include "ui/widgets/oled/text.h"
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
@@ -103,7 +103,7 @@
 #include "support/printers/ranges_cause_printer.h"
 #include "support/printers/rgb_printer.h"
 #include "support/printers/sound_record_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
@@ -127,18 +127,18 @@ namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
 } // namespace Buttons
 
-using namespace deluge::scenes;
-using deluge::scenes::marker::kMarkerSceneKind;
-using deluge::scenes::marker::marker_scene;
-using deluge::scenes::marker::MarkerScene;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::marker::kMarkerSceneKind;
+using deluge::ui::scenes::marker::marker_scene;
+using deluge::ui::scenes::marker::MarkerScene;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 
-namespace mf = deluge::scenes::spec::marker_fx;
+namespace mf = deluge::ui::scenes::spec::marker_fx;
 using mf::AudioRig;
 using mf::kBytesPerFrame;
 using mf::kSampleLength;
@@ -165,7 +165,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -176,7 +177,7 @@ const BoardProfile& profile_64() {
 /// @brief Events handed to the marker scene itself, so the actions it files come back for the example to read.
 struct DirectEvents {
 	deluge::ui::shell::ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 
 	/// @brief One main-pad event.
 	/// @param shift Is shift held?
@@ -193,10 +194,11 @@ struct DirectEvents {
 	/// @brief One turn of the horizontal encoder.
 	deluge::ui::shell::Result horizontal(int32_t delta, bool shift) {
 		const deluge::ui::shell::UiContext ctx{held, pads, shift, false, 0, deluge_profile()};
-		return marker_scene().handle(deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
-		                                                        .encoder = deluge::ui::EncoderRole::Horizontal,
-		                                                        .delta = static_cast<int8_t>(delta)},
-		                             ctx);
+		return marker_scene().handle(
+		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
+		                               .encoder = deluge::ui::widgets::core::EncoderRole::Horizontal,
+		                               .delta = static_cast<int8_t>(delta)},
+		    ctx);
 	}
 };
 
@@ -243,7 +245,7 @@ struct PadDiff {
 };
 
 PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -277,12 +279,13 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::optional<uint64_t> length = std::nullopt) {
 	const bind::Waveforms& host = *menu::host_ports().waveforms;
 	const int64_t whole =
-	    deluge::sample_view::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
-	                                  deluge::sample_view::kColumns);
-	const deluge::sample_view::PeakRead read = host.peaks(at, {.scroll = 0, .zoom = std::max<int64_t>(1, whole)});
+	    deluge::base::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
+	                           deluge::ui::views::waveform::kColumns);
+	const deluge::ui::views::waveform::PeakRead read =
+	    host.peaks(at, {.scroll = 0, .zoom = std::max<int64_t>(1, whole)});
 	bind::test::FakeWaveforms::Entry entry{.at = at, .info = host.info(at).value_or(bind::WaveformInfo{})};
-	for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
-		entry.peaks[static_cast<size_t>(c)] = read.column(c).peak().value_or(deluge::sample_view::Peak{});
+	for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
+		entry.peaks[static_cast<size_t>(c)] = read.column(c).peak().value_or(deluge::ui::views::waveform::Peak{});
 	}
 	if (length) {
 		entry.info.length_samples = *length;
@@ -299,8 +302,8 @@ struct Counted final : bind::Waveforms {
 	[[nodiscard]] std::optional<bind::WaveformInfo> info(const bind::WaveformAddress& a) const override {
 		return menu::host_ports().waveforms->info(a);
 	}
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const bind::WaveformAddress& a,
-	                                                  deluge::sample_view::Window at) const override {
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const bind::WaveformAddress& a,
+	                                                          deluge::ui::views::waveform::Window at) const override {
 		reads++;
 		return menu::host_ports().waveforms->peaks(a, at);
 	}
@@ -313,7 +316,7 @@ struct Counted final : bind::Waveforms {
 constexpr uint64_t kLongLength = uint64_t{1} << 33;
 
 /// @brief How many main pads of @p a differ from @p b.
-int32_t main_pads_differ(const deluge::gfx::grid::PadGrid& a, const deluge::gfx::grid::PadGrid& b) {
+int32_t main_pads_differ(const deluge::ui::gfx::grid::PadGrid& a, const deluge::ui::gfx::grid::PadGrid& b) {
 	int32_t n = 0;
 	for (uint8_t x = 0; x < kDisplayWidth; x++) {
 		for (uint8_t y = 0; y < kDisplayHeight; y++) {
@@ -324,7 +327,7 @@ int32_t main_pads_differ(const deluge::gfx::grid::PadGrid& a, const deluge::gfx:
 }
 
 /// @brief The pin of marker @p m.
-deluge::sample_view::MarkerPin pin_of(MarkerType m) {
+deluge::ui::views::waveform::MarkerPin pin_of(MarkerType m) {
 	return marker_scene().pins()[static_cast<size_t>(m)];
 }
 
@@ -350,14 +353,14 @@ struct FakeMarkerRig {
 	FakeMarkerRig()
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		using deluge::instrument::SourceId;
-		const deluge::instrument::SoundState sample =
-		    deluge::test::with_kind(deluge::instrument::SoundState{}, SourceId::A, deluge::instrument::OscType::SAMPLE);
-		fakes.hold_synth(
-		    deluge::instrument::with_ranges(sample, SourceId::A,
-		                                    {deluge::synth::SourceRange{.top_note = deluge::instrument::kOpenTopNote,
-		                                                                .file_path = "SAMPLES/a.wav",
-		                                                                .zone = {.start = 0, .end = 1000}}}));
+		using deluge::instruments::classic::SourceId;
+		const deluge::instruments::classic::SoundState sample = deluge::test::with_kind(
+		    deluge::instruments::classic::SoundState{}, SourceId::A, deluge::instruments::classic::OscType::SAMPLE);
+		fakes.hold_synth(deluge::instruments::classic::with_ranges(
+		    sample, SourceId::A,
+		    {deluge::synth::SourceRange{.top_note = deluge::instruments::classic::kOpenTopNote,
+		                                .file_path = "SAMPLES/a.wav",
+		                                .zone = {.start = 0, .end = 1000}}}));
 		fakes.model.getOrCreateDocAudioClip(spec::FakeHostRig::kSynthClip).end_pos = 1000;
 		fakes.host.waveforms.waveforms.push_back({.at = kRange, .info = kInfo});
 		bind::WaveformInfo clip = kInfo;
@@ -498,8 +501,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			FakeMarkerRig r;
 			r.open(r.range_context(), MarkerType::START);
 			r.tick(0);
-			const deluge::sample_view::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
-			expect(window.zoom).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			const deluge::ui::views::waveform::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
+			expect(window.zoom).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
 			expect(r.fakes.host.waveforms.reads.size()).to_equal(size_t{1});
 			if (!r.fakes.host.waveforms.reads.empty()) {
 				expect(r.fakes.host.waveforms.reads[0])
@@ -517,7 +520,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			FakeMarkerRig r;
 			r.open(r.range_context(), MarkerType::START);
 			r.tick(0);
-			expect(marker_scene().x_zoom()).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			expect(marker_scene().x_zoom()).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
 			bind::WaveformInfo& info = r.fakes.host.waveforms.waveforms[0].info;
 			info.length_samples = 160;
 			info.identity = 7; // another file
@@ -743,7 +746,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = deluge::scenes::spec::first_ranges(slot).empty();
+		const bool had_none = deluge::ui::scenes::spec::first_ranges(slot).empty();
 
 		MenuContext recorded = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingSoundWrites recording;
@@ -757,20 +760,20 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			}
 			expect(recording.calls[0].kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::RANGES);
 			expect(recording.calls[0].ranges.size()).to_equal(size_t{1});
-			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
+			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instruments::classic::kOpenTopNote);
 		}
 
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
+		expect(deluge::ui::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
 		const std::vector<deluge::synth::SourceRange> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
 		const std::vector<deluge::synth::SourceRange> first =
-		    deluge::scenes::spec::first_ranges(slot);
+		    deluge::ui::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -798,7 +801,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(deluge::scenes::spec::first_ranges(r.slot())[0].file_path)
+		expect(deluge::ui::scenes::spec::first_ranges(r.slot())[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);
@@ -890,8 +893,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		deluge::edits::recordRanges(*r.sound, 0);
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		// The edited range's remembered view and lock, in the store under its identity.
-		deluge::scenes::services::view_state().forget_unless(r.song.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
+		deluge::ui::scenes::services::view_state().forget_unless(r.song.song->project.identity());
+		deluge::ui::scenes::services::view_state().set_sample_view(
 		    r.key(), {.scroll = 0, .zoom = kZoomMax / 2, .loop_locked = true});
 		const uint64_t identity = r.range->identity();
 
@@ -912,11 +915,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("gives a cloned audio clip the original's scroll and zoom, as beenClonedFrom gives the clone's holder", _ {
-		using deluge::scenes::services::ViewKey;
+		using deluge::ui::scenes::services::ViewKey;
 		AudioRig r;
 		deluge::gui::ui::wireShellClipCloneViews(); // what boot installs
-		deluge::scenes::services::view_state().forget_unless(r.f.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
+		deluge::ui::scenes::services::view_state().forget_unless(r.f.song->project.identity());
+		deluge::ui::scenes::services::view_state().set_sample_view(
 		    ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = r.f.clip->id()}, {.scroll = 3 * kZoomMax, .zoom = kZoomMax / 4});
 		r.f.clip->sampleHolder.audioFile = nullptr; // the clone takes no sample: this example is about the view
 
@@ -925,8 +928,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(r.f.clip->clone(stack)).to_equal(Error::NONE);
 		const auto* clone = static_cast<const AudioClip*>(stack->getTimelineCounter());
 		expect(clone).not_().to_equal(r.f.clip);
-		const std::optional<deluge::scenes::services::SampleView> view =
-		    deluge::scenes::services::view_state().sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = clone->id()});
+		const std::optional<deluge::ui::scenes::services::SampleView> view =
+		    deluge::ui::scenes::services::view_state().sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = clone->id()});
 		expect(view.has_value()).to_be_true();
 		if (view.has_value()) {
 			expect(view->scroll).to_equal(3 * kZoomMax);
@@ -1168,7 +1171,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid old = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid old = r.fake.grid().grid();
 		r.x_enc_button(true, 10);
 		r.tick(10);
 		r.turn_horizontal(1, 20);
@@ -1194,7 +1197,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		// Halfway (the step at 70 ms), neither view.
 		r.tick(70);
-		const deluge::gfx::grid::PadGrid mid = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid mid = r.fake.grid().grid();
 		r.tick(120);
 		expect(marker_scene().sliding()).to_be_true();
 		// The first step at or past 110 ms ends it: the settled frame, with its marker.
@@ -1204,7 +1207,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{200});
 		expect(marker_scene().holding_xenc()).to_be_false();
 		r.x_enc_button(false, 175);
-		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid settled = r.fake.grid().grid();
 		bool from_is_old = marker_scene().zoom_slide().from.has_value();
 		for (uint8_t y = 0; from_is_old && y < kDisplayHeight; y++) {
 			for (uint8_t x = 0; x < kDisplayWidth; x++) {
@@ -1459,7 +1462,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(1);
 		r.tick(20);
-		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const RGB tick = deluge::ui::widgets::grid::tick_colour(deluge::ui::widgets::grid::TickColour::Normal, RGB{});
 		for (uint8_t y = 0; y < 8; y++) {
 			expect(r.fake.grid().grid().at(7, y)).to_equal(tick);
 		}
@@ -2021,7 +2024,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		const int32_t ported_zoom = static_cast<int32_t>(marker_scene().x_zoom());
 		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
-		const deluge::ui::grid::ZoomTransition slide = marker_scene().zoom_slide();
+		const deluge::ui::widgets::grid::ZoomTransition slide = marker_scene().zoom_slide();
 		// A second detent while the first slides.
 		r.turn_horizontal(1, 30);
 		r.tick(30);
@@ -2207,11 +2210,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::START);
 		r.tick(0);
 		deluge::ui::test::Rig48 reference;
-		deluge::ui::oled::title(reference.frame, "Start point");
-		deluge::ui::oled::sample_position(
+		deluge::ui::widgets::oled::title(reference.frame, "Start point");
+		deluge::ui::widgets::oled::sample_position(
 		    reference.frame,
-		    deluge::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
-		                            2 * deluge::ui::oled::kSamplePositionLineGap},
+		    deluge::ui::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
+		                            2 * deluge::ui::widgets::oled::kSamplePositionLineGap},
 		    2147483655, 44100);
 		expect(r.oled()).to_equal(reference.pbm());
 	});
@@ -2285,7 +2288,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.sample->minValueFound = INT32_MAX;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 		r.tick(200); // the blink's next phase draws again
 		expect(counted.reads).to_equal(2);
 		expect(main_pads_differ(first, r.fake.grid().grid())).to_equal(0);
@@ -2324,7 +2327,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid last = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid last = r.fake.grid().grid();
 		for (int32_t i = 0; i < mf::kNumClusters; i++) {
 			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = static_cast<int8_t>(-mf::cluster_peak(i) / 2);

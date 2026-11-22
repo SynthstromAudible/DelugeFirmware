@@ -16,9 +16,6 @@
 //     must produce the same nodes, values and serialized bytes (self-checking)
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/backed_params.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_codec.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -35,6 +32,9 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
+#include "project/backed_params.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
@@ -42,7 +42,7 @@
 #include <cstring>
 #include <vector>
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -1224,7 +1224,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("params");
 		smSerializer.writeOpeningTagEnd();
-		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", deluge::host_chain::param::kLpfMorph}};
+		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", deluge::host::chains::param::kLpfMorph}};
 		deluge::bridge::writeDocParamGroup(smSerializer, "lpf", lpfMorphMember, morphDoc, true);
 		smSerializer.writeClosingTag("params");
 		int32_t legacyLen = smSerializer.bytesWritten();

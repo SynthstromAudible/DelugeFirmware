@@ -1,7 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -12,6 +11,7 @@
 #include "model/edits/set_setting.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 
 #include <string>
@@ -20,7 +20,7 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The clip edits, applied to the current song as Edits.
-class HostClipWrites final : public scenes::bind::ClipWrites {
+class HostClipWrites final : public deluge::ui::scenes::bind::ClipWrites {
 public:
 	bool recolour_clip(project::ClipAddress clip, int32_t offset) override {
 		if (currentSong == nullptr) {
@@ -57,13 +57,13 @@ public:
 		return taken;
 	}
 
-	bool resize_audio_clip(project::ClipAddress clip, scenes::bind::ResizeKind kind, int32_t new_length,
+	bool resize_audio_clip(project::ClipAddress clip, deluge::ui::scenes::bind::ResizeKind kind, int32_t new_length,
 	                       int32_t old_length) override {
 		if (currentSong == nullptr) {
 			return false;
 		}
 		using Kind = edits::ResizeAudioClip::Kind;
-		using Request = scenes::bind::ResizeKind;
+		using Request = deluge::ui::scenes::bind::ResizeKind;
 		Kind edit_kind = Kind::END;
 		switch (kind) {
 		case Request::END:
@@ -115,7 +115,7 @@ private:
 
 } // namespace
 
-scenes::bind::ClipWrites& clip_writes() {
+deluge::ui::scenes::bind::ClipWrites& clip_writes() {
 	static HostClipWrites writes;
 	return writes;
 }

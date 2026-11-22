@@ -18,7 +18,7 @@
 #include "effects/sidechain.h"
 
 #include "dsp-next/core/fixed_point.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 namespace deluge::effects {
 

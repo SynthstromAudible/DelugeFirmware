@@ -1,8 +1,8 @@
 #pragma once
 
-#include "deluge-project/instrument_slot.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "model/edits/edit.h"
+#include "project/instrument_slot.h"
 
 #include <cstdint>
 
@@ -19,7 +19,7 @@ public:
 	/// @param slot   Address of the instrument slot.
 	/// @param source Index of the source (oscillator) within the sound; must be below kNumSources and a DX7 source.
 	/// @param patch  The DX7 patch state to give the source.
-	SetDxPatch(deluge::project::SlotAddress slot, uint8_t source, deluge::instrument::DxPatchState patch)
+	SetDxPatch(deluge::project::SlotAddress slot, uint8_t source, deluge::instruments::classic::DxPatchState patch)
 	    : slot_(slot), source_(source), patch_(patch) {}
 
 	/// @copydoc Edit::apply
@@ -29,7 +29,7 @@ public:
 private:
 	deluge::project::SlotAddress slot_;
 	uint8_t source_;
-	deluge::instrument::DxPatchState patch_;
+	deluge::instruments::classic::DxPatchState patch_;
 };
 
 } // namespace deluge::edits

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "app/ports/waveforms/peak_cache.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/audio_clip_view.h"
 #include "model/clip/clip.h"
@@ -25,7 +26,6 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
-#include "sample-view/peak_cache.h"
 #include "util/c_string.h"
 #include <atomic>
 
@@ -128,7 +128,7 @@ public:
 
 	std::string outputNameWhileLoading{}; // Only valid while loading
 
-	deluge::sample_view::PeakCache renderData;
+	deluge::app::ports::waveforms::PeakCache renderData;
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
 	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
 	                          // SampleRecorder itself will usually persist slightly longer

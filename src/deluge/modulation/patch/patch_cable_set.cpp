@@ -17,9 +17,6 @@
 
 #include "modulation/patch/patch_cable_set.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -32,10 +29,13 @@
 #include "modulation/params/lane_publication.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/storage_manager.h"
 #include "synth/matrix/compiler.h"
 #include "util/exceptions.h"
@@ -218,7 +218,8 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 }
 
 bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
-                                   const deluge::instrument::CableRecords& records, const CableDepth* restore) {
+                                   const deluge::instruments::classic::CableRecords& records,
+                                   const CableDepth* restore) {
 	struct Kept {
 		deluge::synth::CableRecord record;
 		int32_t value;
@@ -1152,7 +1153,7 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 }
 
 void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-                                       deluge::function_ref<void(int32_t)> visit) {
+                                       deluge::base::function_ref<void(int32_t)> visit) {
 	// Each cable of this set whose cable in the other set, from the same source to the same destination, is automated
 	auto& otherSet = static_cast<PatchCableSet&>(other);
 	for (int32_t c = 0; c < numPatchCables; c++) {
@@ -1163,7 +1164,7 @@ void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollec
 	}
 }
 
-void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void PatchCableSet::forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);

@@ -33,8 +33,6 @@
 #include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "dsp-next/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
@@ -45,7 +43,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
@@ -89,6 +87,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
@@ -109,8 +109,9 @@
 
 extern void setUIForLoadedSong(Song* song);
 
-// The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
-// harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
+// The firmware headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded
+// `printf_`. This harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the
+// gate's output.
 #ifdef printf
 #undef printf
 #endif
@@ -824,8 +825,8 @@ bool setupLeg() {
 		if (second == nullptr) {
 			return false;
 		}
-		const deluge::serialization::Value choke =
-		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(PolyphonyMode::CHOKE)));
+		const deluge::serialization::Value choke = deluge::serialization::Value::makeScalar(
+		    std::string(deluge::instruments::classic::to_string(PolyphonyMode::CHOKE)));
 		deluge::edits::settingFor(*static_cast<SoundDrum*>(g_kit->firstDrum), "polyphonic", choke);
 		deluge::edits::settingFor(*second, "polyphonic", choke);
 		g_drum = second;
@@ -833,9 +834,9 @@ bool setupLeg() {
 	}
 	case Leg::VoiceMono:
 		// MONO: a second note re-triggers the voice the render is already playing.
-		deluge::edits::settingFor(
-		    *static_cast<SoundInstrument*>(g_clip->output), "polyphonic",
-		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(PolyphonyMode::MONO))));
+		deluge::edits::settingFor(*static_cast<SoundInstrument*>(g_clip->output), "polyphonic",
+		                          deluge::serialization::Value::makeScalar(
+		                              std::string(deluge::instruments::classic::to_string(PolyphonyMode::MONO))));
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceKill:
@@ -845,9 +846,9 @@ bool setupLeg() {
 		// Ring-mod with a wavetable source that has no file: Sound::noteOn lets a ring-mod note through, and the
 		// voice's own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
-		deluge::edits::settingFor(
-		    *synth, "mode",
-		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::RINGMOD))));
+		deluge::edits::settingFor(*synth, "mode",
+		                          deluge::serialization::Value::makeScalar(
+		                              std::string(deluge::instruments::classic::to_string(SynthMode::RINGMOD))));
 		deluge::test::setOscType(*synth, 0, OscType::WAVETABLE);
 		return true;
 	}

@@ -2,15 +2,15 @@
 /// @brief The menu's relevance over the ports' fakes, with a model song of the spec's own and no legacy song behind
 ///        the menu: a node whose relevance reads a port appears and disappears as that port's fake changes.
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
 
-#include "deluge-project/device_settings.h"
-#include "deluge-project/features.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
+#include "project/device_settings.h"
+#include "project/features.h"
 #include "serialization/value.h"
 
 #include "support/fake_host_rig.h"
@@ -24,15 +24,15 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::Feature;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using device_path = deluge::project::device_path;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief Is @p node listed on @p page in @p ctx?
 bool listed(const Node& page, const Node& node, const MenuContext& ctx) {
@@ -40,7 +40,7 @@ bool listed(const Node& page, const Node& node, const MenuContext& ctx) {
 }
 
 /// @brief The synth's state in the sound fake, which the spec edits in place.
-deluge::instrument::SoundState& synth_state(spec::FakeHostRig& fakes) {
+deluge::instruments::classic::SoundState& synth_state(spec::FakeHostRig& fakes) {
 	return fakes.host.sound.states.at(spec::FakeHostRig::kSynthSlot.id);
 }
 
@@ -54,18 +54,18 @@ describe menu_relevance_fakes("the menu's relevance over the ports' fakes and a 
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_false();
 		expect(listed(nodes::sound_root, nodes::modulator1, ctx)).to_be_false();
 
-		deluge::test::set(synth_state(fakes), "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
+		deluge::test::set(synth_state(fakes), "mode", deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::FM));
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_true();
 		expect(listed(nodes::sound_root, nodes::modulator1, ctx)).to_be_true();
 
-		deluge::test::set(synth_state(fakes), "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::SUBTRACTIVE));
+		deluge::test::set(synth_state(fakes), "mode", deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::SUBTRACTIVE));
 		expect(listed(nodes::sound_root, nodes::modulator0, ctx)).to_be_false();
 	});
 
 	it("offers a sample source's transpose only while the sound fake says its file is loaded", _ {
 		spec::FakeHostRig fakes;
-		fakes.hold_synth(deluge::test::with_kind(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
-		                                         deluge::instrument::OscType::SAMPLE));
+		fakes.hold_synth(deluge::test::with_kind(deluge::instruments::classic::SoundState{}, deluge::instruments::classic::SourceId::A,
+		                                         deluge::instruments::classic::OscType::SAMPLE));
 		const MenuContext ctx = fakes.synth_context();
 		fakes.host.sound.loaded[spec::FakeHostRig::kSynthSlot.id] = 0;
 		expect(menu::bindings::relevant(nodes::source0_transpose, ctx)).to_be_false();

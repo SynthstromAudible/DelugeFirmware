@@ -3,12 +3,11 @@
 // its record; a source's ranges are its slot's; and a request on an address that does not resolve is refused.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "model/action/action.h"
@@ -23,13 +22,14 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 
 #include "support/printers/sound_record_printer.h"
 #include "support/slot_record.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -38,10 +38,10 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
 using deluge::synth::SourceRange;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
 namespace params = deluge::modulation::params;
 
 namespace {
@@ -99,7 +99,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		currentSong = audio.song;
 		audio.song->setCurrentClip(audio.clip);
 		const deluge::project::ParamAddress lpf = audio_lpf(audio);
-		expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
@@ -165,11 +165,11 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		(void)sound.getOrCreateFirstRange(0); // the range a zone editor makes, recorded as a gesture does
 		deluge::edits::recordRanges(sound, 0);
 		expect(menu::host_ports().sound->sound_state(slot)).not_().to_be_null();
-		std::vector<SourceRange> ranges = deluge::scenes::spec::first_ranges(slot);
+		std::vector<SourceRange> ranges = deluge::ui::scenes::spec::first_ranges(slot);
 		expect(ranges.size()).to_equal(size_t(1));
 		ranges[0].tuning.transpose = 7;
 		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, ranges, {})).to_be_true();
-		const std::vector<SourceRange> after = deluge::scenes::spec::first_ranges(slot);
+		const std::vector<SourceRange> after = deluge::ui::scenes::spec::first_ranges(slot);
 		expect(after.empty()).to_be_false();
 		if (!after.empty()) {
 			expect(after[0].tuning.transpose).to_equal(7);
@@ -186,7 +186,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
-		std::vector<SourceRange> ranges = deluge::scenes::spec::first_ranges(slot);
+		std::vector<SourceRange> ranges = deluge::ui::scenes::spec::first_ranges(slot);
 		ranges[0].zone.start = 100;
 		synth.instrument->editedByUser = false;
 		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, ranges,
@@ -194,7 +194,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		                                             .marker = static_cast<int8_t>(MarkerType::START)}))
 		    .to_be_true();
 		expect(synth.instrument->editedByUser).to_be_true();
-		expect(deluge::scenes::spec::first_ranges(slot)[0].zone.start).to_equal(uint64_t{100});
+		expect(deluge::ui::scenes::spec::first_ranges(slot)[0].zone.start).to_equal(uint64_t{100});
 		currentSong = saved;
 	});
 
@@ -205,18 +205,18 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		expect(deluge::scenes::spec::first_ranges(slot).empty()).to_be_true();
+		expect(deluge::ui::scenes::spec::first_ranges(slot).empty()).to_be_true();
 		const std::vector<SourceRange> first{
-		    {.top_note = deluge::instrument::kOpenTopNote, .zone = {.end = deluge::instrument::kUnsetEndPos}}};
+		    {.top_note = deluge::instruments::classic::kOpenTopNote, .zone = {.end = deluge::instruments::classic::kUnsetEndPos}}};
 		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, first, {})).to_be_true();
-		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
+		expect(deluge::ui::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(std::ssize(sound.sourceResources[0].ranges)).to_equal(1);
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(1);
 		const std::vector<SourceRange> legacy = deluge::bridge::rangesOf(sound.sourceResources[1]);
 		const std::vector<SourceRange> recorded =
-		    deluge::scenes::spec::first_ranges(slot);
+		    deluge::ui::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		if (!legacy.empty()) {
 			expect(recorded[0]).to_equal(legacy[0]);

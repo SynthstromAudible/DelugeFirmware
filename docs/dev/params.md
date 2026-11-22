@@ -5,8 +5,8 @@ q31 instrument and any later instrument publish through the same model; only the
 
 ## Identity
 
-A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/deluge/params.h`) for a
-sound, `host_chain::kParams` (`src/effects/host_chain/params.h`) for the song, a kit's affect-entire and
+A param is a `plugin::ParamId` in its plugin's table: `instruments::classic::kParams` (`src/instruments/classic/params.h`) for a
+sound, `host::chains::kParams` (`src/host/chains/params.h`) for the song, a kit's affect-entire and
 an audio track. Ids are pinned forever by the tables' specs. The runtime's own numbering (the `params::` enums, a
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
@@ -14,8 +14,8 @@ collection `Kind` and index) maps to ids through `model/project_bridge/param_ids
 ## Identity in the host
 
 The host names a param without its owner as a `project::ParamTarget{ParamSpace space; plugin::ParamId id}`
-(`src/deluge-project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
-the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/deluge/cables.h`); a
+(`src/project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
+the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/classic/cables.h`); a
 MIDI_CC id is the CC number, an EXPRESSION id the MPE dimension. Ids are per plugin (116 is portamento in the
 instrument's table and mod FX rate in the global effectable's), so a target is read only together with its owner's
 `bridge::OwnerPlugin`, which the code reading it knows from its owner (a sound is the instrument; a global effectable,
@@ -29,7 +29,7 @@ one way between the two numberings; until the model stack is retired, the views 
 What names params by target:
 
 - the pad-grid shortcuts and the automation view's param orders (`modulation/params/param_targets.h`);
-- MIDI follow's maps (`controls::FollowTables`), with `MidiFollow::ccOf(owner, target)` for the CC that follows a
+- MIDI follow's maps (`ui::controls::FollowTables`), with `MidiFollow::ccOf(owner, target)` for the CC that follows a
   param, and the performance view's params, layout and shortcuts (the host chain's `ParamId`s);
 - mod knobs (`ModKnob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
   the descriptor word the files and the model stack use), learned MIDI knobs (an `OwnerParamTarget` in the song's
@@ -248,7 +248,7 @@ mutations, that every unpatched and patched lane the render's lookup finds is th
 
 ## The descriptor
 
-Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):
+Each row is a `plugin::ParamInfo` (`src/plugin/types/param.h`):
 
 | Field | Meaning |
 |---|---|
@@ -269,7 +269,7 @@ and mappings, each against an oracle recorded from the code the tables replaced.
 
 ## Host positions
 
-A host converts only through the mapping kinds (`src/plugin-api/types/param_mapping.h`) and never switches on a param:
+A host converts only through the mapping kinds (`src/plugin/types/param_mapping.h`) and never switches on a param:
 
 | Kind | Knob (−64..+64) | Menu | Params |
 |---|---|---|---|
@@ -294,17 +294,17 @@ them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param,
 
 An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
 extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host
-chain's table (`effects/host_chain/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
+chain's table (`host/chains/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
 unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the arpeggiator's rows and
 the channel's (pan, volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
-effect, the table names their ids in the effect's order (`host_chain::kFilterIds`, `kModFxIds`, `kEqIds`,
-`kBitcrushIds`; `instrument::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
+effect, the table names their ids in the effect's order (`host::chains::kFilterIds`, `kModFxIds`, `kEqIds`,
+`kBitcrushIds`; `instruments::classic::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
 params at compile time.
 
 The app's adapters (`model/fx/chain_inputs.cpp`, `processing/sound/fx_section_inputs.cpp`) read by those ids through
 `model/fx/effect_reads.h` and know nothing of the curves. A chain's init (`model/fx/chain_params.cpp`) sets every row
 of its owner's table: the shared ids 90–115 for a sound and a host chain, then a host chain's own rows, except those in
-`host_chain::kNotInitialised` (the tempo, which the song writes).
+`host::chains::kNotInitialised` (the tempo, which the song writes).
 
 param_table_check holds the effect params to the runtime: a curved param's neutral and curve are the instrument's for
 the same param. It also checks each chain's init state: every cursor at its lane's base, the set's kind and its store.
@@ -312,55 +312,55 @@ the same param. It also checks each chain's init state: every cursor at its lane
 ## Controls
 
 The gold knobs and the mod buttons read pages, not tables. An owner publishes its remote-controls pages
-(`plugin::RemotePage`, `plugin-api`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
+(`plugin::RemotePage`, `plugin`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
-setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
+setting it steps. `ui::controls::page_of` (`src/ui/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
-group enters at. Any board's knobs come from the published records alone: `controls::current_page` and
-`section_pages` (`src/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
-publishers, the device facts, the `controls::Board` and the host's reading of a chain's view. `current_page` builds the
+group enters at. Any board's knobs come from the published records alone: `ui::controls::current_page` and
+`section_pages` (`src/ui/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
+publishers, the device facts, the `ui::controls::Board` and the host's reading of a chain's view. `current_page` builds the
 current page alone, with no allocation, for a turn and the knobs' indicators; `section_pages` adds the cycle for a
-press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin-api/remote_controls_publisher.h`),
-handed the owner's state from the model song; the app collects the records in `scenes::bind::app_publishers`. A
+press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin/remote_controls_publisher.h`),
+handed the owner's state from the model song; the app collects the records in `ui::scenes::bind::app_publishers`. A
 publisher's `find` may serve pages its `get` does not list: the instrument's serves the sound's filter cycle on any
 section.
 
-`controls::Board` (`src/controls/board.h`) is what a board offers: its sections (mod buttons), its slots per section
-(gold knobs), whether a slot presses, and its pad grid. `controls::map_input` is the board's map from a `Physical`
+`ui::controls::Board` (`src/ui/controls/board.h`) is what a board offers: its sections (mod buttons), its slots per section
+(gold knobs), whether a slot presses, and its pad grid. `ui::controls::map_input` is the board's map from a `Physical`
 control to the `Logical` section or slot the rules name; a control the board lacks drives nothing. The Deluge's profile
 is `kDelugeControls` (`src/board_controls.hpp`), built from the board's own dimensions; its sections and slots are
 numbered as the hardware numbers them, so the map is the identity. A page's section count, a mode panic and a MIDI
-page's slots read the board, never a Deluge constant. `controls::section_keeps_stutter` answers whether pressing a
+page's slots read the board, never a Deluge constant. `ui::controls::section_keeps_stutter` answers whether pressing a
 section keeps a playing stutter running from the owner's published device pages, so the rule is the publisher's data.
 
-An owner with no knobs has an explicit empty layout: `NoControlsFocus` (`src/controls/knob_focus.h`) names a CV track,
+An owner with no knobs has an explicit empty layout: `NoControlsFocus` (`src/ui/controls/knob_focus.h`) names a CV track,
 a MIDI drum or a gate drum, its page is empty, its knobs turn nothing and its mod buttons choose nothing. It is not
 the same as no focus (`std::monostate`): the focus still carries the track, drum and clip the view is on, and
-`controls::has_no_knobs` is true for both.
+`ui::controls::has_no_knobs` is true for both.
 
 The settings a press steps or the song's compressor knobs turn are setting params (`effects::kSettingParams`, ids from
 `effects::kFirstSettingId`, clear of both plugins' tables): each row carries `ParamFlag::SETTING` and its file name.
 The eight a press steps (the filter modes, the delay's type, ping-pong and sync, the sidechain's sync, the mod FX type)
 are also `STEPPED | ENUM` and have a stepper (`effects::step_setting`); the six compressor rows are `SETTING` only,
 continuous, with no stepper. Settings have no storage of their own yet: a stepped setting is written by its row's file
-name through `controls::Sink::write_effect`, as a menu writes it, and a compressor knob's turn by its path.
+name through `ui::controls::Sink::write_effect`, as a menu writes it, and a compressor knob's turn by its path.
 
-`controls::resolve_turn` and `resolve_press` (`src/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
+`ui::controls::resolve_turn` and `resolve_press` (`src/ui/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
 pages and a slot, they return the one `Target` the control means: a `ParamWrite`, a `StepSetting`, a `SelectPage` or a
 `HostCommand` (stutter, reverb preset, MIDI CC select). `NEXT_PAGE` moves within the pressed slot's group and takes
 along every other slot still on the page's own param, so a slot the user mapped elsewhere stays where it is; from a
 page the cycle lacks (a mod FX view its type has no param for) it moves to the group's first page after it.
-`controls::resolve_section` (`src/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
+`ui::controls::resolve_section` (`src/ui/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
 meter toggles, the stutter ends, and the popup shows.
 
-The gold knobs (`scenes::services::ModKnobs`) resolve through these and apply each target through `controls::Sink`,
-reading values through `controls::Facts` (`src/controls/sink.h`, `facts.h`). The shell calls them while a menu is up;
+The gold knobs (`ui::scenes::services::ModKnobs`) resolve through these and apply each target through `ui::controls::Sink`,
+reading values through `ui::controls::Facts` (`src/ui/controls/sink.h`, `facts.h`). The shell calls them while a menu is up;
 the root views call the same object through `deluge::gui::ui::root_knobs` (`turn`, `push`, `mod_button`), which hands it
 a `KnobPresentation` that shows each popup, indicator and blink as the view does. No other knob path remains: `View`
 keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
 published pages to the engine's param layout.
 
-The instrument's layouts are data beside its device pages (`src/instruments/deluge/pages.h`): a sample row's mod
+The instrument's layouts are data beside its device pages (`src/instruments/classic/pages.h`): a sample row's mod
 button 6 is `kSamplePages` (the device pages with the pitch on the lower knob of mod button 6), the FM knob swap is the
 `kIntoFm` and `kOutOfFm` remap rows that `remap_for_mode` applies, and a wavetable claim's knobs are `wavetable_claimed`
 and `wavetable_released`. `remap_for_mode` takes the sound's saved knobs, the synth mode it leaves and the one it enters;
@@ -371,36 +371,36 @@ returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes
 Learned MIDI and MIDI follow reach params by address through the same library; the engine plays no learned knobs and has
 no dispatch of its own. An owner a song does not hold carries its file's knobs (`model::KnobCarrier::loaded`)
 until a song's table takes them. A learned knob is an entry of the song's mapping table (`project::MappingTable`): the
-source it is learned to, the `OwnerParamTarget` it turns and whether it is relative. `controls::dispatch_song_cc` moves
-the song's knobs a CC is learned to; the host offers each output in play order, and `controls::dispatch_output_cc` and
-`controls::dispatch_output_bend` move that output's knobs, a kit's rows' after its own, each before the output hears the
+source it is learned to, the `OwnerParamTarget` it turns and whether it is relative. `ui::controls::dispatch_song_cc` moves
+the song's knobs a CC is learned to; the host offers each output in play order, and `ui::controls::dispatch_output_cc` and
+`ui::controls::dispatch_output_bend` move that output's knobs, a kit's rows' after its own, each before the output hears the
 message itself, so a hit's take is made before the output reads its active clip. The outputs that play and a kit's sound
-rows come from `controls::Facts::playing_outputs` and `sound_rows`: an output with no active clip hears nothing.
-`controls::resolve_learned` turns a knob's target into the `ParamAddress` on the owner that plays it (a target outside
-the owner's engine params moves nothing), and `controls::move_by_cc` turns the knob through takeover and writes through
-`controls::Sink::write_param` with `Resolution::LEARNED` (`SetParamValue::Resolve::LEARNED`). As with a gold knob's
+rows come from `ui::controls::Facts::playing_outputs` and `sound_rows`: an output with no active clip hears nothing.
+`ui::controls::resolve_learned` turns a knob's target into the `ParamAddress` on the owner that plays it (a target outside
+the owner's engine params moves nothing), and `ui::controls::move_by_cc` turns the knob through takeover and writes through
+`ui::controls::Sink::write_param` with `Resolution::LEARNED` (`SetParamValue::Resolve::LEARNED`). As with a gold knob's
 write, the take is made while the arrangement records and a missing cable is made; unlike a gold knob's write, no
 instrument or drum is marked edited. The write keeps the default `Write::USER`, so it makes an undo step and records
 automation. The app reaches the dispatch through `learnedCcToSong`, `learnedCcToOutput` and `learnedPitchBendToOutput`
 (`io/midi/learned_dispatch.h`), defined with the binding host.
 
-`controls::TakeoverStore` holds each knob's `TakeoverState` by (owner, param, source), the key of its table entry, so a
+`ui::controls::TakeoverStore` holds each knob's `TakeoverState` by (owner, param, source), the key of its table entry, so a
 relearn in place (`TakeoverStore::relearn`), a flipped relative flag and an unchanged re-index leave it where it is, and
-a cloned output inherits it; it is dropped on a song change. `controls::knob_pos_after` is the arithmetic of the four
+a cloned output inherits it; it is dropped on a song change. `ui::controls::knob_pos_after` is the arithmetic of the four
 takeover modes. The store allocates, so it lives on the app loop: the render never writes the mapping table, and the
 writes it makes (forgets, arrivals and the copy half of a clone) wait in the held queue (`kPendingMappingOps`) for the
 app loop to apply them to the table and the store together.
 
-A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`src/deluge-project/mapping_codec.h`)
+A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`src/project/mapping_codec.h`)
 resolves it through the owner's `ParamNaming::id_of`, then through `mod_knob_target`, which sends a knob on a volume to
 the param the runtime uses, so the codec is the one place that rule lives.
 
-MIDI follow resolves the same way: `controls::resolve_follow` (`src/controls/follow.h`) turns a CC and the followed
+MIDI follow resolves the same way: `ui::controls::resolve_follow` (`src/ui/controls/follow.h`) turns a CC and the followed
 clip's `KnobFocus` (`midi::followFocus`, which reads `gui::knobFocusOfClip`: a kit's selected row unless the clip has
 affect-entire) into the address, from the sound table or the global one, and refuses portamento on a kit row. A
-followed CC moves its param through `controls::move_by_cc`, as a learned knob's does, after cloning the clip the
+followed CC moves its param through `ui::controls::move_by_cc`, as a learned knob's does, after cloning the clip the
 arrangement records whether or not the CC follows anything; its position arithmetic is a gold knob's
-(`src/controls/knob_math.h`).
+(`src/ui/controls/knob_math.h`).
 
 ## Instrument-private rules
 

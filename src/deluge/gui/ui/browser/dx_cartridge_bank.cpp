@@ -116,7 +116,8 @@ void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int3
 	if (sound.sourceResources[source].ensureDxPatch() == nullptr) {
 		return;
 	}
-	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sourceResources[source]);
+	std::optional<deluge::instruments::classic::DxPatchState> patch =
+	    deluge::bridge::dxPatchOf(sound.sourceResources[source]);
 	cartridge.unpackProgram(patch->params, program);
 	deluge::edits::dxPatchFor(sound, source, *patch);
 	sound.killAllVoices();

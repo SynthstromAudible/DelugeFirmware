@@ -16,13 +16,13 @@
  */
 
 #include "processing/dx7/dx_patch.h"
-#include "instruments/deluge/dx7_init_voice.h"
+#include "instruments/classic/dx7_init_voice.h"
 #include "processing/dx7/dx_engine.h"
 #include <algorithm>
 #include <cstddef>
 
 DxPatch::DxPatch() {
-	std::ranges::copy(deluge::instrument::kDx7InitVoice, params.begin());
+	std::ranges::copy(deluge::instruments::classic::kDx7InitVoice, params.begin());
 	setEngineMode(0);
 }
 

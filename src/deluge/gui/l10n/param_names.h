@@ -21,8 +21,8 @@
 /// @brief The params' display names, in the current language, keyed by the neutral kinds and ids.
 
 #include "effects/words.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param.h"
+#include "plugin/types/param_kind.h"
 
 #include <cstdint>
 #include <string_view>
@@ -31,7 +31,8 @@ namespace deluge::l10n {
 
 /// @brief The display name of a param.
 /// @param kind The param's collection.
-/// @param id   The param's id, as @c instrument::runtime_param_id numbers it (an unpatched param's id starts at 90).
+/// @param id   The param's id, as @c instruments::classic::runtime_param_id numbers it (an unpatched param's id starts
+/// at 90).
 /// @return The name; "None" for an id the kind does not hold and for a kind with no names.
 [[nodiscard]] std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id);
 

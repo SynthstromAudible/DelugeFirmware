@@ -2,7 +2,6 @@
 // sound, MIDI and gate alike, whose row's conditions hold in its own lane; for the kit arp, a sound drum only where it
 // can hold note tails. The kit clip's own arp is left alone.
 
-#include "deluge-project/setting_group.h"
 #include "gui/ui/menu_view_of.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
@@ -15,9 +14,10 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "project/setting_group.h"
 #include "support/song_fixture.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "cppspec.hpp"
 
@@ -28,10 +28,10 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::SettingGroupId;
-using deluge::scenes::menu::MenuContext;
 using deluge::serialization::Value;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 

@@ -27,24 +27,24 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/dynamic.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/dynamic.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -91,7 +91,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/controller_mapping_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -115,18 +115,18 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-namespace t3 = deluge::scenes::spec::tables3;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace t3 = deluge::ui::scenes::spec::tables3;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using t3::CableFixture;
 using t3::CommandSlots;
@@ -191,7 +191,7 @@ const Node* const kColourNodes[] = {&nodes::pad_colour_active, &nodes::pad_colou
 /// `Colour::Option`'s order: the nine names every pad colour item offers, as the options rows spell them.
 enum PadColour : uint8_t { kRed, kGreen, kBlue, kYellow, kCyan, kMagenta, kAmber, kWhite, kPink, kNumPadColours };
 
-/// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select. Matrix
+/// Board encoder index (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select. Matrix
 /// coordinates (`kMatrix`, same file) for the select-encoder button. Same spelling every other
 /// spec in this suite uses.
 constexpr uint8_t kSelectEncoderIndex = 3;
@@ -212,7 +212,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -259,7 +259,8 @@ DelugeBoard board_64() {
 
 const deluge::ui::shell::BoardProfile& profile_64() {
 	static const deluge::ui::shell::BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		deluge::ui::shell::BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -272,8 +273,8 @@ void shift_learn() {
 	using deluge::ui::shell::ButtonId;
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::scenes::deluge_profile()};
+	const deluge::ui::widgets::core::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::ui::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
 }
@@ -281,7 +282,7 @@ void shift_learn() {
 /// @brief The last popup notice's string id, draining the queue; 0 for none.
 uint16_t last_popup_string() {
 	uint16_t last = 0;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		last = n.string_id;
 	}
 	return last;
@@ -295,13 +296,13 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	// Both global queues first. An undrained `Kind::Text` notice -- a `CANT_LEARN_PC` refusal from a
 	// previous iteration, or a stray fact from an earlier describe block in this same process --
 	// becomes a `PopupScene` on this Rig's very first tick, which is not `oled_transparent` for
-	// `Main` and takes the input top with it (`shell/notices.cpp`). The select press below
+	// `Main` and takes the input top with it (`ui/shell/notices.cpp`). The select press below
 	// would then never reach the menu, and the descent would silently not happen.
 	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
-	deluge::notify::dirty().drain();
+	deluge::base::notify::dirty().drain();
 	{
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	}
 	// The turns below count from row 0, so the page must not land on the row an earlier walk left it on.
 	menu_scene().reset_process_state();
@@ -318,10 +319,10 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 
 /// @brief Open the MIDI-commands list on `Rig` @p r with the cursor on its @p row'th child, not entered.
 void cursor_on_command_row(Rig& r, const MenuContext& ctx, size_t row) {
-	deluge::notify::dirty().drain();
+	deluge::base::notify::dirty().drain();
 	{
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	}
 	menu_scene().reset_process_state();
 	r.open(nodes::midi_commands, ctx);
@@ -340,8 +341,8 @@ deluge::midi::DeviceId spec_device() {
 /// @brief The focused item's own learn hooks, for an example that reads whether the item learned (which
 ///        `offer_while_learning`'s "used" answer does not say) or that must not open learn mode around the learn.
 /// @return The item, or null when nothing is focused or the focused node has no item.
-const deluge::scenes::menu::CustomItem* focused_item() {
-	const deluge::scenes::menu::Node* at = menu_scene().focused();
+const deluge::ui::scenes::menu::CustomItem* focused_item() {
+	const deluge::ui::scenes::menu::Node* at = menu_scene().focused();
 	return at == nullptr ? nullptr : at->custom;
 }
 
@@ -350,8 +351,8 @@ bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel
 	using deluge::ui::shell::ButtonId;
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
+	const deluge::ui::widgets::core::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::ui::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	const bool used = menu_scene()
 	                      .handle(UiEvent{.kind = kind,
@@ -965,7 +966,7 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 		// the ratchet, and it holds node identities rather than a count: a fifteenth exclusion with
 		// no arm here fails this example, and so does a second `insert` of a node already driven.
 		//
-		// The six `hid/`-side settings nodes are covered here in the only half `src/scenes` owns:
+		// The six `hid/`-side settings nodes are covered here in the only half `src/ui/scenes` owns:
 		// the `FlashStorage` / `runtimeFeatureSettings` write. Their `hid/` halves are legacy's, as
 		// `nodes/settings.h` records.
 		std::set<const Node*> covered;
@@ -1073,14 +1074,14 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 
 		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);
 		}
 
@@ -1524,21 +1525,21 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 	// `nodes::reset_flash` .. `nodes::reset_all`. This is the missing half -- the mapping from menu
 	// node to descriptor -- and it is the one thing a swapped pair of `ResetItem` ids would break
 	// silently if it were untested.
-	namespace context_menu = deluge::scenes::context_menu;
+	namespace context_menu = deluge::ui::scenes::context_menu;
 
 	it("opens the reset context menu on the matching descriptor, rather than resetting on the spot", _ {
 		// Real descent from `reset_settings` (the "Reset Settings" submenu, `nodes/settings.h`'s
 		// `kResetSettingsChildren`) -- cursor down to row `i`, then the select-encoder press that
 		// `enter_child` -> `enter_leaf` -> `CustomItem::on_focus` runs on, the same path
 		// `rename_scene_spec.cpp`'s "opens on the drum target" test drives `EditNameItem` through.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// A stray notice left in the global queue by an earlier describe block in this same process
 		// would otherwise push a `ConsoleScene` overlay on this test's very first tick, one deeper
 		// than the plain menu-then-context-menu stack this counts -- `tables_3_pixels`' own
 		// `before_each` drains both queues for exactly this reason.
 		{
-			deluge::notify::Notice stray;
-			while (deluge::notify::notices().pop(stray)) {}
+			deluge::base::notify::Notice stray;
+			while (deluge::base::notify::notices().pop(stray)) {}
 		}
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -1574,10 +1575,10 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 	it("resets exactly what main resets, driven through the real node, the real push and the real "
 	   "accept button -- not just through a DescriptorId",
 	   _ {
-		   deluge::notify::dirty().drain();
+		   deluge::base::notify::dirty().drain();
 		   {
-			   deluge::notify::Notice stray;
-			   while (deluge::notify::notices().pop(stray)) {}
+			   deluge::base::notify::Notice stray;
+			   while (deluge::base::notify::notices().pop(stray)) {}
 		   }
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -1733,7 +1734,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   focus_command_row(pc_rig, settings.ctx, i);
 			   const std::string want = table().value("learn_own/" + std::to_string(i) + "/pgm", "slot");
 			   const bool is_fill = want == "refused";
-			   const deluge::scenes::menu::CustomItem* item = focused_item();
+			   const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 			   expect(item).not_().to_be_null();
 			   if (item != nullptr) {
 				   expect(item->learn_program_change(settings.ctx, spec_device(), 2, static_cast<int32_t>(7 + i)))
@@ -1742,7 +1743,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   const std::string pc_got = CommandSlots::capture().describe();
 			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
 			   size_t refusals = 0;
-			   for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+			   for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 				   refusals += (n.string_id == uint16_t(String::STRING_FOR_CANT_LEARN_PC)) ? 1 : 0;
 			   }
 			   expect(is_fill ? std::string{"(all clear)"} : want).to_equal(pc_got);
@@ -1789,7 +1790,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 0)).to_be_false();
@@ -1842,7 +1843,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (the base returns false), and the editor's
 		   // screen change turns that into `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every
 		   // screen change (`SoundEditor::updatePadLightsFor` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
-		   // Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
+		   // Board LED 7 is LEARN (`ui/shell/profiles/deluge.cpp`).
 		   constexpr uint8_t kLearnBoardLed = 7;
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -2454,11 +2455,11 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	it("renders the device list and both output selectors, on both panel geometries", _ {
 		// Both geometries, because a row constant that is right on one panel and wrong on the other
 		// is exactly the class of mistake a single golden cannot see. Nothing here hand-computes a
-		// rect: both pages lay out through `ui::oled::menu_rect(f)`, like every other menu screen.
-		deluge::notify::dirty().drain();
+		// rect: both pages lay out through `ui::widgets::oled::menu_rect(f)`, like every other menu screen.
+		deluge::base::notify::dirty().drain();
 		{
-			deluge::notify::Notice stray;
-			while (deluge::notify::notices().pop(stray)) {}
+			deluge::base::notify::Notice stray;
+			while (deluge::base::notify::notices().pop(stray)) {}
 		}
 		CableFixture cables;
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
@@ -2584,7 +2585,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	// `tables_3_writes` above drives every set hook across the whole tree, including params an
 	// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which raises
 	// a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s `notice_unservable_param`).
-	// That notice sat harmlessly undrained in the global queue until `shell/notices.cpp`
+	// That notice sat harmlessly undrained in the global queue until `ui/shell/notices.cpp`
 	// composites a drained Console notice into whatever next calls `shell.tick()` -- one of the
 	// tests below, in the same process. Drain both global
 	// queues before each `it` here so a stray fact from an earlier describe block, or from the
@@ -2592,9 +2593,9 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	before_each([] {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	});
 
 	// The golden names are `menu_settings_tree_*`, not `menu_settings_root_*`: those belong to
@@ -2615,7 +2616,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	//
 	// The rows land on legacy's literal *canvas* rows 20 / 29 / 38 on both panels, which the port
 	// reaches through two corrections rather than one literal (`nodes/midi_command.cpp`'s
-	// `command_row0_y`, and `ui/core/metrics.h`): the frame origin already carries the panel's own
+	// `command_row0_y`, and `ui/widgets/core/metrics.h`): the frame origin already carries the panel's own
 	// `visible_top`, which is 5 on the 48-row board and **0** on the 64-row one -- hence
 	// `kMidiCommandRowY48` = 15 and `kMidiCommandRowY64` = 20, a pair, not a constant -- and
 	// `kApple7Height7YAdjust` = -1 cancels the one-row drop `FontId::Apple7` (the height-9 Apple
@@ -2642,7 +2643,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		focus_command_row(r, settings.ctx, 0);
 		// Channel 3 + `IS_A_CC`, CC 42: the readout is the cable's display name, "CHANNEL 4"
 		// (1-based, with the CC band subtracted back off) and "CC 42".
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
@@ -2662,7 +2663,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_note_on(settings.ctx, spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
@@ -2678,7 +2679,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r{board_64(), profile_64()};
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();

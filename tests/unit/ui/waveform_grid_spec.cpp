@@ -1,7 +1,7 @@
-#include "gfx/grid/palette.h"
 #include "support/frames.h"
-#include "ui/grid/waveform.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/widgets/grid/waveform.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -15,8 +15,8 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using namespace deluge::ui::widgets::grid;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
@@ -71,7 +71,7 @@ const RGB kBase{200, 40, 120};
 } // namespace
 
 // clang-format off
-describe waveform_grid("ui/grid/waveform", $ {
+describe waveform_grid("ui::widgets::grid::waveform", $ {
 
 	// --- waveform_row -------------------------------------------------------------------------
 

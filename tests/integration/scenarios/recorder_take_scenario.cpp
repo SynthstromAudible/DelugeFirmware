@@ -60,13 +60,13 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "shell/shell.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/preset_acquisition.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/shell/shell.h"
 #include "util/menu_entry.h"
 #include "util/misc.h"
 
@@ -202,8 +202,8 @@ bool settled(bool met) {
 
 using deluge::harness::guestTick;
 using deluge::harness::guestTop;
-using deluge::scenes::recorder::kRecorderSceneKind;
-using deluge::scenes::recorder::recorder_scene;
+using deluge::ui::scenes::recorder::kRecorderSceneKind;
+using deluge::ui::scenes::recorder::recorder_scene;
 
 bool inputTake() {
 	const AudioInputChannel source = AudioEngine::foregroundRecordingSource();

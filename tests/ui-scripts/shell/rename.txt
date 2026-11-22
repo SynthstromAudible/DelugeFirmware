@@ -2,7 +2,7 @@
 # reaches it -- a select press on nodes::edit_clip_name, whose `nodes::EditNameItem::on_focus` files
 # `MenuState::pending_scene` and `MenuScene::after_render` turns into a `Push`.
 #
-# Pad coordinates are the QWERTY layout's own (`ui/grid/keyboard.cpp` kKeyboardChars, home row
+# Pad coordinates are the QWERTY layout's own (`ui/widgets/grid/keyboard.cpp` kKeyboardChars, home row
 # 3, table row = 5 - y, table column = x - 3): 'A' is (3,3), 'B' is (7,2), backspace is (14,5) and
 # enter is (14,3) (`text_keyboard_char_at`).
 #

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "shell/surfaces.h"
 #include "support/printers/rgb_printer.h"
+#include "ui/shell/surfaces.h"
 
 #include <cstdint>
 #include <ostream>
@@ -29,8 +29,8 @@
 /// CppSpec prints a value through `operator<<` when argument-dependent lookup finds one, and a type it cannot stream
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
-/// a spec linked with others that print the same type must agree with them. `shell/surfaces.h` reaches a C struct with
-/// a `context` member, which CppSpec's `context` macro breaks, so include this before `cppspec.hpp`.
+/// a spec linked with others that print the same type must agree with them. `ui/shell/surfaces.h` reaches a C struct
+/// with a `context` member, which CppSpec's `context` macro breaks, so include this before `cppspec.hpp`.
 namespace deluge::ui::shell {
 
 /// @brief Prints a column pair as its 16 colours in legacy order: column `x` rows 0..7, then column `x + 1`.

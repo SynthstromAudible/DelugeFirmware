@@ -248,14 +248,14 @@ serialization backend swappable to Rust + serde. Out of scope here.
 
 ### Module topology and the purity gradient
 
-- `src/deluge-project/` keeps the hard rule: **no includes from the engine tree, ever**.
+- `src/project/` keeps the hard rule: **no includes from the engine tree, ever**.
   Enforce mechanically with an include-lint (same pattern as the libdeluge allowlist lint).
 - Edits **begin life in the app tree** (`src/deluge/model/edits/`) because during the
   funnel phase they mutate engine objects. **Relocation is the purity certificate**: when
   an owner flips in M3 and its Edits no longer touch engine state, those Edits move into
-  `src/deluge-project/edits/`, where the include-lint physically prevents regression to
+  `src/project/edits/`, where the include-lint physically prevents regression to
   engine-poking. End-state: all Edits live inside the model module, pure-project.
-- Snapshot code is the mirror image: engine-side, depends on `deluge-project` read-only;
+- Snapshot code is the mirror image: engine-side, depends on `project` read-only;
   the model never knows it exists.
 - Net dependency direction is strictly one-way: **engine → model, never back.**
 
@@ -286,7 +286,7 @@ serialization backend swappable to Rust + serde. Out of scope here.
 
 Two populations, two lanes:
 
-- **Existing residue.** `deluge-project` is not uniformly idiomatic: the value-tier headers
+- **Existing residue.** `project` is not uniformly idiomatic: the value-tier headers
   went through the Phase 3 refinement (WS1–WS3), but code relocated in during the DOM
   slices (`serialization.cpp`, `param_backup`, parts of `param_automation`) was moved
   faithfully, not rewritten, and Phase 3's WS4 (modernize) + WS5 (read-seam) were never
@@ -295,12 +295,12 @@ Two populations, two lanes:
   mixed into a behavior-flip commit** — when a golden fixture shifts, the commit must be
   unambiguously "moved authority" or "rewrote a loop," not both. Finishing Phase 3 WS4/WS5
   is hereby a named backlog item of this plan.
-- **New entrants.** Anything crossing the border into `deluge-project` — Edits relocating
+- **New entrants.** Anything crossing the border into `project` — Edits relocating
   in after their owner flips, model types grown during M3 — is rewritten to idiom **at the
   moment of crossing**. The move is the cheapest rewrite opportunity available (the code is
   already being re-read and re-gated). No "move now, clean later" IOUs — those IOUs are how
   the current residue accumulated.
-- **Mechanical enforcement.** Ratchet `src/deluge-project/.clang-tidy` to a materially
+- **Mechanical enforcement.** Ratchet `src/project/.clang-tidy` to a materially
   stricter check set than the app tree (`modernize-*`, no C-casts, enum-class enforcement
   where checkable). Files awaiting their WS4 pass carry explicit suppressions — a visible,
   shrinking worklist.

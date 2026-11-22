@@ -3,27 +3,27 @@
 // apply.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "support/mocks/fake_surfaces.h"
 
+#include "base/notify/dirty_set.h"
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h"
 #include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
@@ -33,10 +33,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::SceneKind;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 namespace {
 

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "hid/button.h"
@@ -26,6 +25,7 @@
 #include "modulation/params/param.h"
 #include "processing/audio_output.h"
 #include "storage/preset_acquisition.h"
+#include "ui/controls/knob_focus.h"
 #include <atomic>
 #include <cstdint>
 #include <optional>
@@ -93,15 +93,15 @@ public:
 	void releaseActiveModControllable();
 	/// @brief [interaction] The compressor view the knobs' owner follows: the focus's for the song, which alone has
 	///        one; none for any other owner.
-	[[nodiscard]] const deluge::controls::CompView& knobComp() const;
+	[[nodiscard]] const deluge::ui::controls::CompView& knobComp() const;
 	/// @brief [interaction] Follow a write another keeper of the focus made (the guest's knobs): the song the focus is
 	///        in, whether it is a clip's, and the param manager the render compares automation against.
 	void knobFocusChanged();
 	/// @brief [interaction] What the gold knobs point at, as addresses: the owner the views set, the region a held pad
 	///        names, the song's compressor view and its VU meter.
-	[[nodiscard]] const deluge::controls::KnobFocus& knobFocus() const { return knobFocus_; }
+	[[nodiscard]] const deluge::ui::controls::KnobFocus& knobFocus() const { return knobFocus_; }
 	/// @copydoc knobFocus() const
-	[[nodiscard]] deluge::controls::KnobFocus& knobFocus() { return knobFocus_; }
+	[[nodiscard]] deluge::ui::controls::KnobFocus& knobFocus() { return knobFocus_; }
 	/// @brief [interaction] The clip the knobs are on, by id: none for the song, an arranger row with no clip, or no
 	///        focus. A take the arrangement records is named by the session clip it records.
 	[[nodiscard]] std::optional<uint32_t> knobsClipId() const;
@@ -306,7 +306,7 @@ private:
 	/// @brief Set the focus's owner from @p stack, a view's stack for its target, keeping its region, compressor view
 	///        and VU meter.
 	void setKnobFocusFrom(const ModelStackWithThreeMainThings* stack);
-	deluge::controls::KnobFocus knobFocus_{};
+	deluge::ui::controls::KnobFocus knobFocus_{};
 	/// The song the focus's ids are in, as an identity only: never dereferenced.
 	const Song* knobSong_{};
 	/// The song the compressor view was opened in, as an identity only: a new song starts out of it.

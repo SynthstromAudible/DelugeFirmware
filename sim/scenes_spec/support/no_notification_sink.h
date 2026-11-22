@@ -3,9 +3,9 @@
 /// @file
 /// @brief `NoNotificationSink`: the shell's own `Notification` banner for an example's scope.
 
-#include "shell/notices.h"
+#include "ui/shell/notices.h"
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief No notification sink for the scope, so the shell's own `Notification` banner shows a scene's notification;
 ///        the sink app init installs (`wireShellNotificationSink`) is put back after. For examples that read that
@@ -18,4 +18,4 @@ struct NoNotificationSink {
 	NoNotificationSink& operator=(const NoNotificationSink&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

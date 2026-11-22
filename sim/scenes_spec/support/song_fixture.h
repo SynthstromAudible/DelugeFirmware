@@ -52,7 +52,7 @@
 
 #include <new>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A song plus the one clip a spec resolves a `MenuContext` from.
 struct SongFixture {
@@ -259,4 +259,4 @@ inline bool drum_allows_note_tails(Drum* drum) {
 	                                  /*disregardSampleLoop=*/true);
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

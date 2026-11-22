@@ -18,8 +18,9 @@
 #include "gui/ui/root_knobs.h"
 
 #include "board_controls.hpp"
-#include "controls/board.h"
+#include "ui/controls/board.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_guest_knobs.h"
@@ -32,10 +33,9 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "notify/notice_queue.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/services/knob_presentation.h"
-#include "scenes/services/mod_knobs.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/services/knob_presentation.h"
+#include "ui/scenes/services/mod_knobs.h"
 #include "util/functions.h"
 
 #include <cstdint>
@@ -45,9 +45,9 @@
 namespace deluge::gui::ui::root_knobs {
 namespace {
 
-using deluge::scenes::services::KnobPresentation;
-using deluge::scenes::services::ModKnobs;
-using deluge::scenes::services::ModTurn;
+using deluge::ui::scenes::services::KnobPresentation;
+using deluge::ui::scenes::services::ModKnobs;
+using deluge::ui::scenes::services::ModTurn;
 
 /// @brief The gold knobs as the root views show them: the legacy display, `indicator_leds` and `View`, each method
 ///        the `View` code it stands for.
@@ -62,7 +62,7 @@ public:
 		return performance_shows_it || loadSongUI.isLoadingSong();
 	}
 	void show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,
-	                      const deluge::scenes::overlay::PopupContext& /*context*/, uint32_t /*now_ms*/) override {
+	                      const deluge::ui::scenes::overlay::PopupContext& /*context*/, uint32_t /*now_ms*/) override {
 		view.displayModEncoderValuePopup(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2);
 	}
 	void value_written() override { view.refreshKnobParamManager(); }
@@ -90,8 +90,8 @@ public:
 	/// `ModControllableAudio::displayFilterSettings`
 	///        and its siblings): up until the release cancels it.
 	void popup_text(std::string_view text) override { display->popupText(std::string{text}.c_str()); }
-	/// @brief A push's setting change (`Sound::modEncoderButtonAction`'s `deluge::notify::notice`).
-	void notice_text(std::string_view text) override { deluge::notify::notice_text(text); }
+	/// @brief A push's setting change (`Sound::modEncoderButtonAction`'s `deluge::base::notify::notice`).
+	void notice_text(std::string_view text) override { deluge::base::notify::notice_text(text); }
 	/// @brief The song compressor's setting (main's `GlobalEffectable::modEncoderActionForNonExistentParam`).
 	void notification(std::string_view title, std::string_view value) override {
 		display->displayNotification(title, value);
@@ -126,8 +126,8 @@ void turn(int32_t knob, int32_t offset) {
 	if (knob < 0 || knob > UINT8_MAX) {
 		return;
 	}
-	const std::optional<controls::Logical> slot = controls::map_input(
-	    sharedModKnobs().board(), {controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
+	const std::optional<deluge::ui::controls::Logical> slot = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
 	if (!slot) {
 		return;
 	}
@@ -137,8 +137,8 @@ void turn(int32_t knob, int32_t offset) {
 }
 
 void push(uint8_t knob, bool on) {
-	const std::optional<controls::Logical> slot =
-	    controls::map_input(sharedModKnobs().board(), {controls::Physical::Kind::SLOT_PRESS, knob});
+	const std::optional<deluge::ui::controls::Logical> slot = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SLOT_PRESS, knob});
 	if (!slot) {
 		return;
 	}
@@ -157,8 +157,8 @@ void push(uint8_t knob, bool on) {
 }
 
 void mod_button(uint8_t button, bool on) {
-	const std::optional<controls::Logical> section =
-	    controls::map_input(sharedModKnobs().board(), {controls::Physical::Kind::SECTION_BUTTON, button});
+	const std::optional<deluge::ui::controls::Logical> section = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SECTION_BUTTON, button});
 	if (!section) {
 		return;
 	}
@@ -194,7 +194,7 @@ std::optional<deluge::project::ParamAddress> knob_address(int32_t knob) {
 	// An engine param its owner always holds, or a cable a paste makes; a MIDI lane only once it is made
 	// (the `autoParam` test of main's `View::modEncoderAction`, `origin/main:src/deluge/gui/views/view.cpp`).
 	if (address && address->space != deluge::project::ParamSpace::ENGINE
-	    && !deluge::scenes::menu::host_ports().controls->param_value(*address)) {
+	    && !deluge::ui::scenes::menu::host_ports().controls->param_value(*address)) {
 		return std::nullopt;
 	}
 	return address;

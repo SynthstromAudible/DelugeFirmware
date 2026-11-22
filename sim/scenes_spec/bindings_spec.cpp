@@ -2,13 +2,14 @@
 /// @brief Spec for `menu::bindings`: read/write/range/names/learn against a REAL model.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
 #include "support/menu_engine.h"
+#include "ui/scenes/menu/bindings.h"
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/sound_filters.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/sound_filters.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/l10n/l10n.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -16,7 +17,6 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -30,11 +30,11 @@
 
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 namespace params = deluge::modulation::params;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 namespace {
 
@@ -70,7 +70,7 @@ constexpr Node enum_node = menu::enumeration(
 
 /// @brief Drop whatever earlier specs raised, so a `has()` below is about this write only.
 void clear_dirty() {
-	(void)deluge::notify::dirty().drain();
+	(void)deluge::base::notify::dirty().drain();
 }
 
 MenuContext synth_context(spec::SongFixture& f) {
@@ -102,16 +102,16 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 		const MenuContext ctx = synth_context(f);
 		clear_dirty();
 
-		bindings::write(deluge::scenes::menu::nodes::lpf_freq, ctx, 22);
+		bindings::write(deluge::ui::scenes::menu::nodes::lpf_freq, ctx, 22);
 
-		const deluge::notify::DirtySet d = deluge::notify::dirty().drain();
-		expect(d.has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
-		expect(d.has(deluge::notify::Dirty::ModTarget)).to_be_true();
+		const deluge::base::notify::DirtySet d = deluge::base::notify::dirty().drain();
+		expect(d.has(deluge::base::notify::Dirty::ParamAutomation)).to_be_true();
+		expect(d.has(deluge::base::notify::Dirty::ModTarget)).to_be_true();
 		// The pad half of `AutomationView::possiblyRefreshAutomationEditorGrid`'s
 		// `uiNeedsRendering(&automationView)`: `ParamAutomation`/`ModTarget` reach only `r.oled`
 		// (`legacy_redraw_for` in `notify_drain_mapping.cpp`), so without GridMain the automation grid would stop
 		// repainting.
-		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_true();
+		expect(d.has(deluge::base::notify::Dirty::GridMain)).to_be_true();
 	});
 
 	it("raises nothing for a param write the app's sink refuses", _ {
@@ -120,9 +120,9 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 		ctx.addresses.clip = deluge::project::ClipAddress{f.clip->id() + 1000}; // a clip the song does not hold
 		clear_dirty();
 
-		bindings::write(deluge::scenes::menu::nodes::lpf_freq, ctx, 22);
+		bindings::write(deluge::ui::scenes::menu::nodes::lpf_freq, ctx, 22);
 
-		expect(deluge::notify::dirty().drain().any()).to_be_false();
+		expect(deluge::base::notify::dirty().drain().any()).to_be_false();
 	});
 
 	it("raises Oled for a get/set write", _ {
@@ -132,11 +132,11 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 
 		bindings::write(toggle_node, ctx, 1);
 
-		const deluge::notify::DirtySet d = deluge::notify::dirty().drain();
-		expect(d.has(deluge::notify::Dirty::Oled)).to_be_true();
+		const deluge::base::notify::DirtySet d = deluge::base::notify::dirty().drain();
+		expect(d.has(deluge::base::notify::Dirty::Oled)).to_be_true();
 		// The get/set path is not a param write: no grid, no automation.
-		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_false();
-		expect(d.has(deluge::notify::Dirty::ParamAutomation)).to_be_false();
+		expect(d.has(deluge::base::notify::Dirty::GridMain)).to_be_false();
+		expect(d.has(deluge::base::notify::Dirty::ParamAutomation)).to_be_false();
 	});
 
 	it("raises nothing for a node with neither a param nor a set hook", _ {
@@ -147,7 +147,7 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 
 		bindings::write(unwritable, ctx, 1);
 
-		expect(deluge::notify::dirty().drain().any()).to_be_false();
+		expect(deluge::base::notify::dirty().drain().any()).to_be_false();
 	});
 
 });
@@ -233,10 +233,10 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 		const MenuContext ctx = synth_context(f);
 
 		const deluge::modulation::KnobTarget patched = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ); // `PatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`)
-		expect(deluge::scenes::spec::learns_as(bindings::learn_target(lpf_freq_node, ctx), patched, ctx)).to_be_true();
+		expect(deluge::ui::scenes::spec::learns_as(bindings::learn_target(lpf_freq_node, ctx), patched, ctx)).to_be_true();
 
 		const deluge::modulation::KnobTarget unpatched = deluge::modulation::knobParam(params::UNPATCHED_BASS + params::UNPATCHED_START); // `UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)
-		expect(deluge::scenes::spec::learns_as(bindings::learn_target(bass_node, ctx), unpatched, ctx)).to_be_true();
+		expect(deluge::ui::scenes::spec::learns_as(bindings::learn_target(bass_node, ctx), unpatched, ctx)).to_be_true();
 
 		expect(bindings::learn_target(toggle_node, ctx).has_value()).to_be_false();
 	});

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "deluge-project/lane_view.h"
-#include "foundation/function_ref.h"
+#include "base/function_ref.h"
 #include "modulation/params/param.h"
+#include "project/lane_view.h"
 
 #include <atomic>
 #include <cstdint>
@@ -146,13 +146,13 @@ public:
 
 	/// @brief [interaction] Call @p visit with each of this collection's lanes that has nodes, by its paramId (the key
 	///        its published snapshot is searched by), in any order.
-	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
+	virtual void forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
 
 	/// @brief [render] or [interaction] Call @p visit with the key of each lane of this collection that a repeat of
 	///        @p other, a collection of the same kind, appends to: each lane @p other has to repeat. Reads no lane.
 	/// @param otherSummary @p other's summary: its flags say which of its lanes a ParamSet or PatchCableSet repeats.
 	virtual void forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-	                                deluge::function_ref<void(int32_t)> visit) {}
+	                                deluge::base::function_ref<void(int32_t)> visit) {}
 	/// @brief [interaction] Lane @p paramId of this collection to append a repeat to, made where the collection makes
 	///        its lanes as they are first written.
 	/// @return It, or nullptr when this collection has no such lane.
@@ -163,7 +163,7 @@ public:
 	///        appended, the rest as they are, each with nodes, by the key forEachLane() gives it.
 	void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
 	                         int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-	                         deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
+	                         deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
 
 	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
 	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty

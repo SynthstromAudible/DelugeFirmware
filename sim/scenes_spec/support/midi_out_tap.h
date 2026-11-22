@@ -14,7 +14,7 @@
 
 extern "C" uint32_t deluge_host_midi_out_take(uint8_t* dst, uint32_t cap);
 
-namespace deluge::scenes::spec::midi_out {
+namespace deluge::ui::scenes::spec::midi_out {
 
 /// @brief Every DIN byte sent since the last take, space-separated lower-case hex ("" when none).
 inline std::string take() {
@@ -42,4 +42,4 @@ inline void clear() {
 	(void)take();
 }
 
-} // namespace deluge::scenes::spec::midi_out
+} // namespace deluge::ui::scenes::spec::midi_out

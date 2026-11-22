@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "app/ports/waveforms/peak_cache.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
-#include "sample-view/peak_cache.h"
 #include <cstdint>
 #include <optional>
 
@@ -34,24 +34,25 @@ public:
 	WaveformRenderer();
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-	                      RGB thisImage[][kDisplayWidth + kSideBarWidth], deluge::sample_view::PeakCache& cache,
-	                      SampleRecorder* recorder = nullptr, std::optional<RGB> rgb = std::nullopt,
-	                      bool reversed = false, int32_t xEnd = kDisplayWidth);
+	                      RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                      deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder = nullptr,
+	                      std::optional<RGB> rgb = std::nullopt, bool reversed = false, int32_t xEnd = kDisplayWidth);
 	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
-	                       deluge::sample_view::PeakCache& cache, SampleRecorder* recorder, RGB rgb, bool reversed,
-	                       int32_t xStart, int32_t xEnd);
+	                       deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder, RGB rgb,
+	                       bool reversed, int32_t xStart, int32_t xEnd);
 	void renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
-	                  const deluge::sample_view::PeakRead& read, bool reversed = false,
+	                  const deluge::ui::views::waveform::PeakRead& read, bool reversed = false,
 	                  std::optional<RGB> rgb = std::nullopt);
 	void renderOneColForCollapseAnimation(int32_t xDisplay, int32_t xDisplayOutput, int32_t maxPeakFromZero,
 	                                      int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
-	                                      const deluge::sample_view::PeakRead& read, std::optional<RGB> rgb,
+	                                      const deluge::ui::views::waveform::PeakRead& read, std::optional<RGB> rgb,
 	                                      bool reversed, int32_t valueCentrePoint, int32_t valueSpan);
 	void renderOneColForCollapseAnimationZoomedOut(int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge,
 	                                               int32_t xDisplayOutput, int32_t maxPeakFromZero, int32_t progress,
 	                                               RGB thisImage[][kDisplayWidth + kSideBarWidth],
-	                                               const deluge::sample_view::PeakRead& read, std::optional<RGB> rgb,
-	                                               bool reversed, int32_t valueCentrePoint, int32_t valueSpan);
+	                                               const deluge::ui::views::waveform::PeakRead& read,
+	                                               std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint,
+	                                               int32_t valueSpan);
 	int8_t collapseAnimationToWhichRow{};
 
 private:

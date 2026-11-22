@@ -1,10 +1,10 @@
 /// @file
-/// @brief The async listing seam (`src/scenes/browser/listing.h`): its state machine, its
+/// @brief The async listing seam (`src/ui/scenes/browser/listing.h`): its state machine, its
 ///        exactly-once delivery contract, and the five actions it performs over a real card.
 ///
 /// @par What this spec cannot prove, stated before anything green appears below
 ///
-/// **The shipped dispatcher is inline.** `deluge::scenes::run_inline` calls the op on the caller's
+/// **The shipped dispatcher is inline.** `deluge::ui::scenes::run_inline` calls the op on the caller's
 /// stack before returning, so a listing is already finished by the time `request()` returns, and
 /// *no spec in this repository -- this one included -- exercises concurrency across this seam.* Not
 /// preemption, not memory visibility between two contexts, not a listing that yields mid-read while
@@ -49,8 +49,8 @@
 
 #include "support/spec_main.h"
 
-using deluge::scenes::spec::SdRoot;
-using namespace deluge::scenes::spec::listing;
+using deluge::ui::scenes::spec::SdRoot;
+using namespace deluge::ui::scenes::spec::listing;
 
 // clang-format off
 describe listing("the async listing seam", $ {
@@ -193,7 +193,7 @@ describe listing("the async listing seam", $ {
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kDropped);
 		// Nothing is in flight and nothing is owed: `Listing::request`'s dropped-dispatch branch
-		// (`scenes/browser/listing.cpp`) clears the in-flight state, so the next event may simply retry.
+		// (`ui/scenes/browser/listing.cpp`) clears the in-flight state, so the next event may simply retry.
 		expect(state_of(listing)).to_equal(kIdle);
 		expect(listing.has_result()).to_be_false();
 
@@ -397,7 +397,7 @@ describe listing("the async listing seam", $ {
 	it("completes INLINE under the shipped dispatcher, which is why every example above defers", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
-		// The default-constructed seam dispatches through `deluge::scenes::run_inline`, which runs
+		// The default-constructed seam dispatches through `deluge::ui::scenes::run_inline`, which runs
 		// the op on the caller's stack. So the result is ALREADY waiting when `request()` returns
 		// and `in_flight()` is never observably true from here.
 		//

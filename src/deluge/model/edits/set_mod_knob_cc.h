@@ -1,8 +1,8 @@
 #pragma once
 
-#include "deluge-project/doc_output.h"
-#include "deluge-project/setting_group.h"
 #include "model/edits/edit.h"
+#include "project/doc_output.h"
+#include "project/setting_group.h"
 
 #include <cstdint>
 

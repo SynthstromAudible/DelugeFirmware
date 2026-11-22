@@ -16,9 +16,9 @@
  */
 #pragma once
 
-#include "controls/facts.h"
 #include "support/printers/controller_mapping_printer.h"
 #include "support/printers/owner_id_printer.h"
+#include "ui/controls/facts.h"
 
 #include <ostream>
 #include <utility>
@@ -31,7 +31,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::controls {
+namespace deluge::ui::controls {
 
 /// @brief Prints a playing output's kind as its number, e.g. `output_kind 1`.
 /// @param os The stream to print to.
@@ -60,4 +60,4 @@ inline std::ostream& operator<<(std::ostream& os, const KitRow& r) {
 	return os << "{drum " << r.drum_id << ", param_owner " << r.param_owner << "}";
 }
 
-} // namespace deluge::controls
+} // namespace deluge::ui::controls

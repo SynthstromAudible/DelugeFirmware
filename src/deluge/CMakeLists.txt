@@ -119,25 +119,26 @@ target_link_libraries(deluge_app PUBLIC
     deluge_scheduler # task_scheduler/clock_type.h on its path
     argon
     etl::etl
-    deluge_foundation
+    deluge_base
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
-    deluge_controls  # the gold knobs' focus
+    deluge_ui_controls # the gold knobs' focus
     deluge_plugin_types # the host–plugin contract's data-only types
-    deluge_plugin_api # the host–plugin contract's interface
-    deluge_instrument # the Deluge instrument's state, words and codec
+    deluge_plugin # the host–plugin contract's interface
+    deluge_instruments_classic # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
-    deluge_host_chain # the host chain's param table and pages
+    deluge_host_chains # the host chain's param table and pages
     deluge_serialization # the document tree and its XML and JSON parsers
-    deluge_music_theory # note sets, scales, keys and scale mapping
-    deluge_sample_view # a waveform view's columns, peaks and navigation
-    deluge_gfx_oled # pure drawing primitives
-    deluge_gfx_grid
-    deluge_ui_core # the immediate-mode UI toolkit
-    deluge_ui_oled
-    deluge_ui_grid
+    deluge_music # note sets, scales, keys and scale mapping
+    deluge_ui_views_waveform # a waveform view's columns, peaks and navigation
+    deluge_app_ports_waveforms # the host's cache of a waveform's columns
+    deluge_ui_gfx_oled # pure drawing primitives
+    deluge_ui_gfx_grid
+    deluge_ui_widgets_core # the immediate-mode UI toolkit
+    deluge_ui_widgets_oled
+    deluge_ui_widgets_grid
     deluge_ui_shell # surfaces, scene stack, input lowering, services, tick, flush
-    deluge_notify # the model->UI notification channel
+    deluge_base_notify # the model->UI notification channel
 )
 
 target_compile_definitions(deluge_app PUBLIC

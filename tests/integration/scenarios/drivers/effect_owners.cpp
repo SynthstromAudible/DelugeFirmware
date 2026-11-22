@@ -125,7 +125,7 @@ std::string describe(const Expected& state) {
 /// @param expected The state after each gesture in order: the compressor button's upper knob turn, its lower knob
 ///                 turn, the sidechain sync push (a clip chain's only; the song's has none), the mod-FX type push,
 ///                 the mod-FX param push and the filter type push.
-void checkGestures(ModControllable& owner, Song& song, const deluge::scenes::bind::KnobFocus& focus,
+void checkGestures(ModControllable& owner, Song& song, const deluge::ui::scenes::bind::KnobFocus& focus,
                    const deluge::edits::KnobModeOwner& modeOwner, const char* name, bool clipChain,
                    std::span<const Expected> expected) {
 	const std::string who = name;
@@ -227,10 +227,10 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());
 			failures++;
 		}
-		const deluge::scenes::bind::KnobFocus focus{
+		const deluge::ui::scenes::bind::KnobFocus focus{
 		    .owner =
-		        deluge::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
-		                                         .owner = deluge::scenes::bind::ChainOwner::KIT}};
+		        deluge::ui::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
+		                                             .owner = deluge::ui::scenes::bind::ChainOwner::KIT}};
 		// The sidechain sync step (7 to 9), the mod-FX type (none to the first type) and the filter view (low-pass to
 		// high-pass) are recorded from main's `GlobalEffectableForClip::modEncoderButtonAction` and
 		// `GlobalEffectable::modEncoderButtonAction` on the same kit. The compressor setting columns are not from the
@@ -250,7 +250,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 1}};
-		checkGestures(song->live.master_channel, *song, {.owner = deluge::scenes::bind::SongFocus{}},
+		checkGestures(song->live.master_channel, *song, {.owner = deluge::ui::scenes::bind::SongFocus{}},
 		              deluge::project::SongAddress{}, "the song master", false, kSong);
 	}
 

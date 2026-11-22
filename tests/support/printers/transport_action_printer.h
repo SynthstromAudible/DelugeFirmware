@@ -30,7 +30,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::bind::test {
+namespace deluge::ui::scenes::bind::test {
 
 /// @brief Prints a recorded action as its kind's value, its flag and its clip's id, e.g. `{kind 7, flag 1, clip 0}`.
 /// @param os   The stream to print to.
@@ -41,4 +41,4 @@ inline std::ostream& operator<<(std::ostream& os, const RecordingTransportAction
 	          << call.clip.clip_id << "}";
 }
 
-} // namespace deluge::scenes::bind::test
+} // namespace deluge::ui::scenes::bind::test

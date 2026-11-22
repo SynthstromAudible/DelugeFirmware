@@ -17,10 +17,10 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
-#include "effects/host_chain/naming.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/naming.h"
+#include "host/chains/naming.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/naming.h"
 #include "io/debug/log.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_controls.h"
@@ -67,8 +67,8 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 
 static_assert(kNumModButtons == 8, "a knob pair per mod button");
 
-deluge::instrument::KnobPairs knobPairsOf(const std::vector<ControllerMapping>& controls) {
-	deluge::instrument::KnobPairs pairs{};
+deluge::instruments::classic::KnobPairs knobPairsOf(const std::vector<ControllerMapping>& controls) {
+	deluge::instruments::classic::KnobPairs pairs{};
 	for (const ControllerMapping& mapping : controls) {
 		const ModKnobControl& knob = mapping.control;
 		if (knob.button < pairs.size() && knob.knob < kNumPhysicalModKnobs) {
@@ -78,7 +78,7 @@ deluge::instrument::KnobPairs knobPairsOf(const std::vector<ControllerMapping>& 
 	return pairs;
 }
 
-std::vector<ControllerMapping> controlsOf(const deluge::instrument::KnobPairs& pairs) {
+std::vector<ControllerMapping> controlsOf(const deluge::instruments::classic::KnobPairs& pairs) {
 	std::vector<ControllerMapping> controls;
 	controls.reserve(pairs.size() * kNumPhysicalModKnobs);
 	for (uint8_t button = 0; button < pairs.size(); ++button) {
@@ -88,14 +88,16 @@ std::vector<ControllerMapping> controlsOf(const deluge::instrument::KnobPairs& p
 	return controls;
 }
 
-bool writeKnobPairs(::Sound& sound, ::Song& song,
-                    deluge::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change) {
+bool writeKnobPairs(
+    ::Sound& sound, ::Song& song,
+    deluge::base::function_ref<deluge::instruments::classic::KnobPairs(const deluge::instruments::classic::KnobPairs&)>
+        change) {
 	const std::optional<deluge::project::ControlsAddress> address = controlsAddressOf(sound);
 	std::vector<ControllerMapping>* record = address ? song.project.resolveControls(*address) : nullptr;
 	// A record not holding all the mod knobs would read the missing ones as param id 0: the engine's knobs stand in.
 	const bool whole = record != nullptr && record->size() == kNumModButtons * kNumPhysicalModKnobs;
-	const deluge::instrument::KnobPairs knobs = knobPairsOf(whole ? *record : controlsOf(sound));
-	const deluge::instrument::KnobPairs changed = change(knobs);
+	const deluge::instruments::classic::KnobPairs knobs = knobPairsOf(whole ? *record : controlsOf(sound));
+	const deluge::instruments::classic::KnobPairs changed = change(knobs);
 	if (changed == knobs) {
 		return false;
 	}
@@ -115,10 +117,10 @@ bool writeKnobPairs(::Sound& sound, ::Song& song,
 	return true;
 }
 
-void remapKnobsForMode(::Sound& sound, ::Song& song, deluge::instrument::SynthMode from,
-                       deluge::instrument::SynthMode to) {
-	writeKnobPairs(sound, song, [from, to](const deluge::instrument::KnobPairs& knobs) {
-		return deluge::instrument::remap_for_mode(from, to, knobs);
+void remapKnobsForMode(::Sound& sound, ::Song& song, deluge::instruments::classic::SynthMode from,
+                       deluge::instruments::classic::SynthMode to) {
+	writeKnobPairs(sound, song, [from, to](const deluge::instruments::classic::KnobPairs& knobs) {
+		return deluge::instruments::classic::remap_for_mode(from, to, knobs);
 	});
 }
 
@@ -157,7 +159,7 @@ void refreshControls(::Song& song) {
 }
 
 deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target, params::Kind unpatchedKind) {
-	if ((target.value & deluge::instrument::kCableDepthFlag) != 0) { // a cable's depth
+	if ((target.value & deluge::instruments::classic::kCableDepthFlag) != 0) { // a cable's depth
 		return deluge::modulation::knobTargetOf({cableWordOf(target)});
 	}
 	if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
@@ -338,9 +340,9 @@ namespace {
 
 /// A sound element's instrument, read onto a new synth's state as a load reads it.
 deluge::plugin::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
-	deluge::instrument::SoundState state = deluge::instrument::SoundState{};
-	(void)deluge::instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
-	return deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(std::move(state));
+	deluge::instruments::classic::SoundState state = deluge::instruments::classic::SoundState{};
+	(void)deluge::instruments::classic::decode(element, state, {.input_tick_magnitude = tick_magnitude});
+	return deluge::plugin::StateHandle::of<deluge::instruments::classic::DelugeSynth>(std::move(state));
 }
 
 void encodeInstrument(const deluge::plugin::StateHandle& state, deluge::serialization::Value& element,
@@ -353,8 +355,8 @@ void encodeInstrument(const deluge::plugin::StateHandle& state, deluge::serializ
 } // namespace
 
 deluge::project::CodecPlugins codecPlugins() {
-	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
-	                                                                deluge::host_chain::kNaming};
+	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instruments::classic::kNaming,
+	                                                                deluge::host::chains::kNaming};
 	return {.namings = namings,
 	        .chains = chainCodec(),
 	        .instruments = {.decode = &decodeInstrument, .encode = &encodeInstrument}};

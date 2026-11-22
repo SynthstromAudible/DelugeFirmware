@@ -22,27 +22,26 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/oled.h"
 
-#include "deluge-project/param_automation.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -56,6 +55,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/param_automation.h"
 
 #include "support/known_differences.h"
 #include "support/menu_engine.h"
@@ -67,7 +67,7 @@
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/controller_mapping_printer.h"
 #include "support/printers/param_id_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -86,19 +86,19 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
-namespace t2 = deluge::scenes::spec::tables2;
+namespace t2 = deluge::ui::scenes::spec::tables2;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using t2::chain_name;
 using t2::chain_targets_contain;
@@ -163,7 +163,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -187,7 +187,7 @@ struct Rig {
 	}
 
 	/// @brief One select-encoder press edge, at its own matrix position (`kMatrix`,
-	///        `shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
+	///        `ui/shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
 	///
 	/// The patch-cable strength and source-selection pages are
 	/// reached only through a select press, so a golden of either has to press one.
@@ -211,7 +211,8 @@ DelugeBoard board_64() {
 
 const deluge::ui::shell::BoardProfile& profile_64() {
 	static const deluge::ui::shell::BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		deluge::ui::shell::BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -457,7 +458,7 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 				if (want == nullptr) {
 					// The synth clip is asked of every enum but the lane-only ones; the kit row, of those it shows.
 					const bool lane_only =
-					    e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+					    e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 					const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, fx.ctx))
 					                        && menu::bindings::relevant(*e.node, fx.ctx);
 					const bool required = std::string{fx.name} == "synth" ? !lane_only : shown_here;
@@ -931,7 +932,7 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 		// The page, in the polarity opposite to what a fresh cable would be given.
 		const Polarity fresh = PatchCable::getDefaultPolarity(kSource);
 		const Polarity chosen = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
-		expect(deluge::instrument::has_polarity(kSource)).to_be_true();
+		expect(deluge::instruments::classic::has_polarity(kSource)).to_be_true();
 
 		menu::MenuState st{};
 		st.walk.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
@@ -1124,7 +1125,7 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the sound-editor root list", _ {
 		Rigged& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
@@ -1133,7 +1134,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 
 	it("renders the sound-editor root list on a 64-row panel", _ {
 		Rigged& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
@@ -1149,7 +1150,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(f.ctx, plain, 1234)).to_be_true();
 
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			r.open(nodes::patch_cables, f.ctx);
@@ -1191,7 +1192,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 		// this records what the whole page composes to.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		for (bool tall : {false, true}) {
 			Rig r = tall ? Rig{board_64(), profile_64()} : Rig{};
 			r.open(nodes::vibrato, f.ctx);
@@ -1212,7 +1213,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the source picker the 53 PatchedParam nodes chain to, on both panels", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			r.open(nodes::lpf_freq, f.ctx);
@@ -1309,7 +1310,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 			// A setting target's `ParamRef` is learn-only: its value is its setting's, which descriptor_coherence_spec and
 			// sound_settings_spec drive. A param target's value is its param's.
 			const bool setting_target = p.node->bind.target.valid()
-			                            && p.node->bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM;
+			                            && p.node->bind.target.kind != deluge::ui::scenes::bind::Target::Kind::PARAM;
 			if (!p.node->bind.param.valid() || setting_target || p.node->bind.set != nullptr
 			    || p.node->kind == menu::Kind::Custom) {
 				continue;
@@ -1443,7 +1444,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
 		// `sequence::Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`) writes
 		// the *resolved* note row when there is one and the clip when there is not; `bindings::direction_target` and
-		// `direction_where` (`scenes/menu/bindings.cpp`) resolve the kit row's.
+		// `direction_where` (`ui/scenes/menu/bindings.cpp`) resolve the kit row's.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		const auto want_clip = static_cast<int32_t>(SequenceDirection::REVERSE);
@@ -1494,14 +1495,14 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;
 		}
 

@@ -16,15 +16,68 @@ Gate compare-codegen-selftest:
 from __future__ import annotations
 
 import unittest
+from typing import ClassVar
+from unittest import mock
 
+import compare_codegen
 from compare_codegen import (
+    aliases,
     canonical,
     classifier,
     compare,
+    demangler,
+    disassemble,
     functions,
+    mangled_renamer,
     mask_address_halves,
+    namespace_renamer,
     normalise,
 )
+
+
+class NamespaceRenames(unittest.TestCase):
+    def test_a_renamed_namespace_maps_anywhere_in_a_name(self):
+        rename = namespace_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(
+            rename("deluge::scenes::menu::Menu::render"),
+            "deluge::ui::scenes::menu::Menu::render",
+        )
+        self.assertEqual(
+            rename("std::vector<deluge::scenes::Node>::push_back"),
+            "std::vector<deluge::ui::scenes::Node>::push_back",
+        )
+        self.assertEqual(
+            rename("vtable for deluge::scenes::Scene"),
+            "vtable for deluge::ui::scenes::Scene",
+        )
+
+    def test_a_longer_or_nested_name_is_left(self):
+        rename = namespace_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(rename("deluge::scenes_x::f"), "deluge::scenes_x::f")
+        self.assertEqual(rename("my::deluge::scenes::f"), "my::deluge::scenes::f")
+        self.assertEqual(rename("deluge::ui::scenes::f"), "deluge::ui::scenes::f")
+
+    def test_a_duplicate_old_name_takes_the_first_new_name(self):
+        rename = namespace_renamer([("a::b", "x"), ("a::b", "y")])
+        self.assertEqual(rename("a::b::f"), "x::f")
+
+    def test_the_first_matching_pair_wins_and_a_result_is_not_renamed_again(self):
+        rename = namespace_renamer(
+            [("deluge::ui::oled", "deluge::oled"), ("deluge::ui", "deluge::view")]
+        )
+        self.assertEqual(rename("deluge::ui::oled::draw"), "deluge::oled::draw")
+        self.assertEqual(rename("deluge::ui::Scene::f"), "deluge::view::Scene::f")
+        self.assertEqual(rename("deluge::ui<int>"), "deluge::view<int>")
+
+    def test_a_prefix_matches_only_on_a_component_boundary(self):
+        rename = namespace_renamer([("deluge::ui", "deluge::view")])
+        self.assertEqual(rename("deluge::uix::f"), "deluge::uix::f")
+        self.assertEqual(rename("deluge::ui"), "deluge::view")
+        self.assertEqual(rename("deluge::ui::f"), "deluge::view::f")
+
+    def test_no_pairs_changes_nothing(self):
+        self.assertEqual(namespace_renamer([])("deluge::ui::f"), "deluge::ui::f")
+
 
 SAMPLE = """\
 20001000 <foo>:
@@ -202,6 +255,380 @@ class CompareTest(unittest.TestCase):
                 functions(one, rename), functions(one.replace("sub", "rsb"), rename)
             )[0],
             ["f"],
+        )
+
+
+SDRAM_NM = """\
+20001000 00000010 T foo
+2f000000 00000000 D __sdram_text_start
+2f000400 00000000 D __sdram_text_end
+"""
+
+TWO_SECTIONS = """\
+Disassembly of section .text:
+
+20001000 <foo>:
+20001000:      \tbx\tlr
+
+Disassembly of section .sdram_init:
+
+2f000000 <gui>:
+2f000000:      \tmov.w\tr2, #0x18
+2f000004:      \tbx\tlr
+"""
+
+
+class DisassembleTest(unittest.TestCase):
+    def test_the_sdram_range_is_disassembled_as_data_and_appended(self):
+        calls = []
+
+        def fake(tool, stdin=None):
+            calls.append(tool)
+            return f"out{len(calls)}\n"
+
+        with mock.patch.object(compare_codegen, "run", fake):
+            text = disassemble("objdump", "a.elf", SDRAM_NM)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], ["objdump", "-d", "--no-show-raw-insn", "a.elf"])
+        self.assertEqual(
+            calls[1],
+            [
+                "objdump",
+                "-D",
+                "--no-show-raw-insn",
+                "-j",
+                ".sdram_init",
+                "--start-address=0x2f000000",
+                "--stop-address=0x2f000400",
+                "a.elf",
+            ],
+        )
+        self.assertEqual(text, "out1\nout2\n")
+
+    def test_an_image_without_the_symbols_is_disassembled_once(self):
+        calls = []
+
+        def fake(tool, stdin=None):
+            calls.append(tool)
+            return "only\n"
+
+        nm = "20001000 00000010 T foo\n2f000000 00000000 D __sdram_text_start\n"
+        with mock.patch.object(compare_codegen, "run", fake):
+            text = disassemble("objdump", "a.elf", nm)
+        self.assertEqual(calls, [["objdump", "-d", "--no-show-raw-insn", "a.elf"]])
+        self.assertEqual(text, "only\n")
+
+    def test_a_change_in_the_sdram_code_is_a_change(self):
+        changed = TWO_SECTIONS.replace("#0x18", "#0x17")
+        self.assertEqual(
+            compare(functions(TWO_SECTIONS), functions(changed)), (["gui"], [], [])
+        )
+
+
+class VeneerNames(unittest.TestCase):
+    OLD = "__Thumbv7ABSLongThunk__ZN6deluge3gfx1fEv"
+    NEW = "__Thumbv7ABSLongThunk__ZN6deluge2ui3gfx1fEv"
+    OTHER = "__Thumbv7ABSLongThunk__ZN6deluge3gfx1gEv"
+    PLAIN = "_ZN6deluge3gfx1fEv"
+
+    def names(self):
+        table = {
+            "_ZN6deluge3gfx1fEv": "deluge::gfx::f()",
+            "_ZN6deluge2ui3gfx1fEv": "deluge::ui::gfx::f()",
+            "_ZN6deluge3gfx1gEv": "deluge::gfx::g()",
+        }
+
+        def fake(tool, stdin=None):
+            return "\n".join(table[n] for n in stdin.splitlines()) + "\n"
+
+        listing = "".join(
+            f"10 <{n}>:\n" for n in (self.OLD, self.NEW, self.OTHER, self.PLAIN)
+        )
+        with mock.patch.object(compare_codegen, "run", fake):
+            return demangler(
+                "cxxfilt",
+                [listing],
+                namespace_renamer([("deluge::gfx", "deluge::ui::gfx")]),
+            )
+
+    def test_a_veneer_follows_its_targets_rename(self):
+        rename = self.names()
+        self.assertEqual(rename(self.OLD), rename(self.NEW))
+        self.assertTrue(rename(self.OLD).startswith("__Thumbv7ABSLongThunk_"))
+
+    def test_veneers_to_different_targets_stay_distinct(self):
+        rename = self.names()
+        self.assertNotEqual(rename(self.OLD), rename(self.OTHER))
+
+    def test_a_plain_symbol_is_not_given_a_veneer_prefix(self):
+        self.assertEqual(self.names()(self.PLAIN), "deluge::ui::gfx::f")
+
+
+def fake_cxxfilt(table):
+    """A stand-in for `run([cxxfilt], stdin)`: names in @p table demangle, any other stays as it is."""
+
+    def fake(tool, stdin=None):
+        return "\n".join(table.get(n, n) for n in stdin.splitlines()) + "\n"
+
+    return fake
+
+
+class WrappedNames(unittest.TestCase):
+    PAIR = (("deluge::gfx", "deluge::ui::gfx"),)
+    TABLE: ClassVar[dict[str, str]] = {
+        "_ZN6deluge3gfx1kE": "deluge::gfx::k",
+        "_ZN6deluge2ui3gfx1kE": "deluge::ui::gfx::k",
+        "_ZZN6deluge3gfx1fEvE5scene": "deluge::gfx::f()::scene",
+        "_ZZN6deluge2ui3gfx1fEvE5scene": "deluge::ui::gfx::f()::scene",
+    }
+
+    def names(self, listing):
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt(self.TABLE)):
+            return demangler(
+                "cxxfilt",
+                [listing],
+                namespace_renamer(list(self.PAIR)),
+                mangled_renamer(list(self.PAIR)),
+            )
+
+    def test_a_data_name_follows_its_symbols_rename_and_keeps_its_wrapping(self):
+        old = "__const._ZN6deluge3gfx1kE.sources"
+        new = "__const._ZN6deluge2ui3gfx1kE.sources"
+        rename = self.names(f"10 <{old}>:\n10 <{new}>:\n")
+        self.assertEqual(rename(old), rename(new))
+        self.assertTrue(rename(old).startswith("__const."))
+        self.assertTrue(rename(old).endswith(".sources"))
+
+    def test_a_guard_destructor_name_follows_its_symbols_rename(self):
+        old = "__dtor__ZZN6deluge3gfx1fEvE5scene"
+        new = "__dtor__ZZN6deluge2ui3gfx1fEvE5scene"
+        rename = self.names(f"10 <{old}>:\n10 <{new}>:\n")
+        self.assertEqual(rename(old), rename(new))
+        self.assertTrue(rename(old).startswith("__dtor_"))
+
+    def test_a_name_the_demangler_rejects_is_renamed_as_mangled_text(self):
+        old = "_ZZZN6deluge3gui1fERKNS_6scenes1WEENK3$_0clIZNS2_1fES7_E3$_1EEDav"
+        new = "_ZZZN6deluge3gui1fERKNS_2ui6scenes1WEENK3$_0clIZNS2_1fES8_E3$_1EEDav"
+        pair = [("deluge::scenes", "deluge::ui::scenes")]
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt({})):
+            rename = demangler(
+                "cxxfilt",
+                [f"10 <{old}>:\n10 <{new}>:\n"],
+                namespace_renamer(pair),
+                mangled_renamer(pair),
+                [[f"10 <{old}>:\n"], [f"10 <{new}>:\n"]],
+            )
+        self.assertEqual(rename(old), rename(new))
+
+    def test_a_component_run_is_renamed_to_the_new_spelling(self):
+        rename = mangled_renamer(
+            [("deluge::instrument", "deluge::instruments::classic")]
+        )
+        self.assertEqual(
+            rename("_ZN6deluge10instrument1fEv"),
+            rename("_ZN6deluge11instruments7classic1fEv"),
+        )
+        self.assertNotEqual(
+            rename("_ZN6deluge10instrument1fEv"),
+            rename("_ZN6deluge10instrumenx1fEv"),
+        )
+
+    def test_two_different_lambdas_stay_distinct(self):
+        pair = [("deluge::scenes", "deluge::ui::scenes")]
+        a = "_ZZZN6deluge3gui1fERKNS_6scenes1WEENK3$_0clIZNS2_1fES7_E3$_1EEDav"
+        b = a.replace("$_1", "$_2")
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt({})):
+            rename = demangler(
+                "cxxfilt",
+                [f"10 <{a}>:\n10 <{b}>:\n"],
+                namespace_renamer(pair),
+                mangled_renamer(pair),
+            )
+        self.assertNotEqual(rename(a), rename(b))
+
+
+class FoldedAliases(unittest.TestCase):
+    NM = """\
+20001000 00000008 T alpha
+20001000 00000008 T beta
+20002000 00000008 T gamma
+"""
+
+    @staticmethod
+    def image(first: str, gamma: str = "bx\tlr") -> str:
+        return (
+            f"20001000 <{first}>:\n20001000:      \tbx\tlr\n\n"
+            f"20002000 <gamma>:\n20002000:      \t{gamma}\n"
+        )
+
+    def test_two_images_that_print_different_aliases_compare_identical(self):
+        table = aliases(self.NM)
+        one = functions(self.image("alpha"), alias=table)
+        two = functions(self.image("beta"), alias=table)
+        self.assertEqual(sorted(one), ["alpha", "beta", "gamma"])
+        self.assertEqual(compare(one, two), ([], [], []))
+
+    def test_without_the_table_the_printed_alias_decides(self):
+        self.assertEqual(
+            compare(functions(self.image("alpha")), functions(self.image("beta")))[1:],
+            (["beta"], ["alpha"]),
+        )
+
+    def test_genuinely_different_functions_stay_distinct(self):
+        table = aliases(self.NM)
+        one = functions(self.image("alpha"), alias=table)
+        two = functions(self.image("beta", "nop"), alias=table)
+        self.assertEqual(compare(one, two), (["gamma"], [], []))
+
+    def test_a_call_to_a_folded_body_names_it_by_the_same_alias(self):
+        table = aliases(self.NM)
+        caller = (
+            "20003000 <caller>:\n20003000:      \tbl\t0x20001000 <{}> @ imm = #0x0\n"
+        )
+        one = functions(caller.format("alpha"), alias=table)
+        two = functions(caller.format("beta"), alias=table)
+        self.assertEqual(compare(one, two), ([], [], []))
+        self.assertIn("bl <alpha>", one["caller"][0])
+
+    def test_a_function_that_changes_folding_group_is_a_change(self):
+        # z is neither group's least name, so only its own entry shows the body it now has.
+        nm = (
+            "20001000 00000004 T a_false\n20001000 00000004 T b_false\n"
+            "20001000 00000004 T z\n"
+            "20002000 00000004 T a_true\n20002000 00000004 T c_true\n"
+        )
+        base = (
+            "20001000 <a_false>:\n20001000:      \tmovs\tr0, #0x0\n\n"
+            "20002000 <a_true>:\n20002000:      \tmovs\tr0, #0x1\n"
+        )
+        new_nm = (
+            "20001000 00000004 T a_false\n20001000 00000004 T b_false\n"
+            "20002000 00000004 T a_true\n20002000 00000004 T c_true\n"
+            "20002000 00000004 T z\n"
+        )
+        base_f = functions(base, alias=aliases(nm))
+        new_f = functions(base, alias=aliases(new_nm))
+        self.assertEqual(compare(base_f, new_f), (["z"], [], []))
+
+    def test_symbols_of_unknown_type_fold_too(self):
+        # llvm-nm prints `?` for the symbols of a section it cannot classify, such as the packed SDRAM code.
+        nm = "0c210fb0 00000008 ? alpha\n0c210fb0 00000008 ? beta\n"
+        self.assertEqual(aliases(nm), {0x0C210FB0: ("alpha", "beta")})
+
+    def test_aliases_are_named_through_the_rename(self):
+        table = aliases(self.NM, lambda n: {"alpha": "zeta"}.get(n, n))
+        self.assertEqual(table, {0x20001000: ("beta", "zeta")})
+
+
+class WrappedNameKeys(unittest.TestCase):
+    PAIR: ClassVar[list[tuple[str, str]]] = [("deluge::gfx", "deluge::ui::gfx")]
+
+    def names(self, table, listings, images=None):
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt(table)):
+            return demangler(
+                "cxxfilt",
+                listings,
+                namespace_renamer(self.PAIR),
+                mangled_renamer(self.PAIR),
+                *([images] if images else []),
+            )
+
+    def test_two_guard_destructors_for_different_locals_stay_distinct(self):
+        a = "__dtor__ZZN6deluge3gfx1fEvE5scene"
+        b = "__dtor__ZZN6deluge3gfx1fEvE4list"
+        table = {
+            a[7:]: "deluge::gfx::f()::scene",
+            b[7:]: "deluge::gfx::f()::list",
+        }
+        rename = self.names(table, [f"10 <{a}>:\n10 <{b}>:\n"])
+        self.assertNotEqual(rename(a), rename(b))
+        self.assertIn("(", rename(a))
+
+    def test_data_in_an_anonymous_namespace_keeps_its_name(self):
+        a = "__const._ZN6deluge3gfx12_GLOBAL__N_11aE.x"
+        b = "__const._ZN6deluge3gfx12_GLOBAL__N_11bE.x"
+        table = {
+            a[8:-2]: "deluge::gfx::(anonymous namespace)::a",
+            b[8:-2]: "deluge::gfx::(anonymous namespace)::b",
+        }
+        rename = self.names(table, [f"10 <{a}>:\n10 <{b}>:\n"])
+        self.assertNotEqual(rename(a), rename(b))
+
+    def test_names_that_differ_only_in_a_back_reference_stay_distinct(self):
+        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        listing = f"10 <{a}>:\n10 <{b}>:\n"
+        rename = self.names({}, [listing])
+        self.assertNotEqual(rename(a), rename(b))
+        caller = "20 <caller>:\n20:      \tbl\t0x10 <{}> @ imm = #0x0\n"
+        base = functions(caller.format(a), rename)
+        new = functions(caller.format(b), rename)
+        self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_collapsing_is_judged_per_image(self):
+        # The same pair of spellings in two images, one name each, is a rename, not a collision.
+        a = "_ZZZN6deluge3gfx1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN6deluge2ui3gfx1fEENK3$_0clIS4_EEDaT_"
+        rename = self.names(
+            {}, [f"10 <{a}>:\n", f"10 <{b}>:\n"], [[f"10 <{a}>:\n"], [f"10 <{b}>:\n"]]
+        )
+        self.assertEqual(rename(a), rename(b))
+
+
+class MangledRenames(unittest.TestCase):
+    def test_a_component_inside_a_longer_identifier_is_left(self):
+        rename = mangled_renamer(
+            [("deluge::instrument", "deluge::instruments::classic")]
+        )
+        # `ab6deluge` is one nine-character component, followed by `instrument`.
+        self.assertEqual(
+            rename("_ZN9ab6deluge10instrument1fEv"), "_ZN9ab6deluge10instrument1fEv"
+        )
+
+    def test_a_namespace_nested_in_another_is_left(self):
+        rename = mangled_renamer(
+            [("deluge::instrument", "deluge::instruments::classic")]
+        )
+        self.assertEqual(
+            rename("_ZN3abc6deluge10instrument1fEv"), "_ZN3abc6deluge10instrument1fEv"
+        )
+
+    def test_an_operator_of_a_renamed_namespace_is_renamed(self):
+        rename = mangled_renamer([("deluge::gfx", "deluge::ui::gfx")])
+        self.assertEqual(
+            rename("_ZN6deluge3gfxplERKS0_"), rename("_ZN6deluge2ui3gfxplERKS0_")
+        )
+
+    def test_a_name_without_a_renamed_namespace_keeps_its_back_references(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        self.assertNotEqual(rename(a), rename(b))
+
+    def test_a_name_with_a_renamed_namespace_in_either_spelling_collapses(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        a = "_ZN6deluge6scenes1fENS_6scenes1XES3_"
+        b = "_ZN6deluge2ui6scenes1fENS_2ui6scenes1XES4_"
+        self.assertEqual(rename(a), rename(b))
+
+    def test_a_ref_qualified_member_is_renamed_behind_its_substitution(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(
+            rename("_ZNKR6deluge3barENS_6scenes1XE"),
+            rename("_ZNKR6deluge3barENS_2ui6scenes1XE"),
+        )
+
+    def test_a_substitution_is_renamed_only_where_it_stands_for_the_namespaces_head(
+        self,
+    ):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        # S_ is `foo` here, so `S_6scenes` is foo::scenes.
+        self.assertEqual(
+            rename("_ZN3foo3barENS_6scenes1XE"), "_ZN3foo3barENS_6scenes1XE"
+        )
+        self.assertEqual(
+            rename("_ZN6deluge3barENS_6scenes1XE"),
+            rename("_ZN6deluge3barENS_2ui6scenes1XE"),
         )
 
 

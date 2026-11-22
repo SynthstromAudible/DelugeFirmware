@@ -4,9 +4,9 @@
 
 #include "bench/cases.h"
 
+#include "base/panic.h"
 #include "bench/mod_matrix_workload.h"
 #include "definitions_cxx.hpp"
-#include "foundation/panic.h"
 #include "memory/heaps.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection_summary.h"

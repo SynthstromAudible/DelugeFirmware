@@ -3,11 +3,11 @@
 /// @file
 /// @brief MIDI learn and unlearn as Edits on the song's mapping table, and the gestures that apply them.
 
-#include "deluge-project/mapping_table.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/param_address.h"
 #include "model/edits/edit.h"
 #include "modulation/knob_target.h"
+#include "project/mapping_table.h"
+#include "project/midi_command.h"
+#include "project/param_address.h"
 
 #include <optional>
 #include <utility>
@@ -33,7 +33,7 @@ void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const 
 /// @brief Learn a binding: write it into the song's mapping table, then project the target's entries onto the engine
 /// field that plays them, where there is one (a learned knob plays from the table, through the mapping index).
 ///
-/// The table (`deluge-project/mapping_table.h`) is the bindings' truth; the projection
+/// The table (`project/mapping_table.h`) is the bindings' truth; the projection
 /// (`model/project_bridge/mapping_bridge.h`) brings the engine's copy into line.
 ///
 /// A track's or kit row's input learned counts as editing the instrument. With @p input -- a note learned -- it also

@@ -45,7 +45,7 @@ namespace deluge::model {
 effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched, ChainConversions& conversions) {
 	return conversions.filter(
 	    {
-	        .words = filterWords(unpatched, host_chain::kFilterIds),
+	        .words = filterWords(unpatched, host::chains::kFilterIds),
 	        .allow_oversampling = AudioEngine::cpuDireness < 14,
 	    },
 	    [](const FilterWordsAndOversampling& in) {
@@ -59,11 +59,11 @@ ModFXType activeModFXType(const EffectsBinding& binding, ParamManager& paramMana
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	if ((binding.renderModFXParam() == ModFXParam::DEPTH
-	     && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXDepth)) == -2147483648)
+	     && unpatchedParams->getValue(unpatchedIndex(host::chains::param::kModFXDepth)) == -2147483648)
 	    || (binding.renderModFXParam() == ModFXParam::FEEDBACK
-	        && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXFeedback)) == -2147483648)
+	        && unpatchedParams->getValue(unpatchedIndex(host::chains::param::kModFXFeedback)) == -2147483648)
 	    || (binding.renderModFXParam() == ModFXParam::OFFSET
-	        && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXOffset)) == -2147483648)) {
+	        && unpatchedParams->getValue(unpatchedIndex(host::chains::param::kModFXOffset)) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}
 	return modFXTypeNow;
@@ -76,14 +76,14 @@ effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Del
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount =
-	    conversions.delay_feedback(unpatchedParams->getValue(unpatchedIndex(host_chain::param::kDelayFeedback)),
+	    conversions.delay_feedback(unpatchedParams->getValue(unpatchedIndex(host::chains::param::kDelayFeedback)),
 	                               [](int32_t word) { return effects::final_value(effects::Delay::kFeedback, word); });
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate =
-	    conversions.delay_rate(unpatchedParams->getValue(unpatchedIndex(host_chain::param::kDelayRate)),
+	    conversions.delay_rate(unpatchedParams->getValue(unpatchedIndex(host::chains::param::kDelayRate)),
 	                           [](int32_t word) { return effects::final_value(effects::Delay::kRate, word); });
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, settings, timePerTickInverse, soundComingIn);
@@ -93,7 +93,7 @@ effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Del
 
 dsp::Q<29> sidechainDepth(ParamManager& paramManager) {
 	const dsp::Q<31> knob =
-	    paramManager.getUnpatchedParamSet()->getKnob(unpatchedIndex(host_chain::param::kSidechainCompressorVolume));
+	    paramManager.getUnpatchedParamSet()->getKnob(unpatchedIndex(host::chains::param::kSidechainCompressorVolume));
 	return add_wrap(as_floor<dsp::Q<29>>(knob), dsp::Q<29>::one());
 }
 
@@ -102,7 +102,7 @@ effects::FxInputs hostFxInputs(const EffectsBinding& binding, ModFXType activeTy
                                ChainConversions& conversions) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const effects::ModFx::Params modFx =
-	    conversions.mod_fx(modFxWords(*unpatched, host_chain::kModFxIds),
+	    conversions.mod_fx(modFxWords(*unpatched, host::chains::kModFxIds),
 	                       [](const effects::ModFx::Words& words) { return effects::ModFx::params_from(words); });
 	return {
 	    .settings = &binding.renderEffects(),
@@ -111,7 +111,7 @@ effects::FxInputs hostFxInputs(const EffectsBinding& binding, ModFXType activeTy
 	    .mod_fx_depth = modFx.depth,
 	    .mod_fx_offset = modFx.offset,
 	    .mod_fx_feedback = modFx.feedback,
-	    .eq = eqKnobs(*unpatched, host_chain::kEqIds),
+	    .eq = eqKnobs(*unpatched, host::chains::kEqIds),
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
@@ -136,7 +136,7 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 
 	// The send's final value is Q31
 	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
-	    effects::Reverb::kSend, unpatched->getValue(unpatchedIndex(host_chain::param::kReverbAmount)),
+	    effects::Reverb::kSend, unpatched->getValue(unpatchedIndex(host::chains::param::kReverbAmount)),
 	    reverbAmountAdjust));
 	const StutterInput stutter = stutterInput(channel.core(), &paramManager);
 	const EffectsBinding& binding = channel.binding();
@@ -144,20 +144,20 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	return {
 	    .fx = hostFxInputs(binding, activeModFXType(binding, paramManager), paramManager, delay, reverbSendAmount,
 	                       conversions),
-	    .bitcrush = bitcrushKnobs(*unpatched, host_chain::kBitcrushIds),
+	    .bitcrush = bitcrushKnobs(*unpatched, host::chains::kBitcrushIds),
 	    .filter = chainFilterParams(*unpatched, conversions),
 	    .filter_scratch = render::filter_scratch(),
 	    .volume_post_fx = volumePostFX,
 	    .reverb_send = reverbSendAmount,
-	    .pan = halve_floor(unpatched->getKnob(unpatchedIndex(host_chain::param::kPan))),
-	    .sidechain_on = unpatched->getValue(unpatchedIndex(host_chain::param::kSidechainCompressorVolume))
+	    .pan = halve_floor(unpatched->getKnob(unpatchedIndex(host::chains::param::kPan))),
+	    .sidechain_on = unpatched->getValue(unpatchedIndex(host::chains::param::kSidechainCompressorVolume))
 	                    != std::numeric_limits<int32_t>::min(),
 	    .sidechain_hit = dsp::Q<31>::from_raw(sideChainHitPending), // the engine's pending hit word
-	    .sidechain_shape = unpatched->getKnob(unpatchedIndex(host_chain::param::kCompressorShape)),
+	    .sidechain_shape = unpatched->getKnob(unpatchedIndex(host::chains::param::kCompressorShape)),
 	    .sidechain_depth = sidechainDepth(paramManager),
 	    .tick_inverse = playbackHandler.getTimePerInternalTickInverse(),
 	    .post_reverb_volume_neutral = synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>(),
-	    .compressor_threshold = unpatched->getKnob(unpatchedIndex(host_chain::param::kCompressorThreshold)),
+	    .compressor_threshold = unpatched->getKnob(unpatchedIndex(host::chains::param::kCompressorThreshold)),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};
@@ -172,7 +172,7 @@ effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX
 	// The send's final value is Q31
 	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
 	    effects::Reverb::kSend,
-	    paramManager.getUnpatchedParamSet()->getValue(unpatchedIndex(host_chain::param::kReverbAmount))));
+	    paramManager.getUnpatchedParamSet()->getValue(unpatchedIndex(host::chains::param::kReverbAmount))));
 	return {
 	    .fx = hostFxInputs(binding, activeModFXType(binding, paramManager), paramManager, delay,
 	                       scale_shr_floor<3>(reverbSendAmount), master.conversions()),
@@ -188,7 +188,7 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	const StutterInput stutter = stutterInput(master.core(), &song.paramManager);
 
 	// The pan applies after the reverb, in stereo only.
-	const dsp::Q<31> pan = halve_floor(unpatched->getKnob(unpatchedIndex(host_chain::param::kPan)));
+	const dsp::Q<31> pan = halve_floor(unpatched->getKnob(unpatchedIndex(host::chains::param::kPan)));
 	dsp::fixed::PanAmplitudes amplitudes{};
 	const bool doPanning = pan != dsp::Q<31>{} && AudioEngine::renderInStereo;
 	if (doPanning) {
@@ -199,12 +199,12 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .filter = chainFilterParams(*unpatched, master.conversions()),
 	    .filter_scratch = render::filter_scratch(),
 	    .noise = &synth_noise,
-	    .bitcrush = bitcrushKnobs(*unpatched, host_chain::kBitcrushIds),
+	    .bitcrush = bitcrushKnobs(*unpatched, host::chains::kBitcrushIds),
 	    .master_volume = effects::kMasterVolume,
 	    .do_pan = doPanning,
 	    .pan_l = amplitudes.left,
 	    .pan_r = amplitudes.right,
-	    .song_volume = master.conversions().volume(unpatched->getKnob(unpatchedIndex(host_chain::param::kVolume)),
+	    .song_volume = master.conversions().volume(unpatched->getKnob(unpatchedIndex(host::chains::param::kVolume)),
 	                                               volume_from_knob),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,

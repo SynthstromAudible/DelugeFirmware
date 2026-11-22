@@ -43,7 +43,7 @@ builds only `golden-vt-render`.
 | preemptive-race-tsan | integration | script | sanitizer | gate | every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory) | manual | unit | ~30m |
 | snapshot-primitive-tsan | component | script | sanitizer | gate | Published<T> and SpscRing<E,N> must be race-free under concurrent stress | pr | unit | ~3m |
 | dsp-ubsan | unit | ctest | sanitizer | gate | the dsp-next specs (tests/unit/deluge/dsp-next) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
-| param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin-api mapping kind as the reference arithmetic | nightly | unit | ~40s |
+| param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic | nightly | unit | ~40s |
 | dsp-diff | component | script | differential | gate | the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback | nightly | unit | ~5m |
 | corpus-guard | integration | script | property | gate | golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus | pr | unit | ~1s |
 | embassy-layout-invariance | integration | script | property | gate | the Embassy host's cordae MIXDOWN must not depend on any allocation address | nightly | unit | ~45s |
@@ -145,7 +145,7 @@ builds only `golden-vt-render`.
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, sample-view, serialization, plugin-api, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
+| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
@@ -183,7 +183,7 @@ builds only `golden-vt-render`.
 | edit-undo-redo | integration | corpus | property | gate | every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo | nightly | model | ~10s |
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
-| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
+| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
 | test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | pr | tooling | ~1s |
@@ -196,6 +196,7 @@ builds only `golden-vt-render`.
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
+| relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
 | device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
@@ -328,7 +329,7 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 ### A unit spec
 
 `tests/unit/<path>/` holds the specs for `src/<path>/`: a top-level library's specs are in its directory
-(`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/scenes/bind/`), and the
+(`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/ui/scenes/bind/`), and the
 app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
 path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
 `tests/unit/integration/scenarios/support/` for the scenarios' shared support. A spec whose stand-ins cannot share a
@@ -361,7 +362,7 @@ file I/O, the model hooks, and shared test utilities such as `tracking_allocator
 `tests/support/matchers/` (matchers CppSpec lacks) and `tests/support/printers/` (an `operator<<` in a type's own
 namespace, so CppSpec prints its values, alone or in a container, rather than its address); code one directory's
 specs share lives in that directory's own `support/`. A spec includes a header from another test directory by its path
-under `tests/` (`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`),
+under `tests/` (`"support/spec_main.h"`, `"unit/ui/gfx/support/golden.h"`, `"harness/ui_script.h"`),
 never by `../`. A spec's own directory comes first on its include path, so a file in a per-directory `support/` named
 like one in `tests/support/` would shadow it; `scripts/check_test_support_names.py` refuses such a name.
 

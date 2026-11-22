@@ -13,6 +13,8 @@
 /// `notify_drain.cpp` (`tests/trees/host/CMakeLists.txt` compiles only `notify_drain_mapping.cpp`), while
 /// this executable links the real `deluge_app`, as `count_in_spec.cpp` already relies on.
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/ui/notify_drain.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_notification_sink.h"
@@ -20,14 +22,12 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/menu/context.h"
-#include "scenes/registry.h"
-#include "shell/notices.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/notices.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/global_guest_menu.h"
 #include "support/mocks/fake_surfaces.h"
@@ -43,8 +43,8 @@
 
 namespace {
 
+using deluge::base::notify::Notice;
 using deluge::hid::display::OLED;
-using deluge::notify::Notice;
 
 /// @brief A real `OLED` installed as `display` for one example's scope; the previous `display` and
 ///        an empty popup slot are restored on the way out.
@@ -56,8 +56,8 @@ struct LegacyDisplay {
 		oled.cancelPopup();
 		OLED::popup.clear();
 		Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		(void)deluge::notify::dirty().drain();
+		while (deluge::base::notify::notices().pop(discard)) {}
+		(void)deluge::base::notify::dirty().drain();
 	}
 	~LegacyDisplay() {
 		oled.cancelPopup();
@@ -97,7 +97,7 @@ struct AppSink {
 /// @brief A `Shell` over the fake surfaces with the application's registry, as the other scenes
 ///        specs build it.
 struct ShellRig {
-	deluge::ui::shell::SceneRegistry reg = deluge::scenes::scene_registry();
+	deluge::ui::shell::SceneRegistry reg = deluge::ui::scenes::scene_registry();
 	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge::ui::shell::deluge_profile()};
 	deluge::ui::shell::Shell shell{fake, deluge::ui::shell::deluge_profile(), reg, deluge::ui::shell::Services{},
 	                               deluge::ui::shell::ShellConfig{}};
@@ -152,7 +152,7 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		const std::vector<uint8_t> expected = direct_call("Probability", "100%");
 		expect(any_lit(expected)).to_be_true();
 
-		deluge::notify::notice_notification("Probability", "100%");
+		deluge::base::notify::notice_notification("Probability", "100%");
 		drain_notifications();
 
 		expect(display->hasPopupOfType(PopupType::NOTIFICATION)).to_be_true();
@@ -165,17 +165,17 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// (`HorizontalMenu::switchVisiblePage`, `HorizontalMenu::switchHorizontalMenu` and `HorizontalMenu::endSession`
 		// in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		LegacyDisplay legacy;
-		deluge::notify::notice_notification("Probability", "100%");
+		deluge::base::notify::notice_notification("Probability", "100%");
 		drain_notifications();
 		expect(display->hasPopupOfType(PopupType::NOTIFICATION)).to_be_true();
 
-		deluge::notify::notice_kind(Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(Notice::Kind::CancelNotification);
 		drain_notifications();
 		expect(display->hasPopupOfType(PopupType::NOTIFICATION)).to_be_false();
 
 		display->displayPopup("SAVED");
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
-		deluge::notify::notice_kind(Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(Notice::Kind::CancelNotification);
 		drain_notifications();
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
 	});
@@ -188,15 +188,15 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		expect(deluge::ui::shell::notification_sink()).not_().to_be_null();
 		ShellRig r;
 
-		deluge::notify::notice_notification("Probability", "100%");
+		deluge::base::notify::notice_notification("Probability", "100%");
 		r.shell.tick(0); // step 2, `Notices::drain`, pops it -- legacy's drain never runs here
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 
 		expect(display->hasPopupOfType(PopupType::NOTIFICATION)).to_be_true();
 		expect(popup_bytes()).to_equal(expected);
 		expect(r.shell.state_lines()).not_().to_contain("scene Notification");
 
-		deluge::notify::notice_kind(Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(Notice::Kind::CancelNotification);
 		r.shell.tick(10);
 		expect(display->hasPopupOfType(PopupType::NOTIFICATION)).to_be_false();
 	});
@@ -206,18 +206,18 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// `markChanged()` (`oled.cpp`), so the new title is on the panel at once.
 		expect(deluge::ui::shell::notification_sink()).to_be_null();
 		Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		while (deluge::base::notify::notices().pop(discard)) {}
 		ShellRig r;
 		r.shell.tick(0);
 		const std::string blank = r.fake.pbm(0);
 
-		deluge::notify::notice_notification("Probability", "100%");
+		deluge::base::notify::notice_notification("Probability", "100%");
 		r.shell.tick(5);
 		expect(r.shell.state_lines()).to_contain("scene Notification");
 		const std::string first = r.fake.pbm(0);
 		expect(first).not_().to_equal(blank); // the first banner really reached the panel
 
-		deluge::notify::notice_notification("Iterance", "OFF");
+		deluge::base::notify::notice_notification("Iterance", "OFF");
 		r.shell.tick(10); // quiet: no pad, button or encoder, only the drain
 		expect(r.fake.pbm(0)).not_().to_equal(first);
 	});
@@ -226,20 +226,20 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// One consumer, as main has: while the guest is the current UI the shell shows notices, so legacy's drain must
 		// not pop them first.
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
 
-		deluge::notify::notice_text("SAVED");
+		deluge::base::notify::notice_text("SAVED");
 		drain_notifications();
-		expect(deluge::notify::notices().size()).to_equal(size_t{1});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{1});
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
 
 		(void)shellHostUI.timerCallback(); // the guest owns the queue while current, and pops it
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 	});
 
 	it("a popup legacy drew before the guest opened goes when the guest's shell drains the CancelPopup", _ {
@@ -247,30 +247,30 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// release's cancel reaches the guest's shell. Main has one display, so that cancel takes the popup down.
 		LegacyDisplay legacy;
 		AppSink sink;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::notify::notice_text("PORTAMENTO");
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::base::notify::notice_text("PORTAMENTO");
 		drain_notifications();
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
 
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
 
-		deluge::notify::notice_kind(Notice::Kind::CancelPopup);
+		deluge::base::notify::notice_kind(Notice::Kind::CancelPopup);
 		(void)shellHostUI.timerCallback();
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
 	});
 
 	it("with the guest not current, legacy's drain shows a Text notice itself", _ {
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		expect(getCurrentUI()).not_().to_equal(&shellHostUI);
-		deluge::notify::notice_text("SAVED");
+		deluge::base::notify::notice_text("SAVED");
 		drain_notifications();
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
 	});
 
@@ -279,21 +279,21 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// editor the same way, and its error popup outlives both, because legacy has one display. So the guest's
 		// popup goes to legacy's display as the guest closes, as its knob popup does.
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		const uint32_t saved_timer = AudioEngine::audioSampleTimer;
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 
-		deluge::notify::notice_text("SD CARD ERROR");
+		deluge::base::notify::notice_text("SD CARD ERROR");
 		(void)shellHostUI.timerCallback(); // the guest's shell pops it into its own popup
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
 
 		// 300 ms on, the menu leaves and nothing that takes input is left, so the guest's next tick closes it.
 		AudioEngine::audioSampleTimer += 300 * 44;
-		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		expect(shellHostUI.shell().stack().remove(deluge::ui::scenes::menu_scene().kind())).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
@@ -310,12 +310,12 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// The teardown resets the stack, which a tick is walking: it runs only between ticks.
 		FreezeRecordingDisplay frozen;
 		TeardownSink sink;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
-		deluge::notify::notice_notification("TITLE", "VALUE");
+		deluge::base::notify::notice_notification("TITLE", "VALUE");
 		(void)shellHostUI.timerCallback();
 		expect(frozen.oled.frozen).to_equal(std::string("SHT1"));
 		frozen.oled.frozen.clear();
@@ -326,12 +326,12 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 	it("a guest that closes with no popup up leaves legacy's display clear", _ {
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
-		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		expect(shellHostUI.shell().stack().remove(deluge::ui::scenes::menu_scene().kind())).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(display->hasPopup()).to_be_false();

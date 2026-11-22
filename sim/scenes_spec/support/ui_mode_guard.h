@@ -11,7 +11,7 @@
 
 #include <cstdint>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief `currentUIMode` set to `UI_MODE_NONE` for the guard's lifetime, then restored.
 struct UiModeGuard {
@@ -22,4 +22,4 @@ struct UiModeGuard {
 	UiModeGuard& operator=(const UiModeGuard&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

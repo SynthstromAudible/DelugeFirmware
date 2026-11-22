@@ -165,7 +165,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn).not_().to_be_null();
 		if (turn != nullptr) {
-			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
+			expect(turn->ev.encoder).to_equal(deluge::ui::widgets::core::EncoderRole::Horizontal);
 		}
 
 		r.base.seen.clear();
@@ -189,7 +189,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn).not_().to_be_null();
 		if (turn != nullptr) {
-			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Vertical);
+			expect(turn->ev.encoder).to_equal(deluge::ui::widgets::core::EncoderRole::Vertical);
 		}
 
 		r.base.seen.clear();
@@ -303,7 +303,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		// Legacy reads `ShiftIsSticky` at shift-release time (`commandToggleShift` in `hid/buttons.cpp`); the shell
 		// reads its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's latched shift
 		// is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad jump (`MenuPads::handle_pad`,
-		// `scenes/menu/pads.cpp`).
+		// `ui/scenes/menu/pads.cpp`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();

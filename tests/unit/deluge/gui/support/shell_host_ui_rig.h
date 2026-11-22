@@ -7,6 +7,7 @@
 #include "fake_legacy_hid.h"
 #include "fake_legacy_ui.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
@@ -14,12 +15,11 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "notify/dirty_set.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
-#include "ui/core/style.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/widgets/core/style.h"
 
 #include <array>
 #include <cstddef>
@@ -63,7 +63,7 @@ public:
 
 	SceneKind kind() const override { return kind_; }
 
-	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override {
+	void render_oled(SurfaceRole, deluge::ui::widgets::oled::OledFrame& frame) override {
 		// Three lines at different lengths: enough that a frame served from the wrong surface, or
 		// half-served, is not a plausible match.
 		frame.hline(3, 0, 100);
@@ -71,8 +71,8 @@ public:
 		frame.hline(20, 10, 60);
 	}
 
-	void render_grid(deluge::ui::grid::GridFrame& frame) override {
-		for (const deluge::ui::grid::PadFlash& f : flashes) {
+	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override {
+		for (const deluge::ui::widgets::grid::PadFlash& f : flashes) {
 			frame.flash(f.x, f.y, f.colour);
 		}
 		if (sparse) {
@@ -81,7 +81,7 @@ public:
 			}
 			return;
 		}
-		const deluge::gfx::grid::Rect b = frame.bounds();
+		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				(void)frame.pad(x, y, pad_for(x, y));
@@ -125,7 +125,7 @@ public:
 	}
 
 	/// Make `handle` take this scene off the stack, the way `MenuScene` answers Back at depth 0.
-	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
+	void on_model_changed(const deluge::base::notify::DirtySet&) override { model_changed++; }
 
 	bool remove_self_on_event = false;
 	/// Make `handle` use every MIDI learn offer.
@@ -143,7 +143,7 @@ public:
 	/// (`led_send_needed`), and `GuestSurfaceSet::set_led` turns that into
 	/// `indicator_leds::setLedState`. Settable rather than fixed so one scene can be asked both
 	/// halves of the ownership rule -- declaring an LED, and then not.
-	void leds(deluge::ui::LedFrame& frame) override {
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
 		if (led_declared) {
 			(void)frame.set(led_id, led_state);
 		}
@@ -155,7 +155,7 @@ public:
 	PadRegions pad_regions() const override { return regions; }
 	bool occludes_grid() const override { return occludes; }
 	bool input_transparent() const override { return passive; }
-	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return greyout; }
 	GridPadClaim grid_pad_claim() const override { return claim; }
 
 	void on_resume() override { resumes++; }
@@ -178,7 +178,7 @@ public:
 	std::vector<std::pair<int32_t, int32_t>> lit;
 	RGB lit_colour{130, 120, 130};
 	/// The pads `render_grid` flashes each time it runs.
-	std::vector<deluge::ui::grid::PadFlash> flashes;
+	std::vector<deluge::ui::widgets::grid::PadFlash> flashes;
 	bool overlay = false;
 	/// What `pad_regions()` answers: which regions the guest takes from legacy for this scene.
 	PadRegions regions = PadRegions::All;
@@ -188,12 +188,12 @@ public:
 	/// example wants `ShellHostUI::claimsGridPad` to see something else.
 	GridPadClaim claim = GridPadClaim::All;
 	bool led_declared = false;
-	deluge::ui::LedId led_id{};
-	deluge::ui::LedState led_state{};
+	deluge::ui::widgets::core::LedId led_id{};
+	deluge::ui::widgets::core::LedState led_state{};
 	/// What `next_timer()` answers. `std::nullopt` -- `Scene`'s own default -- unless an example
 	/// wants a deadline.
 	std::optional<uint32_t> timer{};
-	deluge::ui::grid::GreyoutMask greyout{};
+	deluge::ui::widgets::grid::GreyoutMask greyout{};
 	int enters = 0;
 	int exits = 0;
 	int resumes = 0;
@@ -215,7 +215,8 @@ inline DelugeBoard board_64() {
 
 inline const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -246,9 +247,9 @@ struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
 	/// Registered under the context menu's kind, which the long-press exit leaves alone.
-	PatternScene menu{deluge::scenes::context_menu::kContextMenuSceneKind};
+	PatternScene menu{deluge::ui::scenes::context_menu::kContextMenuSceneKind};
 	/// Registered under the marker editor's kind, which the guest's sidebar answer keys on.
-	PatternScene marker{deluge::scenes::marker::kMarkerSceneKind};
+	PatternScene marker{deluge::ui::scenes::marker::kMarkerSceneKind};
 	std::array<Scene*, kMaxSceneKinds> table{};
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	ShellHostUI guest;
@@ -274,8 +275,8 @@ struct Rig {
 	const SceneRegistry& fill() {
 		table[static_cast<size_t>(kBase)] = &base;
 		table[static_cast<size_t>(kOver)] = &over;
-		table[static_cast<size_t>(deluge::scenes::context_menu::kContextMenuSceneKind)] = &menu;
-		table[static_cast<size_t>(deluge::scenes::marker::kMarkerSceneKind)] = &marker;
+		table[static_cast<size_t>(deluge::ui::scenes::context_menu::kContextMenuSceneKind)] = &menu;
+		table[static_cast<size_t>(deluge::ui::scenes::marker::kMarkerSceneKind)] = &marker;
 		return reg;
 	}
 
@@ -298,7 +299,7 @@ struct Rig {
 ///     rows past the end of the image it was handed.
 ///   * **8 main + 2 sidebar = 10 columns** (legacy has 18) — without `min(x1, dims.cols())` the copy
 ///     reads `PadGrid::at(10..15, y)`, which is a `DELUGE_GFX_CONTRACT` violation and traps
-///     (`DELUGE_GFX_CONTRACT` in `gfx/contract.h`, `PadGrid::at`).
+///     (`DELUGE_GFX_CONTRACT` in `ui/gfx/contract.h`, `PadGrid::at`).
 inline DelugeBoard board_tall_narrow_grid() {
 	DelugeBoard b = kDelugeBoard;
 	b.pad_grid_width = 8;
@@ -316,13 +317,13 @@ inline DelugeBoard board_tall_narrow_grid() {
 /// feed Select instead.
 inline const BoardProfile& profile_permuted_encoders() {
 	static const BoardProfile p = [] {
-		static constexpr deluge::ui::EncoderRole kOrder[] = {
-		    deluge::ui::EncoderRole::Select,     // 0
-		    deluge::ui::EncoderRole::Tempo,      // 1
-		    deluge::ui::EncoderRole::Horizontal, // 2
-		    deluge::ui::EncoderRole::Vertical,   // 3
-		    deluge::ui::EncoderRole::GoldUpper,  // 4
-		    deluge::ui::EncoderRole::GoldLower,  // 5
+		static constexpr deluge::ui::widgets::core::EncoderRole kOrder[] = {
+		    deluge::ui::widgets::core::EncoderRole::Select,     // 0
+		    deluge::ui::widgets::core::EncoderRole::Tempo,      // 1
+		    deluge::ui::widgets::core::EncoderRole::Horizontal, // 2
+		    deluge::ui::widgets::core::EncoderRole::Vertical,   // 3
+		    deluge::ui::widgets::core::EncoderRole::GoldUpper,  // 4
+		    deluge::ui::widgets::core::EncoderRole::GoldLower,  // 5
 		};
 		BoardProfile q = deluge_profile();
 		q.encoder_by_index = kOrder;
@@ -334,10 +335,10 @@ inline const BoardProfile& profile_permuted_encoders() {
 /// @brief A profile with **no** horizontal encoder, so the "role nothing carries" arm is drivable.
 inline const BoardProfile& profile_no_horizontal() {
 	static const BoardProfile p = [] {
-		static constexpr deluge::ui::EncoderRole kOrder[] = {
-		    deluge::ui::EncoderRole::Vertical,
-		    deluge::ui::EncoderRole::Tempo,
-		    deluge::ui::EncoderRole::Select,
+		static constexpr deluge::ui::widgets::core::EncoderRole kOrder[] = {
+		    deluge::ui::widgets::core::EncoderRole::Vertical,
+		    deluge::ui::widgets::core::EncoderRole::Tempo,
+		    deluge::ui::widgets::core::EncoderRole::Select,
 		};
 		BoardProfile q = deluge_profile();
 		q.encoder_by_index = kOrder;
@@ -389,14 +390,15 @@ inline const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Ki
 ///
 /// `Shell::flush` calls `SurfaceSet::set_indicator` only for an indicator declared this tick
 /// and the only declarer in the shipped tree is
-/// `scenes::services::ModKnobs` -- a *service*, which this guest's `Services` does not carry in
+/// `ui::scenes::services::ModKnobs` -- a *service*, which this guest's `Services` does not carry in
 /// this example. This is the smallest thing that stands where `ModKnobs`
 /// will stand, so "the guest writes no indicator" can be shown to be about the declaration rather
 /// than about the guest.
 class IndicatorService final : public Service {
 public:
-	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.indicator(deluge::ui::IndicatorId::Lower, deluge::ui::KnobIndicator{{0x11, 0x22, 0x5A, 0x77}});
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override {
+		(void)frame.indicator(deluge::ui::widgets::core::IndicatorId::Lower,
+		                      deluge::ui::widgets::core::KnobIndicator{{0x11, 0x22, 0x5A, 0x77}});
 	}
 };
 

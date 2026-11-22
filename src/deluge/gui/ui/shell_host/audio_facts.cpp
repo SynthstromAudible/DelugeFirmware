@@ -22,7 +22,7 @@ static_assert(std::to_underlying(ThresholdRecordingMode::OFF) == 0
 // Every internal source follows the external ones.
 static_assert(AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION == AudioInputChannel::MIX);
 
-class HostAudioFacts final : public scenes::bind::AudioFacts {
+class HostAudioFacts final : public deluge::ui::scenes::bind::AudioFacts {
 public:
 	[[nodiscard]] bool audio_inputs_present() const override {
 		return AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
@@ -38,8 +38,8 @@ public:
 		return AudioEngine::reverbSidechainSettings.sync_type;
 	}
 	[[nodiscard]] bool audio_busy() const override { return AudioEngine::audioBusy(); }
-	[[nodiscard]] scenes::bind::ForegroundRecording foreground_recording() const override {
-		using scenes::bind::ForegroundRecording;
+	[[nodiscard]] deluge::ui::scenes::bind::ForegroundRecording foreground_recording() const override {
+		using deluge::ui::scenes::bind::ForegroundRecording;
 		switch (AudioEngine::foregroundRecordingSource()) {
 		case AudioInputChannel::UNSET:
 			return ForegroundRecording::UNSET;
@@ -60,20 +60,20 @@ public:
 		return ForegroundRecording::UNSET;
 	}
 	[[nodiscard]] bool resampling() const override { return deluge::recording::isCurrentlyResampling(); }
-	[[nodiscard]] std::optional<scenes::bind::InputTake> input_take() const override {
+	[[nodiscard]] std::optional<deluge::ui::scenes::bind::InputTake> input_take() const override {
 		// The take `take_actions` holds, not the foreground recorder, which an output recording also publishes to.
 		const ::SampleRecorder* take = shell_host::input_take();
 		if (take == nullptr) {
 			return std::nullopt;
 		}
-		return scenes::bind::InputTake{.capturing = take->numSamplesCaptured > take->minThresholdMargin,
-		                               .threshold = take->startValueThreshold > 0,
-		                               .threshold_level = take->startValueThreshold,
-		                               .capturing_data = take->status == RecorderStatus::CAPTURING_DATA,
-		                               .settled = take->settled(),
-		                               .aborted = take->status == RecorderStatus::ABORTED,
-		                               .card_error = take->hadCardError,
-		                               .channels = take->recordingNumChannels};
+		return deluge::ui::scenes::bind::InputTake{.capturing = take->numSamplesCaptured > take->minThresholdMargin,
+		                                           .threshold = take->startValueThreshold > 0,
+		                                           .threshold_level = take->startValueThreshold,
+		                                           .capturing_data = take->status == RecorderStatus::CAPTURING_DATA,
+		                                           .settled = take->settled(),
+		                                           .aborted = take->status == RecorderStatus::ABORTED,
+		                                           .card_error = take->hadCardError,
+		                                           .channels = take->recordingNumChannels};
 	}
 	[[nodiscard]] std::optional<std::string> input_take_path() const override {
 		const ::SampleRecorder* take = shell_host::input_take();
@@ -87,7 +87,7 @@ public:
 
 } // namespace
 
-const scenes::bind::AudioFacts& audio_facts() {
+const deluge::ui::scenes::bind::AudioFacts& audio_facts() {
 	static const HostAudioFacts facts;
 	return facts;
 }

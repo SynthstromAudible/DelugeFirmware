@@ -26,7 +26,7 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "libdeluge/app.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -248,7 +248,7 @@ void polyLimitCase() {
 
 void reuseCase(std::string_view kase, PolyphonyMode mode) {
 	silenceAll();
-	setting(1, "polyphonic", deluge::instrument::to_string(mode));
+	setting(1, "polyphonic", deluge::instruments::classic::to_string(mode));
 	constexpr std::array<int32_t, 3> notes{60, 64, 67};
 	int32_t step = 0;
 	for (const int32_t note : notes) {
@@ -261,7 +261,7 @@ void reuseCase(std::string_view kase, PolyphonyMode mode) {
 		renderBlocks(1);
 		listVoices(kase, ++step);
 	}
-	setting(1, "polyphonic", deluge::instrument::to_string(PolyphonyMode::POLY));
+	setting(1, "polyphonic", deluge::instruments::classic::to_string(PolyphonyMode::POLY));
 }
 
 /// The note-on that finds no memory for a voice starts its note on one of the sound's own voices.
@@ -400,9 +400,9 @@ int32_t factsCase(Io io) {
 		for (const PolyphonyMode mode : {PolyphonyMode::MONO, PolyphonyMode::LEGATO, PolyphonyMode::POLY}) {
 			sound.killAllVoices();
 			deluge::edits::settingFor(sound, "polyphonic",
-			                          Value::makeScalar(std::string(deluge::instrument::to_string(mode))));
+			                          Value::makeScalar(std::string(deluge::instruments::classic::to_string(mode))));
 			for (const int32_t note : {60, 64}) {
-				const deluge::instrument::SoundState record = sound.state();
+				const deluge::instruments::classic::SoundState record = sound.state();
 				const std::string voices = voicesOf(sound);
 				const NoteFacts before = factsOf(sound, *clip);
 				const NoteFacts again = factsOf(sound, *clip);
@@ -411,7 +411,7 @@ int32_t factsCase(Io io) {
 				const NoteFacts after = factsOf(sound, *clip);
 				if (before != again || !unchanged || before != after) {
 					std::fprintf(io.err, "voice_pins: %s, %s, note %d: facts %s\n", path.c_str(),
-					             std::string(deluge::instrument::to_string(mode)).c_str(), note,
+					             std::string(deluge::instruments::classic::to_string(mode)).c_str(), note,
 					             before != again ? "differ when read twice"
 					             : !unchanged    ? "reading them changed the sound"
 					                             : "changed across the note-on's voice edits");

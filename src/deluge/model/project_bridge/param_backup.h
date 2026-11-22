@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "deluge-project/backed_params.h"    // BackedParamKey
 #include "modulation/params/param_manager.h" // ParamManager (stored by value)
+#include "project/backed_params.h"           // BackedParamKey
 #include "util/containers.h"                 // deluge::fast_map
 #include <cstdint>
 #include <list>

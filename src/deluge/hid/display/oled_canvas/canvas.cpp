@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// FACADE (remove after UI phase 5): all the drawing lives in gfx/oled/canvas.cpp. What is left here is the one
+// FACADE (remove after UI phase 5): all the drawing lives in ui/gfx/oled/canvas.cpp. What is left here is the one
 // primitive that reads a firmware setting, so it cannot be a plain forwarder.
 
 #include "canvas.h"

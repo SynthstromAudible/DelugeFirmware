@@ -21,19 +21,19 @@
 
 #include "effects/settings.h"
 #include "effects/words.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/dx7_init_voice.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/state_rules.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/dx7_init_voice.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/state_rules.h"
+#include "instruments/classic/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/fx/effects_owner.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -192,10 +192,10 @@ bool runtimeTakes(const ::Sound& sound, std::string_view path) {
 	return true;
 }
 
-Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
-                  const deluge::instrument::SoundState& after, ::Song& song) {
-	using deluge::instrument::Part;
-	const deluge::instrument::Parts parts = deluge::instrument::DelugeSynth::changes(before, after);
+Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState& before,
+                  const deluge::instruments::classic::SoundState& after, ::Song& song) {
+	using deluge::instruments::classic::Part;
+	const deluge::instruments::classic::Parts parts = deluge::instruments::classic::DelugeSynth::changes(before, after);
 	const auto changed = [&](Part part) { return parts.test(std::to_underlying(part)); };
 	const auto slotPart = [](Part a, int32_t s) { return static_cast<Part>(std::to_underlying(a) + s); };
 	const auto playsFiles = [](OscType type) {
@@ -206,14 +206,16 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// Voices stop first, as each setting's menu stops them before it changes anything.
 	bool stopVoices = changed(Part::MODE);
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		const deluge::instrument::SamplePlayback was = deluge::instrument::sample_playback(before, id);
-		const deluge::instrument::SamplePlayback now = deluge::instrument::sample_playback(after, id);
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		const deluge::instruments::classic::SamplePlayback was =
+		    deluge::instruments::classic::sample_playback(before, id);
+		const deluge::instruments::classic::SamplePlayback now =
+		    deluge::instruments::classic::sample_playback(after, id);
 		stopVoices =
 		    stopVoices
 		    || (changed(slotPart(Part::SOURCE_A_TYPE, s))
-		        && (playsFiles(deluge::instrument::source_type(before, id))
-		            || playsFiles(deluge::instrument::source_type(after, id))))
+		        && (playsFiles(deluge::instruments::classic::source_type(before, id))
+		            || playsFiles(deluge::instruments::classic::source_type(after, id))))
 		    || was.reversed != now.reversed
 		    || (was.repeat_mode != now.repeat_mode
 		        && (was.repeat_mode == SampleRepeatMode::STRETCH || now.repeat_mode == SampleRepeatMode::STRETCH));
@@ -226,11 +228,12 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		SourceResources& source = sound.sourceResources[s];
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		const bool reversedNow = deluge::instrument::sample_playback(after, id).reversed;
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		const bool reversedNow = deluge::instruments::classic::sample_playback(after, id).reversed;
 		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
-			const OscType type = deluge::instrument::source_type(after, id);
-			squareCameOrWent = squareCameOrWent || deluge::instrument::source_type(before, id) == OscType::SQUARE
+			const OscType type = deluge::instruments::classic::source_type(after, id);
+			squareCameOrWent = squareCameOrWent
+			                   || deluge::instruments::classic::source_type(before, id) == OscType::SQUARE
 			                   || type == OscType::SQUARE;
 			source.setOscType(type);
 			// The render reads the type from the config: it learns the new one as soon as the ranges have it. Retyping
@@ -238,7 +241,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			AudioExcludedSection section;
 			sound.deriveConfig();
 		}
-		if (deluge::instrument::sample_playback(before, id).reversed != reversedNow) {
+		if (deluge::instruments::classic::sample_playback(before, id).reversed != reversedNow) {
 			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
 			source.followDirection(reversedNow != source.invertReversed); // the config is not yet the new one
 			sound.recordHeldRanges(s);
@@ -256,12 +259,12 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		}
 		if (changed(Part::UNISON_COUNT)) {
 			// After the retune: a new part plays on from its neighbour, increment included
-			sound.revoiceUnison(deluge::instrument::unison(before).count, deluge::instrument::unison(after).count,
-			                    modelStack);
+			sound.revoiceUnison(deluge::instruments::classic::unison(before).count,
+			                    deluge::instruments::classic::unison(after).count, modelStack);
 		}
 	}
 	if (changed(Part::EFFECTS)) {
-		deluge::model::storeEffects(*sound.effectsOwner(), deluge::instrument::sound_effects(after));
+		deluge::model::storeEffects(*sound.effectsOwner(), deluge::instruments::classic::sound_effects(after));
 	}
 	if (changed(Part::MODE) || squareCameOrWent || changed(Part::LFO_SYNC)) {
 		sound.setupPatchingForAllParamManagers(&song);
@@ -273,33 +276,36 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// The ranges and DX7 patches the runtime holds follow the change's, as the record held them before it: a new type
 	// has just reshaped them in the runtime, which reflected them into the record. A source whose ranges or patch the
 	// runtime refuses keeps what the runtime holds, in the record too.
-	const auto optionalOf = [](const deluge::instrument::DxPatchState* patch) {
+	const auto optionalOf = [](const deluge::instruments::classic::DxPatchState* patch) {
 		return patch != nullptr ? std::optional{*patch} : std::nullopt;
 	};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		const deluge::instrument::DxPatchState* wantedPatch = deluge::instrument::dx_patch(after, id);
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		const deluge::instruments::classic::DxPatchState* wantedPatch =
+		    deluge::instruments::classic::dx_patch(after, id);
 		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
-		const std::optional<deluge::instrument::DxPatchState> heldPatch =
-		    retyped ? sound.sourceResources[s].heldDxPatch() : optionalOf(deluge::instrument::dx_patch(before, id));
+		const std::optional<deluge::instruments::classic::DxPatchState> heldPatch =
+		    retyped ? sound.sourceResources[s].heldDxPatch()
+		            : optionalOf(deluge::instruments::classic::dx_patch(before, id));
 		// Ranges are copied only when they may differ: a retyped slot's runtime reshaped its own
 		const bool rangesDiffer =
-		    retyped ? sound.sourceResources[s].heldRanges() != deluge::instrument::source_ranges(after, id)
-		            : !deluge::instrument::same_ranges(before, after, id);
+		    retyped ? sound.sourceResources[s].heldRanges() != deluge::instruments::classic::source_ranges(after, id)
+		            : !deluge::instruments::classic::same_ranges(before, after, id);
 		Error error = Error::NONE;
 		if (wantedPatch != nullptr && heldPatch != *wantedPatch && sound.oscType(s) == OscType::DX7) {
 			error = applyDxPatch(sound, s, *wantedPatch);
 		}
 		if (error == Error::NONE && rangesDiffer) {
 			// A copy: applying them writes the sound's record, which `after` may be
-			const std::vector<synth::SourceRange> wanted = deluge::instrument::source_ranges(after, id);
+			const std::vector<synth::SourceRange> wanted = deluge::instruments::classic::source_ranges(after, id);
 			error = applyRanges(sound, s, wanted);
 		}
 		if (error != Error::NONE) {
-			deluge::instrument::SoundState& record = sound.record();
-			record = deluge::instrument::with_ranges(
-			    deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch()), id,
-			    sound.sourceResources[s].heldRanges());
+			deluge::instruments::classic::SoundState& record = sound.record();
+			record = deluge::instruments::classic::with_ranges(
+			    deluge::instruments::classic::with_dx_patch(std::move(record), id,
+			                                                sound.sourceResources[s].heldDxPatch()),
+			    id, sound.sourceResources[s].heldRanges());
 			return error;
 		}
 	}
@@ -335,9 +341,9 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 	return Error::NONE;
 }
 
-std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
-                                                               const deluge::serialization::Value& value) {
-	namespace instrument = deluge::instrument;
+std::optional<deluge::instruments::classic::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
+                                                                         const deluge::serialization::Value& value) {
+	namespace instrument = deluge::instruments::classic;
 	if (path == "mode") {
 		return instrument::switch_engine(sound.state(), instrument::parse_synth_mode(value.str()));
 	}

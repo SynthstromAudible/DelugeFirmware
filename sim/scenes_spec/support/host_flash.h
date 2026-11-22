@@ -35,7 +35,7 @@
 
 #include "libdeluge/flash.h"
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 struct ErasedFlash {
 	ErasedFlash() { deluge_flash_erase(0); }
@@ -45,4 +45,4 @@ struct ErasedFlash {
 	ErasedFlash& operator=(const ErasedFlash&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

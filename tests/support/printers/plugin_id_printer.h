@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 
 #include <ostream>
 

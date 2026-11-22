@@ -1,10 +1,10 @@
-#include "gfx/oled/font.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/sample_position.h"
-#include "ui/oled/text.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/icons.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/sample_position.h"
+#include "ui/widgets/oled/text.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -14,8 +14,8 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
-using deluge::gfx::oled::Rect;
+using namespace deluge::ui::widgets::oled;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `SampleMarkerEditor::renderOLED`'s body (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) as a
@@ -24,10 +24,10 @@ namespace uitest = deluge::ui::test;
 
 namespace {
 
-constexpr int32_t kSpacingX = deluge::gfx::oled::kTextSpacingX; // legacy's smallTextSpacingX
-constexpr int32_t kSpacingY = deluge::gfx::oled::kTextSpacingY; // legacy's smallTextSizeY
+constexpr int32_t kSpacingX = deluge::ui::gfx::oled::kTextSpacingX; // legacy's smallTextSpacingX
+constexpr int32_t kSpacingY = deluge::ui::gfx::oled::kTextSpacingY; // legacy's smallTextSizeY
 
-// `intToString(number, buffer, minNumDigits)` (foundation/string_format.c), for the reference
+// `intToString(number, buffer, minNumDigits)` (base/string_format.c), for the reference
 // render only.
 void int_to_string(uint32_t number, char* buffer, int32_t min_digits) {
 	int32_t digits = 1;
@@ -153,7 +153,7 @@ bool any_ink_on_line(const Rig& r, int32_t y) {
 } // namespace
 
 // clang-format off
-describe sample_position_widget("ui::oled sample_position & title_badge", $ {
+describe sample_position_widget("ui::widgets::oled sample_position & title_badge", $ {
 
 	it("draws milliseconds with two decimal places under a tenth of a second", _ {
 		uitest::Rig48 r;
@@ -249,12 +249,12 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 	it("draws the lock badge at the panel's right edge with its ninth row filled", _ {
 		uitest::Rig48 r;
 		title(r.frame, "LOOP START");
-		title_badge(r.frame, deluge::gfx::oled::icons::markerLock);
+		title_badge(r.frame, deluge::ui::gfx::oled::icons::markerLock);
 
 		r.reference.draw_screen_title("LOOP START");
 		// `SampleMarkerEditor::renderOLED`'s lock icon (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), with
 		// OLED_MAIN_TOPMOST_PIXEL = 5 on this geometry.
-		r.reference.draw_icon(deluge::gfx::oled::icons::markerLock, 128 - 10, 5 + 1);
+		r.reference.draw_icon(deluge::ui::gfx::oled::icons::markerLock, 128 - 10, 5 + 1);
 		r.reference.invert_area(128 - 10, 7, 5 + 9, 5 + 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
@@ -271,7 +271,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		// panels are 128 wide, so only a narrowed frame can tell the two apart.
 		uitest::Rig48 r;
 		r.frame.region(Rect{0, 0, 100, 48}, [](OledFrame& f) {
-			title_badge(f, deluge::gfx::oled::icons::markerLock);
+			title_badge(f, deluge::ui::gfx::oled::icons::markerLock);
 		});
 		expect(r.lit(100 - 10, 5 + 9)).to_be_true();
 		expect(r.lit(128 - 10, 5 + 9)).to_be_false();

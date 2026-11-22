@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 
-// The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to an implementation this harness
+// The headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to an implementation this harness
 // has no provider for. Every line this file writes IS the gate's output.
 #ifdef printf
 #undef printf

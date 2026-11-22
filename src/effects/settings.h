@@ -18,9 +18,9 @@
 #pragma once
 
 #include "effects/state.h"
-#include "plugin-api/types/rate_tables.h"
-#include "plugin-api/types/setting.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/rate_tables.h"
+#include "plugin/types/setting.h"
+#include "plugin/types/sync.h"
 #include "serialization/value.h"
 
 #include <array>

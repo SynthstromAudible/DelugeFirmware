@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "io/debug/log.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
@@ -122,8 +122,8 @@ inline Error rangesFor(::Sound& sound, int32_t s, std::vector<synth::SourceRange
 /// @return Error::NONE when it landed; UNSPECIFIED when the source has no range @p i.
 template <class Change>
 Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
-	std::vector<synth::SourceRange> ranges =
-	    deluge::instrument::source_ranges(sound.state(), static_cast<deluge::instrument::SourceId>(s));
+	std::vector<synth::SourceRange> ranges = deluge::instruments::classic::source_ranges(
+	    sound.state(), static_cast<deluge::instruments::classic::SourceId>(s));
 	if (i >= ranges.size()) {
 		return Error::UNSPECIFIED;
 	}
@@ -143,7 +143,7 @@ inline void recordRanges(::Sound& sound, int32_t s) {
 /// @param sound The sound being edited.
 /// @param s     Source (oscillator) index.
 /// @param patch The new DX7 patch state.
-inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
+inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch) {
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetDxPatch edit{*slot, static_cast<uint8_t>(s), patch};

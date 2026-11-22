@@ -19,14 +19,16 @@
 
 /// @file
 /// @brief The waveform scan: the legacy column read, which turns a `Sample`'s clusters into each column's peak, and
-///        the legacy views' adapter, which keeps the columns between frames in a `deluge::sample_view::PeakCache`.
+///        the legacy views' adapter, which keeps the columns between frames in a
+///        `deluge::app::ports::waveforms::PeakCache`.
 ///
-/// The scan reads `Sample`, `SampleRecorder` and the card, so it stays out of the neutral `src/sample-view/`, whose
-/// types it answers in. The host's waveforms port reads through `read_columns`, and the session, arranger and audio
-/// clip views through `find_peaks_per_col`. `WaveformRenderer` draws the answers into a `PadLEDs`-shaped `RGB[][]`.
+/// The scan reads `Sample`, `SampleRecorder` and the card, so it stays out of the neutral `src/ui/views/waveform/`,
+/// whose types it answers in. The host's waveforms port reads through `read_columns`, and the session, arranger and
+/// audio clip views through `find_peaks_per_col`. `WaveformRenderer` draws the answers into a `PadLEDs`-shaped
+/// `RGB[][]`.
 
+#include "app/ports/waveforms/peak_cache.h"
 #include "definitions_cxx.hpp"
-#include "sample-view/peak_cache.h"
 
 #include <cstdint>
 
@@ -47,9 +49,9 @@ namespace deluge::sample {
 /// @return The answers.
 /// @warning This can read the card, through `deluge::sample::SampleFrameReader`. A caller off the storage owner gets
 ///          PENDING columns rather than a stall.
-[[nodiscard]] deluge::sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder,
-                                                         deluge::sample_view::Window at,
-                                                         deluge::sample_view::ColumnMask wanted);
+[[nodiscard]] deluge::ui::views::waveform::PeakRead read_columns(Sample& sample, SampleRecorder* recorder,
+                                                                 deluge::ui::views::waveform::Window at,
+                                                                 deluge::app::ports::waveforms::ColumnMask wanted);
 
 /// @brief The legacy views' scan: @p cache brought to @p at for [@p first, @p last), reading through
 ///        @ref read_columns what it lacks.
@@ -60,10 +62,10 @@ namespace deluge::sample {
 /// @param first    The first column to read.
 /// @param last     One past the last.
 /// @return The cache's columns; a column in the range that could not be read now is PENDING.
-deluge::sample_view::PeakRead find_peaks_per_col(Sample& sample, deluge::sample_view::Window at,
-                                                 deluge::sample_view::PeakCache& cache,
-                                                 SampleRecorder* recorder = nullptr, int32_t first = 0,
-                                                 int32_t last = deluge::sample_view::kColumns);
+deluge::ui::views::waveform::PeakRead find_peaks_per_col(Sample& sample, deluge::ui::views::waveform::Window at,
+                                                         deluge::app::ports::waveforms::PeakCache& cache,
+                                                         SampleRecorder* recorder = nullptr, int32_t first = 0,
+                                                         int32_t last = deluge::ui::views::waveform::kColumns);
 
 /// @brief Background "waveform overview" pre-scan: investigate one whole cluster's min/max.
 ///

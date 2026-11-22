@@ -102,8 +102,8 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
 #include "util/menu_entry.h"
 #include "util/misc.h"
 
@@ -593,7 +593,7 @@ void stepEditorSetup() {
 	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 	                               /*kitGlobalFx=*/false)
 	    || getCurrentUI() != &shellHostUI
-	    || deluge::scenes::menu_scene().menu_context().model != &currentSong->project) {
+	    || deluge::ui::scenes::menu_scene().menu_context().model != &currentSong->project) {
 		g_report.fail("RETIRED the menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
@@ -648,7 +648,7 @@ void stepEditorRun() {
 		return;
 	}
 	// The load took every UI down; nothing may have put the menu back on the song it freed.
-	g_guestOnOldSong = isUIOpen(&shellHostUI) && deluge::scenes::menu_scene().menu_context().model == g_modelBefore;
+	g_guestOnOldSong = isUIOpen(&shellHostUI) && deluge::ui::scenes::menu_scene().menu_context().model == g_modelBefore;
 	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d guestOnOldSong=%d "
 	       "renderWrites=%d steps=%d\n",
 	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_guestOnOldSong ? 1 : 0,

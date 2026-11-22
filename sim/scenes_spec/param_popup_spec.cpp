@@ -4,7 +4,7 @@
 ///        `View::displayModEncoderValuePopup` / `flushPendingModEncoderValuePopup`
 ///        (`gui/views/view.cpp`) for the arbitration and text, and the real
 ///        `OLED::displayNotification` (`hid/display/oled.cpp`) for the pixels the new
-///        `ui::oled::popup::notification` widget draws -- reached end to end through a real
+///        `ui::widgets::oled::popup::notification` widget draws -- reached end to end through a real
 ///        `Shell`, so the comparison is the assembled scene's own pixels, not the widget in
 ///        isolation.
 ///
@@ -34,12 +34,12 @@
 /// `knobsOnClipContext()` false and every `EffectsOwner`-taking call fall back -- so nothing
 /// here reads `currentSong`.
 
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/registry.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -47,14 +47,14 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/services/knob_push.h"
+#include "ui/scenes/services/knob_push.h"
 
 #include "processing/engines/audio_engine.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -66,10 +66,10 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::overlay::kParamPopupSceneKind;
-using deluge::scenes::overlay::param_popup_scene;
-using deluge::scenes::overlay::ParamPopupScene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::overlay::kParamPopupSceneKind;
+using deluge::ui::scenes::overlay::param_popup_scene;
+using deluge::ui::scenes::overlay::ParamPopupScene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::Result;
@@ -106,7 +106,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -189,7 +190,7 @@ struct Rig {
 /// `display->displayNotification`), reading the shipped popup canvas back afterward.
 ///
 /// Always 48 rows, never 64: `deluge::hid::display::OLED::popup` is a
-/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`gfx/oled/geometry.h`) is a fixed
+/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`ui/gfx/oled/geometry.h`) is a fixed
 /// `{128, 48, 5}` -- the real board's own panel. Legacy has no 64-row mode to compare against; a
 /// wider read past its 6 pages is simply past the buffer.
 /// @return The popup canvas as a PBM, 48 rows tall.
@@ -211,7 +212,7 @@ void set_legacy_time_ms(uint64_t ms) {
 /// @brief @p count rows of @p pbm starting at row @p first, as a PBM of its own.
 ///
 /// This popup is pinned to the *visible* area's top (frame-local row 0, exactly as
-/// `title()`/`title_badge()` are -- see `ui/oled/popup.h`'s `notification()` doc), not to a fixed
+/// `title()`/`title_badge()` are -- see `ui/widgets/oled/popup.h`'s `notification()` doc), not to a fixed
 /// canvas row: on the shipped 48-row profile that lands on canvas row `visible_top` (5), but the
 /// 64-row profile this spec also records at has `visible_top == 0` (`board_64()`, matching
 /// `marker_scene_spec.cpp`'s/`context_menu_scene_spec.cpp`'s own), so the same content legitimately
@@ -244,8 +245,8 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	// Each draw files a notification cancel; a later example's shell would drain it into a display it may not have.
 	after_each([] {
-		deluge::notify::Notice notice;
-		while (deluge::notify::notices().pop(notice)) {
+		deluge::base::notify::Notice notice;
+		while (deluge::base::notify::notices().pop(notice)) {
 		}
 	});
 
@@ -373,7 +374,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			of_midi.cc_label.clear(); // CC 75 has no name
 			expect(shown(Kind::MIDI, 75, of_midi).first).to_equal(std::string{"CC 75"});
 		}
-		deluge::scenes::spec::make_current(before);
+		deluge::ui::scenes::spec::make_current(before);
 	});
 
 	it("ports the patch-cable name form, source1->source2->name, against the real getPatchedParamShortName", _ {
@@ -509,7 +510,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 
 		// The deadline itself: `remaining_ms()` reaches zero and `after_render()` fires exactly
 		// once, with `Remove` -- never `Pop`, which would also take down anything legitimately
-		// stacked above a passive overlay like this one (`shell/scene.h`'s warning on `Action`).
+		// stacked above a passive overlay like this one (`ui/shell/scene.h`'s warning on `Action`).
 		scene.tick(1000);
 		expect(scene.remaining_ms()).to_equal(0u);
 		Result r = scene.after_render();
@@ -629,11 +630,11 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	it("takes the notification slot whenever it draws, a deferred update included, and not on a hand-off", _ {
 		// Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`): every draw
 		// replaces whatever notification was up. A hand-off gives the popup to that very slot, so it cancels nothing.
-		using deluge::notify::Notice;
+		using deluge::base::notify::Notice;
 		const auto cancels = [] {
 			int n = 0;
 			Notice notice;
-			while (deluge::notify::notices().pop(notice)) {
+			while (deluge::base::notify::notices().pop(notice)) {
 				n += notice.kind == Notice::Kind::CancelNotification ? 1 : 0;
 			}
 			return n;

@@ -17,8 +17,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
-#include "instruments/deluge/mod_matrix.h"
+#include "instruments/classic/mod_matrix.h"
+#include "project/param_automation.h"
 
 #include <cstddef>
 #include <optional>
@@ -30,7 +30,7 @@ class Sound;
 /// @brief A topology edit's undo record as the app keeps it: the instrument's delta, and the depth lane the edited
 /// cable takes with it while it is out of the clip.
 struct CableEdit {
-	deluge::instrument::CableDelta delta;
+	deluge::instruments::classic::CableDelta delta;
 	deluge::project::DocAutoParam lane;
 };
 
@@ -55,7 +55,7 @@ public:
 
 private:
 	/// @brief Finish @p delta from the cables as the compile left them.
-	CableEdit finish(deluge::instrument::CableDelta delta, deluge::project::DocAutoParam lane = {});
+	CableEdit finish(deluge::instruments::classic::CableDelta delta, deluge::project::DocAutoParam lane = {});
 	[[nodiscard]] std::optional<size_t> find(const deluge::synth::CableRecord& cable) const;
 
 	Sound& sound_;

@@ -1,29 +1,23 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
+# Vendored headers (<gsl/gsl>) come from third_party/, as system includes.
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/third_party)
 
-add_subdirectory(plugin-api/types) # deluge_plugin_types: the host–plugin contract's data-only types
-add_subdirectory(foundation) # bottom of the stack; the layers below link it
+add_subdirectory(plugin/types) # deluge_plugin_types: the host–plugin contract's data-only types
+add_subdirectory(base) # bottom of the stack; the layers below link it
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
-add_subdirectory(plugin-api) # deluge_plugin_api: the host–plugin contract's interface
+add_subdirectory(plugin) # deluge_plugin: the host–plugin contract's interface
 add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
-add_subdirectory(instruments/deluge) # deluge_instrument: the Deluge instrument's state, words and codec
-add_subdirectory(effects/host_chain) # deluge_host_chain: the host chain's param table and pages
-add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
-add_subdirectory(sample-view) # deluge_sample_view: a waveform view's columns, peaks and navigation
+add_subdirectory(instruments/classic) # deluge_instruments_classic: the Deluge instrument's state, words and codec
+add_subdirectory(host/chains) # deluge_host_chains: the host chain's param table and pages
+add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mapping
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
-add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
-add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
+add_subdirectory(project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
-add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
-add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
-add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
-add_subdirectory(notify)     # deluge_notify: model->UI notification channel
+add_subdirectory(ui)         # deluge_ui_*: gfx, widgets, controls, shell, the waveform view and the scenes (src/ui/CMakeLists.txt)
+add_subdirectory(app)        # deluge_app_ports_waveforms: the host side of the UI's ports
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
-# deluge_scenes (with deluge_scenes_bind): the first UI layer allowed to include the model. It
-# compiles against deluge_app, so it comes after deluge_app exists. Archived into the firmware by
-# the Rust BSP's build script beside deluge_app.
-add_subdirectory(scenes)
-add_subdirectory(lib)
+add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/printf ${CMAKE_BINARY_DIR}/printf)
 
 # ---------------------------------------------------------------------------
 # No firmware executable is assembled here. The device image is linked by cargo

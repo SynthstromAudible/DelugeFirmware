@@ -16,12 +16,12 @@
  */
 
 #include "model/instrument/cv_instrument.h"
-#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp-next/core/fixed_point.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/cv_engine.h"
+#include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "storage/storage_manager.h"
 #include <cstring>
 

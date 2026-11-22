@@ -10,21 +10,21 @@
 /// "install exactly what the application installs" is the shape that lets the two drift.
 
 #include "board_controls.hpp"
-#include "scenes/menu/bind_host.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/midi_learn.h"
-#include "scenes/services/mod_knobs.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/midi_learn.h"
+#include "ui/scenes/services/mod_knobs.h"
 
 #include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/view.h"
 #include "model/song/song.h"
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include <functional>
 #include <optional>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief The three real services, built over the run's own `Shell` from `after_construct` and
 ///        installed into it with `Shell::set_services`.
@@ -79,4 +79,4 @@ struct RealServices {
 	}
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

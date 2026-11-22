@@ -8,20 +8,20 @@
 
 #include "gui/ui/browser_host.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
-#include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
@@ -39,16 +39,16 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec::dx_rig {
+namespace deluge::ui::scenes::spec::dx_rig {
 
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief A synth whose first oscillator is DX7.
 ///
@@ -59,11 +59,11 @@ struct DxRig {
 	Sound* sound = nullptr;
 
 	DxRig() {
-		deluge::scenes::spec::make_current(song.song);
+		deluge::ui::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
-	~DxRig() { deluge::scenes::spec::make_current(saved); }
+	~DxRig() { deluge::ui::scenes::spec::make_current(saved); }
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 
@@ -78,8 +78,8 @@ struct DxRig {
 /// @brief The language the menu's text comes from, and no notice left over from another example.
 inline void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 /// @brief The panel `pixels/<name>.pbm` of the reference tables holds, or nothing where there is no such file.
@@ -104,7 +104,7 @@ inline std::string below_bezel(const std::string& pbm) {
 	return out + pbm.substr(pos);
 }
 
-/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
+/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -225,4 +225,4 @@ struct MenuRig : DxRig {
 	int16_t cursor() const { return state().list[state().depth].cursor; }
 };
 
-} // namespace deluge::scenes::spec::dx_rig
+} // namespace deluge::ui::scenes::spec::dx_rig

@@ -3,8 +3,8 @@
 /// @file
 /// @brief A menu tree as the reference tables key it: every node under a root by its child positions.
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/node.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/node.h"
 
 #include <algorithm>
 #include <array>
@@ -15,7 +15,7 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief One node of a root's tree, and where it sits.
 struct TreeEntry {
@@ -62,7 +62,7 @@ inline std::string first_path_of(const std::vector<TreeEntry>& entries, const me
 inline bool param_comparable(const menu::Node& node) {
 	return node.kind != menu::Kind::Submenu && node.kind != menu::Kind::Custom && node.bind.param.valid()
 	       && node.bind.get == nullptr
-	       && !(node.bind.target.valid() && node.bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM);
+	       && !(node.bind.target.valid() && node.bind.target.kind != deluge::ui::scenes::bind::Target::Kind::PARAM);
 }
 
 /// @brief A table value as a number, or nothing for a missing row or a value that is not one.
@@ -101,4 +101,4 @@ inline std::optional<int32_t> sentinel_for(const menu::IntRange& r, int32_t v) {
 	return v == r.min ? r.max : r.min;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

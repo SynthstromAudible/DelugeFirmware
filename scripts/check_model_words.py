@@ -3,13 +3,13 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""The model names no plugin's state: no file under src/deluge-project may name a sound record, one of the Deluge
+"""The model names no plugin's state: no file under src/project may name a sound record, one of the Deluge
 instrument's words, one of the runtime's param collections or its cable words. A song holds a plugin slot, which the
 model stores without understanding, and addresses params (cable depths included) by their plugin's id; the words belong
-to the plugin (src/instruments/deluge) and the runtime.
+to the plugin (src/instruments/classic) and the runtime.
 
 Usage:
-    scripts/check_model_words.py               # check src/deluge-project, exit 1 on a match
+    scripts/check_model_words.py               # check src/project, exit 1 on a match
     scripts/check_model_words.py --root DIR    # check DIR
 """
 
@@ -78,7 +78,7 @@ def matches(root: Path) -> list[str]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=REPO / "src" / "deluge-project")
+    parser.add_argument("--root", type=Path, default=REPO / "src" / "project")
     args = parser.parse_args(argv)
     found = matches(args.root)
     for line in found:

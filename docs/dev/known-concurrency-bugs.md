@@ -78,8 +78,8 @@ touches that asset's chunks during teardown.
   the files first and then runs the reversion card-free in one pass, so `revert()` no longer yields. Fixed:
   `7e13a061a`.
 - **A sound's voice list walked by the render while the interaction tier changed it** (`terminateOneVoice`, the
-  `getNumVoices` lambda; it had crashed 2 of 10 triage runs). A sound's voices are an `instrument::VoicePool`
-  (`src/instruments/deluge/voice_pool.h`): only the pool changes the list, every change and every read from outside
+  `getNumVoices` lambda; it had crashed 2 of 10 triage runs). A sound's voices are an `instruments::classic::VoicePool`
+  (`src/instruments/classic/voice_pool.h`): only the pool changes the list, every change and every read from outside
   the render runs under an `AudioExcludedSection`, and the host's culls ask each sound's pool. Both sites are out of
   `races.txt`. The gate does not confirm it: neither site appeared in five runs, on the fix or on the code before it.
   Fixed: `4b2fda909`, `27c36b93b`, `5a2b6d162`.

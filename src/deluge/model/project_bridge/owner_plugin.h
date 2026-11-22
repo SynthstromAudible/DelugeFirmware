@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/owner_plugin.h"
+#include "project/owner_plugin.h"
 
 namespace deluge::bridge {
 

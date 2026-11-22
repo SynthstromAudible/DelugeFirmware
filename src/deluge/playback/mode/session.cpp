@@ -228,8 +228,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			currentSong->setCurrentClip(clip);
 			getCurrentUI()->focusRegained(); // A bit shifty...
 
-			deluge::notify::raise(deluge::notify::Dirty::GridMain);
-			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 		}
 
 		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
@@ -818,7 +818,7 @@ void Session::showLaunchRepeatsRemaining() {
 	else if ((rootUI == &sessionView || rootUI == &performanceView || rootUI == &arrangerView)
 	         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
 	         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 	}
 }
 
@@ -833,7 +833,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 		         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 		         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
 		         && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			deluge::notify::raise(deluge::notify::Dirty::Oled);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 		}
 	}
 }
@@ -1089,7 +1089,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
 					if (rootUI == &sessionView || rootUI == &performanceView) {
-						deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+						deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 					}
 					return;
 				}
@@ -1140,10 +1140,10 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							clip->notify_content_changed();
 							if (getCurrentClip()) {
 								if (getCurrentClip()->onAutomationClipView) {
-									deluge::notify::raise(deluge::notify::Dirty::GridMain);
+									deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 								}
 								else {
-									deluge::notify::raise(deluge::notify::Dirty::GridMain);
+									deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 								}
 							}
 						}
@@ -1331,7 +1331,7 @@ void Session::armingChanged() {
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				deluge::notify::raise(deluge::notify::Dirty::Oled);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -1341,13 +1341,13 @@ probablyDoFlashPlayEnable:
 	}
 	else {
 		// TODO: only if sidebar visible!
-		deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 		// Arranger View also renders the session launch countdown. Refresh it
 		// when arming changes so a completed launch restores the normal display.
 		if (rootUI == &arrangerView && getCurrentUI()->canSeeViewUnderneath()
 		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
 		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			deluge::notify::raise(deluge::notify::Dirty::Oled);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 		}
 	}
 }

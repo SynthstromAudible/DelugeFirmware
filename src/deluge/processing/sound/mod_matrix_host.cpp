@@ -29,17 +29,18 @@ std::optional<size_t> ModMatrixHost::find(const deluge::synth::CableRecord& cabl
 	return cables_.records().find(cable.source, cable.target);
 }
 
-CableEdit ModMatrixHost::finish(deluge::instrument::CableDelta delta, deluge::project::DocAutoParam lane) {
+CableEdit ModMatrixHost::finish(deluge::instruments::classic::CableDelta delta, deluge::project::DocAutoParam lane) {
 	delta.records_after = cables_.records();
 	if (const std::optional<size_t> i =
-	        find(delta.op == deluge::instrument::CableDelta::Op::REMOVE ? delta.before : delta.after)) {
+	        find(delta.op == deluge::instruments::classic::CableDelta::Op::REMOVE ? delta.before : delta.after)) {
 		delta.index = static_cast<uint8_t>(*i);
 	}
 	return {std::move(delta), std::move(lane)};
 }
 
 std::optional<CableEdit> ModMatrixHost::addCable(deluge::synth::CableRecord cable) {
-	std::optional<deluge::instrument::CableDelta> delta = deluge::instrument::begin_add(cables_.records(), cable);
+	std::optional<deluge::instruments::classic::CableDelta> delta =
+	    deluge::instruments::classic::begin_add(cables_.records(), cable);
 	if (!delta || cables_.appendCable(cable) == nullptr) {
 		return std::nullopt;
 	}
@@ -48,7 +49,8 @@ std::optional<CableEdit> ModMatrixHost::addCable(deluge::synth::CableRecord cabl
 }
 
 std::optional<CableEdit> ModMatrixHost::removeCable(size_t index) {
-	std::optional<deluge::instrument::CableDelta> delta = deluge::instrument::begin_remove(cables_.records(), index);
+	std::optional<deluge::instruments::classic::CableDelta> delta =
+	    deluge::instruments::classic::begin_remove(cables_.records(), index);
 	if (!delta) {
 		return std::nullopt;
 	}
@@ -58,8 +60,8 @@ std::optional<CableEdit> ModMatrixHost::removeCable(size_t index) {
 }
 
 std::optional<CableEdit> ModMatrixHost::setPolarity(size_t index, deluge::synth::CablePolarity polarity) {
-	std::optional<deluge::instrument::CableDelta> delta =
-	    deluge::instrument::begin_set_polarity(cables_.records(), index, polarity);
+	std::optional<deluge::instruments::classic::CableDelta> delta =
+	    deluge::instruments::classic::begin_set_polarity(cables_.records(), index, polarity);
 	if (!delta) {
 		return std::nullopt;
 	}
@@ -69,8 +71,8 @@ std::optional<CableEdit> ModMatrixHost::setPolarity(size_t index, deluge::synth:
 }
 
 std::optional<CableEdit> ModMatrixHost::reroute(size_t index, deluge::synth::CableTarget target) {
-	std::optional<deluge::instrument::CableDelta> delta =
-	    deluge::instrument::begin_reroute(cables_.records(), index, target);
+	std::optional<deluge::instruments::classic::CableDelta> delta =
+	    deluge::instruments::classic::begin_reroute(cables_.records(), index, target);
 	if (!delta) {
 		return std::nullopt;
 	}
@@ -80,9 +82,9 @@ std::optional<CableEdit> ModMatrixHost::reroute(size_t index, deluge::synth::Cab
 }
 
 void ModMatrixHost::apply(CableEdit& edit, TimeType time) {
-	using Op = deluge::instrument::CableDelta::Op;
-	using deluge::instrument::CableSide;
-	const deluge::instrument::CableDelta& delta = edit.delta;
+	using Op = deluge::instruments::classic::CableDelta::Op;
+	using deluge::instruments::classic::CableSide;
+	const deluge::instruments::classic::CableDelta& delta = edit.delta;
 	const CableSide side = time == AFTER ? CableSide::AFTER : CableSide::BEFORE;
 	// A rerouted cable changes identity across the edit, so its depth is carried from one identity to the other; an
 	// added or removed one takes its depth with it while it is out of the clip.
@@ -105,7 +107,7 @@ void ModMatrixHost::apply(CableEdit& edit, TimeType time) {
 }
 
 std::optional<CableEdit> ModMatrixHost::ensureCable(PatchSource source, deluge::synth::CableTarget target) {
-	if (!deluge::instrument::needs_cable(cables_.records(), source, target)) {
+	if (!deluge::instruments::classic::needs_cable(cables_.records(), source, target)) {
 		return std::nullopt;
 	}
 	return addCable(
@@ -118,7 +120,7 @@ std::optional<CableEdit> ModMatrixHost::settleDepth(size_t index, bool clipActiv
 	}
 	const bool holdsSomething =
 	    cables_.patchCables[index].param.containsSomething(*cables_.docForParam(static_cast<int32_t>(index)), 0);
-	if (!deluge::instrument::settles(holdsSomething, clipActive)) {
+	if (!deluge::instruments::classic::settles(holdsSomething, clipActive)) {
 		return std::nullopt;
 	}
 	return removeCable(index);

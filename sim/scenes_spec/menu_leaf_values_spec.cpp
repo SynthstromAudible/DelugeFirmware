@@ -20,28 +20,28 @@
 ///        of main's value rules, pinned against `main`'s own numbers.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "ui/oled/list.h"
-#include "ui/oled/values.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/values.h"
 
-#include "notify/dirty_set.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/dirty_set.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
-#include "plugin-api/types/arp_rhythm.h"
+#include "plugin/types/arp_rhythm.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
@@ -65,10 +65,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
@@ -79,7 +79,7 @@ namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief The application's shell with every root numbered, and a context on the fixture's synth clip.
 ///
@@ -97,7 +97,7 @@ struct Rig {
 
 	Rig() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 	}
 	Rig(const Rig&) = delete;
@@ -291,8 +291,8 @@ describe leaf_words("scenes::menu full-screen Decimal words", $ {
 		// The same list drawn with main's two words, below the title.
 		deluge::ui::test::Rig48 main_words;
 		bool off = false;
-		deluge::ui::ScrollText scroll;
-		(void)deluge::ui::oled::toggle(main_words.frame, deluge::ui::oled::menu_rect(main_words.frame), off,
+		deluge::ui::widgets::core::ScrollText scroll;
+		(void)deluge::ui::widgets::oled::toggle(main_words.frame, deluge::ui::widgets::oled::menu_rect(main_words.frame), off,
 		                               deluge::l10n::get(String::STRING_FOR_DISABLED),
 		                               deluge::l10n::get(String::STRING_FOR_ENABLED), scroll);
 		bool same = true;
@@ -391,14 +391,14 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 	it("turns the patch cable list five rows a click while shift is held", _ {
 		// Main's patch cable list clamps `currentValue + offset` on the scaled offset.
 		Rig r;
-		deluge::scenes::bind::CableList cables;
+		deluge::ui::scenes::bind::CableList cables;
 		for (const PatchSource source :
 		     {PatchSource::LFO_GLOBAL_1, PatchSource::LFO_LOCAL_1, PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1,
 		      PatchSource::VELOCITY, PatchSource::NOTE, PatchSource::RANDOM}) {
 			cables.items[cables.count++].depth =
 			    deluge::bridge::cable_depth(source, deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ));
 		}
-		const deluge::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
+		const deluge::ui::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
 		r.ctx.ports.sound = &sound;
 		r.open(nodes::patch_cables);
 		deluge::ui::test::Rig48 rig;

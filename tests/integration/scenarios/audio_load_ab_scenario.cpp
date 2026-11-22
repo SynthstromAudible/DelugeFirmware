@@ -56,13 +56,13 @@
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "runtime/app_loop.h"          // nowUs, the stall bounds' clock
-#include "scenarios/guest_drive.h"     // the shell guest: its tick, its browser
-#include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
-#include "scenes/browser/browser_scene.h"
+#include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
+#include "scenarios/guest_drive.h"           // the shell guest: its tick, its browser
+#include "scenarios/load_invariants.h"       // checkLoadInvariants -- shared with load_policy
 #include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
+#include "ui/scenes/browser/browser_scene.h"
 #include "util/menu_entry.h"
 
 #include <array>
@@ -73,7 +73,7 @@
 #include <string>
 #include <string_view>
 
-// The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
+// The GUI headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which this harness does not provide, so
 // the alias turns every line this file writes into an undefined symbol at link time. Every one of those
 // lines IS the gate's output (the script reads them), so they must go to real stdout regardless of
@@ -745,7 +745,7 @@ Sample* residentSample(const char* path) {
 Sample* drawnSample(const char* path) {
 	Sample* sample = residentSample(path);
 	return sample != nullptr
-	               && deluge::scenes::browser::browser_scene()
+	               && deluge::ui::scenes::browser::browser_scene()
 	                      .shown_waveform(deluge::gui::shell_host::waveform_identity(*sample))
 	                      .has_value()
 	           ? sample
@@ -780,8 +780,8 @@ bool openGuestBrowser() {
 	int32_t openTicks = 0;
 	for (; deluge::harness::browserOnTop() && openTicks < kMaxOpenTicks && idleTicks < kOpenIdleTicks; openTicks++) {
 		deluge::harness::guestTick();
-		const bool busy =
-		    deluge::scenes::browser::browser_scene().listing_in_flight() || deluge::gui::ui::shellPreviewer().pending();
+		const bool busy = deluge::ui::scenes::browser::browser_scene().listing_in_flight()
+		                  || deluge::gui::ui::shellPreviewer().pending();
 		idleTicks = busy ? 0 : idleTicks + 1;
 	}
 	if (openTicks == kMaxOpenTicks && idleTicks < kOpenIdleTicks) {
@@ -821,9 +821,9 @@ bool runOnePreviewTick() {
 		// The scenes browser draws a frame after the load lands, by which time the host's fill has already delivered
 		// this small file's cluster; a short hold keeps the first draw ahead of the card, as the stage needs.
 		deluge_streaming_set_fill_latency_ms(kPreviewFillHoldMs);
-		g_drawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
-		g_redrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
-		g_drawsCompleteBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().complete;
+		g_drawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		g_redrawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws;
+		g_drawsCompleteBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().complete;
 		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
 		g_previewWait = Wait{g_report, "the preview drawing", kMaxPreviewTicks};
 		return false;
@@ -865,17 +865,18 @@ void finishPreviewStage(bool drawn) {
 		g_report.fail("[audioLoadAB/preview]: the preview never deferred, so the re-drive was never under "
 		              "test");
 	}
-	const int32_t draws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_drawsBefore;
-	const int32_t redraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_redrawsBefore;
+	const int32_t draws = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws - g_drawsBefore;
+	const int32_t redraws =
+	    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_redrawsBefore;
 	const int32_t complete =
-	    deluge::scenes::browser::browser_scene().waveform_draw_stats().complete - g_drawsCompleteBefore;
+	    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().complete - g_drawsCompleteBefore;
 	printf("AB-PREVIEW-DRAW draws=%d redraws=%d complete=%d redrawPending=%d\n", draws, redraws, complete,
-	       deluge::scenes::browser::browser_scene().waveform_redraw_pending() ? 1 : 0);
+	       deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending() ? 1 : 0);
 	// redraws >= 1 is measured, not assumed: the preview's first draw finds its cluster enqueued but not yet filled,
 	// and one redraw finishes it (measured redraws=1). A draw that completed at once would be a draw that waited for
 	// the card.
 	if (draws != 1 || redraws < 1 || complete < 1
-	    || deluge::scenes::browser::browser_scene().waveform_redraw_pending()) {
+	    || deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending()) {
 		g_report.fail(
 		    "[audioLoadAB/preview-draw]: the preview must be drawn once, without waiting for its clusters, and "
 		    "end on a complete render with nothing left to redraw");
@@ -1092,7 +1093,7 @@ void runOneDrawStallTick() {
 	case DrawStallStep::Armed:
 		// First, a release with a redraw pending: Select (enterKeyPress) and a typed move release the preview's sample
 		// through stopAnyPreviewing() without moving the generation. The redraw must not read the released sample.
-		switch (g_drawStallWait.poll(deluge::scenes::browser::browser_scene().waveform_redraw_pending())) {
+		switch (g_drawStallWait.poll(deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending())) {
 		case WaitState::Pending:
 			deluge::harness::guestTick();
 			return;
@@ -1104,32 +1105,33 @@ void runOneDrawStallTick() {
 			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
-		g_dsArmed = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
+		g_dsArmed = deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending();
 		g_drawStallStep = DrawStallStep::Release;
 		return;
 	case DrawStallStep::Release: {
-		const int32_t redrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
+		const int32_t redrawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws;
 		AudioEngine::stopAnyPreviewing();
 		deluge::harness::guestTick();
 		g_dsRedrawsAfterRelease =
-		    deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - redrawsBefore;
-		g_dsPendingAfterRelease = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
+		    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws - redrawsBefore;
+		g_dsPendingAfterRelease = deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending();
 		g_drawStallStep = DrawStallStep::Restart;
 		return;
 	}
 	case DrawStallStep::Restart:
 		// Then the give-up: the same file previewed again, its clusters still held.
 		g_drawStallWait = Wait{g_report, "the stalled preview settling", kMaxDrawStallTicks};
-		g_dsRedrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
-		g_dsGiveUpsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().give_ups;
-		g_dsDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
-		g_dsCompleteBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().complete;
+		g_dsRedrawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws;
+		g_dsGiveUpsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().give_ups;
+		g_dsDrawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		g_dsCompleteBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().complete;
 		deluge::gui::ui::shellPreviewer().request(kDrawStallPath, /*movementDirection=*/0);
 		g_drawStallStep = DrawStallStep::Wait;
 		return;
 	case DrawStallStep::Wait: {
-		const bool drawnAtAll = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsDrawsBefore;
-		const bool settled = drawnAtAll && !deluge::scenes::browser::browser_scene().waveform_redraw_pending()
+		const bool drawnAtAll =
+		    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsDrawsBefore;
+		const bool settled = drawnAtAll && !deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending()
 		                     && !deluge::gui::ui::shellPreviewer().pending();
 		switch (g_drawStallWait.poll(settled)) {
 		case WaitState::Pending:
@@ -1143,10 +1145,10 @@ void runOneDrawStallTick() {
 			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
-		g_dsPendingAtEnd = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
-		g_dsStallDraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_dsDrawsBefore;
+		g_dsPendingAtEnd = deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending();
+		g_dsStallDraws = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws - g_dsDrawsBefore;
 		g_dsStallComplete =
-		    deluge::scenes::browser::browser_scene().waveform_draw_stats().complete - g_dsCompleteBefore;
+		    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().complete - g_dsCompleteBefore;
 		g_dsStallTicks = g_drawStallWait.ticks();
 		deluge_streaming_set_fill_latency_ms(0);
 		g_drawStallStep = DrawStallStep::Move;
@@ -1154,15 +1156,15 @@ void runOneDrawStallTick() {
 	}
 	case DrawStallStep::Move:
 		// A cursor move onto another file, with the hold lifted: the browser must still preview it.
-		g_dsMoveDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		g_dsMoveDrawsBefore = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws;
 		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
 		g_drawStallWait = Wait{g_report, "the moved preview drawing", kMaxPreviewTicks};
 		g_drawStallStep = DrawStallStep::MoveWait;
 		return;
 	case DrawStallStep::MoveWait:
-		g_dsMovedDrawn = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsMoveDrawsBefore
+		g_dsMovedDrawn = deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsMoveDrawsBefore
 		                 && deluge::model::lastFilePathLoaded() == kPreviewPath
-		                 && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
+		                 && !deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending();
 		if (g_drawStallWait.poll(g_dsMovedDrawn) == WaitState::Pending) {
 			deluge::harness::guestTick();
 			return;
@@ -1176,8 +1178,10 @@ void runOneDrawStallTick() {
 }
 
 void finishDrawStallStage() {
-	const int32_t redraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_dsRedrawsBefore;
-	const int32_t giveUps = deluge::scenes::browser::browser_scene().waveform_draw_stats().give_ups - g_dsGiveUpsBefore;
+	const int32_t redraws =
+	    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_dsRedrawsBefore;
+	const int32_t giveUps =
+	    deluge::ui::scenes::browser::browser_scene().waveform_draw_stats().give_ups - g_dsGiveUpsBefore;
 	printf("AB-PREVIEW-DRAW-STALL draws=%d complete=%d ticks=%d redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n",
 	       g_dsStallDraws, g_dsStallComplete, g_dsStallTicks, redraws, giveUps, g_dsPendingAtEnd ? 1 : 0,
 	       g_dsMovedDrawn ? 1 : 0);
@@ -1468,7 +1472,8 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
 			const bool waited = runOnePreviewTick();
-			const bool drawn = previewHasDrawn() && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
+			const bool drawn =
+			    previewHasDrawn() && !deluge::ui::scenes::browser::browser_scene().waveform_redraw_pending();
 			if (g_previewAborted) {
 				finishPreviewStage(false);
 				g_stage = Stage::PrescanRange;

@@ -1,59 +1,59 @@
 #include "support/frames.h"
-#include "ui/core/metrics.h"
-#include "ui/oled/scroll_text.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/widgets/core/metrics.h"
+#include "ui/widgets/oled/scroll_text.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
-using namespace deluge::ui::oled;
-using deluge::gfx::oled::FontId;
-using deluge::gfx::oled::Rect;
+using namespace deluge::ui::widgets::oled;
+using deluge::ui::gfx::oled::FontId;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // clang-format off
-describe scroll_text_w("ui::oled::scroll_text", $ {
+describe scroll_text_w("ui::widgets::oled::scroll_text", $ {
 	it("does not move when the text fits", _ {
-		uitest::Rig48 r; ScrollText st;
+		uitest::Rig48 r; widgets::core::ScrollText st;
 		scroll_text(r.frame, Rect{6, 14, 122, 9}, "SHORT", FontId::Apple7, st);
 		expect(st.offset).to_equal(int16_t(0));
 		expect(st.dir).to_equal(int8_t(1));
 		expect(r.gate.next_deadline().has_value()).to_be_false();
 	});
 	it("resets a stale mid-scroll offset/direction when the text now fits", _ {
-		uitest::Rig48 r; ScrollText st; st.offset = 20; st.dir = -1;
+		uitest::Rig48 r; widgets::core::ScrollText st; st.offset = 20; st.dir = -1;
 		scroll_text(r.frame, Rect{6, 14, 122, 9}, "SHORT", FontId::Apple7, st);
 		expect(st.offset).to_equal(int16_t(0));
 		expect(st.dir).to_equal(int8_t(1));
 		expect(r.gate.next_deadline().has_value()).to_be_false();
 	});
 	it("arms the legacy kScrollTime pause before the first pixel step, then steps one pixel per interval and ping-pongs", _ {
-		uitest::Rig48 r; ScrollText st;
+		uitest::Rig48 r; widgets::core::ScrollText st;
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		r.input.now_ms = 0;            scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // arms the initial pause, matching legacy timing
-		expect(*r.gate.next_deadline()).to_equal(uint32_t(kScrollTime));
+		expect(*r.gate.next_deadline()).to_equal(uint32_t(widgets::core::kScrollTime));
 		expect(st.offset).to_equal(int16_t(0));                   // still sitting still during the pause
-		r.input.now_ms = kScrollTime;  scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // pause elapsed: first pixel step
+		r.input.now_ms = widgets::core::kScrollTime;  scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // pause elapsed: first pixel step
 		expect(st.offset).to_equal(int16_t(1));
-		for (int t = kScrollTime + kScrollStepForwardMs; st.dir > 0; t += kScrollStepForwardMs) {
+		for (int t = widgets::core::kScrollTime + widgets::core::kScrollStepForwardMs; st.dir > 0; t += widgets::core::kScrollStepForwardMs) {
 			r.input.now_ms = t; scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);
 		}
 		expect(st.dir).to_equal(int8_t(-1));                       // reached the end and paused
-		expect(st.next_step_ms - r.input.now_ms).to_equal(uint32_t(kScrollTime));
+		expect(st.next_step_ms - r.input.now_ms).to_equal(uint32_t(widgets::core::kScrollTime));
 	});
 	it("re-arms the initial pause when the text or rect changes underneath it", _ {
-		uitest::Rig48 r; ScrollText st;
+		uitest::Rig48 r; widgets::core::ScrollText st;
 		const char* s1 = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		r.input.now_ms = 0;             scroll_text(r.frame, Rect{6, 14, 122, 9}, s1, FontId::Apple7, st);
-		r.input.now_ms = kScrollTime;   scroll_text(r.frame, Rect{6, 14, 122, 9}, s1, FontId::Apple7, st);
+		r.input.now_ms = widgets::core::kScrollTime;   scroll_text(r.frame, Rect{6, 14, 122, 9}, s1, FontId::Apple7, st);
 		expect(st.offset).to_equal(int16_t(1));                    // genuinely mid-scroll now
 
 		// A different label, one character shorter (Apple7 is monospaced, so its pixel width
 		// differs) -- called well past any due step, so only the content change can be why it
 		// re-arms rather than keeps stepping.
 		const char* s2 = "A DIFFERENT VERY LONG LABEL THAT ALSO OVERFLOWS";
-		r.input.now_ms = kScrollTime + 1000;
+		r.input.now_ms = widgets::core::kScrollTime + 1000;
 		scroll_text(r.frame, Rect{6, 14, 122, 9}, s2, FontId::Apple7, st);
 		expect(st.offset).to_equal(int16_t(0));
 		expect(st.dir).to_equal(int8_t(1));
@@ -61,17 +61,17 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		// keeps the *earliest* pending deadline until it's consumed by needs_frame() (never
 		// called in this spec), so the very first call's 400ms request from above is still the
 		// one it reports -- next_step_ms is the widget's own rearm, unaffected by that.
-		expect(st.next_step_ms - r.input.now_ms).to_equal(uint32_t(kScrollTime));
+		expect(st.next_step_ms - r.input.now_ms).to_equal(uint32_t(widgets::core::kScrollTime));
 	});
 	it("resets to the start when motion is not allowed", _ {
-		uitest::Rig48 r; ScrollText st; st.offset = 20; st.dir = -1;
+		uitest::Rig48 r; widgets::core::ScrollText st; st.offset = 20; st.dir = -1;
 		scroll_text(r.frame, Rect{6, 14, 122, 9}, "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL", FontId::Apple7, st, false);
 		expect(st.offset).to_equal(int16_t(0));
 		expect(st.dir).to_equal(int8_t(1));
 		expect_golden(self, "ui/widgets/scroll_text_start_48.pbm", r.pbm());
 	});
 	it("clips a scrolled string against a right edge interior to the canvas", _ {
-		uitest::Rig48 r; ScrollText st;
+		uitest::Rig48 r; widgets::core::ScrollText st;
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		Rect rect{6, 14, 100, 9}; // right() = 106, strictly inside the 128px canvas
 		// Mirrors every scroll_text call onto a second canvas via the same raw Canvas calls
@@ -82,9 +82,9 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 			r.reference.draw_string(s, rect.x, rect.y + 5, 6, 9, st.offset, rect.right());
 		};
 		r.input.now_ms = 0;            scroll_text(r.frame, rect, s, FontId::Apple7, st); mirror();
-		r.input.now_ms = kScrollTime;  scroll_text(r.frame, rect, s, FontId::Apple7, st); mirror(); // offset -> 1
+		r.input.now_ms = widgets::core::kScrollTime;  scroll_text(r.frame, rect, s, FontId::Apple7, st); mirror(); // offset -> 1
 		for (int i = 0; i < 9; i++) {
-			r.input.now_ms += kScrollStepForwardMs;
+			r.input.now_ms += widgets::core::kScrollStepForwardMs;
 			scroll_text(r.frame, rect, s, FontId::Apple7, st);
 			mirror();
 		}
@@ -101,7 +101,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 	});
 	// Legacy widens only the clear, by 4 px (`endX += 4` in `OLED::scrollingAndBlinkingTimerEvent`).
 	it("widens only the cleared rect for an explicit clear_pad_x, per legacy's clear-only +4px", _ {
-		uitest::Rig48 r; ScrollText st;
+		uitest::Rig48 r; widgets::core::ScrollText st;
 		Rect rect{6, 14, 100, 9};
 		// Simulate stray ink left just past the rect, as if a submenu icon area still held a
 		// previous frame's pixels -- the case legacy's clear-only padding exists to erase.

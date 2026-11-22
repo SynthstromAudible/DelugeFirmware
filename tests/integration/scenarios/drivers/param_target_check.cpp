@@ -26,13 +26,11 @@
 //     by target gives cell by cell the runtime param its recorded characterisation holds
 
 #include "board_controls.hpp"
-#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/song.h"
-#include "effects/host_chain/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
-#include "instruments/deluge/pages.h"
+#include "host/chains/params.h"
+#include "instruments/classic/pages.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
@@ -44,11 +42,13 @@
 #include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/song.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
-#include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
+#include "ui/controls/knob_focus.h"
+#include "ui/scenes/bind/knob_assignment.h"
 
 #include <array>
 #include <cstdio>
@@ -378,7 +378,7 @@ void checkPerformanceTables(Checker& check) {
 /// a setting have no param in the layout: they must be the pages' compressor arms instead, and no other cell may be
 /// one.
 void checkChainKnobs(Checker& check) {
-	namespace bind = deluge::scenes::bind;
+	namespace bind = deluge::ui::scenes::bind;
 	namespace project = deluge::project;
 	constexpr uint32_t kKit = 1;
 	constexpr uint32_t kClip = 1;
@@ -392,7 +392,7 @@ void checkChainKnobs(Checker& check) {
 		bind::KnobFocus focus;
 		if (clip) {
 			focus.owner = bind::ChainFocus{.chain = {.kind = project::ChainAddress::Kind::OUTPUT, .id = kKit},
-			                               .owner = deluge::controls::ChainOwner::KIT,
+			                               .owner = deluge::ui::controls::ChainOwner::KIT,
 			                               .clip = project::ClipAddress{.clip_id = kClip}};
 		}
 		else {
@@ -460,7 +460,7 @@ void checkKnobs(Checker& check) {
 	};
 	sound("sound knobs", Table::SOUND_KNOBS);
 	// The sample row's knobs are the instrument's sample pages; setupAsSample takes them.
-	for (const deluge::plugin::RemotePage& page : deluge::instrument::kSamplePages) {
+	for (const deluge::plugin::RemotePage& page : deluge::instruments::classic::kSamplePages) {
 		for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
 			checkCell(
 			    check, "sample pages", OwnerPlugin::INSTRUMENT,

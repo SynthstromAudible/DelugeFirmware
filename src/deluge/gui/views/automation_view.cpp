@@ -132,7 +132,8 @@ constexpr int32_t kNumGlobalParamsForAutomation = params::kGlobalParamsForAutoma
 namespace {
 
 /// Portamento, which a kit row's automation leaves out.
-constexpr ParamTarget kPortamento = deluge::project::engine_target(deluge::instrument::param::kPortamento.value);
+constexpr ParamTarget kPortamento =
+    deluge::project::engine_target(deluge::instruments::classic::param::kPortamento.value);
 
 /// The runtime param a sound's target names.
 RuntimeParam soundParam(ParamTarget target) {
@@ -1448,7 +1449,7 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 		}
 
 		// Site 7 of `gui/ui/menu_entry.cpp`'s table. Under `UI_MODE_NOTES_PRESSED` (pad selection on, a pad
-		// held) `setup(clip)` opens the note editor on an instrument clip; `src/scenes` may not read the UI mode, so
+		// held) `setup(clip)` opens the note editor on an instrument clip; `src/ui/scenes` may not read the UI mode, so
 		// the mode is named here, as `setup()` infers it: the undo log wiped, a kit's affect-entire left on. An audio
 		// clip, or the arranger's null clip, opens the root it opens under `UI_MODE_NONE`.
 		// `onArrangerView` is both halves of the mapping at once: it is why the clip is null, and it is

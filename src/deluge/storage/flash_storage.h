@@ -27,7 +27,7 @@
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
 #define PREVIEW_ON 2
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 enum class Polarity : uint8_t;
 }
 namespace FlashStorage {
@@ -88,7 +88,7 @@ extern uint8_t screensaverTimeoutMinutes;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
-extern deluge::instrument::Polarity defaultPatchCablePolarity;
+extern deluge::instruments::classic::Polarity defaultPatchCablePolarity;
 
 extern bool defaultUseSharps;
 
@@ -97,7 +97,7 @@ inline constexpr uint8_t kShortcutsVersion1 = 0;
 inline constexpr uint8_t kShortcutsVersion3 = 1;
 /// @brief The shortcut layout, as flash byte 60 stores it: `kShortcutsVersion1` selects the pre-3.0 layout and any
 ///        other value the current one. The ported shortcut tables select on it through the device's
-///        `pads/shortcutsVersion` row (`scenes::menu::shortcuts_version`).
+///        `pads/shortcutsVersion` row (`ui::scenes::menu::shortcuts_version`).
 extern uint8_t shortcutsVersion;
 
 /// @brief Which of the six pad-colour settings a `padColours` entry holds.
@@ -121,7 +121,7 @@ enum PadColourSlot : uint8_t {
 /// menu item itself (`gui/menu_item/colour.h`). They are settings, not menu state -- `readSettings`
 /// and `writeSettings` have always persisted them and `Song::setupDefault`-adjacent code has always
 /// read them -- and a member of a `gui/` class is unreachable from the layers that are not allowed
-/// to name `gui/` at all (`src/scenes`, whose COLOURS page edits exactly these six bytes). So the
+/// to name `gui/` at all (`src/ui/scenes`, whose COLOURS page edits exactly these six bytes). So the
 /// bytes live here and `menu_item::Colour::value` is a reference onto one of them. The colour a byte
 /// paints is `deluge::gui::padColourRGB` (`gui/colour/pad_colour.h`).
 extern uint8_t padColours[NUM_PAD_COLOUR_SLOTS];
@@ -148,7 +148,7 @@ struct DefaultRange {
 ///
 /// They are settings, not menu state: `readSettings`/`writeSettings` persist them (bytes 53..58) and
 /// `drawDefaultRange` reads them. A member of a `gui/` class is unreachable from a layer that may not
-/// name `gui/` (`src/scenes`, whose DEFAULTS page edits exactly these six values), so the values live
+/// name `gui/` (`src/ui/scenes`, whose DEFAULTS page edits exactly these six values), so the values live
 /// here and `IntegerRange`/`KeyRange`'s `lower`/`upper` are references onto one of these slots.
 extern DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS];
 

@@ -21,24 +21,24 @@
 /// @brief Where MIDI follow reaches the controls library's facts and sink: the app's, which its scenes' host holds.
 ///        Defined in gui/ui/shell_host/learned_dispatch.cpp, as io/ may not reach the scenes that declare them.
 
-#include "controls/knob_focus.h"
+#include "ui/controls/knob_focus.h"
 
 class Clip;
 
-namespace deluge::controls {
+namespace deluge::ui::controls {
 class Facts;
 class Sink;
-} // namespace deluge::controls
+} // namespace deluge::ui::controls
 
 namespace deluge::midi {
 
 /// @brief The facts MIDI follow reads params and the takeover's inputs through: the app's.
-[[nodiscard]] const controls::Facts& followFacts();
+[[nodiscard]] const ui::controls::Facts& followFacts();
 
 /// @brief The sink MIDI follow's writes go to: the app's.
-[[nodiscard]] controls::Sink& followSink();
+[[nodiscard]] ui::controls::Sink& followSink();
 
 /// @brief What @p clip's owner is, as the focus MIDI follow's CCs move params of (gui::knobFocusOfClip).
-[[nodiscard]] controls::KnobFocus followFocus(Clip& clip);
+[[nodiscard]] ui::controls::KnobFocus followFocus(Clip& clip);
 
 } // namespace deluge::midi

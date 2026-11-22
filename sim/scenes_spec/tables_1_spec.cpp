@@ -3,7 +3,7 @@
 ///        (`tests/golden/ui/menu_oracle/tables_1.tsv`).
 ///
 /// The six subtrees are `constexpr Node` literals
-/// (`src/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
+/// (`src/ui/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
 /// transcription is checked against the original rather than against a second hand-written list:
 ///
 ///   * the children of each of the seventeen roots are the same items, in the same order, with the same names and
@@ -21,29 +21,29 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/view_state.h"
 #include "support/fake_ports.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/view_state.h"
 #include "unit/ui/support/frames.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
-#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
+#include "ui/gfx/oled/glyphs.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -59,7 +59,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/controller_mapping_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -74,19 +74,19 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
-namespace t1 = deluge::scenes::spec::tables1;
+namespace t1 = deluge::ui::scenes::spec::tables1;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using deluge::synth::SourceRange;
 using t1::Fixture;
@@ -148,7 +148,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -368,7 +368,7 @@ describe tables_1_values("scenes::menu sound-subtree tables: values", $ {
 			const std::vector<std::string>* want = table().find(e.path, "options");
 			if (want == nullptr) {
 				// Every enum but the lane-only ones has a row, shown on this fixture or not.
-				const bool lane_only = e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+				const bool lane_only = e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 				expect(e.path + (lane_only ? " has options" : " has none")).to_equal(e.path + " has options");
 				continue;
 			}
@@ -503,7 +503,7 @@ describe tables_1_validation("scenes::menu sound-subtree tables: validation", $ 
 describe tables_1_pixels("scenes::menu sound-subtree tables: pixels", $ {
 	it("renders the LPF page", _ {
 		Fixture& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const Node* filters = nodes::kSoundFiltersChildren[0];
 		r.open(*filters->children[0], f.ctx);
@@ -617,7 +617,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		const int16_t tops[] = {46, 70, 32767}; // A#1/Bb1, A#3/Bb3, the top
 		f.set_tops(tops);
 
-		const std::string flat_b3 = std::string{"B"} + deluge::gfx::oled::kFlatGlyph + "3";
+		const std::string flat_b3 = std::string{"B"} + deluge::ui::gfx::oled::kFlatGlyph + "3";
 		FlashStorage::defaultUseSharps = false;
 		const std::string flats = label_of(f.ctx, 1);
 		expect(flats.substr(flats.size() - flat_b3.size())).to_equal(flat_b3);
@@ -675,7 +675,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		// Main's edge arm on four ranges, against the port's arithmetic: every range, both edges, both directions,
 		// turned far enough to reach every clamp. The row holds all four ranges, since a left edge moves the range
 		// below's top.
-		using deluge::ui::oled::RangeEdge;
+		using deluge::ui::widgets::oled::RangeEdge;
 		RangeFixture f{4};
 		const int16_t tops[] = {40, 41, 60, 32767};
 		int32_t compared = 0;
@@ -704,7 +704,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 	});
 
 	it("picks an edge on a horizontal turn exactly as Range::horizontalEncoderAction does", _ {
-		using deluge::ui::oled::RangeEdge;
+		using deluge::ui::widgets::oled::RangeEdge;
 		RangeFixture f{3};
 		const auto name_of = [](RangeEdge e) { return e == RangeEdge::Left ? "left" : e == RangeEdge::Right ? "right" : "off"; };
 		size_t compared = 0;
@@ -820,9 +820,9 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		static_cast<SoundInstrument*>(f.song.instrument)->sourceResources[0].defaultRangeI = 4;
 		std::vector<int32_t> got;
 		menu::MenuState picker{};
-		picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
+		picker.edit_edge = deluge::ui::widgets::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
 		nodes::kMultiRangeItem.on_focus(f.ctx, picker);
-		expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Off));
 		const auto frame = [&](int8_t turn, bool shift) {
 			deluge::ui::test::Rig48 rig;
 			rig.input.turn = turn;
@@ -855,10 +855,10 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		popup.ui.popup = true;
 		nodes::range_delete_press(gated, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
+		state.edit_edge = deluge::ui::widgets::oled::RangeEdge::Left;
 		nodes::range_delete_press(f.ctx, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		state.edit_edge = deluge::ui::widgets::oled::RangeEdge::Off;
 		nodes::range_delete_press(f.ctx, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(2);
 		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
@@ -900,7 +900,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
 		expect(static_cast<int32_t>(sound->sourceResources[0].getRangeIndex(40))).to_equal(0);
-		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		picker.edit_edge = deluge::ui::widgets::oled::RangeEdge::Right;
 		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
 		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
 	});

@@ -18,8 +18,6 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/audio_input.h"
-#include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -38,6 +36,8 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "project/audio_input.h"
+#include "project/doc_output.h" // complete DocOutput type for the identity record
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"

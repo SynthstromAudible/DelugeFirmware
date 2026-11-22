@@ -19,8 +19,8 @@ SHARED = ["tests/support/spec_main.h", "tests/support/mocks/mock_panic.cpp"]
 class TestSupportNamesTest(unittest.TestCase):
     def test_a_per_directory_file_named_like_a_shared_one_clashes(self):
         self.assertEqual(
-            clashes(SHARED + ["tests/unit/gfx/support/spec_main.h"]),
-            ["tests/unit/gfx/support/spec_main.h shadows tests/support/spec_main.h"],
+            clashes(SHARED + ["tests/unit/ui/gfx/support/spec_main.h"]),
+            ["tests/unit/ui/gfx/support/spec_main.h shadows tests/support/spec_main.h"],
         )
 
     def test_a_nested_shared_path_clashes(self):

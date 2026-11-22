@@ -27,7 +27,7 @@
 #include <cstdint>
 #include <cstdio>
 
-// `src/lib/printf.h` soft-aliases `printf` to the embedded `printf_`, which emits through
+// `third_party/printf/printf.h` soft-aliases `printf` to the embedded `printf_`, which emits through
 // `putchar_` -- a symbol the host harnesses do not provide. Whether the alias is in scope here depends
 // on nothing more than which OTHER header a consumer happened to include first, and with it this
 // inline fails to LINK. Pin the standard function, since what this prints is gate output that has to

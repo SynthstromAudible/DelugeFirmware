@@ -1,6 +1,5 @@
 #include "board_controls.hpp"
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "effects/settings.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/ui.h"
@@ -8,9 +7,9 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/words.h"
 #include "io/debug/log.h"
 #include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
@@ -43,11 +42,12 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/knob_focus.h"
+#include "project/setting_group.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/knob_assignment.h"
+#include "ui/scenes/bind/knob_focus.h"
 
 #include <array>
 #include <span>
@@ -62,8 +62,8 @@ namespace deluge::gui::shell_host {
 
 namespace {
 
-using scenes::bind::Addresses;
-using scenes::bind::WriteRequest;
+using deluge::ui::scenes::bind::Addresses;
+using deluge::ui::scenes::bind::WriteRequest;
 
 /// @brief The file form of a stored value: a CHOICE row's word, any other row's number.
 /// @param row    The row the value is of.
@@ -85,11 +85,12 @@ std::optional<serialization::Value> value_of(const plugin::SettingInfo& row, int
 /// @param row    The row written.
 /// @param stored The value written, as the row stores it.
 /// @return True for a sound's loop mode set to play once.
-bool silences_kit_arp(const scenes::bind::Target& target, const plugin::SettingInfo& row, int32_t stored) {
-	if (target.kind != scenes::bind::Target::Kind::SOUND || !row.path.ends_with("/loopMode")) {
+bool silences_kit_arp(const deluge::ui::scenes::bind::Target& target, const plugin::SettingInfo& row, int32_t stored) {
+	if (target.kind != deluge::ui::scenes::bind::Target::Kind::SOUND || !row.path.ends_with("/loopMode")) {
 		return false;
 	}
-	return stored == std::to_underlying(instrument::SampleRepeatMode::ONCE); // a loop mode is saved as its index
+	return stored
+	       == std::to_underlying(instruments::classic::SampleRepeatMode::ONCE); // a loop mode is saved as its index
 }
 
 /// @brief Whether @p kit has a sound drum: legacy's loop-mode note-off is sent from inside its loop over them.
@@ -161,8 +162,8 @@ bool name_taken(const project::SettingAddress& owner, std::string_view name) {
 /// @param song  The song.
 /// @param focus The knobs' focus.
 /// @return The instrument, or null.
-Instrument* knob_instrument_of(::Song& song, const controls::KnobFocus& focus) {
-	namespace bind = scenes::bind;
+Instrument* knob_instrument_of(::Song& song, const deluge::ui::controls::KnobFocus& focus) {
+	namespace bind = deluge::ui::scenes::bind;
 	std::optional<uint32_t> id;
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
 		id = sound->kit ? sound->kit : std::optional{sound->slot.id};
@@ -212,7 +213,8 @@ uint32_t edit_refusals() {
 }
 
 void HostEditSink::write_param_target(const WriteRequest& request) {
-	const std::optional<project::ParamAddress> address = scenes::bind::param_address(request.target, request.where);
+	const std::optional<project::ParamAddress> address =
+	    deluge::ui::scenes::bind::param_address(request.target, request.where);
 	if (!address) {
 		refusals_++;
 		D_PRINTLN("menu write refused: param %u has no owner", static_cast<unsigned>(request.target.param.value));
@@ -244,13 +246,14 @@ void HostEditSink::write_param_target(const WriteRequest& request) {
 }
 
 void HostEditSink::write_cable_target(const WriteRequest& request) {
-	const std::optional<project::ParamAddress> address = scenes::bind::param_address(request.target, request.where);
+	const std::optional<project::ParamAddress> address =
+	    deluge::ui::scenes::bind::param_address(request.target, request.where);
 	if (!address) {
 		refusals_++;
 		D_PRINTLN("menu write refused: cable %x has no owner", static_cast<unsigned>(request.target.param.value));
 		return;
 	}
-	const instrument::Polarity polarity = request.polarity;
+	const instruments::classic::Polarity polarity = request.polarity;
 	if (request.polarity_only) {
 		edits::SetCablePolarity edit{*address, polarity};
 		counted_apply(edit);
@@ -270,7 +273,7 @@ bool HostEditSink::counted_apply(edits::Edit& edit) {
 }
 
 bool HostEditSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
-                               controls::Resolution resolution) {
+                               deluge::ui::controls::Resolution resolution) {
 	if (currentSong == nullptr) {
 		return false;
 	}
@@ -278,7 +281,8 @@ bool HostEditSink::write_param(const project::ParamAddress& address, int32_t val
 	// instrument edited, a learned knob's does not.
 	using Resolve = edits::SetParamValue::Resolve;
 	edits::SetParamValue edit{address, value, pos, length,
-	                          resolution == controls::Resolution::LEARNED ? Resolve::LEARNED : Resolve::WRITE};
+	                          resolution == deluge::ui::controls::Resolution::LEARNED ? Resolve::LEARNED
+	                                                                                  : Resolve::WRITE};
 	return counted_apply(edit);
 }
 
@@ -322,7 +326,7 @@ bool HostEditSink::make_param(const project::ParamAddress& address) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	// Only a cable's depth is made, as a learned knob that reads it makes it (resolved as a learned write resolves it,
 	// which records the cable as an undo step); any other param is only looked for.
-	if (address.space != project::ParamSpace::ENGINE || !instrument::is_cable_depth(address.id)) {
+	if (address.space != project::ParamSpace::ENGINE || !instruments::classic::is_cable_depth(address.id)) {
 		const ModelStackWithAutoParam* found = bridge::paramStackFollowingTake(*currentSong, address, memory);
 		return found != nullptr && found->autoParam != nullptr;
 	}
@@ -345,12 +349,13 @@ bool HostEditSink::delete_automation(const project::ParamAddress& address) {
 	return counted_apply(edit);
 }
 
-bool HostEditSink::write_text(const scenes::bind::Target& target, const Addresses& where, std::string_view text) {
+bool HostEditSink::write_text(const deluge::ui::scenes::bind::Target& target, const Addresses& where,
+                              std::string_view text) {
 	if (currentSong == nullptr) {
 		return false;
 	}
-	const std::optional<project::SettingAddress> address = scenes::bind::setting_address(target, where);
-	if (target.kind != scenes::bind::Target::Kind::MODEL || !address) {
+	const std::optional<project::SettingAddress> address = deluge::ui::scenes::bind::setting_address(target, where);
+	if (target.kind != deluge::ui::scenes::bind::Target::Kind::MODEL || !address) {
 		refusals_++;
 		return false;
 	}
@@ -377,7 +382,7 @@ void HostEditSink::set_reverb_sidechain_sync_type(plugin::SyncType type) {
 }
 
 bool HostEditSink::write(const WriteRequest& request) {
-	if (currentSong == nullptr || request.target.kind == scenes::bind::Target::Kind::NONE) {
+	if (currentSong == nullptr || request.target.kind == deluge::ui::scenes::bind::Target::Kind::NONE) {
 		return false;
 	}
 	const uint32_t refused = refusals_;
@@ -386,7 +391,7 @@ bool HostEditSink::write(const WriteRequest& request) {
 }
 
 void HostEditSink::apply(const WriteRequest& request) {
-	using Kind = scenes::bind::Target::Kind;
+	using Kind = deluge::ui::scenes::bind::Target::Kind;
 	const Kind kind = request.target.kind;
 	if (kind == Kind::CABLE) {
 		write_cable_target(request);
@@ -397,7 +402,8 @@ void HostEditSink::apply(const WriteRequest& request) {
 		return;
 	}
 	// A model group's record (a MODEL target, or a sound setting on an audio clip), else a sound's or a chain's.
-	const std::optional<project::SettingAddress> model = scenes::bind::setting_address(request.target, request.where);
+	const std::optional<project::SettingAddress> model =
+	    deluge::ui::scenes::bind::setting_address(request.target, request.where);
 	if (kind == Kind::MODEL && !model) {
 		refusals_++;
 		D_PRINTLN("menu write refused: %.*s has no owner", static_cast<int>(request.target.path.size()),
@@ -406,7 +412,7 @@ void HostEditSink::apply(const WriteRequest& request) {
 	}
 	const std::span<const plugin::SettingInfo> table = model                  ? project::table_of(model->group)
 	                                                   : kind == Kind::EFFECT ? effects::kEffectSettings
-	                                                                          : instrument::kSettings;
+	                                                                          : instruments::classic::kSettings;
 	const std::string_view path = model && kind == Kind::SOUND ? request.target.audio_clip_path : request.target.path;
 	const plugin::SettingInfo* row = plugin::find_setting(table, path);
 	const auto stored = row != nullptr ? plugin::from_menu(*row, request.menu_value) : std::nullopt;
@@ -446,14 +452,15 @@ void HostEditSink::apply(const WriteRequest& request) {
 	    && request.target.whole_kit && request.where.kit_output) {
 		// A kit row's arp with affect-entire held: every lane that takes it, as legacy's loops write them.
 		edits::Context ctx{*currentSong, currentSong->project};
-		const bool needs_note_tails = request.target.fan_out_fact == scenes::bind::Target::FanOutFact::NOTE_TAILS;
+		const bool needs_note_tails =
+		    request.target.fan_out_fact == deluge::ui::scenes::bind::Target::FanOutFact::NOTE_TAILS;
 		commit_both(ctx, [&](std::string on, const serialization::Value& value) {
 			return edits::SetKitLaneSetting{*request.where.kit_output, std::move(on), value, needs_note_tails};
 		});
 		return;
 	}
 	if (model && model->group == project::SettingGroupId::LANE_ARP
-	    && request.target.fan_out_fact == scenes::bind::Target::FanOutFact::NOTE_TAILS) {
+	    && request.target.fan_out_fact == deluge::ui::scenes::bind::Target::FanOutFact::NOTE_TAILS) {
 		// A kit row whose sound cannot hold note tails stays out of its kit's arp (`IncludeInKitArp::writeCurrentValue`
 		// in `origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`).
 		const auto& lane = std::get<project::LaneAddress>(model->owner);
@@ -567,17 +574,17 @@ bool HostEditSink::write_controls(project::ControlsAddress owner, std::vector<pr
 	return counted_apply(edit);
 }
 
-bool HostEditSink::stutter(const controls::KnobFocus& focus, bool begin) {
-	const std::optional<project::ParamAddress> owner = scenes::bind::knob_owner(focus);
+bool HostEditSink::stutter(const deluge::ui::controls::KnobFocus& focus, bool begin) {
+	const std::optional<project::ParamAddress> owner = deluge::ui::scenes::bind::knob_owner(focus);
 	return currentSong != nullptr && owner && bridge::stutterAt(*currentSong, *owner, begin);
 }
 
-bool HostEditSink::grab_region(const controls::KnobFocus& focus, uint32_t pos) {
-	const std::optional<project::ParamAddress> owner = scenes::bind::knob_owner(focus);
+bool HostEditSink::grab_region(const deluge::ui::controls::KnobFocus& focus, uint32_t pos) {
+	const std::optional<project::ParamAddress> owner = deluge::ui::scenes::bind::knob_owner(focus);
 	return currentSong != nullptr && owner && bridge::grabRegionAt(*currentSong, *owner, pos);
 }
 
-bool HostEditSink::write_effect(const scenes::bind::EffectOwner& owner, std::string_view path,
+bool HostEditSink::write_effect(const deluge::ui::scenes::bind::EffectOwner& owner, std::string_view path,
                                 const serialization::Value& value) {
 	if (currentSong == nullptr) {
 		return false;
@@ -590,7 +597,7 @@ bool HostEditSink::write_effect(const scenes::bind::EffectOwner& owner, std::str
 	return counted_apply(edit);
 }
 
-bool HostEditSink::midi_cc_select(const controls::KnobFocus& focus, int32_t knob, bool on) {
+bool HostEditSink::midi_cc_select(const deluge::ui::controls::KnobFocus& focus, int32_t knob, bool on) {
 	if (!on) {
 		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 			currentUIMode = UI_MODE_NONE;
@@ -598,7 +605,7 @@ bool HostEditSink::midi_cc_select(const controls::KnobFocus& focus, int32_t knob
 		}
 		return false;
 	}
-	const auto* midi = std::get_if<scenes::bind::MidiFocus>(&focus.owner);
+	const auto* midi = std::get_if<deluge::ui::scenes::bind::MidiFocus>(&focus.owner);
 	if (currentSong == nullptr || midi == nullptr || !midi->clip || currentUIMode != UI_MODE_NONE
 	    || getCurrentUI()->toClipMinder() == nullptr) {
 		return false;
@@ -612,9 +619,10 @@ bool HostEditSink::midi_cc_select(const controls::KnobFocus& focus, int32_t knob
 	if (bridge::knobOwnerStackAt(*currentSong, focus, owner_memory) == nullptr) {
 		return false;
 	}
-	const size_t at = (static_cast<size_t>(scenes::bind::knob_mode(currentSong->project, focus, kDelugeControls))
-	                   * kDelugeControls.slots)
-	                  + static_cast<size_t>(knob);
+	const size_t at =
+	    (static_cast<size_t>(deluge::ui::scenes::bind::knob_mode(currentSong->project, focus, kDelugeControls))
+	     * kDelugeControls.slots)
+	    + static_cast<size_t>(knob);
 	const project::ModKnobCc cc = at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : project::ModKnobCc{};
 	// Reads only: a lane that does not exist yet has no automation, which is what creating it would report too.
 	bool automated = false;
@@ -634,7 +642,7 @@ bool HostEditSink::delete_knob_automation(const project::ParamAddress& address) 
 	return currentSong != nullptr && counted_apply(edit);
 }
 
-bool HostEditSink::instrument_edited(const controls::KnobFocus& focus) {
+bool HostEditSink::instrument_edited(const deluge::ui::controls::KnobFocus& focus) {
 	Instrument* instrument = currentSong != nullptr ? knob_instrument_of(*currentSong, focus) : nullptr;
 	if (instrument == nullptr) {
 		return false;

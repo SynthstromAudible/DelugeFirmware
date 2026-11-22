@@ -419,7 +419,7 @@ void resetSettings() {
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
 	}
 	resetSettings();
 	writeSettings();
@@ -624,7 +624,7 @@ void readSettings() {
 
 	// Range-guarded the same way bytes 165/166 (FILL and ONCE) are, falling back to each slot's
 	// `resetSettings` default: `padColourValueRGB` has no arm for a value past `kNumPadColours`, and
-	// `src/scenes`' COLOURS page indexes a nine-entry name table with the stored byte
+	// `src/ui/scenes`' COLOURS page indexes a nine-entry name table with the stored byte
 	// (`menu/nodes/settings.cpp`).
 	const auto pad_colour = [](uint8_t stored, deluge::gui::PadColour fallback) {
 		return stored >= deluge::gui::kNumPadColours ? fallback : static_cast<deluge::gui::PadColour>(stored);

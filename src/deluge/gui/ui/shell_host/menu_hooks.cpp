@@ -4,8 +4,8 @@
 #include "model/favourite/favourite_manager.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/menu/bind_host.h"
 #include "storage/audio/audio_file_manager.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include <array>
 #include <cstdint>
@@ -13,7 +13,7 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::menu {
+namespace deluge::ui::scenes::menu {
 
 namespace {
 
@@ -33,7 +33,7 @@ public:
 		}
 		return services::FavouritesBank::Unavailable;
 	}
-	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours() const override {
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::widgets::grid::kFavourites> colours() const override {
 		return favouritesManager.getFavouriteColours();
 	}
 	[[nodiscard]] std::optional<uint8_t> current_favourite() const override {
@@ -78,4 +78,4 @@ void host_end_audition(bind::AuditionEnd how) {
 	gui::shell_host::view_actions().end_audition(how);
 }
 
-} // namespace deluge::scenes::menu
+} // namespace deluge::ui::scenes::menu

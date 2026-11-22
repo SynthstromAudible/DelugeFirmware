@@ -20,10 +20,10 @@
 #include "gui/ui/shell_clock.h"
 #include "gui/ui/shell_guest_surfaces.h"
 #include "gui/ui/ui.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
-#include "shell/shell.h"
-#include "ui/core/input.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/input.h"
 
 #include <cstdint>
 
@@ -179,7 +179,7 @@ namespace deluge::gui::ui {
 ///    `knobIndicatorLevels[]` goes stale, and that function's early-out then suppresses a later
 ///    legacy write of the level the shadow still holds (`hid/led/indicator_leds.cpp`).
 ///    **This is live.** The one declarer is `services::ModKnobs` (`grep -rn "frame.indicator("
-///    src/scenes`), `Shell::flush` calls `set_indicator` only for an indicator declared this tick,
+///    src/ui/scenes`), `Shell::flush` calls `set_indicator` only for an indicator declared this tick,
 ///    and the guest has a `ModKnobs` in its `Services`. The fix is in: `closeGuest()`, the body BOTH
 ///    of the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one),
 ///    calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h`)
@@ -394,7 +394,7 @@ public:
 	/// It is legacy's UI clock: `AudioEngine::audioSampleTimer` at 44 samples a millisecond, the count
 	/// `UITimerManager::setTimer` arms legacy's timers in and the guest's own wake (`UI_SPECIFIC`) with
 	/// them. On one base, a blink the shell times and one legacy times keep their phase, and both stop
-	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/shell/**` and
+	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/ui/shell/**` and
 	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
 	///
 	/// @return Milliseconds since start, wrapping every ~49.7 days, carried on across the counter's own
@@ -463,7 +463,7 @@ private:
 	/// @param detents The signed detent count legacy handed over.
 	/// @param time_us When the board decoded the turn, on `getSystemTime()`'s clock in microseconds, which the
 	///                lowering hands the turn's consumer with it; 0 for none, which times it on the tick's clock.
-	void feedDetents(deluge::ui::EncoderRole role, int32_t detents, uint64_t time_us = 0);
+	void feedDetents(deluge::ui::widgets::core::EncoderRole role, int32_t detents, uint64_t time_us = 0);
 
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.
@@ -506,7 +506,7 @@ private:
 	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
 	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
 	/// at the menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
-	/// `MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`). Neither the ring hand-back nor the close
+	/// `MenuScene::handle_event`'s Back arm, `ui/scenes/menu/menu_scene.cpp`). Neither the ring hand-back nor the close
 	/// may be skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
@@ -532,7 +532,7 @@ private:
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.
-	deluge::ui::PadMask fedPads_{};
+	deluge::ui::widgets::core::PadMask fedPads_{};
 	/// @brief Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
 	bool visitWithoutEditor_ = false;
 	/// @brief `flushPendingInput`'s tick is running.
@@ -565,7 +565,7 @@ private:
 	/// @brief The greyout the guest reports: the topmost non-empty mask on its stack
 	///        (`SceneStack::topmost_greyout`), whichever regions it draws. Legacy applies it once,
 	///        in its send path.
-	deluge::ui::grid::GreyoutMask greyoutMask();
+	deluge::ui::widgets::grid::GreyoutMask greyoutMask();
 
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
@@ -586,13 +586,13 @@ private:
 	/// it reported when `syncPads` last ran.
 	deluge::ui::shell::PadRegions padsOwned_ = deluge::ui::shell::PadRegions::All;
 	deluge::ui::shell::PadRegions padsAnswered_ = deluge::ui::shell::PadRegions::All;
-	deluge::ui::grid::GreyoutMask padsGreyout_{};
+	deluge::ui::widgets::grid::GreyoutMask padsGreyout_{};
 };
 
 } // namespace deluge::gui::ui
 
 /// @brief The one guest, named the way legacy names its UIs (`extern SessionView sessionView;`).
 ///
-/// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
+/// Constructed over `deluge::ui::scenes::scene_registry()`. The menu entry points push it with
 /// `openUI(&shellHostUI)`.
 extern deluge::gui::ui::ShellHostUI shellHostUI;

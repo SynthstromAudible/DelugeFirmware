@@ -1,6 +1,6 @@
 #include "fakes.h"
 
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 
 #include <algorithm>
 #include <array>
@@ -8,7 +8,7 @@
 #include <string>
 #include <tuple>
 
-namespace deluge::scenes::bind::test {
+namespace deluge::ui::scenes::bind::test {
 
 uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
 	asked.push_back(slot);
@@ -16,7 +16,7 @@ uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
 	return found != loaded.end() ? found->second : 0;
 }
 
-const instrument::SoundState* FakeSoundFacts::sound_state(project::SlotAddress slot) const {
+const instruments::classic::SoundState* FakeSoundFacts::sound_state(project::SlotAddress slot) const {
 	const auto found = states.find(slot.id);
 	return found != states.end() ? &found->second : nullptr;
 }
@@ -179,7 +179,7 @@ bool RecordingSoundWrites::attach_recording(project::SlotAddress slot, uint8_t s
 }
 
 bool RecordingSoundWrites::write_dx_patch(project::SlotAddress slot, uint8_t source,
-                                          const instrument::DxPatchState& patch) {
+                                          const instruments::classic::DxPatchState& patch) {
 	calls.push_back({.kind = Call::Kind::DX_PATCH, .slot = slot, .source = source, .dx_patch = patch});
 	return accept;
 }
@@ -369,7 +369,7 @@ void RecordingWrites::set_reverb_sidechain_sync_type(plugin::SyncType type) {
 }
 
 bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,
-                                        int32_t length, controls::Resolution resolution) {
+                                        int32_t length, ui::controls::Resolution resolution) {
 	param_writes.push_back({address, value, pos, length, resolution});
 	return accept;
 }
@@ -459,11 +459,11 @@ std::optional<WaveformInfo> FakeWaveforms::info(const WaveformAddress& address) 
 	return entry != nullptr ? std::optional{entry->info} : std::nullopt;
 }
 
-sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sample_view::Window at) const {
+views::waveform::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, views::waveform::Window at) const {
 	reads.push_back({.at = address, .in = at});
 	Entry* entry = entry_at(waveforms, address);
 	if (entry == nullptr) {
-		return sample_view::PeakRead::all_past_end();
+		return views::waveform::PeakRead::all_past_end();
 	}
 	const bool pending_now = entry->pending_reads > 0;
 	if (pending_now) {
@@ -472,18 +472,18 @@ sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sampl
 	const auto length = static_cast<int64_t>(entry->info.length_samples);
 	// A take's columns end by its captured frames; a finished file's start before its length.
 	const auto captured = static_cast<int64_t>(entry->captured.value_or(entry->info.length_samples));
-	sample_view::PeakRead read;
-	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+	views::waveform::PeakRead read;
+	for (int32_t c = 0; c < views::waveform::kColumns; c++) {
 		const int64_t start = at.scroll + int64_t{c} * at.zoom;
 		const bool past = entry->info.recording ? start + at.zoom > captured : start >= length;
 		if (at.zoom < 1 || past || start + at.zoom <= 0) {
-			read.set(c, sample_view::ColumnRead::past_end());
+			read.set(c, views::waveform::ColumnRead::past_end());
 		}
 		else if (pending_now && entry->pending.test(static_cast<size_t>(c))) {
-			read.set(c, sample_view::ColumnRead::pending());
+			read.set(c, views::waveform::ColumnRead::pending());
 		}
 		else {
-			read.set(c, sample_view::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
+			read.set(c, views::waveform::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
 		}
 	}
 	return read;
@@ -522,4 +522,4 @@ void RecordingTakeActions::orphan() {
 	}
 }
 
-} // namespace deluge::scenes::bind::test
+} // namespace deluge::ui::scenes::bind::test

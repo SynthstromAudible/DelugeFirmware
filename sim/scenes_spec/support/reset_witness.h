@@ -27,7 +27,7 @@
 #include <string_view>
 #include <system_error>
 
-namespace deluge::scenes::spec::reset {
+namespace deluge::ui::scenes::spec::reset {
 
 /// @brief The six globals a reset is identified by.
 struct ResetWitness {
@@ -119,4 +119,4 @@ inline void pin_panel_globals() {
 	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = true;
 }
 
-} // namespace deluge::scenes::spec::reset
+} // namespace deluge::ui::scenes::spec::reset

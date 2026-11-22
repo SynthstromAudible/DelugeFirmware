@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_address.h"
 #include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
+#include "project/param_address.h"
 #include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"

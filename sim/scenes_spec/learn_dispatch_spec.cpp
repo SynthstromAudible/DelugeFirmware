@@ -119,7 +119,7 @@ struct Mode {
 ///        reaches no instrument.
 struct Current {
 	Song* saved_song = currentSong;
-	Song* song = deluge::scenes::spec::detail::make_bare_song();
+	Song* song = deluge::ui::scenes::spec::detail::make_bare_song();
 	explicit Current(UI& ui) {
 		currentSong = song;
 		nullifyUIs();

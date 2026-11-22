@@ -1,11 +1,11 @@
 #include "model/edits/set_tempo.h"
 
-#include "deluge-project/song.h"
 #include "memory/heaps.h" // alloc_sdram
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/song/song.h"
+#include "project/song.h"
 
 namespace deluge::edits {
 

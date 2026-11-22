@@ -11,17 +11,17 @@
 /// waveform the fixture asked for with no reader opened.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/view_state.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/display/display.h"
 #include "memory/heaps.h"
@@ -47,11 +47,11 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::scenes::spec::marker_fx {
+namespace deluge::ui::scenes::spec::marker_fx {
 
-using deluge::scenes::marker::kMarkerSceneKind;
-using deluge::scenes::marker::marker_scene;
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::marker::kMarkerSceneKind;
+using deluge::ui::scenes::marker::marker_scene;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -134,7 +134,7 @@ struct Rig {
 	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 	/// The view the editor remembers for the range as it opens: none (zoom 0) opens zoomed out.
-	deluge::scenes::services::SampleView remembered{};
+	deluge::ui::scenes::services::SampleView remembered{};
 	/// The waveforms the editor reads; the app's when null.
 	const bind::Waveforms* waveforms = nullptr;
 
@@ -148,7 +148,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MarkerScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MarkerScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -158,12 +158,12 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		deluge::scenes::spec::make_current(saved_song);
+		deluge::ui::scenes::spec::make_current(saved_song);
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		deluge::scenes::spec::make_current(
+		deluge::ui::scenes::spec::make_current(
 		    song.song); // the app's ports and waveforms resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sourceResources[0];
@@ -198,13 +198,13 @@ struct Rig {
 	}
 
 	/// @brief The key the scene remembers the range's view under: the range's own identity.
-	deluge::scenes::services::ViewKey key() {
-		return {.kind = deluge::scenes::services::ViewKey::Kind::RANGE, .id = range->identity()};
+	deluge::ui::scenes::services::ViewKey key() {
+		return {.kind = deluge::ui::scenes::services::ViewKey::Kind::RANGE, .id = range->identity()};
 	}
 
 	/// @brief The view the scene remembers for the range, if any.
-	std::optional<deluge::scenes::services::SampleView> view() {
-		return deluge::scenes::services::view_state().sample_view(key());
+	std::optional<deluge::ui::scenes::services::SampleView> view() {
+		return deluge::ui::scenes::services::view_state().sample_view(key());
 	}
 
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
@@ -216,8 +216,8 @@ struct Rig {
 		// The scene remembers the view and the loop lock in the view-state store: the view is the example's, the loop
 		// lock the holder's, as main keeps it.
 		const SampleHolderForVoice& h = range->sampleHolder;
-		deluge::scenes::services::view_state().forget_unless(song.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
+		deluge::ui::scenes::services::view_state().forget_unless(song.song->project.identity());
+		deluge::ui::scenes::services::view_state().set_sample_view(
 		    key(), {.scroll = remembered.scroll, .zoom = remembered.zoom, .loop_locked = h.loopLocked});
 		MenuContext c = ctx();
 		if (sound_writes != nullptr) {
@@ -271,7 +271,7 @@ struct Rig {
 	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
+	///        (`ui/shell/profiles/deluge.cpp`).
 	void turn_select(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
@@ -281,11 +281,11 @@ struct Rig {
 		                     at_ms);
 	}
 	/// @brief Press or release the horizontal encoder's own button, at matrix (0, 1)
-	///        (`shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
+	///        (`ui/shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
 	void x_enc_button(bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 0, 1, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
-	/// @brief One detent of the (detented) horizontal encoder, index 1 (`shell/profiles/deluge.cpp`).
+	/// @brief One detent of the (detented) horizontal encoder, index 1 (`ui/shell/profiles/deluge.cpp`).
 	void turn_horizontal(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 1, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
@@ -304,7 +304,7 @@ struct HolderState {
 	uint32_t loop_start{};
 	uint32_t loop_end{};
 	bool locked{};
-	deluge::scenes::services::SampleView view{};
+	deluge::ui::scenes::services::SampleView view{};
 };
 
 inline HolderState holder_snapshot(Rig& r) {
@@ -343,7 +343,7 @@ struct AudioRig {
 	explicit AudioRig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
 	                  const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		deluge::scenes::spec::make_current(
+		deluge::ui::scenes::spec::make_current(
 		    f.song); // the app's ports and waveforms resolve addresses in the current song
 		f.clip->sampleHolder.audioFile = sample;
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
@@ -355,7 +355,7 @@ struct AudioRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		deluge::scenes::spec::make_current(saved_song);
+		deluge::ui::scenes::spec::make_current(saved_song);
 	}
 
 	/// @brief Open the scene on @p marker over the audio clip.
@@ -405,4 +405,4 @@ inline std::vector<std::string> clip_markers_of(std::pair<uint64_t, uint64_t> ma
 	return {std::to_string(markers.first), std::to_string(markers.second)};
 }
 
-} // namespace deluge::scenes::spec::marker_fx
+} // namespace deluge::ui::scenes::spec::marker_fx

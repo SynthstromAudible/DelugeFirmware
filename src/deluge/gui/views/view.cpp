@@ -51,7 +51,6 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -79,8 +78,8 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
-#include "plugin-api/types/arp_rhythm.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/arp_rhythm.h"
+#include "plugin/types/param.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -95,6 +94,7 @@
 #include "util/sound_menu_open.h"
 #include <iterator>
 #include <optional>
+#include <printf/printf.h>
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
@@ -1484,7 +1484,7 @@ void View::releaseActiveModControllable() {
 void View::setKnobFocusFrom(const ModelStackWithThreeMainThings* stack) {
 	knobFocus_.owner = currentSong != nullptr && stack != nullptr
 	                       ? deluge::gui::knobFocusFromStack(*currentSong, *stack).owner
-	                       : deluge::controls::KnobFocus{}.owner;
+	                       : deluge::ui::controls::KnobFocus{}.owner;
 	knobSong_ = currentSong;
 	if (compSong_ != currentSong) {
 		knobFocus_.comp = {};
@@ -1495,9 +1495,9 @@ void View::setKnobFocusFrom(const ModelStackWithThreeMainThings* stack) {
 	refreshKnobParamManager();
 }
 
-const deluge::controls::CompView& View::knobComp() const {
-	static constexpr deluge::controls::CompView kNone{};
-	return std::holds_alternative<deluge::controls::SongFocus>(knobFocus_.owner) ? knobFocus_.comp : kNone;
+const deluge::ui::controls::CompView& View::knobComp() const {
+	static constexpr deluge::ui::controls::CompView kNone{};
+	return std::holds_alternative<deluge::ui::controls::SongFocus>(knobFocus_.owner) ? knobFocus_.comp : kNone;
 }
 
 void View::knobFocusChanged() {
@@ -1543,7 +1543,7 @@ bool View::knobsOnClip(const Song& song, const Clip& clip) const {
 }
 
 bool View::knobsOnDrum(const Song& song, const Drum& drum) const {
-	const auto* sound = std::get_if<deluge::controls::SoundFocus>(&knobFocus_.owner);
+	const auto* sound = std::get_if<deluge::ui::controls::SoundFocus>(&knobFocus_.owner);
 	return knobSong_ == &song && sound != nullptr && sound->slot.kind == deluge::project::SlotAddress::Kind::DRUM
 	       && drum.id() == sound->slot.id;
 }
@@ -1571,17 +1571,17 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 }
 
 int32_t View::knobMode() const {
-	if (deluge::controls::has_no_knobs(knobFocus_) || currentSong == nullptr || knobSong_ != currentSong) {
+	if (deluge::ui::controls::has_no_knobs(knobFocus_) || currentSong == nullptr || knobSong_ != currentSong) {
 		return -1;
 	}
-	return deluge::controls::knob_mode(currentSong->project, knobFocus_, kDelugeControls);
+	return deluge::ui::controls::knob_mode(currentSong->project, knobFocus_, kDelugeControls);
 }
 
 void View::endKnobsStutter() {
 	if (currentSong == nullptr || knobSong_ != currentSong) {
 		return;
 	}
-	if (const std::optional<deluge::project::ParamAddress> owner = deluge::controls::knob_owner(knobFocus_)) {
+	if (const std::optional<deluge::project::ParamAddress> owner = deluge::ui::controls::knob_owner(knobFocus_)) {
 		(void)deluge::bridge::stutterAt(*currentSong, *owner, false);
 	}
 }
@@ -1598,7 +1598,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	// If holding down a note and not playing, permanently grab values from pos
 	if (length && !playbackHandler.isEitherClockActive() && currentSong != nullptr && knobSong_ == currentSong) {
-		if (const std::optional<deluge::project::ParamAddress> owner = deluge::controls::knob_owner(knobFocus_)) {
+		if (const std::optional<deluge::project::ParamAddress> owner = deluge::ui::controls::knob_owner(knobFocus_)) {
 			(void)deluge::bridge::grabRegionAt(*currentSong, *owner, pos);
 		}
 	}

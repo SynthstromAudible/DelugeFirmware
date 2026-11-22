@@ -25,13 +25,13 @@ class UI;
 ///
 /// So this file defines exactly those five plus `UI::UI` and `UI::close`, the same arrangement as
 /// `tests/unit/deluge/gui/support/fake_legacy_hid.cpp` (the HID buffers) and
-/// `tests/unit/scenes/menu/support/fake_shortcuts.cpp` (the menu shortcut tables). Each one records that it was called
-/// and does nothing else, which is what makes them observable: a spec can assert that `ShellHostUI::exitUI` closed the
-/// guest, which is a fact about `closeUI(this)` and cannot be seen from inside the shell.
+/// `tests/unit/ui/scenes/menu/support/fake_shortcuts.cpp` (the menu shortcut tables). Each one records that it was
+/// called and does nothing else, which is what makes them observable: a spec can assert that `ShellHostUI::exitUI`
+/// closed the guest, which is a fact about `closeUI(this)` and cannot be seen from inside the shell.
 ///
-/// It also defines `deluge::scenes::scene_registry()`, for the same reason and not the same shape:
+/// It also defines `deluge::ui::scenes::scene_registry()`, for the same reason and not the same shape:
 /// `shell_host_ui.cpp` defines the one `shellHostUI` global over the application's real scene table,
-/// and that table odr-uses every scene -- the whole `deluge_scenes` closure this suite does
+/// and that table odr-uses every scene -- the whole `deluge_ui_scenes` closure this suite does
 /// not build. The fake returns an empty registry, so the global exists and is inert; every example
 /// builds its own `ShellHostUI` over its own table.
 /// @brief Legacy's audio-sample counter, which `ShellHostUI::nowMs()` reads at 44 samples a millisecond. Defined
@@ -139,14 +139,14 @@ extern int knob_indicator_clears;
 /// re-fills the rings.
 extern bool knob_clear_saw_close;
 /// How many times `deluge::gui::ui::wireShellGuestServices()` was called. The real one lives in the
-/// `deluge_scenes` closure this suite never builds; see its own header for why the seam is a free
+/// `deluge_ui_scenes` closure this suite never builds; see its own header for why the seam is a free
 /// function rather than three members.
 extern int service_wirings;
 
 /// @brief How many times `deluge::gui::ui::dispatchShellActions()` was called.
 ///
-/// Faked for the same reason as `wireShellGuestServices`: the real one reads `deluge::scenes::menu_scene()` and so
-/// belongs to the `deluge_scenes` closure this suite never builds (`gui/ui/shell_action_dispatch.h`
+/// Faked for the same reason as `wireShellGuestServices`: the real one reads `deluge::ui::scenes::menu_scene()` and so
+/// belongs to the `deluge_ui_scenes` closure this suite never builds (`gui/ui/shell_action_dispatch.h`
 /// says so in its own words). What that leaves assertable here is the half that lives in
 /// `ShellHostUI::timerCallback` and cannot be seen from anywhere else -- **that the poll happens,
 /// once per tick, on every path through the tick, and after `Shell::tick` has run**. That the poll
@@ -174,8 +174,8 @@ extern std::function<void()> on_action_dispatch;
 /// @brief How many times the fake `pollShellBrowserHost()` has been called since `reset()`.
 ///
 /// The real one is `gui/ui/browser_host.cpp`'s, which names `browser_scene()` and so belongs to the
-/// `deluge_scenes` closure this suite never builds. What the poll does is `sim/scenes_spec/browser_choice_spec.cpp`'s;
-/// this counter keeps the guest linking here.
+/// `deluge_ui_scenes` closure this suite never builds. What the poll does is
+/// `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter keeps the guest linking here.
 extern int browser_host_polls;
 
 /// @brief How many times `deluge::gui::ui::deliverShellBrowserAnswers()` was called since `reset()`.
@@ -193,7 +193,7 @@ extern std::function<void()> on_browser_answer_delivery;
 ///
 /// The sibling of `action_dispatches` and `browser_host_polls`, on the same terms: the real
 /// `gui/ui/shell_pad_forward.cpp` names `keyboardScreen`, `instrumentClipView`, `performanceView`,
-/// `automationView` and `deluge::scenes::menu_scene()`, none of which this suite builds. What that
+/// `automationView` and `deluge::ui::scenes::menu_scene()`, none of which this suite builds. What that
 /// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
 /// whether a pad the scene did not claim reaches the forward at all, and with which arguments --
 /// not which arm the real decision takes; that is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the
@@ -221,7 +221,7 @@ extern bool marker_sidebar_answer;
 /// The same terms as `forwardGridPad` above, with the difference the guest makes of the answer:
 /// `ShellHostUI`'s three input hooks **act** on what these return -- a value is returned in place of
 /// feeding the shell, `std::nullopt` feeds it -- so each fake answers a settable value rather than a
-/// fixed one. The real functions read `deluge::scenes::menu_scene()` and call `instrumentClipView`,
+/// fixed one. The real functions read `deluge::ui::scenes::menu_scene()` and call `instrumentClipView`,
 /// neither of which this suite builds; which arm the real classification takes is
 /// `sim/scenes_spec/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
 /// consults its function, with which arguments, and what it does with either answer.

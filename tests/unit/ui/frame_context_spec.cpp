@@ -1,12 +1,12 @@
 #include "support/frames.h"
 #include "support/printers/grid_rect_printer.h"
-#include "ui/core/frame_context.h"
-#include "ui/grid/effects.h"
-#include "ui/oled/columns.h"
-#include "ui/oled/list.h"
-#include "ui/oled/popup.h"
-#include "ui/oled/scroll_text.h"
-#include "ui/oled/values.h"
+#include "ui/widgets/core/frame_context.h"
+#include "ui/widgets/grid/effects.h"
+#include "ui/widgets/oled/columns.h"
+#include "ui/widgets/oled/list.h"
+#include "ui/widgets/oled/popup.h"
+#include "ui/widgets/oled/scroll_text.h"
+#include "ui/widgets/oled/values.h"
 
 #include "cppspec.hpp"
 #include "support/printers/frame_context_printer.h"
@@ -19,24 +19,24 @@
 #include <vector>
 
 using namespace deluge::ui;
-using deluge::gfx::oled::FontId;
-using deluge::ui::grid::gesture;
-using deluge::ui::grid::GestureEvent;
-using deluge::ui::grid::GridFrame;
-using deluge::ui::grid::HoldPolicy;
-using deluge::ui::grid::root_grid_frame;
-using deluge::ui::oled::Column;
-using deluge::ui::oled::columns;
-using deluge::ui::oled::enum_value;
-using deluge::ui::oled::list;
-using deluge::ui::oled::ListRow;
-using deluge::ui::oled::menu_rect;
-using deluge::ui::oled::OledFrame;
-using deluge::ui::oled::root_frame;
-using deluge::ui::oled::scroll_text;
-using deluge::ui::oled::working;
-using Rect = deluge::gfx::oled::Rect;
-using GridRect = deluge::gfx::grid::Rect;
+using deluge::ui::gfx::oled::FontId;
+using deluge::ui::widgets::grid::gesture;
+using deluge::ui::widgets::grid::GestureEvent;
+using deluge::ui::widgets::grid::GridFrame;
+using deluge::ui::widgets::grid::HoldPolicy;
+using deluge::ui::widgets::grid::root_grid_frame;
+using deluge::ui::widgets::oled::Column;
+using deluge::ui::widgets::oled::columns;
+using deluge::ui::widgets::oled::enum_value;
+using deluge::ui::widgets::oled::list;
+using deluge::ui::widgets::oled::ListRow;
+using deluge::ui::widgets::oled::menu_rect;
+using deluge::ui::widgets::oled::OledFrame;
+using deluge::ui::widgets::oled::root_frame;
+using deluge::ui::widgets::oled::scroll_text;
+using deluge::ui::widgets::oled::working;
+using Rect = deluge::ui::gfx::oled::Rect;
+using GridRect = deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 
 namespace {
@@ -46,8 +46,8 @@ namespace {
 struct EnumSlot {
 	std::span<const std::string_view> names;
 	int32_t index = 0;
-	ListState state{};
-	ScrollText scroll{};
+	widgets::core::ListState state{};
+	widgets::core::ScrollText scroll{};
 
 	static void render(OledFrame& slot, bool /*focused*/, void* ctx) {
 		auto& self = *static_cast<EnumSlot*>(ctx);
@@ -56,7 +56,7 @@ struct EnumSlot {
 };
 } // namespace
 
-// The input-consumption contract of ui/core/frame_context.h, from the outside:
+// The input-consumption contract of ui/widgets/core/frame_context.h, from the outside:
 //
 //   * a frame's accessors are the input, and they pass it through unchanged while focused;
 //   * focus is an `InputMask`: a region sees exactly the inputs its parent granted it, so
@@ -101,7 +101,7 @@ describe frame_context("ui::FrameContext", $ {
 		// own, so it neither reads nor claims anything. now_ms()/shift() are never masked and never
 		// claimed; they are not controls.
 		expect(r.frame.focused()).to_be_true();
-		expect(r.frame.mask).to_equal(InputMask::all());
+		expect(r.frame.mask).to_equal(widgets::core::InputMask::all());
 		expect(r.ctx.claims.turn).to_be_true();
 		expect(r.ctx.claims.edit0).to_be_true();
 		expect(r.ctx.claims.edit1).to_be_true();
@@ -134,7 +134,7 @@ describe frame_context("ui::FrameContext", $ {
 			// ... but not the clock or the modifier: `now_ms` is the tick's own time, not an
 			// input a control owns, and `shift` modifies a gesture rather than being one. An
 			// unfocused region still animates, still times its gestures and still arms the gate
-			// with a real deadline (ui/core/frame_context.h rule 3).
+			// with a real deadline (ui/widgets/core/frame_context.h rule 3).
 			expect(f.shift()).to_be_true();
 			expect(f.now_ms()).to_equal(uint32_t(500));
 			// Claims are no-ops too: a widget that consumed nothing owns nothing.
@@ -160,8 +160,8 @@ describe frame_context("ui::FrameContext", $ {
 				expect(int(inner.turn())).to_equal(0);
 			});
 			// Nor can a child ask for one input back by name.
-			outer.region(Rect{0, 0, 32, 10}, InputMask::all(), [&](OledFrame& inner) {
-				expect(inner.mask).to_equal(InputMask::none());
+			outer.region(Rect{0, 0, 32, 10}, widgets::core::InputMask::all(), [&](OledFrame& inner) {
+				expect(inner.mask).to_equal(widgets::core::InputMask::none());
 				expect(int(inner.edit(0))).to_equal(0);
 			});
 			// The default overload is the same "inherit".
@@ -170,7 +170,7 @@ describe frame_context("ui::FrameContext", $ {
 
 		// A *partial* mask: everything but the turn, which is what `columns` grants its focused
 		// column. Masking is per input, so the rest arrives untouched.
-		r.frame.region(Rect{0, 0, 64, 20}, InputMask{.turn = false}, [&](OledFrame& f) {
+		r.frame.region(Rect{0, 0, 64, 20}, widgets::core::InputMask{.turn = false}, [&](OledFrame& f) {
 			expect(f.focused()).to_be_false();          // not everything, so not "focused"
 			expect(int(f.turn())).to_equal(0);
 			expect(int(f.edit(0))).to_equal(1);
@@ -190,10 +190,10 @@ describe frame_context("ui::FrameContext", $ {
 	it("records what a focused widget consumed, and nothing for an unfocused one", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		r.input.turn = 1;
-		const Response moved = list(r.frame, menu_rect(r.frame), st, rows, sc);
+		const widgets::core::Response moved = list(r.frame, menu_rect(r.frame), st, rows, sc);
 		expect(moved.changed).to_be_true();
 		expect(st.cursor).to_equal(int16_t(1));
 		// `list` owns the select encoder and its press: both are claimed on a frame it rendered
@@ -209,8 +209,8 @@ describe frame_context("ui::FrameContext", $ {
 
 		// A list rendered unfocused claims nothing at all, on a context of its own.
 		uitest::Rig48 idle;
-		ListState idle_st;
-		ScrollText idle_sc;
+		widgets::core::ListState idle_st;
+		widgets::core::ScrollText idle_sc;
 		idle.input.turn = 1;
 		idle.frame.region(idle.frame.bounds(), false,
 		                  [&](OledFrame& f) { list(f, menu_rect(f), idle_st, rows, idle_sc); });
@@ -220,11 +220,11 @@ describe frame_context("ui::FrameContext", $ {
 	it("does not move a list rendered in an unfocused region", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		r.input.turn = 2;
 		r.input.select_pressed = true;
-		Response resp{};
+		widgets::core::Response resp{};
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) {
 			resp = list(f, menu_rect(f), st, rows, sc);
 		});
@@ -238,10 +238,10 @@ describe frame_context("ui::FrameContext", $ {
 	it("moves only the focused one of two lists sharing a tick", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig64 r;
-		ListState left;
-		ListState right;
-		ScrollText left_sc;
-		ScrollText right_sc;
+		widgets::core::ListState left;
+		widgets::core::ListState right;
+		widgets::core::ScrollText left_sc;
+		widgets::core::ScrollText right_sc;
 		r.input.turn = 1;
 		r.frame.region(Rect{0, 0, 64, 64}, true, [&](OledFrame& f) {
 			list(f, Rect{0, 0, 64, 30}, left, rows, left_sc);
@@ -256,14 +256,14 @@ describe frame_context("ui::FrameContext", $ {
 
 	it("keeps pad input positional: an unfocused grid region still reports presses", _ {
 		uitest::GridRig r;
-		PadEvent ev[] = {{10, 2, 88, true}};
+		widgets::core::PadEvent ev[] = {{10, 2, 88, true}};
 		r.input.pads = ev;
 		r.input.held_pads.set(11, 2, true);
 		r.input.turn = 1;
 		r.frame.region(GridRect{8, 0, 8, 8}, false, [&](GridFrame& f) {
 			expect(f.focused()).to_be_false();
 			expect(int(f.turn())).to_equal(0);          // encoders are masked ...
-			const Response hit = f.pad(2, 2, RGB{1, 2, 3});
+			const widgets::core::Response hit = f.pad(2, 2, RGB{1, 2, 3});
 			expect(hit.pressed).to_be_true();           // ... pads are not
 			expect(int(hit.velocity)).to_equal(88);
 			expect(f.pad(3, 2, RGB{4, 5, 6}).held).to_be_true();
@@ -278,16 +278,16 @@ describe frame_context("ui::FrameContext", $ {
 
 	it("a covered root frame reports no presses, held pads, shift or select-held, in every region", _ {
 		uitest::GridRig r;
-		PadEvent ev[] = {{10, 2, 88, true}};
+		widgets::core::PadEvent ev[] = {{10, 2, 88, true}};
 		r.input.pads = ev;
 		r.input.held_pads.set(11, 2, true);
 		r.input.shift = true;
 		r.input.select_held = true;
-		GridFrame covered = root_grid_frame(r.grid, r.ctx, InputMask::none(), nullptr, nullptr, /*covered=*/true);
+		GridFrame covered = root_grid_frame(r.grid, r.ctx, widgets::core::InputMask::none(), nullptr, nullptr, /*covered=*/true);
 		expect(covered.shift()).to_be_false();
 		expect(covered.select_held()).to_be_false();
 		covered.region(GridRect{8, 0, 8, 8}, false, [&](GridFrame& f) {
-			const Response hit = f.pad(2, 2, RGB{1, 2, 3});
+			const widgets::core::Response hit = f.pad(2, 2, RGB{1, 2, 3});
 			expect(hit.pressed).to_be_false();
 			expect(f.pad(3, 2, RGB{4, 5, 6}).held).to_be_false();
 			expect(f.local_events().size()).to_equal(size_t(0));
@@ -299,7 +299,7 @@ describe frame_context("ui::FrameContext", $ {
 
 		uitest::Rig48 o;
 		o.input.shift = true;
-		OledFrame panel = deluge::ui::oled::root_frame(o.canvas, o.style, o.ctx, InputMask::none(), /*covered=*/true);
+		OledFrame panel = deluge::ui::widgets::oled::root_frame(o.canvas, o.style, o.ctx, widgets::core::InputMask::none(), /*covered=*/true);
 		expect(panel.shift()).to_be_false();
 	});
 
@@ -335,11 +335,11 @@ describe frame_context("ui::FrameContext", $ {
 		const std::string_view label = "A VERY LONG LABEL THAT CANNOT FIT";
 		const Rect box{0, 14, 40, 9};
 		uitest::Rig48 r;
-		ScrollText st;
+		widgets::core::ScrollText st;
 		r.begin_tick(0);
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) { scroll_text(f, box, label, FontId::Apple7, st); });
 		expect(int(st.offset)).to_equal(0);          // the first tick only arms the pause
-		r.begin_tick(kScrollTime);
+		r.begin_tick(widgets::core::kScrollTime);
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) { scroll_text(f, box, label, FontId::Apple7, st); });
 		expect(int(st.offset)).to_be_greater_than(0);     // ... and the next one steps
 	});
@@ -349,7 +349,7 @@ describe frame_context("ui::FrameContext", $ {
 		// hundred ms -- permanently in the past on a real clock, so `needs_frame()` would fire on
 		// every tick from then on, at full rate, for the whole surface.
 		uitest::Rig48 r;
-		Blink blink;
+		widgets::core::Blink blink;
 		r.begin_tick(100000);
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) { working(f, f.bounds(), "Loading", blink); });
 		expect(r.gate.next_deadline().has_value()).to_be_true();
@@ -361,19 +361,19 @@ describe frame_context("ui::FrameContext", $ {
 		// masked clock made every gesture a Tap, because press and release both read now == 0.
 		const auto script = [](bool focused) {
 			uitest::GridRig r;
-			Hold hold;
+			widgets::core::Hold hold;
 			int32_t sx = 0;
 			int32_t sy = 0;
 			std::vector<GestureEvent> seen;
-			const auto step = [&](uint32_t now, std::span<const PadEvent> pads) {
+			const auto step = [&](uint32_t now, std::span<const widgets::core::PadEvent> pads) {
 				r.begin_tick(now);
 				r.input.pads = pads;
 				GridFrame root = root_grid_frame(r.grid, r.ctx);
 				root.region(GridRect{0, 0, 18, 8}, focused,
 				            [&](GridFrame& f) { seen.push_back(gesture(f, hold, HoldPolicy{}, sx, sy)); });
 			};
-			const PadEvent press[] = {{5, 5, 100, true}};
-			const PadEvent release[] = {{5, 5, 0, false}};
+			const widgets::core::PadEvent press[] = {{5, 5, 100, true}};
+			const widgets::core::PadEvent release[] = {{5, 5, 0, false}};
 			step(1000, press);
 			step(1400, {});      // still inside the 500ms window
 			step(1700, {});      // past it: Hold, exactly once
@@ -391,8 +391,8 @@ describe frame_context("ui::FrameContext", $ {
 	it("clears claims at the tick boundary", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}};
 		uitest::Rig48 r;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		r.begin_tick(0);
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
 		expect(r.ctx.claims.turn).to_be_true();
@@ -402,7 +402,7 @@ describe frame_context("ui::FrameContext", $ {
 		// would withhold the encoder from the scene for ever after the first tick that claimed it.
 		r.begin_tick(20);
 		expect(r.ctx.claims.any()).to_be_false();
-		expect(r.ctx.claims).to_equal(InputClaims{});
+		expect(r.ctx.claims).to_equal(widgets::core::InputClaims{});
 		expect(r.ctx.tick).to_equal(uint32_t(2));
 		expect(r.ctx.tick_ms).to_equal(uint32_t(20));
 	});
@@ -410,10 +410,10 @@ describe frame_context("ui::FrameContext", $ {
 	it("flags two focused controls claiming one input as a double claim", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig64 r;
-		ListState a;
-		ListState b;
-		ScrollText a_sc;
-		ScrollText b_sc;
+		widgets::core::ListState a;
+		widgets::core::ListState b;
+		widgets::core::ScrollText a_sc;
+		widgets::core::ScrollText b_sc;
 		r.begin_tick(0);
 		r.input.turn = 1;
 		// A claim records ownership; it does not arbitrate. Two focused regions both see the
@@ -427,10 +427,10 @@ describe frame_context("ui::FrameContext", $ {
 
 		// One focused, one not: the ordinary case, and the flag stays down.
 		uitest::Rig64 ok;
-		ListState only;
-		ListState idle;
-		ScrollText only_sc;
-		ScrollText idle_sc;
+		widgets::core::ListState only;
+		widgets::core::ListState idle;
+		widgets::core::ScrollText only_sc;
+		widgets::core::ScrollText idle_sc;
 		ok.begin_tick(0);
 		ok.input.turn = 1;
 		ok.frame.region(Rect{0, 0, 64, 64}, true, [&](OledFrame& f) { list(f, Rect{0, 0, 64, 30}, only, rows, only_sc); });
@@ -445,7 +445,7 @@ describe frame_context("ui::FrameContext", $ {
 		// `HorizontalMenu::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). The slot
 		// mask is still `none()` for every column but the focused one, and still `{.turn = false}` for that one -- now
 		// so the scene's own edit, already applied above `columns`, cannot also reach the slot's widget a second time
-		// (`ui/oled/columns.cpp`'s note on `render_slot`) -- while the column's own value widget still owns the gold
+		// (`ui/widgets/oled/columns.cpp`'s note on `render_slot`) -- while the column's own value widget still owns the gold
 		// knobs, the press and back.
 		const std::string_view names[] = {"AAA", "BBB", "CCC"};
 		uitest::Rig48 r;
@@ -455,7 +455,7 @@ describe frame_context("ui::FrameContext", $ {
 		    Column{.label = "L", .render = &EnumSlot::render, .ctx = &left},
 		    Column{.label = "R", .render = &EnumSlot::render, .ctx = &right},
 		};
-		ColumnsState state;
+		widgets::core::ColumnsState state;
 		r.begin_tick(0);
 		r.input.turn = 1;
 		columns(r.frame, r.frame.bounds(), state, cols, "MENU");
@@ -481,10 +481,10 @@ describe frame_context("ui::FrameContext", $ {
 		const Column submenu[] = {
 		    Column{.label = "S", .is_submenu = true, .render = &EnumSlot::render, .ctx = &only},
 		};
-		ColumnsState sub_state;
+		widgets::core::ColumnsState sub_state;
 		sub.begin_tick(0);
 		sub.input.select_pressed = true;
-		const Response entered = columns(sub.frame, sub.frame.bounds(), sub_state, submenu, "MENU");
+		const widgets::core::Response entered = columns(sub.frame, sub.frame.bounds(), sub_state, submenu, "MENU");
 		expect(entered.entered).to_be_true();
 		expect(sub.ctx.claims.select).to_be_true();
 		// The slot's `enum_value` claims it too -- a submenu column whose renderer also consumes
@@ -553,14 +553,14 @@ describe frame_context("ui::FrameContext", $ {
 		uitest::Rig48 r;
 		r.input.turn = 1;
 		r.input.select_pressed = true;
-		ListState st;
-		ScrollText sc;
+		widgets::core::ListState st;
+		widgets::core::ScrollText sc;
 		// What the shell grants a scene sitting under an overlay: the root itself, not a region
 		// below it, is built with none(). Everything over it draws exactly as it would focused,
 		// but reads 0/false and claims nothing -- the same shape as an unfocused region(), one
 		// level higher, where there is no parent frame to call region() on.
-		OledFrame inert = root_frame(r.canvas, r.style, r.ctx, InputMask::none());
-		const Response resp = list(inert, menu_rect(inert), st, rows, sc);
+		OledFrame inert = root_frame(r.canvas, r.style, r.ctx, widgets::core::InputMask::none());
+		const widgets::core::Response resp = list(inert, menu_rect(inert), st, rows, sc);
 		expect(st.cursor).to_equal(int16_t(0));    // the turn never reached it
 		expect(resp.changed).to_be_false();
 		expect(resp.entered).to_be_false();        // nor did the press
@@ -570,12 +570,12 @@ describe frame_context("ui::FrameContext", $ {
 		// The grid side: pads are never masked (rule 4), so a root built with none() reports every
 		// press exactly as one built with all() would, even though the same root's encoders read 0.
 		uitest::GridRig g;
-		PadEvent ev[] = {{2, 2, 100, true}};
+		widgets::core::PadEvent ev[] = {{2, 2, 100, true}};
 		g.input.pads = ev;
 		g.input.turn = 1;
-		GridFrame none_root = root_grid_frame(g.grid, g.ctx, InputMask::none());
+		GridFrame none_root = root_grid_frame(g.grid, g.ctx, widgets::core::InputMask::none());
 		expect(int(none_root.turn())).to_equal(0);
-		const Response hit = none_root.pad(2, 2, RGB{9, 9, 9});
+		const widgets::core::Response hit = none_root.pad(2, 2, RGB{9, 9, 9});
 		expect(hit.pressed).to_be_true();
 		expect(g.grid.at(2, 2)).to_equal(RGB{9, 9, 9});
 		expect(g.ctx.claims.any()).to_be_false();

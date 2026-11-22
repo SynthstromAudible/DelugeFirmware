@@ -45,11 +45,11 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/source_resources.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
 #include "storage/byte_channel.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
 #include "util/menu_entry.h"
 #include "util/notify.h"
 #include "util/sound_menu_open.h"
@@ -64,10 +64,10 @@
 
 namespace deluge::gui::ui {
 
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserChoice;
-using deluge::scenes::browser::BrowserId;
-using deluge::scenes::browser::PreviewRequest;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserChoice;
+using deluge::ui::scenes::browser::BrowserId;
+using deluge::ui::scenes::browser::PreviewRequest;
 
 namespace {
 
@@ -203,7 +203,7 @@ std::string enteredTextFor(std::string_view name) {
 ///        `SoundEditor::setup` would have resolved for the same visit.
 /// @param menuCtx The menu's context.
 /// @return The sound, its source and range, the clip's (or kit row's) params and arp.
-deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
+deluge::gui::SoundTarget resolvedFor(const deluge::ui::scenes::menu::MenuContext& menuCtx) {
 	deluge::gui::SoundTarget resolved{.sound = nullptr,
 	                                  .mod = nullptr,
 	                                  .params = nullptr,
@@ -276,7 +276,7 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 /// @brief `FolderImportRequest::rangeChosen` for an import the browser scene asked for: the range the import makes
 ///        current goes to the menu beneath, as `SoundEditor::setCurrentMultiRange` makes it the legacy editor's.
 void shellImportRangeChosen(int32_t index) {
-	deluge::scenes::menu_scene().import_chose_range(index);
+	deluge::ui::scenes::menu_scene().import_chose_range(index);
 }
 
 /// @brief The folder import for a folder menu's choice: the item's own folder, or the folder it is in, starting
@@ -305,11 +305,12 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 ///        `LoadMidiDeviceDefinitionUI::definitionLoaded` does: an error leaves it open, a load closes it.
 void midiDefinitionLoaded(Error error) {
 	if (error != Error::NONE) {
-		deluge::notify::notice(error);
+		deluge::base::notify::notice(error);
 		answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = false});
 		return;
 	}
-	deluge::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED, deluge::notify::Notice::Kind::Console);
+	deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED,
+	                             deluge::base::notify::Notice::Kind::Console);
 	answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = true});
 }
 
@@ -345,7 +346,7 @@ namespace {
 
 /// @brief The sound a preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and for a
 ///        kit its clip, whose output volume the preview folds in -- what `main`'s browser reads from the sound editor.
-PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
+PreviewSound previewSoundFor(const deluge::ui::scenes::menu::MenuContext& menuCtx) {
 	const deluge::gui::SoundTarget resolved = resolvedFor(menuCtx);
 	::Clip* clip = currentSong != nullptr && menuCtx.addresses.clip
 	                   ? currentSong->clipForId(menuCtx.addresses.clip->clip_id)
@@ -367,7 +368,7 @@ void tickPreview() {
 		return;
 	}
 	if (const std::optional<SamplePreviewer::Landed> landed =
-	        previewer.tick(previewSoundFor(deluge::scenes::menu_scene().menu_context()))) {
+	        previewer.tick(previewSoundFor(deluge::ui::scenes::menu_scene().menu_context()))) {
 		answerBrowser({.kind = BrowserAnswer::Kind::PreviewSettled, .success = landed->hasSample});
 	}
 }
@@ -376,13 +377,13 @@ void tickPreview() {
 ///        `PadLEDs::horizontal::setupScroll`: the root view, or the browser's main pads off the guest's grid, into the
 ///        image store (or nothing, for the scroll out), and the guest's main columns left to the animation until
 ///        `ShellHostUI::scrollFinished`.
-void startBrowserScroll(const deluge::scenes::browser::ScrollRequest& scroll) {
+void startBrowserScroll(const deluge::ui::scenes::browser::ScrollRequest& scroll) {
 	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
 	if (scroll.to_root) {
 		getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	}
 	else if (!scroll.into_nothing) {
-		const deluge::gfx::grid::PadGrid& grid = surfaces.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& grid = surfaces.grid().grid();
 		const int32_t rows = std::min<int32_t>(grid.dims().rows, kDisplayHeight);
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -400,7 +401,7 @@ void startBrowserScroll(const deluge::scenes::browser::ScrollRequest& scroll) {
 ///        back if nothing scrolls or will (the browser left before its scroll began).
 void dispatchScroll() {
 	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
-	if (const std::optional<deluge::scenes::browser::ScrollRequest> scroll = browser_scene().take_scroll()) {
+	if (const std::optional<deluge::ui::scenes::browser::ScrollRequest> scroll = browser_scene().take_scroll()) {
 		startBrowserScroll(*scroll);
 		return;
 	}
@@ -499,7 +500,7 @@ ParamManagerForTimeline* soundMenuParamManager() {
 }
 
 deluge::gui::SoundTarget menuTarget() {
-	return resolvedFor(deluge::scenes::menu_scene().menu_context());
+	return resolvedFor(deluge::ui::scenes::menu_scene().menu_context());
 }
 
 namespace {
@@ -510,7 +511,7 @@ namespace {
 void deliverDxCartridgeRead(DxCartridgeRead::Status status) {
 	switch (status) {
 	case DxCartridgeRead::Status::Loaded:
-		deluge::scenes::menu_scene().land_dx_cartridge();
+		deluge::ui::scenes::menu_scene().land_dx_cartridge();
 		browser_scene().deferred_load_done(true);
 		break;
 	case DxCartridgeRead::Status::Failed:
@@ -621,7 +622,7 @@ void deliverSampleClaimDone(bool success) {
 	uiNeedsRendering(&audioClipView);
 	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
 	// opened the browser scene, so a claim with no recorded opener came from elsewhere.
-	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
+	if (deluge::ui::scenes::menu_scene().reroot_to_scene_opener_page()) {
 		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
 		// write to `setupKitGlobalFXMenu` the latch takes.
 		latchMenuKitGlobalFxOnReentry();
@@ -632,14 +633,14 @@ void deliverSampleClaimDone(bool success) {
 void deliverFileDeleteDone(std::string_view path, FileDeleteOutcome outcome) {
 	switch (outcome) {
 	case FileDeleteOutcome::Removed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
 		browser_scene().file_deleted(path);
 		break;
 	case FileDeleteOutcome::Missing:
 		// Not on the card: a sample's list entry has no instrument to drop, so nothing changes.
 		break;
 	case FileDeleteOutcome::Failed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
 		break;
 	}
 }
@@ -677,7 +678,7 @@ void deliverAnswer(const BrowserAnswer& answer) {
 
 /// @brief The browser scene's host: each request is performed when the browser makes it, and an answer it produces
 ///        before returning is held (`Performing`).
-class ShellBrowserHost final : public deluge::scenes::browser::BrowserHost {
+class ShellBrowserHost final : public deluge::ui::scenes::browser::BrowserHost {
 public:
 	void perform(const BrowserChoice& choice) override {
 		const Performing performing;
@@ -737,7 +738,7 @@ void wireShellBrowserHost() {
 }
 
 bool shellVisitFellBackToEditor() {
-	return deluge::scenes::menu_scene().pushed_scene_refused();
+	return deluge::ui::scenes::menu_scene().pushed_scene_refused();
 }
 
 } // namespace deluge::gui::ui

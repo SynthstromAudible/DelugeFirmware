@@ -3,7 +3,6 @@
 ///        owner arriving in a running song, a kit change, and a knob found not to be relative. After each, the table
 ///        holds what the engine plays, and the mapping index plays the table's knobs.
 
-#include "deluge-project/mapping_table.h"
 #include "effects/master_chain.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_dispatch.h"
@@ -28,6 +27,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
 #include <optional>
@@ -46,7 +46,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ClipMuteTarget;
@@ -57,11 +57,11 @@ using deluge::project::Mapping;
 using deluge::project::MappingTarget;
 using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
-using deluge::controls::TakeoverState;
 using deluge::project::OwnerParamTarget;
 using deluge::project::TrackInputTarget;
-using deluge::scenes::spec::indexedKnobs;
-using deluge::scenes::spec::indexPlays;
+using deluge::ui::controls::TakeoverState;
+using deluge::ui::scenes::spec::indexedKnobs;
+using deluge::ui::scenes::spec::indexPlays;
 
 namespace {
 

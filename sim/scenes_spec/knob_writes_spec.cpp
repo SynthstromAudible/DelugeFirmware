@@ -4,8 +4,8 @@
 
 #include "model/edits/set_param_value.h"
 
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/fx/song_stutter.h"
@@ -20,9 +20,9 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/bind/knob_focus.h"
-#include "scenes/menu/bind_host.h"
 #include "storage/storage_manager.h"
+#include "ui/scenes/bind/knob_focus.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include "support/song_fixture.h"
 
@@ -59,11 +59,11 @@ std::optional<int32_t> value_at(::Song& song, const ParamAddress& address) {
 // clang-format off
 describe knob_writes("a gold knob's write by address", ${
 	it("makes a cable the sound lacks, with its source's default polarity", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
-		const std::optional<deluge::plugin::ParamId> depth = deluge::instrument::cable_depth_id(
-		    deluge::instrument::PatchSource::LFO_GLOBAL_2, deluge::instrument::param::kLpfFrequency);
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_2, deluge::instruments::classic::param::kLpfFrequency);
 		expect(depth.has_value()).to_be_true();
 		if (depth) {
 			const ParamAddress cable{.owner = OwnerId::instrument(*f.instrument->id()), .space = ParamSpace::ENGINE,
@@ -85,7 +85,7 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("makes a CC lane the MIDI clip lacks", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		const ParamAddress cc{.owner = OwnerId::clip(f.clip->id()), .space = ParamSpace::MIDI_CC, .id = {20}};
@@ -96,7 +96,7 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("writes an arranger row's backed-up params where the row has no clip", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		ParamManagerForTimeline params;
@@ -105,7 +105,7 @@ describe knob_writes("a gold knob's write by address", ${
 		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
 		f.song->addOutput(row);
 		expect(row->id().has_value()).to_be_true();
-		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instruments::classic::param::kLpfFrequency;
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE, .id = lpf};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
 		ParamManager* backed = f.song->live.param_backup.getPreferablyWithClip(*row, nullptr);
@@ -121,11 +121,11 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("writes the take while the arrangement records, and a read follows the take", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
-		InstrumentClip* take = deluge::scenes::spec::detail::make_session_clip(f.song);
+		InstrumentClip* take = deluge::ui::scenes::spec::detail::make_session_clip(f.song);
 		ParamManagerForTimeline params;
 		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false)).to_equal(Error::NONE);
 		take->setAudioInstrument(synth, f.song, true, &params);
@@ -134,7 +134,7 @@ describe knob_writes("a gold knob's write by address", ${
 		expect(synth->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(take), PgmChangeSend::NEVER))
 		    .to_be_true();
 		f.clip->activeIfNoSolo = true;
-		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instruments::classic::param::kLpfFrequency;
 		const auto on = [&](const Clip& clip) {
 			return ParamAddress{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE, .id = lpf,
 			                    .clip_id = clip.id()};
@@ -147,7 +147,7 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		expect(turn(*f.song, on(*f.clip), 1 << 26)).to_be_true();
-		const std::optional<int32_t> read = deluge::scenes::menu::host_ports().controls->param_value(on(*f.clip));
+		const std::optional<int32_t> read = deluge::ui::scenes::menu::host_ports().controls->param_value(on(*f.clip));
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 
@@ -159,7 +159,7 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("reads an arranger row's backed-up params where the row has no clip", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		ParamManagerForTimeline params;
@@ -168,19 +168,19 @@ describe knob_writes("a gold knob's write by address", ${
 		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
 		f.song->addOutput(row);
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE,
-		                           .id = deluge::instrument::param::kLpfFrequency};
+		                           .id = deluge::instruments::classic::param::kLpfFrequency};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
-		expect(deluge::scenes::menu::host_ports().controls->param_value(address))
+		expect(deluge::ui::scenes::menu::host_ports().controls->param_value(address))
 		    .to_equal(std::optional<int32_t>{1 << 27});
 		currentSong = before;
 	});
 
 	it("deletes, reads at a position and stutters the take while the arrangement records, the session clip left", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
-		InstrumentClip* take = deluge::scenes::spec::detail::make_session_clip(f.song);
+		InstrumentClip* take = deluge::ui::scenes::spec::detail::make_session_clip(f.song);
 		ParamManagerForTimeline params;
 		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false)).to_equal(Error::NONE);
 		take->setAudioInstrument(synth, f.song, true, &params);
@@ -193,7 +193,7 @@ describe knob_writes("a gold knob's write by address", ${
 			return ParamAddress{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE, .id = id,
 			                    .clip_id = clip.id()};
 		};
-		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instruments::classic::param::kLpfFrequency;
 		// Each clip holds its own automation of the filter, and its own stutter rate.
 		const auto region = [&](const ParamAddress& address, int32_t value) {
 			deluge::edits::Context ctx{*f.song, f.song->project};
@@ -202,8 +202,8 @@ describe knob_writes("a gold knob's write by address", ${
 		};
 		expect(region(on(*f.clip, lpf), 1 << 24)).to_be_true();
 		expect(region(on(*take, lpf), 1 << 28)).to_be_true();
-		expect(turn(*f.song, on(*f.clip, deluge::instrument::param::kStutterRate), -(1 << 29))).to_be_true();
-		expect(turn(*f.song, on(*take, deluge::instrument::param::kStutterRate), 1 << 29)).to_be_true();
+		expect(turn(*f.song, on(*f.clip, deluge::instruments::classic::param::kStutterRate), -(1 << 29))).to_be_true();
+		expect(turn(*f.song, on(*take, deluge::instruments::classic::param::kStutterRate), 1 << 29)).to_be_true();
 		const auto automated = [&](const ParamAddress& address) {
 			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(address);
 			return param != nullptr && !param->nodes.empty();
@@ -214,14 +214,14 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		const std::optional<int32_t> at_pos =
-		    deluge::scenes::menu::host_ports().controls->param_value_at(on(*f.clip, lpf), 0);
-		const deluge::scenes::bind::KnobFocus focus{
-		    .owner = deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
+		    deluge::ui::scenes::menu::host_ports().controls->param_value_at(on(*f.clip, lpf), 0);
+		const deluge::ui::scenes::bind::KnobFocus focus{
+		    .owner = deluge::ui::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
 		                                              .clip = deluge::project::ClipAddress{f.clip->id()}}};
-		(void)deluge::scenes::menu::host_ports().controls_sink->stutter(focus, true);
+		(void)deluge::ui::scenes::menu::host_ports().controls_sink->stutter(focus, true);
 		const int32_t before_stutter = f.song->live.stutter.valueBeforeStuttering;
-		(void)deluge::scenes::menu::host_ports().controls_sink->stutter(focus, false);
-		const bool deleted = deluge::scenes::menu::host_ports().controls_sink->delete_knob_automation(on(*f.clip, lpf));
+		(void)deluge::ui::scenes::menu::host_ports().controls_sink->stutter(focus, false);
+		const bool deleted = deluge::ui::scenes::menu::host_ports().controls_sink->delete_knob_automation(on(*f.clip, lpf));
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 
@@ -234,7 +234,7 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("makes the take once while the arrangement records, and a read makes none", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
@@ -247,7 +247,7 @@ describe knob_writes("a gold knob's write by address", ${
 			synth->clipInstances[at].length = f.clip->loopLength();
 		}
 		const ParamAddress session{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE,
-		                           .id = deluge::instrument::param::kLpfFrequency, .clip_id = f.clip->id()};
+		                           .id = deluge::instruments::classic::param::kLpfFrequency, .clip_id = f.clip->id()};
 		const std::optional<int32_t> session_before = value_at(*f.song, session);
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 
@@ -255,7 +255,7 @@ describe knob_writes("a gold knob's write by address", ${
 		const auto state = playbackHandler.playbackState;
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-		(void)deluge::scenes::menu::host_ports().controls->param_value(session);
+		(void)deluge::ui::scenes::menu::host_ports().controls->param_value(session);
 		const size_t after_read = f.song->live.clips.arrangement_only_clips.size();
 		expect(turn(*f.song, session, 1 << 26)).to_be_true();
 		const size_t after_turn = f.song->live.clips.arrangement_only_clips.size();
@@ -283,12 +283,12 @@ describe knob_writes("a gold knob's write by address", ${
 	});
 
 	it("marks the instrument edited", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		f.instrument->editedByUser = false;
 		const ParamAddress address{.owner = OwnerId::instrument(*f.instrument->id()), .space = ParamSpace::ENGINE,
-		                           .id = deluge::instrument::param::kLpfFrequency, .clip_id = f.clip->id()};
+		                           .id = deluge::instruments::classic::param::kLpfFrequency, .clip_id = f.clip->id()};
 		expect(turn(*f.song, address, 1 << 25)).to_be_true();
 		expect(f.instrument->editedByUser).to_be_true();
 		currentSong = before;

@@ -17,7 +17,7 @@
 
 #include "processing/sound/source_resources.h"
 #include "definitions_cxx.hpp"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
@@ -44,11 +44,11 @@ SourceResources::~SourceResources() {
 	}
 }
 
-std::optional<deluge::instrument::DxPatchState> SourceResources::heldDxPatch() const {
+std::optional<deluge::instruments::classic::DxPatchState> SourceResources::heldDxPatch() const {
 	if (dxPatch == nullptr) {
 		return std::nullopt;
 	}
-	deluge::instrument::DxPatchState p;
+	deluge::instruments::classic::DxPatchState p;
 	for (int32_t b = 0; b < 156; b++) {
 		p.params[b] = dxPatch->params[b];
 	}

@@ -6,17 +6,17 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/core/led_frame.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/led_frame.h"
 
 #include "support/song_fixture.h"
 
@@ -27,13 +27,13 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 
@@ -66,20 +66,20 @@ struct KitMenu {
 		menu_scene().open(nodes::root_drum, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 	}
-	deluge::ui::LedState ae_led() const {
-		deluge::ui::LedFrame f;
+	deluge::ui::widgets::core::LedState ae_led() const {
+		deluge::ui::widgets::core::LedFrame f;
 		menu_scene().leds(f);
 		for (const auto& [id, state] : f.entries()) {
-			if (id == static_cast<deluge::ui::LedId>(ButtonId::AffectEntire)) {
+			if (id == static_cast<deluge::ui::widgets::core::LedId>(ButtonId::AffectEntire)) {
 				return state;
 			}
 		}
-		return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
+		return deluge::ui::widgets::core::LedState{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
 	}
 };
 
-bool declared(const deluge::ui::LedState& s) {
-	return s.kind == deluge::ui::LedState::Kind::Shared;
+bool declared(const deluge::ui::widgets::core::LedState& s) {
+	return s.kind == deluge::ui::widgets::core::LedState::Kind::Shared;
 }
 
 } // namespace
@@ -107,7 +107,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		menu_scene().set_affect_entire_hold(true);
 		k.shell.tick(10);
 		expect(declared(k.ae_led())).to_be_true();
-		expect(k.ae_led().rate).to_equal(deluge::ui::BlinkRate::Fast);
+		expect(k.ae_led().rate).to_equal(deluge::ui::widgets::core::BlinkRate::Fast);
 		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_true();
 		menu_scene().set_affect_entire_hold(false);
 		k.shell.tick(20);

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "effects/state.h"
-#include "plugin-api/plugin.h"
+#include "plugin/plugin.h"
 #include "serialization/value.h"
 
 #include <array>

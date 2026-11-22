@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/param_automation.h"
+#include "project/param_automation.h"
 
 #include <vector>
 

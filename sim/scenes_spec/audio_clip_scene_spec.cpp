@@ -60,23 +60,22 @@
 ///       library may not. Same rule `marker_scene_spec.cpp` and `slicer_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/audio_clip/audio_clip_scene.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/timeline/timeline.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/timeline/timeline.h"
 
-#include "notify/dirty_set.h"
-#include "shell/input_lowering.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/core/metrics.h"
+#include "base/notify/dirty_set.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/metrics.h"
 
 #include "board_config.h"
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/language.h"
 #include "gui/ui/ui.h"
@@ -101,6 +100,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
+#include "project/setting_group.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
@@ -111,7 +111,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/project_address_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -156,10 +156,10 @@ extern bool shiftCurrentlyStuck;
 } // namespace Buttons
 /// @}
 
-using namespace deluge::scenes;
-using deluge::scenes::audio_clip::audio_clip_scene;
-using deluge::scenes::audio_clip::AudioClipScene;
-using deluge::scenes::audio_clip::kAudioClipSceneKind;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::audio_clip::audio_clip_scene;
+using deluge::ui::scenes::audio_clip::AudioClipScene;
+using deluge::ui::scenes::audio_clip::kAudioClipSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::InputLowering;
@@ -172,7 +172,7 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 using ShellAction = deluge::ui::shell::Action;
 
-namespace spec_fixture = deluge::scenes::spec;
+namespace spec_fixture = deluge::ui::scenes::spec;
 
 namespace {
 
@@ -236,7 +236,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -342,7 +343,7 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		ensure_display();
 		currentUIMode = UI_MODE_NONE;
-		deluge::scenes::spec::make_current(
+		deluge::ui::scenes::spec::make_current(
 		    f.song);                    // the app's sink and facts resolve the clip's address in the current song
 		f.song->setCurrentClip(f.clip); // a length undo finds its clip as the current one
 
@@ -387,7 +388,7 @@ struct Rig {
 		currentlyActioningSwungTickOrResettingPlayPos = saved_swung_latch;
 		currentUIMode = UI_MODE_NONE;
 		f.song->setCurrentClip(nullptr);
-		deluge::scenes::spec::make_current(saved_song);
+		deluge::ui::scenes::spec::make_current(saved_song);
 	}
 
 	/// @brief The clip's address.
@@ -529,7 +530,7 @@ struct PadDiff {
 };
 
 PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -555,7 +556,7 @@ PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
 /// @param at_least Minimum non-black pads.
 template <typename Self>
 void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	int32_t lit = 0;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -570,7 +571,7 @@ void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
 
 /// @brief The colour the pad driver substitutes for a `Normal` tick square.
 ///
-/// `PadLEDs::flashColours[0]` (`hid/led/pad_leds.cpp`), which is `ui::grid::tick_colour`'s
+/// `PadLEDs::flashColours[0]` (`hid/led/pad_leds.cpp`), which is `ui::widgets::grid::tick_colour`'s
 /// `kPlayheadColour`. No waveform bar can take it: the bars are a scaling of the clip's colour,
 /// whose green channel is 26, and grey is `RGB::monochrome(7)`.
 constexpr RGB kPlayheadColour{130, 120, 130};
@@ -579,7 +580,7 @@ constexpr RGB kPlayheadColour{130, 120, 130};
 /// @param r The rig.
 /// @return The count, over the whole grid including the sidebar.
 int32_t cursor_pads(Rig& r) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	int32_t n = 0;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -645,7 +646,7 @@ public:
 			expect(cursor_pads(r)).to_equal(cursor_pads_);
 		}
 		if (column_ >= 0) {
-			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+			const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 			int32_t matching = 0;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (g.at(static_cast<uint8_t>(column_), static_cast<uint8_t>(y)) == column_colour_) {
@@ -741,7 +742,7 @@ void expect_edit_matches(Self& self, const ModelSnapshot& legacy, const ModelSna
 ///        carries for @p b.
 ///
 /// The same helper `sim/scenes_spec/global_controls_spec.cpp` carries, and here for its
-/// reason: the forward table is `BoardProfile::button_by_matrix` (`shell/profiles/deluge.cpp`'s `kMatrix`)
+/// reason: the forward table is `BoardProfile::button_by_matrix` (`ui/shell/profiles/deluge.cpp`'s `kMatrix`)
 /// and hard-coding coordinates would be a second copy of the layout to drift.
 /// @param b The button.
 /// @return `{x, y}`, or `{255, 255}` if the profile has no cell for it.
@@ -831,7 +832,7 @@ struct Input {
 	/// @param delta Signed detents.
 	/// @param at_ms The tick's clock.
 	/// @return The `Result` the scene returned.
-	Result turn(deluge::ui::EncoderRole role, int8_t delta, uint32_t at_ms = 0) {
+	Result turn(deluge::ui::widgets::core::EncoderRole role, int8_t delta, uint32_t at_ms = 0) {
 		now_ms = at_ms;
 		return audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = role, .delta = delta},
 		                                 ctx());
@@ -1078,7 +1079,8 @@ describe audio_clip_scene_spec_body(
 		        }
 		        r.f.clip->sampleHolder.audioFile = flat;
 		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
-		        deluge::notify::raise(deluge::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
+		        deluge::base::notify::raise(
+		            deluge::base::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
 		        r.f.clip->sampleHolder.audioFile = r.sample;
@@ -1160,7 +1162,7 @@ describe audio_clip_scene_spec_body(
 		        // `AudioClipView::timerCallback` (`gui/views/audio_clip_view.cpp`), the port through the deadline
 		        // `next_timer()` armed on the tick above, with no input at all.
 		        (void)legacy_view.timerCallback();
-		        r.tick(deluge::scenes::audio_clip::kMarkerBlinkMs);
+		        r.tick(deluge::ui::scenes::audio_clip::kMarkerBlinkMs);
 		        expect(r.scene().blink_on()).to_be_false();
 		        // The subject of this half: on the dim phase the end column is `colours::red_dull`
 		        // (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`), where the bright phase drew
@@ -1293,7 +1295,7 @@ describe audio_clip_scene_spec_body(
 
 		        // A visible marker arms the blink instead, at the phase's own interval.
 		        r.scene().set_end_marker_visible(true);
-		        expect(r.scene().next_timer().value()).to_equal(deluge::scenes::audio_clip::kMarkerBlinkMs);
+		        expect(r.scene().next_timer().value()).to_equal(deluge::ui::scenes::audio_clip::kMarkerBlinkMs);
 	        });
 
 	    it(
@@ -1325,7 +1327,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "claims the grid and NOT the OLED, because nothing time-driven reaches the OLED page", _ {
 		        // The mask is a claim about surfaces, and an over-claimed OLED is a permanent
-		        // unconditional blit (`shell/scene.h`'s `timer_repaints`). Both halves asserted, and the
+		        // unconditional blit (`ui/shell/scene.h`'s `timer_repaints`). Both halves asserted, and the
 		        // second half is checked against what the page actually draws in the OLED group below --
 		        // the output's name, which no timer here can change.
 		        expect(audio_clip_scene().timer_repaints().grid).to_be_true();
@@ -1344,7 +1346,7 @@ describe audio_clip_scene_spec_body(
 
 		        uint32_t t = 0;
 		        for (const bool expected : {false, true, false, true}) {
-			        t += deluge::scenes::audio_clip::kMarkerBlinkMs;
+			        t += deluge::ui::scenes::audio_clip::kMarkerBlinkMs;
 			        r.tick(t); // no input at all
 			        expect(r.scene().blink_on()).to_equal(expected);
 		        }
@@ -1353,7 +1355,7 @@ describe audio_clip_scene_spec_body(
 		        // the phase must freeze.
 		        r.scene().set_end_marker_visible(false);
 		        const bool frozen = r.scene().blink_on();
-		        t += 10 * deluge::scenes::audio_clip::kMarkerBlinkMs;
+		        t += 10 * deluge::ui::scenes::audio_clip::kMarkerBlinkMs;
 		        r.tick(t);
 		        expect(r.scene().blink_on()).to_equal(frozen);
 		        expect(r.scene().next_timer().has_value()).to_be_false();
@@ -1453,13 +1455,13 @@ describe audio_clip_scene_spec_body(
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
-		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
+		        expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 
 		        // Release: both leave it.
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), false);
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
-		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
+		        expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
 		        currentUIMode = UI_MODE_NONE;
 	        });
 
@@ -1482,7 +1484,7 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
 
 		        expect(r.scene().ui_mode()).to_equal(currentUIMode);
-		        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
+		        expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
 
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.press(ButtonId::Shift, false);
@@ -1594,8 +1596,8 @@ describe audio_clip_scene_spec_body(
 		        (void)in.press(ButtonId::Session, true);
 		        (void)in.press(ButtonId::XEnc, true);
 		        expect(r.scene().ui_mode())
-		            .to_equal(deluge::scenes::audio_clip::kUiModeHoldingSongButton
-		                      | deluge::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
+		            .to_equal(deluge::ui::scenes::audio_clip::kUiModeHoldingSongButton
+		                      | deluge::ui::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 		        expect(in.press(ButtonId::Back, true).handled).to_be_false();
 		        expect(r.f.clip->sampleHolder.audioFile).not_().to_be_null();
 		        (void)in.press(ButtonId::XEnc, false);
@@ -1632,11 +1634,12 @@ describe audio_clip_scene_spec_body(
 		        r.open_scene_only();
 		        r.scene().timeline().scroll_before_following = 480;
 		        (void)in.press(ButtonId::Session, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Session, false);
 
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
-		        expect(r.scene().timeline().scroll_before_following).to_equal(deluge::scenes::timeline::kNotFollowing);
+		        expect(r.scene().timeline().scroll_before_following)
+		            .to_equal(deluge::ui::scenes::timeline::kNotFollowing);
 		        // ...and the turn really was REFUSED on both sides, which is what makes this example
 		        // about the clear rather than about the gesture.
 		        expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll);
@@ -1672,7 +1675,7 @@ describe audio_clip_scene_spec_body(
 		        r.open_scene_only();
 		        r.scene().timeline().scroll_before_following = 480;
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
@@ -1777,9 +1780,9 @@ describe audio_clip_scene_spec_body(
 		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        const int32_t port_shortened = r.f.clip->loopLength();
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 		        const ModelSnapshot port = model_snapshot(r);
 		        const int32_t port_steps = undo_steps();
@@ -1799,7 +1802,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::ClipWrites& clip_writes = *deluge::scenes::menu::host_ports().clip_writes;
+		        bind::ClipWrites& clip_writes = *deluge::ui::scenes::menu::host_ports().clip_writes;
 		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
 		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
@@ -1827,7 +1830,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(s);
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        (void)in.press(ButtonId::Shift, false);
 		        const int32_t port_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
 
@@ -1877,17 +1880,17 @@ describe audio_clip_scene_spec_body(
 		        (void)in.pad(end_square_of(r), 0, true); // the marker back down
 
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        expect(last(Kind::RESIZE).resize).to_equal(Resize::STRETCH);
 		        expect(last(Kind::RESIZE).value).to_equal(int64_t{720});
 		        expect(last(Kind::RESIZE).old_length).to_equal(768);
 		        expect(clip_writes.calls.back().kind).to_equal(Kind::UNDO_SCROLL);
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        expect(last(Kind::RESIZE).resize).to_equal(Resize::NO_STRETCH);
 		        expect(last(Kind::RESIZE).value).to_equal(int64_t{816});
 		        (void)in.press(ButtonId::XEnc, false);
-		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Vertical, 3);
 		        expect(clip_writes.calls.back().kind).to_equal(Kind::RECOLOUR);
 		        expect(last(Kind::RECOLOUR).clip).to_equal(r.address());
 		        expect(last(Kind::RECOLOUR).value).to_equal(int64_t{3});
@@ -1908,7 +1911,7 @@ describe audio_clip_scene_spec_body(
 		        expect(last(Kind::CLEAR).clear_automation).to_equal(!FlashStorage::automationClear);
 		        expect(last(Kind::CLEAR).clear_sequence_and_mpe).to_be_true();
 
-		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Select, 1);
 		        expect(recording.requests.size()).to_equal(size_t{1});
 		        if (!recording.requests.empty()) {
 			        const bind::WriteRequest& mode = recording.requests.back();
@@ -2062,8 +2065,8 @@ describe audio_clip_scene_spec_body(
 			        r.open_scene_only();
 			        (void)in.press(ButtonId::Shift, true);
 			        (void)in.press(ButtonId::XEnc, true);
-			        expect(r.scene().ui_mode()).to_equal(deluge::scenes::audio_clip::kUiModeNone);
-			        (void)in.turn(deluge::ui::EncoderRole::Horizontal, static_cast<int8_t>(offset));
+			        expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
+			        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, static_cast<int8_t>(offset));
 			        (void)in.press(ButtonId::XEnc, false);
 			        (void)in.press(ButtonId::Shift, false);
 			        const ModelSnapshot port = model_snapshot(r);
@@ -2081,7 +2084,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "sets the clip length equal to the sample length exactly as legacy does", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `MenuAction::SetClipLengthToSampleLength`'s callee (`scenes/menu/action.h`'s table).
+		        // `MenuAction::SetClipLengthToSampleLength`'s callee (`ui/scenes/menu/action.h`'s table).
 		        // **Driven directly**, because building half a dispatcher here would be a second seam
 		        // nobody owns. This example is what says the callee is real; that the dispatcher's arm
 		        // reaches the LEGACY method of the same name is pinned in
@@ -2150,7 +2153,7 @@ describe audio_clip_scene_spec_body(
 
 		        deluge::edits::audioModeFor(*r.f.output, start);
 		        r.open_scene_only();
-		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Select, 1);
 		        expect(r.f.output->mode).to_equal(after_legacy);
 
 		        deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
@@ -2175,7 +2178,7 @@ describe audio_clip_scene_spec_body(
 		        r.f.clip->setColourOffset(start);
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::Shift, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Vertical, 3);
 		        (void)in.press(ButtonId::Shift, false);
 		        expect(r.f.clip->colourOffset()).to_equal(after_legacy);
 
@@ -2199,7 +2202,7 @@ describe audio_clip_scene_spec_body(
 
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        r.open_scene_only();
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		        expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll_long);
 		        expect(r.scene().timeline().x_scroll).to_equal(48 * kDisplayWidth); // one screen
 
@@ -2215,7 +2218,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{.loop_length = 4096});
 		        r.open_scene_only();
 		        (void)in.press(ButtonId::XEnc, true);
-		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
+		        (void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
 		        expect(r.scene().timeline().x_zoom).to_equal(legacy_zoom);
 		        (void)in.press(ButtonId::XEnc, false);
 	        });
@@ -2239,8 +2242,8 @@ describe audio_clip_scene_spec_body(
 		        const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
 		        expect(legacy_scroll).to_equal(0);
 
-		        deluge::notify::DirtySet dirty;
-		        dirty.raise(deluge::notify::Dirty::ClipContent);
+		        deluge::base::notify::DirtySet dirty;
+		        dirty.raise(deluge::base::notify::Dirty::ClipContent);
 		        audio_clip_scene().on_model_changed(dirty);
 		        expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll);
 	        });
@@ -2259,8 +2262,8 @@ describe audio_clip_scene_spec_body(
 		        legacy_view.clipNeedsReRendering(r.f.clip);
 		        expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(384);
 
-		        deluge::notify::DirtySet dirty;
-		        dirty.raise(deluge::notify::Dirty::ClipContent);
+		        deluge::base::notify::DirtySet dirty;
+		        dirty.raise(deluge::base::notify::Dirty::ClipContent);
 		        audio_clip_scene().on_model_changed(dirty);
 		        expect(r.scene().timeline().x_scroll).to_equal(384);
 	        });
@@ -2287,13 +2290,13 @@ describe audio_clip_scene_spec_body(
 	        "offers the Waveform item on a clip whose file is loaded, and not while the clip is still recording", _ {
 		        // Legacy tests the clip's own file, which a linear recording has not attached yet.
 		        Rig r;
-		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::spec::ctx_of(
+		        const deluge::ui::scenes::menu::MenuContext ctx = deluge::ui::scenes::spec::ctx_of(
 		            *r.f.song, deluge::gui::menuViewOf(r.f.clip), 0, false, false, false, false);
-		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
+		        expect(deluge::ui::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
 		        auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
 		        recorder->sample = r.sample;
 		        r.f.clip->recorder = recorder;
-		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_false();
+		        expect(deluge::ui::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_false();
 		        r.f.clip->recorder = nullptr;
 	        });
     });

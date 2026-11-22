@@ -1,19 +1,19 @@
 // One instrument setting written across a kit's sound drums as one Edit: each drum the fan-out rule picks takes the
 // value, record and runtime alike, and its slot still decodes to its typed state.
 
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/sound_state.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_kit_setting.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/nodes/fan_out_rules.h"
+#include "ui/scenes/menu/nodes/fan_out_rules.h"
 
 #include "support/song_fixture.h"
 
@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::serialization::Value;
 
 namespace {
@@ -40,9 +40,10 @@ std::vector<int> disagreeing(spec::SongFixture& f, std::string_view path, std::s
 	int index = 0;
 	for (Drum* drum = static_cast<Kit*>(f.instrument)->firstDrum; drum != nullptr; drum = drum->next, ++index) {
 		auto& sound = *static_cast<SoundDrum*>(drum);
-		const auto held = deluge::instrument::setting_value(sound.state(), path);
+		const auto held = deluge::instruments::classic::setting_value(sound.state(), path);
 		auto* slot = f.song->project.resolveSlot(*deluge::bridge::slotAddressOf(sound));
-		if (!held || held->str() != word || slot->state.as<deluge::instrument::DelugeSynth>() != &sound.state()) {
+		if (!held || held->str() != word
+		    || slot->state.as<deluge::instruments::classic::DelugeSynth>() != &sound.state()) {
 			found.push_back(index);
 		}
 	}
@@ -86,12 +87,12 @@ describe set_kit_setting("one setting across a kit's sound drums, as one Edit", 
 		for (Drum* drum = mono->next; drum != nullptr; drum = drum->next) {
 			deluge::edits::settingFor(*static_cast<SoundDrum*>(drum), "polyphonic", Value::makeScalar("poly"));
 		}
-		const int before = deluge::instrument::voicing(mono->state()).max_voices;
+		const int before = deluge::instruments::classic::voicing(mono->state()).max_voices;
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetKitSetting voices{kit_id(f), "maxVoices", Value::makeNumber(3), menu::fan_out::kPolyphonic};
 		expect(deluge::edits::apply(ctx, voices)).to_equal(Error::NONE);
 		expect(voices.drums_written()).to_equal(uint32_t(kKitDrums - 1));
-		expect(static_cast<int>(deluge::instrument::voicing(mono->state()).max_voices)).to_equal(before);
+		expect(static_cast<int>(deluge::instruments::classic::voicing(mono->state()).max_voices)).to_equal(before);
 		// A saw drum does not take a sample's reverse: the rest of the kit does, and the Edit succeeds.
 		deluge::edits::settingFor(*mono, "osc1/type", Value::makeScalar("saw"));
 		for (Drum* drum = mono->next; drum != nullptr; drum = drum->next) {

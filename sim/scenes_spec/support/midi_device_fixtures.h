@@ -6,13 +6,13 @@
 ///        freezer share them.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/midi_device.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/midi_device.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
-#include "notify/notice_queue.h"
 
 #include "io/midi/midi_device.h"
 #include "model/song/song.h"
@@ -26,11 +26,11 @@
 #include <string>
 #include <vector>
 
-namespace deluge::scenes::spec::mididev {
+namespace deluge::ui::scenes::spec::mididev {
 
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 /// @brief A cable the fixture owns outright.
 ///
@@ -118,9 +118,9 @@ struct Fixture {
 inline Fixture& fixture() {
 	static Fixture f = [] {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
 		Fixture k;
 		k.song = spec::make_synth_song();
 		k.a = std::make_unique<SpecCable>("CABLE A");
@@ -151,4 +151,4 @@ inline std::string chain_name(const Node* n) {
 	return "UNMAPPED";
 }
 
-} // namespace deluge::scenes::spec::mididev
+} // namespace deluge::ui::scenes::spec::mididev

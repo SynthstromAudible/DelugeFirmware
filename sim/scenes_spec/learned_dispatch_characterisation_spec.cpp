@@ -7,7 +7,6 @@
 /// The writes are observed from outside the dispatch: the undo log lists each param written, in write order, and every
 /// value is read back through the param's address. Nothing here reads an owner's knob list.
 
-#include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -38,6 +37,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/cable.h"
 
@@ -55,7 +55,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 namespace project = deluge::project;
 
@@ -66,7 +66,7 @@ using project::ParamAddress;
 using project::ParamSpace;
 using Command = project::MidiCommand;
 using Kind = ControlsAddress::Kind;
-using namespace deluge::scenes::spec::learned;
+using namespace deluge::ui::scenes::spec::learned;
 
 namespace {
 
@@ -520,7 +520,7 @@ describe learned_cc_order("a learned CC through PlaybackHandler::midiCCReceived:
 	});
 });
 
-describe learned_cc_takeover("a learned CC through takeover (controls::knob_pos_after), one case at a time", $ {
+describe learned_cc_takeover("a learned CC through takeover (ui::controls::knob_pos_after), one case at a time", $ {
 	it("follows a relative cable by its offset, clamped to the knob's range, in every mode", _ {
 		for (const MIDITakeoverMode mode : {MIDITakeoverMode::JUMP, MIDITakeoverMode::PICKUP, MIDITakeoverMode::SCALE}) {
 			Takeover takeover{mode};

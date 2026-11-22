@@ -20,15 +20,15 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/screensaver.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -46,8 +46,8 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/context_menu_printer.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -66,14 +66,14 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::context_menu::context_menu_scene;
-using deluge::scenes::context_menu::ContextMenuScene;
-using deluge::scenes::context_menu::Descriptor;
-using deluge::scenes::context_menu::DescriptorId;
-using deluge::scenes::context_menu::Selection;
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::context_menu::context_menu_scene;
+using deluge::ui::scenes::context_menu::ContextMenuScene;
+using deluge::ui::scenes::context_menu::Descriptor;
+using deluge::ui::scenes::context_menu::DescriptorId;
+using deluge::ui::scenes::context_menu::Selection;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -98,8 +98,8 @@ using ShellAction = deluge::ui::shell::Action;
 /// panel globals main's confirmation window was drawn under (`support/reset_witness.h`).
 void reset_globals() {
 	menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 	spec::reset::pin_panel_globals();
 }
 
@@ -117,7 +117,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -125,7 +126,7 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
+/// Board encoder indices and matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
@@ -137,7 +138,7 @@ class BlinklessScene final : public deluge::ui::shell::Scene {
 public:
 	SceneKind kind() const override { return kBlinklessKind; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
-	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::oled::OledFrame&) override {}
+	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::widgets::oled::OledFrame&) override {}
 };
 
 /// @brief The application's registry with the blinkless scene added.
@@ -167,7 +168,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `ContextMenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example
+	/// `ContextMenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example
 	/// that left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -206,7 +207,7 @@ struct Rig {
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	ButtonSet held{};
-	deluge::ui::PadMask pads{};
+	deluge::ui::widgets::core::PadMask pads{};
 	UiContext ctx;
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
@@ -472,7 +473,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		r.tick(0);
 		// `indicator_leds::blinkLed(IndicatorLED::BACK)`, declared rather than driven -- the shell
 		// composes and flushes it. BACK is board LED 16 on the Deluge profile
-		// (`shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h`).
+		// (`ui/shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h`).
 		constexpr uint8_t kBackLed = 16;
 		bool blinked = false;
 		for (const auto& [led, on] : r.fake.led_writes) {
@@ -487,7 +488,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		Rig r;
 		r.open(context_of(f), DescriptorId::DeleteFile);
 		r.tick(0);
-		// SAVE is board LED 33 and LOAD 15 on the Deluge profile (`shell/profiles/deluge.cpp`).
+		// SAVE is board LED 33 and LOAD 15 on the Deluge profile (`ui/shell/profiles/deluge.cpp`).
 		constexpr uint8_t kSaveLed = 33;
 		constexpr uint8_t kLoadLed = 15;
 		bool save = false;
@@ -687,7 +688,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		// select turn whether or not the cursor could move.
 		DirectCtx d;
 		const Result turned = context_menu_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Select, .delta = 1}, d.ctx);
 		expect(turned.handled).to_be_true();
 		expect(turned.actions.empty()).to_be_true(); // nothing moved, so no repaint is asked for
 	});
@@ -721,8 +722,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		// Every reset raises a notice. One left queued by an earlier example would make the shell push a notice
 		// overlay on this Rig's first tick, and the stack would still be one deep after the menu removed itself:
 		// correct (it is why `close()` spells `Remove` rather than `Pop`), but not what these examples measure.
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.open(context_of(f), id);
 		r.tick(0);
@@ -993,7 +994,7 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 
 		(void)context_menu::descriptor(DescriptorId::ResetFlash).accept(ctx, 0);
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
-		    .to_equal(deluge::ui::Highlighting::PartialInversion); // `resetSettings`' default
+		    .to_equal(deluge::ui::widgets::core::Highlighting::PartialInversion); // `resetSettings`' default
 		expect(shellHostUI.shell().screensaver_idle_ms())
 		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u); // a minute, as `arm()` counts
 

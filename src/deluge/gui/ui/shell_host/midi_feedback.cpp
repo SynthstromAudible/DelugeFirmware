@@ -9,7 +9,7 @@ namespace {
 
 /// MIDI follow's feedback, over the `midiFollow` engine: each method is one call into the engine that
 /// `View::sendMidiFollowFeedback` (`origin/main:src/deluge/gui/views/view.cpp`) makes.
-class HostMidiFeedback final : public scenes::bind::MidiFeedback {
+class HostMidiFeedback final : public deluge::ui::scenes::bind::MidiFeedback {
 public:
 	[[nodiscard]] bool enabled() const override { return midiFollow.isFeedbackEnabled(); }
 	[[nodiscard]] bool global_effectable_context() const override { return midiFollow.isGlobalEffectableContext(); }
@@ -22,7 +22,7 @@ public:
 
 } // namespace
 
-scenes::bind::MidiFeedback& midi_feedback() {
+deluge::ui::scenes::bind::MidiFeedback& midi_feedback() {
 	static HostMidiFeedback feedback;
 	return feedback;
 }

@@ -21,22 +21,22 @@
 /// @brief The consumer half of the menu's action seam -- the poll of `MenuScene::take_action()` and
 ///        the legacy behaviour each request performs.
 ///
-/// The producing half is `src/scenes`': a menu item asks for a piece of legacy behaviour it
+/// The producing half is `src/ui/scenes`': a menu item asks for a piece of legacy behaviour it
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
-/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
+/// `MenuScene::take_action()` (`ui/scenes/menu/menu_scene.h`) hands it out.
 ///
 /// The five verbs are root-UI behaviour, filed by writing `MenuWalkState::pending_action` and
-/// tabulated in `scenes/menu/action.h`. A settings write's side effect is not one of them: its
-/// setter calls the host at the write (`scenes/menu/bind_host.h`).
+/// tabulated in `ui/scenes/menu/action.h`. A settings write's side effect is not one of them: its
+/// setter calls the host at the write (`ui/scenes/menu/bind_host.h`).
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
 /// The same two reasons `gui/ui/shell_guest_services.h` gives for the same shape. **In `gui/ui/`**
 /// because performing these actions is exactly the half that gets to name `performanceView`,
 /// `audioClipView`, `stemExport` and the two `gui/context_menu/` singletons -- the symbols
-/// `src/scenes` may not include (`scenes-includes-outside`, `scripts/layers.toml`), which
+/// `src/ui/scenes` may not include (`scenes-includes-outside`, `scripts/layers.toml`), which
 /// is the whole reason the seam exists. **Its own translation unit** because it also names
-/// `deluge::scenes::menu_scene()`, and so belongs to the `deluge_scenes` closure the host spec
+/// `deluge::ui::scenes::menu_scene()`, and so belongs to the `deluge_ui_scenes` closure the host spec
 /// suite deliberately never builds (`tests/trees/host/CMakeLists.txt`): naming it inside
 /// `gui/ui/shell_host_ui.cpp` would take that file's specs off the board. The host suite stubs this
 /// one symbol in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, exactly as it stubs
@@ -55,7 +55,7 @@ namespace deluge::gui::ui {
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `MenuScene::take_action()` is **a one-slot mailbox with a silent overwrite, not an exactly-once
-/// queue** (`MenuScene::take_action`, `scenes/menu/menu_scene.h`), and the consequence stated there is a requirement
+/// queue** (`MenuScene::take_action`, `ui/scenes/menu/menu_scene.h`), and the consequence stated there is a requirement
 /// on this function's caller rather than on this function: "`after_render` returns no `Action`
 /// announcing that one is waiting, so nothing enforces the polling: **poll after every tick, or
 /// requests are dropped or stale**" (the same warning). Nothing in the shell will complain if a tick
@@ -117,7 +117,7 @@ namespace deluge::gui::ui {
 /// @par The `switch` has no `default:`, deliberately
 ///
 /// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly" (`MenuAction`'s doc in
-/// `scenes/menu/action.h`). `-Werror=switch` is on for every target (`cmake/deluge_common_options.cmake`), so an
+/// `ui/scenes/menu/action.h`). `-Werror=switch` is on for every target (`cmake/deluge_common_options.cmake`), so an
 /// enumerator added without an arm here fails the build; a `default:` would absorb it silently and the compiler would
 /// stop being the check.
 void dispatchShellActions();

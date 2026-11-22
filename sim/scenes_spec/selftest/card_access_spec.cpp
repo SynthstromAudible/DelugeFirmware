@@ -26,8 +26,8 @@
 #include <fstream>
 #include <string>
 
-using deluge::scenes::spec::no_sd_root_matches;
-using deluge::scenes::spec::sd_root_matches;
+using deluge::ui::scenes::spec::no_sd_root_matches;
+using deluge::ui::scenes::spec::sd_root_matches;
 
 describe selftest_card_access(
     "scenes_spec card checks", $ {

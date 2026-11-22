@@ -17,7 +17,7 @@
 
 #include "effects/delay_arena.h"
 
-#include "foundation/panic.h"
+#include "base/panic.h"
 
 #include <algorithm>
 #include <array>

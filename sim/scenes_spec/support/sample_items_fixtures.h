@@ -5,7 +5,7 @@
 ///        oscillator configurations the relevance predicates are asked under. The spec and the menu oracle freezer
 ///        share them.
 
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "memory/heaps.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
@@ -21,7 +21,7 @@
 #include <new>
 #include <string>
 
-namespace deluge::scenes::spec::sampleitems {
+namespace deluge::ui::scenes::spec::sampleitems {
 
 inline constexpr size_t kClusterSize = 32768;
 inline constexpr int32_t kBytesPerFrame = 2;
@@ -83,15 +83,15 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	// sample or wavetable kind, which the menus refuse to write
 	for (int32_t i = 0; i < 2; i++) {
 		SourceResources& s = sound.sourceResources[i];
-		*sound.state_ = deluge::test::with_kind(*sound.state_, static_cast<deluge::instrument::SourceId>(i),
+		*sound.state_ = deluge::test::with_kind(*sound.state_, static_cast<deluge::instruments::classic::SourceId>(i),
 		                                        i == which ? c.osc_type : OscType::SQUARE);
 		sound.deriveConfig();
 		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}
-	sound.record() = deluge::instrument::switch_engine(sound.record(), c.synth_mode);
+	sound.record() = deluge::instruments::classic::switch_engine(sound.record(), c.synth_mode);
 	sound.deriveConfig();
 	deluge::bridge::recordLoadedSound(sound, song);
 }
 
-} // namespace deluge::scenes::spec::sampleitems
+} // namespace deluge::ui::scenes::spec::sampleitems

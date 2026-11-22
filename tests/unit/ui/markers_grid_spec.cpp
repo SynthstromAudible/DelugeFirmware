@@ -1,8 +1,8 @@
-#include "gfx/grid/palette.h"
 #include "support/frames.h"
-#include "ui/grid/markers.h"
-#include "ui/grid/waveform.h"
-#include "unit/gfx/support/golden.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/widgets/grid/markers.h"
+#include "ui/widgets/grid/waveform.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -14,8 +14,8 @@
 #include <string>
 
 using namespace deluge::ui;
-using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using namespace deluge::ui::widgets::grid;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
@@ -67,7 +67,7 @@ void paint_underlay(uitest::GridRig& r) {
 } // namespace
 
 // clang-format off
-describe markers_grid("ui/grid/markers", $ {
+describe markers_grid("ui::widgets::grid::markers", $ {
 
 	// --- marker_tint --------------------------------------------------------------------------
 

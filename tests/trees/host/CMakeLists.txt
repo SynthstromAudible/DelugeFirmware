@@ -11,7 +11,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
-# projects. The UI leaf libraries libs.cmake adds (src/gfx, ui, shell, notify) apply
+# projects. The UI libraries libs.cmake adds (src/ui's and src/base/notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_common_options.cmake)
 
@@ -135,7 +135,7 @@ endif ()
 
 # deluge_spec: the app code the host specs exercise outside the app's own libraries, built once and linked by every
 # directory whose specs test the app or the UI (app_specs, gfx_specs, ui_specs, shell_specs, notify_specs,
-# scenes_specs, midi_specs, foundation_specs, harness_specs, io_debug_specs).
+# scenes_specs, midi_specs, base_specs, harness_specs, io_debug_specs).
 set(_src ${DELUGE_REPO_ROOT}/src)
 set(_tests ${DELUGE_REPO_ROOT}/tests)
 add_library(deluge_spec STATIC
@@ -145,8 +145,8 @@ add_library(deluge_spec STATIC
   ${_src}/deluge/storage/value_tree_deserializer.cpp
   ${_src}/deluge/util/audio_format_helpers.cpp
   ${_src}/deluge/util/string.cpp
-  # intToString and floatToString, from the dependency-free foundation library.
-  ${_src}/foundation/string_format.c
+  # intToString and floatToString, from the dependency-free base library.
+  ${_src}/base/string_format.c
   ${_src}/deluge/util/c_string.cpp
   ${_src}/deluge/util/lookuptables/lookuptables.cpp
   ${_tests}/support/mocks/mock_display.cpp
@@ -169,20 +169,21 @@ add_library(deluge_spec STATIC
   ${_tests}/unit/deluge/gui/support/fake_device_registry.cpp
   ${_tests}/unit/deluge/gui/support/fake_legacy_ui.cpp
   ${_src}/deluge/hid/button.cpp
-  ${_src}/scenes/menu/node_id.cpp
-  ${_src}/scenes/menu/validate.cpp
-  ${_tests}/unit/scenes/menu/support/fake_shortcuts.cpp
-  ${_tests}/unit/scenes/menu/support/fake_bindings_relevant.cpp
+  ${_src}/ui/scenes/menu/node_id.cpp
+  ${_src}/ui/scenes/menu/validate.cpp
+  ${_tests}/unit/ui/scenes/menu/support/fake_shortcuts.cpp
+  ${_tests}/unit/ui/scenes/menu/support/fake_bindings_relevant.cpp
   ${_tests}/harness/ui_script.cpp
   ${_tests}/harness/snapshot.cpp
   ${_tests}/harness/level3/host_script_tables.c
   ${_tests}/harness/level3/host_snapshot.c
 )
-# deluge_ui_oled: the starfield and rainfall animations the specs and previews drive. deluge_rust_rs: the umbrella
-# staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's deluge-audio-format,
-# reached through include/libdeluge/audio_format.h).
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled deluge_gfx_oled
-  deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify deluge_rust_rs)
+# deluge_ui_widgets_oled: the starfield and rainfall animations the specs and previews drive. deluge_rust_rs: the
+# umbrella staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's
+# deluge-audio-format, reached through include/libdeluge/audio_format.h).
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_widgets_oled
+  deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_grid deluge_ui_shell deluge_base_notify
+  deluge_rust_rs)
 target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks
                                                   ${DELUGE_REPO_ROOT}/include)
 set_target_properties(deluge_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES C_STANDARD 23

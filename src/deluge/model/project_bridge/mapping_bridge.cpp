@@ -17,8 +17,6 @@
 
 #include "model/project_bridge/mapping_bridge.h"
 
-#include "deluge-project/arrangement.h"
-#include "deluge-project/mapping_codec.h"
 #include "io/midi/mapping_index.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
@@ -33,6 +31,8 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/arrangement.h"
+#include "project/mapping_codec.h"
 
 #include <algorithm>
 #include <array>

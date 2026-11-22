@@ -38,27 +38,26 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/fx/chain_params.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/bind/target.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
 #include "support/global_guest_menu.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 #include "util/menu_entry.h"
 
-#include "shell/leds.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
-#include "ui/core/led_frame.h"
-#include "ui/core/metrics.h"
+#include "ui/shell/leds.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
+#include "ui/widgets/core/led_frame.h"
+#include "ui/widgets/core/metrics.h"
 
-#include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
 #include "hid/button.h"
 #include "hid/display/display.h"
@@ -79,14 +78,15 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "project/setting_group.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 
 #include "support/fake_ports.h"
 #include "support/menu_engine.h"
@@ -101,12 +101,12 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/project_address_printer.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -120,17 +120,17 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::recorder::kRecorderSceneKind;
-using deluge::scenes::recorder::recorder_scene;
-using deluge::scenes::recorder::RecorderScene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::recorder::kRecorderSceneKind;
+using deluge::ui::scenes::recorder::recorder_scene;
+using deluge::ui::scenes::recorder::RecorderScene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace rf = deluge::scenes::spec::recorder_fx;
+namespace rf = deluge::ui::scenes::spec::recorder_fx;
 using rf::AudioClockAt;
 using rf::Guards;
 using rf::RecorderDisplay;
@@ -160,7 +160,8 @@ DelugeBoard board_64() {
 
 const BoardProfile& profile_64() {
 	static const BoardProfile p = [] {
-		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {
+		    &deluge::ui::widgets::core::kDelugeStyle64};
 		BoardProfile q = deluge_profile();
 		q.style_by_index = kStyles;
 		return q;
@@ -270,23 +271,23 @@ std::string main_panel(std::string_view name) {
 }
 
 /// @brief The state @p b was declared with this frame, or `Off` when it was not declared at all.
-deluge::ui::LedState::Kind led_kind(const deluge::ui::LedFrame& f, ButtonId b) {
+deluge::ui::widgets::core::LedState::Kind led_kind(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
-		if (id == static_cast<deluge::ui::LedId>(b)) {
+		if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
 			return state.kind;
 		}
 	}
-	return deluge::ui::LedState::Kind::Off;
+	return deluge::ui::widgets::core::LedState::Kind::Off;
 }
 
 /// @brief The shared blink rate @p b was declared on this frame, or `Normal` if it was not declared.
-deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
+deluge::ui::widgets::core::BlinkRate led_rate(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
-		if (id == static_cast<deluge::ui::LedId>(b)) {
+		if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
 			return state.rate;
 		}
 	}
-	return deluge::ui::BlinkRate::Normal;
+	return deluge::ui::widgets::core::BlinkRate::Normal;
 }
 
 /// @brief Publish an OUTPUT recording (a resample, as far as every reader is concerned) for the
@@ -345,10 +346,10 @@ bool working_on_stack(deluge::ui::shell::Shell& shell) {
 }
 
 /// @brief Whether a notice of @p kind, saying @p text when one is given, is queued; empties the queue.
-bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {}) {
+bool drained_notice(deluge::base::notify::Notice::Kind kind, std::string_view text = {}) {
 	bool seen = false;
-	deluge::notify::Notice notice;
-	while (deluge::notify::notices().pop(notice)) {
+	deluge::base::notify::Notice notice;
+	while (deluge::base::notify::notices().pop(notice)) {
 		seen = seen || (notice.kind == kind && (text.empty() || std::string_view{notice.text} == text));
 	}
 	return seen;
@@ -457,8 +458,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		rec->numSamplesCaptured = 1;
 		// Two quiet ticks, one poll period apart. No pad, no button, no encoder.
-		r.tick(deluge::scenes::recorder::kRecorderPollMs);
-		r.tick(2 * deluge::scenes::recorder::kRecorderPollMs);
+		r.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
+		r.tick(2 * deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect(waiting).not_().to_equal(r.oled());
 		expect(r.oled()).to_equal(main_panel("captured"));
 
@@ -472,7 +473,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		expect(recorder_scene().next_timer().has_value()).to_be_true();
 		expect(static_cast<int32_t>(recorder_scene().next_timer().value_or(0)))
-		    .to_equal(static_cast<int32_t>(deluge::scenes::recorder::kRecorderPollMs));
+		    .to_equal(static_cast<int32_t>(deluge::ui::scenes::recorder::kRecorderPollMs));
 
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		rec->numSamplesCaptured = 4096;
@@ -597,12 +598,12 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC003.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
-		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
+		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			const std::vector<deluge::synth::SourceRange> ranges =
-			    deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A);
-			expect(deluge::instrument::source_type(*state, deluge::instrument::SourceId::A)).to_equal(OscType::SAMPLE);
+			    deluge::instruments::classic::source_ranges(*state, deluge::instruments::classic::SourceId::A);
+			expect(deluge::instruments::classic::source_type(*state, deluge::instruments::classic::SourceId::A)).to_equal(OscType::SAMPLE);
 			expect(ranges.empty()).to_be_false();
 			if (!ranges.empty()) {
 				expect(ranges[0].file_path).to_equal("SAMPLES/RECORD/REC003.WAV");
@@ -617,10 +618,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(menu::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
-		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
+		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
-			expect(deluge::instrument::source_type(*state, deluge::instrument::SourceId::A)).to_equal(OscType::SQUARE);
+			expect(deluge::instruments::classic::source_type(*state, deluge::instruments::classic::SourceId::A)).to_equal(OscType::SQUARE);
 		}
 	});
 
@@ -636,9 +637,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		bool error_shown = false;
-		deluge::notify::Notice notice;
-		while (deluge::notify::notices().pop(notice)) {
-			error_shown = error_shown || notice.kind == deluge::notify::Notice::Kind::Error;
+		deluge::base::notify::Notice notice;
+		while (deluge::base::notify::notices().pop(notice)) {
+			error_shown = error_shown || notice.kind == deluge::base::notify::Notice::Kind::Error;
 		}
 		expect(error_shown).to_be_true();
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
@@ -717,8 +718,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `file0SelectorMenu`, whose `FileSelector::beginSession` opens the sample browser. A take already running
 		// (here an output recording) is the refusal `RecorderScene::can` makes.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -742,8 +743,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("leaves the root view's animation stopped under the recorder, as main's base UI does", _ {
 		// `UI::canSeeViewUnderneath` is false and `AudioRecorder` does not override it; the menu under it says true.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -759,8 +760,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("passes a SYNC_SCALING release to the root view under the recorder while fill mode is on", _ {
 		// `AudioRecorder::buttonAction`: "allow turning off fill mode if it was active while entering audio recorder".
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		const uint32_t saved_action = runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
@@ -785,8 +786,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -810,8 +811,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// A song load or a clear takes every UI down (`nullifyUIs`) with the recorder on top, and nothing ticks a closed
 		// guest: the teardown itself ends the screen's take, as main's recorder does once its UI is gone.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -824,7 +825,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 		// Still published until its file is closed, then freed by the foreground recording, attached to nothing.
 		expect(deluge::recording::inputTakeInProgress()).to_be_true();
-		deluge::scenes::spec::settle_torn_down_take();
+		deluge::ui::scenes::spec::settle_torn_down_take();
 		expect(AudioEngine::foregroundRecorder()).to_be_null();
 		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
@@ -836,8 +837,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		RecorderDisplay shown;
 		DisplayAs as{shown};
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -859,8 +860,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		RecorderDisplay shown;
 		DisplayAs as{shown};
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -880,13 +881,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		drain_notifications();
 		expect(shown.loading).to_be_true();
 
-		deluge::scenes::spec::settle_torn_down_take();
+		deluge::ui::scenes::spec::settle_torn_down_take();
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
 		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
 			(void)shellHostUI.timerCallback();
 		}
 		expect(working_on_stack(shellHostUI.shell())).to_be_false();
-		deluge::notify::notice_text("POPUP");
+		deluge::base::notify::notice_text("POPUP");
 		(void)shellHostUI.timerCallback();
 		expect(shellHostUI.shell().notices().next_timer().has_value()).to_be_true();
 		nullifyUIs();
@@ -894,8 +895,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -985,7 +986,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		deluge::notify::notice_text("A KNOB", deluge::notify::Notice::Kind::Text);
+		deluge::base::notify::notice_text("A KNOB", deluge::base::notify::Notice::Kind::Text);
 		r.tick(10);
 		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"A KNOB"});
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
@@ -1127,12 +1128,12 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 		// A kit row is a sample source already: the range holding no file is what says nothing was attached.
 		expect(k.drum->sourceResources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("refuses a take with a Loading popup while a load may replace its sound, and keeps the undo log", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		Rig r;
 		setRootUILowLevel(&instrumentClipView); // `getNewAction` logs only with a view on top
 		actionLogger.deleteAllLogs();
@@ -1140,10 +1141,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 
 		MenuContext c = r.ctx();
-		deluge::scenes::spec::HeldPorts loading{c};
+		deluge::ui::scenes::spec::HeldPorts loading{c};
 		loading.card.replacing = true;
 		r.open_on(c); // `on_enter` runs as the scene is pushed
-		expect(drained_notice(deluge::notify::Notice::Kind::Text, "Loading")).to_be_true();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Text, "Loading")).to_be_true();
 		r.tick(0);
 		expect(r.on_stack()).to_be_false();
 		expect(recorder_scene().recording()).to_be_false();
@@ -1179,13 +1180,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC021.WAV"};
 		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
-		(void)drained_notice(deluge::notify::Notice::Kind::Error);
+		(void)drained_notice(deluge::base::notify::Notice::Kind::Error);
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		expect(r.on_stack()).to_be_false();
 		expect(r.source->ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("keeps the take unattached, silently, when its edited synth is replaced under it and only sleeps in the song", _ {
@@ -1208,7 +1209,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.on_stack()).to_be_false();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(replacement->oscType(0)).not_().to_equal(OscType::SAMPLE);
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("keeps the take unattached, silently, in another song, even one with a sound at its slot", _ {
@@ -1230,7 +1231,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.on_stack()).to_be_false();
 		expect(static_cast<int32_t>(other_sound->oscType(0))).to_equal(static_cast<int32_t>(before));
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("greys out every column of the grid, exactly as getGreyoutColsAndRows does", _ {
@@ -1258,13 +1259,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		for (uint32_t at = 0; at <= 400; at += 10) {
 			r.tick(at);
 		}
-		const std::vector<deluge::ui::grid::PadFlash> flashes{
+		const std::vector<deluge::ui::widgets::grid::PadFlash> flashes{
 		    r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
 		expect(flashes.size()).to_equal(size_t{2}); // at 20 ms and 220 ms
-		for (const deluge::ui::grid::PadFlash& flash : flashes) {
+		for (const deluge::ui::widgets::grid::PadFlash& flash : flashes) {
 			expect(static_cast<int32_t>(flash.x)).to_equal(0);
 			expect(static_cast<int32_t>(flash.y)).to_equal(4);
-			expect(flash.colour).to_equal(deluge::ui::grid::FlashColour::Default);
+			expect(flash.colour).to_equal(deluge::ui::widgets::grid::FlashColour::Default);
 		}
 	});
 
@@ -1273,13 +1274,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		r.open_over_menu();
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		recorder_scene().leds(f);
-		expect(f.restart_requested(deluge::ui::BlinkRate::Normal).value_or(false)).to_be_true();
-		expect(f.restart_requested(deluge::ui::BlinkRate::Fast).value_or(false)).to_be_true();
-		deluge::ui::LedFrame again;
+		expect(f.restart_requested(deluge::ui::widgets::core::BlinkRate::Normal).value_or(false)).to_be_true();
+		expect(f.restart_requested(deluge::ui::widgets::core::BlinkRate::Fast).value_or(false)).to_be_true();
+		deluge::ui::widgets::core::LedFrame again;
 		recorder_scene().leds(again);
-		expect(again.restart_requested(deluge::ui::BlinkRate::Normal).has_value()).to_be_false();
+		expect(again.restart_requested(deluge::ui::widgets::core::BlinkRate::Normal).has_value()).to_be_false();
 	});
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
@@ -1297,21 +1298,21 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// calling `leds()` directly, because the SYNTH/KIT claim is precisely that this scene's
 		// declaration outranks the menu's. `MenuScene::leds` declares both
 		// OFF, mirroring `SoundEditor::setLedStates`.
-		deluge::ui::LedFrame f;
+		deluge::ui::widgets::core::LedFrame f;
 		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
-		expect(led_rate(f, ButtonId::Record)).to_equal(deluge::ui::BlinkRate::Fast); // kFastFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Record)).to_equal(deluge::ui::widgets::core::BlinkRate::Fast); // kFastFlashTime
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Back)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
-		expect(led_rate(f, ButtonId::Back)).to_equal(deluge::ui::BlinkRate::Normal); // kFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Back)).to_equal(deluge::ui::widgets::core::BlinkRate::Normal); // kFlashTime
 		// The fixture is a synth, so `editingKit()` is false: SYNTH on, KIT off.
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Synth)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::On));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::On));
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Kit)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Off));
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Scale)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
+		    .to_equal(static_cast<int32_t>(deluge::ui::widgets::core::LedState::Kind::Off));
 	});
 
 	// --- the foreground-recording publication ---------------------------------------------------
@@ -1442,7 +1443,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 1;
-		r.tick(deluge::scenes::recorder::kRecorderPollMs);
+		r.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "ui/scenes/recorder_recording_48.pbm", r.fake.pbm(0));
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 0;
 	});
@@ -1453,7 +1454,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r64.open();
 		r64.tick(0);
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 1;
-		r64.tick(deluge::scenes::recorder::kRecorderPollMs);
+		r64.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 0;
 	});
@@ -1693,13 +1694,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 namespace recorder_fakes {
 
-using deluge::scenes::bind::AuditionEnd;
-using deluge::scenes::bind::ForegroundRecording;
-using deluge::scenes::bind::InputTake;
-using deluge::scenes::bind::TakeChannels;
-using deluge::scenes::bind::test::FakeHost;
-using deluge::scenes::bind::test::RecordingSoundWrites;
-using deluge::scenes::bind::test::RecordingTakeActions;
+using deluge::ui::scenes::bind::AuditionEnd;
+using deluge::ui::scenes::bind::ForegroundRecording;
+using deluge::ui::scenes::bind::InputTake;
+using deluge::ui::scenes::bind::TakeChannels;
+using deluge::ui::scenes::bind::test::FakeHost;
+using deluge::ui::scenes::bind::test::RecordingSoundWrites;
+using deluge::ui::scenes::bind::test::RecordingTakeActions;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
@@ -1716,10 +1717,10 @@ constexpr deluge::project::LaneAddress kDrumLane{.kit_id = 40, .drum_id = 9};
 constexpr std::string_view kTakePath = "SAMPLES/RECORD/REC00001.WAV";
 
 /// @brief Every notice the queue holds, drained.
-std::vector<deluge::notify::Notice::Kind> drain_notices() {
-	std::vector<deluge::notify::Notice::Kind> kinds;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
+std::vector<deluge::base::notify::Notice::Kind> drain_notices() {
+	std::vector<deluge::base::notify::Notice::Kind> kinds;
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
 		kinds.push_back(n.kind);
 	}
 	return kinds;
@@ -1823,8 +1824,8 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.last_enter_refused()).to_be_true();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		const std::vector<deluge::notify::Notice::Kind> notices = recorder_fakes::drain_notices();
-		expect(notices).to_equal(std::vector<deluge::notify::Notice::Kind>{deluge::notify::Notice::Kind::Error});
+		const std::vector<deluge::base::notify::Notice::Kind> notices = recorder_fakes::drain_notices();
+		expect(notices).to_equal(std::vector<deluge::base::notify::Notice::Kind>{deluge::base::notify::Notice::Kind::Error});
 	});
 
 	it("begins in stereo when an input is plugged in, and in mono otherwise", _ {
@@ -1900,7 +1901,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 	});
 
 	it("orphans a running take on exit and on being taken down, and only exit clears the Working it showed", _ {
-		using Notice = deluge::notify::Notice;
+		using Notice = deluge::base::notify::Notice;
 		recorder_fakes::FakesRig r;
 		expect(r.enter(r.ctx())).to_be_true();
 		r.take().capturing_data = true;
@@ -1954,7 +1955,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		c.ports = {};
 		expect(r.enter(c)).to_be_false();
 		expect(r.scene.recording()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 
 	it("with no take port, wipes, names, clears and ends the audition, then refuses with no error", _ {
@@ -1965,7 +1966,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.host.order).to_equal(std::vector<std::string_view>{"wipe", "name", "ticks", "audition"});
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 
 	it("with no audio port to read a take back, begins none, and refuses with no error", _ {
@@ -1976,7 +1977,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.host.take_actions.calls).to_equal(std::vector<TakeCall>{});
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 });
 

@@ -16,9 +16,6 @@
  */
 
 #include "modulation/params/param_set.h"
-#include "deluge-project/edit_guard.h"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/param_edit.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -41,9 +38,12 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "project/edit_guard.h"
+#include "project/param_automation.h"
+#include "project/param_edit.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -870,7 +870,7 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
  */
 
 void ParamSet::forEachAppendedKey(ParamCollection& /*other*/, const ParamCollectionSummary& otherSummary,
-                                  deluge::function_ref<void(int32_t)> visit) {
+                                  deluge::base::function_ref<void(int32_t)> visit) {
 	// Each param the other set automates
 	for (int32_t p = 0; p < numParams_; p++) {
 		if ((otherSummary.whichParamsAreAutomated[p >> 5] & (1u << (p & 31))) != 0) {
@@ -883,7 +883,7 @@ deluge::project::DocAutoParam* ParamSet::laneToAppendTo(int32_t paramId) {
 	return paramId >= 0 && paramId < numParams_ ? docForParam(paramId) : nullptr;
 }
 
-void ParamSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void ParamSet::forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	// The lanes the render's lookup finds: the bound store's, or an unbound set's params' own
 	for (int32_t p = 0; p < numParams_; p++) {
 		const deluge::project::DocAutoParam* lane = findDocParamForId(p);

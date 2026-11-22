@@ -17,10 +17,10 @@
 
 #include "model/song/reverb_presets.h"
 
-#include "deluge-project/song.h"
 #include "effects/reverb_presets.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
+#include "project/song.h"
 
 namespace deluge::model {
 

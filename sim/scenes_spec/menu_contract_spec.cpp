@@ -4,22 +4,22 @@
 ///        from defaults.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/learn_sink.h"
-#include "scenes/menu/action.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/bind/ports/learn_sink.h"
+#include "ui/scenes/menu/action.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
-#include "notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "base/notify/notice_queue.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "io/midi/device_registry.h"
@@ -47,11 +47,11 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::MenuScene;
-using deluge::scenes::menu::MenuState;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuScene;
+using deluge::ui::scenes::menu::MenuState;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -61,13 +61,13 @@ using deluge::ui::shell::SurfaceRole;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 using Band = MenuScene::DrainBand;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -120,7 +120,7 @@ using deluge::ui::shell::UiEvent;
 /// @brief Hand the menu one event, with Shift held or not and nothing else held.
 Result send(const UiEvent& event, bool shift = false) {
 	const deluge::ui::shell::ButtonSet held{};
-	const deluge::ui::PadMask pads{};
+	const deluge::ui::widgets::core::PadMask pads{};
 	const deluge::ui::shell::UiContext ui{held, pads, shift, false, 0, deluge_profile()};
 	return menu_scene().handle(event, ui);
 }
@@ -135,14 +135,14 @@ Result midi(UiEvent::Kind kind, bool shift = false) {
 	    shift);
 }
 
-Result gold(deluge::ui::EncoderRole knob) {
+Result gold(deluge::ui::widgets::core::EncoderRole knob) {
 	return send(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = knob, .delta = 1});
 }
 
 /// @brief The last notice's string id, draining the queue; 0 for none.
 uint16_t last_notice_string() {
 	uint16_t last = 0;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		last = n.string_id;
 	}
 	return last;
@@ -204,7 +204,7 @@ describe menu_contract_claims("scenes::MenuScene::owned_input -- the render's cl
 				r.open(*root, *page);
 				deluge::ui::test::Rig48 rig;
 				rig.begin_tick(0);
-				const deluge::ui::InputClaims owned = menu_scene().owned_input();
+				const deluge::ui::widgets::core::InputClaims owned = menu_scene().owned_input();
 				menu_scene().render_oled(SurfaceRole::Main, rig.frame);
 				if (!spec::owns_matches_claims(owned, rig.ctx.claims)) {
 					mismatches.push_back(std::to_string(menu::node_id(*root)) + "/" +
@@ -228,7 +228,7 @@ describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
 		r.open(nodes::sound_root, nodes::lpf_freq);
 		r.shell.tick(0);
 		const deluge::ui::shell::ButtonSet held{};
-		const deluge::ui::PadMask pads{};
+		const deluge::ui::widgets::core::PadMask pads{};
 		const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
 		(void)menu_scene().handle(
 		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button, .on = true,
@@ -370,7 +370,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		expect(knob_param(target->owner, mode, 1)).not_().to_equal(std::optional{target->param.id});
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
-		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
 		expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param.id});
 		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
@@ -432,7 +432,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 	it("hands the learn port no device for a gold knob's learn, and the message's device for a MIDI knob's", _ {
 		select_language();
 		Rig r;
-		deluge::scenes::bind::test::RecordingLearnSink recording;
+		deluge::ui::scenes::bind::test::RecordingLearnSink recording;
 		MenuContext ctx = r.menu_context();
 		ctx.ports.learn = &recording;
 		r.open(nodes::sound_root, nodes::lpf_res, ctx);
@@ -441,13 +441,13 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		const deluge::midi::DeviceId device = deluge::midi::id_of(spec_cable());
 
 		(void)button(ButtonId::Learn, true);
-		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64, .device = device})
 		           .handled)
 		    .to_be_true();
 		(void)button(ButtonId::Learn, false);
 
-		using Call = deluge::scenes::bind::test::RecordingLearnSink::Call;
+		using Call = deluge::ui::scenes::bind::test::RecordingLearnSink::Call;
 		std::vector<Call> knobs;
 		for (const Call& call : recording.calls) {
 			if (call.kind == Call::Kind::LEARN_KNOB) {
@@ -474,7 +474,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		r.shell.tick(0);
 		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
 		const MenuContext ctx = r.menu_context();
-		deluge::scenes::bind::LearnSink* const learns = deluge::scenes::menu::host_ports().learn;
+		deluge::ui::scenes::bind::LearnSink* const learns = deluge::ui::scenes::menu::host_ports().learn;
 		expect(target.has_value()).to_be_true();
 		expect(learns).not_().to_be_null();
 		if (!target || learns == nullptr) {
@@ -512,7 +512,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		Rig r;
 		r.open(nodes::sound_root, nodes::lpf_res);
 		r.shell.tick(0);
-		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_false();
+		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_false();
 	});
 
 	it("is not learning when input comes back to it from a scene above", _ {
@@ -548,7 +548,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
-		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
 		expect(knob_param(target->owner, mode, 1)).to_equal(before);
 		expect(last_notice_string()).to_equal(uint16_t(0));

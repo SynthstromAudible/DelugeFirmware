@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/bind/ports/sound_writes.h"
+#include "ui/scenes/bind/ports/sound_writes.h"
 
 #include <format>
 #include <ostream>
@@ -30,7 +30,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::bind {
+namespace deluge::ui::scenes::bind {
 
 /// @brief Prints a cause as its kind's number and the moved marker, e.g. `{kind 1, marker 3}`.
 /// @param os The stream to print to.
@@ -40,4 +40,4 @@ inline std::ostream& operator<<(std::ostream& os, const RangesCause& c) {
 	return os << std::format("{{kind {}, marker {}}}", std::to_underlying(c.kind), c.marker);
 }
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::ui::scenes::bind

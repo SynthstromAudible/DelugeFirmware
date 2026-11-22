@@ -17,7 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/lane_view.h"
+#include "project/lane_view.h"
 
 #include <atomic>
 #include <cstdint>

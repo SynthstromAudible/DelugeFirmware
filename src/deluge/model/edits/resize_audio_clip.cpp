@@ -1,6 +1,5 @@
 #include "model/edits/resize_audio_clip.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -14,6 +13,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include "project/setting_group.h"
 
 #include <algorithm>
 #include <cstdlib>

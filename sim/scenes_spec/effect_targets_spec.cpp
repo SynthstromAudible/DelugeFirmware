@@ -3,11 +3,11 @@
 // recomputes the reverb's, wherever it lands.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "effects/plugin.h"
 #include "effects/settings.h"
@@ -15,7 +15,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
@@ -31,12 +31,12 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::effects::FilterMode;
 using deluge::project::ChainAddress;
-using deluge::scenes::bind::ChainOwner;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::bind::ChainOwner;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 
@@ -147,7 +147,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		// performance_view.cpp's openMenu: no clip, performance view, not a session or arranger root.
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
 		expect(ctx.root).to_equal(MenuContext::Root::Performance);
-		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod)
+		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)
 		    .to_equal(static_cast<ModControllable*>(&f.song->live.master_channel));
 		expect(ctx.addresses.chain).to_equal(std::optional{ChainAddress{.kind = ChainAddress::Kind::SONG}});
 		write_notch(ctx);

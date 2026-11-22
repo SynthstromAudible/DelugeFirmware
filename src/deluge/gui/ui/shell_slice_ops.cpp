@@ -27,10 +27,10 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/slicing/slicer_scene.h"
 #include "storage/audio/latest_sample_load.h"
 #include "storage/multi_range/multisample_range.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include <optional>
 #include <string>
@@ -39,13 +39,13 @@ namespace deluge::gui::ui {
 
 namespace {
 
-using deluge::scenes::slicing::PreviewRequest;
-using deluge::scenes::slicing::SliceCommit;
-using deluge::scenes::slicing::slicer_scene;
+using deluge::ui::scenes::slicing::PreviewRequest;
+using deluge::ui::scenes::slicing::SliceCommit;
+using deluge::ui::scenes::slicing::slicer_scene;
 
 /// @brief `SlicerScene`'s host: every call names the sound the menu edits (`menuTarget`), then does what
 ///        the legacy `Slicer` does through the same `SliceCore`.
-class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
+class HostSliceOps final : public deluge::ui::scenes::slicing::SliceOps {
 public:
 	/// The preview's sound stops, as `AudioEngine::stopAnyPreviewing`'s does; its holder stays bound, because it is
 	/// what keeps the sample the slicer shows loaded.
@@ -97,8 +97,8 @@ public:
 				open_load_.cancel();
 				sample_ = sample;
 				const uint64_t identity = gui::shell_host::waveform_identity(*sample);
-				slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
-				                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
+				slicer_scene().open(deluge::ui::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+				                    deluge::ui::scenes::browser::browser_scene().shown_waveform(identity));
 				shellSliceReady(true);
 				return;
 			}
@@ -134,7 +134,7 @@ public:
 		if (const std::optional<SliceCore::SliceEnd> end = core_.tick_slice()) {
 			if (end->landed) {
 				// `doSlice`'s `exitAndNeverDeleteDrum` closes the menu and the browser with the slicer.
-				deluge::scenes::browser::browser_scene().long_press_done(true);
+				deluge::ui::scenes::browser::browser_scene().long_press_done(true);
 				uiNeedsRendering(&instrumentClipView);
 			}
 			else if (end->error != Error::NONE) {
@@ -199,8 +199,8 @@ private:
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
 			const uint64_t identity = gui::shell_host::waveform_identity(*sample);
-			slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
-			                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
+			slicer_scene().open(deluge::ui::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+			                    deluge::ui::scenes::browser::browser_scene().shown_waveform(identity));
 			shellSliceReady(true);
 			return;
 		}

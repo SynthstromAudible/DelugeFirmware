@@ -5,16 +5,16 @@
 /// row says the same through `ParamInfo::display`. A node whose param has no row in a table, or nodes that disagree
 /// about one param, are named below with their reasons.
 ///
-/// @note The SPEC may include `scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
+/// @note The SPEC may include `ui/scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
 
-#include "effects/host_chain/params.h"
-#include "instruments/deluge/params.h"
-#include "plugin-api/types/param.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
+#include "plugin/types/param.h"
 
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "cppspec.hpp"
 
@@ -27,7 +27,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes::menu;
+using namespace deluge::ui::scenes::menu;
 namespace params = deluge::modulation::params;
 using deluge::plugin::MappingKind;
 using deluge::plugin::ParamId;
@@ -91,9 +91,9 @@ const ParamInfo* row_of(ParamRef ref) {
 	case params::Kind::PATCHED:
 	case params::Kind::NONE:
 	case params::Kind::UNPATCHED_SOUND:
-		return deluge::plugin::find_param(deluge::instrument::kParams, id);
+		return deluge::plugin::find_param(deluge::instruments::classic::kParams, id);
 	case params::Kind::UNPATCHED_GLOBAL:
-		return deluge::plugin::find_param(deluge::host_chain::kParams, id);
+		return deluge::plugin::find_param(deluge::host::chains::kParams, id);
 	default:
 		return nullptr;
 	}
@@ -179,9 +179,9 @@ describe param_display_spec_body("The param tables' display against the menu nod
 	});
 	it("has the standard display on every param but the ones the tables name", _ {
 		// A display a row lacks is the standard one, so a row that changes it must be named here.
-		expect(non_standard(deluge::instrument::kParams))
+		expect(non_standard(deluge::instruments::classic::kParams))
 		    .to_equal(std::vector<std::string>{"oscAPhaseWidth", "oscBPhaseWidth", "pan", "compressorThreshold"});
-		expect(non_standard(deluge::host_chain::kParams))
+		expect(non_standard(deluge::host::chains::kParams))
 		    .to_equal(std::vector<std::string>{"compressorThreshold", "pan"});
 	});
 });

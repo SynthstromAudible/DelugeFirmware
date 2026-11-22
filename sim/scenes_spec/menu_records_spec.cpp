@@ -4,41 +4,41 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/multi_range.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sound_actions.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/value_session.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/multi_range.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sound_actions.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/value_session.h"
+#include "ui/scenes/services/view_state.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/setting_group.h"
 #include "storage/multi_range/multi_range.h"
 
 #include "support/printers/doc_clip_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-namespace nodes = deluge::scenes::menu::nodes;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 using deluge::serialization::Value;
 
 namespace {
@@ -95,10 +95,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		menu::MenuState st{};
 		st.path[0] = &nodes::multi_range;
 		st.depth = 0;
-		st.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		st.edit_edge = deluge::ui::widgets::oled::RangeEdge::Right;
 		st.list[0].cursor = 0;
 		menu::ValueSession{}.read_again({ctx, st});
-		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
+		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Right));
 		expect(static_cast<int>(st.list[0].cursor)).to_equal(0);
 		expect(static_cast<int>(st.walk.range_choice)).to_equal(-1);
 		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
@@ -149,9 +149,9 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string dir;
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
-		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(*ctx.addresses.slot);
+		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(*ctx.addresses.slot);
 		const std::vector<deluge::synth::SourceRange> ranges =
-		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
+		    state != nullptr ? deluge::instruments::classic::source_ranges(*state, deluge::instruments::classic::SourceId::A)
 		                     : std::vector<deluge::synth::SourceRange>{};
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
@@ -206,7 +206,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		spec::SongFixture midi = spec::make_midi_song();
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the song the app plays: none of the above
-		deluge::scenes::spec::make_current(playing.song);
+		deluge::ui::scenes::spec::make_current(playing.song);
 
 		struct Case {
 			Song* song;
@@ -243,7 +243,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 			expect(c.song->project.groove.swing_interval).to_equal(swing);
 		}
 		expect(written).to_be_greater_than(size_t{100});
-		deluge::scenes::spec::make_current(playing.song);
+		deluge::ui::scenes::spec::make_current(playing.song);
 	});
 });
 

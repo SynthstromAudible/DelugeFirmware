@@ -5,25 +5,25 @@
 ///        facts the spec and the menu oracle freezer both need to decide what to ask.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
 
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 
-#include "deluge-project/param_automation.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h"
 #include "processing/sound/sound_drum.h"
+#include "project/param_automation.h"
 
 #include "support/menu_context.h"
 #include "support/menu_engine.h"
@@ -36,11 +36,11 @@
 #include <string>
 #include <vector>
 
-namespace deluge::scenes::spec::tables2 {
+namespace deluge::ui::scenes::spec::tables2 {
 
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 /// @brief Make the song, clip and UI mode those @p ctx is read over: both the menu's reads and a reference item's reach
 ///        the same objects through one fixture.
@@ -94,7 +94,7 @@ struct Rigged {
 /// Writes @p menu_value to the cable @p learn names through the app's sink, as the strength page writes it; a new
 /// cable takes its source's default polarity.
 inline bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
-	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	const std::optional<deluge::ui::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
 	return request.has_value() && ctx.ports.writes->write(*request);
 }
@@ -206,4 +206,4 @@ inline bool chain_targets_contain(const Node& node, const Node* target) {
 	return std::find(node.chain_targets.begin(), node.chain_targets.end(), target) != node.chain_targets.end();
 }
 
-} // namespace deluge::scenes::spec::tables2
+} // namespace deluge::ui::scenes::spec::tables2

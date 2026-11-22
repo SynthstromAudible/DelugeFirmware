@@ -1,7 +1,7 @@
 #pragma once
 
-// Forwarding header: the scale theory lives in deluge_music_theory.
-#include "music-theory/preset_scales.h"
+// Forwarding header: the scale theory lives in deluge_music.
+#include "music/preset_scales.h"
 
 using deluge::music::ensureNotAllPresetScalesDisabled;
 using deluge::music::flashStorageCodeToScale;

@@ -3,17 +3,16 @@
 // drum with a row; it sends MIDI-follow feedback as legacy's param items do; and the fact gives the value the param
 // plays where automation moves it.
 
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bind_host.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bind_host.h"
 
-#include "deluge-project/param_address.h"
-#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action.h"
@@ -35,6 +34,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_address.h"
 
 #include "support/song_fixture.h"
 
@@ -46,7 +46,7 @@
 #include <optional>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using bind::Addresses;
 using bind::ChainOwner;
 using bind::Target;
@@ -54,9 +54,9 @@ using deluge::project::ParamAddress;
 
 namespace {
 
-constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
+constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kLpfFrequency};
 constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
-                           .param = deluge::host_chain::param::kLpfFrequency,
+                           .param = deluge::host::chains::param::kLpfFrequency,
                            .param_table = bind::ParamTable::CHAIN};
 
 /// The value the engine's param at @p address plays.
@@ -99,9 +99,9 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
 	midiEngine.midiFollowChannelType[0].channelOrZone = 0;
 	Song* const saved_song = currentSong;
-	deluge::scenes::spec::make_current(synth.song);
+	deluge::ui::scenes::spec::make_current(synth.song);
 	view.setActiveModControllableTimelineCounter(synth.clip, false);
-	deluge::scenes::spec::make_current(saved_song);
+	deluge::ui::scenes::spec::make_current(saved_song);
 	const std::optional<deluge::project::ParamTarget> target =
 	    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, deluge::modulation::params::Kind::PATCHED,
 	                             deluge::modulation::params::LOCAL_LPF_FREQ);
@@ -213,7 +213,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
 		                                      .param_value = 0x12345678,
-		                                      .polarity = deluge::instrument::Polarity::BIPOLAR}))
+		                                      .polarity = deluge::instruments::classic::Polarity::BIPOLAR}))
 		    .to_be_true();
 		PatchCable* made = engine_cable(synth, PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
 		expect(made).not_().to_be_null();
@@ -229,10 +229,10 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		(void)menu::host_ports().writes->write({.target = cable,
 		                                     .where = on_synth(synth),
 		                                     .param_value = 0x12345678,
-		                                     .polarity = deluge::instrument::Polarity::BIPOLAR});
+		                                     .polarity = deluge::instruments::classic::Polarity::BIPOLAR});
 		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
-		                                      .polarity = deluge::instrument::Polarity::UNIPOLAR,
+		                                      .polarity = deluge::instruments::classic::Polarity::UNIPOLAR,
 		                                      .polarity_only = true}))
 		    .to_be_true();
 		PatchCable* existing =
@@ -249,7 +249,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		const ParamAddress lpf = synth_lpf(synth);
 		bool taken = false;
 		const std::optional<uint32_t> sent =
-		    feedback_stamp(synth, [&] { taken = menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB); });
+		    feedback_stamp(synth, [&] { taken = menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB); });
 		expect(taken).to_be_true();
 		expect(sent).to_equal(std::optional{0u});
 		const deluge::project::DocAutoParam* record = synth.song->project.resolveParam(lpf);
@@ -262,7 +262,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("deletes a param's automation by address, one undo step", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const ParamAddress lpf = synth_lpf(synth);
-		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
 		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_true();
@@ -286,7 +286,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		lpf.owner.id += 1000;
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
 		expect(menu::host_ports().writes->write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
-		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 0, deluge::controls::Resolution::KNOB)).to_be_false();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 0, deluge::ui::controls::Resolution::KNOB)).to_be_false();
 		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_false();
 	});
 
@@ -294,7 +294,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		spec::SongFixture a = spec::make_synth_song();
 		spec::SongFixture b = spec::make_synth_song();
 		Song* const saved = currentSong;
-		deluge::scenes::spec::make_current(a.song);
+		deluge::ui::scenes::spec::make_current(a.song);
 		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::ENVELOPE_1,
 		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
 		                                     .where = on_synth(a),
@@ -305,14 +305,14 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		for (const bind::CableFact& cable : first) {
 			held.push_back(cable.depth);
 		}
-		deluge::scenes::spec::make_current(b.song);
+		deluge::ui::scenes::spec::make_current(b.song);
 		deluge::synth::CableTarget other = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::RANDOM,
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),
 		                                     .param_value = 0x01000000});
 		(void)sound.cables(synth_lpf(b));
-		deluge::scenes::spec::make_current(saved);
+		deluge::ui::scenes::spec::make_current(saved);
 		expect(held.empty()).to_be_false();
 		expect(first.size()).to_equal(held.size());
 		bool same = first.size() == held.size();
@@ -333,7 +333,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		deluge::edits::SetParamValue late{lpf, 0x70000000, 48, 24};
 		(void)deluge::edits::apply(ctx, early);
 		(void)deluge::edits::apply(ctx, late);
-		const deluge::controls::Facts& facts = *menu::host_ports().controls;
+		const deluge::ui::controls::Facts& facts = *menu::host_ports().controls;
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		std::optional<int32_t> read[2];
 		int i = 0;

@@ -3,8 +3,6 @@
 ///        the target's entry onto the engine field that plays it (a learned knob plays from the table, through the
 ///        mapping index); a target whose owner the song does not hold is refused with the table as it was.
 
-#include "deluge-project/arrangement.h"
-#include "deluge-project/mapping_table.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/clip/clip.h"
@@ -19,6 +17,8 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/arrangement.h"
+#include "project/mapping_table.h"
 
 #include <optional>
 #include <utility>
@@ -34,7 +34,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ClipMuteTarget;
@@ -49,8 +49,8 @@ using Command = deluge::project::MidiCommand;
 using deluge::project::OwnerParamTarget;
 using deluge::project::SectionLaunchTarget;
 using deluge::project::TrackInputTarget;
-using deluge::scenes::spec::indexedKnobs;
-using deluge::scenes::spec::indexPlays;
+using deluge::ui::scenes::spec::indexedKnobs;
+using deluge::ui::scenes::spec::indexPlays;
 
 namespace {
 
@@ -119,7 +119,7 @@ describe mapping_edit("LearnMapping", $ {
 		deluge::edits::learnMappingFor(cc(0, 11), pan);
 		expect(static_cast<int>(f.song->project.mappings.params_of(owner).size())).to_equal(2);
 		deluge::bridge::projectOutputMappings(*f.song, *f.instrument->id()); // projected again, nothing changed
-		const deluge::controls::TakeoverState* held = std::as_const(deluge::midi::takeoverStore()).find(volume, cc(0, 10));
+		const deluge::ui::controls::TakeoverState* held = std::as_const(deluge::midi::takeoverStore()).find(volume, cc(0, 10));
 		expect(held).not_().to_be_null("the volume knob's takeover state");
 		if (held != nullptr) {
 			expect(held->previous).to_equal(std::optional<int32_t>{1234}, "the volume knob's previous position");

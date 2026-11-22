@@ -11,13 +11,13 @@
 /// marked investigated, draws the waveform the fixture asked for with no reader opened. Halving `kSampleLength` turns
 /// the whole waveform black -- the scan only takes its cache arm at `numClustersSpan >= 2`.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -40,10 +40,10 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec::slicer_fx {
+namespace deluge::ui::scenes::spec::slicer_fx {
 
-using deluge::scenes::slicing::kSlicerSceneKind;
-using deluge::scenes::slicing::slicer_scene;
+using deluge::ui::scenes::slicing::kSlicerSceneKind;
+using deluge::ui::scenes::slicing::slicer_scene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -147,7 +147,7 @@ struct Rig {
 		// The app's boot wires the host's ops; an example starts unwired and installs its own.
 		slicer_scene().set_ops(nullptr);
 		// The app's ports, as its boot installs them; an example that needs a fake copies them and replaces one.
-		slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
+		slicer_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 	}
 
 	/// @brief Put the fixture's sample in the preview drum and open the slicer's host on it, as the browser's SLICE
@@ -180,7 +180,7 @@ struct Rig {
 	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
+	///        (`ui/shell/profiles/deluge.cpp`).
 	///
 	/// @warning **At most 63 detents per call.** `InputLowering::apply_encoder_edges` takes its
 	///          edge count as an `int8_t` (`InputLowering::apply_encoder_edges`), so 64 detents is 128
@@ -199,12 +199,12 @@ struct Rig {
 	void turn_vertical(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 0, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
-	/// @brief Press or release SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
+	/// @brief Press or release SHIFT, at matrix (8, 0) (`ui/shell/profiles/deluge.cpp`).
 	void shift(bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
 
-	/// @brief Press or release one button, by matrix coordinates (`shell/profiles/deluge.cpp`).
+	/// @brief Press or release one button, by matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 	void button(uint8_t mx, uint8_t my, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, mx, my, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
@@ -237,7 +237,7 @@ struct Rig {
 	/// @return The text the shell's popup service last showed.
 	///
 	/// @warning This is a *record*, not a level -- `Notices::last_popup_text()` is "the text last
-	///          shown" and survives the popup's removal (`shell/notices.h`). Ask
+	///          shown" and survives the popup's removal (`ui/shell/notices.h`). Ask
 	///          `popup_showing()` whether one is on screen.
 	std::string popup() { return shell.notices().last_popup_text(); }
 
@@ -259,7 +259,7 @@ struct Rig {
 
 // --- the audio/model/card boundary, faked ------------------------------------------------------
 
-using deluge::scenes::slicing::test::FakeOps;
+using deluge::ui::scenes::slicing::test::FakeOps;
 
 // --- the shared slice table ---------------------------------------------------------------------
 
@@ -278,4 +278,4 @@ inline void seed_port(const std::vector<int32_t>& positions) {
 	}
 }
 
-} // namespace deluge::scenes::spec::slicer_fx
+} // namespace deluge::ui::scenes::spec::slicer_fx

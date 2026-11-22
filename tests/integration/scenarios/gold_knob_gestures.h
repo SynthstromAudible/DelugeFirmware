@@ -22,14 +22,14 @@
 ///        the song as the app's knobs do, and the scenario reads the song.
 
 #include "board_controls.hpp"
-#include "scenes/menu/bind_host.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/registry.h"
-#include "scenes/services/knob_presentation.h"
-#include "scenes/services/mod_knobs.h"
-#include "shell/input_lowering.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene_stack.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/knob_presentation.h"
+#include "ui/scenes/services/mod_knobs.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene_stack.h"
 
 #include <cstdint>
 #include <string_view>
@@ -37,11 +37,11 @@
 namespace deluge::scenarios {
 
 /// @brief A presentation that shows nothing.
-class NoKnobPresentation final : public deluge::scenes::services::KnobPresentation {
+class NoKnobPresentation final : public deluge::ui::scenes::services::KnobPresentation {
 public:
-	bool suppress_value_popup(const deluge::scenes::services::ModTurn& /*turn*/) override { return false; }
-	void show_value_popup(const deluge::scenes::services::ModTurn& /*turn*/, PatchSource /*source1*/,
-	                      PatchSource /*source2*/, const deluge::scenes::overlay::PopupContext& /*context*/,
+	bool suppress_value_popup(const deluge::ui::scenes::services::ModTurn& /*turn*/) override { return false; }
+	void show_value_popup(const deluge::ui::scenes::services::ModTurn& /*turn*/, PatchSource /*source1*/,
+	                      PatchSource /*source2*/, const deluge::ui::scenes::overlay::PopupContext& /*context*/,
 	                      uint32_t /*now_ms*/) override {}
 	void value_written() override {}
 	void blink_indicator(int32_t /*knob*/, bool /*bipolar*/) override {}
@@ -64,9 +64,10 @@ class GoldKnobGestures {
 public:
 	/// @param song  The song the knobs act on (also the current song while they do).
 	/// @param focus The owner the knobs point at.
-	GoldKnobGestures(Song& song, const deluge::controls::KnobFocus& focus)
-	    : stack_(registry_), knobs_(deluge::scenes::overlay::param_popup_scene(), stack_, lowering_, kDelugeControls) {
-		knobs_.set_ports(&deluge::scenes::menu::host_ports());
+	GoldKnobGestures(Song& song, const deluge::ui::controls::KnobFocus& focus)
+	    : stack_(registry_),
+	      knobs_(deluge::ui::scenes::overlay::param_popup_scene(), stack_, lowering_, kDelugeControls) {
+		knobs_.set_ports(&deluge::ui::scenes::menu::host_ports());
 		knobs_.set_model(&song.project);
 		knobs_.set_focus(focus, false);
 	}
@@ -83,10 +84,10 @@ public:
 	void push(int32_t knob, bool on) { knobs_.push(knob, on, {}, out_); }
 
 private:
-	deluge::ui::shell::SceneRegistry registry_ = deluge::scenes::scene_registry();
+	deluge::ui::shell::SceneRegistry registry_ = deluge::ui::scenes::scene_registry();
 	deluge::ui::shell::SceneStack stack_;
 	deluge::ui::shell::InputLowering lowering_{deluge::ui::shell::deluge_profile(), {}};
-	deluge::scenes::services::ModKnobs knobs_;
+	deluge::ui::scenes::services::ModKnobs knobs_;
 	NoKnobPresentation out_;
 	uint32_t now_ms_ = 1000;
 };

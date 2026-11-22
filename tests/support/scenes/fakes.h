@@ -3,17 +3,17 @@
 /// @file
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
-#include "controls/sink.h"
-#include "deluge-project/device_settings.h"
-#include "deluge-project/midi_command.h"
-#include "deluge-project/owner_plugin.h"
-#include "deluge-project/param_address.h"
-#include "sample-view/peaks.h"
-#include "scenes/bind/knob_focus.h"
-#include "scenes/bind/ports/param_info.h"
-#include "scenes/bind/ports/ports.h"
-#include "scenes/bind/ports/write_sink.h"
+#include "project/device_settings.h"
+#include "project/midi_command.h"
+#include "project/owner_plugin.h"
+#include "project/param_address.h"
 #include "serialization/value.h"
+#include "ui/controls/sink.h"
+#include "ui/scenes/bind/knob_focus.h"
+#include "ui/scenes/bind/ports/param_info.h"
+#include "ui/scenes/bind/ports/ports.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <array>
 #include <bitset>
@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::scenes::bind::test {
+namespace deluge::ui::scenes::bind::test {
 
 /// @brief AudioFacts a spec sets directly.
 struct FakeAudioFacts final : AudioFacts {
@@ -81,7 +81,7 @@ struct FakeUiFacts final : UiFacts {
 /// @brief SoundFacts a spec sets directly, keyed by slot id.
 struct FakeSoundFacts final : SoundFacts {
 	std::map<uint32_t, uint8_t> loaded;                              ///< what `loaded_sources` answers, by slot id
-	std::map<uint32_t, instrument::SoundState> states;               ///< what `sound_state` points at, by slot id
+	std::map<uint32_t, instruments::classic::SoundState> states;     ///< what `sound_state` points at, by slot id
 	mutable std::vector<project::SlotAddress> asked;                 ///< every slot `loaded_sources` was asked about
 	std::map<uint32_t, bool> whole_folder;                           ///< what `kit_takes_whole_folder` answers
 	std::map<std::pair<uint32_t, uint8_t>, uint16_t> default_ranges; ///< by {slot id, source}
@@ -90,7 +90,7 @@ struct FakeSoundFacts final : SoundFacts {
 	std::optional<DxCartridgeNames> cartridge;                              ///< what `dx_cartridge` answers
 	std::vector<CableFact> cable_list;                                      ///< what `cables` answers
 	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override;
-	[[nodiscard]] const instrument::SoundState* sound_state(project::SlotAddress slot) const override;
+	[[nodiscard]] const instruments::classic::SoundState* sound_state(project::SlotAddress slot) const override;
 	[[nodiscard]] bool kit_takes_whole_folder(project::SlotAddress slot) const override;
 	[[nodiscard]] std::optional<uint16_t> default_range(project::SlotAddress slot, uint8_t source) const override;
 	[[nodiscard]] std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
@@ -138,7 +138,7 @@ struct FakeTrackFacts final : TrackFacts {
 };
 
 /// @brief The knobs' reads, as a spec sets them: each note-tail answer and the params' values, by their addresses.
-class FakeControlFacts final : public controls::Facts {
+class FakeControlFacts final : public ui::controls::Facts {
 public:
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	/// The value each param plays, by its address; a param absent here the song does not hold.
@@ -149,9 +149,9 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool alt_delay() const override { return alternative_delay; }
-	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
-	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
-	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+	[[nodiscard]] std::span<const ui::controls::PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const ui::controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
+	[[nodiscard]] ui::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
 		return {.cable_relative = cable_relative};
 	}
 	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
@@ -227,10 +227,10 @@ struct RecordingSoundWrites final : SoundWrites {
 		/// An INSERT_RANGE's new top for the range below the inserted one; a DELETE_RANGE's new top for the range
 		/// below the deleted one. None where it keeps its top.
 		std::optional<int16_t> neighbour_top;
-		std::string text;                                 ///< ATTACH's path
-		std::optional<instrument::DxPatchState> dx_patch; ///< DX_PATCH's patch
-		Addresses where{};                                ///< TRANSPOSE's owner
-		midi::DeviceId device{};                          ///< VELOCITY_EVERYWHERE's device
+		std::string text;                                           ///< ATTACH's path
+		std::optional<instruments::classic::DxPatchState> dx_patch; ///< DX_PATCH's patch
+		Addresses where{};                                          ///< TRANSPOSE's owner
+		midi::DeviceId device{};                                    ///< VELOCITY_EVERYWHERE's device
 	};
 	std::vector<Call> calls; ///< every request taken, in order
 	bool accept{true};       ///< what each request answers (set_default_range answers nothing)
@@ -242,7 +242,8 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
+	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
+	                    const instruments::classic::DxPatchState& patch) override;
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
@@ -476,14 +477,14 @@ struct RecordingWrites final : WriteSink {
 
 /// @brief controls::Sink that records every request, in order, and answers each with @ref accept; take_for answers
 ///        @ref take_answer.
-struct RecordingControlsSink final : controls::Sink {
+struct RecordingControlsSink final : ui::controls::Sink {
 	/// @brief A param write by address, as recorded.
 	struct ParamWrite {
-		project::ParamAddress address;                               ///< the param written
-		int32_t value{0};                                            ///< its value
-		int32_t pos{0};                                              ///< the position written at
-		int32_t length{0};                                           ///< the length of the region written
-		controls::Resolution resolution{controls::Resolution::KNOB}; ///< how its address resolves
+		project::ParamAddress address;                                       ///< the param written
+		int32_t value{0};                                                    ///< its value
+		int32_t pos{0};                                                      ///< the position written at
+		int32_t length{0};                                                   ///< the length of the region written
+		ui::controls::Resolution resolution{ui::controls::Resolution::KNOB}; ///< how its address resolves
 	};
 	/// @brief One of the knobs' other requests, as recorded.
 	struct Gesture {
@@ -523,7 +524,7 @@ struct RecordingControlsSink final : controls::Sink {
 	std::optional<uint32_t> take_answer; ///< what take_for answers
 	bool accept{true};                   ///< what each request that answers a bool answers
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
-	                 controls::Resolution resolution) override;
+	                 ui::controls::Resolution resolution) override;
 	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
 	std::optional<uint32_t> take_for(uint32_t output_id) override;
 	bool make_param(const project::ParamAddress& address) override;
@@ -543,12 +544,12 @@ struct RecordingControlsSink final : controls::Sink {
 struct FakeWaveforms final : Waveforms {
 	/// @brief One waveform the fake holds.
 	struct Entry {
-		WaveformAddress at;                                           ///< where it is
-		WaveformInfo info;                                            ///< what `info` answers
-		std::array<sample_view::Peak, sample_view::kColumns> peaks{}; ///< each column's peak
-		std::bitset<sample_view::kColumns> pending{};                 ///< columns answered PENDING while reads remain
-		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
-		std::optional<int64_t> position;                              ///< what `play_position` answers
+		WaveformAddress at;                                                   ///< where it is
+		WaveformInfo info;                                                    ///< what `info` answers
+		std::array<views::waveform::Peak, views::waveform::kColumns> peaks{}; ///< each column's peak
+		std::bitset<views::waveform::kColumns> pending{}; ///< columns answered PENDING while reads remain
+		int32_t pending_reads{0};                         ///< how many reads answer them PENDING
+		std::optional<int64_t> position;                  ///< what `play_position` answers
 		/// While `info.recording`, the frames the take has written: as on the host, a column that does not end by
 		/// then is past the end, the one straddling it too. None reads as `info.length_samples`.
 		std::optional<uint64_t> captured;
@@ -556,13 +557,14 @@ struct FakeWaveforms final : Waveforms {
 	mutable std::vector<Entry> waveforms; ///< looked up by address; a read counts its entry's pending reads down
 	/// @brief One recorded `peaks` call.
 	struct Read {
-		WaveformAddress at;     ///< the address
-		sample_view::Window in; ///< the window
+		WaveformAddress at;         ///< the address
+		views::waveform::Window in; ///< the window
 		bool operator==(const Read&) const = default;
 	};
 	mutable std::vector<Read> reads; ///< every `peaks` call, in order
 	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress& address) const override;
-	[[nodiscard]] sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const override;
+	[[nodiscard]] views::waveform::PeakRead peaks(const WaveformAddress& address,
+	                                              views::waveform::Window at) const override;
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress& address) const override;
 };
 
@@ -687,4 +689,4 @@ struct FakeHost {
 	}
 };
 
-} // namespace deluge::scenes::bind::test
+} // namespace deluge::ui::scenes::bind::test

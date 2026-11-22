@@ -21,7 +21,7 @@ deluge_specs_driver(deluge_storage_song_preview_specs TREES host NEON
   LIBRARIES
     etl::etl
     deluge_serialization
-    deluge_foundation
+    deluge_base
   INCLUDES
     ${DELUGE_REPO_ROOT}/src
     ${DELUGE_REPO_ROOT}/src/deluge

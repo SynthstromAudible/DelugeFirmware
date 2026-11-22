@@ -5,7 +5,6 @@
 ///        own effects with the kit-global latch set and clear, and a kit row under a stale set latch, each drawn under
 ///        its own clip view.
 
-#include "gfx/grid/rgb.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/clip_view.h"
@@ -14,6 +13,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "processing/sound/sound_drum.h"
+#include "ui/gfx/grid/rgb.h"
 #include "util/menu_entry.h"
 
 #include "support/song_fixture.h"
@@ -22,7 +22,7 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec::clip_overview {
+namespace deluge::ui::scenes::spec::clip_overview {
 
 /// @brief One kind of clip or kit row.
 enum class Case : uint8_t {
@@ -173,4 +173,4 @@ inline std::string rgb_text(const RGB& c) {
 	return std::to_string(c.r) + "," + std::to_string(c.g) + "," + std::to_string(c.b);
 }
 
-} // namespace deluge::scenes::spec::clip_overview
+} // namespace deluge::ui::scenes::spec::clip_overview

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rewrite model-side UI redraw calls to notify::raise*. Idempotent. Run from repo root.
 
-  uiNeedsRendering(X, 0xFFFFFFFF, 0)        -> deluge::notify::raise(deluge::notify::Dirty::GridMain);
+  uiNeedsRendering(X, 0xFFFFFFFF, 0)        -> deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
   uiNeedsRendering(X, 0, 0xFFFFFFFF)        -> raise(Dirty::GridSidebar)
   uiNeedsRendering(X) / (X, 0xFFFFFFFF, 0xFFFFFFFF) / (X, 0x00000000, 0xFFFFFFFF)
                                             -> raise(GridMain); raise(GridSidebar)  (both / sidebar)
@@ -35,7 +35,7 @@ import re
 import sys
 from pathlib import Path
 
-RAISE = "deluge::notify::raise(deluge::notify::Dirty::{})"
+RAISE = "deluge::base::notify::raise(deluge::base::notify::Dirty::{})"
 # (?<![\w:]) before each call's leading identifier: refuses to match as a suffix of a longer
 # name (e.g. "myuiNeedsRendering") or after a scope/member-access operator that would make it
 # part of a different, unrelated qualified name.

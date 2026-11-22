@@ -7,7 +7,6 @@
 /// when a value is refused or leaves a record and its engine copy apart. Prints `SONG-SETTINGS <group> <path> n=<k>`
 /// per path, k counting the values applied across the song's owners.
 
-#include "deluge-project/setting_group.h"
 #include "extern.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -25,9 +24,10 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "project/setting_group.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
 #include "scenarios/slot_coherence.h"

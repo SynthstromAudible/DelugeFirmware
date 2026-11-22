@@ -14,7 +14,7 @@
 #include "support/oracle_table.h"
 
 #include "board_layout.hpp"
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <array>
 #include <cstdint>
@@ -27,7 +27,7 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief The main grid's pads, indexed `[y][x]` with y = 0 the bottom row.
 using OraclePads = std::array<std::array<RGB, kDisplayWidth>, kDisplayHeight>;
@@ -134,4 +134,4 @@ private:
 	}
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

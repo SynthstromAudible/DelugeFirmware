@@ -1,5 +1,5 @@
 /// @file
-/// @brief `deluge::scenes::menu::NoteBridge`, installed by `wireShellNoteBridge()`,
+/// @brief `deluge::ui::scenes::menu::NoteBridge`, installed by `wireShellNoteBridge()`,
 ///        against the REAL `instrumentClipView` and a real `Song`/clip (the spec is a stated
 ///        sample, not full coverage of all sixteen members).
 ///
@@ -58,16 +58,16 @@
 /// selection mechanics, `adjust_note_velocity`'s gate shape, `row_probability`'s row-creation body).
 
 #include "gui/ui/shell_note_bridge.h"
-#include "scenes/menu/note_bridge.h"
+#include "ui/scenes/menu/note_bridge.h"
 
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/ui.h"            // setRootUILowLevel, openUI
 #include "model/action/action_logger.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
@@ -89,8 +89,8 @@
 
 #include "support/spec_main.h"
 
-namespace menu = deluge::scenes::menu;
-using deluge::scenes::spec::open_note_mode_over_clip_view;
+namespace menu = deluge::ui::scenes::menu;
+using deluge::ui::scenes::spec::open_note_mode_over_clip_view;
 
 namespace {
 
@@ -182,7 +182,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 	it("reads note_selected and note_velocity against a note selected the way InstrumentClipView does", _ {
 		RealNoteSelectionGuard guard;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		guard.select_note(80);
 
 		const menu::NoteBridge* bridge = menu::note_bridge();
@@ -193,7 +193,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	it("adjust_note_velocity, outside the note editor with no popup up, leaves the model unchanged and raises no "
 	   "popup -- note::Velocity's adjustVelocity(offset, false) and instrument_clip_view.cpp's gate", _ {
 		RealNoteSelectionGuard guard;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		guard.select_note(80);
 
 		const menu::NoteBridge* bridge = menu::note_bridge();
@@ -211,11 +211,11 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	it("adjust_note_velocity commits when a popup is already up -- the gate's display->hasPopup() arm", _ {
 		// `ActionLogger::getNewAction` refuses an edit while anything but the root UI is current, so the
 		// clip view is seated as both, as on the device.
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		ActionLogGuard logs;
 		RealNoteSelectionGuard guard;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		guard.select_note(80);
 
 		display->displayPopup("VEL");
@@ -226,11 +226,11 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 	it("the note-mode arm: with the note editor open and no popup, adjust_note_velocity commits on the FIRST turn "
 	   "and raises no popup -- InstrumentClipView::adjustVelocity's inSoundEditor sees the mode", _ {
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;
 		RealNoteSelectionGuard guard;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		guard.select_note(80);
 		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteEditor)).to_be_true();
 
@@ -250,11 +250,11 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 	it("the note-mode arm: with the note editor open and no popup, adjust_note_probability commits on the FIRST "
 	   "turn and raises no PROBABILITY popup -- InstrumentClipView::adjustNoteParameterValue's inNoteEditor", _ {
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;
 		RealNoteSelectionGuard guard;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		guard.select_note(80);
 		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteEditor)).to_be_true();
 
@@ -270,12 +270,12 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 	it("the note-mode arm: with the note-row editor open and no popup, adjust_row_probability commits on the "
 	   "FIRST turn and raises no popup -- InstrumentClipView::setNoteRowParameterValue's inNoteRowEditor", _ {
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;
 		RestoreLastAuditionedY restore_y;
 		RealNoteSelectionGuard guard; // the `display` and `currentPlaybackMode` seeds; no note is pressed
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		instrumentClipView.lastAuditionedYDisplay = 1;
 		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteRowEditor)).to_be_true();
 
@@ -291,7 +291,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 
 	it("row_probability creates a note row on a non-kit clip at an auditioned y with none yet", _ {
 		RestoreLastAuditionedY restore_y;
-		auto f = deluge::scenes::spec::make_synth_song();
+		auto f = deluge::ui::scenes::spec::make_synth_song();
 		// A y with no row: `make_synth_song` places none at all, and nothing above this example has
 		// touched y 1.
 		instrumentClipView.lastAuditionedYDisplay = 1;
@@ -317,7 +317,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	   "that same y: without sequence::Direction::getIndividualNoteRow's "
 	   "non-kit test, this would read that DISPLAYED DRUM's row instead", _ {
 		RestoreLastAuditionedY restore_y;
-		auto f = deluge::scenes::spec::make_kit_song();
+		auto f = deluge::ui::scenes::spec::make_kit_song();
 		// `InstrumentClip::getNoteRowOnScreen`'s kit arm indexes `noteRows` at `yDisplay + yScroll`; `yScroll` is
 		// `uint8_t lastAuditionedYDisplay` (`gui/views/ instrument_clip_view.h`) added to a signed offset the
 		// constructor derives from the song's root note (`InstrumentClip::InstrumentClip` in `instrument_clip.cpp`),
@@ -326,7 +326,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		// -- so `yDisplay` 0 lands on `noteRows[0]`, where `add_drum`'s one drum row goes (`atStart=false` on a clip
 		// with no rows yet).
 		f.clip->yScroll = 0;
-		auto* drum = deluge::scenes::spec::add_drum<GateDrum>(f);
+		auto* drum = deluge::ui::scenes::spec::add_drum<GateDrum>(f);
 		(void)drum;
 		instrumentClipView.lastAuditionedYDisplay = 0;
 

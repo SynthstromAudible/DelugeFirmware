@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "base/function_ref.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/track_chain.h"
-#include "foundation/function_ref.h"
 #include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
@@ -95,7 +95,7 @@ struct ContentBlock {
 };
 
 /// @brief A track's content render: returns whether anything rendered.
-using Content = function_ref<bool(const ContentBlock&)>;
+using Content = base::function_ref<bool(const ContentBlock&)>;
 
 /// @brief A kit's or audio track's channel strip: its insert chain, the chain's settings and the render's copy of them,
 /// and which values its knobs edit.

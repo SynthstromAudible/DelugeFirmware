@@ -21,13 +21,13 @@
 /// @brief The Deluge's board profile for the controls layer, from the board's own dimensions.
 
 #include "board_layout.hpp"
-#include "controls/board.h"
+#include "ui/controls/board.h"
 
 /// @brief The Deluge: eight mod buttons, two pressable gold knobs, the 16x8 pad grid and its two-column sidebar.
-inline constexpr deluge::controls::Board kDelugeControls{.sections = kNumModButtons,
-                                                         .slots = kNumPhysicalModKnobs,
-                                                         .slot_press = true,
-                                                         .pad_columns = kDisplayWidth,
-                                                         .pad_rows = kDisplayHeight,
-                                                         .sidebar_columns = kSideBarWidth,
-                                                         .indicator_leds = kNumGoldKnobIndicatorLEDs};
+inline constexpr deluge::ui::controls::Board kDelugeControls{.sections = kNumModButtons,
+                                                             .slots = kNumPhysicalModKnobs,
+                                                             .slot_press = true,
+                                                             .pad_columns = kDisplayWidth,
+                                                             .pad_rows = kDisplayHeight,
+                                                             .sidebar_columns = kSideBarWidth,
+                                                             .indicator_leds = kNumGoldKnobIndicatorLEDs};

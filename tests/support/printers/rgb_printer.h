@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <format>
 #include <ostream>

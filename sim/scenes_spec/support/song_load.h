@@ -14,7 +14,7 @@
 #include <optional>
 #include <string_view>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Load @p xml into a new song, as a song file is read.
 /// @param xml The song file's text.
@@ -51,4 +51,4 @@ inline SoundInstrument* first_synth(Song& song) {
 	return nullptr;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

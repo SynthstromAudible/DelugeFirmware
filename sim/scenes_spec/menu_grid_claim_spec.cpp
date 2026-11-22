@@ -10,16 +10,16 @@
 /// What it deliberately cannot see: the forwarding path (`ShellHostUI::claimsGridPad` in `gui/ui/shell_host_ui.cpp`,
 /// which reads `grid_pad_claim()`) and any grid-pad test through a `Shell`. This file only opens a real `MenuScene` on
 /// a real root (`MenuScene::open` writes `ctx_` and resets `st_` without needing a `Shell` at all, in
-/// `scenes/menu/menu_scene.cpp`) and reads the new virtual straight off it.
+/// `ui/scenes/menu/menu_scene.cpp`) and reads the new virtual straight off it.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/scene.h"
 
-#include "scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
 
 #include "support/song_fixture.h"
 
@@ -28,10 +28,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::GridPadClaim;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 
@@ -89,7 +89,7 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	it("answers All for a scene that does not override it", _ {
 		// The default is the safe direction: a scene that forgets to answer forwards nothing,
 		// rather than forwarding something it wanted.
-		expect(deluge::scenes::context_menu::context_menu_scene().grid_pad_claim()).to_equal(GridPadClaim::All);
+		expect(deluge::ui::scenes::context_menu::context_menu_scene().grid_pad_claim()).to_equal(GridPadClaim::All);
 	});
 });
 // clang-format on

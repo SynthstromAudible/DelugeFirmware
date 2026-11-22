@@ -19,8 +19,6 @@
 
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/param_automation.h"
-#include "deluge-project/sound_routing_codec.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/pitch/fine_tune.h"
@@ -34,12 +32,12 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/pages.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/state_rules.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/pages.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/state_rules.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/clock.h"
 #include "libdeluge/system.h"
@@ -78,7 +76,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
@@ -87,6 +85,8 @@
 #include "processing/sound/param_manager_view.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/param_automation.h"
+#include "project/sound_routing_codec.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_wave_table_range.h"
@@ -191,13 +191,14 @@ Sound::Sound()
 	}); // Good for samples, I think
 
 	// The default knobs: the instrument's published page for each mod button.
-	takeKnobsOf(*this, deluge::instrument::kDevicePages);
+	takeKnobsOf(*this, deluge::instruments::classic::kDevicePages);
 	expressionSourcesChangedAtSynthLevel.reset();
 
 	paramLPF.p = PARAM_LPF_OFF;
 
 	// A new sound plays a new synth's state, its effects following the song
-	adoptState(deluge::instrument::with_song_defaults(deluge::instrument::SoundState{}, deluge::model::songDefaults()));
+	adoptState(deluge::instruments::classic::with_song_defaults(deluge::instruments::classic::SoundState{},
+	                                                            deluge::model::songDefaults()));
 	AudioEngine::sounds.add(this);
 }
 
@@ -253,7 +254,7 @@ void Sound::initParams(ParamManager* paramManager) {
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
-	const deluge::instrument::SoundState before = *state_;
+	const deluge::instruments::classic::SoundState before = *state_;
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
@@ -273,7 +274,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	patchedParams->params[params::LOCAL_LPF_FREQ].setBase(*patchedParams->docForParam(params::LOCAL_LPF_FREQ),
 	                                                      2147483647);
 
-	takeKnobsOf(*this, deluge::instrument::kSamplePages);
+	takeKnobsOf(*this, deluge::instruments::classic::kSamplePages);
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);
@@ -282,11 +283,11 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	adoptState(deluge::instrument::as_sample_sound(before));
+	adoptState(deluge::instruments::classic::as_sample_sound(before));
 }
 
 void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
-	const deluge::instrument::SoundState before = *state_;
+	const deluge::instruments::classic::SoundState before = *state_;
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -330,7 +331,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	adoptState(deluge::instrument::as_default_synth(before));
+	adoptState(deluge::instruments::classic::as_default_synth(before));
 }
 
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
@@ -349,7 +350,7 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 }
 
 void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
-	const deluge::instrument::SoundState before = *state_;
+	const deluge::instruments::classic::SoundState before = *state_;
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -382,7 +383,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	adoptState(deluge::instrument::as_blank_synth(before, is_dx));
+	adoptState(deluge::instruments::classic::as_blank_synth(before, is_dx));
 }
 
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -1097,7 +1098,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	}
 
 	const deluge::synth::NoteFacts facts = noteFacts(modelStack);
-	using HeldNote = deluge::instrument::VoicePool<SoundVoiceHost>::HeldNote;
+	using HeldNote = deluge::instruments::classic::VoicePool<SoundVoiceHost>::HeldNote;
 	std::optional<HeldNote> held;
 	Arpeggiator* arpeggiator = nullptr;
 	if (!facts.arpeggiating && facts.falls_back) {
@@ -1769,7 +1770,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .engine_in_stereo = AudioEngine::renderInStereo,
 		    .pitch_adjust = pitchAdjust,
 		};
-		deluge::instrument::SoundBlockFacts facts{
+		deluge::instruments::classic::SoundBlockFacts facts{
 		    .has_filters = hasFilters(),
 		    .lpf_mode = renderEffects().filter.lpf_mode,
 		    .hpf_mode = renderEffects().filter.hpf_mode,
@@ -1802,7 +1803,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		const deluge::synth::BlockValues blockValues = deluge::instrument::DelugeSynth::begin_block(hostBlock, facts);
+		const deluge::synth::BlockValues blockValues =
+		    deluge::instruments::classic::DelugeSynth::begin_block(hostBlock, facts);
 
 		// The matrix's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
@@ -2357,9 +2359,9 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	if (element == nullptr) {
 		return Error::FILE_CORRUPTED;
 	}
-	deluge::instrument::SoundState decoded = *state_;
-	if (!deluge::instrument::decode(*element, decoded,
-	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
+	deluge::instruments::classic::SoundState decoded = *state_;
+	if (!deluge::instruments::classic::decode(*element, decoded,
+	                                          {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
 		return Error::FILE_CORRUPTED;
 	}
 	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
@@ -2382,10 +2384,10 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	// Old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
-	if (deluge::instrument::synth_mode(decoded) == SynthMode::FM
+	if (deluge::instruments::classic::synth_mode(decoded) == SynthMode::FM
 	    && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		deluge::instrument::sound_effects(decoded).filter.hpf_mode = FilterMode::OFF;
-		deluge::instrument::sound_effects(decoded).filter.lpf_mode = FilterMode::OFF;
+		deluge::instruments::classic::sound_effects(decoded).filter.hpf_mode = FilterMode::OFF;
+		deluge::instruments::classic::sound_effects(decoded).filter.lpf_mode = FilterMode::OFF;
 	}
 	if (Error error = applyState(decoded); error != Error::NONE) {
 		return error;
@@ -2402,7 +2404,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// The sound plays what the file holds, as the decode makes it; the reader above set its runtime to the same, but
 	// for a mod FX type the runtime could not allocate, which it plays without
-	deluge::instrument::sound_effects(decoded).mod_fx.type = effects().mod_fx.type;
+	deluge::instruments::classic::sound_effects(decoded).mod_fx.type = effects().mod_fx.type;
 	adoptState(std::move(decoded));
 
 	return Error::NONE;
@@ -2438,18 +2440,18 @@ void Sound::deriveConfig() {
 	synth_.configure(*state_);
 }
 
-static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
-              && deluge::instrument::kMaxUnisonDetune == kMaxUnisonDetune
-              && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
+static_assert(deluge::instruments::classic::kMaxUnisonVoices == kMaxNumVoicesUnison
+              && deluge::instruments::classic::kMaxUnisonDetune == kMaxUnisonDetune
+              && deluge::instruments::classic::kMaxUnisonSpread == kMaxUnisonStereoSpread);
 
-Error Sound::applyState(const deluge::instrument::SoundState& state) {
+Error Sound::applyState(const deluge::instruments::classic::SoundState& state) {
 	// The config the rest of the read plays with, until the read's state is adopted
 	synth_.configure(state);
 	resyncGlobalLFOs();
 
 	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
 	// through; the next effects edit on this sound retries.
-	deluge::effects::EffectStates effects = deluge::instrument::sound_effects(state);
+	deluge::effects::EffectStates effects = deluge::instruments::classic::sound_effects(state);
 	if (effects.mod_fx.type != this->effects().mod_fx.type) {
 		const ModFXType type = effects.mod_fx.type;
 		deluge::model::changeEffects(*effectsOwner(),
@@ -2461,11 +2463,12 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	core().compressor().dsp().set_threshold(deluge::effects::compressor_knobs(effects.compressor).threshold);
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		const OscType type = deluge::instrument::source_type(state, id);
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		const OscType type = deluge::instruments::classic::source_type(state, id);
 		SourceResources& source = sourceResources[s];
 		source.setOscType(type);
-		if (const deluge::instrument::DxPatchState* from = deluge::instrument::dx_patch(state, id)) {
+		if (const deluge::instruments::classic::DxPatchState* from =
+		        deluge::instruments::classic::dx_patch(state, id)) {
 			DxPatch* patch = source.ensureDxPatch();
 			if (patch == nullptr) {
 				return Error::INSUFFICIENT_RAM;
@@ -2480,7 +2483,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 		const bool wavetable = type == OscType::WAVETABLE;
 		source.ranges.clear();
 		(void)source.ranges.changeType(wavetable ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange));
-		for (const deluge::synth::SourceRange& range : deluge::instrument::source_ranges(state, id)) {
+		for (const deluge::synth::SourceRange& range : deluge::instruments::classic::source_ranges(state, id)) {
 			MultiRangeArray::RangeVariant variant =
 			    wavetable ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
 			              : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
@@ -2515,30 +2518,30 @@ MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
 }
 
 void Sound::recordHeldRanges(int32_t s) {
-	const auto id = static_cast<deluge::instrument::SourceId>(s);
+	const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
 	if (std::vector held = sourceResources[s].heldRanges();
-	    !std::ranges::equal(held, deluge::instrument::source_ranges(*state_, id))) {
-		*state_ = deluge::instrument::with_ranges(std::move(*state_), id, std::move(held));
+	    !std::ranges::equal(held, deluge::instruments::classic::source_ranges(*state_, id))) {
+		*state_ = deluge::instruments::classic::with_ranges(std::move(*state_), id, std::move(held));
 	}
 }
 
 void Sound::recordHeldDxPatch(int32_t s) {
-	const auto id = static_cast<deluge::instrument::SourceId>(s);
-	const deluge::instrument::DxPatchState* recorded = deluge::instrument::dx_patch(*state_, id);
+	const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+	const deluge::instruments::classic::DxPatchState* recorded = deluge::instruments::classic::dx_patch(*state_, id);
 	if (std::optional held = sourceResources[s].heldDxPatch();
 	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
-		*state_ = deluge::instrument::with_dx_patch(std::move(*state_), id, held);
+		*state_ = deluge::instruments::classic::with_dx_patch(std::move(*state_), id, held);
 	}
 }
 
-void Sound::adoptState(deluge::instrument::SoundState loaded) {
+void Sound::adoptState(deluge::instruments::classic::SoundState loaded) {
 	// A sound bound into a slot plays the slot's record; any other plays its own state
 	*state_ = std::move(loaded);
-	bindEffects(&deluge::instrument::sound_effects(*state_));
+	bindEffects(&deluge::instruments::classic::sound_effects(*state_));
 	deriveConfig();
 }
 
-void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing) {
+void Sound::bindState(deluge::instruments::classic::SoundState& record, deluge::project::SoundRouting& routing) {
 	if (state_ == &record) {
 		return;
 	}
@@ -2552,8 +2555,8 @@ void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::S
 	routing = *routing_;
 	state_ = &record;
 	routing_ = &routing;
-	bindEffects(
-	    &deluge::instrument::sound_effects(record)); // copies the effects it played, which the move left in place
+	bindEffects(&deluge::instruments::classic::sound_effects(
+	    record)); // copies the effects it played, which the move left in place
 	if (own) {
 		ownedState_ = {}; // no second copy stays behind
 		ownedRouting_ = {};
@@ -2570,7 +2573,7 @@ void Sound::unbindState() {
 	ownedRouting_ = *routing_;
 	state_ = &ownedState_;
 	routing_ = &ownedRouting_;
-	bindEffects(&deluge::instrument::sound_effects(ownedState_));
+	bindEffects(&deluge::instruments::classic::sound_effects(ownedState_));
 	deriveConfig();
 	applyRouting();
 }
@@ -2587,10 +2590,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
 	// its pieces in the file.
 	const deluge::serialization::Value routing = deluge::project::encode_routing(*routing_);
-	const deluge::instrument::SoundPieces pieces =
-	    deluge::instrument::encode_pieces(*state_, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
-	                                      // the threshold the render last applied, its param's
-	                                      core().compressor().dsp().threshold().raw(), &routing);
+	const deluge::instruments::classic::SoundPieces pieces = deluge::instruments::classic::encode_pieces(
+	    *state_, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
+	    // the threshold the render last applied, its param's
+	    core().compressor().dsp().threshold().raw(), &routing);
 
 	writer.writeValue(pieces.head);
 	writer.writeValue(pieces.effect_attributes);

@@ -1,12 +1,12 @@
 #include "model/edits/set_kit_param_value.h"
 
-#include "deluge-project/param_address.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "project/param_address.h"
 
 namespace deluge::edits {
 

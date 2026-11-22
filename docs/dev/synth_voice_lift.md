@@ -6,10 +6,10 @@ the app: it lives in the synth library, builds with the library's flags and warn
 holds it to the library's boundary. A host spec plays it with nothing of the app linked.
 
 The app holds each voice as a `SoundVoice` (`src/deluge/model/voice/voice_part.h`): the instrument's slot
-(`instrument::VoiceSlot`) over one kernel and the app's part — the firmware ports its sources play through and the
+(`instruments::classic::VoiceSlot`) over one kernel and the app's part — the firmware ports its sources play through and the
 playback guides of the files its note plays. It has no back-reference: its `Sound` builds what the kernel reads from
-the sound and hands it over (`src/deluge/processing/sound/sound_voices.cpp`). The sound's `instrument::VoicePool`
-(`src/instruments/deluge/voice_pool.h`, held by its `DelugeSynth::Instance`) is the only code that edits its voice
+the sound and hands it over (`src/deluge/processing/sound/sound_voices.cpp`). The sound's `instruments::classic::VoicePool`
+(`src/instruments/classic/voice_pool.h`, held by its `DelugeSynth::Instance`) is the only code that edits its voice
 list: it runs note on and off, the render loop and the culls, drawing on the app through `SoundVoiceHost`, which
 implements the seam in `src/synth/voice/voice_host.h`.
 
@@ -17,7 +17,7 @@ implements the seam in `src/synth/voice/voice_host.h`.
 
 | When | Input | Built by |
 |---|---|---|
-| Each block, per sound | `BlockValues` (`synth/voice/block_values.h`): the filter slots and route, CPU direness, the synced LFO rates, the sound's MPE values, the osc sync and the slot settings the runtime holds | `DelugeSynth::begin_block`, once for all its voices, from the engine's `synth::HostBlock` and the `instrument::SoundBlockFacts` `Sound::render` gathers |
+| Each block, per sound | `BlockValues` (`synth/voice/block_values.h`): the filter slots and route, CPU direness, the synced LFO rates, the sound's MPE values, the osc sync and the slot settings the runtime holds | `DelugeSynth::begin_block`, once for all its voices, from the engine's `synth::HostBlock` and the `instruments::classic::SoundBlockFacts` `Sound::render` gathers |
 | Each block, per sound | `MatrixBlock` (`synth/matrix/matrix_block.h`): the compiled matrix program, preset values and cable depths the matrix evaluator reads (see `synth_mod_matrix.md`) | `Sound::matrixBlock` |
 | Each block, per voice | `VoiceBlock` (`voice_inputs.h`): each wavetable source's band data, whether a play-once sample may auto-release, which sources render in stereo, the sound's voice count, the voice clock | `Sound::voiceBlock` |
 | Each block, per voice | `VoiceRenderArgs`: the sound's buffer and sample count, stereo and panning flags, the changed sources, the pitch adjust, and the shared scratch (spare buffers, filter scratch, osc-sync scratch) | `Sound::render`, for the pool's `render` |

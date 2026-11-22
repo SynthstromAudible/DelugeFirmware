@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "deluge-project/instrument_slot.h"
-#include "deluge-project/setting_group.h"
+#include "project/instrument_slot.h"
+#include "project/setting_group.h"
 #include "serialization/value.h"
 #include <cstdint>
 #include <functional>

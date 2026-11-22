@@ -17,7 +17,7 @@
 
 #include "modulation/knob_target.h"
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "model/project_bridge/param_ids.h"
 
 namespace deluge::modulation {
@@ -26,7 +26,7 @@ deluge::synth::CableTarget knobWord(const KnobTarget& target) {
 	if (!target) {
 		return {};
 	}
-	if (deluge::instrument::is_cable_depth(target->id)) {
+	if (deluge::instruments::classic::is_cable_depth(target->id)) {
 		return {deluge::bridge::cableWordOf(target->id)};
 	}
 	return deluge::synth::CableTarget::param(static_cast<uint8_t>(target->id.value));

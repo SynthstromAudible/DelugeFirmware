@@ -30,9 +30,9 @@ typedef struct HostScriptButton {
 	uint8_t y;
 } HostScriptButton;
 
-/// The Deluge's 4 × 9 button matrix, row-major, exactly as `src/shell/profiles/deluge.cpp`'s
+/// The Deluge's 4 × 9 button matrix, row-major, exactly as `src/ui/shell/profiles/deluge.cpp`'s
 /// `kMatrix` spells it (which is the `*ButtonCoord` constants of `src/definitions_cxx.hpp` in turn). Names are
-/// `shell::button_name()`'s (`src/shell/profile.cpp`). `ButtonId::None` holes -- (4,0) and
+/// `shell::button_name()`'s (`src/ui/shell/profile.cpp`). `ButtonId::None` holes -- (4,0) and
 /// (4,2) -- carry no button and so are absent.
 static const HostScriptButton k_buttons[] = {
     // y = 0

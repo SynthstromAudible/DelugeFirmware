@@ -41,7 +41,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
-#include "sample-view/peaks.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <algorithm>
 #include <cstring>
@@ -107,7 +107,7 @@ int32_t sampleValueSpan;
 int32_t sampleMaxPeakFromZero;
 // UI-transition state only, never read by the audio tier: SDRAM's zeroed bss holds it (an empty PeakRead is all zero
 // bits, every column PENDING).
-PLACE_SDRAM_BSS deluge::sample_view::PeakRead waveformColumns;
+PLACE_SDRAM_BSS deluge::ui::views::waveform::PeakRead waveformColumns;
 RGB audioClipColour;
 bool sampleReversed;
 

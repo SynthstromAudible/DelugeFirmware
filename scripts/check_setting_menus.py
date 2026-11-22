@@ -11,7 +11,7 @@ to the sound's slot or its controller mappings, so the model keeps holding the s
 holder is allowed by its receiver's name. The sample browser's preview sound, outside the song, is set up by the
 runtime and calls no setter.
 
-Nor may a file under src/deluge/gui or src/scenes write a song setting outside SetSetting: the song's reverb, swing
+Nor may a file under src/deluge/gui or src/ui/scenes write a song setting outside SetSetting: the song's reverb, swing
 interval and disabled scales, a track's name and MIDI or CV device fields, a kit lane's name, a note row's direction,
 an audio clip's descriptor. A gesture calls songSettingFor(), trackSettingFor(), laneSettingFor(),
 noteRowSettingFor() or audioClipSettingFor() (model/edits/setting_edit.h), which write the record and project it.
@@ -26,7 +26,7 @@ Edits, which write the table and project it, and the check cannot tell that poin
 wrote through an alias would go unreported; the mapping tests, which read the table after each gesture, are what catch
 one.
 
-Nor may a file under src/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
+Nor may a file under src/ui/scenes write a param on its AutoParam: a param menu writes through SetParamValue and deletes
 its automation through DeleteParamAutomation, nor set a cable's polarity on its set (SetCablePolarity) (model/edits/).
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
@@ -34,11 +34,11 @@ knob (a `modKnobs[...]` descriptor, or learnModKnob()) also calls recordControls
 holder's file or zone also calls recordRanges() or rangesFor().
 
 Usage:
-    scripts/check_setting_menus.py                    # check src/deluge/gui and src/scenes, exit 1 on a call
+    scripts/check_setting_menus.py                    # check src/deluge/gui and src/ui/scenes, exit 1 on a call
     scripts/check_setting_menus.py --root DIR [DIR]   # check those
 
 Gate setting-menus:
-    no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit: no setter a
+    no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit: no setter a
     setting Edit runs (setTranspose, setOscType, setLfoSync…), no reseed of the record (seedDocRanges, seedDocDxPatch…),
     no direct repeatMode or oscType write; each goes through settingFor()/rangesFor()/dxPatchFor()/recordControlsOf(); a
     sample range's holder is allowed by name. Nor a song setting outside SetSetting: the reverb, swing interval and
@@ -224,7 +224,7 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
         "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",
     },
 }
-DEFAULT_ROOTS = (REPO / "src" / "deluge" / "gui", REPO / "src" / "scenes")
+DEFAULT_ROOTS = (REPO / "src" / "deluge" / "gui", REPO / "src" / "ui" / "scenes")
 
 
 def code_lines(text: str):
@@ -429,7 +429,7 @@ def unrecorded(root: Path) -> list[str]:
     return found
 
 
-SCENES_ROOT = REPO / "src" / "scenes"
+SCENES_ROOT = REPO / "src" / "ui" / "scenes"
 # An engine follow-up the Edit that changed the setting owns: a scenes gesture leaves it to the Edit (SetEngineSetting
 # and SetSourceRanges retune a sound's voices).
 SCENES_FOLLOW_UP = re.compile(r"\b(recalculateAllVoicePhaseIncrements)\s*\(")
@@ -516,7 +516,7 @@ SCENES_PARAM_WRITE = re.compile(
     r"(?:->|\.)\s*(set(?:CurrentValue\w*|Value\w*ForRegion|NodeAtPos)|deleteAutomation\w*|deleteNodesWithinRegion"
     r"|homogenizeRegion|nudgeNonInterpolatingNodesAtPos|setPolarity)\s*\("
 )
-#: The raw param writes allowed under src/scenes, by file (relative to src/scenes) and the text the write's line
+#: The raw param writes allowed under src/ui/scenes, by file (relative to src/ui/scenes) and the text the write's line
 #: holds, each with its reason: none.
 SCENES_PARAM_ALLOWED: dict[str, dict[str, str]] = {}
 
@@ -545,8 +545,8 @@ def scene_param_writes(root: Path, allowed=None) -> list[str]:
 SCENES_ENGINE_CALL = re.compile(
     r"\b(setColourOffset|getOrCreateFirstRange)\s*\(|(?:->|\.)\s*(clear)\s*\(\s*action\b|\b(actionLogger)\s*\."
 )
-#: The engine calls allowed under src/scenes, by file (relative to src/scenes) and the text the call's line holds, each
-#: with its reason.
+#: The engine calls allowed under src/ui/scenes, by file (relative to src/ui/scenes) and the text the call's line holds,
+#: each with its reason.
 SCENES_ENGINE_ALLOWED: dict[str, dict[str, str]] = {
     "recorder/recorder_scene.cpp": {
         "actionLogger.deleteAllLogs()": "the recorder wipes the undo log on entry, as legacy's opened() does: the "

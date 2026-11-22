@@ -4,9 +4,9 @@
 ///
 /// @par The oracle
 ///
-/// Each expected layout is a literal recorded from the engine (`instrument::remap_for_mode`, `Sound::setupAsSample`),
-/// with the knobs named as a preset file names them: the param, and a cable's sources after `<`. Every check reads the
-/// layout four ways, and all four must equal the literal:
+/// Each expected layout is a literal recorded from the engine (`instruments::classic::remap_for_mode`,
+/// `Sound::setupAsSample`), with the knobs named as a preset file names them: the param, and a cable's sources after
+/// `<`. Every check reads the layout four ways, and all four must equal the literal:
 ///   * the engine's array (`Sound::modKnobs`), which sound logic reads;
 ///   * the preset form, `<modKnobs>` as `Sound::writeToFile` writes it from the engine's array;
 ///   * the record (`DocOutput::controls` / `DocDrum::controls`), which must equal `bridge::controlsOf` of the engine;
@@ -28,11 +28,9 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 
-#include "deluge-project/controller_mapping.h"
-#include "deluge-project/controls_codec.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "instruments/deluge/naming.h"
+#include "instruments/classic/naming.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
@@ -55,10 +53,12 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/menu/nodes/fan_out_rules.h"
+#include "project/controller_mapping.h"
+#include "project/controls_codec.h"
 #include "serialization/value.h"
 #include "storage/storage_manager.h"
 #include "storage/value_serializer.h"
+#include "ui/scenes/menu/nodes/fan_out_rules.h"
 #include "util/functions.h"
 
 #include "support/printers/controller_mapping_printer.h"
@@ -84,7 +84,7 @@ extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);
 namespace {
 
 namespace project = deluge::project;
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::serialization::Value;
@@ -198,7 +198,7 @@ std::vector<std::string> preset_layout(const std::function<void()>& write) {
 /// @brief The song form: `<modKnobs>` as `encode_controls` writes @p record.
 std::vector<std::string> song_layout(const std::vector<project::ControllerMapping>& record) {
 	Value element = Value::makeMap();
-	project::encode_controls(record, deluge::instrument::kNaming, element);
+	project::encode_controls(record, deluge::instruments::classic::kNaming, element);
 	return file_layout(element.find("modKnobs"));
 }
 
@@ -271,11 +271,11 @@ void set_pair(auto& self, Sound& sound, Song& song, uint8_t button, deluge::modu
 	expect(int(deluge::edits::apply(ctx, edit))).to_equal(int(Error::NONE), "the controls edit");
 }
 
-// The layouts, recorded from `instrument::remap_for_mode` (the FM swap) and `Sound::setupAsSample` (a sample row's mode
-// 6).
+// The layouts, recorded from `instruments::classic::remap_for_mode` (the FM swap) and `Sound::setupAsSample` (a sample
+// row's mode 6).
 
-/// A new synth's knobs (`Sound::Sound`), recorded; `instrument::remap_for_mode` brings them back after FM and out of
-/// it.
+/// A new synth's knobs (`Sound::Sound`), recorded; `instruments::classic::remap_for_mode` brings them back after FM and
+/// out of it.
 constexpr Layout kDefaultSynth{"pan",
                                "volumePostFX",
                                "lpfResonance",
@@ -308,7 +308,7 @@ constexpr Layout with_knob(const Layout& base, size_t button, size_t knob, std::
 	return out;
 }
 
-/// The FM swap of the filter button: the modulators' volumes (`instrument::remap_for_mode`, into FM).
+/// The FM swap of the filter button: the modulators' volumes (`instruments::classic::remap_for_mode`, into FM).
 constexpr Layout kDefaultFm = with_button1(kDefaultSynth, "modulator2Volume", "modulator1Volume");
 
 /// @brief A param snapshot of @p pm: for each collection it holds, every value of a param set, how many CCs a MIDI
@@ -379,7 +379,7 @@ int32_t record_mode(Song& song, Output& output) {
 void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params) {
 	StubDisplay stub;
 	display = &stub;
-	deluge::scenes::spec::make_current(f.song);
+	deluge::ui::scenes::spec::make_current(f.song);
 	setRootUILowLevel(&instrumentClipView);
 	// Lit first, so zero is what the knobs' owner leaves them at.
 	indicator_leds::setKnobIndicatorLevel(0, 100, false);
@@ -413,7 +413,7 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	nullifyUIs();
 	view.releaseActiveModControllable();
 	display = nullptr;
-	deluge::scenes::spec::make_current(nullptr);
+	deluge::ui::scenes::spec::make_current(nullptr);
 }
 
 /// @brief Make @p f's clip its output's active clip, as the clip a user has open is.
@@ -443,7 +443,7 @@ void turn_one_step(int32_t knob) {
 
 // clang-format off
 describe layout_characterisation("the knob layouts the engine changes on its own, pinned as it changes them", ${
-	context("the FM swap (instrument::remap_for_mode), through the menu's mode write", _ {
+	context("the FM swap (instruments::classic::remap_for_mode), through the menu's mode write", _ {
 		it("swaps a new synth's filter button for the modulators' volumes, and back", _ {
 			spec::SongFixture f = spec::make_synth_song();
 			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
@@ -460,7 +460,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			    {unpatched_knob(params::UNPATCHED_BASS), unpatched_knob(params::UNPATCHED_TREBLE)},
 			    {param_knob(params::LOCAL_HPF_RESONANCE), param_knob(params::LOCAL_LPF_FREQ)},
 			}};
-			// The pairs `instrument::remap_for_mode` takes into FM: a resonance or the bass on the lower knob, any filter's upper.
+			// The pairs `instruments::classic::remap_for_mode` takes into FM: a resonance or the bass on the lower knob, any filter's upper.
 			constexpr std::array<Layout, 3> kBefore{with_button1(kDefaultSynth, "hpfResonance", "hpfFrequency"),
 			                                        with_button1(kDefaultSynth, "bass", "treble"),
 			                                        with_button1(kDefaultSynth, "hpfResonance", "lpfFrequency")};
@@ -480,7 +480,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			spec::SongFixture f = spec::make_synth_song();
 			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 			set_pair(self, sound, *f.song, 1, param_knob(params::LOCAL_LPF_FREQ), param_knob(params::LOCAL_LPF_RESONANCE));
-			// `instrument::remap_for_mode` only takes a resonance (or the bass) on the lower knob into FM.
+			// `instruments::classic::remap_for_mode` only takes a resonance (or the bass) on the lower knob into FM.
 			constexpr Layout kCutoffLower = with_button1(kDefaultSynth, "lpfFrequency", "lpfResonance");
 			expect_synth_layout(self, f, kCutoffLower);
 			set_mode(sound, "fm");
@@ -494,7 +494,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			constexpr Layout kOn7 = with_knob(with_knob(kDefaultSynth, 7, 0, "lpfResonance"), 7, 1, "lpfFrequency");
 			expect_synth_layout(self, f, kOn7);
 			set_mode(sound, "fm");
-			// `instrument::remap_for_mode` swaps the pair on every button.
+			// `instruments::classic::remap_for_mode` swaps the pair on every button.
 			expect_synth_layout(
 			    self, f, with_knob(with_knob(kDefaultFm, 7, 0, "modulator2Volume"), 7, 1, "modulator1Volume"));
 		});
@@ -506,7 +506,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			         deluge::modulation::knobTargetOf(
 			             deluge::synth::CableTarget::depth_of(params::LOCAL_LPF_RESONANCE, PatchSource::LFO_LOCAL_1)),
 			         param_knob(params::LOCAL_LPF_FREQ));
-			// `instrument::remap_for_mode` swaps a knob only when it is on the plain param, never on a cable's depth.
+			// `instruments::classic::remap_for_mode` swaps a knob only when it is on the plain param, never on a cable's depth.
 			constexpr Layout kCable = with_button1(kDefaultSynth, "lpfResonance<lfo2", "lpfFrequency");
 			expect_synth_layout(self, f, kCable);
 			set_mode(sound, "fm");
@@ -521,7 +521,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			         param_knob(params::LOCAL_MODULATOR_0_VOLUME));
 			expect_synth_layout(
 			    self, f, with_knob(with_knob(kDefaultFm, 3, 0, "modulator2Volume"), 3, 1, "modulator1Volume"));
-			// Out of FM, `instrument::remap_for_mode` brings the modulators' volumes back as the low-pass pair.
+			// Out of FM, `instruments::classic::remap_for_mode` brings the modulators' volumes back as the low-pass pair.
 			set_mode(sound, "subtractive");
 			expect_synth_layout(self, f,
 			                    with_knob(with_knob(kDefaultSynth, 3, 0, "lpfResonance"), 3, 1, "lpfFrequency"));
@@ -535,18 +535,18 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			Output* const outputs = f.song->live.media.first_output;
 			f.song->live.media.first_output = nullptr;
 			const bool changed = deluge::bridge::writeKnobPairs(
-			    sound, *f.song, [](const deluge::instrument::KnobPairs& knobs) {
-				    deluge::instrument::KnobPairs out = knobs;
-				    out[2] = {.lower = deluge::instrument::param::kModulator2Volume,
-				              .upper = deluge::instrument::param::kModulator1Volume};
+			    sound, *f.song, [](const deluge::instruments::classic::KnobPairs& knobs) {
+				    deluge::instruments::classic::KnobPairs out = knobs;
+				    out[2] = {.lower = deluge::instruments::classic::param::kModulator2Volume,
+				              .upper = deluge::instruments::classic::param::kModulator1Volume};
 				    return out;
 			    });
 			f.song->live.media.first_output = outputs;
 			expect(changed).to_be_true();
 			const auto* record = f.song->project.resolveControls(*deluge::bridge::controlsAddressOf(sound));
 			expect(record).not_().to_be_null("the sound's controls record");
-			const deluge::instrument::KnobPair want{.lower = deluge::instrument::param::kModulator2Volume,
-			                                        .upper = deluge::instrument::param::kModulator1Volume};
+			const deluge::instruments::classic::KnobPair want{.lower = deluge::instruments::classic::param::kModulator2Volume,
+			                                        .upper = deluge::instruments::classic::param::kModulator1Volume};
 			if (record != nullptr) {
 				expect(deluge::bridge::knobPairsOf(*record)[2]).to_equal(want, "the record's mod button 2");
 			}
@@ -556,7 +556,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 		it("swaps the drums of a kit the mode's fan-out reaches, and passes over a sample row", _ {
 			spec::SongFixture f = spec::make_kit_song();
-			deluge::scenes::spec::make_current(f.song);
+			deluge::ui::scenes::spec::make_current(f.song);
 			SoundDrum* sample = spec::add_drum<SoundDrum>(f);
 			SoundDrum* synth = spec::add_drum<SoundDrum>(f);
 			// The menu's fan-out for the mode (`fan_out::kRingable`) takes a drum whose oscillators are both
@@ -570,23 +570,23 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect_row_layout(self, f, *synth, kRow);
 			deluge::edits::Context ctx{*f.song, f.song->project};
 			deluge::edits::SetKitSetting fm{*f.instrument->id(), "mode", Value::makeScalar("fm"),
-			                                deluge::scenes::menu::fan_out::kRingable};
+			                                deluge::ui::scenes::menu::fan_out::kRingable};
 			expect(int(deluge::edits::apply(ctx, fm))).to_equal(int(Error::NONE), "the kit's FM mode edit");
 			expect(fm.drums_written()).to_equal(1u);
 			expect_row_layout(self, f, *sample, kRow);
 			expect_row_layout(self, f, *synth, kRowFm);
 			deluge::edits::SetKitSetting back{*f.instrument->id(), "mode", Value::makeScalar("subtractive"),
-			                                  deluge::scenes::menu::fan_out::kRingable};
+			                                  deluge::ui::scenes::menu::fan_out::kRingable};
 			expect(int(deluge::edits::apply(ctx, back))).to_equal(int(Error::NONE), "the kit's subtractive mode edit");
 			expect(back.drums_written()).to_equal(1u);
 			expect_row_layout(self, f, *sample, kRow);
 			expect_row_layout(self, f, *synth, kRow);
-			deluge::scenes::spec::make_current(nullptr);
+			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 
 		it("swaps a sound with no slot in the song, which has no record", _ {
 			spec::SongFixture f = spec::make_synth_song();
-			deluge::scenes::spec::make_current(f.song);
+			deluge::ui::scenes::spec::make_current(f.song);
 			ParamManagerForTimeline params;
 			auto* loose = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
 			loose->setupAsDefaultSynth(&params);
@@ -602,7 +602,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect_layout(self, *loose, nullptr, write_preset, kDefaultFm);
 			set_mode(*loose, "subtractive");
 			expect_layout(self, *loose, nullptr, write_preset, kDefaultSynth);
-			deluge::scenes::spec::make_current(nullptr);
+			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 	});
 
@@ -611,7 +611,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			StubDisplay stub;
 			display = &stub;
 			spec::SongFixture f = spec::make_kit_song();
-			deluge::scenes::spec::make_current(f.song);
+			deluge::ui::scenes::spec::make_current(f.song);
 			auto* kit = static_cast<Kit*>(f.instrument);
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
@@ -652,7 +652,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager, f.song);
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(0);
 			display = nullptr;
-			deluge::scenes::spec::make_current(nullptr);
+			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 	});
 
@@ -671,7 +671,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 			StubDisplay stub;
 			display = &stub;
-			deluge::scenes::spec::make_current(f.song);
+			deluge::ui::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
 			const uint8_t channel = drum->channel();
@@ -687,7 +687,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;
-			deluge::scenes::spec::make_current(nullptr);
+			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 
 		it("moves nothing on a kit's gate drum, and the drum's own channel still turns while it auditions", _ {
@@ -698,7 +698,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 			StubDisplay stub;
 			display = &stub;
-			deluge::scenes::spec::make_current(f.song);
+			deluge::ui::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
 			const uint8_t channel = drum->channel();
@@ -712,7 +712,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;
-			deluge::scenes::spec::make_current(nullptr);
+			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 	});
 });

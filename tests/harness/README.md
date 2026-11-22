@@ -3,13 +3,13 @@
 Level 0 of the UI test harness:
 one script format, one snapshot format, dependency-free so they can be shared by levels 1-3
 and compiled directly into the host BSP. **This directory must not include anything from
-`src/shell`** -- it is compiled into the host BSP, which the shell is not.
+`src/ui/shell`** -- it is compiled into the host BSP, which the shell is not.
 
 - `ui_script.{h,cpp}` -- the script parser (`deluge::harness::parse_script`), plus a C façade
   (`ui_script_load` / `ui_script_next_due`) for the host BSP.
 - `snapshot.{h,cpp}` -- the `.state` formatter (`StateLines`), an `oled_pbm` PBM writer, and
   `write_file`.
-- `tests/harness/fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
+- `tests/harness/fixed_vector.h` -- a standalone copy of `src/base/fixed_vector.h`'s shape (see above for why
   it isn't shared).
 
 ## Script format
@@ -48,7 +48,7 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 
 ## Cards
 
-A script that runs on a card (every directory under `tests/ui-scripts` except `shell/`) is named
+A script that runs on a card (every directory under `tests/ui-scripts` except `ui/shell/`) is named
 `<letters><two digits>-<words>.txt` and names each card it runs on in a line of its own before its first step:
 
     # card: tests/fixtures/card                     a directory in this repository
@@ -71,7 +71,7 @@ random row colour, DIFFERENCES.md D11). `ui_script.cpp` rejects both, so app scr
 Per `snapshot <name>`, written into the output directory:
 
 - `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h`'s
-  dependency-free re-implementation of `tests/unit/gfx/support/pbm.h`'s `page_major_to_pbm` --
+  dependency-free re-implementation of `tests/unit/ui/gfx/support/pbm.h`'s `page_major_to_pbm` --
   `tests/harness` may not include `tests/unit/` headers, since it is also compiled into the host
   BSP). A deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
   `scripts/pbm2png.py` converts for viewing.
@@ -116,7 +116,7 @@ audit.
 | Level | Drives | Location |
 |---|---|---|
 | 1 -- toolkit | one widget/component directly (literal data + POD state -> golden frame); no script | `tests/unit/ui/*_spec.cpp` |
-| 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/unit/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
+| 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/unit/ui/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
 | 3 -- whole app | the real app on `golden_vt_render`, injected on its virtual clock | `tests/ui-scripts/app/*.txt`, goldens `tests/golden/ui/app/` |
 
 Level 3 runs on `golden_vt_render`'s `ui_script` scenario, through the `ui-scripts` gate
@@ -133,8 +133,8 @@ on top of level 0. A script that passes at level 2 is meant to run, unmodified, 
    level 2's last tick is the last step's `at_ms` either way, so a `quit` costs nothing and
    guards against a script that grows a later step by accident.
 2. **Level 2**: call `uitest::expect_script_goldens(self, "<name>", registry, services, opts)`
-   from an `it(...)` block in `tests/unit/shell/scripts_spec.cpp` (or a spec beside it under
-   `tests/unit/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
+   from an `it(...)` block in `tests/unit/ui/shell/scripts_spec.cpp` (or a spec beside it under
+   `tests/unit/ui/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
    `UI_GOT_DIR` against `GOLDEN_ROOT`'s `ui/shell/` (all three set in `tests/trees/host/CMakeLists.txt`;
    `GOLDEN_ROOT` from `tests/support/cmake/golden.cmake`).
    **Level 3**: nothing to wire up -- the `ui-scripts` gate runs every script in
@@ -145,7 +145,7 @@ on top of level 0. A script that passes at level 2 is meant to run, unmodified, 
 4. Asserting `snapshots == N` and diffing against the golden pins the *count*, but not what the
    golden actually says: a golden that was recorded wrong the first time then passes
    forever against itself. Where practical, also read a fact back out of the run's own `.state`/
-   `.pbm` output (`tests/unit/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
+   `.pbm` output (`tests/unit/ui/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
    case is the pattern to follow -- it checks the pressed pad's colour, the two LEDs' declared
    states, and that each counter step actually redrew the OLED) rather than trusting the golden
    diff alone the way `"boots to the splash..."`/`"navigates, shows a popup..."` do.
@@ -189,7 +189,7 @@ argument, once against `*second_registry` -- into sibling `got/<name>/` and
 a recorded golden (there is nothing to record ahead of time when the point is that two
 independent scene tables must agree). A failure names the first file, in sorted order, that
 differs or is missing on either side. It asserts that two scene tables produce identical
-snapshots for one script; `tests/unit/shell/scripts_spec.cpp` runs two identical registries
+snapshots for one script; `tests/unit/ui/shell/scripts_spec.cpp` runs two identical registries
 to pin the mechanism.
 
 ## Level 3 limitations

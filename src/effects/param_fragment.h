@@ -18,7 +18,7 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 
 #include <cstdint>
 #include <optional>

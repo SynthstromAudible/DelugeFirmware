@@ -9,10 +9,10 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The root view's actions, each as the legacy opener it names performs it.
-class HostViewActions final : public scenes::bind::ViewActions {
+class HostViewActions final : public deluge::ui::scenes::bind::ViewActions {
 public:
-	void end_audition(scenes::bind::AuditionEnd how) override {
-		using scenes::bind::AuditionEnd;
+	void end_audition(deluge::ui::scenes::bind::AuditionEnd how) override {
+		using deluge::ui::scenes::bind::AuditionEnd;
 		switch (how) {
 		case AuditionEnd::ClipViewWhenAuditioning:
 			if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -35,7 +35,7 @@ public:
 
 } // namespace
 
-scenes::bind::ViewActions& view_actions() {
+deluge::ui::scenes::bind::ViewActions& view_actions() {
 	// Constant-initialised, so it links as `.data` into SDRAM with the host's other port objects (`sdram_sections.x`).
 	static constinit HostViewActions host;
 	return host;

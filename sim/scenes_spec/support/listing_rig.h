@@ -7,10 +7,10 @@
 ///
 /// @warning **Include this BEFORE `<cppspec.hpp>`** (see `card_access.h`).
 
-#include "scenes/browser/listing.h"
+#include "ui/scenes/browser/listing.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
-#include "notify/notice_queue.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -21,15 +21,15 @@
 #include <string>
 #include <utility>
 
-namespace deluge::scenes::spec::listing {
+namespace deluge::ui::scenes::spec::listing {
 
-using deluge::scenes::browser::Listing;
-using deluge::scenes::browser::ListingAction;
-using deluge::scenes::browser::ListingRequest;
-using deluge::scenes::browser::ListingResult;
-using deluge::scenes::browser::RequestOutcome;
-using deluge::scenes::spec::QuietAudio;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::Listing;
+using deluge::ui::scenes::browser::ListingAction;
+using deluge::ui::scenes::browser::ListingRequest;
+using deluge::ui::scenes::browser::ListingResult;
+using deluge::ui::scenes::browser::RequestOutcome;
+using deluge::ui::scenes::spec::QuietAudio;
 
 inline const std::string kFixtureCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card";
 
@@ -81,16 +81,16 @@ struct NoticeTally {
 
 inline NoticeTally drain_notices() {
 	NoticeTally tally;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
 		switch (n.kind) {
-		case deluge::notify::Notice::Kind::Working:
+		case deluge::base::notify::Notice::Kind::Working:
 			tally.working++;
 			break;
-		case deluge::notify::Notice::Kind::ClearWorking:
+		case deluge::base::notify::Notice::Kind::ClearWorking:
 			tally.clear_working++;
 			break;
-		case deluge::notify::Notice::Kind::Error:
+		case deluge::base::notify::Notice::Kind::Error:
 			tally.error++;
 			tally.last_error_code = n.error_code;
 			break;
@@ -169,4 +169,4 @@ inline ListingRequest open_request(std::string path = {}) {
 	return req;
 }
 
-} // namespace deluge::scenes::spec::listing
+} // namespace deluge::ui::scenes::spec::listing

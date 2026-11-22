@@ -1,6 +1,5 @@
-#include "deluge-project/device_settings.h"
+#include "project/device_settings.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/features.h"
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
@@ -9,7 +8,7 @@
 #include "hid/buttons.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -17,14 +16,15 @@
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/display_mapping.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/display_mapping.h"
+#include "plugin/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
 #include "processing/stem_export/stem_export.h"
+#include "project/features.h"
 #include "serialization/tree.h"
 #include "storage/flash_storage.h"
 #include "util/value_scaling.h"
@@ -39,13 +39,13 @@
 namespace deluge::gui::shell_host {
 namespace {
 
+using deluge::ui::scenes::bind::DeviceWrite;
 using plugin::SettingInfo;
 using project::device_path;
 using project::Feature;
 using project::FeatureInfo;
 using project::FlashCursor;
 using project::ShortcutsVersion;
-using scenes::bind::DeviceWrite;
 using serialization::Value;
 
 // A CHOICE row's index is the legacy value for these.
@@ -54,8 +54,8 @@ static_assert(std::to_underlying(FlashCursor::OFF) == FLASH_CURSOR_OFF);
 static_assert(std::to_underlying(FlashCursor::SLOW) == FLASH_CURSOR_SLOW);
 static_assert(std::to_underlying(ShortcutsVersion::V1) == FlashStorage::kShortcutsVersion1);
 static_assert(std::to_underlying(ShortcutsVersion::V3) == FlashStorage::kShortcutsVersion3);
-static_assert(std::to_underlying(instrument::Polarity::UNIPOLAR) == 0
-              && std::to_underlying(instrument::Polarity::BIPOLAR) == 1);
+static_assert(std::to_underlying(instruments::classic::Polarity::UNIPOLAR) == 0
+              && std::to_underlying(instruments::classic::Polarity::BIPOLAR) == 1);
 static_assert(std::to_underlying(StartupSongMode::LASTSAVED) == 3 && kNumStartupSongMode == 4);
 static_assert(std::to_underlying(SampleRepeatMode::STRETCH) == 3);
 static_assert(std::to_underlying(ThresholdRecordingMode::OFF) == 0 && kLastThresholdRecordingMode == 3);
@@ -444,7 +444,7 @@ std::optional<DeviceWrite> store_defaults(std::string_view path, int32_t stored)
 		return DeviceWrite::STORED;
 	}
 	if (path == device_path::kPatchCablePolarity) {
-		FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(stored);
+		FlashStorage::defaultPatchCablePolarity = static_cast<instruments::classic::Polarity>(stored);
 		return DeviceWrite::STORED;
 	}
 	if (const std::optional<size_t> scale = disabled_scale_of(path)) {
@@ -777,7 +777,7 @@ constexpr std::array kGroupStores{&store_homed,  &store_defaults, &store_pads_an
 /// community features, the audio engine's, USB audio's and the clocks' settings, MIDI's and MIDI follow's, the CV and
 /// gate outputs', and the stem export's options. A store writes the value as the menu's own item does, with that item's
 /// side effects; none saves (the settings menu saves on its close).
-class HostDeviceSettings final : public scenes::bind::DeviceSettings {
+class HostDeviceSettings final : public deluge::ui::scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		for (const auto load_group : kGroupLoads) {
 			if (std::optional<Value> value = load_group(row)) {
@@ -805,7 +805,7 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 
 } // namespace
 
-scenes::bind::DeviceSettings& device_settings() {
+deluge::ui::scenes::bind::DeviceSettings& device_settings() {
 	static HostDeviceSettings settings;
 	return settings;
 }

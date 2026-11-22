@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge-project/param_edit.h" // RegionWriteResult (applyPatch's region return)
+#include "project/param_edit.h" // RegionWriteResult (applyPatch's region return)
 #include <cstdint>
 #include <optional>
 
@@ -50,7 +50,7 @@ struct RegionContext {
 /// ParamAddress and driven by a SetParamValue event, equivalent to the in-line AutoParam poke but sourced from the
 /// model store.
 ///
-/// @note Depends on deluge-project only; the model never references this type, so the dependency stays
+/// @note Depends on project only; the model never references this type, so the dependency stays
 ///       engine to model.
 class ParamSnapshot {
 public:

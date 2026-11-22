@@ -49,7 +49,7 @@
 ///   * **The grid repaint** `View::midiLearnFlash` asks for
 ///     (`getRootUI()->midiLearnFlash()`). This layer has no `Shell`; what is asserted here is
 ///     `MidiLearn::timer_repaints()`'s claim, and the shell honouring a service's claim is
-///     `tests/unit/shell/flush_spec.cpp`'s.
+///     `tests/unit/ui/shell/flush_spec.cpp`'s.
 ///
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
@@ -67,18 +67,17 @@
 /// reachability rule.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/midi_learn.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/midi_learn.h"
+#include "ui/scenes/services/view_state.h"
 
-#include "shell/input_lowering.h"
-#include "shell/leds.h"
-#include "shell/profiles/deluge.h"
-#include "shell/router.h"
-#include "shell/scene_stack.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/leds.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/router.h"
+#include "ui/shell/scene_stack.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/setting_group.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -107,10 +106,11 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
+#include "project/setting_group.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
 
 #include "fakes.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
@@ -131,9 +131,9 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::services::GlobalControls;
-using deluge::scenes::services::LearnTarget;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::services::GlobalControls;
+using deluge::ui::scenes::services::LearnTarget;
 /// @brief `services::MidiLearn`, the class.
 ///
 /// Aliased rather than `using`-declared because the global `enum class MidiLearn`
@@ -142,7 +142,7 @@ using deluge::scenes::services::LearnTarget;
 /// silently resolved to the enum by GCC, which turns every `rig.ml.foo()` into "request for member
 /// in a non-class type". So: `LearnService` is the class, `::MidiLearn` is the enum, and neither
 /// spelling can be mistaken for the other.
-using LearnService = deluge::scenes::services::MidiLearn;
+using LearnService = deluge::ui::scenes::services::MidiLearn;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::deluge_profile;
@@ -481,7 +481,7 @@ void release_all_legacy_buttons() {
 }
 
 /// @brief The declared state of one LED in @p f, or `nullopt` when it was not declared.
-std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, ButtonId b) {
+std::optional<deluge::ui::widgets::core::LedState> led_state(const deluge::ui::widgets::core::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
 		if (static_cast<uint8_t>(id) == static_cast<uint8_t>(b)) {
 			return state;
@@ -494,8 +494,8 @@ std::optional<deluge::ui::LedState> led_state(const deluge::ui::LedFrame& f, But
 ///
 /// A pair rather than a bool, so "nothing declared it" and "declared off" cannot be confused --
 /// they are different facts and this spec asserts both.
-std::pair<bool, bool> led_declared_on(const deluge::ui::LedFrame& f, ButtonId b, uint32_t now_ms) {
-	const std::optional<deluge::ui::LedState> s = led_state(f, b);
+std::pair<bool, bool> led_declared_on(const deluge::ui::widgets::core::LedFrame& f, ButtonId b, uint32_t now_ms) {
+	const std::optional<deluge::ui::widgets::core::LedState> s = led_state(f, b);
 	return {s.has_value(), s.has_value() && deluge::ui::shell::led_is_on(*s, now_ms)};
 }
 
@@ -1081,7 +1081,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin(); // phase ON, exactly as `startMIDILearn` -> `midiLearnFlash` leaves it
 		expect(rig.ml.flash_on()).to_be_true();
-		deluge::ui::LedFrame frame;
+		deluge::ui::widgets::core::LedFrame frame;
 		rig.ml.leds(frame);
 
 		const auto [play_declared, play_on] = led_declared_on(frame, ButtonId::Play, 0);
@@ -1095,7 +1095,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// Hold RECORD, and it starts following the phase without ever being learned (`View::midiLearnFlash`'s RECORD
 		// arm).
 		rig.ml.thing_pressed(LearnTarget::global_command(deluge::project::GlobalCommand::RECORD), true);
-		deluge::ui::LedFrame held_frame;
+		deluge::ui::widgets::core::LedFrame held_frame;
 		rig.ml.leds(held_frame);
 		const auto [held_declared, held_on] = led_declared_on(held_frame, ButtonId::Record, 0);
 		expect(held_declared).to_be_true();
@@ -1107,7 +1107,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// port whose LEDs did not move with the phase would be a different UI.
 		rig.ml.tick(1'000 + LearnService::kFlashMs, LearnService::kFlashMs);
 		expect(rig.ml.flash_on()).to_be_false();
-		deluge::ui::LedFrame flipped;
+		deluge::ui::widgets::core::LedFrame flipped;
 		rig.ml.leds(flipped);
 		const auto [play2_declared, play2_on] = led_declared_on(flipped, ButtonId::Play, 0);
 		const auto [rec2_declared, rec2_on] = led_declared_on(flipped, ButtonId::Record, 0);
@@ -1124,25 +1124,25 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// forever, at `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)`
 		// (`View::endMIDILearn`).
 		LearnRig rig;
-		deluge::ui::LedFrame off_frame;
+		deluge::ui::widgets::core::LedFrame off_frame;
 		rig.ml.leds(off_frame);
-		const std::optional<deluge::ui::LedState> off = led_state(off_frame, ButtonId::Learn);
+		const std::optional<deluge::ui::widgets::core::LedState> off = led_state(off_frame, ButtonId::Learn);
 		expect(off.has_value()).to_be_true();
-		expect(off->kind).to_equal(deluge::ui::LedState::Kind::Off);
+		expect(off->kind).to_equal(deluge::ui::widgets::core::LedState::Kind::Off);
 
 		rig.ml.begin();
-		deluge::ui::LedFrame on_frame;
+		deluge::ui::widgets::core::LedFrame on_frame;
 		rig.ml.leds(on_frame);
-		const std::optional<deluge::ui::LedState> on = led_state(on_frame, ButtonId::Learn);
+		const std::optional<deluge::ui::widgets::core::LedState> on = led_state(on_frame, ButtonId::Learn);
 		expect(on.has_value()).to_be_true();
-		expect(on->kind).to_equal(deluge::ui::LedState::Kind::Shared);
-		expect(on->rate).to_equal(deluge::ui::BlinkRate::Fast);
+		expect(on->kind).to_equal(deluge::ui::widgets::core::LedState::Kind::Shared);
+		expect(on->rate).to_equal(deluge::ui::widgets::core::BlinkRate::Fast);
 		// A blink with no deadline: legacy's `numBlinks == 255` never folds back
 		// (`blinkLed` in `hid/led/indicator_leds.cpp`, `updateBlinkingLedStates`).
 		expect(on->until_ms).to_equal(0);
 		// And it really does change on its own at the fast period, which is what makes the declaration a blink rather
 		// than a name for one.
-		const deluge::ui::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
+		const deluge::ui::widgets::core::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
 		expect(deluge::ui::shell::led_is_on(*on, 0, phases))
 		    .not_().to_equal(deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs, phases));
 	});
@@ -1282,14 +1282,14 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		                                      ::LearnedMIDI{});
 
 		// The clip the view has open is the MIDI track's, as the app tells the view state.
-		deluge::scenes::services::view_state().set_current_view(
+		deluge::ui::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(fixture.song->getCurrentClip()));
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().b), 8, 74, 100);
-		deluge::scenes::services::view_state().set_current_view({});
+		deluge::ui::scenes::services::view_state().set_current_view({});
 
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
@@ -1624,7 +1624,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(reset_legacy_learn()).to_be_true();
 
 		// The clip the view has open is the MIDI track's, as the app tells the view state.
-		deluge::scenes::services::view_state().set_current_view(
+		deluge::ui::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(fixture.song->getCurrentClip()));
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
@@ -1634,7 +1634,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(fixture.song->project.mappings.find(target)).to_be_null();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(deluge::midi::id_of(cables().a), 3, 74, 100);
-		deluge::scenes::services::view_state().set_current_view({});
+		deluge::ui::scenes::services::view_state().set_current_view({});
 		expect(held(*fixture.song, target).channel_or_zone).to_equal(3);
 		expect(fixture.instrument->midiInput.channelOrZone).to_equal(3);
 		expect(fixture.instrument->midiInput.cable).to_equal(&cables().a);
@@ -1656,7 +1656,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("a pad learn hands the learn port one learn request by its mapping target, with the note's device on an input", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		deluge::scenes::bind::test::RecordingLearnSink recording;
+		deluge::ui::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
 		bind::Ports ports = menu::host_ports();
@@ -1667,8 +1667,8 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.note_on_received(deluge::midi::id_of(cables().a), 4, 52, 127);
 		expect(recording.calls.size()).to_equal(size_t{1});
 		if (!recording.calls.empty()) {
-			const deluge::scenes::bind::test::RecordingLearnSink::Call& learn = recording.calls[0];
-			expect(learn.kind).to_equal(deluge::scenes::bind::test::RecordingLearnSink::Call::Kind::LEARN);
+			const deluge::ui::scenes::bind::test::RecordingLearnSink::Call& learn = recording.calls[0];
+			expect(learn.kind).to_equal(deluge::ui::scenes::bind::test::RecordingLearnSink::Call::Kind::LEARN);
 			expect(learn.target)
 			    .to_equal(deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}});
 			expect(learn.command.has_value()).to_be_true();
@@ -1676,7 +1676,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 				expect(*learn.command).to_equal(command(cables().a, 4, 52));
 			}
 			expect(learn.input).to_equal(
-			    deluge::scenes::bind::LearnInput{.device = deluge::midi::id_of(cables().a), .channel_or_zone = 4});
+			    deluge::ui::scenes::bind::LearnInput{.device = deluge::midi::id_of(cables().a), .channel_or_zone = 4});
 		}
 		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()}))
 		    .to_be_null(); // only the request: nothing else wrote
@@ -1685,7 +1685,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("a release that deletes hands the learn port an unlearn", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		deluge::scenes::bind::test::RecordingLearnSink recording;
+		deluge::ui::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
 		bind::Ports ports = menu::host_ports();
@@ -1734,7 +1734,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
-		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
+		deluge::ui::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
 		const CableDefaults defaults{cables().b, 2, 0x10000000, 5};
 
 		LearnRig rig;
@@ -1746,8 +1746,8 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::drum(*drum->id()), fixture.clip->id()))
 		    .to_equal(std::optional<int32_t>{0x10000000});
-		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		const deluge::ui::scenes::menu::MenuContext ctx =
+		    deluge::ui::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		if (ctx.addresses.note_row) {
 			expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row,
@@ -1755,7 +1755,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(std::string{"5"});
 		}
 		fixture.song->setCurrentClip(nullptr);
-		deluge::scenes::services::view_state().set_current_view({});
+		deluge::ui::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 
@@ -1902,9 +1902,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
-		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
-		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		deluge::ui::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
+		const deluge::ui::scenes::menu::MenuContext ctx =
+		    deluge::ui::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 		const std::string before =
 		    ctx.addresses.note_row
@@ -1934,7 +1934,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(before);
 		}
 		fixture.song->setCurrentClip(nullptr);
-		deluge::scenes::services::view_state().set_current_view({});
+		deluge::ui::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 
@@ -1987,7 +1987,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
 		fixture.song->setCurrentClip(fixture.clip);
-		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
+		deluge::ui::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
 		NoteRow* row = fixture.clip->getNoteRowForDrum(drum);
 		expect(row).not_().to_be_null();
 		(void)row->paramManager.getOrCreateExpressionParamSet(true); // a played bend made it, as a note would
@@ -1995,9 +1995,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
-		expect(deluge::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
-		const deluge::scenes::menu::MenuContext ctx =
-		    deluge::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
+		expect(deluge::ui::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
+		const deluge::ui::scenes::menu::MenuContext ctx =
+		    deluge::ui::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		const std::string before =
 		    ctx.addresses.note_row
 		        ? recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, *ctx.addresses.note_row, "bendRange")
@@ -2018,7 +2018,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(before);
 		}
 		fixture.song->setCurrentClip(nullptr);
-		deluge::scenes::services::view_state().set_current_view({});
+		deluge::ui::scenes::services::view_state().set_current_view({});
 		currentSong = saved;
 	});
 
@@ -2033,7 +2033,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
 		(void)fixture.clip->paramManager.getOrCreateExpressionParamSet(); // a played bend made it, as a note would
-		expect(deluge::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(deluge::ui::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		const std::string before = recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
 		                                        deluge::project::ClipAddress{fixture.clip->id()}, "bendRange");
 		const CableDefaults defaults{cables().a, 6, 0, 9};

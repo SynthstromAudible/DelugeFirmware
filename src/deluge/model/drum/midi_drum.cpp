@@ -16,13 +16,13 @@
  */
 
 #include "model/drum/midi_drum.h"
-#include "deluge-project/doc_drum.h"
-#include "foundation/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
+#include "base/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
+#include "project/doc_drum.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
 

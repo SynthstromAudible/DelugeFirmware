@@ -3,17 +3,16 @@
 // never another root's, and choosing the Custom preset still opens the octave and note pages.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/sound_arp.h"
-#include "scenes/menu/nodes/sound_randomizer.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/sound_arp.h"
+#include "ui/scenes/menu/nodes/sound_randomizer.h"
 
-#include "deluge-project/setting_group.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
@@ -21,6 +20,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
+#include "project/setting_group.h"
 
 #include "support/song_fixture.h"
 
@@ -34,11 +34,11 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 namespace {
 

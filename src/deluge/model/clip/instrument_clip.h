@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "base/function_ref.h"
 #include "definitions_cxx.hpp"
-#include "foundation/function_ref.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
@@ -218,13 +218,12 @@ public:
 	///        the interaction tier appends them (deluge::modulation::catchUpArrangementTakes()).
 	/// @brief Call @p visit with each note row of this take whose source row has its own length, and that source row:
 	///        those repeat at their own end, each in its own stacks.
-	void
-	forEachRowWithOwnLength(ModelStackWithTimelineCounter* thisModelStack,
-	                        ModelStackWithTimelineCounter* otherModelStack,
-	                        deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit);
+	void forEachRowWithOwnLength(
+	    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+	    deluge::base::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit);
 	void forEachRepeatedManager(
 	    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
-	    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit);
+	    deluge::base::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit);
 	void instrumentBeenEdited() override;
 	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
 	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.

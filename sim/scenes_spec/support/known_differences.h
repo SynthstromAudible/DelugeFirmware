@@ -10,12 +10,12 @@
 /// there (the port's answer is the one stated here, the row is main's), and requires the number of excused nodes to be
 /// the count below. Fixing the port, or breaking another node the same way, turns the example red.
 
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include <cstddef>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @name The shortcut layouts' excusals
 /// Where a shortcut cell's port node cannot be compared with main's reference row by plain equality, pinned by identity
@@ -26,7 +26,7 @@ namespace deluge::scenes::spec {
 ///        digit: the two oscillator levels, the two sample recorders and the two FM modulator levels), where main's
 ///        reference row holds the resolved name. The cell is compared by presence of both names.
 inline bool shortcut_name_is_placeholder(const menu::Node& node) {
-	namespace nodes = deluge::scenes::menu::nodes;
+	namespace nodes = deluge::ui::scenes::menu::nodes;
 	return &node == &nodes::source0_volume || &node == &nodes::source1_volume || &node == &nodes::sample0_recorder
 	       || &node == &nodes::sample1_recorder || &node == &nodes::modulator0_volume
 	       || &node == &nodes::modulator1_volume;
@@ -55,4 +55,4 @@ inline constexpr size_t kLandingUnlistedPageCells = 4;
 
 /// @}
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

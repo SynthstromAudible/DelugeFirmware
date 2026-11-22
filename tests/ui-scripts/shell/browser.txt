@@ -5,7 +5,7 @@
 #
 # **The shortcut pad is not a convenience here, it is the only door.** `file0_selector` lives on
 # `nodes::source0`, a `Layout::Horizontal` page, and a horizontal page's `columns` widget claims
-# `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select press anywhere
+# `entered` only for a `Kind::Submenu` column (`ui/widgets/oled/columns.cpp`) -- so no select press anywhere
 # in the committed tree descends into it. The shortcut table does: `kSoundCells` puts it at (0,5)
 # (`menu/shortcuts.cpp`), which is legacy's own `paramShortcutsForSounds` cell.
 #

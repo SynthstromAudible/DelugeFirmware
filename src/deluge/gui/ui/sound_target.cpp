@@ -18,7 +18,7 @@
 #include "gui/ui/sound_target.h"
 
 #include "gui/ui/ui.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
@@ -57,11 +57,11 @@ void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype) {
 	}
 }
 
-void setOscTypeFor(SoundTarget& target, deluge::instrument::OscType type) {
+void setOscTypeFor(SoundTarget& target, deluge::instruments::classic::OscType type) {
 	const RangesRetypeWatch watch{*target.source};
 	deluge::edits::settingFor(
 	    *target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "type"),
-	    deluge::serialization::Value::makeScalar(std::string{deluge::instrument::to_string(type)}));
+	    deluge::serialization::Value::makeScalar(std::string{deluge::instruments::classic::to_string(type)}));
 	retargetRangeAfterRetype(target, watch.result());
 }
 

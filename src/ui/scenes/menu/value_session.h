@@ -1,0 +1,85 @@
+#pragma once
+
+/// @file
+/// @brief The menu's value session: loading a focused leaf's value into the edit storage, committing it, and the
+///        latch a value takes as its session begins.
+
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/node.h"
+
+#include <cstdint>
+
+namespace deluge::ui::scenes::menu {
+
+/// @brief Why a leaf is being focused -- the discriminator legacy spells as
+///        `soundEditor.getCurrentMenuItem() == this` (`origin/main:src/deluge/gui/menu_item/toggle.h`).
+///
+/// Legacy reaches a bespoke item's work by two routes and treats them differently: `selectButtonPress()` (a press on
+/// the parent's row) *acts*, while `beginSession()` -- which `focusRegained` -> `beginScreen` also runs on every
+/// re-entry, `origin/main:src/deluge/gui/ui/sound_editor.cpp` -- only (re-)initialises. `CustomItem::on_focus` is
+/// `beginSession`, so a port that ran it on every focus transition ran *both* meanings, and an item whose `on_focus`
+/// stands in for a press fired without one. This enum keeps that distinction. **The question is "a select press on THIS
+/// node's own row?", not "a press at all".** A **shortcut-pad jump is a real press**, just not one on this node's row:
+/// legacy reaches a shortcut jump through `beginSession`, never `selectButtonPress`, so the two values name whether the
+/// row was pressed rather than inventing a third cause for a distinction nothing acts on.
+/// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone: such an item is given
+/// `on_focus` for `RowPress` and withheld it for `NoRowPress`.
+enum class FocusCause : uint8_t {
+	/// A select press on this node's own row in its parent's list: `enter_child` ->
+	/// `descend_to`, the one path with a press behind it. Legacy's `selectButtonPress` path.
+	RowPress,
+	/// Focus reached this node by any other route, so nothing pressed its row: `retarget` (a
+	/// `SceneId` deep link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and
+	/// `ascend`'s re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
+	/// `Toggle::selectButtonPress`'s guard exists for. A shortcut jump belongs here **because
+	/// its press was on a grid pad, not on this row** -- it is not a "restore".
+	NoRowPress,
+};
+
+/// @brief The value being edited and the edit storage's round trip through `bindings`. Its state belongs to one visit
+///        of the scene.
+class ValueSession {
+public:
+	/// @brief Begin @p value's session: `Direction::checkPermissionToBeginSession`'s latch
+	/// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`)
+	///        -- when @p value is Play Direction on a non-kit clip, `MenuContext::selected_note_row` takes whether a
+	///        row is auditioning.
+	///
+	/// Taken where the item begins: a re-root, a row press, and a horizontal column gaining focus. Legacy's horizontal
+	/// page also re-takes it on the way back from the item and after each column move (`HorizontalMenu::beginSession`
+	/// and `selectEncoderAction` -> `focusChild`); Play Direction is a column only in the note-row editor, whose root
+	/// answers for the latch (`bindings.cpp`'s `note_row_bridge_direction`), so those re-takes change nothing.
+	void begin(MenuCore core, const Node* value);
+	/// @brief The value the last render's session began on (`focused_value`); a change is a new session.
+	const Node* value() const { return value_; }
+	/// @brief Forget the session's value, so the next render begins a new one.
+	void forget() { value_ = nullptr; }
+
+	/// @brief Load @p node's value into the edit storage its kind uses.
+	/// @param core  The scene's context and state.
+	/// @param node  The leaf.
+	/// @param cause Why this focus is happening -- see `FocusCause`. A `Kind::Custom` node whose item answers
+	///              `CustomItem::on_focus_is_press()` is given `on_focus` only for `FocusCause::RowPress`.
+	void enter_leaf(MenuCore core, const Node& node, FocusCause cause) const;
+	/// @brief Commit the edit storage for @p node through `bindings::write`; a refused write puts the stored value back
+	///        in the edit storage.
+	void commit(MenuCore core, const Node& node) const;
+	/// @brief `MenuItem::readValueAgain`: the focused node's value read again from the model, and a redraw asked for.
+	///
+	/// Only the value storage moves. A number's edit position, a list's scroll and a range's edge stay where the user
+	/// left them, and a page writes nothing, because its columns read live. A custom item re-reads through its
+	/// `on_reread`, which does nothing unless legacy's counterpart takes its value from the model.
+	void read_again(MenuCore core) const;
+
+private:
+	/// @brief A write @p node's commit made was refused: its edit storage reads the stored value again and the screen
+	///        is redrawn, so the page shows only what is stored.
+	/// @param ctx  The scene's context.
+	/// @param st   The scene's state.
+	/// @param node The node whose write was refused.
+	static void refused(MenuContext& ctx, MenuState& st, const Node& node);
+
+	const Node* value_ = nullptr;
+};
+
+} // namespace deluge::ui::scenes::menu

@@ -5,7 +5,7 @@
 //           -e 's|} // namespace deluge::hid::display|} // namespace screensaver_oracle|' \
 //           -e 's|#include "hid/display/starfield.h"|#include "oracle_starfield.h"|'
 //
-// Nothing else is edited. This is the ORACLE the src/ui/oled/starfield.{h,cpp} is compared
+// Nothing else is edited. This is the ORACLE the src/ui/widgets/oled/starfield.{h,cpp} is compared
 // against, frame by frame, in screensaver_scene_spec.cpp -- so it must stay a mechanical
 // transcription of the code as it stood before the move, never a copy of the moved code.
 

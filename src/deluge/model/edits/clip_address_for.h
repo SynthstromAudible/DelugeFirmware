@@ -1,6 +1,6 @@
 #pragma once
 
-#include "deluge-project/clip_address.h"
+#include "project/clip_address.h"
 #include <optional>
 
 class Clip;

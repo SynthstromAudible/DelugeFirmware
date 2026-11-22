@@ -46,9 +46,9 @@ SECTIONS {
         *(.bss._RNv*15deluge_bsp_rust7storage6efatfs6device*)
         /* The scenes' statics: the menu's node-id tables, the scene singletons and their buffers,
          * which the UI tier alone touches, after the boot has zeroed this region. Matched by the
-         * `deluge::scenes` namespace in the mangled name. */
+         * `deluge::ui::scenes` namespace in the mangled name. */
         __scenes_bss_start = .;
-        *(.bss.*6deluge6scenes*)
+        *(.bss.*6deluge2ui6scenes*)
         __scenes_bss_end = .;
         __sdram_bss_end = .;
     } > SDRAM
@@ -106,15 +106,15 @@ SECTIONS {
          * name in the mangled name, so a rename returns them to SRAM. */
         *(.rodata.*6deluge7project11device_path*)
         /* The scenes' menu: its node and cell tables, read by the menu scene and its shortcuts, never
-         * the audio tier or an interrupt. Matched by the `deluge::scenes::menu` namespace in the
+         * the audio tier or an interrupt. Matched by the `deluge::ui::scenes::menu` namespace in the
          * mangled name, so a rename returns them to SRAM, as for the setting tables above. */
         __scenes_menu_tables_start = .;
-        *(.rodata.*6deluge6scenes4menu*)
+        *(.rodata.*6deluge2ui6scenes4menu*)
         __scenes_menu_tables_end = .;
-        /* The scenes' vtables outside `deluge::scenes::menu`, which the pattern above already takes.
+        /* The scenes' vtables outside `deluge::ui::scenes::menu`, which the pattern above already takes.
          * Virtual calls on a scene come from the UI tier only. */
         __scenes_vtables_start = .;
-        *(.rodata._ZTV*6deluge6scenes*)
+        *(.rodata._ZTV*6deluge2ui6scenes*)
         __scenes_vtables_end = .;
         /* The host's port objects and their vtables (`deluge::gui::shell_host`), the waveforms port's
          * column caches among them (its object is `constinit`, so `.data`), which only the
@@ -183,14 +183,14 @@ SECTIONS {
     /* The scenes' menu tables are about 119 KB: far less here means the pattern above no longer
      * matches them and they sit in SRAM's .rodata. */
     ASSERT(__scenes_menu_tables_end - __scenes_menu_tables_start > 65536,
-           "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::scenes::menu data in .sdram_init)")
+           "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::ui::scenes::menu data in .sdram_init)")
 
     /* The scenes' vtables are about 1.4 KB and their statics about 13 KB; far less means a
      * rename stopped the patterns matching them. */
     ASSERT(__scenes_vtables_end - __scenes_vtables_start > 1024,
-           "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::scenes vtables in .sdram_init)")
+           "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::ui::scenes vtables in .sdram_init)")
     ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
-           "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")
+           "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::ui::scenes .bss in .sdram_bss)")
 
     /* The SRAM heap's floor: the on-chip memory left between the image and the RTT reserve. rza1-rt's
      * link.x refuses an image that leaves none; this refuses one that leaves less than the floor. The

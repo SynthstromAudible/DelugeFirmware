@@ -9,9 +9,9 @@
 #include "hid/buttons.h"
 #include "memory/heaps.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/shell/profiles/deluge.h"
 
 namespace AudioEngine {
 uint32_t audioSampleTimer = 0;
@@ -344,10 +344,10 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 }
 
 // ---------------------------------------------------------------------------
-// src/scenes/registry.cpp's and profile.cpp's share: an empty table and the shell's own profile (no l10n hook), so the
-// one global exists.
+// src/ui/scenes/registry.cpp's and profile.cpp's share: an empty table and the shell's own profile (no l10n hook), so
+// the one global exists.
 // ---------------------------------------------------------------------------
-namespace deluge::scenes {
+namespace deluge::ui::scenes {
 
 deluge::ui::shell::SceneRegistry scene_registry() {
 	return deluge::ui::shell::SceneRegistry{std::span<deluge::ui::shell::Scene* const>{}};
@@ -357,7 +357,7 @@ const deluge::ui::shell::BoardProfile& deluge_profile() {
 	return deluge::ui::shell::deluge_profile();
 }
 
-} // namespace deluge::scenes
+} // namespace deluge::ui::scenes
 
 // ---------------------------------------------------------------------------
 // model/settings/runtime_feature_settings.cpp's share: the one global, and the
@@ -418,7 +418,7 @@ void clearKnobIndicatorLevels() {
 // gui/ui/shell_guest_services.cpp's share: the one function, recorded rather
 // than performed. The real one constructs `services::ModKnobs`,
 // `services::GlobalControls` and `services::MidiLearn` -- concrete classes over
-// `model/` from the `deluge_scenes` closure this suite deliberately never builds
+// `model/` from the `deluge_ui_scenes` closure this suite deliberately never builds
 // (`tests/trees/host/CMakeLists.txt`'s note, and `gui/ui/shell_guest_services.h`'s own
 // "why this is its own translation unit"). What a guest spec can say about it is
 // that `opened()` calls it, which is what the counter is for; that the services
@@ -440,9 +440,9 @@ bool menuLearnMode() {
 }
 
 // `gui/ui/shell_action_dispatch.cpp`'s share, on the terms of the one above: the real one
-// reads `deluge::scenes::menu_scene()` and its seven arms name `performanceView`, `audioClipView`,
+// reads `deluge::ui::scenes::menu_scene()` and its seven arms name `performanceView`, `audioClipView`,
 // `stemExport`, two `gui/context_menu/` singletons, `soundEditor` and
-// `hid::display::Screensaver` -- the `deluge_scenes` and legacy-view closures this suite never
+// `hid::display::Screensaver` -- the `deluge_ui_scenes` and legacy-view closures this suite never
 // builds. The counter and the callback are what let
 // `tests/unit/deluge/gui/shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
 // whether `ShellHostUI::timerCallback` polls at all, how often, on which paths, and after what.
@@ -544,7 +544,7 @@ void dispatchShellActions() {
 void discardShellActionsBeforeClose() {
 }
 
-// `gui/ui/browser_host.cpp`'s poll: the real one reads `deluge::scenes::browser::browser_scene()` and performs
+// `gui/ui/browser_host.cpp`'s poll: the real one reads `deluge::ui::scenes::browser::browser_scene()` and performs
 // loads that name `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`.
 void pollShellBrowserHost() {
 	fakelegacyui::browser_host_polls++;
@@ -583,7 +583,7 @@ void releaseShellSlicerBeforeClose() {
 
 // `gui/ui/shell_pad_forward.cpp`'s share, on exactly the same terms as the two above: the real one
 // names `keyboardScreen`, `instrumentClipView`, `performanceView`, `automationView` and
-// `deluge::scenes::menu_scene()` -- the `deluge_scenes` and legacy-view closures this suite never
+// `deluge::ui::scenes::menu_scene()` -- the `deluge_ui_scenes` and legacy-view closures this suite never
 // builds. The counter and the recorded arguments are what let `shell_host_ui_pad_input_spec.cpp` ask the only
 // question that lives on this side of that seam: whether `ShellHostUI::padAction` forwards a pad the
 // scene did not claim, and with which coordinates and velocity -- not which arm the real decision
@@ -633,7 +633,7 @@ bool renderClipViewSidebarUnderMarker(uint32_t, RGB[][kDisplayWidth + kSideBarWi
 // `gui/ui/shell_note_mode.cpp`'s share, on the same terms as `forwardGridPad` above except for the
 // answer: the guest acts on what these return, so each answers the settable value
 // `tests/unit/deluge/gui/support/fake_legacy_ui.h` names rather than a fixed one. The real ones read
-// `deluge::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
+// `deluge::ui::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
 // `sim/scenes_spec/note_mode_spec.cpp`'s.
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	fakelegacyui::note_button_forwards++;

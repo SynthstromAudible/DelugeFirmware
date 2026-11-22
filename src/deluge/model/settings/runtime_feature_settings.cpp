@@ -104,7 +104,7 @@ void RuntimeFeatureSettings::init() {
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
@@ -201,7 +201,7 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 			// Read name
 			currentTag = reader.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
-				deluge::notify::notice("Community file err");
+				deluge::base::notify::notice("Community file err");
 				break;
 			}
 			reader.readTagOrAttributeValueString(currentName);
@@ -210,7 +210,7 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 			// Read value
 			currentTag = reader.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
-				deluge::notify::notice("Community file err");
+				deluge::base::notify::notice("Community file err");
 				break;
 			}
 
