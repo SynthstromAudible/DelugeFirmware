@@ -80,9 +80,10 @@ def sections(**by_name: bytes):
 
 
 class Strings(unittest.TestCase):
-    def read(self, at=None, ranges=(), objects=(), **by_name):
+    def read(self, at=None, ranges=(), objects=(), targets=(), **by_name):
         """strings() over the sections @p by_name, loaded at @p at (section name -> address), in an image whose loaded
-        address ranges are @p ranges and whose data objects (no strings) occupy @p objects."""
+        address ranges are @p ranges, whose data objects (no strings) occupy @p objects, and whose symbols start at
+        @p targets."""
         layout = lambda readelf, elf: (at or {}, list(ranges))
         with (
             mock.patch.object(compare_strings, "section", sections(**by_name)),
@@ -91,6 +92,12 @@ class Strings(unittest.TestCase):
                 compare_strings,
                 "data_objects",
                 lambda nm, elf: list(objects),
+                create=True,
+            ),
+            mock.patch.object(
+                compare_strings,
+                "pointer_targets",
+                lambda nm, elf: set(targets),
                 create=True,
             ),
         ):
@@ -166,12 +173,32 @@ class Strings(unittest.TestCase):
     def words(self, *values: int) -> bytes:
         return struct.pack(f"<{len(values)}I", *values)
 
-    def loaded(self, rodata: bytes, objects=()) -> list[str]:
+    # Where the pointer words below point: symbol starts.
+    SYMBOL_STARTS = frozenset({0x20253245, 0x20253345, 0x20243346, 0x20212121})
+
+    def loaded(
+        self, rodata: bytes, objects=(), targets=SYMBOL_STARTS, base=0x20000000
+    ) -> list[str]:
         return self.read(
-            at={".rodata": 0x20000000},
+            at={".rodata": base},
             ranges=[(0x20000000, 0x20300000)],
             objects=objects,
+            targets=targets,
             rodata=rodata,
+        )
+
+    def test_text_in_a_named_char_array_is_read(self):
+        # A `static const char` table: `    ` reads as 0x20202020, an address in the image, but no symbol starts there.
+        chars = b"\x00\x00\x00\x00" + b"ab      cdefgh\x00"
+        self.assertEqual(
+            self.loaded(chars, [(0x20000004, 0x20000013)]), ["ab      cdefgh"]
+        )
+
+    def test_a_pointer_word_is_aligned_by_its_load_address(self):
+        # The object starts at 0x20000002; its pointer word sits at 0x20000004, two bytes into it.
+        blob = b"\x00\x00\x00\x00" + self.words(0x20253245) + b"St9bad_alloc\x00"
+        self.assertEqual(
+            self.loaded(blob, [(0x20000002, 0x20000008)]), ["St9bad_alloc"]
         )
 
     def test_a_table_of_pointers_is_no_string(self):
@@ -365,6 +392,26 @@ class DataObjects(unittest.TestCase):
             run.return_value.stdout = listing
             found = compare_strings.data_objects("nm", "x.elf")
         self.assertEqual(found, [(0x201E0000, 0x201E0010), (0x2007CF20, 0x2007CF28)])
+
+
+class PointerTargets(unittest.TestCase):
+    def test_symbol_starts_thumb_entries_and_places_in_vtables(self):
+        listing = "20001000 00000004 T f\n20200000 0000000c r _ZTV1X\n20200020 00000000 t $d\n"
+        with mock.patch.object(compare_strings.subprocess, "run") as run:
+            run.return_value.stdout = listing
+            found = compare_strings.pointer_targets("nm", "x.elf")
+        self.assertEqual(
+            found,
+            {
+                0x20001000,
+                0x20001001,
+                0x20200000,
+                0x20200001,
+                0x20200004,
+                0x20200008,
+                0x2020000C,
+            },
+        )
 
 
 class Sdram(unittest.TestCase):

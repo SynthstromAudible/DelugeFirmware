@@ -11,8 +11,9 @@ Data objects are no strings, however their bytes print: an SRAM address ends in 
 object, a table of pointers or a code literal pool reads as text, with a NUL after it as a C string, and its pointers
 change whenever what they point at moves. So every 4-byte-aligned word (aligned by its load address) that lies inside a
 sized symbol other than a string (local labels such as `.str.N` and `.Lanon.…`, which hold string literals, and
-type-info names `_ZTS…` are strings) and holds an address inside a LOAD segment or the SDRAM content is masked before
-the runs are read. A type-info name after its object's vtable pointer is then read alone.
+type-info names `_ZTS…` are strings) and names a symbol (its start, with or without the Thumb bit, or a place inside a
+vtable or construction vtable) is masked before the runs are read. A type-info name after its object's vtable pointer is
+then read alone, while text in a named char array that only reads as an address (`    ` is 0x20202020) is still read.
 
 A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
 pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
@@ -24,8 +25,7 @@ code, zeroed memory, the middle of a string or a lone printable byte (a Rust for
 table) are text.
 
 Equal multisets after the renames show that every string found this way is unchanged. They do not show:
-- that the bytes of a word cut or masked as a pointer are unchanged (that word is not compared), which includes a
-  pointer-like word of text inside a named data object (a `static const char` array);
+- that the bytes of a word cut or masked as a pointer are unchanged (that word is not compared);
 - anything about a run shorter than six characters that no NUL ends, including one a pointer cut made that short;
 - anything about tables and other non-text data, which bytes_check covers.
 
@@ -130,21 +130,43 @@ def data_objects(nm: str, elf: str) -> list[tuple[int, int]]:
     return found
 
 
+def pointer_targets(nm: str, elf: str) -> set[int]:
+    """Where @p elf's pointers point: every defined symbol's start, that start with the Thumb bit set, and each
+    4-byte-aligned place inside a vtable or construction vtable (`_ZTV…`, `_ZTC…`), where objects and VTTs point at the
+    sub-tables a class with bases has."""
+    out = subprocess.run(
+        [nm, "-S", "-n", "--defined-only", elf],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    found = set()
+    for line in out.splitlines():
+        fields = line.split()
+        if (
+            len(fields) >= 3
+            and re.fullmatch(r"[0-9a-f]+", fields[0])
+            and not fields[-1].startswith("$")
+        ):
+            start = int(fields[0], 16) & ~1
+            found |= {start, start | 1}
+            if fields[-1].startswith(("_ZTV", "_ZTC")) and len(fields) == 4:
+                found |= set(range(start, start + int(fields[1], 16) + 1, 4))
+    return found
+
+
 def unpointered(
-    blob: bytes,
-    base: int,
-    ranges: list[tuple[int, int]],
-    objects: list[tuple[int, int]],
+    blob: bytes, base: int, targets: set[int], objects: list[tuple[int, int]]
 ) -> bytes:
-    """@p blob, loaded at @p base, with each 4-byte-aligned word inside one of @p objects (data_objects()) that holds an
-    address inside @p ranges made non-text: a vtable, a type-info object, a table of pointers or a code literal pool is
-    no string, however its pointers' bytes print (an SRAM address ends in `2X 20`)."""
+    """@p blob, loaded at @p base, with each 4-byte-aligned word inside one of @p objects (data_objects()) that holds
+    one of @p targets (pointer_targets()) made non-text: a vtable, a type-info object, a table of pointers or a code
+    literal pool is no string, however its pointers' bytes print (an SRAM address ends in `2X 20`). A word that only
+    reads as an address in the image (`    ` in a `static const char` table is 0x20202020) is text."""
     out = bytearray(blob)
     for start, end in objects:
         lo, hi = max(start, base), min(end, base + len(blob))
         for at in range(lo + (-lo % 4), hi - 3, 4):
-            value = struct.unpack_from("<I", blob, at - base)[0]
-            if any(first <= value < last for first, last in ranges):
+            if struct.unpack_from("<I", blob, at - base)[0] in targets:
                 out[at - base : at - base + 4] = b"\x01" * 4
     return bytes(out)
 
@@ -193,6 +215,7 @@ def strings(
     its data objects masked (unpointered())."""
     at, ranges = layout(readelf, elf)
     objects = data_objects(nm, elf)
+    targets = pointer_targets(nm, elf)
     content = sdram(objcopy, elf)
     if content and ".sdram_init" in at:
         ranges = [*ranges, (at[".sdram_init"], at[".sdram_init"] + len(content))]
@@ -216,7 +239,7 @@ def strings(
         text
         for blob, base in blobs
         for text in runs(
-            unpointered(blob, base, ranges, objects) if base is not None else blob,
+            unpointered(blob, base, targets, objects) if base is not None else blob,
             base,
             ranges,
             text_at,
