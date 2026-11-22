@@ -13,8 +13,8 @@ change whenever what they point at moves. So every 4-byte-aligned word (aligned 
 sized symbol other than a string (local labels such as `.str.N` and `.Lanon.…`, which hold string literals, and
 type-info names `_ZTS…` are strings) and names a loaded symbol (its start, with or without the Thumb bit, or a place
 inside a vtable or construction vtable) is masked before the runs are read. A type-info name after its object's vtable
-pointer is then read alone, while text in a named char array that only reads as an address (` ` is 0x20202020) is still
-read.
+pointer is then read alone, while text in a named char array that only reads as an address (`    ` is 0x20202020) is
+still read.
 
 A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
 pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
@@ -26,7 +26,9 @@ code, zeroed memory, the middle of a string or a lone printable byte (a Rust for
 table) are text.
 
 Equal multisets after the renames show that every string found this way is unchanged. They do not show:
-- that the bytes of a word cut or masked as a pointer are unchanged (that word is not compared);
+- that the bytes of a word cut or masked as a pointer are unchanged (that word is not compared), which includes a word
+  of text in a named object that reads as an address inside that same object (a text table at 0x2020_2020 or above
+  holding `ab  `);
 - anything about a run shorter than six characters that no NUL ends, including one a pointer cut made that short;
 - anything about tables and other non-text data, which bytes_check covers.
 
@@ -162,7 +164,8 @@ def unpointered(
     literal pool is no string, however its pointers' bytes print (an SRAM address ends in `2X 20`). A word that only
     reads as an address in the image (`    ` in a `static const char` table is 0x20202020) is text. A word that points
     into its own object (a list head) is masked too, and one into another of @p objects (`&table[i]`) unless each of
-    its bytes prints or is a NUL, when it may be such text (a char table's `\0\0  ` is 0x20200000)."""
+    its bytes prints, is a NUL or is a whitespace control (0x09–0x0d), when it may be such text (a char table's
+    `\0\0  ` is 0x20200000, a message's `xy\n ` 0x200a7978)."""
     out = bytearray(blob)
     ordered = sorted(objects)
     starts = [start for start, _ in ordered]
@@ -176,7 +179,7 @@ def unpointered(
         for at in range(lo + (-lo % 4), hi - 3, 4):
             word = blob[at - base : at - base + 4]
             value = struct.unpack("<I", word)[0]
-            text = all(b == 0 or printable(b) for b in word)
+            text = all(b == 0 or 0x09 <= b <= 0x0D or printable(b) for b in word)
             if (
                 value in targets
                 or start <= value < end

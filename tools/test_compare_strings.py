@@ -214,6 +214,18 @@ class Strings(unittest.TestCase):
         )
         self.assertEqual(found, ["abcd", "      "])
 
+    def test_a_word_with_a_line_break_is_text(self):
+        # `xy\n ` reads as 0x200a7978, inside another object, but a line break is text.
+        def found(c: bytes) -> list[str]:
+            text = bytes(4) + b"usage:  x" + c + b"\n then more text\x00"
+            return self.loaded(
+                text, [(0x20000004, 0x20000040), (0x200A0000, 0x200B0000)], targets=()
+            )
+
+        self.assertEqual(
+            diff_strings(found(b"y"), found(b"z"), []), (["usage:  xy"], ["usage:  xz"])
+        )
+
     def test_a_zero_word_is_no_pointer(self):
         # `__fini_array_start` and absolute constants (`IRQ_MODE`, stack sizes) are symbols at no loaded address: a
         # NUL word in a named object that ends a C string stays a NUL.

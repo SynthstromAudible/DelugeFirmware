@@ -1097,6 +1097,34 @@ class UnsymbolledData(MainHarness, unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn(mock.call("data changed: 1"), printed)
 
+    def test_a_pointer_to_a_data_symbol_in_unnamed_data_retargeted_is_a_change(self):
+        def image(target: str):
+            (listing, nm), blobs = self.image("_ZN1X1fEv")
+            nm += "20200100 00000004 r _ZL1a\n20200104 00000004 r _ZL1b\n"
+            pointer = {"_ZL1a": 0x20200100, "_ZL1b": 0x20200104}[target]
+            base, rodata = blobs[0]
+            blobs = [
+                (base, rodata[:16] + struct.pack("<I", pointer) + rodata[20:]),
+                blobs[1],
+            ]
+            blobs.append((0x20200100, bytes(8)))
+            return (listing, nm), blobs
+
+        status, printed = self.compare(image("_ZL1a"), image("_ZL1b"))
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("data changed: 1"), printed)
+
+    def test_an_exception_table_is_no_anchor(self):
+        # A `GCC_except_table` label's number follows the functions before it, so the run after it is keyed by the
+        # named symbol before that.
+        (_, nm), blobs = self.image("_ZN1X1fEv")
+        nm += "20200004 00000000 r GCC_except_table12\n"
+        objects = compare_codegen.data_objects(nm, blobs, self.SEGMENTS)
+        self.assertTrue(
+            any(k.startswith("(after _ZL6before #") for k in objects), list(objects)
+        )
+        self.assertFalse(any("GCC_except_table" in k for k in objects))
+
     def test_init_array_in_another_order_is_a_change(self):
         status, printed = self.compare(
             self.image("_ZN1X1fEv"),
