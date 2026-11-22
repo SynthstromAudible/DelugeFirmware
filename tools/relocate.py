@@ -28,17 +28,24 @@ under third_party/, toolchain/, lib/ or website/. An include spelled from tests/
 
 --repo-move OLD NEW moves any tracked directory (both relative to the repo root) with git mv, and cannot be combined
 with --move. In every tracked text file outside the never-rewritten set, and never in a Cargo.lock, the token OLD is
-respelled NEW wherever it stands as a path: after the start of a line, `/`, a quote, whitespace or `(`, and before `/`,
-a quote, whitespace, `)` or the end. In every Cargo.toml, each `path = "..."`, `workspace = "..."` and
+respelled NEW wherever it starts a path: after the start of a line, whitespace, a quote, a backtick, `(`, `=`, `:`, `,`
+or `[`, a variable prefix (`${X}/`, `$X/`), `./` or a `../` chain (never after a `word/` component), and before `/`, a
+quote, a backtick, whitespace, `)` or the end. A single-component OLD (`sim`) is respelled only before a `/` and as the
+bare directory of a CMake `-S`, `add_subdirectory(` or `${X}/` position; every other bare mention is listed under "bare
+mentions, not rewritten". The tool's own tests and fixtures (tools/test_relocate.py, test_compare_*.py, tools/testdata/)
+are never rewritten. In every Cargo.toml, each `path = "..."`, `workspace = "..."` and
 `members`/`exclude`/`default-members` entry whose target lies in OLD, or whose manifest lies in OLD, is recomputed as
 the relative path from the manifest's new directory to the target's new location (the edits are line-level, so comments
 and formatting stay). A package that was a workspace member and would no longer sit under its root gets
 `workspace = "<path to the root>"` in `[package]`. Each --crate OLD=NEW renames a crate: `name =` in `[package]` and
-`[lib]`, dependency keys (a key that aliases another package, `x = { package = "OLD", ... }`, keeps its key and gets the
+`[lib]`, dependency keys, dotted ones too (a key that aliases another package, `x = { package = "OLD", ... }`, keeps its key and gets the
 new package name), `package = "OLD"`, `[profile.*.package.OLD]` and `dep:OLD` / `OLD/feature` entries in every
 Cargo.toml; the identifiers `OLD` in `use`, `extern crate` and `OLD::` position of every .rs file; and `libOLD.a`,
-`-p OLD`, `--package OLD` and backticked `OLD` in every text file. It is refused when NEW exists, when OLD and NEW
-contain one another, or when OLD is not a tracked directory. Depth arithmetic in anything but a manifest, paths built
+`-p OLD` and `--package OLD` in every text file. A hyphenated OLD also renames its underscore spelling in `[lib] name`,
+those .rs positions and `libOLD.a`. A crate name in prose, a comment or a backtick is never rewritten (a C-ABI function
+can share it); each is listed under "crate-name mentions, not rewritten" (comments only in C-family and .rs files). It
+is refused, before anything is written, when NEW exists or is not a normal repo-relative path, when OLD and NEW contain
+one another, or when OLD is not a tracked directory. Depth arithmetic in anything but a manifest, paths built
 from variables, and build-script joins are not followed: grep the old spellings after applying.
 
 Usage:
@@ -90,8 +97,15 @@ TEXT = C_FAMILY | {
     ".rs",
     ".ld",
 }
-NEVER = frozenset({"docs/dev/code_layout_north_star.md"})
-NEVER_UNDER = ("third_party/", "toolchain/", "lib/", "website/")
+NEVER = frozenset(
+    {
+        "docs/dev/code_layout_north_star.md",
+        "tools/test_relocate.py",
+        "tools/test_compare_strings.py",
+        "tools/test_compare_codegen.py",
+    }
+)
+NEVER_UNDER = ("third_party/", "toolchain/", "lib/", "website/", "tools/testdata/")
 INCLUDE = re.compile(r'^(\s*#\s*include\s*)([<"])([^">]+)([>"])')
 INCLUDE_ROOTS = ("src/deluge", "src")
 
@@ -368,10 +382,71 @@ def split_sentinels(text: str) -> list[str]:
     return re.split(f"({SENT_OPEN}.*?{SENT_CLOSE})", text, flags=re.DOTALL)
 
 
-def repo_path_token(old: str, new: str) -> re.Pattern[str]:
-    return re.compile(
-        rf"(?:(?<=^)|(?<=[/\"'\s(])){re.escape(old)}(?=[/\"'\s)]|$)", re.MULTILINE
+PATH_START = r"""(?:(?P<pre>\$\w+/)|(?<![^\s"'`(=:,\[])|(?<=\}/)|(?<=\./))"""
+
+
+def rewrite_path_tokens(text: str, old: str, new: str) -> str:
+    """Respells OLD as NEW where it starts a path; each respelling is wrapped in sentinels, text already wrapped is kept.
+
+    A path token follows the start of a line, whitespace, a quote, a backtick, `(`, `=`, `:`, `,` or `[`, a variable
+    prefix (`${X}/`, `$X/`), `./` or a `../` chain, never a `word/` component. A single-component OLD is respelled only
+    before a `/`, and as the bare directory of a CMake `-S`, `add_subdirectory(` or `${X}/` position.
+    """
+    o = re.escape(old)
+    if "/" in old:
+        patterns = [rf"{PATH_START}{o}(?=[/\"'`\s),\]]|$)"]
+    else:
+        patterns = [
+            rf"{PATH_START}{o}(?=/)",
+            rf"(?P<pre>-S\s+|add_subdirectory\(\s*|\$\{{[^}}]*\}}/|\$\w+/){o}(?=[\s\"'`)]|$)",
+        ]
+
+    def respell(m: re.Match[str]) -> str:
+        return f"{m.group('pre') or ''}{sentinel(new)}"
+
+    for pattern in patterns:
+        text = "".join(
+            part if i % 2 else re.sub(pattern, respell, part, flags=re.MULTILINE)
+            for i, part in enumerate(split_sentinels(text))
+        )
+    return text
+
+
+def strip_sentinels(text: str) -> str:
+    return text.replace(SENT_OPEN, "").replace(SENT_CLOSE, "")
+
+
+def masked(text: str) -> str:
+    """The text with each sentinel-wrapped span blanked, so a scan skips what was already rewritten."""
+    return re.sub(
+        f"{SENT_OPEN}.*?{SENT_CLOSE}",
+        lambda m: "\x02" * len(m.group()),
+        text,
+        flags=re.DOTALL,
     )
+
+
+def mentions(rel: str, text: str, pattern: str, comments_only: bool) -> list[str]:
+    """`rel:LINE: text` for each match of `pattern` outside rewritten spans (in comments only for code files)."""
+    hidden = masked(text)
+    mask = (
+        comment_mask(text) if comments_only and Path(rel).suffix in C_FAMILY else None
+    )
+    lines = text.splitlines()
+    found: dict[int, None] = {}
+    for m in re.finditer(pattern, hidden):
+        line = hidden.count("\n", 0, m.start())
+        if mask is not None and not mask[m.start()]:
+            continue
+        column = m.start() - (hidden.rfind("\n", 0, m.start()) + 1)
+        if (
+            comments_only
+            and Path(rel).suffix == ".rs"
+            and "//" not in lines[line][:column]
+        ):
+            continue
+        found[line] = None
+    return [f"{rel}:{n + 1}: {strip_sentinels(lines[n]).strip()}" for n in found]
 
 
 class Workspaces:
@@ -520,10 +595,13 @@ def rewrite_manifest(rel, text, old, new, crates, ws: Workspaces) -> str:
                 r'((?<![\w-])(?:path|workspace)\s*=\s*)"([^"]*)"', path_value, head
             )
         for crate_old, crate_new in crates:
-            if section in ("package", "lib"):
+            names = [(crate_old, crate_new)]
+            if section == "lib" and "-" in crate_old:
+                names.append((crate_old.replace("-", "_"), crate_new.replace("-", "_")))
+            for name_old, name_new in names if section in ("package", "lib") else []:
                 head = re.sub(
-                    rf'^(\s*name\s*=\s*"){re.escape(crate_old)}(")',
-                    rf"\g<1>{crate_new}\2",
+                    rf'^(\s*name\s*=\s*"){re.escape(name_old)}(")',
+                    rf"\g<1>{name_new}\2",
                     head,
                 )
             if (
@@ -532,7 +610,9 @@ def rewrite_manifest(rel, text, old, new, crates, ws: Workspaces) -> str:
                 and not re.search(r"(?<![\w-])package\s*=", head)
             ):
                 head = re.sub(
-                    rf"^(\s*){re.escape(crate_old)}(\s*=)", rf"\g<1>{crate_new}\2", head
+                    rf"^(\s*){re.escape(crate_old)}(\s*[=.])",
+                    rf"\g<1>{crate_new}\2",
+                    head,
                 )
             head = re.sub(
                 rf'((?<![\w-])package\s*=\s*"){re.escape(crate_old)}(")',
@@ -576,22 +656,32 @@ def crate_idents(text: str, crates: list[tuple[str, str]]) -> str:
     return text
 
 
-def crate_words(text: str, crates: list[tuple[str, str]]) -> str:
+def crate_words(
+    text: str, crates: list[tuple[str, str]], archives: list[tuple[str, str]]
+) -> str:
+    """`libOLD.a` for each archive pair, and `-p OLD` / `--package OLD` for each crate: spellings no other name shares."""
+    for old, new in archives:
+        text = re.sub(rf"\blib{re.escape(old)}\.a\b", f"lib{new}.a", text)
     for old, new in crates:
-        o = re.escape(old)
-        text = re.sub(rf"\blib{o}\.a\b", f"lib{new}.a", text)
         text = re.sub(
-            rf"(?<![\w-])(-p\s+|--package[\s=]+){o}(?![\w-])", rf"\g<1>{new}", text
+            rf"(?<![\w-])(-p\s+|--package[\s=]+){re.escape(old)}(?![\w-])",
+            rf"\g<1>{new}",
+            text,
         )
-        text = text.replace(f"`{old}`", f"`{new}`")
     return text
 
 
+def underscore_pairs(crates: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The Rust spelling of each hyphenated crate: `deluge-bsp-rust` is `deluge_bsp_rust` in code and archive names."""
+    return [(o.replace("-", "_"), n.replace("-", "_")) for o, n in crates if "-" in o]
+
+
 def check_repo_move(repo: Path, old: str, new: str) -> None:
-    if old.strip("/") != old or new.strip("/") != new or not old or not new:
-        raise Refused(
-            "OLD and NEW are repo-relative paths without a leading or trailing slash"
-        )
+    for name, path in (("OLD", old), ("NEW", new)):
+        if not path or posixpath.isabs(path) or posixpath.normpath(path) != path:
+            raise Refused(f"{name} {path!r} is not a normal repo-relative path")
+        if path == "." or path.startswith("../"):
+            raise Refused(f"{name} {path!r} leaves the repo")
     if overlaps(old, new):
         raise Refused(
             f"{old} and {new} contain one another"
@@ -604,9 +694,28 @@ def check_repo_move(repo: Path, old: str, new: str) -> None:
         raise Refused(f"{old} is not a tracked directory")
 
 
+class RepoPlan:
+    """What a repo move would write, and the mentions of OLD it leaves for the implementer to read."""
+
+    def __init__(self) -> None:
+        self.changes: dict[str, str] = {}
+        self.bare: list[str] = []
+        self.crate_mentions: list[str] = []
+
+    def report(self) -> list[str]:
+        out = []
+        if self.bare:
+            out += ["bare mentions, not rewritten:"] + [f"  {m}" for m in self.bare]
+        if self.crate_mentions:
+            out += ["crate-name mentions, not rewritten:"] + [
+                f"  {m}" for m in self.crate_mentions
+            ]
+        return out
+
+
 def plan_repo_move(
     repo: Path, old: str, new: str, crates: list[tuple[str, str]]
-) -> dict[str, str]:
+) -> RepoPlan:
     check_repo_move(repo, old, new)
     files = tracked(repo)
     manifests = [
@@ -624,8 +733,10 @@ def plan_repo_move(
             raise Refused(
                 f"{root} lists members by glob ({pattern}); name the moved crate explicitly first"
             )
-    token = repo_path_token(old, new)
-    changes = {}
+    rust_names = crates + underscore_pairs(crates)
+    bare_word = rf"(?<![\w.-]){re.escape(old)}(?![\w-])(?!\.\w)"
+    crate_word = "|".join(rf"(?<![\w-]){re.escape(o)}(?![\w-])" for o, _ in rust_names)
+    result = RepoPlan()
     for rel in files:
         if (
             not is_text(rel)
@@ -634,32 +745,34 @@ def plan_repo_move(
         ):
             continue
         before = (repo / rel).read_text(encoding="utf-8", errors="surrogateescape")
-        name = Path(rel).name
         after = before
-        if name == "Cargo.toml":
+        if Path(rel).name == "Cargo.toml":
             after = rewrite_manifest(rel, after, old, new, crates, ws)
-        after = "".join(
-            part if i % 2 else token.sub(new, part)
-            for i, part in enumerate(split_sentinels(after))
-        )
-        if name == "Cargo.toml":
-            after = after.replace(SENT_OPEN, "").replace(SENT_CLOSE, "")
+        after = rewrite_path_tokens(after, old, new)
+        if "/" not in old:
+            result.bare += mentions(rel, after, bare_word, comments_only=False)
         if Path(rel).suffix == ".rs":
-            after = crate_idents(after, crates)
-        after = crate_words(after, crates)
+            after = crate_idents(after, rust_names)
+        after = crate_words(after, crates, rust_names)
+        if crates:
+            result.crate_mentions += mentions(
+                rel, after, crate_word, comments_only=Path(rel).name != "Cargo.toml"
+            )
+        after = strip_sentinels(after)
         if after != before:
-            changes[rel] = after
-    return changes
+            result.changes[rel] = after
+    return result
 
 
 def apply_repo_move(
     repo: Path, old: str, new: str, crates: list[tuple[str, str]]
-) -> None:
-    changes = plan_repo_move(repo, old, new, crates)
-    for rel, text in changes.items():
+) -> RepoPlan:
+    plan = plan_repo_move(repo, old, new, crates)
+    for rel, text in plan.changes.items():
         (repo / rel).write_text(text, encoding="utf-8", errors="surrogateescape")
     (repo / new).parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "mv", old, new], cwd=repo, check=True)
+    return plan
 
 
 def diff_lines(path: Path, after: str) -> list[str]:
@@ -724,14 +837,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.repo_move:
             old, new = args.repo_move
             if args.dry_run:
-                changes = plan_repo_move(args.repo, old, new, args.crate)
+                moved_plan = plan_repo_move(args.repo, old, new, args.crate)
                 print(f"git mv {old} {new}")
-                for rel in sorted(changes):
+                for rel in sorted(moved_plan.changes):
                     print(rel)
-                    for line in diff_lines(args.repo / rel, changes[rel]):
+                    for line in diff_lines(args.repo / rel, moved_plan.changes[rel]):
                         print(f"{rel}: {line}")
-                return 0
-            apply_repo_move(args.repo, old, new, args.crate)
+            else:
+                moved_plan = apply_repo_move(args.repo, old, new, args.crate)
+            print("\n".join(moved_plan.report()))
             return 0
         if args.dry_run:
             changes = plan(args.repo, moves, args.namespace, args.target)
