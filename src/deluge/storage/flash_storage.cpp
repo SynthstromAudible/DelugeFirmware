@@ -212,7 +212,7 @@ enum Entries {
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
 186: unused (formerly defaultLoopRecordingCommand)
-188: defaultUseSharps
+188: always 1 (formerly defaultUseSharps; note names now follow the song key)
 189: default patch cable polarity
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
@@ -288,8 +288,6 @@ bool defaultUseLastClipType = true;
 ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
-
-bool defaultUseSharps = true;
 
 bool usbAudioEnabled = true;
 
@@ -398,8 +396,6 @@ void resetSettings() {
 	defaultUseLastClipType = true;
 
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
-
-	defaultUseSharps = true;
 
 	usbAudioEnabled = true;
 	usb_audio::directMonitoring = true;
@@ -844,13 +840,6 @@ void readSettings() {
 		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
 	}
 
-	if (buffer[188] != 0 && buffer[188] != 1) {
-		defaultUseSharps = true;
-	}
-	else {
-		defaultUseSharps = buffer[188];
-	}
-
 	if (buffer[189] != util::to_underlying(Polarity::BIPOLAR)
 	    && buffer[189] != util::to_underlying(Polarity::UNIPOLAR)) {
 		defaultPatchCablePolarity = Polarity::BIPOLAR;
@@ -1148,7 +1137,7 @@ void writeSettings() {
 
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
-	buffer[188] = defaultUseSharps;
+	buffer[188] = 1; // Formerly defaultUseSharps: keep older firmware on sharps
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 

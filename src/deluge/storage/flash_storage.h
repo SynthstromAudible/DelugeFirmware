@@ -88,8 +88,6 @@ extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
 extern Polarity defaultPatchCablePolarity;
 
-extern bool defaultUseSharps;
-
 /// Whether the Deluge offers USB audio to a computer, alongside USB MIDI. Read when USB starts up as a peripheral, at
 /// power-on - changing it takes effect after a restart
 extern bool usbAudioEnabled;

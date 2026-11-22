@@ -17,8 +17,9 @@ public:
 	 */
 	int8_t degreeOf(int32_t nodeCode) const;
 	/** True if the key's scale is spelled with flats (relative major tonic is F, Bb, Eb, Ab, Db, ...), false for
-	 * sharps. Derived from root and mode only, not from the "use sharps" naming preference. Non-diatonic scales use
-	 * the relative major of the root (major-ish) or of the root + 3 semitones (minor-ish).
+	 * sharps (G, D, A, E, B). Non-diatonic scales use the relative major of the root (major-ish) or of the root + 3
+	 * semitones (minor-ish). Keys with no preference (relative major C, or F#/Gb) use sharps. Decides both note names
+	 * and which row an accidental is drawn on.
 	 */
 	bool prefersFlats() const;
 	/** True if noteCode (any octave) is a note of the key's scale. */

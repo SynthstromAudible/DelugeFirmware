@@ -545,15 +545,9 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
-	// If there are any other Clips in scale-mode, we use their root note
-	if (currentSong->anyScaleModeClips()) {
-		defaultRootNote = currentSong->key.rootNote;
-
-		// Otherwise, intelligently guess the root note
-	}
-	else {
-		defaultRootNote = getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->key.rootNote);
-	}
+	// Entering scale mode keeps the song's key: the root only changes when the user picks one (audition pad + scale).
+	// Guessing it from the clip's notes would let notes outside the scale (accidentals) change the key.
+	defaultRootNote = currentSong->key.rootNote;
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {

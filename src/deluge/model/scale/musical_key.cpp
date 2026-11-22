@@ -29,7 +29,7 @@ bool MusicalKey::prefersFlats() const {
 	}
 	int32_t tonic = mod(rootNote + t, 12);
 	int32_t fifths = (tonic * 7) % 12;
-	return fifths > 6;
+	return fifths > 6; // C (no accidentals) and F#/Gb (6 either way) count as sharps
 }
 
 int32_t MusicalKey::accidentalAnchor(int32_t noteCode, bool flats) const {

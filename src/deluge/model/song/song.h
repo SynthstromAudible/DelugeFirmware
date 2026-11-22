@@ -157,12 +157,14 @@ public:
 	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
-	/// Accidentals (notes outside the old key) are not counted, except in clipEnteringScaleMode, if given.
+	/// Accidentals (notes outside the old key) are not counted. clipEnteringScaleMode, if given, is a clip being put
+	/// into scale mode: its notes outside the new key become accidentals too, and the scale is kept whenever the
+	/// notes counted fit it (even a user scale), so entering scale mode doesn't change the scale.
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr,
 	                 InstrumentClip* clipEnteringScaleMode = nullptr);
 	/// Returns a NoteSet with all notes currently in used in scale mode clips. If excludeOutOf is set, notes outside
-	/// that key (accidentals) are skipped, in all clips except includeAllOf.
-	NoteSet notesInScaleModeClips(const MusicalKey* excludeOutOf = nullptr, InstrumentClip* includeAllOf = nullptr);
+	/// that key (accidentals) are skipped. clipToSkip, if given, isn't counted at all.
+	NoteSet notesInScaleModeClips(const MusicalKey* excludeOutOf = nullptr, InstrumentClip* clipToSkip = nullptr);
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();

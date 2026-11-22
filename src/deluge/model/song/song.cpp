@@ -584,12 +584,11 @@ bool Song::anyScaleModeClips() {
 	return false;
 }
 
-NoteSet Song::notesInScaleModeClips(const MusicalKey* excludeOutOf, InstrumentClip* includeAllOf) {
+NoteSet Song::notesInScaleModeClips(const MusicalKey* excludeOutOf, InstrumentClip* clipToSkip) {
 	NoteSet notes;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key,
-			                                                   instrumentClip == includeAllOf ? nullptr : excludeOutOf);
+		if (instrumentClip != clipToSkip && instrumentClip->isScaleModeClip()) {
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key, excludeOutOf);
 		}
 	}
 	return notes;
@@ -606,12 +605,18 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
 	NoteSet notesWithinOctavePresent = notesInScaleModeClips(&oldKey, clipEnteringScaleMode);
+	if (clipEnteringScaleMode) {
+		// A clip entering scale mode takes on the key: its notes outside it become accidentals rather than changing
+		// the scale. Judge them against the new root, as that's the key the clip is entering.
+		clipEnteringScaleMode->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key, &key);
+	}
 
 	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
-	// If so, we need no check at all, we can directly go back to previous scale safely
-	bool previousScaleFits =
-	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
+	// If so, we need no check at all, we can directly go back to previous scale safely. Entering scale mode keeps a
+	// user scale too.
+	bool previousScaleFits = (getCurrentScale() < NUM_PRESET_SCALES || clipEnteringScaleMode)
+	                         && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 	if (!previousScaleFits) {
 		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 		// If this is not a preset, save as the current user scale.
