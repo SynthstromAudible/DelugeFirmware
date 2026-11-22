@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 #include "model/iterance/iterance.h"
+#include "model/scale/anchor_marker.h"
 #include <cstdint>
 
 class Note;
@@ -38,6 +39,7 @@ public:
 	uint8_t lift;
 	Iterance iterance;
 	int8_t fill;
+	AnchorMarker anchorMarker;
 
 	ExistenceChangeType type;
 };

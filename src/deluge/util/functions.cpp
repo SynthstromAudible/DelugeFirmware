@@ -1600,7 +1600,8 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo,
+                      bool useSharps) {
 	char* thisChar = buffer;
 	// Floor division / positive modulo so negative note codes (e.g. from transposing below C-2) land in the right
 	// octave rather than truncating toward zero
@@ -1610,8 +1611,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 		noteCodeWithinOctave += 12;
 		octave--;
 	}
-
-	bool useSharps = FlashStorage::defaultUseSharps;
 
 	*thisChar =
 	    useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];

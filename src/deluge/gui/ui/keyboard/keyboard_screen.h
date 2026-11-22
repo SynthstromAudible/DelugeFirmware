@@ -57,6 +57,9 @@ public:
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
+	/// The song's scale was changed: redraw with its notes and colours
+	void onScaleChanged();
+
 	void killColumnSwitchKey(int32_t column);
 
 	// ui

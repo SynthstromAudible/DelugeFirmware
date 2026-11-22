@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "fatfs.hpp"
 #include "gui/colour/colour.h"
+#include "gui/context_menu/select_scale.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
@@ -182,7 +183,7 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 	if (!clip->inScaleMode) {
 		commandEnterScaleMode();
 	}
-	NoteSet notes = currentSong->notesInScaleModeClips();
+	NoteSet notes = currentSong->anchorsInScaleModeClips(currentSong->key);
 	currentSong->setScaleNotes(notes);
 	recalculateColours();
 	uiNeedsRendering(this);
@@ -192,13 +193,19 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandCycleThroughScales() {
-	cycleThroughScales();
+ActionResult InstrumentClipView::commandSelectScale() {
+	using namespace deluge::gui::context_menu;
+	if (selectScale.setupAndCheckAvailability()) {
+		openUI(&selectScale);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+void InstrumentClipView::onScaleChanged() {
 	recalculateColours();
 	uiNeedsRendering(this);
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-	return ActionResult::DEALT_WITH;
 }
 
 ActionResult InstrumentClipView::commandFlashRootNote() {
@@ -909,7 +916,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
 		// If we're note in scale mode, we defer to commands that
 		// will instead enter the scale mode.
-		return commandCycleThroughScales();
+		return commandSelectScale();
 	}
 	else if (on && oneNoteAuditioning()) {
 		if (inScaleMode) {
@@ -1166,15 +1173,20 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 		   considered isNoteRowAuditioning but that required a modelstack and this was leaner
 		*/
 		int32_t noteRowYDisplay;
+		int32_t accidentalOffset = 0;
 		if (getCurrentOutputType() == OutputType::KIT) { // yDisplay for Kits
 			noteRowYDisplay = i - getCurrentInstrumentClip()->yScroll;
 		}
 		else { // Or for non-Kits
-			int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y, getCurrentInstrumentClip()->inScaleMode);
+			// An accidental is copied along with the in-scale row it is displayed on
+			accidentalOffset =
+			    thisNoteRow->y - getCurrentInstrumentClip()->getDisplayAnchorYNote(thisNoteRow->y, currentSong);
+			int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y - accidentalOffset,
+			                                                   getCurrentInstrumentClip()->inScaleMode);
 			noteRowYDisplay = yVisual - getCurrentInstrumentClip()->yScroll;
 		}
 		if (isFilteredCopy) {
-			if (!auditionPadIsPressed[noteRowYDisplay])
+			if (noteRowYDisplay < 0 || noteRowYDisplay >= kDisplayHeight || !auditionPadIsPressed[noteRowYDisplay])
 				continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum
@@ -1223,6 +1235,7 @@ ramError:
 				newCopiedNoteRow->numNotes = numNotes;
 				newCopiedNoteRow->yNote = thisNoteRow->y;
 				newCopiedNoteRow->yDisplay = noteRowYDisplay;
+				newCopiedNoteRow->accidentalOffset = accidentalOffset;
 
 				if (copyToFile) {
 					writer->writeOpeningTagBeginning("noteRow");
@@ -1493,11 +1506,12 @@ ramError:
 				        - copiedYNoteOfBottomRow;
 			}
 			else {
-				yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(thisCopiedNoteRow->yDisplay, currentSong);
+				yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(thisCopiedNoteRow->yDisplay, currentSong)
+				        + thisCopiedNoteRow->accidentalOffset;
 			}
 
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(yNote, modelStack, action, nullptr);
+			    getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(yNote, modelStack);
 			NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 			if (!thisNoteRow) {
 				goto ramError;
@@ -2318,6 +2332,58 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		// Get existing NoteRow if there was one
 		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
+		// In a scale-mode clip, the pad may be showing an accidental (a note outside the scale, drawn on this row).
+		// If so, the press goes to that hidden row.
+		std::optional<int16_t> yNoteOverride;
+		if (auto hidden = AccidentalRows::Layout().hiddenYNotes(yDisplay)) {
+			bool routed = false;
+
+			// A second press to the right of a held accidental is a note-length edit of that accidental
+			if (numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
+			    && static_cast<int32_t>(timeLastEditPadPress + kEditPadHoldTime - AudioEngine::audioSampleTimer) < 0) {
+				for (int32_t p = 0; p < kEditPadPressBufferSize; p++) {
+					if (editPadPresses[p].isActive && editPadPresses[p].yDisplay == yDisplay) {
+						if (editPadPresses[p].xDisplay < xDisplay) {
+							// Length edit of the held press's own row, accidental or not. Don't probe the hidden rows,
+							// or the edit would be applied to one of them.
+							routed = true;
+							if (editPadPresses[p].yNoteOverride) {
+								yNoteOverride = editPadPresses[p].yNoteOverride;
+								modelStackWithNoteRow = clip->getNoteRowForYNote(*yNoteOverride, modelStack);
+							}
+						}
+						break;
+					}
+				}
+			}
+
+			// Otherwise, if the in-scale row has no note here, look for an accidental here
+			if (!routed) {
+				SquareInfo squareInfo;
+				NoteRow* inScaleRow = modelStackWithNoteRow->getNoteRowAllowNull();
+				if (inScaleRow) {
+					inScaleRow->getSquareInfo(xDisplay, modelStackWithNoteRow->getLoopLength(), squareInfo);
+				}
+				if (!inScaleRow || squareInfo.numNotes == 0) {
+					for (int32_t hiddenY = hidden->first; hiddenY <= hidden->last; hiddenY++) {
+						NoteRow* hiddenRow = clip->getNoteRowForYNote(hiddenY);
+						if (!hiddenRow) {
+							continue;
+						}
+						hiddenRow->getSquareInfo(xDisplay,
+						                         hiddenRow->loopLengthIfIndependent ? hiddenRow->loopLengthIfIndependent
+						                                                            : clip->loopLength,
+						                         squareInfo);
+						if (squareInfo.numNotes > 0) {
+							yNoteOverride = static_cast<int16_t>(hiddenY);
+							modelStackWithNoteRow = clip->getNoteRowForYNote(hiddenY, modelStack);
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		// If no NoteRow yet...
 		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
@@ -2371,7 +2437,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		// If this is a note-length-edit press...and you're not in the note editor
 		if (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
 		    && numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
-		    && (int32_t)(timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0
+		    && (int32_t)(timeLastEditPadPress + kEditPadHoldTime - AudioEngine::audioSampleTimer) < 0
 		    && clip->allowNoteTails(modelStackWithNoteRow) && getEditPadPressXDisplayOnScreen(yDisplay) < xDisplay) {
 
 			// Find that original press
@@ -2493,7 +2559,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 						yNote = 60;
 					}
 					else {
-						yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+						yNote = noteRow->y;
 					}
 
 					// If a time-synced sample...
@@ -2601,6 +2667,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
+					editPadPresses[i].yNoteOverride = yNoteOverride;
 					editPadPresses[i].deleteOnScroll = true;
 					editPadPresses[i].mpeCachedYet = false;
 					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
@@ -2695,7 +2762,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < kShortPressTime) {
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+				    accidentalRows.noteRowForPress(editPadPresses[i], modelStack);
 
 				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
@@ -3010,8 +3077,7 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 		int32_t leftMostPos = 2147483647;
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
-				int32_t yDisplay = editPadPresses[i].yDisplay;
-				NoteRow* row = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
+				NoteRow* row = accidentalRows.noteRowForPress(editPadPresses[i]);
 				if (row) {
 					int32_t index = row->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 					Note* firstNote = row->notes.getElement(index);
@@ -3703,7 +3769,7 @@ ModelStackWithNoteRow* InstrumentClipView::get_note_edit_row(ModelStackWithTimel
 	}
 	// no remembered note presses, so we're getting a note row corresponding with an active press
 	// so that note row will be on screen, get it
-	return getCurrentInstrumentClip()->getNoteRowOnScreen(target.yDisplay, model_stack);
+	return accidentalRows.noteRowForPress(target, model_stack);
 }
 
 bool InstrumentClipView::enterNoteEditor() {
@@ -3750,7 +3816,17 @@ void InstrumentClipView::exitNoteEditor() {
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
 	char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
-	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
+	// The pad may be holding an accidental hidden behind this row
+	ModelStackWithNoteRow* row_stack = nullptr;
+	for (const auto& press : editPadPresses) {
+		if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
+			row_stack = accidentalRows.noteRowForPress(press, model_stack);
+			break;
+		}
+	}
+	if (!row_stack) {
+		row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
+	}
 	NoteRow* row = row_stack->getNoteRowAllowNull();
 	// when pressing down, check if we're pressing on a valid note pad square
 	if (on) {
@@ -4523,6 +4599,14 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		// If any presses happening, grab those Notes...
 		if (draggingNote) {
 			scrollVertical_grabNotesPressed(modelStack, clip);
+
+			// Held notes land on the in-scale row under the pad after the scroll, even if they were accidentals. Forget
+			// the overrides now, so the audition switch-on below doesn't sound the old hidden pitch.
+			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+				if (editPadPresses[i].isActive) {
+					editPadPresses[i].yNoteOverride.reset();
+				}
+			}
 		}
 
 		// Shift the selected NoteRow, if that's what we're doing. We know we're in Kit mode then
@@ -4671,7 +4755,7 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 				if (editPadPresses[i].deleteOnScroll) {
 					int32_t pos = editPadPresses[i].intendedPos;
 					ModelStackWithNoteRow* modelStackWithNoteRow =
-					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+					    accidentalRows.noteRowForPress(editPadPresses[i], modelStack);
 					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					// If the row has gone from under the press, there's no note to carry along - let go of it
 					if (thisNoteRow == nullptr) {
@@ -4811,7 +4895,7 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 }
 
 void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
-                                                          InstrumentClip* clip, bool isKit) {
+                                                          InstrumentClip* clip, bool isKit, bool keepYNoteOverride) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	// if (!action) return; // Couldn't happen?
 
@@ -4820,9 +4904,15 @@ void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimeline
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive) {
 
+			// After a vertical scroll, the note is placed on the in-scale row now under the pad, even if it was an
+			// accidental
+			if (!keepYNoteOverride) {
+				editPadPresses[i].yNoteOverride.reset();
+			}
+
 			// Try getting existing NoteRow. If none...
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+			    accidentalRows.noteRowForPress(editPadPresses[i], modelStack);
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 				// don't create note row if you're in a kit
@@ -4831,7 +4921,13 @@ void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimeline
 				}
 
 				// Try creating NoteRow
-				modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
+				if (editPadPresses[i].yNoteOverride) {
+					modelStackWithNoteRow =
+					    clip->getOrCreateNoteRowForYNote(*editPadPresses[i].yNoteOverride, modelStack);
+				}
+				else {
+					modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
+				}
 
 				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 					display->displayError(Error::INSUFFICIENT_RAM);
@@ -4966,7 +5062,9 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 		}
 	}
 	else {
-		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+		// If the pad is holding an accidental hidden behind this row, that is the pitch to audition
+		int32_t yNote = accidentalRows.auditionYNote(
+		    on, yDisplay, getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong), editPadPresses);
 
 		if (on) {
 			((MelodicInstrument*)instrument)
@@ -5075,6 +5173,10 @@ void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 				getCurrentInstrumentClip()->yScroll += newOffset;
 			}
 			recalculateColour(lastAuditionedYDisplay); // RGB will have changed slightly
+
+			// Accidentals are drawn on a neighbouring row, and which one can change with the scale (and with whether
+			// the new key is spelled with sharps or flats), so the other rows need redrawing too
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 doRenderRow:
 			uiNeedsRendering(this, 1 << lastAuditionedYDisplay, 0);
@@ -5971,7 +6073,7 @@ doneLookingForRootNoteOnScreen:
 	// Need to figure out the scale first...
 	getCurrentInstrumentClip()->inScaleMode = true;
 	// Computation to find out what notes in scale
-	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());
+	currentSong->setRootNoteForClipEnteringScaleMode(newRootNote, getCurrentInstrumentClip());
 
 	int32_t yVisual = getCurrentInstrumentClip()->getYVisualFromYNote(pinAnimationToYNote, currentSong);
 
@@ -6445,7 +6547,14 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	// Or, if shift key is pressed
 	// no colour shifting in note row editor
 	else if (Buttons::isShiftButtonPressed() && !inNoteRowEditor) {
-		commandShiftColour(offset);
+		// Holding note(s) in a scale-mode clip: move them by a semitone, which may leave the scale
+		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED) && getCurrentOutputType() != OutputType::KIT
+		    && getCurrentInstrumentClip()->isScaleModeClip()) {
+			nudgeHeldNotesBySemitone(offset);
+		}
+		else {
+			commandShiftColour(offset);
+		}
 	}
 
 	// If neither button is pressed, we'll do vertical scrolling
@@ -6460,6 +6569,95 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+// Hold note pad(s) + SHIFT + turn the vertical encoder in a scale-mode clip: move the held notes by a semitone, onto
+// a row outside the scale (an accidental) if need be. Does nothing if any note couldn't move.
+void InstrumentClipView::nudgeHeldNotesBySemitone(int32_t offset) {
+	offset = std::clamp<int32_t>(offset, -1, 1);
+	if (!offset) {
+		return;
+	}
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	// Check every note can move before touching anything. Presses on squares with several notes can't be moved.
+	int32_t destYNotes[kEditPadPressBufferSize];
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (!editPadPresses[i].isActive) {
+			continue;
+		}
+		if (editPadPresses[i].isBlurredSquare || !editPadPresses[i].deleteOnScroll) {
+			return;
+		}
+		NoteRow* sourceRow = accidentalRows.noteRowForPress(editPadPresses[i]);
+		if (!sourceRow) {
+			return;
+		}
+		int32_t destY = sourceRow->y + offset;
+		if (destY < 0 || destY >= 128) {
+			return;
+		}
+		destYNotes[i] = destY;
+
+		// Would the note collide with one on the destination row?
+		NoteRow* destRow = clip->getNoteRowForYNote(destY);
+		if (destRow && destRow->notes.getNumElements()) {
+			int32_t loopLength = destRow->loopLengthIfIndependent ? destRow->loopLengthIfIndependent : clip->loopLength;
+			int32_t pos = editPadPresses[i].intendedPos;
+			int32_t iLeft = destRow->notes.search(pos + 1, GREATER_OR_EQUAL) - 1;
+			bool wrapping = (iLeft == -1);
+			if (wrapping) {
+				iLeft = destRow->notes.getNumElements() - 1;
+			}
+			Note* noteLeft = destRow->notes.getElement(iLeft);
+			int32_t noteLeftEnd = noteLeft->pos + noteLeft->length;
+			if (wrapping) {
+				noteLeftEnd -= loopLength;
+			}
+			if (noteLeftEnd > pos) {
+				return;
+			}
+		}
+	}
+
+	// Stop auditioning the old pitches
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			uint8_t yDisplay = editPadPresses[i].yDisplay;
+			if (lastAuditionedVelocityOnScreen[yDisplay] != 255) {
+				sendAuditionNote(false, yDisplay, 127, 0);
+				lastAuditionedVelocityOnScreen[yDisplay] = 255;
+			}
+		}
+	}
+
+	scrollVertical_grabNotesPressed(modelStack, clip);
+
+	int32_t lastDestY = -1;
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			int32_t destY = destYNotes[i];
+			bool underPad = (destY == clip->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong));
+			editPadPresses[i].yNoteOverride = underPad ? std::nullopt : std::optional(static_cast<int16_t>(destY));
+			lastDestY = destY;
+		}
+	}
+
+	scrollVertical_placeNotesPressed(modelStack, clip, false, true);
+
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			reassessAuditionStatus(editPadPresses[i].yDisplay);
+		}
+	}
+
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	if (lastDestY >= 0) {
+		drawActualNoteCode(lastDestY);
+	}
 }
 
 ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCardRoutine) {
@@ -6509,6 +6707,13 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		return false;
 	};
 
+	// Where a row goes. An accidental keeps its place relative to the in-scale row it is displayed on, instead of
+	// snapping into the scale.
+	auto destYNoteFor = [&](int32_t yNote) {
+		int32_t anchor = clip->getDisplayAnchorYNote(yNote, currentSong);
+		return currentSong->incrementYNoteInKey(anchor, offset, inOctave, clip->inScaleMode) + (yNote - anchor);
+	};
+
 	// Reject the whole transpose if it would push any note out of the playable range, matching the
 	// limit that vertical scrolling and key transposition enforce. It's all-or-nothing so that the
 	// intervals between the moved notes are preserved. Do this before touching anything, since the
@@ -6519,7 +6724,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			continue;
 		}
 		int32_t currentYNote = noteRow->y;
-		int32_t destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave, clip->inScaleMode);
+		int32_t destYNote = destYNoteFor(currentYNote);
 		if (destYNote == currentYNote) {
 			continue;
 		}
@@ -6557,7 +6762,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		if (noteRow && !noteRow->hasNoNotes()) {
 			int32_t currentYNote = noteRow->y;
 			// what if it's not in key?
-			auto destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave, clip->inScaleMode);
+			auto destYNote = destYNoteFor(currentYNote);
 			D_PRINTLN("Moving note from row %i to %i", currentYNote, destYNote);
 
 			// Skip if note would stay in same row
@@ -6620,7 +6825,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	// Third pass: add notes to destination rows
 	for (auto& ntm : notesToMove) {
 		// Get or create destination row
-		ModelStackWithNoteRow* destModelStack = clip->getOrCreateNoteRowForYNote(ntm.destYNote, modelStack, action);
+		ModelStackWithNoteRow* destModelStack = clip->getOrCreateNoteRowForYNote(ntm.destYNote, modelStack);
 		if (destModelStack) {
 			NoteRow* destRow = destModelStack->getNoteRowAllowNull();
 			if (destRow) {
@@ -7039,8 +7244,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 	InstrumentClip* currentClip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	ModelStackWithNoteRow* modelStackWithNoteRow =
-	    currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+	ModelStackWithNoteRow* modelStackWithNoteRow = accidentalRows.noteRowForPress(editPadPresses[i], modelStack);
 
 	int32_t squareStart = getPosFromSquare(editPadPresses[i].xDisplay);
 	int32_t squareWidth = getSquareWidth(editPadPresses[i].xDisplay, modelStackWithNoteRow->getLoopLength());
@@ -7161,7 +7365,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 			}
 
 			int32_t noteRowIndex;
-			noteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+			noteRow = accidentalRows.noteRowForPress(editPadPresses[i], &noteRowIndex);
 			noteRowId = currentClip->getNoteRowId(noteRow, noteRowIndex);
 
 			ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -7560,8 +7764,11 @@ void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) 
 	}
 
 	if (clip == getCurrentInstrumentClip()) {
+		// In a scale mode clip that isn't a kit, the changed row may be an accidental, which is drawn on a
+		// neighbouring row - one that needn't have a NoteRow of its own. So redraw every row.
+		bool mayHaveHiddenRows = AccidentalRows::Layout().mayHaveHiddenRows();
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
+			if (mayHaveHiddenRows || getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
 				// use getRootUI() in case it is called from automation view
 				uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 			}
@@ -7630,6 +7837,9 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+	// Worked out once for all the rows
+	AccidentalRows::Layout accidentalLayout;
+
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
@@ -7643,10 +7853,17 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				occupancyMaskOfRow = occupancyMask[yDisplay];
 			}
 
+			// Accidentals are drawn on a neighbouring in-scale row, so we need that row's occupancy
+			std::optional<YNoteRange> hiddenYNotes = accidentalLayout.hiddenYNotes(yDisplay);
+			uint8_t localMask[kDisplayWidth + kSideBarWidth];
+			if (hiddenYNotes && !occupancyMaskOfRow) {
+				occupancyMaskOfRow = localMask;
+			}
+
 			// If row doesn't have a NoteRow, wipe it empty
 			if (!noteRow) {
 				std::fill(image, &image[renderWidth], colours::black);
-				if (occupancyMask) {
+				if (occupancyMaskOfRow) {
 					memset(occupancyMaskOfRow, 0, renderWidth);
 				}
 			}
@@ -7657,6 +7874,11 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
 				                   renderWidth, false);
+			}
+
+			if (hiddenYNotes) {
+				AccidentalRows::render(*hiddenYNotes, rowColour[yDisplay], clip->allowNoteTails(modelStackWithNoteRow),
+				                       this, image, occupancyMaskOfRow, renderWidth, xScroll, xZoom);
 			}
 
 			if (drawUndefinedArea) {
@@ -8365,8 +8587,9 @@ void InstrumentClipView::render_selected_square_pulse(int32_t selection_index, u
 
 	// calculate y display corresponding with current screen
 	int32_t y_display =
-	    (clip->output->type == OutputType::KIT ? remembered_note_row_id
-	                                           : clip->getYVisualFromYNote(remembered_note_row_id, currentSong))
+	    (clip->output->type == OutputType::KIT
+	         ? remembered_note_row_id
+	         : clip->getYVisualFromYNote(clip->getDisplayAnchorYNote(remembered_note_row_id, currentSong), currentSong))
 	    - clip->yScroll;
 
 	// if remembered note is off screen, then we don't pulse

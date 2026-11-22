@@ -14,7 +14,9 @@ namespace deluge::string {
 std::string fromInt(int32_t number, size_t min_num_digits = 1);
 std::string fromFloat(float number, int32_t precision);
 std::string fromSlot(int32_t slot, int32_t sub_slot, size_t min_num_digits = 1);
-std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot = nullptr, bool appendOctaveNo = true);
+/// Pass useSharpsForNoteNames() (model/song/note_spelling.h) for useSharps to follow the song key. Nothing is
+/// defaulted, so that no caller gets a spelling it didn't choose.
+std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool appendOctaveNo, bool useSharps);
 
 bool caselessEquals(std::string_view a, std::string_view b);
 

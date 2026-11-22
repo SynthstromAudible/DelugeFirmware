@@ -1370,12 +1370,9 @@ PLACE_SDRAM_BSS Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
                                                 &defaultUseLastClipTypeMenu,
                                             }};
 
-PLACE_SDRAM_BSS ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS,
-                                            FlashStorage::defaultUseSharps};
-
 PLACE_SDRAM_BSS Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultUseSharps},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
 PLACE_SDRAM_BSS ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,

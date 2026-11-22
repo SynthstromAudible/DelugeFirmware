@@ -102,6 +102,9 @@ public:
 
 	ActionType type;
 	bool openForAdditions;
+	/// Set by ActionLogger::invalidateLogs(): what this Action recorded may no longer match the song, so it (and every
+	/// older Action in its list) must be deleted instead of reverted.
+	bool stale = false;
 
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have
 	// changed these

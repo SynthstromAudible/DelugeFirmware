@@ -19,6 +19,10 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
+#if defined(__arm__)
+static_assert(sizeof(Note) == 24, "Note grew");
+#endif
+
 Note::Note() {
 }
 
