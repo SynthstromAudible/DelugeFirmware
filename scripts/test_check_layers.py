@@ -601,6 +601,15 @@ class RealTable(unittest.TestCase):
             len(self.library_found("effects", '#include "dsp/stereo_sample.h"\n')), 1
         )
 
+    def test_base_may_use_the_standard_library_and_its_own_headers_only(self):
+        accepted = (
+            '#include <stdint.h>\n#include "base/panic.h"\n#include "board_config.h"\n'
+        )
+        self.assertEqual(self.library_found("base", accepted), [])
+        self.assertEqual(
+            len(self.library_found("base", '#include "model/song.h"\n')), 1
+        )
+
     def test_the_plugin_api_may_use_the_document_tree_but_not_the_model(self):
         self.assertEqual(
             self.library_found("plugin", '#include "serialization/value.h"\n'), []

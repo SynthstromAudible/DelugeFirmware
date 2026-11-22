@@ -229,9 +229,9 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_pad_forward.cpp",
     # The automation view's half of the menu's seam: the poll of `MenuScene::take_transition()` that
     # `ShellHostUI::timerCallback` runs once per tick, and what legacy's sound editor does to `automationView` for each
-    # change of the menu's param (`ui/scenes/menu/transition.h`). It names `deluge::ui::scenes::menu_scene()` and the menu's
-    # `AutomationParam` and `MenuTransition` because it reads them, and `automationView` because this is the side of the
-    # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
+    # change of the menu's param (`ui/scenes/menu/transition.h`). It names `deluge::ui::scenes::menu_scene()` and the
+    # menu's `AutomationParam` and `MenuTransition` because it reads them, and `automationView` because this is the
+    # side of the wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
     # legacy types and integers and names no port type.
     "src/deluge/gui/ui/shell_automation_glue.cpp",
     # The slicer scene's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
@@ -362,7 +362,7 @@ RULES = [
         # The shell reads no wall clock of its own -- every tick and gate deadline is
         # driven by the `now_ms` the caller passes in, so the shell can be driven by a fake clock
         # in a spec exactly as it is driven by the real one on device. Two rows, one glob each
-        # (this checker matches one glob per rule row): src/ui/shell/** and src/ui/** both apply.
+        # (this checker matches one glob per rule row): src/ui/shell/** and src/ui/widgets/** both apply.
         "shell-no-clock",
         "src/ui/shell/**",
         "symbol",
@@ -370,10 +370,10 @@ RULES = [
         "2026-08-26-ui-test-harness-design.md",
     ),
     (
-        # Same rule, src/ui/** side -- the scenes and widgets that draw on the shell's ticks must
+        # Same rule, src/ui/widgets/** side -- the scenes and widgets that draw on the shell's ticks must
         # be exactly as clock-free as the shell that drives them.
         "shell-no-clock",
-        "src/ui/**",
+        "src/ui/widgets/**",
         "symbol",
         r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
         "2026-08-26-ui-test-harness-design.md",
@@ -504,7 +504,7 @@ RULES = [
     ),
     (
         # A THIRD shell-no-clock row: the checker matches one glob per row, which is why this rule
-        # is already two rows (src/ui/shell/** above, src/ui/** above). The scenes layer must be
+        # is already two rows (src/ui/shell/** above, src/ui/widgets/** above). The scenes layer must be
         # exactly as clock-free as the shell and toolkit layers it sits on top of.
         "shell-no-clock",
         "src/ui/scenes/**",
@@ -586,7 +586,7 @@ RULES = [
         #
         # `src/ui/scenes/**` only, and one glob per row as ever. `src/ui/shell/**` is not in scope
         # because `shell-includes-outside` refuses `processing/` outright and the shell has no
-        # `StemExport` declaration to name; `src/ui/**` likewise.
+        # `StemExport` declaration to name; `src/ui/widgets/**` likewise.
         #
         # Same ratchet-not-proof caveat as every symbol row here: it sees these four spellings, a
         # call through a member function pointer slips past, and `is_comment_line` skips only
@@ -635,12 +635,12 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
-        # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows. The
+        # Same rule, `src/ui/widgets/**` side -- one glob per row, as `shell-no-clock` is three rows. The
         # toolkit is where the shortcut would be most tempting: `ui/widgets/grid/markers.cpp` and
         # `ui/widgets/oled/sample_position.cpp` draw exactly what `WaveformRenderer` draws, and calling the
         # legacy renderer instead would be both a layer violation and a silent un-porting.
         "scenes-no-legacy-waveform",
-        "src/ui/**",
+        "src/ui/widgets/**",
         "symbol",
         r"\b(" + "|".join(LEGACY_WAVEFORM_GLOBALS) + r")\b",
         "2026-08-26-ui-toolkit-design.md",
@@ -659,12 +659,12 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
     (
-        # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows and
+        # Same rule, `src/ui/widgets/**` side -- one glob per row, as `shell-no-clock` is three rows and
         # `scenes-no-legacy-waveform` is two. The toolkit half matters because `Rainfall` and
         # `Starfield` (`src/ui/widgets/oled/`) are ports of code from `hid/display/`, the directory
         # `indicator_leds` and `PadLEDs` live in, where those calls were allowed.
         "scenes-no-legacy-hid-drivers",
-        "src/ui/**",
+        "src/ui/widgets/**",
         "symbol",
         LEGACY_HID_DRIVER_RE,
         "2026-08-26-ui-toolkit-design.md",

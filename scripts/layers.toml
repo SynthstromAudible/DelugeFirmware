@@ -1,6 +1,7 @@
 # The include layers: the directories under src/, what each library may include, and the include rules whose
 # counts scripts/layers_baseline.txt holds. scripts/check_layers.py checks the tree against it, and
-# docs/dev/code_layout_north_star.md is the layout it moves towards: a directory with a `target` is not yet at its place in it.
+# docs/dev/code_layout_north_star.md is the layout it moves towards: a directory with a `target` is not yet at its
+# place in it.
 
 [tree]
 # The roots the build searches for a quoted include, in the build's order: the legacy tree comes before src/.
@@ -70,6 +71,14 @@ path = "ui"
 
 # Libraries: each may include only the C++ standard library, its system headers, itself and its may_include.
 
+# The bottom of the stack: the standard library, the C headers the C files use and the board's clock constant only.
+[[library]]
+name = "base"
+root = "src/base"
+prefix = "base/"
+may_include = ["board_config.h"]
+system = ["stdbool.h", "stdint.h", "string.h"]
+
 [[library]]
 name = "plugin-types"
 root = "src/plugin/types"
@@ -130,8 +139,8 @@ root = "src/host/chains"
 prefix = "host/chains/"
 may_include = [
     "plugin/types/",
-    # the library publishes the chains' remote-controls pages, so it reads plugin and the effect state it
-    # publishes
+    # the library publishes the chains' remote-controls pages, so it reads the plugin contract's publisher and state
+    # handle and the effect state it publishes
     "plugin/remote_controls_publisher.h",
     "plugin/state_handle.h",
     "effects/plugin.h",

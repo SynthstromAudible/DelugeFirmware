@@ -46,10 +46,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 TREES = (
-    "src/ui/shell",
     "src/ui",
     "sim/scenes_spec",
-    "tests/unit/ui/shell",
     "tests/unit/ui",
     "tests/unit/deluge/gui",
     "tests/unit/harness",

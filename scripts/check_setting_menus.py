@@ -545,8 +545,8 @@ def scene_param_writes(root: Path, allowed=None) -> list[str]:
 SCENES_ENGINE_CALL = re.compile(
     r"\b(setColourOffset|getOrCreateFirstRange)\s*\(|(?:->|\.)\s*(clear)\s*\(\s*action\b|\b(actionLogger)\s*\."
 )
-#: The engine calls allowed under src/ui/scenes, by file (relative to src/ui/scenes) and the text the call's line holds, each
-#: with its reason.
+#: The engine calls allowed under src/ui/scenes, by file (relative to src/ui/scenes) and the text the call's line holds,
+#: each with its reason.
 SCENES_ENGINE_ALLOWED: dict[str, dict[str, str]] = {
     "recorder/recorder_scene.cpp": {
         "actionLogger.deleteAllLogs()": "the recorder wipes the undo log on entry, as legacy's opened() does: the "
