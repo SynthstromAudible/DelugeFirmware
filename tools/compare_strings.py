@@ -42,6 +42,7 @@ Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcop
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import re
 import struct
@@ -159,12 +160,28 @@ def unpointered(
     """@p blob, loaded at @p base, with each 4-byte-aligned word inside one of @p objects (data_objects()) that holds
     one of @p targets (pointer_targets()) made non-text: a vtable, a type-info object, a table of pointers or a code
     literal pool is no string, however its pointers' bytes print (an SRAM address ends in `2X 20`). A word that only
-    reads as an address in the image (`    ` in a `static const char` table is 0x20202020) is text."""
+    reads as an address in the image (`    ` in a `static const char` table is 0x20202020) is text. A word that points
+    into its own object (a list head) is masked too, and one into another of @p objects (`&table[i]`) unless all its
+    bytes print, when it may be such text."""
     out = bytearray(blob)
+    ordered = sorted(objects)
+    starts = [start for start, _ in ordered]
+
+    def inside_an_object(value: int) -> bool:
+        i = bisect.bisect_right(starts, value) - 1
+        return i >= 0 and value < ordered[i][1]
+
     for start, end in objects:
         lo, hi = max(start, base), min(end, base + len(blob))
         for at in range(lo + (-lo % 4), hi - 3, 4):
-            if struct.unpack_from("<I", blob, at - base)[0] in targets:
+            word = blob[at - base : at - base + 4]
+            value = struct.unpack("<I", word)[0]
+            into = inside_an_object(value)
+            if (
+                value in targets
+                or start <= value < end
+                or (into and not all(printable(b) for b in word))
+            ):
                 out[at - base : at - base + 4] = b"\x01" * 4
     return bytes(out)
 

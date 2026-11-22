@@ -187,6 +187,25 @@ class Strings(unittest.TestCase):
             rodata=rodata,
         )
 
+    def test_a_pointer_into_a_data_object_is_no_string(self):
+        # `&table[i]` (0x20254107: `A% ` after a non-text low byte) then a zero word: a 3-character C string, unless
+        # the word is read as the pointer it is.
+        words = self.words(0x20254107, 0)
+        found = self.loaded(
+            bytes(4) + words,
+            [(0x20000004, 0x2000000C), (0x20250000, 0x20260000)],
+            targets=(),
+        )
+        self.assertEqual(found, [])
+
+    def test_a_pointer_into_its_own_object_is_no_string(self):
+        # A list head that points into itself: 0x20254120 is ` A% `, all text, then a zero word ends it as a C string.
+        blob = bytes(4) + self.words(0x20254120, 0)
+        self.assertEqual(
+            self.loaded(blob, [(0x20254100, 0x20254140)], targets=(), base=0x20254100),
+            [],
+        )
+
     def test_a_zero_word_is_no_pointer(self):
         # `__fini_array_start` and absolute constants (`IRQ_MODE`, stack sizes) are symbols at no loaded address: a
         # NUL word in a named object that ends a C string stays a NUL.
