@@ -1,11 +1,11 @@
-#include "effects/host_chain/naming.h"
-#include "effects/host_chain/params.h"
+#include "host/chains/naming.h"
+#include "host/chains/params.h"
 
 #include <cppspec.hpp>
 
 #include "support/printers/param_id_printer.h"
 
-using namespace deluge::host_chain;
+using namespace deluge::host::chains;
 
 // clang-format off
 describe naming("the host chain's names for its params", ${

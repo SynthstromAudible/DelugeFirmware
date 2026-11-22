@@ -18,9 +18,9 @@
 // The param display names, keyed by the neutral kinds and ids: the words the knob popups, the patch-cable menu and the
 // knob-push labels show.
 
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 
 #include "cppspec.hpp"
@@ -57,7 +57,7 @@ describe param_names_cases("param display names", ${
 	});
 	it("names a global effectable's param by the host chain's ids", _ {
 		select_language();
-		expect(text(l10n::param_name(ParamKind::UNPATCHED_GLOBAL, host_chain::param::kTempo))).to_equal("Tempo");
+		expect(text(l10n::param_name(ParamKind::UNPATCHED_GLOBAL, host::chains::param::kTempo))).to_equal("Tempo");
 	});
 	it("names the expression axes", _ {
 		select_language();
@@ -80,7 +80,7 @@ describe param_names_cases("param display names", ${
 		using effects::FilterMode;
 		expect(text(l10n::param_name(ParamKind::PATCHED, instruments::classic::param::kLpfMorph, FilterMode::TRANSISTOR_24DB,
 		                             FilterMode::OFF))).to_equal("LPF drive");
-		expect(text(l10n::param_name(ParamKind::UNPATCHED_GLOBAL, host_chain::param::kHpfMorph, FilterMode::OFF,
+		expect(text(l10n::param_name(ParamKind::UNPATCHED_GLOBAL, host::chains::param::kHpfMorph, FilterMode::OFF,
 		                             FilterMode::HPLADDER))).to_equal("HPF FM");
 		expect(text(l10n::param_name(ParamKind::PATCHED, instruments::classic::param::kLpfMorph, FilterMode::SVF_BAND,
 		                             FilterMode::OFF))).to_equal(text(l10n::param_name(ParamKind::PATCHED, instruments::classic::param::kLpfMorph)));

@@ -443,7 +443,7 @@ RULES = [
         "2026-11-18-instrument-events-design.md",
     ),
     (
-        # The host chain's param table and pages are the deluge_host_chain library (effects/host_chain), named for
+        # The host chain's param table and pages are the deluge_host_chains library (host/chains), named for
         # what they serve. One row per tree: the checker matches one glob per row.
         "no-global-effectable-table",
         "src/**",

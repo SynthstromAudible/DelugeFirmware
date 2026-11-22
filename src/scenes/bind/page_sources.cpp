@@ -1,6 +1,6 @@
 #include "scenes/bind/page_sources.h"
 
-#include "effects/host_chain/pages.h"
+#include "host/chains/pages.h"
 #include "instruments/classic/pages.h"
 #include "project/fx_chain.h"
 
@@ -11,7 +11,7 @@ namespace deluge::scenes::bind {
 
 std::span<const plugin::RemoteControls> app_publishers() {
 	static const std::array<plugin::RemoteControls, 2> kRecords{instruments::classic::kRemoteControls,
-	                                                            host_chain::kRemoteControls};
+	                                                            host::chains::kRemoteControls};
 	return kRecords;
 }
 
@@ -21,15 +21,15 @@ controls::ChainView chain_view(const project::FxChain* chain, const controls::Co
 	const uint8_t mod_fx_param = chain != nullptr ? chain->mod_fx_param : project::FxChain{}.mod_fx_param;
 	const uint8_t filter_type = chain != nullptr ? chain->filter_type : project::FxChain{}.filter_type;
 	// The compressor settings' pages follow the reverb page, one each.
-	const uint32_t comp_page = 1 + (comp.param % host_chain::kCompPages);
+	const uint32_t comp_page = 1 + (comp.param % host::chains::kCompPages);
 	controls::ChainView out{.current = 0, .group_entry = {0, comp_page}};
-	if (section == host_chain::kModFxSection) {
+	if (section == host::chains::kModFxSection) {
 		out.current = mod_fx_param;
 	}
-	else if (section == host_chain::kFilterSection) {
-		out.current = std::min<uint32_t>(filter_type, host_chain::kEqPage);
+	else if (section == host::chains::kFilterSection) {
+		out.current = std::min<uint32_t>(filter_type, host::chains::kEqPage);
 	}
-	else if (section == host_chain::kCompressorSection && song && comp.editing) {
+	else if (section == host::chains::kCompressorSection && song && comp.editing) {
 		out.current = comp_page;
 	}
 	return out;

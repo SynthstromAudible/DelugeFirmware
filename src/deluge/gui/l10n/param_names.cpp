@@ -17,8 +17,8 @@
 
 #include "gui/l10n/param_names.h"
 
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 
 #include <optional>
@@ -209,91 +209,91 @@ std::optional<std::string_view> unpatched_sound_name(plugin::ParamId id) {
 /// @brief The name of a global effectable's unpatched param, nullopt for an id that names no param.
 std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 	switch (id.value) {
-	case host_chain::param::kStutterRate.value:
+	case host::chains::param::kStutterRate.value:
 		return getView(String::STRING_FOR_STUTTER_RATE);
-	case host_chain::param::kBass.value:
+	case host::chains::param::kBass.value:
 		return getView(String::STRING_FOR_BASS);
-	case host_chain::param::kTreble.value:
+	case host::chains::param::kTreble.value:
 		return getView(String::STRING_FOR_TREBLE);
-	case host_chain::param::kBassFreq.value:
+	case host::chains::param::kBassFreq.value:
 		return getView(String::STRING_FOR_BASS_FREQUENCY);
-	case host_chain::param::kTrebleFreq.value:
+	case host::chains::param::kTrebleFreq.value:
 		return getView(String::STRING_FOR_TREBLE_FREQUENCY);
-	case host_chain::param::kSampleRateReduction.value:
+	case host::chains::param::kSampleRateReduction.value:
 		return getView(String::STRING_FOR_DECIMATION);
-	case host_chain::param::kBitcrushAmount.value:
+	case host::chains::param::kBitcrushAmount.value:
 		return getView(String::STRING_FOR_BITCRUSH);
-	case host_chain::param::kModFXOffset.value:
+	case host::chains::param::kModFXOffset.value:
 		return getView(String::STRING_FOR_MODFX_OFFSET);
-	case host_chain::param::kModFXFeedback.value:
+	case host::chains::param::kModFXFeedback.value:
 		return getView(String::STRING_FOR_MODFX_FEEDBACK);
-	case host_chain::param::kCompressorShape.value:
+	case host::chains::param::kCompressorShape.value:
 		return getView(String::STRING_FOR_SIDECHAIN_SHAPE);
-	case host_chain::param::kCompressorThreshold.value:
+	case host::chains::param::kCompressorThreshold.value:
 		return getView(String::STRING_FOR_THRESHOLD);
-	case host_chain::param::kArpGate.value:
+	case host::chains::param::kArpGate.value:
 		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
-	case host_chain::param::kRhythm.value:
+	case host::chains::param::kRhythm.value:
 		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
-	case host_chain::param::kSequenceLength.value:
+	case host::chains::param::kSequenceLength.value:
 		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
-	case host_chain::param::kChordPolyphony.value:
+	case host::chains::param::kChordPolyphony.value:
 		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
-	case host_chain::param::kRatchetAmount.value:
+	case host::chains::param::kRatchetAmount.value:
 		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
-	case host_chain::param::kNoteProbability.value:
+	case host::chains::param::kNoteProbability.value:
 		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kReverseProbability.value:
+	case host::chains::param::kReverseProbability.value:
 		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kBassProbability.value:
+	case host::chains::param::kBassProbability.value:
 		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kSwapProbability.value:
+	case host::chains::param::kSwapProbability.value:
 		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kGlideProbability.value:
+	case host::chains::param::kGlideProbability.value:
 		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kChordProbability.value:
+	case host::chains::param::kChordProbability.value:
 		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kRatchetProbability.value:
+	case host::chains::param::kRatchetProbability.value:
 		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
-	case host_chain::param::kSpreadGate.value:
+	case host::chains::param::kSpreadGate.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
-	case host_chain::param::kSpreadOctave.value:
+	case host::chains::param::kSpreadOctave.value:
 		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
-	case host_chain::param::kSpreadVelocity.value:
+	case host::chains::param::kSpreadVelocity.value:
 		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
-	case host_chain::param::kModFXRate.value:
+	case host::chains::param::kModFXRate.value:
 		return getView(String::STRING_FOR_MOD_FX_RATE);
-	case host_chain::param::kModFXDepth.value:
+	case host::chains::param::kModFXDepth.value:
 		return getView(String::STRING_FOR_MOD_FX_DEPTH);
-	case host_chain::param::kDelayRate.value:
+	case host::chains::param::kDelayRate.value:
 		return getView(String::STRING_FOR_DELAY_RATE);
-	case host_chain::param::kDelayFeedback.value:
+	case host::chains::param::kDelayFeedback.value:
 		return getView(String::STRING_FOR_DELAY_AMOUNT);
-	case host_chain::param::kArpRate.value:
+	case host::chains::param::kArpRate.value:
 		return getView(String::STRING_FOR_ARP_RATE_MENU_TITLE);
-	case host_chain::param::kPan.value:
+	case host::chains::param::kPan.value:
 		return getView(String::STRING_FOR_PAN);
-	case host_chain::param::kLpfFrequency.value:
+	case host::chains::param::kLpfFrequency.value:
 		return getView(String::STRING_FOR_LPF_FREQUENCY);
-	case host_chain::param::kLpfResonance.value:
+	case host::chains::param::kLpfResonance.value:
 		return getView(String::STRING_FOR_LPF_RESONANCE);
-	case host_chain::param::kLpfMorph.value:
+	case host::chains::param::kLpfMorph.value:
 		return getView(String::STRING_FOR_LPF_MORPH);
-	case host_chain::param::kHpfFrequency.value:
+	case host::chains::param::kHpfFrequency.value:
 		return getView(String::STRING_FOR_HPF_FREQUENCY);
-	case host_chain::param::kHpfResonance.value:
+	case host::chains::param::kHpfResonance.value:
 		return getView(String::STRING_FOR_HPF_RESONANCE);
-	case host_chain::param::kHpfMorph.value:
+	case host::chains::param::kHpfMorph.value:
 		return getView(String::STRING_FOR_HPF_MORPH);
-	case host_chain::param::kReverbAmount.value:
+	case host::chains::param::kReverbAmount.value:
 		return getView(String::STRING_FOR_REVERB_AMOUNT);
-	case host_chain::param::kVolume.value:
+	case host::chains::param::kVolume.value:
 		return getView(String::STRING_FOR_MASTER_LEVEL);
-	case host_chain::param::kSidechainCompressorVolume.value:
+	case host::chains::param::kSidechainCompressorVolume.value:
 		return getView(String::STRING_FOR_SIDECHAIN_LEVEL);
-	case host_chain::param::kPitchAdjust.value:
+	case host::chains::param::kPitchAdjust.value:
 		return getView(String::STRING_FOR_MASTER_PITCH);
-	case host_chain::param::kTempo.value:
+	case host::chains::param::kTempo.value:
 		return getView(String::STRING_FOR_TEMPO);
 	}
 	return std::nullopt;
@@ -437,13 +437,13 @@ bool is_family(effects::FilterMode mode, effects::FilterFamily family) {
 /// @brief Whether the param is a low-pass morph.
 bool is_lpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
 	return (kind == plugin::ParamKind::PATCHED && id == instruments::classic::param::kLpfMorph)
-	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host_chain::param::kLpfMorph);
+	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kLpfMorph);
 }
 
 /// @brief Whether the param is a high-pass morph.
 bool is_hpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
 	return (kind == plugin::ParamKind::PATCHED && id == instruments::classic::param::kHpfMorph)
-	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host_chain::param::kHpfMorph);
+	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kHpfMorph);
 }
 
 } // namespace

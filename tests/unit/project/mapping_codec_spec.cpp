@@ -19,8 +19,8 @@
 /// @brief An owner's learned knobs as the codec reads them from a file: a sound's old volume names land on the volume
 ///        the runtime turns, and a knob naming a cable's pre-3.2 "range" is left out.
 
-#include "effects/host_chain/naming.h"
-#include "effects/host_chain/params.h"
+#include "host/chains/naming.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/naming.h"
 #include "instruments/classic/params.h"
@@ -132,10 +132,10 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 			<midiKnob channel="0" ccNumber="2" relative="0" controlsParam="volume" />
 			</midiKnobs></kit>)", "kit");
 		const std::vector<Mapping> knobs = decode_knobs(*kit.find("midiKnobs"), ControlsAddress{ControlsAddress::Kind::OUTPUT, 2},
-		                                                deluge::host_chain::kNaming);
+		                                                deluge::host::chains::kNaming);
 		expect(knobs.size()).to_equal(size_t{1});
 		expect(knobs.empty() ? 0U : std::get<OwnerParamTarget>(knobs[0].target).param.id.value)
-		    .to_equal(deluge::host_chain::param::kVolume.value);
+		    .to_equal(deluge::host::chains::param::kVolume.value);
 	});
 
 	it("reads each knob's source and owner, and a song's table takes the same knobs", _ {

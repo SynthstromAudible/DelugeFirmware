@@ -1,4 +1,4 @@
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 
 #include <array>
@@ -8,7 +8,7 @@
 #include <string>
 #include <string_view>
 
-using namespace deluge::host_chain;
+using namespace deluge::host::chains;
 using deluge::plugin::ParamId;
 using deluge::plugin::ParamScope;
 

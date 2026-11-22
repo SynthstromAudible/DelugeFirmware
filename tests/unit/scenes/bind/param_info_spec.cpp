@@ -1,4 +1,4 @@
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "plugin/types/plugin_id.h"
 #include "project/param_address.h"
@@ -15,10 +15,10 @@ describe param_info("the descriptor rows a Deluge host's owners have", ${
 		const plugin::ParamInfo* sound_row = scenes::bind::deluge_param_info(plugin::kDelugeInstrument, volume);
 		expect(sound_row).not_().to_be_null();
 		expect(sound_row->id).to_equal(instruments::classic::param::kVolume);
-		const project::ParamTarget chain_first{.space = project::ParamSpace::ENGINE, .id = host_chain::kParams[0].id};
+		const project::ParamTarget chain_first{.space = project::ParamSpace::ENGINE, .id = host::chains::kParams[0].id};
 		const plugin::ParamInfo* chain_row = scenes::bind::deluge_param_info(plugin::kGlobalEffectable, chain_first);
 		expect(chain_row).not_().to_be_null();
-		expect(chain_row->id).to_equal(host_chain::kParams[0].id);
+		expect(chain_row->id).to_equal(host::chains::kParams[0].id);
 	});
 	it("has no row for an id the plugin does not have", _ {
 		const project::ParamTarget unknown{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{0xFFFF}};

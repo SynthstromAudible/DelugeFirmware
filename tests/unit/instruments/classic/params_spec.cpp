@@ -269,8 +269,8 @@ describe params("the Deluge instrument's param table", ${
 			});
 			return at == in.end() ? std::optional<deluge::plugin::ParamId>{} : std::optional{at->id};
 		};
-		const std::optional<deluge::plugin::ParamId> sound_only = only_in(kParams, deluge::host_chain::kParams);
-		const std::optional<deluge::plugin::ParamId> global_only = only_in(deluge::host_chain::kParams, kParams);
+		const std::optional<deluge::plugin::ParamId> sound_only = only_in(kParams, deluge::host::chains::kParams);
+		const std::optional<deluge::plugin::ParamId> global_only = only_in(deluge::host::chains::kParams, kParams);
 		expect(sound_only.has_value()).to_be_true();
 		expect(global_only.has_value()).to_be_true();
 		if (!sound_only || !global_only) {

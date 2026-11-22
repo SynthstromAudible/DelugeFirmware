@@ -17,7 +17,7 @@
 
 #include "gui/l10n/setting_names.h"
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "project/device_settings.h"
 
@@ -1253,10 +1253,10 @@ String param_name(plugin::PluginId engine, ParamId id, const ParamNameContext& s
 		return name_in(kInstrumentParamNames, id);
 	}
 	if (engine == plugin::kGlobalEffectable) {
-		if (id == host_chain::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
+		if (id == host::chains::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
 			return STRING_FOR_LPF_DRIVE;
 		}
-		if (id == host_chain::param::kHpfMorph && state.hpf_mode == effects::FilterMode::HPLADDER) {
+		if (id == host::chains::param::kHpfMorph && state.hpf_mode == effects::FilterMode::HPLADDER) {
 			return STRING_FOR_HPF_FM;
 		}
 		return name_in(kGlobalEffectableParamNames, id);

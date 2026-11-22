@@ -4,7 +4,7 @@
 
 #include "controls/knob_math.h"
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
 
@@ -126,7 +126,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		Song* const before = currentSong;
 		currentSong = f.song;
 		std::vector<std::string> found;
-		for (const ParamInfo& info : deluge::host_chain::kParams) {
+		for (const ParamInfo& info : deluge::host::chains::kParams) {
 			const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = info.id};
 			if (std::string why = disagreement(*f.song, address, &info); !why.empty()) {
 				found.push_back(why);
@@ -160,7 +160,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 
 	it("indicates the middle of a stutter rate unless it is quantized, or while stuttering", _ {
 		const ParamInfo* rate =
-		    deluge::plugin::find_param(deluge::host_chain::kParams, deluge::host_chain::param::kStutterRate);
+		    deluge::plugin::find_param(deluge::host::chains::kParams, deluge::host::chains::param::kStutterRate);
 		const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = rate->id};
 		expect(controls::indicates_middle(address, rate, false, false)).to_be_true();
 		expect(controls::indicates_middle(address, rate, true, false)).to_be_false();

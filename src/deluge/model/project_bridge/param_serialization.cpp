@@ -18,7 +18,7 @@
 #include "model/project_bridge/param_serialization.h"
 #include "instruments/classic/cable_codec.h"
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
@@ -36,7 +36,7 @@ namespace deluge::bridge {
 
 using deluge::plugin::ParamId;
 namespace ip = deluge::instruments::classic::param;
-namespace gp = deluge::host_chain::param;
+namespace gp = deluge::host::chains::param;
 
 using namespace deluge::project;
 

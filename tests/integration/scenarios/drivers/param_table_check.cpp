@@ -32,11 +32,11 @@
 #include "effects/delay.h"
 #include "effects/equalizer.h"
 #include "effects/filter.h"
-#include "effects/host_chain/naming.h"
-#include "effects/host_chain/params.h"
 #include "effects/mod_fx.h"
 #include "effects/reverb.h"
 #include "effects/stutter.h"
+#include "host/chains/naming.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/naming.h"
 #include "instruments/classic/params.h"
@@ -201,7 +201,7 @@ struct Checker {
 		if (!unnamed && name != info.file_name) {
 			fail(table, info, "the runtime names it differently");
 		}
-		if (unnamed && info.id != deluge::host_chain::param::kTempo) {
+		if (unnamed && info.id != deluge::host::chains::param::kTempo) {
 			fail(table, info, "the runtime has no name for it");
 		}
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
@@ -231,7 +231,7 @@ struct Checker {
 			fail(table, info, "the boundary map gives the id another runtime index");
 		}
 		const deluge::plugin::ParamNaming& naming = kind == params::Kind::UNPATCHED_GLOBAL
-		                                                ? deluge::host_chain::kNaming
+		                                                ? deluge::host::chains::kNaming
 		                                                : deluge::instruments::classic::kNaming;
 		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
 			fail(table, info, "its naming does not give the runtime's name this id");
@@ -388,9 +388,10 @@ void checkDefaults(Checker& check) {
 	ParamManagerForTimeline global;
 	global.setupUnpatched();
 	deluge::model::initGlobalParams(&global);
-	for (const ParamInfo& info : deluge::host_chain::kParams) {
-		int32_t value =
-		    global.getUnpatchedParamSet()->docForParam(*deluge::host_chain::find_runtime_index(info.id))->current_value;
+	for (const ParamInfo& info : deluge::host::chains::kParams) {
+		int32_t value = global.getUnpatchedParamSet()
+		                    ->docForParam(*deluge::host::chains::find_runtime_index(info.id))
+		                    ->current_value;
 		int32_t recorded = recordedDefault(param_defaults_reference::Table::HOST_CHAIN, info.id);
 		if (value != recorded || info.default_value != recorded) {
 			std::fprintf(check.io.err, "default host-chain %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
@@ -454,9 +455,9 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 		check.row("instrument", info, patched ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND, slot.index,
 		          patched && slot.index < params::FIRST_GLOBAL);
 	}
-	for (const ParamInfo& info : deluge::host_chain::kParams) {
-		check.row("host-chain", info, params::Kind::UNPATCHED_GLOBAL, *deluge::host_chain::find_runtime_index(info.id),
-		          false);
+	for (const ParamInfo& info : deluge::host::chains::kParams) {
+		check.row("host-chain", info, params::Kind::UNPATCHED_GLOBAL,
+		          *deluge::host::chains::find_runtime_index(info.id), false);
 	}
 	// Every runtime param has a row.
 	auto cover = [&](const char* table, std::span<const ParamInfo> rows, params::Kind kind, int32_t count) {
@@ -469,7 +470,8 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	};
 	cover("instrument", kParams, params::Kind::PATCHED, params::kNumParams);
 	cover("instrument", kParams, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
-	cover("host-chain", deluge::host_chain::kParams, params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MAX_NUM);
+	cover("host-chain", deluge::host::chains::kParams, params::Kind::UNPATCHED_GLOBAL,
+	      params::UNPATCHED_GLOBAL_MAX_NUM);
 	checkCables(check);
 	checkNames(check);
 	checkEffectFragments(check);

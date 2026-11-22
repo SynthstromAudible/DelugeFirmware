@@ -13,7 +13,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   `feat/mca-ge-deletion`): an owner's effects are a `model::EffectsOwner`.
 - The scenes' direct runtime reads are held at their count by the R1 ratchet. `ShellHostUI` hosts the scenes inside
   the legacy UI stack until the root-view program (wave 3) makes the shell the root.
-- Each effect param is declared once (`effects/params.h`); the host chain's table (`effects/host_chain`) and the
+- Each effect param is declared once (`effects/params.h`); the host chain's table (`host/chains`) and the
   instrument's effect rows are built from them (P3d-1d / params C4, merged 77a23d631).
 - Instrument events (Track A step 1b-i, `feat/instrument-events`): note tails are `Voiced`'s, an expression lane's
   change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;

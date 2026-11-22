@@ -15,16 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "effects/host_chain/pages.h"
+#include "host/chains/pages.h"
 
-#include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
+#include "host/chains/params.h"
 
 #include <array>
 #include <optional>
 
-namespace deluge::host_chain {
+namespace deluge::host::chains {
 
 namespace {
 
@@ -255,4 +255,4 @@ const plugin::RemoteControls kRemoteControls{.plugin = plugin::kGlobalEffectable
                                              .find = &find_page,
                                              .decorate = &decorate_slot};
 
-} // namespace deluge::host_chain
+} // namespace deluge::host::chains

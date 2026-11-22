@@ -57,6 +57,10 @@ path = "gsl"
 target = "third_party/gsl"
 
 [[directory]]
+path = "host"
+target = "src/host"
+
+[[directory]]
 path = "instruments"
 target = "src/instruments"
 
@@ -134,6 +138,7 @@ prefix = "instruments/classic/"
 may_include = [
     "plugin/",
     "effects/",
+    "host/chains/",
     "serialization/",
     "base/panic.h",
     "synth/modulation/patch_source.h",
@@ -156,9 +161,9 @@ may_include = [
 ]
 
 [[library]]
-name = "host-chain"
-root = "src/effects/host_chain"
-prefix = "effects/host_chain/"
+name = "host-chains"
+root = "src/host/chains"
+prefix = "host/chains/"
 may_include = [
     "plugin/types/",
     # the library publishes the chains' remote-controls pages, so it reads plugin and the effect state it
@@ -232,7 +237,7 @@ may_include = [
     "plugin/",
     "instruments/classic/",
     "effects/",
-    "effects/host_chain/",
+    "host/chains/",
     "serialization/",
     "midi/device_id.h",
     "music/",
@@ -333,7 +338,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

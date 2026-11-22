@@ -15,8 +15,8 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
-#include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
 #include "plugin/types/param_kind.h"
@@ -1444,7 +1444,7 @@ constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 	case ParamKind::UNPATCHED_SOUND:
 		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::UNPATCHED, p.index});
 	case ParamKind::UNPATCHED_GLOBAL:
-		return deluge::host_chain::param_id(p.index);
+		return deluge::host::chains::param_id(p.index);
 	case ParamKind::NONE:
 	case ParamKind::STATIC:
 	case ParamKind::MIDI:

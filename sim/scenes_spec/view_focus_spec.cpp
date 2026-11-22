@@ -15,12 +15,12 @@
 #include "gui/views/view.h"
 
 #include "controls/knob_focus.h"
-#include "effects/host_chain/params.h"
 #include "effects/reverb_presets.h"
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
@@ -803,14 +803,14 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const std::optional<project::ParamAddress> lower = deluge::gui::ui::root_knobs::knob_address(0);
 		expect(lower.has_value()).to_be_true();
 		if (lower.has_value()) {
-			expect(lower->id).to_equal(deluge::host_chain::param::kReverbAmount);
+			expect(lower->id).to_equal(deluge::host::chains::param::kReverbAmount);
 		}
 		const deluge::scenes::bind::KnobAssignment port =
 		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0, kDelugeControls);
 		const auto* address = std::get_if<project::ParamAddress>(&port.target);
 		expect(address).not_().to_be_null();
 		if (address != nullptr) {
-			expect(address->id).to_equal(deluge::host_chain::param::kReverbAmount);
+			expect(address->id).to_equal(deluge::host::chains::param::kReverbAmount);
 		}
 		view.knobFocus().comp = {};
 		view.releaseActiveModControllable();

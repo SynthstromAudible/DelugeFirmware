@@ -17,10 +17,10 @@
 
 #include "modulation/params/param.h"
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
@@ -122,7 +122,7 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			// codec's own table
 			return "none";
 		}
-		return tableName(host_chain::kParams, param);
+		return tableName(host::chains::kParams, param);
 	}
 	// A sound's own unpatched params only for a sound's collection; the shared ones for any
 	if (kind == UNPATCHED_SOUND || param < UNPATCHED_START + UNPATCHED_NUM_SHARED) {

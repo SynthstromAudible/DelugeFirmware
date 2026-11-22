@@ -637,16 +637,16 @@ class RealTable(unittest.TestCase):
 
     def test_the_host_chain_table_may_use_only_the_plugin_types(self):
         self.assertEqual(
-            self.library_found("host-chain", '#include "plugin/types/param.h"\n'),
+            self.library_found("host-chains", '#include "plugin/types/param.h"\n'),
             [],
         )
         self.assertEqual(
-            len(self.library_found("host-chain", '#include "plugin/plugin.h"\n')), 1
+            len(self.library_found("host-chains", '#include "plugin/plugin.h"\n')), 1
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "host-chain", '#include "instruments/classic/params.h"\n'
+                    "host-chains", '#include "instruments/classic/params.h"\n'
                 )
             ),
             1,

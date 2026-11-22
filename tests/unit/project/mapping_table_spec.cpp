@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "effects/host_chain/naming.h"
-#include "effects/host_chain/params.h"
+#include "host/chains/naming.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/naming.h"
 #include "instruments/classic/params.h"
@@ -102,12 +102,12 @@ describe mapping_table("the song's mapping table", ${
 		table.learn(knob(cc(1, 5), OwnerParamTarget{owner,
 		                                            {deluge::project::ParamSpace::MIDI_CC, deluge::plugin::ParamId{2}}}));
 		auto element = deluge::serialization::Value::makeMap();
-		encode_mappings(table, owner, element, &deluge::host_chain::kNaming);
+		encode_mappings(table, owner, element, &deluge::host::chains::kNaming);
 		expect(element.find("midiKnobs")).to_be_null();
 		table.learn(knob(cc(1, 6), OwnerParamTarget{owner, deluge::project::engine_target(
-		                                                       deluge::host_chain::param::kLpfFrequency.value)}));
+		                                                       deluge::host::chains::param::kLpfFrequency.value)}));
 		auto both = deluge::serialization::Value::makeMap();
-		encode_mappings(table, owner, both, &deluge::host_chain::kNaming);
+		encode_mappings(table, owner, both, &deluge::host::chains::kNaming);
 		expect(both.find("midiKnobs")->items().size()).to_equal(size_t{1});
 	});
 
@@ -371,7 +371,7 @@ describe mapping_table("the song's mapping table", ${
 	it("reads and writes a kit's knob from a port", _ {
 		const Trip trip = round_trip(
 		    R"({"midiKnobs": [{"midiKnob": {"channel": 2, "ccNumber": 7, "relative": 0, "controlsParam": "lpfFrequency", "device": {"port": "din"}}}]})",
-		    ControlsAddress{ControlsAddress::Kind::OUTPUT, 5}, &deluge::host_chain::kNaming);
+		    ControlsAddress{ControlsAddress::Kind::OUTPUT, 5}, &deluge::host::chains::kNaming);
 		expect(trip.count).to_equal(size_t{1});
 		expect(trip.same).to_be_true();
 		const Mapping& m = trip.first;
@@ -379,13 +379,13 @@ describe mapping_table("the song's mapping table", ${
 		expect(m.relative).to_be_false();
 		expect(m.target).to_equal(MappingTarget{
 		    OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, 5},
-		                     deluge::project::engine_target(deluge::host_chain::param::kLpfFrequency.value)}});
+		                     deluge::project::engine_target(deluge::host::chains::param::kLpfFrequency.value)}});
 	});
 
 	it("reads and writes the song's knob", _ {
 		const Trip trip = round_trip(
 		    R"({"midiKnobs": [{"midiKnob": {"channel": 0, "ccNumber": 1, "relative": 0, "controlsParam": "volume"}}]})",
-		    ControlsAddress{ControlsAddress::Kind::SONG, 0}, &deluge::host_chain::kNaming);
+		    ControlsAddress{ControlsAddress::Kind::SONG, 0}, &deluge::host::chains::kNaming);
 		expect(trip.count).to_equal(size_t{1});
 		expect(trip.same).to_be_true();
 		const Mapping& m = trip.first;

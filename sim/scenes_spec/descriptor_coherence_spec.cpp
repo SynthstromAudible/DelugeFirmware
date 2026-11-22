@@ -18,7 +18,7 @@
 
 #include "support/descriptor_cases.h"
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "scenes/menu/bindings.h"
@@ -781,7 +781,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
 			const bool global = ref.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			const std::span<const deluge::plugin::ParamInfo> table =
-			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::host_chain::kParams}
+			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
 			           : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
 			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(table, id);
 			expect(row).not_().to_be_null();

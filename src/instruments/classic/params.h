@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "effects/host_chain/params.h"
 #include "effects/param_row.h"
 #include "effects/params.h"
+#include "host/chains/params.h"
 #include "plugin/types/param.h"
 #include "plugin/types/param_kind.h"
 #include "plugin/types/plugin_id.h"
@@ -440,7 +440,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::UNPATCHED_SOUND:
 		return kParamBlocks[1].contains(id) ? plugin::find_param(kParams, id) : nullptr;
 	case plugin::ParamKind::UNPATCHED_GLOBAL:
-		return host_chain::kParamBlock.contains(id) ? plugin::find_param(host_chain::kParams, id) : nullptr;
+		return host::chains::kParamBlock.contains(id) ? plugin::find_param(host::chains::kParams, id) : nullptr;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
@@ -470,7 +470,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 		at += kParamBlocks[0].count;
 		break;
 	case plugin::ParamKind::UNPATCHED_GLOBAL:
-		table = host_chain::kParams;
+		table = host::chains::kParams;
 		break;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
@@ -498,7 +498,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 /// @return True for the stutter rate of an unpatched set.
 [[nodiscard]] constexpr bool is_stutter_rate(plugin::ParamKind kind, plugin::ParamId id) {
 	return (kind == plugin::ParamKind::UNPATCHED_GLOBAL || kind == plugin::ParamKind::UNPATCHED_SOUND)
-	       && id == host_chain::param::kStutterRate;
+	       && id == host::chains::param::kStutterRate;
 }
 
 /// @brief Does the param's knob swing both ways around a middle value? Every patch cable's depth does, as does the
@@ -563,7 +563,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 /// @return True when the table has the param.
 [[nodiscard]] constexpr bool has_engine_param(plugin::PluginId plugin, plugin::ParamId id) {
 	const std::span<const plugin::ParamInfo> table = plugin == plugin::kGlobalEffectable
-	                                                     ? std::span<const plugin::ParamInfo>{host_chain::kParams}
+	                                                     ? std::span<const plugin::ParamInfo>{host::chains::kParams}
 	                                                     : std::span<const plugin::ParamInfo>{kParams};
 	return plugin::find_param(table, id) != nullptr;
 }

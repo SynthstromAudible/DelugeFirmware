@@ -23,7 +23,6 @@
 #include "controls/sink.h"
 #include "controls/takeover.h"
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -32,6 +31,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "io/file.hpp"
 #include "io/midi/follow_host.h"
@@ -206,13 +206,13 @@ void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
 }
 
 void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
-	globalParamToCC[*deluge::host_chain::find_runtime_index(target.id)] = cc;
+	globalParamToCC[*deluge::host::chains::find_runtime_index(target.id)] = cc;
 	ccToGlobalTarget[cc] = target;
 }
 
 void MidiFollow::initDefaultMappings() {
 	namespace ip = deluge::instruments::classic::param;
-	namespace gp = deluge::host_chain::param;
+	namespace gp = deluge::host::chains::param;
 	auto mapSound = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapSound(cc, deluge::project::engine_target(id.value));
 	};
@@ -477,7 +477,7 @@ std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) c
 			cc = soundParamToCC[target.id.value];
 		}
 	}
-	else if (std::optional<uint8_t> index = deluge::host_chain::find_runtime_index(target.id)) {
+	else if (std::optional<uint8_t> index = deluge::host::chains::find_runtime_index(target.id)) {
 		cc = globalParamToCC[*index];
 	}
 	if (cc == MIDI_CC_NONE) {

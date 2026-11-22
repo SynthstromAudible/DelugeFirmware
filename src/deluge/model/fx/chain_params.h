@@ -31,7 +31,7 @@ namespace deluge::model {
 void initSharedParams(ParamManager* paramManager, modulation::params::Kind defaults);
 
 /// @brief Sets a host chain's params (a kit's, the song's) to their defaults: the shared ones and every other row of
-/// the host chain's table but host_chain::kNotInitialised, and marks its unpatched set global.
+/// the host chain's table but host::chains::kNotInitialised, and marks its unpatched set global.
 /// @param paramManager The param manager to initialise.
 void initGlobalParams(ParamManager* paramManager);
 

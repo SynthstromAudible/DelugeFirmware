@@ -4,13 +4,13 @@
 ///        learned members, and the facts a dispatch reads (the playing outputs, a kit's sound rows, the takeover's
 ///        inputs, the held step region, a param that does not exist yet).
 
-#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
@@ -596,8 +596,8 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			expect(sound->id).to_equal(lpf.id, "the sound's LPF info");
 		}
 		const deluge::plugin::ParamInfo* chain = facts.param_info(
-		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::host_chain::kParams[0].id});
-		expect(chain).to_equal(&deluge::host_chain::kParams[0], "the chain's first param info");
+		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::host::chains::kParams[0].id});
+		expect(chain).to_equal(&deluge::host::chains::kParams[0], "the chain's first param info");
 		expect(facts.param_info(deluge::plugin::kDelugeInstrument, depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1)))
 		    .to_be_null("a cable depth's info");
 		expect(facts.param_info(deluge::plugin::kDelugeEffects, lpf)).to_be_null("the effects' LPF info");

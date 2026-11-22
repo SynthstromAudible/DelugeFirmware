@@ -6,7 +6,7 @@ add_subdirectory(serialization) # deluge_serialization: the document tree and it
 add_subdirectory(plugin) # deluge_plugin: the host–plugin contract's interface
 add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
 add_subdirectory(instruments/classic) # deluge_instruments_classic: the Deluge instrument's state, words and codec
-add_subdirectory(effects/host_chain) # deluge_host_chain: the host chain's param table and pages
+add_subdirectory(host/chains) # deluge_host_chains: the host chain's param table and pages
 add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mapping
 add_subdirectory(sample-view) # deluge_sample_view: a waveform view's columns, peaks and navigation
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)

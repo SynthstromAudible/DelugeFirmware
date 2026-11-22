@@ -94,7 +94,7 @@ HOST_APP_TARGETS = [
     "deluge_controls",
     "deluge_instruments_classic",
     "deluge_effects",
-    "deluge_host_chain",
+    "deluge_host_chains",
     "deluge_midi",
     "deluge_gfx_oled",
     "deluge_gfx_grid",

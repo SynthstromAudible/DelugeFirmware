@@ -9,8 +9,6 @@
 #include "controls/resolve.h"
 #include "effects/chain.h"
 #include "effects/compressor.h"
-#include "effects/host_chain/pages.h"
-#include "effects/host_chain/params.h"
 #include "effects/reverb_presets.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
@@ -18,6 +16,8 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
+#include "host/chains/pages.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/pages.h"
 #include "instruments/classic/params.h"
@@ -295,7 +295,8 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 	const effects::ModFXType type = after.mod_fx.type;
 	const uint32_t view = mod_fx_view(song, focus);
 	uint32_t param = view;
-	for (int32_t tried = 0; tried < effects::kNumModFxParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
+	for (int32_t tried = 0; tried < effects::kNumModFxParams && !host::chains::mod_fx_page_valid(type, param);
+	     tried++) {
 		param = (param + 1) % effects::kNumModFxParams;
 	}
 	if (param != view) {
@@ -336,14 +337,14 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		return;
 	}
 	switch (page.section) {
-	case host_chain::kFilterSection: {
+	case host::chains::kFilterSection: {
 		const auto next = static_cast<effects::FilterType>(page.page_id);
 		out.chain_view.emplace("currentFilterType", effects::kFilterTypeWords[page.page_id]);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		out.edited = true;
 		return;
 	}
-	case host_chain::kModFxSection: {
+	case host::chains::kModFxSection: {
 		const auto param = static_cast<effects::ModFxParam>(page.page_id);
 		if (page.page_id != mod_fx_view(song, focus)) {
 			out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[page.page_id]);
@@ -353,7 +354,7 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		out.edited = true;
 		return;
 	}
-	case host_chain::kCompressorSection: {
+	case host::chains::kCompressorSection: {
 		// The song's compressor: its group 1 pages are its settings, one each after the reverb page.
 		const auto found =
 		    std::ranges::find_if(pages.cycle, [&](const controls::Page& p) { return p.page_id == page.page_id; });
@@ -456,7 +457,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
-		const std::optional<uint8_t> index = host_chain::find_runtime_index(id);
+		const std::optional<uint8_t> index = host::chains::find_runtime_index(id);
 		return index ? std::string{l10n::param_name_at(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
 		                                               fx.filter.hpf_mode)}
 		             : std::string{};
@@ -474,7 +475,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
 std::string names_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button, const Reads& inputs) {
 	std::string out = knob_name(song, focus, 1, inputs.effects, inputs.pages.board);
-	if (!(std::cmp_equal(button, host_chain::kStutterSection) && !inputs.clip_context)) {
+	if (!(std::cmp_equal(button, host::chains::kStutterSection) && !inputs.clip_context)) {
 		out += "\n";
 		out += knob_name(song, focus, 0, inputs.effects, inputs.pages.board);
 	}
@@ -586,16 +587,16 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	}
 	const project::FxChain* chain = chain_of(song, focus);
 	switch (button) {
-	case host_chain::kFilterSection:
+	case host::chains::kFilterSection:
 		return filter_popup(
 		    chain != nullptr ? static_cast<effects::FilterType>(chain->filter_type) : effects::FilterType::LPF, fx);
 	case 2: // the envelopes, which a chain has none of
 		return {};
 	case 3: // the delay
 		return delay_popup(song, fx, inputs.pages.alt_delay);
-	case host_chain::kCompressorSection:
+	case host::chains::kCompressorSection:
 		return is_song ? comp_reverb_popup(song, focus.comp) : sidechain_reverb_popup(song, fx);
-	case host_chain::kModFxSection:
+	case host::chains::kModFxSection:
 		return mod_fx_popup(fx.mod_fx.type, chain != nullptr ? static_cast<effects::ModFxParam>(chain->mod_fx_param)
 		                                                     : effects::ModFxParam::FEEDBACK);
 	default:

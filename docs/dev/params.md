@@ -6,7 +6,7 @@ q31 instrument and any later instrument publish through the same model; only the
 ## Identity
 
 A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/classic/params.h`) for a
-sound, `host_chain::kParams` (`src/effects/host_chain/params.h`) for the song, a kit's affect-entire and
+sound, `host_chain::kParams` (`src/host/chains/params.h`) for the song, a kit's affect-entire and
 an audio track. Ids are pinned forever by the tables' specs. The runtime's own numbering (the `params::` enums, a
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
@@ -294,7 +294,7 @@ them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param,
 
 An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
 extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host
-chain's table (`effects/host_chain/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
+chain's table (`host/chains/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
 unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the arpeggiator's rows and
 the channel's (pan, volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
 effect, the table names their ids in the effect's order (`host_chain::kFilterIds`, `kModFxIds`, `kEqIds`,

@@ -204,7 +204,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("controls", "libdeluge_controls.a"),
         ("instruments-classic", "libdeluge_instruments_classic.a"),
         ("effects", "libdeluge_effects.a"),
-        ("host-chain", "libdeluge_host_chain.a"),
+        ("host-chains", "libdeluge_host_chains.a"),
         ("midi", "libdeluge_midi.a"),
         ("gfx", "libdeluge_gfx_oled.a"),
         ("gfx", "libdeluge_gfx_grid.a"),

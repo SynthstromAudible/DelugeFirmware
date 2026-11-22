@@ -28,9 +28,9 @@
 #include <utility>
 
 /// @brief The params a host chain has: the song master's, a kit's affect-entire's and an audio track's.
-namespace deluge::host_chain {
+namespace deluge::host::chains {
 
-/// @brief The ids, pinned forever by tests/unit/effects/host_chain/params_spec.cpp.
+/// @brief The ids, pinned forever by tests/unit/host/chains/params_spec.cpp.
 namespace param {
 using plugin::ParamId;
 inline constexpr ParamId kStutterRate{90};
@@ -208,4 +208,4 @@ inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
 static_assert(kParams.size() == kParamBlock.count);
 
-} // namespace deluge::host_chain
+} // namespace deluge::host::chains

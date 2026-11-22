@@ -20,4 +20,4 @@ deluge_specs_driver(menu_fakes_specs TREES host
           ${DELUGE_REPO_ROOT}/src/scenes/l10n_bridge.cpp
           ${_l10n}/l10n.cpp
           ${_l10n}/g_english.cpp
-  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_host_chain)
+  LIBRARIES deluge_spec deluge_scenes_bind deluge_scenes_fakes deluge_host_chains)

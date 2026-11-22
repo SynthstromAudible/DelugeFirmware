@@ -8,10 +8,10 @@
 #include "scenes/bind/target.h"
 #include "scenes/menu/bind_host.h"
 
-#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -56,7 +56,7 @@ namespace {
 
 constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kLpfFrequency};
 constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
-                           .param = deluge::host_chain::param::kLpfFrequency,
+                           .param = deluge::host::chains::param::kLpfFrequency,
                            .param_table = bind::ParamTable::CHAIN};
 
 /// The value the engine's param at @p address plays.

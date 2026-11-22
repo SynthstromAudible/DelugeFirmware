@@ -1,4 +1,4 @@
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 
 #include <cppspec.hpp>
@@ -33,7 +33,7 @@ describe param_predicates("which collection and id a param is, and what the knob
 		expect(param_row_at(ParamKind::PATCHED, 2)).to_equal(param_row(ParamKind::PATCHED, param::kVolume));
 		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 12)).to_equal(param_row(ParamKind::UNPATCHED_SOUND, param::kRhythm));
 		expect(param_row_at(ParamKind::UNPATCHED_GLOBAL, 42)).to_equal(
-		    param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::param::kTempo));
+		    param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kTempo));
 		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 27)).to_be_null();
 		expect(param_row_at(ParamKind::EXPRESSION, 0)).to_be_null();
 	});
@@ -55,8 +55,8 @@ describe param_predicates("which collection and id a param is, and what the knob
 	});
 
 	it("finds a global effectable's rows in the host chain's table and no patched row there", _ {
-		expect(param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::param::kTempo)->id.value)
-		    .to_equal(deluge::host_chain::param::kTempo.value);
+		expect(param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kTempo)->id.value)
+		    .to_equal(deluge::host::chains::param::kTempo.value);
 		expect(param_row(ParamKind::UNPATCHED_GLOBAL, param::kVolume)).to_be_null();
 		expect(param_row(ParamKind::UNPATCHED_SOUND, param::kVolume)).to_be_null();
 		expect(param_row(ParamKind::EXPRESSION, ParamId{0})).to_be_null();
@@ -69,15 +69,15 @@ describe param_predicates("which collection and id a param is, and what the knob
 	});
 
 	it("knows the stutter rate under both unpatched kinds", _ {
-		expect(is_stutter_rate(ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::param::kStutterRate)).to_be_true();
-		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, deluge::host_chain::param::kStutterRate)).to_be_true();
-		expect(is_stutter_rate(ParamKind::PATCHED, deluge::host_chain::param::kStutterRate)).to_be_false();
+		expect(is_stutter_rate(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kStutterRate)).to_be_true();
+		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, deluge::host::chains::param::kStutterRate)).to_be_true();
+		expect(is_stutter_rate(ParamKind::PATCHED, deluge::host::chains::param::kStutterRate)).to_be_false();
 		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, param::kRhythm)).to_be_false();
 	});
 
 	it("calls a centred param, a cable depth and the pitch-bend axis bipolar", _ {
 		expect(is_bipolar(ParamKind::PATCHED, param::kPan)).to_be_true();
-		expect(is_bipolar(ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::param::kPan)).to_be_true();
+		expect(is_bipolar(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kPan)).to_be_true();
 		expect(is_bipolar(ParamKind::PATCH_CABLE, ParamId{0})).to_be_true();
 		expect(is_bipolar(ParamKind::EXPRESSION, kExpressionPitchBend)).to_be_true();
 	});

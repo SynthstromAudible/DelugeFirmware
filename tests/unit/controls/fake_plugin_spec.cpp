@@ -5,7 +5,7 @@
 #include "controls/resolve.h"
 #include "controls/section.h"
 #include "project/song.h"
-#include "effects/host_chain/pages.h"
+#include "host/chains/pages.h"
 #include "instruments/classic/pages.h"
 #include "plugin/plugin.h"
 #include "plugin/remote_controls_publisher.h"
@@ -123,7 +123,7 @@ constexpr plugin::RemoteControls kFakeControls{.plugin = Fake::descriptor().id,
 /// The app's publishers and the fake's.
 std::span<const plugin::RemoteControls> publishers() {
 	static const std::array<plugin::RemoteControls, 3> kRecords{instruments::classic::kRemoteControls,
-	                                                            host_chain::kRemoteControls, kFakeControls};
+	                                                            host::chains::kRemoteControls, kFakeControls};
 	return kRecords;
 }
 

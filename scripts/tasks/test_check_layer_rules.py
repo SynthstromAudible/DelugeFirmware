@@ -144,8 +144,8 @@ class LegacyEffectsOwnerRows(unittest.TestCase):
 
     def test_the_param_table_library_is_not(self):
         counts = self.counts(
-            "src/effects/host_chain/planted.cpp",
-            "namespace deluge::host_chain { int x = plugin::kGlobalEffectable; }\n",
+            "src/host/chains/planted.cpp",
+            "namespace deluge::host::chains { int x = plugin::kGlobalEffectable; }\n",
         )
         self.assertNotIn("no-legacy-effects-owners", counts)
 

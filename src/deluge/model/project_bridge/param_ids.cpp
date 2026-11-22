@@ -22,7 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
 
@@ -33,7 +33,7 @@ namespace deluge::bridge {
 
 namespace params = deluge::modulation::params;
 namespace instrument = deluge::instruments::classic;
-namespace host_chain = deluge::host_chain;
+namespace host_chain = deluge::host::chains;
 
 // The runtime's numbering may move only with the engines' maps; these anchor each run's ends and sizes.
 static_assert(instrument::param::kVolumePostFX.value == params::FIRST_GLOBAL);

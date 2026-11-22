@@ -29,7 +29,7 @@ add_subdirectory(${_deluge_src}/sample-view ${_deluge_libs}/sample-view EXCLUDE_
 add_subdirectory(${_deluge_src}/plugin/types ${_deluge_libs}/plugin-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin ${_deluge_libs}/plugin EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/effects/host_chain ${_deluge_libs}/host-chain EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/host/chains ${_deluge_libs}/host-chain EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/instruments/classic ${_deluge_libs}/instrument EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/project ${_deluge_libs}/model EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/controls ${_deluge_libs}/controls EXCLUDE_FROM_ALL)

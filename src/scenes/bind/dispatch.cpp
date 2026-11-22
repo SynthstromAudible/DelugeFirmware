@@ -1,8 +1,8 @@
 #include "scenes/bind/dispatch.h"
 
-#include "effects/host_chain/params.h"
 #include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/settings.h"
 #include "plugin/types/plugin_id.h"
@@ -150,7 +150,7 @@ struct ResolvedParam {
 /// The param table of @p table.
 std::span<const plugin::ParamInfo> params_of(ParamTable table) {
 	return table == ParamTable::SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
-	                                  : std::span<const plugin::ParamInfo>{host_chain::kParams};
+	                                  : std::span<const plugin::ParamInfo>{host::chains::kParams};
 }
 
 /// The id @p target's param has on the owner @p where names: its own on an owner of its table's kind, else the id
@@ -184,7 +184,7 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		}
 		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, *ports.sound, *ports.audio)};
 	}
-	const plugin::ParamInfo* info = plugin::find_param(host_chain::kParams, address->id);
+	const plugin::ParamInfo* info = plugin::find_param(host::chains::kParams, address->id);
 	Reader reader{ChainReader{model, *where.chain, *ports.tracks}};
 	if (info == nullptr || !reader.resolved()) {
 		return std::nullopt;

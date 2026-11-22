@@ -16,7 +16,7 @@
  */
 
 #include "model/fx/chain_params.h"
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/fx/effect_reads.h"
 #include "modulation/params/param_manager.h"
@@ -57,7 +57,7 @@ void setRowsToDefaults(UnpatchedParamSet& set, std::span<const plugin::ParamInfo
 void initSharedParams(ParamManager* paramManager, params::Kind defaults) {
 	const std::span<const plugin::ParamInfo> table =
 	    defaults == params::Kind::UNPATCHED_SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
-	                                              : std::span<const plugin::ParamInfo>{host_chain::kParams};
+	                                              : std::span<const plugin::ParamInfo>{host::chains::kParams};
 	setRowsToDefaults(*paramManager->getUnpatchedParamSet(), table, kFirstSharedId, kLastSharedId, {});
 }
 
@@ -66,9 +66,9 @@ void initGlobalParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_GLOBAL;
-	setRowsToDefaults(*unpatchedParams, host_chain::kParams, kLastSharedId + 1,
-	                  host_chain::kParamBlock.first.value + host_chain::kParamBlock.count - 1,
-	                  host_chain::kNotInitialised);
+	setRowsToDefaults(*unpatchedParams, host::chains::kParams, kLastSharedId + 1,
+	                  host::chains::kParamBlock.first.value + host::chains::kParamBlock.count - 1,
+	                  host::chains::kNotInitialised);
 }
 
 void initAudioClipParams(ParamManagerForTimeline* paramManager) {

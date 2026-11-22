@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "effects/host_chain/params.h"
+#include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
 #include "project/param_address.h"
@@ -35,7 +35,7 @@ namespace deluge::modulation::params {
 
 namespace shortcuts_detail {
 namespace ip = deluge::instruments::classic::param;
-namespace gp = deluge::host_chain::param;
+namespace gp = deluge::host::chains::param;
 using deluge::project::ParamTarget;
 [[nodiscard]] constexpr ParamTarget sound(deluge::plugin::ParamId id) {
 	return deluge::project::engine_target(id.value);
