@@ -121,6 +121,34 @@ def toolchain_dir(root: Path) -> Path:
     return Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root) / "toolchain/current"
 
 
+def path_remap_flags(root: Path) -> list[str]:
+    """rustc flags that keep the build machine's paths out of the image.
+
+    Panic locations (`core::panic::Location`, `file!()`) are embedded in the
+    loaded .rodata. Remapping only the `macro` scope makes them repo-relative
+    while the ELF's DWARF keeps absolute paths, so debuggers, addr2line and the
+    trace tools still find sources. rustc applies the LAST matching prefix, so
+    the repo root comes first and the more specific out-of-tree prefixes (a
+    CARGO_HOME or sysroot outside the repo, as in CI) after it.
+    """
+    sysroot = subprocess.run(
+        ["rustc", "--print", "sysroot"],
+        cwd=RUST_BSP_DIR,
+        env=os.environ,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    flags = ["--remap-path-scope=macro", f"--remap-path-prefix={root}/="]
+    # Inside the repo the root prefix already makes these repo-relative.
+    cargo_home = os.environ.get("CARGO_HOME")
+    if cargo_home and not Path(cargo_home).is_relative_to(root):
+        flags.append(f"--remap-path-prefix={cargo_home}/=cargo/")
+    if not Path(sysroot).is_relative_to(root):
+        flags.append(f"--remap-path-prefix={sysroot}/=rust/")
+    return flags
+
+
 def device_cxx_env(root: Path, config: str) -> dict[str, str]:
     """Env for the pieces of the build that shell out to a C++ compiler themselves.
 
@@ -199,6 +227,7 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
     rustflags = ["-Clinker-plugin-lto", "-Clinker-flavor=gcc"]
     for arg in link_args:
         rustflags.append(f"-Clink-arg={arg}")
+    rustflags += path_remap_flags(root)
 
     return {
         "DELUGE_BUILD_DIR": str(root / BUILD_DIR),
