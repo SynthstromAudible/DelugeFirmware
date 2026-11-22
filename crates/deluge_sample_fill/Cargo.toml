@@ -14,7 +14,7 @@ name = "deluge_sample_fill"
 crate-type = ["rlib"]
 
 [dependencies]
-deluge_sample_convert = { path = "../deluge_sample_convert" }
+deluge_storage_sample_convert = { path = "../../src/storage/sample/convert" }
 # Blocking `Mutex` for the fill-context table only; no executor.
 embassy-sync = "0.8.0"
 
@@ -29,6 +29,6 @@ critical-section = { version = "1", features = ["std"] }
 ## crate's own tests link with nothing to resolve.
 default = []
 native_fill = []
-## Builds `deluge_sample_convert` shim-only, for a final link that supplies the convert/stitch
+## Builds `deluge_storage_sample_convert` shim-only, for a final link that supplies the convert/stitch
 ## objects itself (see that crate's `app_convert`).
-app_convert = ["deluge_sample_convert/app_convert"]
+app_convert = ["deluge_storage_sample_convert/app_convert"]

@@ -857,7 +857,7 @@ def probe(requirement: str, root: Path) -> bool:
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
         case "arm-none-eabi-gcc":
-            # Where deluge_sample_convert's build.rs looks for the device compiler.
+            # Where deluge_storage_sample_convert's build.rs looks for the device compiler.
             base = Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root)
             return (
                 base / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"

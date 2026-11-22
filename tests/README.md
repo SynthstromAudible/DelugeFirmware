@@ -148,7 +148,7 @@ builds only `golden-vt-render`.
 | unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
-| sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
+| sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |
 | param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime | pr | model | ~1s |
 | param-target-check | integration | scenario | unit | gate | the host names params by target | pr | model | ~1s |

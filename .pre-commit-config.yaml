@@ -24,10 +24,10 @@ repos:
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^(crates/(?!deluge_sample_convert/)|src/base/alloc/|src/storage/resource/).*\.rs$
+        files: ^(crates/|src/base/alloc/|src/storage/resource/).*\.rs$
         pass_filenames: false
       - id: cargo-fmt-sample-convert
-        # deluge_sample_convert is a production dependency of the Rust BSP, but
+        # deluge_storage_sample_convert is a production dependency of the Rust BSP, but
         # it's deliberately excluded from the crates/ workspace (build.rs
         # cc-compiles app C++ and it has a std test harness, so it can't share
         # the workspace's no_std/panic=abort profiles). `cargo fmt --all` above
@@ -36,11 +36,11 @@ repos:
         # deliberate coverage: drop that dependency and it silently stops being
         # checked. Give it its own hook against its own manifest instead, same
         # as the BSP/harness split below.
-        name: rustfmt (deluge_sample_convert)
-        entry: cargo fmt --manifest-path crates/deluge_sample_convert/Cargo.toml --check --
+        name: rustfmt (deluge_storage_sample_convert)
+        entry: cargo fmt --manifest-path src/storage/sample/convert/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^crates/deluge_sample_convert/.*\.rs$
+        files: ^src/storage/sample/convert/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-bsp
         name: rustfmt (bsp)

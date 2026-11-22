@@ -1,4 +1,4 @@
-//! Build script for `deluge_sample_convert`.
+//! Build script for `deluge_storage_sample_convert`.
 //!
 //! Compiles the app's `convert.cpp`, `stitch.cpp` and `audio_format_helpers.cpp`, plus the
 //! `extern "C"` shim in `cpp/shim.cpp`, in one of three modes chosen by the target:
@@ -43,9 +43,9 @@ const SIMDE_SHA: &str = "c86a433df3086512b0b12240defa9d9ddcc9decf"; // == tag v0
 
 fn main() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // crates/deluge_sample_convert -> repo root is two levels up.
+    // src/storage/sample/convert -> repo root is four levels up.
     let repo = manifest
-        .join("../..")
+        .join("../../../..")
         .canonicalize()
         .expect("resolve repo root");
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
@@ -134,7 +134,7 @@ fn main() {
             .define("DELUGE_HOST", None)
             .define("SIMDE_NO_NATIVE", None) // portable NEON, bit-accurate to the device
             .flag_if_supported("-Wno-unused-parameter");
-        build.compile("deluge_sample_convert_cc");
+        build.compile("deluge_storage_sample_convert_cc");
         return;
     }
 
@@ -161,7 +161,7 @@ fn main() {
         .define("DELUGE_HOST", None)
         .define("SIMDE_NO_NATIVE", None) // portable NEON, bit-accurate to the device
         .flag_if_supported("-Wno-unused-parameter");
-    build.compile("deluge_sample_convert_cc");
+    build.compile("deluge_storage_sample_convert_cc");
 
     // ARM verify: compile each TU with the repo's arm-none-eabi-g++ (`-c` only) and check the
     // objects.
@@ -223,7 +223,7 @@ fn fetch_pinned(name: &str, url: &str, sha: &str, dest: &Path, marker_rel: &Path
         ]);
     if !ok || !marker.is_file() {
         panic!(
-            "deluge_sample_convert: failed to fetch pinned {name} ({url} @ {sha}) into {}. \
+            "deluge_storage_sample_convert: failed to fetch pinned {name} ({url} @ {sha}) into {}. \
              This crate owns its deps via a shallow git fetch (needs network on first build). \
              Marker {} missing after checkout.",
             dest.display(),
@@ -394,7 +394,7 @@ fn build_device(
         "device build of cpp/shim.cpp failed (see g++ output above)"
     );
 
-    let archive = out_dir.join("libdeluge_sample_convert_cc.a");
+    let archive = out_dir.join("libdeluge_storage_sample_convert_cc.a");
     let _ = std::fs::remove_file(&archive);
     let status = Command::new(&ar)
         .arg("crs")
@@ -405,7 +405,7 @@ fn build_device(
     assert!(status.success(), "archiving device shim.cpp object failed");
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
-    println!("cargo:rustc-link-lib=static=deluge_sample_convert_cc");
+    println!("cargo:rustc-link-lib=static=deluge_storage_sample_convert_cc");
 }
 
 /// The device GCC's `bin` directory: under `DBT_TOOLCHAIN_PATH` when set (a worktree shares its

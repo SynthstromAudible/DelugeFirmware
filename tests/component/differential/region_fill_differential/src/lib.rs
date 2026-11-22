@@ -3,7 +3,7 @@
 //! Checks the Rust fill's convert+stitch orchestration (which bytes are converted, which neighbour
 //! edges are built from where, in what order) is byte-identical to an independent C++ reference
 //! ([`cpp_ref`], compiled by `build.rs`). The primitives themselves (`convert_cluster_data`,
-//! `stitch_boundaries`) are covered by `deluge_sample_convert`'s own tests.
+//! `stitch_boundaries`) are covered by `deluge_storage_sample_convert`'s own tests.
 //!
 //! A standalone crate, not a workspace member, so its C++ build stays off the firmware Cargo graph.
 //! The gate is `tests/differential.rs`; `tests/host_end_to_end.rs` and

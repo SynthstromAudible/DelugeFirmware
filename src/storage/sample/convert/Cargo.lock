@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge_sample_convert"
+name = "deluge_storage_sample_convert"
 version = "0.1.0"
 dependencies = [
  "cc",

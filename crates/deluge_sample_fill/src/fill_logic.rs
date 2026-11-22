@@ -4,7 +4,7 @@
 //! - [`begin`] resolves a cluster's read: its sector count (short for the last cluster) and byte
 //!   offset in the file.
 //! - [`finish_convert_stitch`] converts a freshly read cluster and stitches it against its loaded
-//!   neighbours, through `deluge_sample_convert`.
+//!   neighbours, through `deluge_storage_sample_convert`.
 //!
 //! # 32-bit arithmetic
 //!
@@ -81,7 +81,7 @@ pub fn begin(index: u32, geo: &FillGeometry) -> BeginResult {
     }
 }
 
-// Convert and stitch. The algorithms live in `deluge_sample_convert`; this only decides which bytes
+// Convert and stitch. The algorithms live in `deluge_storage_sample_convert`; this only decides which bytes
 // each step sees and builds the neighbour edges. Publishing the chunk is `native_finish`'s job.
 
 /// A chunk's convert state as [`finish_convert_stitch`] reads and writes it; the same shape as
@@ -113,11 +113,11 @@ pub struct NeighbourView<'a> {
     pub end_converted: &'a mut bool,
 }
 
-/// Maps a `RawDataFormat` byte to `deluge_sample_convert`'s enum. An out-of-range byte, which
+/// Maps a `RawDataFormat` byte to `deluge_storage_sample_convert`'s enum. An out-of-range byte, which
 /// registration never produces, becomes `Native`, a no-op convert and stitch.
 #[allow(dead_code)]
-fn raw_data_format_from_u8(v: u8) -> deluge_sample_convert::RawDataFormat {
-    use deluge_sample_convert::RawDataFormat::*;
+fn raw_data_format_from_u8(v: u8) -> deluge_storage_sample_convert::RawDataFormat {
+    use deluge_storage_sample_convert::RawDataFormat::*;
     match v {
         1 => Float,
         2 => Unsigned8,
@@ -158,11 +158,11 @@ pub fn finish_convert_stitch(
     );
 
     // Convert only the cluster itself, never the trailing slack.
-    deluge_sample_convert::convert_cluster(
+    deluge_storage_sample_convert::convert_cluster(
         &mut payload[..cluster_size],
         index as i32,
         format,
-        deluge_sample_convert::ConvertGeometry {
+        deluge_storage_sample_convert::ConvertGeometry {
             audio_data_start_pos_bytes: geo.audio_data_start_pos_bytes,
             audio_data_length_bytes: geo.audio_data_length_bytes,
             first_cluster_index_with_no_audio_data: geo.first_cluster_index_with_no_audio_data,
@@ -174,18 +174,18 @@ pub fn finish_convert_stitch(
 
     // Prev's tail is the 11 bytes `[cluster_size - 4, cluster_size + 7)` of its buffer; next's head
     // is its first 7 bytes.
-    let prev_edge = prev.map(|p| deluge_sample_convert::PrevEdge {
+    let prev_edge = prev.map(|p| deluge_storage_sample_convert::PrevEdge {
         tail: &mut p.payload[cluster_size - 4..cluster_size + 7],
         end_boundary_converted: p.end_converted,
     });
-    let next_edge = next.map(|n| deluge_sample_convert::NextEdge {
+    let next_edge = next.map(|n| deluge_storage_sample_convert::NextEdge {
         head: &mut n.payload[0..7],
         unconverted_head: n.unconverted_head,
         start_boundary_converted: n.start_converted,
     });
 
     // Stitch over the whole span, slack included.
-    deluge_sample_convert::stitch_boundaries(
+    deluge_storage_sample_convert::stitch_boundaries(
         payload,
         index as i32,
         format,
@@ -299,11 +299,11 @@ mod tests {
 
     // `finish_convert_stitch` tests. The geometry is small, misaligned and 8-bit unsigned, so each
     // boundary converts a real straddling word. Each test compares `finish_convert_stitch` against
-    // the same `deluge_sample_convert` calls made directly on a copy of the inputs: that checks the
-    // wiring; the conversion itself is `deluge_sample_convert`'s to test.
+    // the same `deluge_storage_sample_convert` calls made directly on a copy of the inputs: that checks the
+    // wiring; the conversion itself is `deluge_storage_sample_convert`'s to test.
     mod finish_convert_stitch_tests {
         use super::*;
-        use deluge_sample_convert::{ConvertGeometry, NextEdge, PrevEdge, RawDataFormat};
+        use deluge_storage_sample_convert::{ConvertGeometry, NextEdge, PrevEdge, RawDataFormat};
 
         const CLUSTER_SIZE: usize = 32;
         const MAGNITUDE: u32 = 5;
@@ -368,13 +368,13 @@ mod tests {
                 }),
             );
 
-            // Run B: directly through deluge_sample_convert, mirroring what A should have done.
+            // Run B: directly through deluge_storage_sample_convert, mirroring what A should have done.
             // --
             let mut self_b = ramp(10);
             let mut prev_b = ramp(50);
             let mut next_b = ramp(90);
             let mut head_b = [0u8; 3];
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut self_b[..CLUSTER_SIZE],
                 1,
                 RawDataFormat::Unsigned8,
@@ -387,7 +387,7 @@ mod tests {
             let mut self_end_b = false;
             let mut prev_end_b = false;
             let mut next_start_b = false;
-            deluge_sample_convert::stitch_boundaries(
+            deluge_storage_sample_convert::stitch_boundaries(
                 &mut self_b,
                 1,
                 RawDataFormat::Unsigned8,
@@ -445,7 +445,7 @@ mod tests {
             let mut self_b = ramp(5);
             let mut prev_b = ramp(60);
             let mut head_b = [0u8; 3];
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut self_b[..CLUSTER_SIZE],
                 1,
                 RawDataFormat::Unsigned8,
@@ -457,7 +457,7 @@ mod tests {
             let mut self_start_b = false;
             let mut self_end_b = false;
             let mut prev_end_b = false;
-            deluge_sample_convert::stitch_boundaries(
+            deluge_storage_sample_convert::stitch_boundaries(
                 &mut self_b,
                 1,
                 RawDataFormat::Unsigned8,
@@ -514,7 +514,7 @@ mod tests {
             let mut self_b = ramp(7);
             let mut next_b = ramp(80);
             let mut head_b = [0u8; 3];
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut self_b[..CLUSTER_SIZE],
                 1,
                 RawDataFormat::Unsigned8,
@@ -526,7 +526,7 @@ mod tests {
             let mut self_start_b = false;
             let mut self_end_b = false;
             let mut next_start_b = false;
-            deluge_sample_convert::stitch_boundaries(
+            deluge_storage_sample_convert::stitch_boundaries(
                 &mut self_b,
                 1,
                 RawDataFormat::Unsigned8,
@@ -566,7 +566,7 @@ mod tests {
 
             let mut self_b = ramp(3);
             let mut head_b = [0u8; 3];
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut self_b[..CLUSTER_SIZE],
                 1,
                 RawDataFormat::Unsigned8,
@@ -643,7 +643,7 @@ mod tests {
                 );
             }
 
-            // Run B: the same two visits, directly against deluge_sample_convert.
+            // Run B: the same two visits, directly against deluge_storage_sample_convert.
             let mut c0_b = ramp(1);
             let mut c1_b = ramp(200);
             let mut c0_head_b = [0u8; 3];
@@ -653,7 +653,7 @@ mod tests {
             let mut c1_start_b = false;
             let mut c1_end_b = false;
 
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut c0_b[..CLUSTER_SIZE],
                 0,
                 RawDataFormat::Unsigned8,
@@ -662,7 +662,7 @@ mod tests {
                 MAGNITUDE as usize,
                 &mut c0_head_b,
             );
-            deluge_sample_convert::stitch_boundaries(
+            deluge_storage_sample_convert::stitch_boundaries(
                 &mut c0_b,
                 0,
                 RawDataFormat::Unsigned8,
@@ -678,7 +678,7 @@ mod tests {
                 }),
             );
 
-            deluge_sample_convert::convert_cluster(
+            deluge_storage_sample_convert::convert_cluster(
                 &mut c1_b[..CLUSTER_SIZE],
                 1,
                 RawDataFormat::Unsigned8,
@@ -687,7 +687,7 @@ mod tests {
                 MAGNITUDE as usize,
                 &mut c1_head_b,
             );
-            deluge_sample_convert::stitch_boundaries(
+            deluge_storage_sample_convert::stitch_boundaries(
                 &mut c1_b,
                 1,
                 RawDataFormat::Unsigned8,

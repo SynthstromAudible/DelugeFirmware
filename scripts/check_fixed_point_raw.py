@@ -168,7 +168,8 @@ def scan(root: Path = REPO_ROOT) -> dict[str, Counts]:
             if not path.is_file() or path.suffix not in SUFFIXES:
                 continue
             rel = path.relative_to(root).as_posix()
-            if rel in EXEMPT:
+            # A crate's `third_party/` is a gitignored cache of fetched vendor headers, not the project's code.
+            if rel in EXEMPT or "third_party" in path.relative_to(root).parts:
                 continue
             counted = count(path.read_text(errors="replace"))
             if any(counted):

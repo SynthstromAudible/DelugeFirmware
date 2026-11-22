@@ -6,16 +6,16 @@
 # `_deps` tree.
 #
 # Gate sample-convert:
-#     deluge_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles
+#     deluge_storage_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles
 [package]
-name = "deluge_sample_convert"
+name = "deluge_storage_sample_convert"
 version = "0.1.0"
 edition = "2021"
 publish = false
 license = "GPL-3.0-or-later"
 
 [lib]
-name = "deluge_sample_convert"
+name = "deluge_storage_sample_convert"
 path = "src/lib.rs"
 
 [dependencies]

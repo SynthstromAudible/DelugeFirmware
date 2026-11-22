@@ -15,12 +15,12 @@
 //
 // Deliberately does NOT recompile convert.cpp/stitch.cpp/audio_format_helpers.cpp itself (see
 // build.rs's doc for the full reasoning): `convert_cluster_data` is a template, so its instantiation
-// here (with its own no-op Yield lambda, a distinct type from `deluge_sample_convert`'s own shim.cpp
+// here (with its own no-op Yield lambda, a distinct type from `deluge_storage_sample_convert`'s own shim.cpp
 // instantiation) is compiled straight into THIS translation unit's object -- no external symbol needed,
 // and template instantiations are automatically COMDAT-deduplicated, so even an accidental duplicate
 // instantiation elsewhere would be harmless. `stitch_boundaries` (a plain, non-template function
 // declared in stitch.h) is NOT compiled here at all -- it resolves at link time against
-// `deluge_sample_convert`'s ALREADY cc-compiled `stitch.cpp.o` (this crate depends on that crate as a
+// `deluge_storage_sample_convert`'s ALREADY cc-compiled `stitch.cpp.o` (this crate depends on that crate as a
 // normal Rust dependency, so its archive is already on this test binary's link line). Recompiling
 // stitch.cpp (and convert.cpp, for the same reason -- `convert_word_in_place` inside the template needs
 // the plain, non-template `convert_word` symbol) into a SECOND archive here would define those same

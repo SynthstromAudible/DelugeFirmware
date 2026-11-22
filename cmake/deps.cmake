@@ -1,7 +1,7 @@
 # Every third-party dependency the firmware, the host sim and the tests fetch, pinned in one place.
 #
 # Declaring is all this does: each tree calls FetchContent_MakeAvailable for what it uses. FetchContent keeps the
-# first declaration of a name, so nothing downstream can re-pin one. crates/deluge_sample_convert/build.rs fetches
+# first declaration of a name, so nothing downstream can re-pin one. src/storage/sample/convert/build.rs fetches
 # argon and SIMDe itself and must name the same revisions.
 include_guard(GLOBAL)
 include(FetchContent)

@@ -1374,17 +1374,10 @@ name = "deluge_base_alloc"
 version = "0.1.0"
 
 [[package]]
-name = "deluge_sample_convert"
-version = "0.1.0"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "deluge_sample_fill"
 version = "0.1.0"
 dependencies = [
- "deluge_sample_convert",
+ "deluge_storage_sample_convert",
  "embassy-sync",
 ]
 
@@ -1417,6 +1410,13 @@ name = "deluge_storage_resource"
 version = "0.1.0"
 dependencies = [
  "deluge_base_alloc",
+]
+
+[[package]]
+name = "deluge_storage_sample_convert"
+version = "0.1.0"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
