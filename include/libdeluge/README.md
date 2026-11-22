@@ -13,8 +13,8 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    (`abi.h`), so the compiler holds every C++ definition to it. A failure that carries a reason crosses as
    `DelugeStatus`, a channel's collect answers a `DelugeChannelStatus` (`DELUGE_CHANNEL_*`), and a path is bounded
    by `DELUGE_PATH_MAX`.
-2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h` and
-   `tests/harness/golden_vt_render/wrapper.h`, both just `#include <libdeluge/libdeluge.h>`), and every
+2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h`, just
+   `#include <libdeluge/libdeluge.h>`), and every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
    one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
    imports, via its `in path:` form, in `src/bsp/rust/src/abi/pins.rs`. That file also holds the `abi_layout!`

@@ -240,7 +240,7 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   not ctest-driven.
 - **`tests/harness/golden_vt_render/`, `tests/harness/preemptive_race_tsan/`** — harnesses built on the BSP
   library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
-  host app through `src/platform/host/link`. `HOST_HARNESS.md` documents both.
+  host app through `src/platform/host/link`. `src/bsp/rust/HOST_HARNESS.md` documents both.
 
 Three constraints keep these as separate Cargo packages rather than one
 workspace, and they are worth knowing before adding a tenth:
