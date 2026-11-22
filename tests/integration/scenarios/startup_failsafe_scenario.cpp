@@ -49,7 +49,7 @@
 
 #include <cstdio>
 
-// The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`.
+// The headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded `printf_`.
 // That implementation emits through `putchar_`, which the Rust BSP builds do not define -- this harness
 // links the Rust BSP and has no provider, so the alias turns every line this file writes into an
 // undefined symbol at link time. Every one of those lines IS the gate's output.

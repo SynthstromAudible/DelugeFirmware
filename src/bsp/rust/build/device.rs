@@ -198,7 +198,7 @@ fn archive_app_objects(
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
     let deps: [(&str, &str); 23] = [
-        ("src/lib", "libeyalroz_printf.a"),
+        ("printf", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),

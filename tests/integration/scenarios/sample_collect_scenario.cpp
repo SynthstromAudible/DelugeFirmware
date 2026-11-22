@@ -50,7 +50,7 @@
 #include <string>
 #include <vector>
 
-// The GUI headers reach `src/lib/printf.h`, which soft-aliases printf to an implementation this
+// The GUI headers reach `third_party/printf/printf.h`, which soft-aliases printf to an implementation this
 // harness has no `putchar_` for -- every line below would become an undefined symbol at link time.
 #ifdef printf
 #undef printf

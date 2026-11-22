@@ -51,7 +51,6 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -95,6 +94,7 @@
 #include "util/sound_menu_open.h"
 #include <iterator>
 #include <optional>
+#include <printf/printf.h>
 
 namespace params = deluge::modulation::params;
 using namespace deluge;

@@ -97,7 +97,7 @@ Three small definitions:
 - `snprintf` forwards to `vsnprintf_` from `eyalroz_printf`, which is already linked. Today the 4 app `snprintf` calls
   reach newlib's float `_svfprintf_r`. Every format in use (`%d`, `%s`, `%03d`, `%.4f`) is supported by
   `eyalroz_printf`. A production version could instead set `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD` in
-  `src/lib/printf.h`.
+  `third_party/printf/printf.h`.
 
 In production, the traps should report through `FREEZE_WITH_ERROR`, not `__builtin_trap`.
 

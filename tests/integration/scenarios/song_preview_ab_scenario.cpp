@@ -109,7 +109,7 @@
 #include <string_view>
 #include <vector>
 
-// The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
+// The GUI headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which the Rust BSP builds do not define --
 // this harness links the Rust BSP and has no provider, so the alias turns every line this file
 // writes into an undefined symbol at link time. Every one of those lines IS the gate's output.
@@ -1016,7 +1016,7 @@ void runWindowTick() {
 }
 
 /// `C00.XML`, `C01.json`, ... as the packer staged each -- built by hand rather than with snprintf, which
-/// `src/lib/printf.h` soft-aliases the same way it aliases printf (see this file's #undef).
+/// `third_party/printf/printf.h` soft-aliases the same way it aliases printf (see this file's #undef).
 std::string corpusFilename(size_t index) {
 	std::string name = "C";
 	name += static_cast<char>('0' + (index / 10) % 10);

@@ -61,7 +61,7 @@ constexpr std::string_view kNumSlicesLabel = "Num. slices";
 ///        their text with (`Slicer::horizontalEncoderAction` and `Slicer::buttonAction` in
 ///        `origin/main:src/deluge/gui/ui/slicer.cpp`).
 ///
-/// Not `std::snprintf`: the firmware's own `src/lib/printf.h` `#define`s `snprintf` to
+/// Not `std::snprintf`: the firmware's own `third_party/printf/printf.h` `#define`s `snprintf` to
 /// `snprintf_` wherever it is visible, and `model/action/action_logger.h` drags it in through
 /// `io/debug/log.h`, so `std::snprintf` does not compile in this translation unit. The same
 /// substitution is what `tests/integration/scenarios/menu_dump.cpp` records. `int_to_string(v, 1, ...)` is

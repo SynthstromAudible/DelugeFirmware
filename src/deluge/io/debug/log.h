@@ -20,7 +20,7 @@
 #include <cstring>
 #include <string> // IWYU pragma: export (these need to be included before printf.h redefines the strformat functions)
 
-#include "lib/printf.h" // IWYU pragma: export (non-allocating string formatting)
+#include <printf/printf.h> // IWYU pragma: export (non-allocating string formatting)
 
 #ifdef __cplusplus
 

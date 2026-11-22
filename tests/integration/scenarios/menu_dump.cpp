@@ -193,7 +193,7 @@ void write_json_string(std::string& out, std::string_view s) {
 			break;
 		default:
 			if (c < 0x20) {
-				// Not `std::snprintf`: the firmware's own `src/lib/printf.h` `#define`s
+				// Not `std::snprintf`: the firmware's own `third_party/printf/printf.h` `#define`s
 				// `snprintf` to its custom `snprintf_` everywhere it is visible (which
 				// `support/song_fixture.h`'s model includes drag in transitively), so a plain
 				// hex formatter avoids the collision rather than fighting it.

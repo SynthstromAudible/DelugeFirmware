@@ -1,4 +1,6 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
+# Vendored headers (<gsl/gsl>) come from third_party/, as system includes.
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/third_party)
 
 add_subdirectory(plugin/types) # deluge_plugin_types: the host–plugin contract's data-only types
 add_subdirectory(base) # bottom of the stack; the layers below link it
@@ -15,7 +17,7 @@ add_subdirectory(ui)         # deluge_ui_widgets_core / _oled / _grid: the immed
 add_subdirectory(app)        # deluge_app_ports_waveforms: the host side of the UI's ports
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
-add_subdirectory(lib)
+add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/printf ${CMAKE_BINARY_DIR}/printf)
 
 # ---------------------------------------------------------------------------
 # No firmware executable is assembled here. The device image is linked by cargo

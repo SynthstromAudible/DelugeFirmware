@@ -46,7 +46,6 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
-#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -117,6 +116,7 @@
 #include "util/sound_menu_open.h"
 #include "util/try.h"
 #include <new>
+#include <printf/printf.h>
 #include <string.h>
 #include <vector>
 

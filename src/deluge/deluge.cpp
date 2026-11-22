@@ -54,9 +54,9 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "io/usb/usb_audio.h"
-#include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/app.h"
 #include "model/fx/chain_params.h"
+#include <printf/printf.h> // IWYU pragma: keep this over rides printf with a non allocating version
 #if DELUGE_STREAM_BENCH
 #include "bench/stream_bench.h"
 #endif

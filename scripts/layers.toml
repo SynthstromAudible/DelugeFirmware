@@ -48,20 +48,12 @@ path = "base"
 target = "src/base"
 
 [[directory]]
-path = "gsl"
-target = "third_party/gsl"
-
-[[directory]]
 path = "host"
 target = "src/host"
 
 [[directory]]
 path = "instruments"
 target = "src/instruments"
-
-[[directory]]
-path = "lib"
-target = "third_party/printf"
 
 [[directory]]
 path = "midi"

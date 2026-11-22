@@ -73,7 +73,7 @@
 #include <string>
 #include <string_view>
 
-// The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
+// The GUI headers above reach `third_party/printf/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which this harness does not provide, so
 // the alias turns every line this file writes into an undefined symbol at link time. Every one of those
 // lines IS the gate's output (the script reads them), so they must go to real stdout regardless of

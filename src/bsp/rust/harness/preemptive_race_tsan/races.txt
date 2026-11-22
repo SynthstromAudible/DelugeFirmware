@@ -20,10 +20,10 @@
 # input in short notes while recording (run_live_input.sh). Not the whole firmware.
 # Rows come from triage.sh over the run logs.
 
-intrinsic	DEEP	src/lib/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
+intrinsic	DEEP	third_party/printf/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
 intrinsic	DEEP	core::ffi::c_str::strlen::runtime	-	strlen intercept inside CStr; the SUMMARY site is a bare intercept
 
-open	src/lib/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
+open	third_party/printf/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
 open	src/deluge/gui/ui/ui.cpp	^getCurrentUI\(\)$	audio×interaction	state: global 'uiNavigationHierarchy'
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::workOutNextEventTime\(\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAudio\(unsigned long\)$	audio×interaction	state: global 'currentSong'
