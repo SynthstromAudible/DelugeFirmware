@@ -15,14 +15,16 @@ For each --move OLD NEW (both relative to src/, e.g. --move scenes ui/scenes):
   layer: prose, CMake files, the layer table, its baselines and rules, and comments in C-family files. A string
   literal in code, a script and a shell file keep their OLD/;
 - src/OLD and tests/unit/OLD are moved with git mv.
-Each --namespace OLD=NEW respells the qualified name wherever it is written (a namespace declaration, a qualified use,
-a comment); an unqualified use that leaned on the old enclosing namespace is left for the compiler to name. Each
---target OLD=NEW renames a CMake target as a whole word.
+Each --namespace OLD=NEW respells OLD and every name under it (OLD::...) in every tracked text file, code, strings and
+comments alike (read the dry run for fixtures that spell OLD on purpose); an unqualified use that leaned on the old
+enclosing namespace is left for the compiler to name. Each --target OLD=NEW renames a CMake target as a whole word,
+in every tracked text file the same way.
 
 A move is refused, and nothing is changed, when src/deluge/OLD exists (the legacy root precedes src/ on the include
-path, so OLD/ would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name the same directory or one inside
-the other (a chain would move on disk differently from how the text reads). The north-star layout document is never
-rewritten: its tables name today's paths beside their targets.
+path, so OLD/ would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name
+the same directory or one inside the other (a chain would move on disk differently from how the text reads). The
+north-star layout document is never rewritten: its tables name today's paths beside their targets. Nor is any file
+under third_party/, toolchain/, lib/ or website/. An include spelled from tests/ (`"unit/OLD/..."`) is not respelled.
 
 Usage:
     tools/relocate.py --move OLD NEW [--move OLD NEW ...] [--namespace OLD=NEW ...] [--target OLD=NEW ...] [--dry-run]
@@ -142,8 +144,15 @@ def comment_mask(text: str) -> list[bool]:
     while i < n:
         c = text[i]
         if text.startswith("//", i):
-            end = text.find("\n", i)
-            end = n if end < 0 else end
+            end = i
+            while True:
+                end = text.find("\n", end)
+                if end < 0:
+                    end = n
+                    break
+                if text[end - 1] != "\\":
+                    break
+                end += 1
             mask[i:end] = [True] * (end - i)
             i = end
         elif text.startswith("/*", i):

@@ -254,7 +254,8 @@ class Spellings(unittest.TestCase):
         repo = Repo(
             {
                 "src/scenes/a.h": "",
-                "src/x.cpp": 'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // scenes/z\n',
+                "src/x.cpp": 'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // scenes/z\n'
+                'auto c = u8R"(")// scenes/w)";\n',
             }
         )
         try:
@@ -263,8 +264,24 @@ class Spellings(unittest.TestCase):
             )
             self.assertEqual(
                 repo.read("src/x.cpp"),
-                'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // ui/scenes/z\n',
+                'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // ui/scenes/z\n'
+                'auto c = u8R"(")// scenes/w)";\n',
             )
+        finally:
+            repo.close()
+
+    def test_a_line_comment_continued_by_a_backslash_is_one_comment(self):
+        repo = Repo(
+            {
+                "src/scenes/a.h": "",
+                "src/x.cpp": "// a \\\nscenes/x\nscenes/y\n",
+            }
+        )
+        try:
+            relocate.apply(
+                repo.root, moves=[("scenes", "ui/scenes")], namespaces=[], targets=[]
+            )
+            self.assertEqual(repo.read("src/x.cpp"), "// a \\\nui/scenes/x\nscenes/y\n")
         finally:
             repo.close()
 

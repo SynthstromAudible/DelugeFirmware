@@ -44,10 +44,15 @@ A ThinLTO image's code is not fixed by its own source alone: a change in one mod
 decisions elsewhere. A non-empty result is classified by reading each function's diff (`--diff NAME`), not taken as
 a verdict.
 
-With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images.
+With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images. Pairs are
+tried in order and the first whose OLD matches wins; an OLD that is a prefix of its own NEW
+(`deluge::ui=deluge::ui::widgets::core`) needs an identity pair for NEW first
+(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. A rename can make an unmoved OLD::f and a moved NEW::f one name; the move
+gate's old-spelling grep covers that.
 
 Usage:
-    tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...] [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
+    tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
+                             [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
                              [--cxxfilt llvm-cxxfilt] [--show N] [--diff NAME ...]
 """
 
@@ -313,7 +318,9 @@ def namespace_renamer(pairs: list[tuple[str, str]]):
     name is rewritten once, so a pair's new spelling is never renamed again. A pair matches whole `::` components."""
     if not pairs:
         return lambda name: name
-    news = dict(pairs)
+    news: dict[str, str] = {}
+    for old, new in pairs:
+        news.setdefault(old, new)
     pattern = re.compile(
         r"(?<![\w:])(?:" + "|".join(re.escape(old) for old, _ in pairs) + r")(?=::|\b)"
     )

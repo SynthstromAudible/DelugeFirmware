@@ -57,6 +57,10 @@ class NamespaceRenames(unittest.TestCase):
         self.assertEqual(rename("my::deluge::scenes::f"), "my::deluge::scenes::f")
         self.assertEqual(rename("deluge::ui::scenes::f"), "deluge::ui::scenes::f")
 
+    def test_a_duplicate_old_name_takes_the_first_new_name(self):
+        rename = namespace_renamer([("a::b", "x"), ("a::b", "y")])
+        self.assertEqual(rename("a::b::f"), "x::f")
+
     def test_the_first_matching_pair_wins_and_a_result_is_not_renamed_again(self):
         rename = namespace_renamer(
             [("deluge::ui::oled", "deluge::oled"), ("deluge::ui", "deluge::view")]
