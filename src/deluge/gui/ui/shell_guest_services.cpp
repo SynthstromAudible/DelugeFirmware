@@ -96,7 +96,7 @@ struct GuestServices {
 /// @brief The one set, built on first use over `shellHostUI`'s own `Shell`.
 ///
 /// A function-local static rather than a namespace-scope object, for the reason
-/// `ui::scenes::menu_scene()` gives: it must not participate in static-initialisation order across
+/// `deluge::ui::scenes::menu_scene()` gives: it must not participate in static-initialisation order across
 /// translation units, and `shellHostUI` -- whose `SceneStack` and `InputLowering` these three hold
 /// references to -- is a global in another one. The first call happens at boot, long after every
 /// global is constructed.

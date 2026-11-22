@@ -194,7 +194,7 @@ RULES = textwrap.dedent(
     """
     [[directory]]
     path = "ui"
-    target = "src/ui/scenes"
+    target = "src/ui"
 
     [[rule]]
     name = "scenes-reads-outside-bind"
