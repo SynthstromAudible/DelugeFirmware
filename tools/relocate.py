@@ -20,7 +20,8 @@ a comment); an unqualified use that leaned on the old enclosing namespace is lef
 --target OLD=NEW renames a CMake target as a whole word.
 
 A move is refused, and nothing is changed, when src/deluge/OLD exists (the legacy root precedes src/ on the include
-path, so OLD/ would name two directories) or when src/NEW or tests/unit/NEW already exists. The north-star layout document is never
+path, so OLD/ would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name the same directory or one inside
+the other (a chain would move on disk differently from how the text reads). The north-star layout document is never
 rewritten: its tables name today's paths beside their targets.
 
 Usage:
@@ -126,6 +127,14 @@ def respell_includes(
     return "".join(lines)
 
 
+def raw_prefix(text: str, i: int) -> bool:
+    """Whether the `R` at text[i] starts a raw string: alone, or after an encoding prefix (u8, u, U, L)."""
+    start = i
+    while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+        start -= 1
+    return text[start:i] in ("", "u8", "u", "U", "L")
+
+
 def comment_mask(text: str) -> list[bool]:
     """Which characters of C-family source lie inside a comment (string, char and raw-string literals are code)."""
     mask = [False] * len(text)
@@ -142,11 +151,7 @@ def comment_mask(text: str) -> list[bool]:
             end = n if end < 0 else end + 2
             mask[i:end] = [True] * (end - i)
             i = end
-        elif (
-            c == "R"
-            and text.startswith('R"', i)
-            and (i == 0 or not text[i - 1].isalnum())
-        ):
+        elif c == "R" and text.startswith('R"', i) and raw_prefix(text, i):
             paren = text.find("(", i)
             delim = text[i + 2 : paren] if paren > 0 else ""
             end = text.find(f'){delim}"', paren) if paren > 0 else -1
@@ -229,7 +234,19 @@ def rename_words(
     return text
 
 
+def overlaps(a: str, b: str) -> bool:
+    return a == b or a.startswith(f"{b}/") or b.startswith(f"{a}/")
+
+
 def check(repo: Path, moves: list[tuple[str, str]]) -> None:
+    for i, first in enumerate(moves):
+        for second in moves[i + 1 :]:
+            for x in first:
+                for y in second:
+                    if overlaps(x, y):
+                        raise Refused(
+                            f"moves {first} and {second} overlap at {x} and {y}: run them separately"
+                        )
     for old, new in moves:
         if (repo / "src" / "deluge" / old).exists():
             raise Refused(f"src/deluge/{old} exists: {old}/ would name two directories")

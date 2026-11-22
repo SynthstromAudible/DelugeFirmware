@@ -208,20 +208,62 @@ class Spellings(unittest.TestCase):
             repo.read("d.md"), "see src/ui/scenes. And src/scenes.h stays.\n"
         )
 
-    def test_chained_moves_read_the_layout_before_any_move(self):
+    def test_chained_moves_are_refused_and_change_nothing(self):
+        repo = Repo({"src/a/x.h": "", "src/b/y.h": "", "d.md": "a/x.h and src/b\n"})
+        try:
+            code = relocate.main(
+                ["--repo", str(repo.root), "--move", "a", "b/a", "--move", "b", "c"]
+            )
+            self.assertEqual(code, 2)
+            self.assertTrue((repo.root / "src/a/x.h").is_file())
+            self.assertTrue((repo.root / "src/b/y.h").is_file())
+            self.assertEqual(repo.read("d.md"), "a/x.h and src/b\n")
+        finally:
+            repo.close()
+
+    def test_siblings_with_a_shared_prefix_are_not_chained(self):
+        repo = Repo({"src/ui/core/x.h": "", "src/ui/coreX/y.h": ""})
+        try:
+            relocate.apply(
+                repo.root,
+                moves=[("ui/core", "ui/w/core"), ("ui/coreX", "ui/w/coreX")],
+                namespaces=[],
+                targets=[],
+            )
+            self.assertTrue((repo.root / "src/ui/w/coreX/y.h").is_file())
+        finally:
+            repo.close()
+
+    def test_the_planned_multi_move_is_accepted(self):
+        repo = Repo({f"src/ui/{n}/x.h": "" for n in ("core", "oled", "grid")})
+        try:
+            code = relocate.main(
+                ["--repo", str(repo.root)]
+                + [
+                    a
+                    for n in ("core", "oled", "grid")
+                    for a in ("--move", f"ui/{n}", f"ui/widgets/{n}")
+                ]
+            )
+            self.assertEqual(code, 0)
+            self.assertTrue((repo.root / "src/ui/widgets/grid/x.h").is_file())
+        finally:
+            repo.close()
+
+    def test_raw_strings_with_encoding_prefixes_are_code(self):
         repo = Repo(
             {
-                "src/a/x.h": "",
-                "src/b/y.h": "",
-                "d.md": "a/x.h and b/y.h and src/a and src/b\n",
+                "src/scenes/a.h": "",
+                "src/x.cpp": 'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // scenes/z\n',
             }
         )
         try:
             relocate.apply(
-                repo.root, moves=[("a", "b/a"), ("b", "c")], namespaces=[], targets=[]
+                repo.root, moves=[("scenes", "ui/scenes")], namespaces=[], targets=[]
             )
             self.assertEqual(
-                repo.read("d.md"), "b/a/x.h and c/y.h and src/b/a and src/c\n"
+                repo.read("src/x.cpp"),
+                'auto a = u8R"(scenes/x)"; auto b = LR"(scenes/y)"; // ui/scenes/z\n',
             )
         finally:
             repo.close()
