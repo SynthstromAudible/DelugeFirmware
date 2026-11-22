@@ -66,12 +66,12 @@ rustc and LLVM uniquify a Rust internal function that would clash as `name.N`, w
 change anywhere renumbers it. Such a code symbol is read as `name.0`, and when several are, they are twins as above:
 named by their places, never merged, and a reference moved between them is a change. The symbol left unsuffixed keeps
 its name, and a data symbol's `.N` (a global split into its parts) and other suffixes (`.constprop.0`) keep their text.
-A Rust name keyed by its mangled text drops its crates' hashes (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`), because a
-moved crate changes its own hash and the hashes of the crates that depend on it; the crate names stay, so one generic's
-instances from two crates stay apart. The hashes are found by a pattern on the raw text, which can also rewrite
-identifier bytes that look like one; that can only make a key differ between images (a false positive), as two symbols
-at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may share a
-key: a reference to either is the same, so an alias set that regroups between the images still pairs.
+A Rust name keyed by its mangled text drops its crates' hashes (`Cs6NFbV2PXKjr_` before `22deluge_platform_device`),
+because a moved crate changes its own hash and the hashes of the crates that depend on it; the crate names stay, so one
+generic's instances from two crates stay apart. The hashes are found by a pattern on the raw text, which can also
+rewrite identifier bytes that look like one; that can only make a key differ between images (a false positive), as two
+symbols at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may
+share a key: a reference to either is the same, so an alias set that regroups between the images still pairs.
 
 Data is compared too. Every sized symbol whose bytes a loaded, non-executable section holds (.rodata, .data, the SDRAM
 content inflated from .sdram_init_pack), other than functions and local labels (`.str.N`, `.Lanon.…`, whose names do not
@@ -732,7 +732,7 @@ def nm_symbols(nm_text: str) -> list[tuple[int, int, str]]:
     return found
 
 
-# A Rust v0 crate root's disambiguator (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`).
+# A Rust v0 crate root's disambiguator (`Cs6NFbV2PXKjr_` before `22deluge_platform_device`).
 RUST_CRATE_HASH = re.compile(r"Cs[0-9a-zA-Z]+_(?=\d)")
 # A Rust function's name as rustc and LLVM uniquify it in an image: `name.N`, N counted across the image.
 UNIQUIFIED = re.compile(r"^(_R[^.]*\.)\d+$")
