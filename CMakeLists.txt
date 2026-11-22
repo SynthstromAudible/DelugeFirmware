@@ -95,6 +95,16 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 # lands on the ASM command line — which fails if ASM is assembled by GCC.
 add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,Clang>:-fansi-escape-codes>)
 
+# __FILE__ (assert and log locations in the loaded image) names repo-relative paths, not the build machine's. The
+# macro map leaves DWARF absolute, so debuggers and trace tools still find sources. The in-repo toolchain headers are
+# covered by the same prefix; a toolchain outside the repo (DBT_TOOLCHAIN_PATH) gets its own.
+add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/=)
+cmake_path(ABSOLUTE_PATH TOOLCHAIN_ROOT NORMALIZE OUTPUT_VARIABLE DELUGE_TOOLCHAIN_ABS_ROOT)
+cmake_path(IS_PREFIX CMAKE_SOURCE_DIR "${DELUGE_TOOLCHAIN_ABS_ROOT}" NORMALIZE DELUGE_TOOLCHAIN_IN_REPO)
+if(NOT DELUGE_TOOLCHAIN_IN_REPO)
+    add_compile_options(-fmacro-prefix-map=${DELUGE_TOOLCHAIN_ABS_ROOT}/=toolchain/)
+endif()
+
 # ##### Documentation generation #######
 # check if Doxygen is installed
 find_package(Doxygen
