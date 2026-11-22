@@ -20,6 +20,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/scale/musical_key.h"
 #include "util/functions.h"
 
 // namespace deluge::gui::views::automation::editor_layout {

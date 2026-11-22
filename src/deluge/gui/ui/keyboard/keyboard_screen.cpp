@@ -53,6 +53,7 @@
 #include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
+#include "model/scale/musical_key.h"
 #include "util/functions.h"
 
 PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};

@@ -25,7 +25,6 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
-#include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
@@ -1595,11 +1594,8 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-bool useSharpsForNoteNames() {
-	return !currentSong || !currentSong->key.prefersFlats();
-}
-
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo,
+                      bool useSharps) {
 	char* thisChar = buffer;
 	// Floor division / positive modulo so negative note codes (e.g. from transposing below C-2) land in the right
 	// octave rather than truncating toward zero
@@ -1609,8 +1605,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 		noteCodeWithinOctave += 12;
 		octave--;
 	}
-
-	bool useSharps = useSharpsForNoteNames();
 
 	*thisChar =
 	    useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];

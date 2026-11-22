@@ -44,6 +44,7 @@
 #include "model/consequence/consequence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/scale/musical_key.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
@@ -561,7 +562,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 
 	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural);
+	noteCodeToString(noteCode, noteName, &isNatural, true, useSharpsForNoteNames());
 
 	if (display->haveOLED()) {
 		display->popupTextTemporary(noteName);

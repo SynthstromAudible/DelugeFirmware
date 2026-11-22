@@ -32,3 +32,7 @@ public:
 	NoteSet modeNotes;
 	int16_t rootNote;
 };
+
+/// Whether note names use sharps or flats: follows the song key (MusicalKey::prefersFlats()), so names match the row
+/// an accidental is drawn on. Sharps when there's no song.
+bool useSharpsForNoteNames();

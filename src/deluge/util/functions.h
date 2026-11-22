@@ -381,11 +381,9 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 /// Fits noteCodeToString() output for any int32_t note code (e.g. "A#-178956973"). Transposition isn't clamped, so
 /// note codes can reach octaves needing more than one digit.
 constexpr size_t kNoteCodeStringBufferSize = 13;
-/// Whether note names use sharps or flats: follows the song key (MusicalKey::prefersFlats()), so names match the row
-/// an accidental is drawn on. Sharps when there's no song.
-bool useSharpsForNoteNames();
+/// Pass useSharpsForNoteNames() (model/scale/musical_key.h) for useSharps to follow the song key.
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
-                      bool appendOctaveNo = true);
+                      bool appendOctaveNo = true, bool useSharps = true);
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
