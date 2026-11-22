@@ -4,17 +4,25 @@
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """Diffs the printable strings two device images load (.rodata, .data and the SDRAM content inflated from
-.sdram_init_pack), after renaming paths and crates in the first image's strings. A string is a run of printable ASCII
-of at least six characters, or of at least three when a NUL byte ends it (a C string). Equal multisets after the
-renames prove that no such string changed; they say nothing about tables and other non-text data, which bytes_check
-covers, nor about strings that sit next to other bytes without a NUL after them and are shorter than six characters.
+.sdram_init_pack), after renaming paths and crates in the first image's strings. A string is a run of printable ASCII of
+at least six characters, or of at least three when a NUL byte ends it (a C string). Equal multisets after the renames
+prove that no such string changed; they say nothing about tables and other non-text data, which bytes_check covers, nor
+about strings that sit next to other bytes without a NUL after them and are shorter than six characters.
+
+A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
+pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
+that ends inside or at the end of a 4-byte-aligned word (aligned by the section's load address; the inflated SDRAM
+content's is `.sdram_init`'s) holding an address inside a LOAD segment or the SDRAM content at which the image loads
+printable text, ends where that word starts; cut short, it needs six characters. A word the run reads on past is text, a
+C string is never cut, and bytes that only read as an address into code or zeroed memory (a Rust format string's encoded
+arguments) are left as they are.
 
 The renames are trusted: each is a substring replacement on the first image's strings, so a changed string that
 contains renamed text compares equal to the same string with the new text. That is why the renames are exact moved
 paths and crate names. Each string is rewritten in one pass: at every position the first matching rename wins, and
 its output is not renamed again.
 
-Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy PATH]
+Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy PATH] [--readelf PATH]
 """
 
 from __future__ import annotations
@@ -62,12 +70,80 @@ def sdram(objcopy: str, elf: str) -> bytes:
     return data
 
 
-def strings(objcopy: str, elf: str) -> list[str]:
-    """Every printable run of at least six characters in the loaded data of @p elf."""
-    blobs = [section(objcopy, elf, s) for s in SECTIONS] + [sdram(objcopy, elf)]
-    return [
-        m.group().decode("ascii") for blob in blobs for m in PRINTABLE.finditer(blob)
+def layout(readelf: str, elf: str) -> tuple[dict[str, int], list[tuple[int, int]]]:
+    """Where @p elf loads what strings() reads (section name -> address; `.sdram_init` is where the inflated SDRAM
+    content is linked), and the address ranges it loads: its LOAD segments and the inflated content's range."""
+    out = subprocess.run(
+        [readelf, "-lSW", elf], check=True, capture_output=True, text=True
+    ).stdout
+    at, ranges = {}, []
+    for line in out.splitlines():
+        fields = line.split()
+        if fields[:1] == ["LOAD"] and int(fields[5], 16):
+            ranges.append((int(fields[2], 16), int(fields[2], 16) + int(fields[5], 16)))
+        header = re.search(
+            r"\]\s+(\S+)\s+\S+\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)", line
+        )
+        if header:
+            at[header.group(1)] = int(header.group(2), 16)
+    return at, ranges
+
+
+def pointer_at(
+    blob: bytes, offset: int, ranges: list[tuple[int, int]], text_at
+) -> bool:
+    """Whether the little-endian word of @p blob at @p offset holds an address inside @p ranges at which @p text_at
+    (address -> bool) finds text."""
+    if offset < 0 or offset + 4 > len(blob):
+        return False
+    value = struct.unpack_from("<I", blob, offset)[0]
+    return any(start <= value < end for start, end in ranges) and text_at(value)
+
+
+def runs(
+    blob: bytes,
+    base: int | None,
+    ranges: list[tuple[int, int]],
+    text_at=lambda address: False,
+) -> list[str]:
+    """The printable runs (PRINTABLE) of @p blob, loaded at @p base. A run no NUL ends that ends inside, or at the
+    end of, a 4-byte-aligned word holding the address of text the image loads ends where that word starts instead
+    (again, while the new end does): those bytes are a pointer's low bytes, such as a `&str`'s after the Rust string
+    before it, not the string's. A word the run reads on past is text, and a C string, which its NUL ends, is never
+    cut. The word must point at text: bytes that only read as an address into code or zeroed memory (a Rust format
+    string's encoded arguments, `20 c0 12 20`) are left."""
+    found = []
+    for m in PRINTABLE.finditer(blob):
+        start, end = m.span()
+        if base is not None and blob[end : end + 1] != b"\x00":
+            while True:
+                word = end - 1 - (base + end - 1) % 4
+                if word < start or not pointer_at(blob, word, ranges, text_at):
+                    break
+                end = word
+        # A run cut short has a pointer after it, not a NUL, so it needs the six characters of a bare run.
+        if end == m.end() or end - start >= 6:
+            found.append(blob[start:end].decode("ascii"))
+    return found
+
+
+def strings(objcopy: str, elf: str, readelf: str = "llvm-readelf") -> list[str]:
+    """Every printable run in the loaded data of @p elf (runs()), each loaded where layout() says."""
+    at, ranges = layout(readelf, elf)
+    content = sdram(objcopy, elf)
+    if content and ".sdram_init" in at:
+        ranges = [*ranges, (at[".sdram_init"], at[".sdram_init"] + len(content))]
+    blobs = [(section(objcopy, elf, s), at.get(s)) for s in SECTIONS] + [
+        (content, at.get(".sdram_init"))
     ]
+
+    def text_at(address: int) -> bool:
+        for blob, base in blobs:
+            if base is not None and base <= address < base + len(blob):
+                return 0x20 <= blob[address - base] <= 0x7E
+        return False
+
+    return [text for blob, base in blobs for text in runs(blob, base, ranges, text_at)]
 
 
 def diff_strings(
@@ -107,6 +183,7 @@ def main() -> int:
         "--objcopy",
         default=str(DEFAULT_OBJCOPY),
     )
+    p.add_argument("--readelf", default="llvm-readelf")
     a = p.parse_args()
     renames = []
     for spec in a.rename:
@@ -115,7 +192,9 @@ def main() -> int:
             p.error(f"--rename wants OLD=NEW, got {spec!r}")
         renames.append((old, new))
     gone, came = diff_strings(
-        strings(a.objcopy, a.old), strings(a.objcopy, a.new), renames
+        strings(a.objcopy, a.old, a.readelf),
+        strings(a.objcopy, a.new, a.readelf),
+        renames,
     )
     for s in gone:
         print(f"- {s}")

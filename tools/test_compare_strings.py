@@ -79,9 +79,75 @@ def sections(**by_name: bytes):
 
 
 class Strings(unittest.TestCase):
-    def read(self, **by_name):
-        with mock.patch.object(compare_strings, "section", sections(**by_name)):
+    def read(self, at=None, ranges=(), **by_name):
+        """strings() over the sections @p by_name, loaded at @p at (section name -> address), in an image whose loaded
+        address ranges are @p ranges."""
+        layout = lambda readelf, elf: (at or {}, list(ranges))
+        with (
+            mock.patch.object(compare_strings, "section", sections(**by_name)),
+            mock.patch.object(compare_strings, "layout", layout, create=True),
+        ):
             return strings("objcopy", "x.elf")
+
+    # A string with no NUL after it, then a pointer to text elsewhere in the section whose two low bytes print
+    # (`E2`, `@2`: 0x20013245, 0x20013240, into `pointed-at text` at offset 0x3240), then a byte that does not.
+    POINTED = b"\x00hello world"
+
+    def pointed(self, text: bytes, pointer: int, base: int = 0x20010000) -> list[str]:
+        blob = bytearray(text + struct.pack("<I", pointer) + b"\x01")
+        blob += bytes(0x3240 - len(blob)) + b"pointed-at text\x00"
+        return [
+            s
+            for s in self.read(
+                at={".rodata": base},
+                ranges=[(0x20000000, 0x20300000)],
+                rodata=bytes(blob),
+            )
+            if s != "pointed-at text"
+        ]
+
+    def test_a_run_ends_where_a_pointer_word_starts(self):
+        self.assertEqual(self.pointed(self.POINTED, 0x20013245), ["hello world"])
+        self.assertEqual(
+            self.pointed(self.POINTED, 0x20013245),
+            self.pointed(self.POINTED, 0x20013240),
+        )
+
+    def test_a_changed_character_before_a_pointer_is_reported(self):
+        old, new = (
+            self.pointed(self.POINTED, 0x20013245),
+            self.pointed(b"\x00hello wurld", 0x20013240),
+        )
+        self.assertEqual(diff_strings(old, new, []), (["hello world"], ["hello wurld"]))
+
+    def test_a_word_is_a_pointer_only_aligned_and_at_loaded_text(self):
+        # Two bytes off its alignment (the section loads at an address ≡ 2 mod 4), or pointing at no text (a zero byte
+        # of the section; code, an encoded format string's argument bytes), the word is text.
+        self.assertEqual(
+            self.pointed(self.POINTED, 0x20013245, base=0x20010002), ["hello worldE2"]
+        )
+        self.assertEqual(self.pointed(self.POINTED, 0x20012045), ["hello worldE "])
+
+    def test_a_word_the_run_reads_on_past_is_text(self):
+        # ` -  ` is 0x20202d20, inside the range, but the text goes on after it.
+        found = self.read(
+            at={".rodata": 0x20000000},
+            ranges=[(0x20000000, 0x20300000)],
+            rodata=b"\x00failed -  %d and more\x00",
+        )
+        self.assertEqual(found, ["failed -  %d and more"])
+
+    def test_a_c_string_is_never_cut(self):
+        # `rs\0\x0c` reads as 0x0c007372, an address, but the NUL ends a C string there.
+        found = self.read(
+            at={".rodata": 0x20000000},
+            ranges=[(0x0C000000, 0x0C200000)],
+            rodata=b"\x00src/device.rs\x00\x0c",
+        )
+        self.assertEqual(found, ["src/device.rs"])
+
+    def test_a_run_cut_short_needs_six_characters(self):
+        self.assertEqual(self.pointed(b"\x00\x00\x00\x00abcd", 0x20013245), [])
 
     def test_a_changed_four_character_c_string_is_reported(self):
         old, new = self.read(rodata=b"\x00abcd\x00"), self.read(rodata=b"\x00abce\x00")
