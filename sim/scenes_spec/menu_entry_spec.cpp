@@ -106,7 +106,7 @@
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 /// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
 ///       these (`hid/buttons.cpp`) and the header does not export them.

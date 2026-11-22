@@ -115,7 +115,7 @@ sidebar included. They go once the keyboard layouts paint through the frame dire
 ## Frames and the tick
 
 One `FrameContext` is built per tick per surface set, by the shell in the firmware and by the rigs
-in `tests/unit/ui/support/frames.h` in the specs. Every frame in the tree holds a reference to
+in `tests/unit/ui/widgets/support/frames.h` in the specs. Every frame in the tree holds a reference to
 it, so a claim made deep inside a nested region lands in the one place the shell reads back.
 
 ```cpp
@@ -156,7 +156,7 @@ f.region(pane, InputMask{.turn = false}, [](OledFrame& p) { ... }); // all but t
 ## The input-consumption contract
 
 The authoritative text is on `FrameContext` in `core/frame_context.h`; these are its five rules.
-`tests/unit/ui/frame_context_spec.cpp` pins all of them.
+`tests/unit/ui/widgets/frame_context_spec.cpp` pins all of them.
 
 1. **Widgets read input only through the frame.** `turn()`, `edit(0)`/`edit(1)`, `horizontal()`,
    `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `select_held()`, `now_ms()`, and

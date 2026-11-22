@@ -18,7 +18,7 @@
 
 #include "fakes.h"
 #include "support/printers/transport_action_printer.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 

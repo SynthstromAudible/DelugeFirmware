@@ -34,7 +34,7 @@
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/mapping_printer.h"
 #include "support/printers/param_id_printer.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 

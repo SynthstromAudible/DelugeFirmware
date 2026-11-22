@@ -24,7 +24,7 @@ using deluge::ui::gfx::oled::Size;
 namespace uitest = deluge::ui::test;
 
 // Popups, wrapping, the working animation and the progress bar, pinned three ways, as
-// `tests/unit/ui/columns_spec.cpp` and `tests/unit/ui/values_spec.cpp` pin theirs.
+// `tests/unit/ui/widgets/columns_spec.cpp` and `tests/unit/ui/widgets/values_spec.cpp` pin theirs.
 //
 // First, byte for byte against the legacy routines: `namespace legacy` below re-transcribes
 // `addCharacterToLine`, `findLineSplitPoint`, `addLine` and `breakStringIntoLines`,

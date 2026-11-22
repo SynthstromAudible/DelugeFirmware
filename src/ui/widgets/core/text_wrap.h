@@ -56,7 +56,7 @@ struct WrappedLines {
 ///        `max_width_px`. Kept in the signature so call sites can still spell
 ///        `kPopupMaxCharsPerLine` where legacy did, and so that honouring it later is a visible
 ///        change rather than a silent one; passing a different value changes nothing today, and
-///        `tests/unit/ui/popup_spec.cpp` pins that.
+///        `tests/unit/ui/widgets/popup_spec.cpp` pins that.
 /// @param font selects the metrics; `text_height_of(font)` is the legacy `textHeight` that
 ///        `char_width_px` / `char_spacing_px` are keyed on. Callers that wrap for a popup pass
 ///        `FontId::Apple7` -- legacy's `kTextSpacingY`.

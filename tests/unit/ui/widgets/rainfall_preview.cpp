@@ -5,7 +5,7 @@
 /// so ctest never picks it up. Keep it that way -- this is a visual tuning aid, not a
 /// correctness test, and there is nothing meaningful to assert about ASCII art.
 ///
-/// Usage: <host tree>/unit/ui/Debug/RainfallPreview [numFrames] [--logo]
+/// Usage: <host tree>/unit/ui/widgets/Debug/RainfallPreview [numFrames] [--logo]
 ///
 /// `--logo` forces a logo emission immediately. Without it you would wait out the real interval,
 /// which is minutes long by design, so the feature would be effectively uninspectable here.

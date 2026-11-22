@@ -14,7 +14,7 @@ namespace uitest = deluge::ui::test;
 
 namespace {
 
-// As tests/unit/ui/oled_frame_spec.cpp's own helper: a plain popcount over the framebuffer bytes,
+// As tests/unit/ui/widgets/oled_frame_spec.cpp's own helper: a plain popcount over the framebuffer bytes,
 // since this widget's own "did it draw anything" specs need a pixel count and no such counter is
 // part of the toolkit itself.
 int lit_pixels(std::span<const uint8_t> bytes) {

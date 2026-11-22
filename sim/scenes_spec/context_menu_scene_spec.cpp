@@ -10,8 +10,8 @@
 /// Each reset is checked by what it leaves behind: run from `kPerturbed`, it must leave the witness
 /// (`support/reset_witness.h`) the table's `reset/<action>` rows say main's leaves. The confirmation window is
 /// compared byte for byte, below the bezel, with main's panel for each action
-/// (`pixels/context_menu_reset_<action>.pbm`). `tests/unit/ui/option_window_spec.cpp` checks the window at option
-/// counts and positions no shipped descriptor reaches.
+/// (`pixels/context_menu_reset_<action>.pbm`). `tests/unit/ui/widgets/option_window_spec.cpp` checks the window at
+/// option counts and positions no shipped descriptor reaches.
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `menu_scene_spec.cpp` and
 ///       `rename_scene_spec.cpp` run under.

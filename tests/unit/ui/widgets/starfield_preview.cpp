@@ -6,7 +6,7 @@
 /// watching frames scroll by, which nothing here can assert automatically — this is a look-and-tell
 /// tool, not a target for `ctest`. Do not wire it into ctest or bolt on assertions to "fix" that.
 ///
-/// Usage: <host tree>/unit/ui/Debug/StarfieldPreview [numFrames]
+/// Usage: <host tree>/unit/ui/widgets/Debug/StarfieldPreview [numFrames]
 
 #include "ui/widgets/oled/starfield.h"
 #include <cstdio>

@@ -54,7 +54,7 @@
 #include "support/printers/pad_flash_printer.h"
 #include "support/printers/rgb_printer.h"
 #include "unit/ui/gfx/support/golden.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -830,14 +830,14 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 	it("a SELECTED over-long row scrolls, held across quiet ticks", _ {
 		// `oled::list`'s selected row runs its label through `scroll_text`, which
 		// self-arms the panel's own gate (`request_repaint_after`) whenever the label overflows
-		// its row; `tests/unit/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
+		// its row; `tests/unit/ui/widgets/list_spec.cpp`'s "scrolls a selected label..." already pins that
 		// mechanics directly. What was untested is the OTHER half: does `MenuView::render_vertical`
 		// actually reach it with a real, focused, over-long node? Every over-long row the goldens
 		// record is unselected -- legacy truncates that case too, so nothing was
 		// missing there -- and nothing exercised the selected one through the real scene.
 		//
 		// `nodes::feature_alt_delay_params`'s label is "Alternative Golden Knob Delay Params" (36
-		// characters): comfortably past a 48-panel row, the same margin `unit/ui/list_spec.cpp`'s own
+		// characters): comfortably past a 48-panel row, the same margin `unit/ui/widgets/list_spec.cpp`'s own
 		// 41-character fixture uses. It sits at row 5 of `kRuntimeFeatureChildren`
 		// (`menu/nodes/settings.h`: drum_randomizer, fine_tempo, quantize, catch_notes,
 		// delete_unused_kit_rows, *alt_delay_params*, ...) -- `focused()` cannot confirm the cursor

@@ -65,7 +65,7 @@
 #include "support/record_state.h"
 #include "support/song_fixture.h"
 #include "support/torn_down_take.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 

@@ -24,8 +24,8 @@ using deluge::ui::gfx::oled::Rect;
 namespace icons = deluge::ui::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
-// The horizontal menu page is pinned three ways at once, as `tests/unit/ui/meters_spec.cpp` and
-// `tests/unit/ui/values_spec.cpp` pin their widgets.
+// The horizontal menu page is pinned three ways at once, as `tests/unit/ui/widgets/meters_spec.cpp` and
+// `tests/unit/ui/widgets/values_spec.cpp` pin their widgets.
 //
 // First, byte for byte against the legacy renderer itself: `namespace legacy` below
 // re-transcribes `HorizontalMenu::renderMenuItems`, `renderColumnLabel`, `renderPageCounters` and
