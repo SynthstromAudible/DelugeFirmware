@@ -61,7 +61,7 @@ void OledFrame::vline(int32_t x, int32_t y0, int32_t y1) {
 void OledFrame::line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick) {
 	ClipScope scope{canvas, clip};
 
-	// The same Bresenham walk as Canvas::draw_line (gfx/oled/canvas.cpp), plotting straight to
+	// The same Bresenham walk as Canvas::draw_line (ui/gfx/oled/canvas.cpp), plotting straight to
 	// the canvas under this frame's clip rather than clipping the endpoints first: shortening the
 	// segment would rasterise a *different* set of pixels (the error term restarts), whereas
 	// clipping per plotted point keeps a clipped line a strict subset of the unclipped one.
@@ -121,7 +121,7 @@ void OledFrame::rect_rounded(Rect r, gfx::oled::BorderRadius radius) {
 		return;
 	}
 
-	// Canvas::draw_rectangle_rounded's decomposition (gfx/oled/canvas.cpp), replayed through this
+	// Canvas::draw_rectangle_rounded's decomposition (ui/gfx/oled/canvas.cpp), replayed through this
 	// frame's clipped primitives rather than handed to the canvas whole. A "rounded corner" is not
 	// an arc: it is the four edges inset by the radius, plus -- at radius 2 -- one pixel diagonally
 	// in from each corner. Every one of those is a span or a point, so every one of them clips

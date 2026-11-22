@@ -3,7 +3,7 @@
 #include "ui/grid/frame.h"
 #include "ui/grid/waveform.h"
 
-#include "gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 #include <array>
@@ -22,7 +22,7 @@ std::optional<WaveformFrame> read_waveform(const bind::Waveforms& waveforms, con
 }
 
 void paint_columns(deluge::ui::grid::GridFrame& f, const sample_view::PeakRead& read, int32_t centre, int32_t span) {
-	static_assert(sample_view::kColumns == deluge::gfx::grid::kDelugeGrid.main_cols);
+	static_assert(sample_view::kColumns == deluge::ui::gfx::grid::kDelugeGrid.main_cols);
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, sample_view::kColumns);
 	std::array<deluge::ui::grid::PeakCol, sample_view::kColumns> peaks{};
 	for (int32_t x = 0; x < main_cols; x++) {

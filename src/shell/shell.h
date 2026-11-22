@@ -653,14 +653,14 @@ private:
 	/// held here rather than on `GridSurface` because it is a `Shell`-side concern (the surface
 	/// pool has no business owning a whole extra framebuffer) and `PadGrid` has no default
 	/// constructor for a plain array member to hold before a tween's first snapshot.
-	std::optional<gfx::grid::PadGrid> tween_from_;
+	std::optional<ui::gfx::grid::PadGrid> tween_from_;
 	/// Scratch storage for `ScrollH`/`ScrollV` tween steps: `gfx::grid::scroll_horizontal`/
 	/// `scroll_vertical` read `incoming` at column/row indices other than the one they are
 	/// writing, so blending straight into the live grid could read a cell this same pass already
 	/// overwrote. Reused every step rather than a per-tick stack local (~1.5 KB for `kMaxGridRows`
 	/// x `kMaxGridCols` `RGB`s -- `PadGrid`'s own doc), since `Shell` already lives for the whole
 	/// tick loop and the render path should not pay for it on every call.
-	std::optional<gfx::grid::PadGrid> tween_scratch_;
+	std::optional<ui::gfx::grid::PadGrid> tween_scratch_;
 	/// The shared blink phases, indexed by `ui::BlinkRate`, and the rate each board LED blinked on at the last
 	/// `derive_leds` (-1 for none), so an LED that starts blinking restarts its rate.
 	ui::BlinkPhase blink_phases_[2]{};

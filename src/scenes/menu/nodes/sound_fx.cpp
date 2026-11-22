@@ -31,7 +31,6 @@
 
 #include "effects/state.h"
 #include "effects/words.h"
-#include "gfx/oled/icons.h"
 #include "instruments/classic/state_access.h"
 #include "plugin/types/display_mapping.h"
 #include "plugin/types/sync.h"
@@ -39,6 +38,7 @@
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
+#include "ui/gfx/oled/icons.h"
 
 #include <array>
 #include <cmath>
@@ -267,7 +267,7 @@ std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuConte
 	if (v == kUseSong) {
 		return deluge::ui::oled::ArtColumn{.text = "song"};
 	}
-	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::direction,
+	return deluge::ui::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::direction,
 	                                   .reversed = v == kReversed || v == kReversedPingPong,
 	                                   .dots = v == kForwardPingPong || v == kReversedPingPong};
 }

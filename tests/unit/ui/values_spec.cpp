@@ -5,7 +5,7 @@
 #include "ui/core/style.h"
 #include "ui/oled/list.h"
 #include "ui/oled/values.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -19,12 +19,12 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::BorderRadius;
-using deluge::gfx::oled::kTextHugeSizeY;
-using deluge::gfx::oled::kTextHugeSpacingX;
-using deluge::gfx::oled::kTextSpacingX;
-using deluge::gfx::oled::kTextSpacingY;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::BorderRadius;
+using deluge::ui::gfx::oled::kTextHugeSizeY;
+using deluge::ui::gfx::oled::kTextHugeSpacingX;
+using deluge::ui::gfx::oled::kTextSpacingX;
+using deluge::ui::gfx::oled::kTextSpacingY;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // Every widget below is pinned three ways at once. First as individual canvas coordinates read
@@ -166,7 +166,7 @@ describe values_w("ui::oled::values", $ {
 		// `drawInteger(kTextBigSpacingX, kTextBigSizeY, 15)` then `drawHorizontalBar(35, 10)`
 		// (`origin/main:src/deluge/gui/menu_item/number.cpp`, height 8), the bar at a canvas-absolute row with no
 		// `OLED_MAIN_TOPMOST_PIXEL` term.
-		const auto legacy_bar = [](deluge::gfx::oled::Canvas& c, int32_t value, int32_t min, int32_t max) {
+		const auto legacy_bar = [](deluge::ui::gfx::oled::Canvas& c, int32_t value, int32_t min, int32_t max) {
 			const int32_t left_most = 10 + 2;
 			const int32_t right_most = 128 - 10 - 3;
 			if (min == 0 && value == 0) {

@@ -4,7 +4,7 @@
 /// @brief Horizontal-menu column drawings that are neither a meter, a word nor an icon: transcriptions of legacy
 ///        `renderInHorizontalMenu` overrides and container renders, each drawn by `draw_column` from a `DrawColumn`.
 
-#include "gfx/oled/geometry.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/oled/frame.h"
 
 #include <cstdint>

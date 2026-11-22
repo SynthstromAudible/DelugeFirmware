@@ -30,11 +30,10 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
-#include "gfx/oled/icons.h"
+#include "ui/gfx/oled/icons.h"
 
 #include "gui/l10n/strings.h"
 
-#include "gfx/grid/pad_grid.h"
 #include "instruments/classic/state_access.h"
 #include "processing/engines/audio_engine.h"
 #include "project/setting_group.h"
@@ -48,6 +47,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 #include <array>
@@ -59,8 +59,8 @@
 namespace deluge::scenes::browser {
 
 /// @brief The pad grid's main columns and rows.
-constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
-constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
+constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::storage::FileCatalogue;
@@ -75,7 +75,7 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
-using gfx::oled::Rect;
+using ui::gfx::oled::Rect;
 
 namespace {
 
@@ -335,7 +335,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .title = "Audio files",
         .extensions = kAudioExtensions,
         .default_dir = "SAMPLES",
-        .file_icon = &gfx::oled::icons::browserWave,
+        .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
         .interpret_note_names = true,
         .allow_folders_sharing_name_with_file = true,
@@ -352,8 +352,8 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .title = "Load midi device",
         .extensions = allowedFileExtensionsXML,
         .default_dir = kMidiDeviceDir,
-        .file_icon = &gfx::oled::icons::browserMidi,
-        .file_icon_pt2 = &gfx::oled::icons::browserMidiEdge,
+        .file_icon = &ui::gfx::oled::icons::browserMidi,
+        .file_icon_pt2 = &ui::gfx::oled::icons::browserMidiEdge,
         .interpret_note_names = false,
         .allow_folders_sharing_name_with_file = false,
         .can = midi_device_can,
@@ -367,7 +367,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .title = "DX7 syx files",
         .extensions = kSyxExtensions,
         .default_dir = "DX7",
-        .file_icon = &gfx::oled::icons::browserWave,
+        .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
         .interpret_note_names = false,
         .allow_folders_sharing_name_with_file = true,
@@ -1398,10 +1398,10 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 		}
 
 		// `drawGraphicMultiLine(graphic, iconStartX, yPixel, iconWidth)` (`Browser::renderOLED`).
-		const gfx::oled::Icon& glyph = is_folder ? gfx::oled::icons::browserFolder : *d.file_icon;
-		deluge::ui::oled::icon(f, gfx::oled::Point{icon_x, y}, glyph);
+		const ui::gfx::oled::Icon& glyph = is_folder ? ui::gfx::oled::icons::browserFolder : *d.file_icon;
+		deluge::ui::oled::icon(f, ui::gfx::oled::Point{icon_x, y}, glyph);
 		if (!is_folder && d.file_icon_pt2 != nullptr) {
-			deluge::ui::oled::icon(f, gfx::oled::Point{icon_x + glyph.width, y}, *d.file_icon_pt2);
+			deluge::ui::oled::icon(f, ui::gfx::oled::Point{icon_x + glyph.width, y}, *d.file_icon_pt2);
 		}
 
 		if (is_selected) {
@@ -1415,7 +1415,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 			// drawn (`OLED::setupSideScroller`, which legacy arms only for a name that does not fit).
 			const bool scrolls =
 			    edit_.cursor == 0
-			    && gfx::oled::string_width_px(entered_text(), deluge::ui::oled::text_height_for(f.style.row_font))
+			    && ui::gfx::oled::string_width_px(entered_text(), deluge::ui::oled::text_height_for(f.style.row_font))
 			           > row.w;
 			if (scrolls) {
 				(void)deluge::ui::oled::scroll_text(f, row, entered_text(), f.style.row_font, row_scroll_, true, true);
@@ -1441,7 +1441,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
 		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
 		// `qwertyVisible`, acted on by `after_render`.
-		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows});
+		reveal_press_ = f.first_press_in(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, kRows});
 	}
 	switch (pads_) {
 	case BrowserPads::Root:
@@ -1525,7 +1525,7 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	}
 	const std::optional<services::WaveformFrame> wf =
 	    services::read_waveform(menu::host_waveforms(), preview, view_.window());
-	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 		if (wf) {
 			services::paint_columns(main, wf->read, wf->centre, wf->span);
 		}

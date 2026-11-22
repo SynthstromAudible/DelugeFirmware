@@ -391,7 +391,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		const int16_t colour_offset = h.model.clip_structure.getOrCreate(kClipId).colour_offset;
 		GridRig expected;
 		expected.begin_tick(0);
-		expected.frame.region(deluge::gfx::grid::Rect{0, 0, 16, expected.frame.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
+		expected.frame.region(deluge::ui::gfx::grid::Rect{0, 0, 16, expected.frame.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 			deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessColoured,
 			                                RGB::fromHuePastel(colour_offset * -8 / 3));
 		});

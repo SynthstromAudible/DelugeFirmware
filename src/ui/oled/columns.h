@@ -1,7 +1,7 @@
 #pragma once
-#include "gfx/oled/geometry.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/oled/frame.h"
 #include "ui/oled/meters.h"
 #include <cstdint>

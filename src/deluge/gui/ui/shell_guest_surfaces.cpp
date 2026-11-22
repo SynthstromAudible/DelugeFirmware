@@ -18,11 +18,11 @@
 #include "gui/ui/shell_guest_surfaces.h"
 
 #include "definitions_cxx.hpp"
-#include "gfx/oled/geometry.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/control_surface.h"
+#include "ui/gfx/oled/geometry.h"
 
 #include <algorithm>
 #include <iterator>
@@ -40,10 +40,10 @@ using deluge::ui::shell::SurfaceRole;
 // geometry and legacy's OLED macros describe the same 1-bpp page-major 128x48 frame, and legacy's pad image is exactly
 // the nine column pairs the shell sends. These are what make the copies below whole-buffer copies rather than
 // conversions.
-static_assert(deluge::gfx::oled::kDelugeOled.width == OLED_MAIN_WIDTH_PIXELS);
-static_assert(deluge::gfx::oled::kDelugeOled.height == OLED_MAIN_HEIGHT_PIXELS);
-static_assert(deluge::gfx::oled::kDelugeOled.visible_top == OLED_MAIN_TOPMOST_PIXEL);
-static_assert(deluge::gfx::oled::kDelugeOled.bytes() == GuestSurfaceSet::kOledCopyBytesPerBlit);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.width == OLED_MAIN_WIDTH_PIXELS);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.height == OLED_MAIN_HEIGHT_PIXELS);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.visible_top == OLED_MAIN_TOPMOST_PIXEL);
+static_assert(deluge::ui::gfx::oled::kDelugeOled.bytes() == GuestSurfaceSet::kOledCopyBytesPerBlit);
 static_assert(sizeof(PadLEDs::image) == GuestSurfaceSet::kGridCopyBytesPerFullFlush);
 static_assert(GuestSurfaceSet::kGridCopyBytesPerColumnPair == 48);
 static_assert(GuestSurfaceSet::kOledCopyBytesPerBlit == 768);
@@ -202,7 +202,7 @@ bool GuestSurfaceSet::pair_owned(PadRegions owned, uint8_t pair_index) {
 }
 
 void GuestSurfaceSet::take_grid() {
-	const deluge::gfx::grid::PadGrid& g = grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = grid().grid();
 	const PadRegions owned = owned_regions();
 	const int32_t rows = std::min<int32_t>(g.dims().rows, kDisplayHeight);
 	const int32_t cols = std::min<int32_t>(g.dims().cols(), kDisplayWidth + kSideBarWidth);

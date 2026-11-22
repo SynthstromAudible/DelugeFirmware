@@ -1,15 +1,15 @@
 #pragma once
-#include "gfx/grid/pad_grid.h"
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/geometry.h"
 #include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
-#include "unit/gfx/support/grid_state.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/grid_state.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include <string>
 
@@ -46,10 +46,10 @@ inline InputSnapshot null_input(uint32_t now_ms = 0) {
 ///
 /// @note The rig's root frame defaults to a focused root (`InputMask::all()`). Call `begin_tick`
 ///       once per simulated tick to advance the clock and clear that tick's claims.
-template <deluge::gfx::oled::Geometry G>
+template <deluge::ui::gfx::oled::Geometry G>
 struct OledRig {
 	/// The framebuffer the frame draws into.
-	deluge::gfx::oled::OwnedCanvas<G> canvas;
+	deluge::ui::gfx::oled::OwnedCanvas<G> canvas;
 	/// Tracks which of the rig's frames still owe a repaint.
 	deluge::ui::RepaintGate gate;
 	/// The tick's input; a spec mutates this directly before reading `frame`'s response.
@@ -95,13 +95,13 @@ struct OledRig {
 
 	/// A second, identically sized canvas for drawing the legacy routine's output into, so a
 	/// port can be compared against its original rather than against its own last run.
-	deluge::gfx::oled::OwnedCanvas<G> reference;
+	deluge::ui::gfx::oled::OwnedCanvas<G> reference;
 	/// @return `reference`'s contents as a PBM, for comparison against the legacy routine's output.
 	std::string reference_pbm() { return page_major_to_pbm(reference.bytes().data(), G.width, G.height); }
 };
 
-using Rig48 = OledRig<deluge::gfx::oled::kDelugeOled>;
-using Rig64 = OledRig<deluge::gfx::oled::Geometry{128, 64, 0}>;
+using Rig48 = OledRig<deluge::ui::gfx::oled::kDelugeOled>;
+using Rig64 = OledRig<deluge::ui::gfx::oled::Geometry{128, 64, 0}>;
 
 /// @brief Everything a grid component spec needs.
 ///
@@ -117,7 +117,7 @@ using Rig64 = OledRig<deluge::gfx::oled::Geometry{128, 64, 0}>;
 ///       called once per simulated tick.
 struct GridRig {
 	/// The pad surface the frame draws into and hit-tests against.
-	deluge::gfx::grid::PadGrid grid{deluge::gfx::grid::kDelugeGrid};
+	deluge::ui::gfx::grid::PadGrid grid{deluge::ui::gfx::grid::kDelugeGrid};
 	/// Tracks which of the rig's frames still owe a repaint.
 	deluge::ui::RepaintGate gate;
 	/// The tick's input; a spec mutates this directly before reading `frame`'s response.

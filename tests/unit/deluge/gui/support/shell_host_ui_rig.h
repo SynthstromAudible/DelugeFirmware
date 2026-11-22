@@ -81,7 +81,7 @@ public:
 			}
 			return;
 		}
-		const deluge::gfx::grid::Rect b = frame.bounds();
+		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				(void)frame.pad(x, y, pad_for(x, y));
@@ -298,7 +298,7 @@ struct Rig {
 ///     rows past the end of the image it was handed.
 ///   * **8 main + 2 sidebar = 10 columns** (legacy has 18) — without `min(x1, dims.cols())` the copy
 ///     reads `PadGrid::at(10..15, y)`, which is a `DELUGE_GFX_CONTRACT` violation and traps
-///     (`DELUGE_GFX_CONTRACT` in `gfx/contract.h`, `PadGrid::at`).
+///     (`DELUGE_GFX_CONTRACT` in `ui/gfx/contract.h`, `PadGrid::at`).
 inline DelugeBoard board_tall_narrow_grid() {
 	DelugeBoard b = kDelugeBoard;
 	b.pad_grid_width = 8;

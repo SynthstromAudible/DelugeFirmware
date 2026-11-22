@@ -101,8 +101,8 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/project_address_printer.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"

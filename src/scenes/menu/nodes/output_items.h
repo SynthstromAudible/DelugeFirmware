@@ -137,7 +137,7 @@ public:
 	///
 	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
 	/// is one of the three that override the base blit. The text half is `row_note`.
-	const deluge::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;
+	const deluge::ui::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;
 
 	/// @brief `Linked::renderSubmenuItemTypeForOled`'s text half: under a checked box, the linked file's name, the path
 	///        after its last `/`.

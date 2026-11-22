@@ -383,7 +383,7 @@ void startBrowserScroll(const deluge::scenes::browser::ScrollRequest& scroll) {
 		getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	}
 	else if (!scroll.into_nothing) {
-		const deluge::gfx::grid::PadGrid& grid = surfaces.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& grid = surfaces.grid().grid();
 		const int32_t rows = std::min<int32_t>(grid.dims().rows, kDisplayHeight);
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {

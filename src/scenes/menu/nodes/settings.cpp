@@ -37,11 +37,11 @@
 #include "scenes/registry.h"        // menu_scene()
 
 #include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, NUM_GATE_CHANNELS
-#include "gfx/oled/glyphs.h"
 #include "music/note_names.h"
 #include "project/device_settings.h"
 #include "project/midi_channels.h"
 #include "project/midi_command.h"
+#include "ui/gfx/oled/glyphs.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY
@@ -137,7 +137,7 @@ void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, del
 	    (tall ? deluge::ui::kMidiCommandRowY64 : deluge::ui::kMidiCommandRowY48) + deluge::ui::kApple7Height7YAdjust;
 	const int32_t row_h = f.style.row_height;
 	const auto row = [&](int32_t i, int32_t x) {
-		return deluge::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
+		return deluge::ui::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
 	};
 	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
 
@@ -250,8 +250,8 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 ///        `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` (`ui/core/metrics.h`'s
 ///        `kReadoutValueY` doc comment has the full derivation).
 void draw_readout(deluge::ui::oled::OledFrame& f, std::string_view text) {
-	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kReadoutValueY, f.bounds().w,
-	                                   deluge::ui::oled::text_height_for(f.style.big_font)};
+	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kReadoutValueY, f.bounds().w,
+	                                       deluge::ui::oled::text_height_for(f.style.big_font)};
 	deluge::ui::oled::text(f, band, text,
 	                       {.font = f.style.big_font, .align = deluge::ui::oled::Align::Centre, .shrink = true});
 }
@@ -404,7 +404,7 @@ std::string_view format_range_key(int32_t value, const void* hook_ctx, std::span
 		scratch[len++] = name.letter;
 	}
 	if (name.accidental != deluge::music::Accidental::NONE && len < scratch.size()) {
-		scratch[len++] = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
+		scratch[len++] = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::ui::gfx::oled::kFlatGlyph;
 	}
 	return std::string_view{scratch.data(), len};
 }

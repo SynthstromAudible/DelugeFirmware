@@ -1,6 +1,6 @@
 #pragma once
-#include "gfx/grid/pad_grid.h"
-#include "gfx/grid/tween.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/tween.h"
 #include "ui/grid/frame.h"
 
 #include <cstdint>

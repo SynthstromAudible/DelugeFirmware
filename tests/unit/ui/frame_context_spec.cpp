@@ -19,7 +19,7 @@
 #include <vector>
 
 using namespace deluge::ui;
-using deluge::gfx::oled::FontId;
+using deluge::ui::gfx::oled::FontId;
 using deluge::ui::grid::gesture;
 using deluge::ui::grid::GestureEvent;
 using deluge::ui::grid::GridFrame;
@@ -35,8 +35,8 @@ using deluge::ui::oled::OledFrame;
 using deluge::ui::oled::root_frame;
 using deluge::ui::oled::scroll_text;
 using deluge::ui::oled::working;
-using Rect = deluge::gfx::oled::Rect;
-using GridRect = deluge::gfx::grid::Rect;
+using Rect = deluge::ui::gfx::oled::Rect;
+using GridRect = deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 
 namespace {

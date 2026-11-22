@@ -1,8 +1,8 @@
 #include "ui/oled/meters.h"
 
-#include "gfx/oled/font.h"
-#include "gfx/oled/icons.h"
 #include "ui/core/metrics.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/text.h"
 

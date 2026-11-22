@@ -23,7 +23,7 @@
 
 #include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // kMaxSequenceLength
-#include "gfx/grid/palette.h"
+#include "ui/gfx/grid/palette.h"
 #include "ui/grid/columns.h"
 #include "ui/grid/sidebar.h"
 #include "ui/grid/waveform.h"
@@ -32,8 +32,6 @@
 
 #include "scenes/bind/ports/waveforms.h"
 
-#include "gfx/grid/exp_table.h"
-#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "project/audio_input.h"
 #include "project/device_settings.h"
@@ -43,6 +41,8 @@
 #include "project/track_kind.h"
 #include "scenes/services/waveform_paint.h"
 #include "serialization/tree.h"
+#include "ui/gfx/grid/exp_table.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 #include <array>
@@ -75,8 +75,8 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 
 /// @brief `renderMainPads`' fixed 16 main columns (`audio_clip_view.cpp` writes
 ///        `image[y][0 .. kDisplayWidth)` throughout).
-constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
-constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
+constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 /// @brief The colour `PadLEDs::prepareColour` substitutes for a `coloursArray` entry of 2, which is
 ///        the only non-zero value `graphicsRoutine` ever fills (`audio_clip_view.cpp`).
@@ -982,7 +982,7 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 	}
 	// `Song::getBarLength`: 96 ticks, by the song's input tick magnitude.
 	const uint32_t one_bar =
-	    static_cast<uint32_t>(deluge::gfx::grid::increase_magnitude(96, model_->transport.input_tick_magnitude()));
+	    static_cast<uint32_t>(deluge::ui::gfx::grid::increase_magnitude(96, model_->transport.input_tick_magnitude()));
 	if (one_bar == 0) {
 		return;
 	}
@@ -1223,7 +1223,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 				}
 			}
 
-			f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, f.bounds().h}, [&](GridFrame& main) {
+			f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, f.bounds().h}, [&](GridFrame& main) {
 				// `renderOneCol`'s coloured arm: `rgb` is engaged on this call site
 				// (`AudioClipView::renderMainPads`), so `brightness` is 256
 				// (`waveform_renderer.cpp`). `waveform_full`'s precondition, honoured.
@@ -1389,7 +1389,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 
 	const int32_t row_h = deluge::ui::oled::text_height_for(f.style.row_font);
 	deluge::ui::oled::text(
-	    f, deluge::gfx::oled::Rect{f.bounds().x, name_y + 14, f.bounds().w, row_h},
+	    f, deluge::ui::gfx::oled::Rect{f.bounds().x, name_y + 14, f.bounds().w, row_h},
 	    std::string_view{buffer.data(), len},
 	    deluge::ui::oled::TextStyle{.font = f.style.row_font, .align = deluge::ui::oled::Align::Centre});
 }

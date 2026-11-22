@@ -11,10 +11,10 @@
 #include "ui/oled/sample_position.h"
 #include "ui/oled/text.h"
 
-#include "gfx/grid/pad_grid.h"
-#include "gfx/grid/palette.h"
-#include "gfx/grid/tween.h"
-#include "gfx/oled/icons.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/gfx/grid/tween.h"
+#include "ui/gfx/oled/icons.h"
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
@@ -46,8 +46,8 @@
 namespace deluge::scenes::marker {
 
 /// @brief The pad grid's main columns and rows.
-constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
-constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
+constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::ui::shell::Action;
@@ -845,7 +845,7 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 			};
 			const int32_t pin = static_cast<int32_t>(
 			    sample_view::trunc_div((old_scroll - view_.scroll()) << 16, view_.zoom() - old_zoom));
-			zoom_pending_ = deluge::gfx::grid::ZoomParams{
+			zoom_pending_ = deluge::ui::gfx::grid::ZoomParams{
 			    .old_zoom = slide_zoom(old_zoom),
 			    .new_zoom = slide_zoom(view_.zoom()),
 			    .pin_square_from = pin,
@@ -853,7 +853,7 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 			    .t = 0,
 			    // Legacy's `|offset|`; an encoder delivers one detent per event, so the bound never bites, but it is
 			    // the step `gfx::grid::zoom` can take.
-			    .magnitude = std::min<int32_t>(std::abs(offset), deluge::gfx::grid::kMaxZoomMagnitude),
+			    .magnitude = std::min<int32_t>(std::abs(offset), deluge::ui::gfx::grid::kMaxZoomMagnitude),
 			};
 		}
 	}
@@ -1068,12 +1068,12 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	deluge::ui::oled::title(f, label);
 
 	if (loop_locked()) {
-		deluge::ui::oled::title_badge(f, deluge::gfx::oled::icons::markerLock);
+		deluge::ui::oled::title_badge(f, deluge::ui::gfx::oled::icons::markerLock);
 	}
 
 	deluge::ui::oled::sample_position(
-	    f, deluge::gfx::oled::Rect{1, body_y(f), f.bounds().w - 1, 2 * deluge::ui::oled::kSamplePositionLineGap}, pos,
-	    info->sample_rate);
+	    f, deluge::ui::gfx::oled::Rect{1, body_y(f), f.bounds().w - 1, 2 * deluge::ui::oled::kSamplePositionLineGap},
+	    pos, info->sample_rate);
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
@@ -1088,16 +1088,17 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	follow_waveform(*info);
 
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
-	const gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(main_cols), 0, static_cast<uint8_t>(f.bounds().h)};
+	const ui::gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(main_cols), 0,
+	                                              static_cast<uint8_t>(f.bounds().h)};
 
 	// The zoom slide (`PadLEDs::renderZoom`), over the main pads alone. It starts from the last settled frame and
 	// slides to the new view's bare waveform (`renderFullScreen` into the other `imageStore` half), drawn here into a
 	// grid of its own; the markers and the playhead come back with the settled frame after it.
 	if (zoom_pending_.has_value()) {
-		const gfx::grid::ZoomParams params = *zoom_pending_;
+		const ui::gfx::grid::ZoomParams params = *zoom_pending_;
 		zoom_pending_.reset();
 		if (shown_.has_value() && shown_->dims() == main_dims) {
-			gfx::grid::PadGrid& to = deluge::ui::grid::begin_zoom(zoom_, *shown_, params, f.now_ms());
+			ui::gfx::grid::PadGrid& to = deluge::ui::grid::begin_zoom(zoom_, *shown_, params, f.now_ms());
 			deluge::ui::grid::GridFrame bare =
 			    deluge::ui::grid::root_grid_frame(to, f.ctx, deluge::ui::InputMask::none(), nullptr, nullptr, true);
 			if (const std::optional<services::WaveformFrame> wf =
@@ -1108,7 +1109,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	if (zoom_.active) {
 		bool slid = false;
-		f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
+		f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
 		         [&](deluge::ui::grid::GridFrame& main) { slid = deluge::ui::grid::zoom_transition(main, zoom_); });
 		if (slid) {
 			playing_ = false;
@@ -1118,7 +1119,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `renderMainPads`' `waveformRenderer.renderFullScreen`, scaled by the range after the read. A column the card
 	// could not give paints black this frame, and the frame asks again for it.
-	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 		if (const std::optional<services::WaveformFrame> wf =
 		        services::read_waveform(*waveforms(), where_, view_.window())) {
 			services::paint_columns(main, wf->read, wf->centre, wf->span);

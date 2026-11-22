@@ -238,7 +238,6 @@ add_subdirectory(${REPO_ROOT}/src/sample-view ${CMAKE_BINARY_DIR}/sample-view) #
 add_subdirectory(${REPO_ROOT}/src/project ${CMAKE_BINARY_DIR}/project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/controls ${CMAKE_BINARY_DIR}/controls) # deluge_controls
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
-add_subdirectory(${REPO_ROOT}/src/gfx        ${CMAKE_BINARY_DIR}/gfx)        # deluge_gfx_oled / deluge_gfx_grid
 add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid
 add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # deluge_ui_shell
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf

@@ -1,12 +1,12 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/font.h"
 #include "support/frames.h"
 #include "ui/core/metrics.h"
 #include "ui/core/state.h"
 #include "ui/core/style.h"
 #include "ui/core/text_wrap.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/font.h"
 #include "ui/oled/popup.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -17,10 +17,10 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::FontId;
-using deluge::gfx::oled::Rect;
-using deluge::gfx::oled::Size;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::FontId;
+using deluge::ui::gfx::oled::Rect;
+using deluge::ui::gfx::oled::Size;
 namespace uitest = deluge::ui::test;
 
 // Popups, wrapping, the working animation and the progress bar, pinned three ways, as
@@ -85,9 +85,9 @@ struct TextLineBreakdown {
 
 bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth, int32_t& lineLength,
                         int32_t& charSpacing) {
-	int32_t charWidth = deluge::gfx::oled::char_width_px(static_cast<uint8_t>(c), textHeight);
+	int32_t charWidth = deluge::ui::gfx::oled::char_width_px(static_cast<uint8_t>(c), textHeight);
 	lineWidth += charWidth;
-	charSpacing = deluge::gfx::oled::char_spacing_px(static_cast<uint8_t>(c), textHeight, false);
+	charSpacing = deluge::ui::gfx::oled::char_spacing_px(static_cast<uint8_t>(c), textHeight, false);
 	lineWidth += charSpacing;
 	lineLength++;
 	return lineWidth <= maxWidthPerLine;
@@ -191,8 +191,8 @@ void setupPopup(Canvas& popup, bool notification, int32_t width, int32_t height,
 
 	popup.clear_area_exact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	if (!notification) {
-		popup.draw_rectangle_rounded(popupMinX, popupMinY, popupMaxX, popupMaxY, deluge::gfx::oled::BorderRadius::Small,
-		                             rounded);
+		popup.draw_rectangle_rounded(popupMinX, popupMinY, popupMaxX, popupMaxY,
+		                             deluge::ui::gfx::oled::BorderRadius::Small, rounded);
 	}
 }
 
@@ -334,7 +334,7 @@ void drawHorizontalBar(Canvas& canvas, int32_t left_most, int32_t right_most, in
                        int32_t value, int32_t max_value, bool rounded) {
 	if (value == 0) {
 		canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height,
-		                              deluge::gfx::oled::BorderRadius::Small, rounded);
+		                              deluge::ui::gfx::oled::BorderRadius::Small, rounded);
 		return;
 	}
 	const uint32_t range = static_cast<uint32_t>(max_value);
@@ -349,7 +349,7 @@ void drawHorizontalBar(Canvas& canvas, int32_t left_most, int32_t right_most, in
 		canvas.invert_area(left_most, pos_horizontal, y_top + 1, y_top + height - 1);
 	}
 	canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height,
-	                              deluge::gfx::oled::BorderRadius::Small, rounded);
+	                              deluge::ui::gfx::oled::BorderRadius::Small, rounded);
 }
 
 } // namespace legacy

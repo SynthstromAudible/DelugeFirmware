@@ -39,11 +39,11 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
+#include "ui/gfx/oled/glyphs.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -59,7 +59,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/controller_mapping_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
@@ -617,7 +617,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		const int16_t tops[] = {46, 70, 32767}; // A#1/Bb1, A#3/Bb3, the top
 		f.set_tops(tops);
 
-		const std::string flat_b3 = std::string{"B"} + deluge::gfx::oled::kFlatGlyph + "3";
+		const std::string flat_b3 = std::string{"B"} + deluge::ui::gfx::oled::kFlatGlyph + "3";
 		FlashStorage::defaultUseSharps = false;
 		const std::string flats = label_of(f.ctx, 1);
 		expect(flats.substr(flats.size() - flat_b3.size())).to_equal(flat_b3);

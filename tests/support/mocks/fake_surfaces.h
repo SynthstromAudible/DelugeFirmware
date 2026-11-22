@@ -1,7 +1,7 @@
 #pragma once
 #include "shell/board_surfaces.h"
 #include "shell/surfaces.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include <algorithm>
 #include <array>
@@ -125,7 +125,7 @@ public:
 	std::string state() const {
 		std::vector<std::string> lines;
 		if (grid_.grid_storage) {
-			const deluge::gfx::grid::PadGrid& g = *grid_.grid_storage;
+			const deluge::ui::gfx::grid::PadGrid& g = *grid_.grid_storage;
 			for (uint8_t y = 0; y < g.dims().rows; y++) {
 				for (uint8_t x = 0; x < g.dims().cols(); x++) {
 					const RGB& c = g.at(x, y);

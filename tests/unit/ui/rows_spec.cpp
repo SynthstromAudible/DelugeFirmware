@@ -1,6 +1,6 @@
 #include "support/frames.h"
 #include "ui/grid/rows.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -13,7 +13,7 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 

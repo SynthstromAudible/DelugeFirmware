@@ -8,16 +8,16 @@ it reproduces `main`'s pixels and pad colours exactly.
 
 | target | holds | links |
 |---|---|---|
-| `deluge_ui_core` (`core/`) | input snapshot, frame context and claims, LED frame, style, metrics, POD state, repaint gate | `deluge_gfx_oled` (types only; nothing under `core/` includes `gfx/grid`) |
-| `deluge_ui_oled` (`oled/`, namespace `deluge::ui::oled`) | `OledFrame` and the OLED widgets | `deluge_ui_core`, `deluge_gfx_oled` |
-| `deluge_ui_grid` (`grid/`, namespace `deluge::ui::grid`) | `GridFrame` and the pad components | `deluge_ui_core`, `deluge_gfx_grid` |
+| `deluge_ui_core` (`core/`) | input snapshot, frame context and claims, LED frame, style, metrics, POD state, repaint gate | `deluge_ui_gfx_oled` (types only; nothing under `core/` includes `ui/gfx/grid`) |
+| `deluge_ui_oled` (`oled/`, namespace `deluge::ui::oled`) | `OledFrame` and the OLED widgets | `deluge_ui_core`, `deluge_ui_gfx_oled` |
+| `deluge_ui_grid` (`grid/`, namespace `deluge::ui::grid`) | `GridFrame` and the pad components | `deluge_ui_core`, `deluge_ui_gfx_grid` |
 
 All three are `STATIC` libraries built as C++26.
 
 ## Rules
 
 - `ui/oled` and `ui/grid` never include each other.
-- Nothing here includes anything outside `ui/`, `gfx/` and the standard library: no `model`,
+- Nothing here includes anything outside `ui/`, `ui/gfx/` and the standard library: no `model`,
   `notify`, `libdeluge`, `l10n`, `gui/`, `hid/`, nor the root headers `definitions*`,
   `board_config.h`, `board_layout.hpp`.
 - No mutable globals and no heap. Frames are per-tick stack aggregates that own nothing; widget
@@ -33,7 +33,7 @@ hook `layers`) and the input rule is `scripts/check_layer_rules.py`'s (ctest `la
 
 | rule | applies to | forbids |
 |---|---|---|
-| `ui-includes-outside` | `src/ui/**` | any slashed `#include` outside `ui/`/`gfx/`, and the root headers above |
+| `ui-includes-outside` | `src/ui/**` | any slashed `#include` outside `ui/`/`ui/gfx/`, and the root headers above |
 | `ui-oled-no-grid` | `src/ui/oled/**` | `#include "ui/grid/..."` |
 | `ui-grid-no-oled` | `src/ui/grid/**` | `#include "ui/oled/..."` |
 | `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `oled/frame.{h,cpp}` and `grid/frame.{h,cpp}` | `input.turn`, `input.edit`, `input.horizontal`, `input.vertical`, `input.select_pressed`, `input.back_pressed`, `input.shift`, `input.now_ms` |
@@ -101,8 +101,8 @@ per-column components (`macros`, `velocity_column`, `automation_column`, `tick_s
 `Response` cannot carry. The caller reads it back with `GridFrame::first_press_in({x, 0, 1, rows})`.
 
 Grid compositing and the transition tweens (`composite`, `fade`, `scroll_*`, `smear_scroll_*`,
-`zoom`, `explode`, `expand_collapse`) live one layer down in `gfx/grid/` and are driven by the
-shell, not by widgets; see `src/gfx/README.md`.
+`zoom`, `explode`, `expand_collapse`) live one layer down in `ui/gfx/grid/` and are driven by the
+shell, not by widgets; see `src/ui/gfx/README.md`.
 
 ### Legacy bridges (`grid/keyboard.h`)
 
@@ -244,8 +244,8 @@ CI.
 | 5 | `wrap_lines`' `max_chars_per_line` is read by nothing, as in legacy's `breakStringIntoLines`; only `max_width_px` caps a line | `wrap_lines` in `core/text_wrap.h` | `popup_spec.cpp` "ignores max_chars_per_line, because legacy never reads the field" | drop the parameter |
 | 6 | `length_slider`'s `min_pos` defaults to `true`, because `main`'s `menu_item::Number::drawLengthSlider` defaults `bool min_slider_pos = 3` (truthy; `origin/main:src/deluge/gui/menu_item/number.h`); every new call site inherits it | `length_slider` in `oled/meters.h` | `meters_spec.cpp` "puts the thumb one pixel right when min_pos, and defaults it on"; `meter_length_slider_48/64.pbm` | default `false`, re-record the two goldens |
 
-Five more are in the tweens `gfx/grid/tween.cpp` ports from `hid/led/pad_leds.cpp` (detail in
-`src/gfx/README.md`). Each is pinned by `tests/unit/gfx/tween_spec.cpp`'s `legacy::` oracle,
+Five more are in the tweens `ui/gfx/grid/tween.cpp` ports from `hid/led/pad_leds.cpp` (detail in
+`src/ui/gfx/README.md`). Each is pinned by `tests/unit/ui/gfx/tween_spec.cpp`'s `legacy::` oracle,
 which byte-compares, so a fix changes the port and the oracle together.
 
 | # | quirk | legacy | fix |

@@ -18,9 +18,9 @@
 #pragma once
 #include "board_config.h"
 #include "board_layout.hpp"
-#include "gfx/grid/rgb.h"
 #include "shell/scene_stack.h"
 #include "shell/surfaces.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <array>
 #include <cstddef>
@@ -41,14 +41,14 @@ namespace deluge::gui::ui {
 /// free: the guest's `Main` surface cannot simply *be* `OLED::main`'s storage, and the grid
 /// surface's rows cannot alias `PadLEDs::image` through `PadGrid::row(y)`. Neither half works:
 ///
-///  - The **grid cannot alias at all.** `PadGrid` (`gfx/grid/pad_grid.h`) stores
+///  - The **grid cannot alias at all.** `PadGrid` (`ui/gfx/grid/pad_grid.h`) stores
 ///    `cells_[kMaxGridRows][kMaxGridCols]` inline -- a 32-column row stride -- while
 ///    `PadLEDs::image` (`hid/led/pad_leds.h`) is `[kDisplayHeight][kDisplayWidth +
 ///    kSideBarWidth]`, an 18-column stride. The strides differ, the storage is a member rather than
 ///    a span, and `PadGrid`'s doc says so in as many words: `row(y)` is the seam for *copying* a
 ///    single row to or from that legacy buffer, never for reinterpreting the whole array.
 ///  - The **OLED could alias but must not.** `OLED::main` is an `OwnedCanvas`
-///    (`gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
+///    (`ui/gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
 ///    (`hid/display/oled.cpp`) zeroes it -- from seventeen legacy call sites (grep
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`), which clears it immediately before

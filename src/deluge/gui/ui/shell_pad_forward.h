@@ -50,7 +50,7 @@
 /// for the same `deluge_scenes` closure reason `shell_action_dispatch.h` gives.
 
 #include "definitions_cxx.hpp" // kDisplayWidth, kSideBarWidth
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <cstdint>
 

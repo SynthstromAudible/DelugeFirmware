@@ -275,7 +275,7 @@ add_subdirectory(lib)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS.
 # Also included by sim/CMakeLists.txt and tests/trees/host/CMakeLists.txt so the leaf libraries
-# (deluge_gfx_*, deluge_ui_*, deluge_base_notify) get the same warning set in all three projects.
+# (deluge_ui_gfx_*, deluge_ui_*, deluge_base_notify) get the same warning set in all three projects.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_common_options.cmake)
 
 # Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable

@@ -43,12 +43,12 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "gfx/oled/icons.h" // the two checkbox icons `row_icon` chooses between
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
+#include "ui/gfx/oled/icons.h" // the two checkbox icons `row_icon` chooses between
 
 #include "support/oracle_table.h"
 #include "support/output_items_fixtures.h"
@@ -59,8 +59,8 @@
 #include "support/card_access.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -517,12 +517,12 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		MidiRig rig;
 
 		rig.instrument()->deviceDefinitionFileName.clear();
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::gfx::oled::icons::uncheckedBox);
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::ui::gfx::oled::icons::uncheckedBox);
 
 		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::gfx::oled::icons::checkedBox);
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::ui::gfx::oled::icons::checkedBox);
 
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).not_().to_equal(&deluge::gfx::oled::icons::submenuArrow);
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).not_().to_equal(&deluge::ui::gfx::oled::icons::submenuArrow);
 	});
 
 	it("names its two states with the words a toggle's own page lists, its row being a checkbox", _ {

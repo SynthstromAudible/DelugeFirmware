@@ -11,7 +11,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
-# projects. The UI leaf libraries libs.cmake adds (src/gfx, ui, shell, notify) apply
+# projects. The UI leaf libraries libs.cmake adds (src/ui/gfx, ui, shell, notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_common_options.cmake)
 
@@ -181,8 +181,8 @@ add_library(deluge_spec STATIC
 # deluge_ui_oled: the starfield and rainfall animations the specs and previews drive. deluge_rust_rs: the umbrella
 # staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's deluge-audio-format,
 # reached through include/libdeluge/audio_format.h).
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled deluge_gfx_oled
-  deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_base_notify deluge_rust_rs)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled deluge_ui_gfx_oled
+  deluge_ui_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_base_notify deluge_rust_rs)
 target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks
                                                   ${DELUGE_REPO_ROOT}/include)
 set_target_properties(deluge_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES C_STANDARD 23

@@ -1,6 +1,6 @@
 #include "ui/oled/text_edit.h"
 
-#include "gfx/oled/font.h"
+#include "ui/gfx/oled/font.h"
 
 #include <algorithm>
 #include <cstdint>

@@ -15,7 +15,7 @@
 #include "scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
 #include "scenes/profile.h"
 
-#include "gfx/oled/font.h"
+#include "ui/gfx/oled/font.h"
 #include "ui/oled/frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -36,13 +36,13 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
-using deluge::gfx::oled::kTextHugeSizeY;
-using deluge::gfx::oled::kTextHugeSpacingX;
-using deluge::gfx::oled::kTextSizeYUpdated;
-using deluge::gfx::oled::kTextSpacingX;
-using deluge::gfx::oled::kTextTitleSizeY;
-using deluge::gfx::oled::kTextTitleSpacingX;
 using deluge::l10n::String;
+using deluge::ui::gfx::oled::kTextHugeSizeY;
+using deluge::ui::gfx::oled::kTextHugeSpacingX;
+using deluge::ui::gfx::oled::kTextSizeYUpdated;
+using deluge::ui::gfx::oled::kTextSpacingX;
+using deluge::ui::gfx::oled::kTextTitleSizeY;
+using deluge::ui::gfx::oled::kTextTitleSpacingX;
 
 /// @brief Whether the DX7 engine feature is on, which gives the DX7 parameter page its own pad layout: the device's
 ///        row; its default, off, where the context binds no device port.
@@ -119,7 +119,7 @@ using PatchBytes = std::array<uint8_t, 156>;
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `show`: @p text on one of the page's two rows at a
 ///        character column, inverted when it is the param shown.
 void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column, bool inverted = false) {
-	using namespace deluge::gfx::oled;
+	using namespace deluge::ui::gfx::oled;
 	const int32_t y = 7 + (2 + row) * (kTextSizeYUpdated + 2);
 	const int32_t x = 5 + column * kTextSpacingX;
 	p.glyphs(text, x, y, kTextSpacingX, kTextSizeYUpdated);
@@ -149,7 +149,7 @@ void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderScaling`: the two depths over the two curves,
 /// the breakpoint between them.
 void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
-	using namespace deluge::gfx::oled;
+	using namespace deluge::ui::gfx::oled;
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[op * 21 + 9 + i], 0, 1 + i * 11, 9 + i == idx);
 		show(p, dx::curve_name(params[op * 21 + 11 + i]), 1, 1 + i * 11, 11 + i == idx);
@@ -208,7 +208,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 /// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderAlgorithm`: a "#NN" badge inverted at the
 /// title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
-	using namespace deluge::gfx::oled;
+	using namespace deluge::ui::gfx::oled;
 	const int32_t algorithm = std::min<int32_t>(params[134], static_cast<int32_t>(kDxAlgorithms) - 1);
 	char badge[12] = "#";
 	intToString(algorithm + 1, badge + 1, 2);
@@ -227,7 +227,7 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 /// @param top The panel's first visible row, `OLED_MAIN_TOPMOST_PIXEL` on the 48-row panel.
 void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instruments::classic::DxPatchState& patch,
                 int16_t param) {
-	using namespace deluge::gfx::oled;
+	using namespace deluge::ui::gfx::oled;
 	const PatchBytes& params = patch.params;
 	if (param < 0 || param == 135 || param == 136) {
 		// The random detune, the feedback and the sync: one huge number.

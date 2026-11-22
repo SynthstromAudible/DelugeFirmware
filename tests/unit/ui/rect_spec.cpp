@@ -1,11 +1,11 @@
 #include "support/printers/grid_rect_printer.h"
 
 #include "cppspec.hpp"
-#include "gfx/grid/rect.h"
 #include "support/spec_main.h"
 #include "ui/core/metrics.h"
+#include "ui/gfx/grid/rect.h"
 
-using deluge::gfx::grid::Rect;
+using deluge::ui::gfx::grid::Rect;
 
 // clang-format off
 describe grid_rect("gfx::grid::Rect", $ {

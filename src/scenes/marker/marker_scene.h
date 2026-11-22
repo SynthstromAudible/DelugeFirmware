@@ -94,9 +94,9 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
-#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "project/device_settings.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <array>
 #include <cstdint>
@@ -336,18 +336,18 @@ private:
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
-	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> last_ticks_{};
+	std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> last_ticks_{};
 	/// A note was already auditioning when the held marker went down: legacy's hold assigns `currentUIMode`, so that
 	/// audition's bit is gone and only one begun under the hold makes `HOLDING_SAMPLE_MARKER | AUDITIONING`.
 	bool audition_under_hold_ = false;
 	/// How often a moving playhead is redrawn: the slicer's period.
 	static constexpr uint32_t kPlayheadMs = 15;
 	/// A zoom the next grid render starts sliding: the levels, pin square and step `horizontal_encoder` found.
-	std::optional<deluge::gfx::grid::ZoomParams> zoom_pending_;
+	std::optional<deluge::ui::gfx::grid::ZoomParams> zoom_pending_;
 	/// The running slide.
 	deluge::ui::grid::ZoomTransition zoom_;
 	/// The main pads as the last settled frame painted them, the playhead aside: a slide's `from`.
-	std::optional<deluge::gfx::grid::PadGrid> shown_;
+	std::optional<deluge::ui::gfx::grid::PadGrid> shown_;
 	int8_t press_x_ = -1;
 	int8_t press_y_ = -1;
 	/// @}

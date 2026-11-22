@@ -86,7 +86,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/rgb_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -176,7 +176,7 @@ struct PadDiff {
 
 template <typename AnyRig>
 PadDiff pad_diff(AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -500,7 +500,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 
 		for (int32_t i = 0; i < kNumClusters; i++) {
 			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
@@ -514,7 +514,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		int32_t differ = 0;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				const auto at = [&](const deluge::gfx::grid::PadGrid& g) {
+				const auto at = [&](const deluge::ui::gfx::grid::PadGrid& g) {
 					return g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 				};
 				differ += at(first) == at(r.fake.grid().grid()) ? 0 : 1;
@@ -544,7 +544,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			r.step();
 		}
 		const deluge::sample_view::WaveformView view = browser::browser_scene().waveform_view();
-		const deluge::gfx::grid::PadGrid preview = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid preview = r.fake.grid().grid();
 		for (int32_t i = 0; i < kNumClusters; i++) {
 			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = 0;
@@ -1289,7 +1289,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			slicer_scene().set_mode(mode);
 			r.settle(at);
 			at += 10;
-			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+			const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 			for (int32_t y = 4; y < 8; y++) {
 				expect(g.at(5, y)).to_equal(tick);
 			}

@@ -205,13 +205,13 @@
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
-#include "gfx/grid/pad_grid.h"
 #include "project/device_settings.h"
 #include "project/setting_group.h"
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/waveforms.h"
 #include "scenes/services/peak_retry.h"
+#include "ui/gfx/grid/pad_grid.h"
 #include "ui/grid/columns.h"
 
 #include <array>
@@ -638,9 +638,9 @@ private:
 	/// `graphicsRoutine` handed `PadLEDs::setTickSquares` a new square this render, which the fast cursor flashes.
 	bool tick_squares_set_ = false;
 	/// Each row's square at the last `setTickSquares`: legacy's `slowFlashSquares`.
-	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> flashed_ticks_ = filled_no_tick();
-	static constexpr std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> filled_no_tick() {
-		std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> a{};
+	std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> flashed_ticks_ = filled_no_tick();
+	static constexpr std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> filled_no_tick() {
+		std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> a{};
 		a.fill(deluge::ui::grid::kNoTickSquare);
 		return a;
 	}

@@ -1,7 +1,7 @@
 #pragma once
-#include "gfx/grid/palette.h"
-#include "gfx/grid/rgb.h"
 #include "ui/core/response.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/gfx/grid/rgb.h"
 #include "ui/grid/frame.h"
 
 #include <cstdint>

@@ -31,9 +31,9 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "gfx/oled/font.h"
-#include "gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
-// `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
+// `ui/gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
 #include "project/setting_group.h"
 #include "project/track_kind.h"
@@ -259,10 +259,10 @@ std::string_view MidiDeviceLinkedItem::row_note(const MenuContext& ctx, std::spa
 	return {out.data(), len};
 }
 
-const deluge::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {
+const deluge::ui::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {
 	// Main's `Linked::renderSubmenuItemTypeForOled`, icon half: `getToggleValue()` is
 	// `readCurrentValue`'s answer, which `linked()` above already is.
-	return linked(ctx) ? &deluge::gfx::oled::icons::checkedBox : &deluge::gfx::oled::icons::uncheckedBox;
+	return linked(ctx) ? &deluge::ui::gfx::oled::icons::checkedBox : &deluge::ui::gfx::oled::icons::uncheckedBox;
 }
 
 void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) const {
@@ -403,9 +403,9 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// newer code than `drawOutputNameFromDetails` and carries no
 	// `#if OLED_MAIN_HEIGHT_PIXELS == 64` pair to select between. Row 28 plus the 9-row title face
 	// still fits a 48-row panel, so nothing is clipped.
-	const deluge::gfx::oled::Rect area = f.bounds();
-	const deluge::gfx::oled::FontId type_font = f.style.row_font;   // kTextSpacingX / kTextSpacingY
-	const deluge::gfx::oled::FontId name_font = f.style.title_font; // kTextTitleSpacingX / kTextTitleSizeY
+	const deluge::ui::gfx::oled::Rect area = f.bounds();
+	const deluge::ui::gfx::oled::FontId type_font = f.style.row_font;   // kTextSpacingX / kTextSpacingY
+	const deluge::ui::gfx::oled::FontId name_font = f.style.title_font; // kTextTitleSpacingX / kTextTitleSizeY
 	const int32_t type_h = deluge::ui::oled::text_height_for(type_font);
 	const int32_t name_h = deluge::ui::oled::text_height_for(name_font);
 
@@ -415,20 +415,20 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 		// inventing one would be a change to the l10n data rather than a port (`browser_scene.h`'s `Descriptor::title`
 		// makes the same call).
 		deluge::ui::oled::text(
-		    f, deluge::gfx::oled::Rect{area.x, area.y + 21, area.w, type_h}, "No track",
+		    f, deluge::ui::gfx::oled::Rect{area.x, area.y + 21, area.w, type_h}, "No track",
 		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
 	}
 	else {
 		deluge::ui::oled::text(
-		    f, deluge::gfx::oled::Rect{area.x, area.y + 14, area.w, type_h}, output_type_text(*out),
+		    f, deluge::ui::gfx::oled::Rect{area.x, area.y + 14, area.w, type_h}, output_type_text(*out),
 		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
 		// Main's `drawPixelsForOled` name row -- centred when it fits, left-aligned when it does not (the side-scroller
 		// legacy arms in that case has no port; see `output_items.h`).
 		const std::optional<serialization::Value> named = track_row(ctx, out->output_id, "name");
 		const std::string name_text = named ? named->str() : std::string{};
 		const std::string_view name{name_text};
-		const bool fits = deluge::gfx::oled::string_width_px(name, name_h) <= area.w;
-		deluge::ui::oled::text(f, deluge::gfx::oled::Rect{area.x, area.y + 28, area.w, name_h}, name,
+		const bool fits = deluge::ui::gfx::oled::string_width_px(name, name_h) <= area.w;
+		deluge::ui::oled::text(f, deluge::ui::gfx::oled::Rect{area.x, area.y + 28, area.w, name_h}, name,
 		                       deluge::ui::oled::TextStyle{.font = name_font,
 		                                                   .align = fits ? deluge::ui::oled::Align::Centre
 		                                                                 : deluge::ui::oled::Align::Left});

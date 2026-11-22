@@ -1,6 +1,6 @@
 #include "support/frames.h"
 #include "ui/oled/text_edit.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -8,8 +8,8 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::BorderRadius;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::BorderRadius;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 namespace {

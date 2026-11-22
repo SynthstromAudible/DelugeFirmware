@@ -1,8 +1,8 @@
 #include "ui/oled/column_drawings.h"
 
-#include "gfx/oled/icons.h"
 #include "ui/core/metrics.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/meters.h"
 
 #include <algorithm>

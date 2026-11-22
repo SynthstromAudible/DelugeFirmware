@@ -42,14 +42,14 @@
 #include "scenes/timeline/timeline.h"
 
 #include "definitions_cxx.hpp" // kMaxZoom
-#include "gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 
 namespace deluge::scenes::timeline {
 
 /// @brief The pad grid's main columns and rows.
-constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
 
 void TimelineState::adopt(const bind::ClipNavigation& navigation) {
 	x_scroll = navigation.x_scroll;
@@ -296,7 +296,7 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 	x_zoom = newZoom;
 	// `newScroll`'s initializer in `TimelineView::horizontalEncoderAction` computes the new scroll and `initiateXZoom`
 	// is what actually stores it. The division is unsigned -- see the transcription note at the top of this file.
-	int32_t newScroll = x_scroll / (newZoom * kMainCols) * (newZoom * deluge::gfx::grid::kDelugeGrid.main_cols);
+	int32_t newScroll = x_scroll / (newZoom * kMainCols) * (newZoom * deluge::ui::gfx::grid::kDelugeGrid.main_cols);
 	x_scroll = newScroll;
 	return ZoomOutcome::Zoomed;
 }
@@ -336,7 +336,7 @@ bool TimelineState::zoom_to_max(uint32_t max_zoom, bool in_only) {
 	uint32_t oldZoom = x_zoom;
 	if (maxZoom != oldZoom && (!in_only || maxZoom < oldZoom)) {
 		x_zoom = maxZoom;
-		int32_t newScroll = x_scroll / (maxZoom * kMainCols) * (maxZoom * deluge::gfx::grid::kDelugeGrid.main_cols);
+		int32_t newScroll = x_scroll / (maxZoom * kMainCols) * (maxZoom * deluge::ui::gfx::grid::kDelugeGrid.main_cols);
 		x_scroll = newScroll;
 		return true;
 	}

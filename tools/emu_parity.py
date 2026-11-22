@@ -97,7 +97,7 @@ RUN_FAILURES = (AssertionError, RuntimeError, OSError, KeyError, ValueError, Typ
 # The OLED rows an output name's section line ("SECTION n") takes on the name screen (DIFFERENCES.md D77).
 SECTION_LINE_ROWS = range(37, 44)
 # The firmware's own font table; the section line is drawn in its 7 px font (`font_apple`).
-FONT_SOURCE = REPO / "src/gfx/oled/fonts/fonts.c"
+FONT_SOURCE = REPO / "src/ui/gfx/oled/fonts/fonts.c"
 OLED_WIDTH = 128
 # The 7 px font is monospaced: every character takes this many columns.
 TEXT_SPACING_X = 6

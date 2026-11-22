@@ -1,6 +1,6 @@
 #pragma once
-#include "gfx/grid/palette.h"
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/gfx/grid/rgb.h"
 #include "ui/grid/frame.h"
 #include "ui/grid/rows.h"
 
@@ -120,7 +120,7 @@ void vu_meter(GridFrame& f, int32_t x, float level_l, float level_r);
 // ---------------------------------------------------------------------------------------------
 
 /// @brief The kind of a session macro, mirroring `SessionMacroKind` (model/song/song.h) for this
-///        layer, which may include only `ui/**`, `gfx/**` and the standard library.
+///        layer, which may include only `ui/**`, `ui/gfx/**` and the standard library.
 ///
 /// Same four states; legacy's `NUM_KINDS` is a count, not a kind, and its `case NUM_KINDS:;` is an
 /// explicit fallthrough that draws nothing (view.cpp).

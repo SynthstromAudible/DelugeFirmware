@@ -96,6 +96,6 @@ bracket a synchronous load, and errors on a path that never returns to the tick,
 
 Two ratchets track the direction per file, and a count may only shrink: `scripts/layers.toml`'s
 `model-includes-ui` and `notify-is-leaf` include rules (`scripts/check_layers.py`, baseline
-`scripts/layers_baseline.txt`, which also holds `src/gfx` to the standard library), and
+`scripts/layers_baseline.txt`, which also holds `src/ui/gfx` to the standard library), and
 `scripts/check_layer_rules.py`'s `model-calls-ui` and `model-calls-display` symbol rows (baseline
 `scripts/layer_rules_baseline.txt`).

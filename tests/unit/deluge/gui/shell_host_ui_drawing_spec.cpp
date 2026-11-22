@@ -138,7 +138,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		// and can assert about, rather than in whatever follows `image` in the fake's data segment.
 		// (The suite's sanitizers are opt-in, `DELUGE_TEST_SANITIZERS` defaulting OFF in
 		// `tests/support/cmake/specs.cmake`, so an out-of-bounds write is otherwise silent here.)
-		RGB oversized[deluge::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
+		RGB oversized[deluge::ui::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
 
 		const bool usedUp = r.guest.renderMainPads(0xFFFFFFFF, oversized, PadLEDs::occupancyMask, true);
 		expect(usedUp).to_be_true();
@@ -155,7 +155,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		}
 		// Rows past legacy's eight: never written, however many rows the board's grid has. This is
 		// the assertion that would have caught a write past the end of `PadLEDs::image`.
-		for (int32_t y = kDisplayHeight; y < deluge::gfx::grid::kMaxGridRows; y++) {
+		for (int32_t y = kDisplayHeight; y < deluge::ui::gfx::grid::kMaxGridRows; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 				expect(oversized[y][x]).to_equal(RGB{0, 0, 0});
 			}

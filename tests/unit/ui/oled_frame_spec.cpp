@@ -10,9 +10,9 @@
 #include <span>
 
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Point;
-using deluge::gfx::oled::Rect;
-using deluge::gfx::oled::Size;
+using deluge::ui::gfx::oled::Point;
+using deluge::ui::gfx::oled::Rect;
+using deluge::ui::gfx::oled::Size;
 namespace uitest = deluge::ui::test;
 
 namespace {
@@ -20,7 +20,7 @@ constexpr int kW = 128, kH = 64; // uitest::Rig64
 
 // 8x8 arrow, one byte per column, bit 0 = top.
 constexpr uint8_t kArrowData[8] = {0x18, 0x18, 0x18, 0x7E, 0x3C, 0x18, 0x00, 0x00};
-constexpr deluge::gfx::oled::Icon kArrow{kArrowData, 8, 8, 1};
+constexpr deluge::ui::gfx::oled::Icon kArrow{kArrowData, 8, 8, 1};
 
 int lit_pixels(std::span<const uint8_t> bytes) {
 	int n = 0;
@@ -212,7 +212,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 	it("clips a rounded invert half outside the region", _ {
 		expect_region_clips(self, kRegion, [](OledFrame& f) { f.invert_rounded(Rect{-10, -4, 24, 16}); });
 		expect_region_clips(self, kRegion, [](OledFrame& f) {
-			f.invert_rounded(Rect{10, 8, 24, 16}, deluge::gfx::oled::BorderRadius::Big);
+			f.invert_rounded(Rect{10, 8, 24, 16}, deluge::ui::gfx::oled::BorderRadius::Big);
 		});
 		expect_region_clips(self, kRegion, [](OledFrame& f) {
 			f.glyphs("Ag13", 2, 2, 9, 13);           // content first, so the XOR has something to flip

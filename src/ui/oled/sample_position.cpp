@@ -1,6 +1,6 @@
 #include "ui/oled/sample_position.h"
 
-#include "gfx/oled/font.h"
+#include "ui/gfx/oled/font.h"
 
 #include <cstddef>
 #include <cstdint>

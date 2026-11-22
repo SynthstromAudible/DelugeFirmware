@@ -1,6 +1,6 @@
 #include "ui/grid/frame.h"
 
-#include "gfx/grid/palette.h"
+#include "ui/gfx/grid/palette.h"
 
 namespace deluge::ui::grid {
 

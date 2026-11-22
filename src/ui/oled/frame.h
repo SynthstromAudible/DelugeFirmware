@@ -1,11 +1,11 @@
 #pragma once
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/geometry.h"
-#include "gfx/oled/icon.h"
 #include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/geometry.h"
+#include "ui/gfx/oled/icon.h"
 #include <cstdint>
 #include <optional>
 #include <string_view>

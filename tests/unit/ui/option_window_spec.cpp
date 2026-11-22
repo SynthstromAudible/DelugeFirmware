@@ -1,11 +1,11 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/font.h"
 #include "support/frames.h"
 #include "ui/core/metrics.h"
 #include "ui/core/state.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/font.h"
 #include "ui/oled/popup.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -18,8 +18,8 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `option_window` -- the pixels of legacy `ContextMenu::renderOLED`
@@ -386,7 +386,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		// really do overlap here. Both sides are the same two `draw_string`s over the same pixels.
 		//
 		// **This does not pin the draw order, and does not claim to.** The glyph blit is `|=`
-		// (`gfx/oled/canvas.cpp`'s glyph blit), so the union is the same whichever runs first: moving
+		// (`ui/gfx/oled/canvas.cpp`'s glyph blit), so the union is the same whichever runs first: moving
 		// the footer draw before the rows and re-running this example passes. The widget draws it last
 		// anyway because legacy does (see popup.h). What this example
 		// *does* pin is that the overlapping case renders identically to legacy at all.

@@ -34,7 +34,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/dynamics/compressor_kernel.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
-#include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "instruments/classic/words.h"
@@ -47,6 +46,7 @@
 #include "plugin/types/arp_rhythm.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
+#include "ui/gfx/oled/icons.h"
 #include "util/functions.h"
 
 #include "fakes.h"
@@ -631,9 +631,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(slot.art.face == deluge::ui::oled::ArtColumn::Face::Title).to_equal(true);
 
 		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::RANDOM), slot, col);
-		expect(slot.art.icon == &deluge::gfx::oled::icons::dice).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::dice).to_equal(true);
 		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::DOWN), slot, col);
-		expect(slot.art.icon == &deluge::gfx::oled::icons::arpModeUp).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::arpModeUp).to_equal(true);
 		expect(slot.art.reversed).to_equal(true);
 	});
 
@@ -670,7 +670,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(slot.art.text)).to_equal(std::string("song"));
 		expect(slot.art.icon).to_be_null();
 		menu::present_column(menu::nodes::stutter_direction, ctx, 2, slot, col); // reversed
-		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::direction);
+		expect(slot.art.icon).to_equal(&deluge::ui::gfx::oled::icons::direction);
 		expect(slot.art.reversed).to_be_true();
 		expect(slot.art.dots).to_be_false();
 		menu::present_column(menu::nodes::stutter_direction, ctx, 3, slot, col); // forward ping-pong
@@ -690,7 +690,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::sequence_direction, ctx, 1, slot, col); // reverse
 		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
-		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::direction);
+		expect(slot.art.icon).to_equal(&deluge::ui::gfx::oled::icons::direction);
 		expect(slot.art.reversed).to_be_true();
 		menu::present_column(menu::nodes::sequence_direction, ctx, 2, slot, col); // ping-pong
 		expect(static_cast<int>(slot.art.twin_dx)).to_equal(2);
@@ -906,7 +906,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		slot = {};
 		menu::present_column(menu::nodes::file0_selector, ctx, 0, slot, col);
 		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
-		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::folderBig);
+		expect(slot.art.icon).to_equal(&deluge::ui::gfx::oled::icons::folderBig);
 		expect(static_cast<int>(slot.art.dy)).to_equal(-3);
 
 		// `FileSelector::getLastFolderFromPath` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`).
@@ -1162,7 +1162,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
 		// The rig's tick magnitude makes a sixteenth level read as an eighth.
 		expect(std::string(col.label)).to_equal(std::string("8th"));
-		expect(slot.art.icon == &deluge::gfx::oled::icons::syncTypeEven).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::syncTypeEven).to_equal(true);
 	});
 
 	it("the voice count column draws infinity at zero", _ {
@@ -1174,7 +1174,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::voice_count, ctx, 0, slot, col);
 		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
-		expect(slot.art.icon == &deluge::gfx::oled::icons::infinity).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::infinity).to_equal(true);
 		menu::present_column(menu::nodes::voice_count, ctx, 8, slot, col);
 		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
 	});
@@ -1231,13 +1231,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(nodes::lfo1_type, ctx, static_cast<int32_t>(deluge::instruments::classic::LFOType::SAW), slot, col);
 		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
-		expect(slot.art.icon == &deluge::gfx::oled::icons::saw).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::saw).to_equal(true);
 		expect(static_cast<int>(slot.art.dy)).to_equal(2);
 
 		menu::present_column(nodes::sample0_reverse, ctx, 1, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_PLAY)));
 		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
-		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_equal(true);
+		expect(slot.art.icon == &deluge::ui::gfx::oled::icons::direction).to_equal(true);
 		expect(slot.art.reversed).to_equal(true);
 	});
 

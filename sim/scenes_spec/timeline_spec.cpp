@@ -69,7 +69,7 @@
 // headers this drags in. See the warning at the top of support/card_access.h.
 #include "support/card_access.h"
 
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 

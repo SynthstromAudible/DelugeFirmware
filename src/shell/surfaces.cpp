@@ -11,10 +11,10 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 		// display_height, with nothing hidden by a faceplate.
 		const DelugeDisplayDesc desc =
 		    board.displays ? board.displays[i] : DelugeDisplayDesc{board.display_width, board.display_height, 0};
-		const gfx::oled::Geometry geometry{desc.width, desc.height, desc.visible_top};
+		const ui::gfx::oled::Geometry geometry{desc.width, desc.height, desc.visible_top};
 
 		OledSurface& surface = oled_[i];
-		surface.canvas = gfx::oled::Canvas(std::span<uint8_t>(storage_[i], kOledStorageBytes), geometry);
+		surface.canvas = ui::gfx::oled::Canvas(std::span<uint8_t>(storage_[i], kOledStorageBytes), geometry);
 		surface.geometry = geometry;
 		surface.gate = RepaintGate{};
 		surface.role = i < profile.oled_role_by_index.size() ? profile.oled_role_by_index[i] : SurfaceRole::None;
@@ -28,7 +28,7 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 	}
 
 	// pad_grid_width is main columns only; the sidebar is a profile fact (see build()'s note).
-	const gfx::grid::GridDimensions dims{board.pad_grid_width, profile.sidebar_cols, board.pad_grid_height};
+	const ui::gfx::grid::GridDimensions dims{board.pad_grid_width, profile.sidebar_cols, board.pad_grid_height};
 	grid_.grid_storage.emplace(dims);
 	// Column *pairs*: `flush` reads and sends two columns at a time (`read_column_pair`, the legacy
 	// `sortLedsForCol` order), so an odd total width would leave its last column in no pair and

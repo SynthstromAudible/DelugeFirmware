@@ -49,7 +49,6 @@ TREES = (
     "src/scenes",
     "src/shell",
     "src/ui",
-    "src/gfx",
     "sim/scenes_spec",
     "tests/unit/shell",
     "tests/unit/ui",

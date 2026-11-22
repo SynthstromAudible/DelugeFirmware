@@ -46,8 +46,8 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/context_menu_printer.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"

@@ -1,5 +1,5 @@
 # deluge_scenes -- the first UI layer allowed to include the model.
-# May include scenes/**, shell/**, ui/**, gfx/**, base/**, libdeluge/**, midi/** (the MIDI
+# May include scenes/**, shell/**, ui/**, ui/gfx/**, base/**, libdeluge/**, midi/** (the MIDI
 # protocol library), the standard library, and -- being the first model-aware layer --
 # model/**, modulation/**, playback/**, processing/**, storage/**, io/**, gui/l10n/**, and the
 # model's words and values: engines/**, plugin/**, serialization/**, sequence/**,

@@ -1,8 +1,8 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
 #include "ui/core/metrics.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/column_drawings.h"
 
 #include "cppspec.hpp"
@@ -15,8 +15,8 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // Each drawing is drawn into a value region the size `columns` gives a labelled one-slot column (`render_slot`: the
@@ -185,7 +185,7 @@ void legacy_loop_point(Canvas& image, bool start) {
 		image.draw_pixel(line_x, y);
 	}
 	const int32_t icon_x = start ? line_x + 4 : kStartX - 2;
-	image.draw_icon(deluge::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
+	image.draw_icon(deluge::ui::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
 }
 
 /// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
@@ -195,7 +195,7 @@ void legacy_clip_end(Canvas& image) {
 	for (int32_t y = kStartY + 1; y <= kStartY + kHeight - 5; y += 2) {
 		image.draw_pixel(line_x, y);
 	}
-	image.draw_icon(deluge::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
+	image.draw_icon(deluge::ui::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
 }
 
 } // namespace

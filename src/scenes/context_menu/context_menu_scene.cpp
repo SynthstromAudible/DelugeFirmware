@@ -38,7 +38,6 @@
 // re-declared locally, and its body is not re-implemented here (a notice plus the other four
 // resets) -- that would fork a legacy composite.
 #include "deluge.h"
-#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "instruments/classic/state_access.h"
 #include "io/midi/midi_device_manager.h"
@@ -48,6 +47,7 @@
 #include "project/audio_input.h"
 #include "project/setting_group.h"
 #include "storage/flash_storage.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 #include <array>
@@ -351,7 +351,7 @@ size_t sample_browser_synth_options_now(const menu::MenuContext& ctx, std::span<
 /// `Kit::padAction` and `Synth::padAction` return `SampleBrowser::padAction`. The mute column is the browser's exit,
 /// whose close takes this menu with it; every other pad does nothing here.
 Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
-	if (event.x == deluge::gfx::grid::kDelugeGrid.main_cols) {
+	if (event.x == deluge::ui::gfx::grid::kDelugeGrid.main_cols) {
 		return browser::browser_scene().handle(event, ctx);
 	}
 	Result r;

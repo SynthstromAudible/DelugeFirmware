@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gfx/grid/rect.h"
+#include "ui/gfx/grid/rect.h"
 
 #include <format>
 #include <ostream>
@@ -29,7 +29,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::gfx::grid {
+namespace deluge::ui::gfx::grid {
 
 /// @brief Prints a rectangle as its top-left pad and extent, e.g. `{x 0, y 0, w 18, h 8}`.
 /// @param os The stream to print to.
@@ -39,4 +39,4 @@ inline std::ostream& operator<<(std::ostream& os, const Rect& r) {
 	return os << std::format("{{x {}, y {}, w {}, h {}}}", r.x, r.y, r.w, r.h);
 }
 
-} // namespace deluge::gfx::grid
+} // namespace deluge::ui::gfx::grid

@@ -91,7 +91,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/controller_mapping_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"

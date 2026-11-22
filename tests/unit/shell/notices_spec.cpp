@@ -2,7 +2,7 @@
 #include "shell/scene_stack.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/text.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
@@ -437,7 +437,7 @@ describe shell_notices("shell::Notices", $ {
 			expect(scene->input_transparent()).to_be_true();
 			// Composites nothing, so dims nothing: legacy popups have no grid effect at all.
 			// None of them paints a pad: `render_grid` is the base `Scene`'s do-nothing default.
-			deluge::gfx::grid::PadGrid grid{{16, 2, 8}};
+			deluge::ui::gfx::grid::PadGrid grid{{16, 2, 8}};
 			grid.set(3, 3, RGB{9, 9, 9});
 			deluge::ui::InputSnapshot snap{};
 			deluge::ui::RepaintGate gate;
@@ -838,7 +838,7 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("renders the popup goldens at both geometries", _ {
-		using deluge::gfx::oled::Size;
+		using deluge::ui::gfx::oled::Size;
 
 		// "SAVED" is five monospaced Apple7 characters: 30px wide, one 9px line -- the same
 		// content size tests/unit/ui/popup_spec.cpp pins its own border assertions against.

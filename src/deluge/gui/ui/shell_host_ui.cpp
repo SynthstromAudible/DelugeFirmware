@@ -429,14 +429,14 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 		return isOpaque;
 	}
 
-	const deluge::gfx::grid::PadGrid& grid = surfaces_.grid().grid();
-	const deluge::gfx::grid::GridDimensions dims = grid.dims();
+	const deluge::ui::gfx::grid::PadGrid& grid = surfaces_.grid().grid();
+	const deluge::ui::gfx::grid::GridDimensions dims = grid.dims();
 	// **Both clamps are load-bearing, and neither is covered by `canOpen()`.**
 	// `GuestSurfaceSet::canReachMainPanel` asks about the *panel's* shape and says nothing about the
 	// grid (`gui/ui/shell_guest_surfaces.h`), and `SurfaceSet::build` sizes the grid straight from
 	// `DelugeBoard::pad_grid_width`/`pad_grid_height` and `BoardProfile::sidebar_cols`
 	// (`SurfaceSet::build` in `shell/surfaces.cpp`) with no reference to legacy's numbers at all -- a `PadGrid` may be
-	// up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`gfx/grid/pad_grid.h`) while
+	// up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`ui/gfx/grid/pad_grid.h`) while
 	// `PadLEDs::image` is fixed at `[kDisplayHeight][kDisplayWidth + kSideBarWidth]` = 8 x 18
 	// (`hid/led/pad_leds.h`). So a profile with a taller or wider grid than legacy's is the case
 	// these two `min`s exist for, and dropping either writes past the end of legacy's buffer rather

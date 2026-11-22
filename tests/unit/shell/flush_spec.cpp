@@ -1,6 +1,6 @@
-#include "gfx/grid/tween.h"
 #include "shell/shell.h"
 #include "support/mocks/fake_surfaces.h"
+#include "ui/gfx/grid/tween.h"
 
 #include "cppspec.hpp"
 
@@ -75,7 +75,7 @@ public:
 	}
 
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
-		const deluge::gfx::grid::Rect b = frame.bounds();
+		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				RGB c = colour;
@@ -456,16 +456,16 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.shell.tick(100);
 
 		// Reproduce the same blend by hand, from two grids of matching dims.
-		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
-		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
+		const deluge::ui::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
+		deluge::ui::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
 				from_grid.set(x, y, kFrom);
 				to_grid.set(x, y, kTo);
 			}
 		}
-		deluge::gfx::grid::fade(from_grid, to_grid, 32768, expected);
-		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
+		deluge::ui::gfx::grid::fade(from_grid, to_grid, 32768, expected);
+		const deluge::ui::gfx::grid::PadGrid& live = r.fake.grid().grid();
 		expect(live.at(0, 0)).to_equal(expected.at(0, 0));
 		expect(live.at(17, 7)).to_equal(expected.at(17, 7));
 		// Halfway (t == 32768/65536), the blend must sit strictly between the two ends.
@@ -481,7 +481,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
-		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
+		const deluge::ui::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
 		const std::vector<RGB> from_cols = gradient(dims.cols(), 10);
 		const std::vector<RGB> to_cols = gradient(dims.cols(), 200);
 		r.base.column_colours = from_cols;
@@ -496,15 +496,15 @@ describe shell_flush("shell::Shell::flush", $ {
 
 		// Reproduce `horizontal::renderScroll`'s shape by hand, via the same `gfx::grid`
 		// primitive `render_grid` calls, from two grids built out of the same column patterns.
-		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
+		deluge::ui::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
 				from_grid.set(x, y, from_cols[x]);
 				to_grid.set(x, y, to_cols[x]);
 			}
 		}
-		deluge::gfx::grid::scroll_horizontal(from_grid, to_grid, 2, expected);
-		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
+		deluge::ui::gfx::grid::scroll_horizontal(from_grid, to_grid, 2, expected);
+		const deluge::ui::gfx::grid::PadGrid& live = r.fake.grid().grid();
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
 				expect(live.at(x, y)).to_equal(expected.at(x, y));
@@ -523,7 +523,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
-		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
+		const deluge::ui::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
 		const std::vector<RGB> from_rows = gradient(dims.rows, 20);
 		const std::vector<RGB> to_rows = gradient(dims.rows, 210);
 		r.base.row_colours = from_rows;
@@ -536,15 +536,15 @@ describe shell_flush("shell::Shell::flush", $ {
 
 		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp`): the sidebar moves
 		// with the rows, unlike the horizontal case -- `scroll_vertical` shifts every column.
-		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
+		deluge::ui::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
 				from_grid.set(x, y, from_rows[y]);
 				to_grid.set(x, y, to_rows[y]);
 			}
 		}
-		deluge::gfx::grid::scroll_vertical(from_grid, to_grid, 1, expected);
-		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
+		deluge::ui::gfx::grid::scroll_vertical(from_grid, to_grid, 1, expected);
+		const deluge::ui::gfx::grid::PadGrid& live = r.fake.grid().grid();
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
 				expect(live.at(x, y)).to_equal(expected.at(x, y));

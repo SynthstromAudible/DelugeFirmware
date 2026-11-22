@@ -5,7 +5,6 @@
 ///        own effects with the kit-global latch set and clear, and a kit row under a stale set latch, each drawn under
 ///        its own clip view.
 
-#include "gfx/grid/rgb.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/clip_view.h"
@@ -14,6 +13,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "processing/sound/sound_drum.h"
+#include "ui/gfx/grid/rgb.h"
 #include "util/menu_entry.h"
 
 #include "support/song_fixture.h"

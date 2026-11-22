@@ -7,11 +7,11 @@ in `tests/integration/corpus/` (its README says how they run).
 
 One directory per consumer: what reads it, and which registry entry re-records it (`./dbt test --update <entry>`).
 C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/golden.cmake`), e.g.
-`gfx/oled/icons.pbm`; Python checks by its repository path, and the corpus runners through `driver.GOLDEN`.
+`ui/gfx/oled/icons.pbm`; Python checks by its repository path, and the corpus runners through `driver.GOLDEN`.
 
 | Directory | Holds | Read by | Re-recorded by |
 | --- | --- | --- | --- |
-| `gfx/` | the gfx primitives' OLED panels (`oled/`) and grid states (`grid/`) | the gfx specs | `unit` |
+| `ui/gfx/` | the gfx primitives' OLED panels (`oled/`) and grid states (`grid/`) | the gfx specs | `unit` |
 | `instrument/` | the instrument's answers about every sound of the engine × oscillator-kind matrix, hashed per sound and family (`record_reference.tsv`) | `tests/unit/instruments/classic/composed_state_spec.cpp` | `unit` |
 | `shell/` | the shell's popup and overlay panels | the shell specs | `unit` |
 | `ui/widgets/` | the UI widgets' panels and grid states | the ui specs | `unit` |

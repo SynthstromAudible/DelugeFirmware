@@ -48,8 +48,8 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 

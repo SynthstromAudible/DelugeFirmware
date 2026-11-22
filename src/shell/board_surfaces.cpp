@@ -44,7 +44,7 @@ void BoardSurfaceSet::flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colo
 	// The PIC flashes main pads only: its SET_PAD_FLASHING command is `24 + y + 8 * x`, bytes 24..151
 	// for the 16x8 main grid, and a sidebar index would run into the commands after it and switch
 	// an indicator LED off. Legacy's `PadLEDs::flashMainPad` addresses the main grid alone too.
-	const gfx::grid::GridDimensions d = grid().grid().dims();
+	const ui::gfx::grid::GridDimensions d = grid().grid().dims();
 	if (x >= d.main_cols || y >= d.rows) {
 		return;
 	}

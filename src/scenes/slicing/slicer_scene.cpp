@@ -13,10 +13,10 @@
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/popup.h"
 
-#include "gfx/grid/palette.h"
+#include "ui/gfx/grid/palette.h"
 
 #include "base/notify/notice_queue.h"
-#include "gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
 #include <array>
@@ -28,8 +28,8 @@
 namespace deluge::scenes::slicing {
 
 /// @brief The pad grid's main columns and rows.
-constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
-constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
+constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
@@ -745,7 +745,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
 		services::paint_columns(main, wf->read, wf->centre, wf->span);
 
 		if (mode_ == Mode::Region) {

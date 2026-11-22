@@ -48,8 +48,8 @@
 /// **The load-bearing fact:** `src/deluge/util` is *itself* inside `check_layer_rules.py`'s
 /// `NON_UI` glob (`src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,
 /// dsp}/**`). So this header is judged by the very rule the split is about, and it passes on its
-/// own terms -- it includes only `definitions_cxx.hpp`, `gfx/grid/rgb.h` and `<cstdint>`, and forward-declares `class
-/// Clip`. Every `src/scenes` and `gui/` dependency stays in `gui/ui/menu_entry.cpp`, where the rule would judge
+/// own terms -- it includes only `definitions_cxx.hpp`, `ui/gfx/grid/rgb.h` and `<cstdint>`, and forward-declares
+/// `class Clip`. Every `src/scenes` and `gui/` dependency stays in `gui/ui/menu_entry.cpp`, where the rule would judge
 /// it if it moved.
 ///
 /// @par What works, and what does not
@@ -77,7 +77,7 @@
 ///     items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <cstdint>
 

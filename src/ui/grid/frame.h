@@ -1,11 +1,11 @@
 #pragma once
-#include "gfx/grid/pad_grid.h"
-#include "gfx/grid/rect.h"
-#include "gfx/grid/rgb.h"
 #include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/response.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/rect.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <array>
 #include <cstddef>
@@ -86,7 +86,7 @@ inline constexpr PadMask kNoPadsHeld{};
 ///
 /// Coordinates are *local*: `(0, 0)` is the frame's own corner. The root frame spans the whole
 /// `PadGrid`, sidebar included -- `GridDimensions::cols()` is `main_cols + sidebar_cols` and
-/// `PadGrid::at(x, y)` addresses that one range (gfx/grid/pad_grid.h), so on a Deluge the columns
+/// `PadGrid::at(x, y)` addresses that one range (ui/gfx/grid/pad_grid.h), so on a Deluge the columns
 /// are `x = 0..15` for the main pads and `x = 16..17` for the two sidebar columns, in one
 /// coordinate space. Nothing here treats the sidebar specially; a sidebar component simply opens
 /// a `region` over `{16, 0, 2, rows}`.

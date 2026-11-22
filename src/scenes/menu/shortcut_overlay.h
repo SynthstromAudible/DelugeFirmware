@@ -5,12 +5,12 @@
 ///        and the patching-source column blue where a source may patch to the focused param -- `SoundEditor`'s
 ///        `renderMainPads` while `should_render_shortcut_overlay()`.
 
-#include "gfx/grid/palette.h"
 #include "project/device_settings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_state.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/shortcuts.h"
+#include "ui/gfx/grid/palette.h"
 #include "ui/grid/frame.h"
 
 #include <array>

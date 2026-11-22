@@ -13,7 +13,7 @@ namespace deluge::harness {
 
 /// @brief Convert a 1-bpp page-major OLED framebuffer to a P1 (plain-text) PBM image.
 ///
-/// A dependency-free re-implementation of tests/unit/gfx/support/pbm.h's
+/// A dependency-free re-implementation of tests/unit/ui/gfx/support/pbm.h's
 /// `page_major_to_pbm` (tests/harness may not include tests/unit/ headers, since it is also
 /// compiled into the host BSP -- see tests/harness/README.md).
 /// @param page_major Page-major framebuffer: `page_major[page*w+col]`, bit `b` = row `page*8+b`.

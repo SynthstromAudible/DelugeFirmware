@@ -1,7 +1,7 @@
 #include "shell/shell.h"
 
 #include "base/notify/notice_queue.h"
-#include "gfx/grid/tween.h"
+#include "ui/gfx/grid/tween.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
@@ -24,8 +24,8 @@ using base::notify::Dirty;
 /// `skipGreyoutFade`, `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled constant is
 /// `1 * 6500000`. (The fractional values at `timerRoutine` (`pad_leds.cpp`) are a transition ramping the same scale in
 /// and out, which the tween driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus
-/// `totalRGB * (proportion >> 5)` over a 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather
-/// than 0..255.
+/// `totalRGB * (proportion >> 5)` over a 23-bit shift (`ui/gfx/grid/rgb.h`), which is why the number is this size
+/// rather than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
 
 /// @brief Does \p f name a surface the shell can invalidate on its own?
@@ -58,7 +58,7 @@ bool has_untargeted_fact(const base::notify::DirtySet& dirty) {
 /// Legacy order (`PadLEDs::sortLedsForCol`, `hid/led/pad_leds.cpp`): column
 /// `pair_index * 2` rows 0..7, then column `pair_index * 2 + 1` rows 0..7 -- `doubleColumn`'s two
 /// back-to-back fills, each over `kDisplayHeight` (8) rows.
-ColumnPair read_column_pair(const gfx::grid::PadGrid& grid, uint8_t pair_index) {
+ColumnPair read_column_pair(const ui::gfx::grid::PadGrid& grid, uint8_t pair_index) {
 	ColumnPair out{};
 	const uint8_t rows = std::min<uint8_t>(grid.dims().rows, kColumnPairLeds / 2);
 	const uint8_t x0 = static_cast<uint8_t>(pair_index * 2);
@@ -857,7 +857,7 @@ void Shell::render_grid(uint32_t now_ms) {
 	if (!g.grid_storage.has_value()) {
 		return;
 	}
-	gfx::grid::PadGrid& grid = g.grid();
+	ui::gfx::grid::PadGrid& grid = g.grid();
 	grid.clear();
 	const std::span<Scene* const> scenes = stack_.scenes();
 	if (scenes.empty()) {
@@ -932,7 +932,7 @@ void Shell::render_grid(uint32_t now_ms) {
 			const uint16_t t = tween_progress(elapsed, tw.duration_ms);
 			switch (tw.kind) {
 			case ActiveTween::Kind::Fade:
-				gfx::grid::fade(*tween_from_, grid, t, grid);
+				ui::gfx::grid::fade(*tween_from_, grid, t, grid);
 				break;
 			case ActiveTween::Kind::ScrollH: {
 				// Unlike fade()/grey_out(), scroll_horizontal() reads `incoming` at column indices
@@ -940,13 +940,13 @@ void Shell::render_grid(uint32_t now_ms) {
 				// could read a column this same pass already overwrote. `tween_scratch_` keeps the
 				// read and write sides distinct; it is then copied back onto the live grid.
 				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				gfx::grid::scroll_horizontal(*tween_from_, grid, offset, *tween_scratch_);
+				ui::gfx::grid::scroll_horizontal(*tween_from_, grid, offset, *tween_scratch_);
 				grid = *tween_scratch_;
 				break;
 			}
 			case ActiveTween::Kind::ScrollV: {
 				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				gfx::grid::scroll_vertical(*tween_from_, grid, offset, *tween_scratch_);
+				ui::gfx::grid::scroll_vertical(*tween_from_, grid, offset, *tween_scratch_);
 				grid = *tween_scratch_;
 				break;
 			}
@@ -1126,7 +1126,7 @@ void Shell::flush(uint32_t now_ms) {
 		g.dirty = false;
 	}
 	if (g.dirty) {
-		const gfx::grid::PadGrid& grid = g.grid();
+		const ui::gfx::grid::PadGrid& grid = g.grid();
 		const uint32_t budget = surfaces_.pad_output_space() / kBytesPerColumnPair;
 		uint32_t sent = 0;
 		bool any_remaining = false;

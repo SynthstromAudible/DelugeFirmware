@@ -49,10 +49,6 @@ path = "base"
 target = "src/base"
 
 [[directory]]
-path = "gfx"
-target = "src/ui/gfx"
-
-[[directory]]
 path = "gsl"
 target = "third_party/gsl"
 
@@ -251,22 +247,22 @@ may_include = [
 # The drawing primitives: geometry, dimensions and style arrive as values, and oled and grid never include each
 # other.
 [[library]]
-name = "gfx"
-root = "src/gfx"
-prefix = "gfx/"
+name = "ui-gfx"
+root = "src/ui/gfx"
+prefix = "ui/gfx/"
 
 [[library]]
-name = "gfx-oled"
-root = "src/gfx/oled"
-prefix = "gfx/oled/"
-may_include = ["gfx/contract.h"]
+name = "ui-gfx-oled"
+root = "src/ui/gfx/oled"
+prefix = "ui/gfx/oled/"
+may_include = ["ui/gfx/contract.h"]
 system = ["stdint.h"]
 
 [[library]]
-name = "gfx-grid"
-root = "src/gfx/grid"
-prefix = "gfx/grid/"
-may_include = ["gfx/contract.h"]
+name = "ui-gfx-grid"
+root = "src/ui/gfx/grid"
+prefix = "ui/gfx/grid/"
+may_include = ["ui/gfx/contract.h"]
 
 # Rules: a forbidden include pattern, counted per file. A count above its baseline row (zero when there is none)
 # fails.
@@ -314,7 +310,7 @@ reason = "the notification channel includes only itself and the standard library
 [[rule]]
 name = "ui-includes-outside"
 files = ["src/ui/**"]
-pattern = '^(?!ui/|gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+pattern = '^(?!ui/|ui/gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
 [[rule]]
@@ -332,13 +328,13 @@ reason = "the OLED widgets and the pad components never include each other"
 [[rule]]
 name = "shell-includes-outside"
 files = ["src/shell/**"]
-pattern = '^(?!shell/|ui/|gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+pattern = '^(?!shell/|ui/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi ids and libdeluge"
 
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|ui/gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

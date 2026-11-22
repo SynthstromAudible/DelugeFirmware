@@ -14,7 +14,7 @@
 #include "support/oracle_table.h"
 
 #include "board_layout.hpp"
-#include "gfx/grid/rgb.h"
+#include "ui/gfx/grid/rgb.h"
 
 #include <array>
 #include <cstdint>

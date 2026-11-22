@@ -41,7 +41,7 @@ struct GreyoutMask {
 /// @brief Grey out the pads @p mask selects, in place.
 ///
 /// Reads each selected pad's current colour back through `GridFrame::peek` and rewrites it with
-/// `RGB::greyOut(amount)` (gfx/grid/rgb.h), as `prepareColour` does on its way to the hardware
+/// `RGB::greyOut(amount)` (ui/gfx/grid/rgb.h), as `prepareColour` does on its way to the hardware
 /// (pad_leds.cpp).
 ///
 /// @warning Call this last, and once. Legacy greys in the *send* path and never mutates

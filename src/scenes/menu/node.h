@@ -15,7 +15,6 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
-#include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
@@ -25,6 +24,7 @@
 #include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
 #include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`
 #include "ui/core/frame_context.h"         // CustomItem::owned_input
+#include "ui/gfx/oled/icons.h"             // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "ui/grid/frame.h"                 // CustomItem::source_blink
 #include "ui/oled/column_drawings.h"       // DrawColumn
 #include "ui/oled/columns.h"               // ArtColumn
@@ -702,8 +702,8 @@ struct CustomItem {
 	///         width, exactly as legacy's `endX` does (`Submenu::drawSubmenuItemsForOled` in
 	///         `origin/main:src/deluge/gui/menu_item/submenu.cpp`:
 	///         `OLED_MAIN_WIDTH_PIXELS - getSubmenuItemTypeRenderLength()`), so it is not merely "the icon is hidden".
-	virtual const deluge::gfx::oled::Icon* row_icon(const MenuContext&) const {
-		return &deluge::gfx::oled::icons::submenuArrow;
+	virtual const deluge::ui::gfx::oled::Icon* row_icon(const MenuContext&) const {
+		return &deluge::ui::gfx::oled::icons::submenuArrow;
 	}
 
 	/// @brief The text legacy's `renderSubmenuItemTypeForOled` draws two rows under this item's row, or empty for none:

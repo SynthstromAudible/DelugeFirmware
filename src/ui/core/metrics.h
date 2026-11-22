@@ -1,5 +1,5 @@
 #pragma once
-#include "gfx/oled/font.h"
+#include "ui/gfx/oled/font.h"
 #include <cstdint>
 
 namespace deluge::ui {
@@ -89,7 +89,7 @@ constexpr int32_t kMidiCommandRowY64 = 20; // 20 - 0
 ///
 /// The Apple ][ face has two legacy heights that are *not* interchangeable (`text_height_of`
 /// above): `font_for_text_height` returns `kApple7` for heights 7-8 and `kApple7Up` for 9, and
-/// `kApple7Up` draws the same glyphs one row lower (`gfx/oled/font.h`'s `y_adjust`).
+/// `kApple7Up` draws the same glyphs one row lower (`ui/gfx/oled/font.h`'s `y_adjust`).
 /// `FontId::Apple7` -- the only Apple enumerator this toolkit has, and what every `Style::row_font`
 /// is set to -- means the height-9 one. So a port of a legacy call site that passed
 /// `kTextSizeYUpdated` lands one row low unless its rect is laid one row high; this is that row.

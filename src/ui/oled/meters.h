@@ -1,5 +1,5 @@
 #pragma once
-#include "gfx/oled/geometry.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/oled/frame.h"
 #include <cstdint>
 

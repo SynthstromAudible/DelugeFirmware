@@ -18,9 +18,9 @@
 ///       constant pair here and there must not be one: a caller wanting legacy's absolute canvas
 ///       row passes a rect derived from `ui/core/metrics.h`, as `src/scenes/menu/nodes/midi_command.cpp` does.
 
-#include "gfx/oled/geometry.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/oled/frame.h"
 #include "ui/oled/values.h"
 

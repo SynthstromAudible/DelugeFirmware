@@ -109,7 +109,7 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	const int32_t row_h = f.style.row_height;
 	const int32_t spacing = deluge::ui::oled::spacing_x_for(f.style.row_font);
 	const auto row = [&](int32_t i, int32_t x) {
-		return deluge::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
+		return deluge::ui::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
 	};
 	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
 	deluge::ui::shell::TextScratch scratch;

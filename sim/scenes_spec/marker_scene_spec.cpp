@@ -103,7 +103,7 @@
 #include "support/printers/ranges_cause_printer.h"
 #include "support/printers/rgb_printer.h"
 #include "support/printers/sound_record_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
@@ -243,7 +243,7 @@ struct PadDiff {
 };
 
 PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -313,7 +313,7 @@ struct Counted final : bind::Waveforms {
 constexpr uint64_t kLongLength = uint64_t{1} << 33;
 
 /// @brief How many main pads of @p a differ from @p b.
-int32_t main_pads_differ(const deluge::gfx::grid::PadGrid& a, const deluge::gfx::grid::PadGrid& b) {
+int32_t main_pads_differ(const deluge::ui::gfx::grid::PadGrid& a, const deluge::ui::gfx::grid::PadGrid& b) {
 	int32_t n = 0;
 	for (uint8_t x = 0; x < kDisplayWidth; x++) {
 		for (uint8_t y = 0; y < kDisplayHeight; y++) {
@@ -1168,7 +1168,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid old = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid old = r.fake.grid().grid();
 		r.x_enc_button(true, 10);
 		r.tick(10);
 		r.turn_horizontal(1, 20);
@@ -1194,7 +1194,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		// Halfway (the step at 70 ms), neither view.
 		r.tick(70);
-		const deluge::gfx::grid::PadGrid mid = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid mid = r.fake.grid().grid();
 		r.tick(120);
 		expect(marker_scene().sliding()).to_be_true();
 		// The first step at or past 110 ms ends it: the settled frame, with its marker.
@@ -1204,7 +1204,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{200});
 		expect(marker_scene().holding_xenc()).to_be_false();
 		r.x_enc_button(false, 175);
-		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid settled = r.fake.grid().grid();
 		bool from_is_old = marker_scene().zoom_slide().from.has_value();
 		for (uint8_t y = 0; from_is_old && y < kDisplayHeight; y++) {
 			for (uint8_t x = 0; x < kDisplayWidth; x++) {
@@ -2210,7 +2210,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		deluge::ui::oled::title(reference.frame, "Start point");
 		deluge::ui::oled::sample_position(
 		    reference.frame,
-		    deluge::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
+		    deluge::ui::gfx::oled::Rect{1, reference.frame.style.title_height + 5, reference.frame.bounds().w - 1,
 		                            2 * deluge::ui::oled::kSamplePositionLineGap},
 		    2147483655, 44100);
 		expect(r.oled()).to_equal(reference.pbm());
@@ -2285,7 +2285,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.sample->minValueFound = INT32_MAX;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 		r.tick(200); // the blink's next phase draws again
 		expect(counted.reads).to_equal(2);
 		expect(main_pads_differ(first, r.fake.grid().grid())).to_equal(0);
@@ -2324,7 +2324,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.open(MarkerType::START);
 		r.tick(0);
-		const deluge::gfx::grid::PadGrid last = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid last = r.fake.grid().grid();
 		for (int32_t i = 0; i < mf::kNumClusters; i++) {
 			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
 			e.min = static_cast<int8_t>(-mf::cluster_peak(i) / 2);

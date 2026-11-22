@@ -1,5 +1,5 @@
 #pragma once
-#include "gfx/oled/font.h"
+#include "ui/gfx/oled/font.h"
 #include <cstdint>
 #include <string_view>
 

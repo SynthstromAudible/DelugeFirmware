@@ -1,8 +1,8 @@
 #pragma once
-#include "gfx/grid/pad_grid.h"
-#include "gfx/grid/palette.h"
-#include "gfx/grid/rgb.h"
 #include "ui/core/response.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/palette.h"
+#include "ui/gfx/grid/rgb.h"
 #include "ui/grid/frame.h"
 
 #include <cstdint>
@@ -45,7 +45,7 @@ constexpr uint8_t kMaxRowCells = gfx::grid::kMaxGridCols;
 Response row(GridFrame& f, int32_t y, std::span<const RGB> cells);
 
 /// @brief Mirrors legacy `FillMode`, restated here because this layer may depend only on `ui/**`,
-///        `gfx/**` and the standard library. Same three states in the same order.
+///        `ui/gfx/**` and the standard library. Same three states in the same order.
 enum class NoteFill : uint8_t { Off, NotFill, Fill };
 
 /// @brief One note, windowed into columns by the caller.

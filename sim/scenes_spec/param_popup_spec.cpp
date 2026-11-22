@@ -53,8 +53,8 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -189,7 +189,7 @@ struct Rig {
 /// `display->displayNotification`), reading the shipped popup canvas back afterward.
 ///
 /// Always 48 rows, never 64: `deluge::hid::display::OLED::popup` is a
-/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`gfx/oled/geometry.h`) is a fixed
+/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`ui/gfx/oled/geometry.h`) is a fixed
 /// `{128, 48, 5}` -- the real board's own panel. Legacy has no 64-row mode to compare against; a
 /// wider read past its 6 pages is simply past the buffer.
 /// @return The popup canvas as a PBM, 48 rows tall.

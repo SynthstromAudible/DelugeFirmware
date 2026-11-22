@@ -362,7 +362,7 @@ file I/O, the model hooks, and shared test utilities such as `tracking_allocator
 `tests/support/matchers/` (matchers CppSpec lacks) and `tests/support/printers/` (an `operator<<` in a type's own
 namespace, so CppSpec prints its values, alone or in a container, rather than its address); code one directory's
 specs share lives in that directory's own `support/`. A spec includes a header from another test directory by its path
-under `tests/` (`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`),
+under `tests/` (`"support/spec_main.h"`, `"unit/ui/gfx/support/golden.h"`, `"harness/ui_script.h"`),
 never by `../`. A spec's own directory comes first on its include path, so a file in a per-directory `support/` named
 like one in `tests/support/` would shadow it; `scripts/check_test_support_names.py` refuses such a name.
 

@@ -51,7 +51,7 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
-using gfx::oled::Rect;
+using ui::gfx::oled::Rect;
 
 namespace {
 
@@ -165,7 +165,7 @@ bool is_ascii_letter(char c) {
 /// arithmetic below is done in this rectangle and lands in frame coordinates for free. Same
 /// conversion `popup.cpp`'s own `panel_of` makes, for the same reason; it is file-static there.
 Rect panel_of(const deluge::ui::oled::OledFrame& f) {
-	const gfx::oled::Geometry g = f.canvas.geometry();
+	const ui::gfx::oled::Geometry g = f.canvas.geometry();
 	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
 }
 

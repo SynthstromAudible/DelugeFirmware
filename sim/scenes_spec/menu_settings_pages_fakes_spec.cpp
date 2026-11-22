@@ -22,7 +22,6 @@
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
-#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/classic/sound_state.h"
 #include "instruments/classic/state_access.h"
@@ -37,6 +36,7 @@
 #include "shell/scene.h"
 #include "shell/shell.h"
 #include "ui/core/input.h"
+#include "ui/gfx/oled/glyphs.h"
 
 #include "support/fake_host_rig.h"
 #include "support/fake_menu_shell.h"
@@ -364,7 +364,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
 		                                            deluge::serialization::Value::makeNumber(0));
 		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
-			.to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph + "3    - top");
+			.to_equal(std::string{"D"} + deluge::ui::gfx::oled::kFlatGlyph + "3    - top");
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
 		                                            deluge::serialization::Value::makeNumber(1));
 		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
@@ -424,7 +424,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)}).to_equal(std::string{"C#"});
 		hold(r.fakes, device_path::kUseSharps, 0);
 		expect(std::string{nodes::format_range_key(1, &ctx, scratch)})
-		    .to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph);
+		    .to_equal(std::string{"D"} + deluge::ui::gfx::oled::kFlatGlyph);
 	});
 
 	it("names the default swing interval against the magnitude row, which a resolution turn writes", _ {

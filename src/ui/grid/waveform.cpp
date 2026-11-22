@@ -1,6 +1,6 @@
 #include "ui/grid/waveform.h"
 
-#include "gfx/grid/palette.h"
+#include "ui/gfx/grid/palette.h"
 
 #include <algorithm>
 

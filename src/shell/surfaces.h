@@ -1,13 +1,13 @@
 #pragma once
-#include "gfx/grid/pad_grid.h"
-#include "gfx/grid/rgb.h"
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/geometry.h"
 #include "libdeluge/board.h"
 #include "shell/profile.h"
 #include "ui/core/led_frame.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/grid/rgb.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/geometry.h"
 #include "ui/grid/frame.h"
 
 #include <array>
@@ -27,7 +27,7 @@ inline constexpr size_t kOledStorageBytes = 128 * 64 / 8;
 /// @brief LEDs in one main-grid column pair: two columns of eight pads.
 inline constexpr uint8_t kColumnPairLeds = 16;
 /// @brief Column-pair capacity, sized to `gfx::grid::kMaxGridCols / 2`.
-inline constexpr uint8_t kMaxColumnPairs = gfx::grid::kMaxGridCols / 2;
+inline constexpr uint8_t kMaxColumnPairs = ui::gfx::grid::kMaxGridCols / 2;
 
 /// @brief Bytes in one main-grid column-pair send, for `Shell::flush`'s pad-output-space budget.
 ///
@@ -49,10 +49,10 @@ struct OledSurface {
 	/// `SurfaceSet::build()` fills in the ones the board actually has. `Canvas` has no default
 	/// constructor; an empty span with a zero geometry satisfies its `storage.size() >= bytes()`
 	/// precondition and draws nothing.
-	OledSurface() : canvas(std::span<uint8_t>{}, gfx::oled::Geometry{0, 0, 0}) {}
+	OledSurface() : canvas(std::span<uint8_t>{}, ui::gfx::oled::Geometry{0, 0, 0}) {}
 
-	gfx::oled::Canvas canvas;
-	gfx::oled::Geometry geometry{0, 0, 0};
+	ui::gfx::oled::Canvas canvas;
+	ui::gfx::oled::Geometry geometry{0, 0, 0};
 	RepaintGate gate;
 	SurfaceRole role = SurfaceRole::None;
 	uint8_t index = 0;
@@ -97,7 +97,7 @@ struct GridSurface {
 	/// argument) and the surface pool must be constructible before the board is known, so the
 	/// grid is held two-phase in an `optional` and emplaced by `build()`. Reach it through
 	/// `grid()`, never through the optional.
-	std::optional<gfx::grid::PadGrid> grid_storage;
+	std::optional<ui::gfx::grid::PadGrid> grid_storage;
 	RepaintGate gate;
 	ColumnPair last_sent[kMaxColumnPairs]{};
 	bool sent_once[kMaxColumnPairs]{};
@@ -117,9 +117,9 @@ struct GridSurface {
 	/// @brief The pad framebuffer.
 	/// @pre `SurfaceSet::build()` has run.
 	/// @return Reference to the grid.
-	gfx::grid::PadGrid& grid() { return *grid_storage; }
+	ui::gfx::grid::PadGrid& grid() { return *grid_storage; }
 	/// @copydoc grid()
-	const gfx::grid::PadGrid& grid() const { return *grid_storage; }
+	const ui::gfx::grid::PadGrid& grid() const { return *grid_storage; }
 };
 
 /// @brief The board's indicator LEDs and knob indicators, plus their send-side shadow.

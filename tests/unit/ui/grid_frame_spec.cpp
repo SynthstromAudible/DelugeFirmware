@@ -11,7 +11,7 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::grid;
-using deluge::gfx::grid::Rect;
+using deluge::ui::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 
 // clang-format off

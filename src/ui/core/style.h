@@ -1,6 +1,6 @@
 #pragma once
-#include "gfx/oled/font.h"
 #include "ui/core/metrics.h"
+#include "ui/gfx/oled/font.h"
 #include <cstdint>
 
 namespace deluge::ui {

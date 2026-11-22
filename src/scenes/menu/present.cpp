@@ -28,13 +28,13 @@
 #include "gui/l10n/short_label.h"
 #include "ui/oled/list.h"
 
-#include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "music/note_length.h"
 #include "plugin/types/display_mapping.h"
 #include "project/song.h"
 #include "scenes/menu/bindings.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/columns.h"
 #include "ui/oled/meters.h"
 
@@ -155,21 +155,21 @@ std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 // checkbox (`origin/main:src/deluge/gui/menu_item/toggle.cpp`), `Selection`'s checkbox when `isToggle()`
 // (`Selection::renderSubmenuItemTypeForOled` in `origin/main:src/deluge/gui/menu_item/selection.cpp`), and the MIDI
 // device-definition items' own (a `Kind::Custom` here).
-const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
+const deluge::ui::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
 	const auto checkbox = [&] {
-		return bindings::read(node, ctx) != 0 ? &deluge::gfx::oled::icons::checkedBox
-		                                      : &deluge::gfx::oled::icons::uncheckedBox;
+		return bindings::read(node, ctx) != 0 ? &deluge::ui::gfx::oled::icons::checkedBox
+		                                      : &deluge::ui::gfx::oled::icons::uncheckedBox;
 	};
 	switch (node.kind) {
 	case Kind::Toggle:
 		return checkbox();
 	case Kind::Enum:
-		return node.selection_is_toggle ? checkbox() : &deluge::gfx::oled::icons::submenuArrow;
+		return node.selection_is_toggle ? checkbox() : &deluge::ui::gfx::oled::icons::submenuArrow;
 	case Kind::Custom:
 		// `node.custom` is never null for a `Kind::Custom` node -- `validate.h`'s `NullCustom` rule.
 		return node.custom->row_icon(ctx);
 	default:
-		return &deluge::gfx::oled::icons::submenuArrow;
+		return &deluge::ui::gfx::oled::icons::submenuArrow;
 	}
 }
 
@@ -284,7 +284,7 @@ void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*
 	}
 	deluge::ui::ListState state{.cursor = static_cast<int16_t>(current), .scroll = static_cast<int16_t>(current - pos)};
 	deluge::ui::ScrollText scroll{};
-	const deluge::gfx::oled::Rect below_title{0, top, width, panel.canvas.geometry().height - top};
+	const deluge::ui::gfx::oled::Rect below_title{0, top, width, panel.canvas.geometry().height - top};
 	panel.region(below_title, deluge::ui::InputMask::none(), [&](deluge::ui::oled::OledFrame& f) {
 		(void)deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state,
 		                             std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(n)}, scroll,
@@ -403,12 +403,12 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		const size_t copied = std::min(label.view().size(), sizeof(slot.label));
 		std::memcpy(slot.label, label.view().data(), copied);
 		col.label = std::string_view{slot.label, copied};
-		const deluge::gfx::oled::Icon* icon = &deluge::gfx::oled::icons::syncTypeEven;
+		const deluge::ui::gfx::oled::Icon* icon = &deluge::ui::gfx::oled::icons::syncTypeEven;
 		if (sync_type == deluge::plugin::SyncType::DOTTED) {
-			icon = &deluge::gfx::oled::icons::syncTypeDotted;
+			icon = &deluge::ui::gfx::oled::icons::syncTypeDotted;
 		}
 		else if (sync_type == deluge::plugin::SyncType::TRIPLET) {
-			icon = &deluge::gfx::oled::icons::syncTypeTriplets;
+			icon = &deluge::ui::gfx::oled::icons::syncTypeTriplets;
 		}
 		draw_art({.icon = icon, .dy = -3});
 		break;

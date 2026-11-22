@@ -29,7 +29,6 @@
 /// `handle()` are the two places a write may happen.
 
 #include "base/notify/dirty_set.h"
-#include "gfx/oled/icon.h"
 #include "project/mapping_table.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/chains.h"
@@ -52,6 +51,7 @@
 #include "ui/core/encoder_acceleration.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
+#include "ui/gfx/oled/icon.h"
 #include "ui/grid/effects.h"
 #include "ui/oled/columns.h"
 

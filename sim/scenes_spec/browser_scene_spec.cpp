@@ -47,7 +47,7 @@
 #include "ui/grid/favourites.h"
 #include "ui/grid/keyboard.h"
 
-#include "gfx/oled/icons.h"
+#include "ui/gfx/oled/icons.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -87,7 +87,7 @@
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/browser_request_printer.h"
 #include "support/printers/rgb_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -491,22 +491,22 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		// (`LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` in `load_midi_device_definition_ui.cpp`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
-		expect(sample.file_icon).to_equal(&deluge::gfx::oled::icons::browserWave);
+		expect(sample.file_icon).to_equal(&deluge::ui::gfx::oled::icons::browserWave);
 		expect(sample.file_icon_pt2).to_be_null();
-		expect(midi.file_icon).to_equal(&deluge::gfx::oled::icons::browserMidi);
-		expect(midi.file_icon_pt2).to_equal(&deluge::gfx::oled::icons::browserMidiEdge);
+		expect(midi.file_icon).to_equal(&deluge::ui::gfx::oled::icons::browserMidi);
+		expect(midi.file_icon_pt2).to_equal(&deluge::ui::gfx::oled::icons::browserMidiEdge);
 		expect(static_cast<int>(midi.file_icon_pt2->width)).to_equal(1);
 		expect(static_cast<int>(sample.file_icon->width)).to_equal(8);
 	});
 
 	it("ports the legacy icon bitmaps byte for byte", _ {
-		// The four `Icon`s added to `gfx/oled/icons.cpp` are the legacy arrays (`OLED::folderIcon`, `OLED::waveIcon`,
+		// The four `Icon`s added to `ui/gfx/oled/icons.cpp` are the legacy arrays (`OLED::folderIcon`, `OLED::waveIcon`,
 		// `OLED::midiIcon` and `OLED::midiIconPt2` in `hid/display/oled_icons.cpp`), and this compares them against
 		// those arrays rather than re-spelling the bits: a transcription typo would otherwise only show up as a golden
 		// nobody could read.
-		const deluge::gfx::oled::Icon& folder = deluge::gfx::oled::icons::browserFolder;
-		const deluge::gfx::oled::Icon& wave = deluge::gfx::oled::icons::browserWave;
-		const deluge::gfx::oled::Icon& midi = deluge::gfx::oled::icons::browserMidi;
+		const deluge::ui::gfx::oled::Icon& folder = deluge::ui::gfx::oled::icons::browserFolder;
+		const deluge::ui::gfx::oled::Icon& wave = deluge::ui::gfx::oled::icons::browserWave;
+		const deluge::ui::gfx::oled::Icon& midi = deluge::ui::gfx::oled::icons::browserMidi;
 		for (int i = 0; i < 8; i++) {
 			expect(static_cast<int>(folder.data[i]))
 			    .to_equal(static_cast<int>(deluge::hid::display::OLED::folderIcon[i]));
@@ -516,7 +516,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 			    .to_equal(static_cast<int>(deluge::hid::display::OLED::midiIcon[i]));
 		}
 		// Legacy blits only the first column of `midiIconPt2` (`fileIconPt2Width = 1`).
-		expect(static_cast<int>(deluge::gfx::oled::icons::browserMidiEdge.data[0]))
+		expect(static_cast<int>(deluge::ui::gfx::oled::icons::browserMidiEdge.data[0]))
 		    .to_equal(static_cast<int>(deluge::hid::display::OLED::midiIconPt2[0]));
 	});
 });
@@ -1068,7 +1068,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		browser_scene().preview_settled(true);
 		r.step(); // the settle asks for the repaint on the next tick
 		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(1);
-		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 		browser_scene().preview_settled(true); // the same sample again: a second frame
 		r.step();
 		expect(browser_scene().waveform_draw_stats().draws - before.draws).to_equal(2);

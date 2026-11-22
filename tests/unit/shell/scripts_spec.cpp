@@ -50,7 +50,7 @@ public:
 		if (role != SurfaceRole::Main) {
 			return;
 		}
-		const deluge::gfx::oled::Rect b = frame.bounds();
+		const deluge::ui::gfx::oled::Rect b = frame.bounds();
 		deluge::ui::oled::title(frame, "DEMO");
 		// The two counters, on one line: `T` is the net `Select` detents `handle()` has seen, `M`
 		// how many `Dirty::ClipContent` facts `on_model_changed` has. Drawn unconditionally, so an
@@ -59,12 +59,12 @@ public:
 		const std::string counters = "T" + std::to_string(turns_) + " M" + std::to_string(model_changes_);
 		deluge::ui::oled::text(
 		    frame, {0, b.h / 2, b.w, 10}, counters,
-		    deluge::ui::oled::TextStyle{deluge::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
+		    deluge::ui::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
 		if (arg_ != 0) {
 			const std::string n = std::to_string(static_cast<unsigned>(arg_));
 			deluge::ui::oled::text(
 			    frame, {0, b.h - 10, b.w, 10}, n,
-			    deluge::ui::oled::TextStyle{deluge::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
+			    deluge::ui::oled::TextStyle{deluge::ui::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
 		}
 	}
 

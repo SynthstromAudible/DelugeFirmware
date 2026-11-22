@@ -60,8 +60,8 @@
 #include "util/c_string.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/gfx/support/golden.h"
-#include "unit/gfx/support/pbm.h"
+#include "unit/ui/gfx/support/golden.h"
+#include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -140,7 +140,7 @@ struct Rig {
 /// @brief The 128x48 canvas `OLED::displayPopup`/`cancelPopup` would have left, as a PBM.
 ///
 /// Always 48 rows: `deluge::hid::display::OLED::popup` is a fixed `kDelugeOled` canvas
-/// (`kDelugeOled` in `gfx/oled/geometry.h`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
+/// (`kDelugeOled` in `ui/gfx/oled/geometry.h`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
 /// mode to compare against.
 std::string legacy_popup_pbm() {
 	return page_major_to_pbm(deluge::hid::display::OLED::popup.bytes().data(), 128, 48);

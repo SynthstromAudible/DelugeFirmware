@@ -341,7 +341,7 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 		pos = nl + 1;
 	}
 	if (fake.grid().grid_storage) {
-		const deluge::gfx::grid::PadGrid& g = fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = fake.grid().grid();
 		for (uint8_t y = 0; y < g.dims().rows; y++) {
 			for (uint8_t x = 0; x < g.dims().cols(); x++) {
 				const RGB& c = g.at(x, y);
@@ -675,8 +675,8 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				// to the shell's matrix handler to do something undefined with, rather than being
 				// caught the way `unknown button` etc. already are.
 				const bool has_grid = fake.grid().grid_storage.has_value();
-				const deluge::gfx::grid::GridDimensions dims =
-				    has_grid ? fake.grid().grid().dims() : deluge::gfx::grid::GridDimensions{};
+				const deluge::ui::gfx::grid::GridDimensions dims =
+				    has_grid ? fake.grid().grid().dims() : deluge::ui::gfx::grid::GridDimensions{};
 				if (!has_grid || s.a < 0 || s.a >= dims.cols() || s.b < 0 || s.b >= dims.rows) {
 					result.error = detail::make_error(line, "pad coordinate off the grid");
 					return result;

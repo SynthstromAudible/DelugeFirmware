@@ -5,7 +5,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include <array>
 #include <cstdint>
@@ -101,7 +101,7 @@ public:
 	}
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
 		grid_renders++;
-		const deluge::gfx::grid::Rect b = frame.bounds();
+		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				if (frame.pad(x, y, colour).pressed) {
@@ -424,7 +424,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
 
 		r.shell.tick(0);
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(0, 0)).to_equal(kOverlayColour);
 		expect(g.at(1, 0)).to_equal(kBaseColour);
 		expect(g.at(17, 7)).to_equal(kBaseColour);
@@ -444,7 +444,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.shell.greyout().cols).to_equal(uint32_t(1u << 17));
 		RGB base = kBaseColour;
 		const RGB greyed = base.greyOut(kGreyoutAmountFull);
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(0, 1)).to_equal(greyed);
 		expect(g.at(1, 1)).to_equal(kBaseColour);
 		// Greyout runs last, so even the overlay's own pad is tinted.
@@ -469,7 +469,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 
 		expect(r.shell.greyout().cols).to_equal(uint32_t(0b10));
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		// `cols` bit 1 is column `17 - 1` = 16.
 		for (uint8_t y = 0; y < g.dims().rows; y++) {
 			for (uint8_t x = 0; x < g.dims().cols(); x++) {
@@ -493,7 +493,7 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// The host still reads the mask; it is only the shell's own pass that is skipped.
 		expect(r.shell.greyout().cols).to_equal(uint32_t(0b10));
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		const auto ungreyed = [&g] {
 			for (uint8_t y = 0; y < g.dims().rows; y++) {
 				for (uint8_t x = 0; x < g.dims().cols(); x++) {
@@ -828,7 +828,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// The base still painted: a notice is a grid overlay that paints nothing, not the base.
 		expect(r.base.grid_renders).to_equal(1);
 		// And it is left exactly as the base painted it: legacy's popups have no grid effect at all.
-		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(3, 3)).to_equal(kBaseColour);
 		expect(g.at(17, 7)).to_equal(kBaseColour);
 	});

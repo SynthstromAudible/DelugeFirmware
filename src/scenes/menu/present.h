@@ -3,10 +3,10 @@
 /// @file
 /// @brief How the menu spells and lays out what it shows: node text, horizontal columns, notifications, row icons.
 
-#include "gfx/oled/icon.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "shell/profile.h"
+#include "ui/gfx/oled/icon.h"
 #include "ui/oled/columns.h"
 
 #include <cstdint>
@@ -56,7 +56,7 @@ void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool focused, v
 /// @param node The row's node.
 /// @param ctx  The context its value is read in.
 /// @return The icon, or null for none.
-const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx);
+const deluge::ui::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx);
 
 /// @brief The text legacy draws two rows under @p node's row (`CustomItem::row_note`), or empty.
 /// @param node The row's node.

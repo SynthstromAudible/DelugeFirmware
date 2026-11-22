@@ -408,9 +408,9 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 		// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects; the centring is over
 		// the frame's own width, which is legacy's `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
 		deluge::ui::oled::text(
-		    f, deluge::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::gfx::oled::kTextBigSizeY},
+		    f, deluge::ui::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::ui::gfx::oled::kTextBigSizeY},
 		    capturing() ? kRecording : kWaiting,
-		    {.font = deluge::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
+		    {.font = deluge::ui::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
 	}
 
 	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a

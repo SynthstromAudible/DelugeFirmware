@@ -111,7 +111,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/project_address_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -529,7 +529,7 @@ struct PadDiff {
 };
 
 PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -555,7 +555,7 @@ PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
 /// @param at_least Minimum non-black pads.
 template <typename Self>
 void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	int32_t lit = 0;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -579,7 +579,7 @@ constexpr RGB kPlayheadColour{130, 120, 130};
 /// @param r The rig.
 /// @return The count, over the whole grid including the sidebar.
 int32_t cursor_pads(Rig& r) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	int32_t n = 0;
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -645,7 +645,7 @@ public:
 			expect(cursor_pads(r)).to_equal(cursor_pads_);
 		}
 		if (column_ >= 0) {
-			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+			const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 			int32_t matching = 0;
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (g.at(static_cast<uint8_t>(column_), static_cast<uint8_t>(y)) == column_colour_) {

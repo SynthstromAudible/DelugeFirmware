@@ -87,7 +87,7 @@ public:
 	void render_oled(SurfaceRole, deluge::ui::oled::OledFrame& frame) override { frame.hline(5, 0, 20); }
 
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
-		const deluge::gfx::grid::Rect b = frame.bounds();
+		const deluge::ui::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				(void)frame.pad(x, y, x == override_x ? override_colour : colour);
@@ -184,12 +184,12 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("cannot alias the pad grid at all: the two row strides differ", _ {
 		Rig r;
-		const deluge::gfx::grid::PadGrid& g = r.set.grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& g = r.set.grid().grid();
 		// `PadGrid`'s row stride is its fixed capacity (kMaxGridCols = 32), not its dimensions;
 		// legacy's is kDisplayWidth + kSideBarWidth = 18. `row(y)` can only ever be a copy seam.
 		const ptrdiff_t port_stride = g.row(1) - g.row(0);
 		const ptrdiff_t legacy_stride = &PadLEDs::image[1][0] - &PadLEDs::image[0][0];
-		expect(port_stride).to_equal(ptrdiff_t(deluge::gfx::grid::kMaxGridCols));
+		expect(port_stride).to_equal(ptrdiff_t(deluge::ui::gfx::grid::kMaxGridCols));
 		expect(legacy_stride).to_equal(ptrdiff_t(kDisplayWidth + kSideBarWidth));
 		expect(port_stride).not_().to_equal(legacy_stride);
 		// And the whole-flush copy is exactly one legacy pad image.

@@ -1,15 +1,15 @@
 #include "support/frames.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/scroll_text.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::FontId;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::FontId;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // clang-format off

@@ -1479,7 +1479,7 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 		}
 		expect(currentUIMode).to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
-		const deluge::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
+		const deluge::ui::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
 		int32_t differ = 0;
 		int32_t lit = 0;
 		for (int32_t y = 0; y < kDisplayHeight; y++) {

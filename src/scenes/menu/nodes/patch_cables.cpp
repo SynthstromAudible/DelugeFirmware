@@ -675,7 +675,7 @@ constexpr int32_t kValueBandX = 70;
 ///        height: the 13-row digits, a clear row, and the cursor's and tick's three.
 /// @{
 constexpr int32_t kValueTextY = 5;
-constexpr int32_t kValueBandHeight = deluge::gfx::oled::kTextBigSizeY + 4;
+constexpr int32_t kValueBandHeight = deluge::ui::gfx::oled::kTextBigSizeY + 4;
 /// @}
 
 /// @brief The polarity switch's slot band, frame-local -- legacy's `startY = 34`
@@ -696,7 +696,7 @@ constexpr std::array<int32_t, 1> kNoPolarityWidth{{53}};
 void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
-	const deluge::gfx::oled::Rect bounds = f.bounds();
+	const deluge::ui::gfx::oled::Rect bounds = f.bounds();
 
 	// `PatchCableStrength::renderOLED`'s first block (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`),
 	// through the toolkit widget that ports it (`ui/oled/routing.h`). The stage order is legacy's: the cable's own
@@ -712,14 +712,15 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		stages[n++] = source_short_name(destination.top_source());
 	}
 	stages[n++] = destination_short_name(ctx, static_cast<uint8_t>(destination.param_index()));
-	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
+	deluge::ui::oled::routing_chain(f, deluge::ui::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
 	                                std::span<const std::string_view>{stages.data(), n});
 
 	// `PatchCableStrength::renderOLED`'s polarity switcher, through `segmented_switch`. The band's left
 	// edge is `bounds.w - 55`, which is legacy's own `startX` of 73 on a 128-column panel, and its
 	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see the layout
 	// block above). Below the number, which is where legacy puts it.
-	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53, deluge::gfx::oled::kTextSpacingY};
+	const deluge::ui::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53,
+	                                              deluge::ui::gfx::oled::kTextSpacingY};
 	if (instruments::classic::has_polarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}};
 		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
@@ -749,7 +750,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	}
 
 	// `renderOLED`'s number, right of the diagram.
-	const deluge::gfx::oled::Rect value_rect{kValueBandX, kValueTextY, bounds.w - kValueBandX, kValueBandHeight};
+	const deluge::ui::gfx::oled::Rect value_rect{kValueBandX, kValueTextY, bounds.w - kValueBandX, kValueBandHeight};
 	const deluge::ui::Response r = deluge::ui::oled::cable_strength_value(
 	    f, value_rect, state.edit_int, kRange, state.decimal_pos, state.cursor_blink, /*take_turn=*/!polarity_turn);
 	state.tick.render_resp = r;

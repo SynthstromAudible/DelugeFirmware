@@ -1,12 +1,12 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/font.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/routing.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -21,8 +21,8 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `routing_chain` / `segmented_switch` / `cable_strength_value` -- the three blocks of legacy
@@ -83,20 +83,20 @@ void legacy_diagram(Canvas& c, int32_t topmost, std::span<const std::string_view
 		const int32_t horizontalLineY = y + (ySpacing << 1);
 		c.draw_vertical_line(leftPadding + 4, y + 1, horizontalLineY);
 		c.draw_horizontal_line(horizontalLineY, leftPadding + 4, leftPadding + 6 * 2 + 4);
-		c.draw_graphic_multi_line(deluge::gfx::oled::icons::arrowRight.data, leftPadding + 3 + 6, horizontalLineY - 2,
-		                          3);
+		c.draw_graphic_multi_line(deluge::ui::gfx::oled::icons::arrowRight.data, leftPadding + 3 + 6,
+		                          horizontalLineY - 2, 3);
 		y += ySpacing - 1;
 
 		c.draw_string(stages[1], leftPadding + 6 * 2, y - 3, 6, 7);
 		y += ySpacing;
 
 		c.draw_vertical_line(leftPadding + 6 * 2 + 4, y - 2, y + 2);
-		c.draw_graphic_multi_line(deluge::gfx::oled::icons::arrowDown.data, leftPadding + 6 * 2 + 2, y, 5);
+		c.draw_graphic_multi_line(deluge::ui::gfx::oled::icons::arrowDown.data, leftPadding + 6 * 2 + 2, y, 5);
 		y += ySpacing;
 	}
 	else {
 		c.draw_vertical_line(leftPadding + 3, y + 2, y + 5);
-		c.draw_graphic_multi_line(deluge::gfx::oled::icons::arrowDown.data, leftPadding + 1, y + 6, 5);
+		c.draw_graphic_multi_line(deluge::ui::gfx::oled::icons::arrowDown.data, leftPadding + 1, y + 6, 5);
 		y += 16;
 	}
 

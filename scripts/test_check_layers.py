@@ -654,13 +654,14 @@ class RealTable(unittest.TestCase):
 
     def test_gfx_oled_and_grid_never_include_each_other(self):
         self.assertEqual(
-            len(self.library_found("gfx-oled", '#include "gfx/grid/rgb.h"\n')), 1
+            len(self.library_found("ui-gfx-oled", '#include "ui/gfx/grid/rgb.h"\n')), 1
         )
         self.assertEqual(
-            len(self.library_found("gfx-grid", '#include "gfx/oled/canvas.h"\n')), 1
+            len(self.library_found("ui-gfx-grid", '#include "ui/gfx/oled/canvas.h"\n')),
+            1,
         )
         self.assertEqual(
-            self.library_found("gfx-grid", '#include "gfx/contract.h"\n'), []
+            self.library_found("ui-gfx-grid", '#include "ui/gfx/contract.h"\n'), []
         )
 
     def test_a_scene_including_an_edit_is_counted(self):

@@ -352,7 +352,7 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		};
 	}
 	if (node.bind.leaf_draw != nullptr) {
-		style.draw = [](deluge::ui::oled::OledFrame& frame, deluge::gfx::oled::Rect, int32_t value, const void* c) {
+		style.draw = [](deluge::ui::oled::OledFrame& frame, deluge::ui::gfx::oled::Rect, int32_t value, const void* c) {
 			const auto& lc = *static_cast<const LabelCall*>(c);
 			lc.node->bind.leaf_draw(frame, *lc.ctx, value, *lc.scroll);
 		};
@@ -534,9 +534,9 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
 	// clears the whole canvas before any scene draws, which is what makes
 	// that safe for a full-panel screen like this one.
-	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
-	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
-	                                   deluge::ui::oled::text_height_for(kFont)};
+	constexpr deluge::ui::gfx::oled::FontId kFont = deluge::ui::gfx::oled::FontId::MetricBold13;
+	const deluge::ui::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
+	                                       deluge::ui::oled::text_height_for(kFont)};
 
 	// Centred text, not digits: OFF at zero, else the note length (`sync_level_name`), never the raw menu option.
 	char name_buf[32];

@@ -1,10 +1,10 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
 #include "ui/core/metrics.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/misc.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -17,10 +17,10 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Point;
-using deluge::gfx::oled::Rect;
-namespace icons = deluge::gfx::oled::icons;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Point;
+using deluge::ui::gfx::oled::Rect;
+namespace icons = deluge::ui::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
 // The four "everything else" OLED widgets, pinned the same three ways the other ui specs use.
@@ -69,7 +69,7 @@ void drawOutputNameFromDetails(Canvas& canvas, const char* outputTypeText, const
 	}
 	{
 		const int32_t yPos = (height_pixels == 64) ? topmost + 30 : topmost + 17;
-		const int32_t stringLengthPixels = deluge::gfx::oled::string_width_px(nameToDraw, 10); // kTextTitleSizeY
+		const int32_t stringLengthPixels = deluge::ui::gfx::oled::string_width_px(nameToDraw, 10); // kTextTitleSizeY
 		if (stringLengthPixels <= width_pixels) {
 			canvas.draw_string_centred(nameToDraw, yPos, 9, 10); // kTextTitleSpacingX
 		}
@@ -222,7 +222,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		output_name(r.frame, r.frame.bounds(), data);
 		legacy::drawOutputNameFromDetails(r.reference, "SYNTH", wide, 128, 48, 5);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect(deluge::gfx::oled::string_width_px(wide, 10)).to_be_greater_than(128);
+		expect(deluge::ui::gfx::oled::string_width_px(wide, 10)).to_be_greater_than(128);
 	});
 
 	it("draws the seven-segment digits exactly as renderEmulated7Seg did", _ {

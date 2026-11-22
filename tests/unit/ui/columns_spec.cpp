@@ -1,9 +1,9 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
 #include "ui/core/style.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/columns.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -18,10 +18,10 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::BorderRadius;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
-namespace icons = deluge::gfx::oled::icons;
+using deluge::ui::gfx::oled::BorderRadius;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
+namespace icons = deluge::ui::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
 // The horizontal menu page is pinned three ways at once, as `tests/unit/ui/meters_spec.cpp` and
@@ -968,9 +968,9 @@ describe columns_w("ui::oled::columns", $ {
 		// `(start_x + 4, OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8)`, the box one pixel wider than the letter cleared
 		// first.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::saw, 0, 128, 5 + 2 + 2);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::saw, 0, 128, 5 + 2 + 2);
 		r.reference.clear_area_exact(4 - 1, 31 - 1, 4 + 6 + 1, 31 + 9 + 1);
 		r.reference.draw_char('A', 4, 31, 6, 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -980,9 +980,9 @@ describe columns_w("ui::oled::columns", $ {
 		// `stutter::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): a
 		// pixel at the centre column, on the icon's first row and seven below.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .reversed = true, .dots = true};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::direction, .reversed = true, .dots = true};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 0, 128, 5 + 2, true);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, 0, 128, 5 + 2, true);
 		r.reference.draw_pixel(64, 5 + 2);
 		r.reference.draw_pixel(64, 5 + 2 + 7);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -992,10 +992,10 @@ describe columns_w("ui::oled::columns", $ {
 		// `sequence::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`):
 		// the icon at `start_x + 2`, and again mirrored at `start_x - 2`.
 		uitest::Rig48 r;
-		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .twin_dx = 2};
+		ArtColumn data{.icon = &deluge::ui::gfx::oled::icons::direction, .twin_dx = 2};
 		art_column(r.frame, false, &data);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, 2, 128, 5 + 2);
-		r.reference.draw_icon_centered(deluge::gfx::oled::icons::direction, -2, 128, 5 + 2, true);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, 2, 128, 5 + 2);
+		r.reference.draw_icon_centered(deluge::ui::gfx::oled::icons::direction, -2, 128, 5 + 2, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 

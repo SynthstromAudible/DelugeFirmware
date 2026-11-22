@@ -1,5 +1,5 @@
 # deluge_ui_shell — surfaces, scene stack, input lowering, services, tick, flush.
-# May include shell/**, ui/**, gfx/**, base/**, libdeluge/**, midi/** (the MIDI protocol library, for
+# May include shell/**, ui/**, ui/gfx/**, base/**, libdeluge/**, midi/** (the MIDI protocol library, for
 # `midi::DeviceId`) and the standard library only.
 add_library(deluge_ui_shell STATIC profile.cpp surfaces.cpp board_surfaces.cpp scene_stack.cpp input_lowering.cpp router.cpp notices.cpp leds.cpp shell.cpp screensaver.cpp loading_scene.cpp profiles/deluge.cpp profiles/test_board.cpp)
 target_include_directories(deluge_ui_shell PUBLIC ${SHARED_INCLUDE})

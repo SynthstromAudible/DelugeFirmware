@@ -1,7 +1,7 @@
 #pragma once
-#include "gfx/oled/font.h"
-#include "gfx/oled/geometry.h"
-#include "gfx/oled/icon.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/geometry.h"
+#include "ui/gfx/oled/icon.h"
 #include "ui/oled/frame.h"
 #include <cstdint>
 #include <string_view>

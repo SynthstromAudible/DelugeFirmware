@@ -28,7 +28,7 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "gfx/oled/icons.h"
+#include "ui/gfx/oled/icons.h"
 
 #include "music/preset_scales.h"
 #include "project/device_settings.h"
@@ -146,8 +146,8 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 		// `scalelikeNames` holds `char const*` with static storage (`music/preset_scales.h`),
 		// so the view outlives this frame.
 		rows[i].label = std::string_view{deluge::music::scalelikeNames[i]};
-		rows[i].icon =
-		    is_disabled(ctx, i) ? &deluge::gfx::oled::icons::uncheckedBox : &deluge::gfx::oled::icons::checkedBox;
+		rows[i].icon = is_disabled(ctx, i) ? &deluge::ui::gfx::oled::icons::uncheckedBox
+		                                   : &deluge::ui::gfx::oled::icons::checkedBox;
 		rows[i].selectable = true;
 	}
 

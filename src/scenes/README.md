@@ -49,7 +49,7 @@ nothing.
 `scripts/check_layer_rules.py` enforces these; the include list itself is the comment at the top of
 `src/scenes/CMakeLists.txt`.
 
-* **Includes.** `scenes/`, `shell/`, `ui/`, `gfx/`, `base/`, `libdeluge/`, the standard library,
+* **Includes.** `scenes/`, `shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
   `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
   `sequence/`, `project/`, …) and three root-level headers named in that comment

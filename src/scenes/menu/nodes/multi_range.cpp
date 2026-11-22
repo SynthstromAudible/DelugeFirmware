@@ -29,8 +29,8 @@
 #include "scenes/profile.h"
 
 #include "base/notify/notice_queue.h"
-#include "gfx/oled/font.h"
-#include "gfx/oled/glyphs.h"
+#include "ui/gfx/oled/font.h"
+#include "ui/gfx/oled/glyphs.h"
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -77,7 +77,7 @@ void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code, boo
 	const deluge::music::NoteName name = deluge::music::note_name(note_code, sharps);
 	append(out, len, cap, std::string_view{&name.letter, 1});
 	if (name.accidental != deluge::music::Accidental::NONE) {
-		const char sign = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
+		const char sign = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::ui::gfx::oled::kFlatGlyph;
 		append(out, len, cap, std::string_view{&sign, 1});
 	}
 	// The octave as `intToString(octave, buffer, 1)` writes it: at least one digit, '-' first when negative.
@@ -300,11 +300,11 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	if (list_state.hide_cursor && list_state.cursor >= 0 && list_state.cursor < count) {
 		deluge::ui::oled::ListRow& span = rows[static_cast<size_t>(list_state.cursor)];
 		if (edge == deluge::ui::oled::RangeEdge::Left) {
-			span.invert_from = gfx::oled::kTextSpacingX;
-			span.invert_to = gfx::oled::kTextSpacingX * 7;
+			span.invert_from = ui::gfx::oled::kTextSpacingX;
+			span.invert_to = ui::gfx::oled::kTextSpacingX * 7;
 		}
 		else {
-			span.invert_from = gfx::oled::kTextSpacingX * 10;
+			span.invert_from = ui::gfx::oled::kTextSpacingX * 10;
 			span.invert_to = static_cast<int16_t>(f.bounds().w);
 		}
 	}

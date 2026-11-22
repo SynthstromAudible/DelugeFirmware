@@ -26,7 +26,6 @@
 #include "scenes/menu/nodes/nodes.h"
 
 #include "effects/words.h"
-#include "gfx/oled/icons.h"
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -35,6 +34,7 @@
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
 #include "project/song.h"
+#include "ui/gfx/oled/icons.h"
 
 #include <algorithm>
 #include <array>
@@ -46,10 +46,10 @@
 
 namespace deluge::scenes::menu::nodes {
 
-using deluge::gfx::oled::Icon;
 using deluge::l10n::String;
+using deluge::ui::gfx::oled::Icon;
 using deluge::ui::oled::ArtColumn;
-namespace icons = deluge::gfx::oled::icons;
+namespace icons = deluge::ui::gfx::oled::icons;
 
 namespace {
 

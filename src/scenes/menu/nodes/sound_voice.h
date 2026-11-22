@@ -46,8 +46,8 @@
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
 #include "scenes/menu/relevance.h"
 
-#include "gfx/oled/icons.h"
 #include "instruments/classic/words.h"
+#include "ui/gfx/oled/icons.h"
 
 #include <optional>
 #include <span>
@@ -78,7 +78,7 @@ inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuCont
 	if (value != 0) {
 		return std::nullopt;
 	}
-	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::infinity, .dy = 1};
+	return deluge::ui::oled::ArtColumn{.icon = &deluge::ui::gfx::oled::icons::infinity, .dy = 1};
 }
 
 inline constexpr Node voice_count = with_affect_entire(with_column_name(

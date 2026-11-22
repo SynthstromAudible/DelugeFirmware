@@ -68,9 +68,9 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
 
-#include "gfx/grid/pad_grid.h" // kMaxGridCols / kMaxGridRows -- the widest pad grid to sweep
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
+#include "ui/gfx/grid/pad_grid.h" // kMaxGridCols / kMaxGridRows -- the widest pad grid to sweep
 
 #include <algorithm>
 
@@ -412,8 +412,8 @@ deluge::base::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> 
 	     root++) {
 		const auto menu_root = static_cast<MenuContext::Root>(root);
 		for (uint8_t layer = 0; layer < 2; layer++) {
-			for (uint8_t y = 0; y < deluge::gfx::grid::kMaxGridRows; y++) {
-				for (uint8_t x = 0; x < deluge::gfx::grid::kMaxGridCols; x++) {
+			for (uint8_t y = 0; y < deluge::ui::gfx::grid::kMaxGridRows; y++) {
+				for (uint8_t x = 0; x < deluge::ui::gfx::grid::kMaxGridCols; x++) {
 					const Node* current = shortcut_node(menu_root, ShortcutsVersion::V3, layer != 0, x, y);
 					const Node* older = shortcut_node(menu_root, ShortcutsVersion::V1, layer != 0, x, y);
 					for (const Node* cell : {current, older != current ? older : nullptr}) {

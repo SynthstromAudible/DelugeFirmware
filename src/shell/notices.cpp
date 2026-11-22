@@ -181,7 +181,7 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	// 7-8 sibling, and 9 is what this `FontId` means). A hard-coded 7 clipped the glyphs' bottom
 	// row inside every `region` below: with the row gone, `E` and `F` render pixel-identical, which a
 	// set-pixel-count assertion alone cannot catch.
-	const int32_t kLineHeight = ui::oled::text_height_for(gfx::oled::FontId::Apple7);
+	const int32_t kLineHeight = ui::oled::text_height_for(ui::gfx::oled::FontId::Apple7);
 	int32_t y = frame.bounds().h;
 	for (const Line& line : lines_) {
 		// Difference form for the same wrap reason as `PopupScene::expired`: a line appended just
@@ -192,7 +192,7 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 		}
 		y -= kLineHeight;
 		frame.region({0, y, frame.bounds().w, kLineHeight}, false, [&](ui::oled::OledFrame& region) {
-			ui::oled::text(region, region.bounds(), line.text, ui::oled::TextStyle{gfx::oled::FontId::Apple7});
+			ui::oled::text(region, region.bounds(), line.text, ui::oled::TextStyle{ui::gfx::oled::FontId::Apple7});
 		});
 	}
 }

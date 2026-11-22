@@ -64,9 +64,9 @@
 #include "scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
 #include "scenes/menu/relevance.h"
 
-#include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "plugin/types/arp.h"
+#include "ui/gfx/oled/icons.h"
 
 #include <optional>
 #include <span>
@@ -182,7 +182,7 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 /// @brief `PresetMode::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/arpeggiator/preset_mode.h`): OFF
 ///        in the title face, else the preset's icon, DOWN being UP's mirrored.
 inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
-	namespace icons = deluge::gfx::oled::icons;
+	namespace icons = deluge::ui::gfx::oled::icons;
 	switch (value) {
 	case int32_t{plugin::kArpPresetOff}:
 		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),

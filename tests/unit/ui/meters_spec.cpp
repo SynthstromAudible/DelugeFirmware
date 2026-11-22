@@ -1,8 +1,8 @@
-#include "gfx/oled/canvas.h"
-#include "gfx/oled/icons.h"
 #include "support/frames.h"
+#include "ui/gfx/oled/canvas.h"
+#include "ui/gfx/oled/icons.h"
 #include "ui/oled/meters.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -13,9 +13,9 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
-using deluge::gfx::oled::Canvas;
-using deluge::gfx::oled::Rect;
-namespace icons = deluge::gfx::oled::icons;
+using deluge::ui::gfx::oled::Canvas;
+using deluge::ui::gfx::oled::Rect;
+namespace icons = deluge::ui::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
 // Every meter below is pinned three ways at once, the same way values_spec.cpp pins the value

@@ -53,7 +53,7 @@
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/pad_flash_printer.h"
 #include "support/printers/rgb_printer.h"
-#include "unit/gfx/support/golden.h"
+#include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
@@ -488,7 +488,7 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		for (const Node* n : {&int_leaf, &decimal_leaf, &enum_leaf, &sync_leaf, &lpf_page}) {
-			expect(menu::row_icon(*n, ctx)).to_equal(&deluge::gfx::oled::icons::submenuArrow);
+			expect(menu::row_icon(*n, ctx)).to_equal(&deluge::ui::gfx::oled::icons::submenuArrow);
 		}
 	});
 
@@ -498,9 +498,9 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 		const MenuContext ctx = r.open(settings_root);
 		constexpr Node toggle_enum = menu::with_selection_is_toggle(enum_leaf);
 		g_enum = 0;
-		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::gfx::oled::icons::uncheckedBox);
+		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::ui::gfx::oled::icons::uncheckedBox);
 		g_enum = 1;
-		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::gfx::oled::icons::checkedBox);
+		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::ui::gfx::oled::icons::checkedBox);
 	});
 
 	it("marks the arpeggiator's mode and kit-arp rows toggle-style, as their isToggle() does", _ {

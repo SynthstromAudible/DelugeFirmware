@@ -71,7 +71,7 @@ random row colour, DIFFERENCES.md D11). `ui_script.cpp` rejects both, so app scr
 Per `snapshot <name>`, written into the output directory:
 
 - `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h`'s
-  dependency-free re-implementation of `tests/unit/gfx/support/pbm.h`'s `page_major_to_pbm` --
+  dependency-free re-implementation of `tests/unit/ui/gfx/support/pbm.h`'s `page_major_to_pbm` --
   `tests/harness` may not include `tests/unit/` headers, since it is also compiled into the host
   BSP). A deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
   `scripts/pbm2png.py` converts for viewing.

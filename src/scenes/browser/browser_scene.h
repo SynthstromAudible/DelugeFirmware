@@ -86,10 +86,10 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text_edit.h"
 
-#include "gfx/grid/pad_grid.h"
-#include "gfx/oled/icon.h"
 #include "sample-view/view.h"
 #include "scenes/services/peak_retry.h"
+#include "ui/gfx/grid/pad_grid.h"
+#include "ui/gfx/oled/icon.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -164,10 +164,10 @@ struct Descriptor {
 	std::string_view default_dir;
 
 	/// @brief `Browser::fileIcon` -- the row icon for a non-folder.
-	const gfx::oled::Icon* file_icon;
+	const ui::gfx::oled::Icon* file_icon;
 
 	/// @brief `Browser::fileIconPt2`, or null. Only the MIDI plug has one (its ninth column).
-	const gfx::oled::Icon* file_icon_pt2;
+	const ui::gfx::oled::Icon* file_icon_pt2;
 
 	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h`), threaded through
 	///        the listing rather than read off a browser -- see `FileCatalogue`'s own note.
@@ -847,7 +847,7 @@ private:
 	/// `waveformBasicNavigator.opened()` does.
 	sample_view::WaveformView view_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
-	RGB waveform_shown_[deluge::gfx::grid::kDelugeGrid.rows][deluge::gfx::grid::kDelugeGrid.main_cols]{};
+	RGB waveform_shown_[deluge::ui::gfx::grid::kDelugeGrid.rows][deluge::ui::gfx::grid::kDelugeGrid.main_cols]{};
 	uint64_t nav_identity_ = 0;
 	/// The redraws of a render whose read left columns pending.
 	services::PeakRetry retry_{};
