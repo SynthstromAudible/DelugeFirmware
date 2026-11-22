@@ -149,6 +149,124 @@ class Moves(unittest.TestCase):
         self.assertIn("int deluge_scenes_count;", self.repo.read("src/shell/shell.cpp"))
 
 
+class Spellings(unittest.TestCase):
+    def moved(self, files, moves=(("scenes", "ui/scenes"),), targets=()):
+        repo = Repo({"src/scenes/a.h": "", **files})
+        self.addCleanup(repo.close)
+        relocate.apply(
+            repo.root, moves=list(moves), namespaces=[], targets=list(targets)
+        )
+        return repo
+
+    def test_a_string_literal_script_or_shell_word_is_left(self):
+        repo = self.moved(
+            {
+                "src/x.cpp": 'const char* a = "scenes/x"; // scenes/x here\n',
+                "scripts/tool.py": 'p = gcc / "scenes/x"\n',
+                "scripts/run.sh": "ls scenes/x\n",
+            }
+        )
+        self.assertEqual(
+            repo.read("src/x.cpp"), 'const char* a = "scenes/x"; // ui/scenes/x here\n'
+        )
+        self.assertEqual(repo.read("scripts/tool.py"), 'p = gcc / "scenes/x"\n')
+        self.assertEqual(repo.read("scripts/run.sh"), "ls scenes/x\n")
+
+    def test_layer_data_cmake_and_comments_are_rewritten(self):
+        repo = self.moved(
+            {
+                "scripts/layers.toml": 'prefix = "scenes/"\n',
+                "scripts/layers_baseline.txt": "scenes/a.h\n",
+                "src/CMakeLists.txt": "add_subdirectory(scenes/bind)\n",
+                "src/y.h": "/* the scenes/x header\n * and scenes/y */\nint a;\n",
+            }
+        )
+        self.assertEqual(repo.read("scripts/layers.toml"), 'prefix = "ui/scenes/"\n')
+        self.assertEqual(repo.read("scripts/layers_baseline.txt"), "ui/scenes/a.h\n")
+        self.assertEqual(
+            repo.read("src/CMakeLists.txt"), "add_subdirectory(ui/scenes/bind)\n"
+        )
+        self.assertEqual(
+            repo.read("src/y.h"),
+            "/* the ui/scenes/x header\n * and ui/scenes/y */\nint a;\n",
+        )
+
+    def test_variable_and_relative_prefixes_are_rewritten(self):
+        repo = self.moved(
+            {
+                "a.sh": 'x="$REPO/src/scenes" y=${ROOT}/src/scenes z=../../src/scenes/q w=not/src/scenes\n',
+            }
+        )
+        self.assertEqual(
+            repo.read("a.sh"),
+            'x="$REPO/src/ui/scenes" y=${ROOT}/src/ui/scenes z=../../src/ui/scenes/q w=not/src/scenes\n',
+        )
+
+    def test_a_sentence_final_path_is_rewritten(self):
+        repo = self.moved({"d.md": "see src/scenes. And src/scenes.h stays.\n"})
+        self.assertEqual(
+            repo.read("d.md"), "see src/ui/scenes. And src/scenes.h stays.\n"
+        )
+
+    def test_chained_moves_read_the_layout_before_any_move(self):
+        repo = Repo(
+            {
+                "src/a/x.h": "",
+                "src/b/y.h": "",
+                "d.md": "a/x.h and b/y.h and src/a and src/b\n",
+            }
+        )
+        try:
+            relocate.apply(
+                repo.root, moves=[("a", "b/a"), ("b", "c")], namespaces=[], targets=[]
+            )
+            self.assertEqual(
+                repo.read("d.md"), "b/a/x.h and c/y.h and src/b/a and src/c\n"
+            )
+        finally:
+            repo.close()
+
+    def test_a_target_is_not_renamed_inside_a_hyphenated_name(self):
+        repo = self.moved(
+            {"src/CMakeLists.txt": "t sample-view sample-view-tests\n"},
+            targets=[("sample-view", "X")],
+        )
+        self.assertEqual(repo.read("src/CMakeLists.txt"), "t X sample-view-tests\n")
+
+    def test_the_website_is_never_rewritten(self):
+        repo = self.moved({"website/a.md": "src/scenes\n"})
+        self.assertEqual(repo.read("website/a.md"), "src/scenes\n")
+
+    def test_dry_run_prints_each_rewritten_non_include_line(self):
+        repo = Repo(
+            {
+                "src/scenes/a.h": "",
+                "d.md": "see src/scenes\n",
+                "x.cpp": '#include "scenes/a.h"\n',
+            }
+        )
+        try:
+            out = subprocess.run(
+                [
+                    "python3",
+                    str(Path(relocate.__file__)),
+                    "--repo",
+                    str(repo.root),
+                    "--move",
+                    "scenes",
+                    "ui/scenes",
+                    "--dry-run",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            self.assertIn("d.md: -see src/scenes / +see src/ui/scenes", out)
+            self.assertNotIn("x.cpp:", out)
+        finally:
+            repo.close()
+
+
 class Refusals(unittest.TestCase):
     def test_a_move_the_legacy_root_shadows_is_refused(self):
         repo = Repo(
@@ -178,6 +296,16 @@ class Refusals(unittest.TestCase):
                 relocate.apply(
                     repo.root, moves=[("a", "b/a")], namespaces=[], targets=[]
                 )
+        finally:
+            repo.close()
+
+
+class MoreRefusals(unittest.TestCase):
+    def test_a_move_onto_an_existing_unit_test_directory_is_refused(self):
+        repo = Repo({"src/a/x.h": "", "tests/unit/b/y.cpp": ""})
+        try:
+            with self.assertRaises(relocate.Refused):
+                relocate.apply(repo.root, moves=[("a", "b")], namespaces=[], targets=[])
         finally:
             repo.close()
 
