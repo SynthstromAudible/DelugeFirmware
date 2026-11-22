@@ -13,7 +13,8 @@ them. This compares what an address names instead of its value, so that what rem
   sized symbol, and ADDR when it falls in a loaded segment but in no symbol (merged string literals);
 - a pc-relative load or adr into the function names the literal it reads by its index, as a branch names its
   target, so a load moved between two literals of the function is a change (the pool words are compared where they
-  sit); one that reads outside the function loses its offset;
+  sit); one that reads another function's pool names that function and the offset; an adr in ARM code (by the `$a`
+  mapping symbols) is placed by ARM's pc + 8, in Thumb code by pc + 4;
 - the linker's trap fill between functions is dropped.
 A value outside every loaded segment is a constant and compares as is, as does every other immediate.
 
@@ -143,7 +144,9 @@ LTO_SUFFIX = re.compile(r"\.llvm\.\d+")
 WORD = re.compile(r"^\.word\s+0x([0-9a-f]{8})$")
 PC_RELATIVE = re.compile(r"\[pc, #-?\w+\]")
 # The literal a pc-relative load reads, as objdump's annotation names it.
-LITERAL = re.compile(r"\[pc, #-?\w+\].*@ 0x([0-9a-f]+)")
+LITERAL = re.compile(
+    r"\[pc, #-?\w+\].*@ 0x([0-9a-f]+)(?:\s+<([^<>+]+)(\+0x[0-9a-f]+)?>)?"
+)
 ADR = re.compile(r"^(adr\S*\s+\w+), #-?\w+")
 MOV_HALF = re.compile(r"^(mov[wt])(\S*) (\w+), #0x([0-9a-f]+)$")
 UNCONDITIONAL_BRANCH = re.compile(r"^(?:b(?:\.w)?\s|bx\s|pop(?:\.w)?\s+\{.*\bpc\})")
@@ -332,23 +335,32 @@ def normalise(
     local=None,
     alias=None,
     address: int | None = None,
+    arm: bool = False,
 ) -> str:
     """One disassembled instruction with its raw bytes, annotations and pc-relative offsets removed. A target in the
     function goes through @p local (address -> its instruction index); any other goes through @p alias (address -> the
     name of a body several symbols share) or, without one, @p rename. A literal word that @p classify names an address
     becomes that name. A pc-relative load names the literal it reads (its annotation's address) by its index in the
     function, `[pc, <.k>]`, and an `adr` at @p address its target (Align(pc, 4) + its immediate, pc being @p address +
-    4, as Thumb code reads it) the same way, so a load moved between two literals of one function is a change."""
+    4 in Thumb code and + 8 in @p arm code) the same way, so a load moved between two literals of one function is a
+    change. A load from another function's pool names that function and the offset, `[pc, <f>+0x8]`."""
     literal = LITERAL.search(line)
     text = RAW_BYTES.sub("", ANNOTATION.sub("", line.strip()))
     pool = None
     if literal and local is not None:
-        pool = local(int(literal.group(1), 16))
+        index = local(int(literal.group(1), 16))
+        if index is not None:
+            pool = f".{index}"
+    if literal and pool is None and local is not None and literal.group(2):
+        offset = f"+{literal.group(3)[1:]}" if literal.group(3) else ""
+        pool = f"{rename(LTO_SUFFIX.sub('', literal.group(2)))}>{offset}"
     adr = ADR.match(text)
     if adr and local is not None and address is not None:
         immediate = re.match(r"^adr\S*\s+\w+, #(-?(?:0x[0-9a-f]+|\d+))", text)
         if immediate:
-            index = local(((address + 4) & ~3) + int(immediate.group(1), 0))
+            index = local(
+                ((address + (8 if arm else 4)) & ~3) + int(immediate.group(1), 0)
+            )
             if index is not None:
                 return " ".join(f"{adr.group(1)} <.{index}>".split())
 
@@ -372,7 +384,12 @@ def normalise(
         ),
         text,
     )
-    text = PC_RELATIVE.sub(f"[pc, <.{pool}>]" if pool is not None else "[pc]", text)
+    if pool is None:
+        text = PC_RELATIVE.sub("[pc]", text)
+    elif pool.startswith("."):
+        text = PC_RELATIVE.sub(f"[pc, <{pool}>]", text)
+    else:
+        text = PC_RELATIVE.sub(f"[pc, <{pool}]", text)
     text = ADR.sub(r"\1", text)
     text = " ".join(text.split())
     word = WORD.match(text)
@@ -466,7 +483,11 @@ def mask_address_halves(body: list[str], classify=low_ram) -> list[str]:
 
 
 def functions(
-    disassembly: str, rename=keep, classify=low_ram, alias=None
+    disassembly: str,
+    rename=keep,
+    classify=low_ram,
+    alias=None,
+    arm=lambda address: False,
 ) -> dict[str, tuple[str, ...]]:
     """Each function's normalised instructions, keyed by its name passed through @p rename, or by its @p alias (see
     aliases()) when its address has one. Addresses go through @p classify. A key names one body: one listed twice at
@@ -498,7 +519,7 @@ def functions(
             body.pop()
         index = {address: i for i, (address, _) in enumerate(body)}
         lines = [
-            normalise(text, rename, classify, index.get, least, address)
+            normalise(text, rename, classify, index.get, least, address, arm(address))
             for address, text in body
         ]
         result[name] = tuple(mask_address_halves(lines, classify))
@@ -1106,6 +1127,21 @@ SECTION_HEADER = re.compile(
 )
 
 
+def arm_code(mapping: str):
+    """Whether an address holds ARM code, by the `$a`/`$t` mapping symbols of @p mapping (`nm --special-syms`); code
+    before any mapping symbol is Thumb."""
+    modes = sorted(
+        (a, n[1]) for a, _, n in nm_symbols(mapping) if n.split(".")[0] in ("$a", "$t")
+    )
+    starts = [a for a, _ in modes]
+
+    def arm(address: int) -> bool:
+        i = bisect.bisect_right(starts, address) - 1
+        return i >= 0 and modes[i][1] == "a"
+
+    return arm
+
+
 def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, bytes]]:
     """The loaded, non-executable content of @p elf (`readelf -SW` in @p sections_text) as (address, bytes): each
     PROGBITS section with the A flag and without X, and the SDRAM content inflated from `.sdram_init_pack` at
@@ -1360,6 +1396,7 @@ def main() -> int:
     moved = moved_twins(read[0][1], read[1][1], read[0][2], read[1][2], places)
     images = []
     datas = []
+    arms = []
     for (which, nm, sections, mapping, sections_text), twins_moved, side in zip(
         read, (frozenset(), moved), "!?"
     ):
@@ -1377,6 +1414,7 @@ def main() -> int:
             side,
         )
         images.append((disassembly, nm, run([args.readelf, "-lW", which])))
+        arms.append(arm_code(mapping))
     rename = demangler(
         args.cxxfilt,
         [text for image in images for text in image[:2]],
@@ -1386,8 +1424,10 @@ def main() -> int:
         shutil.which(args.gnu_cxxfilt),
     )
     base, new = (
-        functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
-        for dis, nm, segments in images
+        functions(
+            dis, rename, classifier(segments, nm, rename), aliases(nm, rename), arm
+        )
+        for (dis, nm, segments), arm in zip(images, arms)
     )
     base_data, new_data = (
         data_objects(nm, blobs, segments, rename)

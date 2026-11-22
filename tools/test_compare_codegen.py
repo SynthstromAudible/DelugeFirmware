@@ -1083,6 +1083,61 @@ class LiteralLoads(MainHarness, unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn(mock.call("  foo"), printed)
 
+    def test_a_load_moved_between_two_words_of_another_functions_pool_is_a_change(self):
+        def image(literal: int) -> tuple[str, str]:
+            listing = (
+                "20001000 <reset>:\n"
+                f"20001000:      \tldr\tr0, [pc, #0x{literal - 0x20001004:x}]           "
+                f"@ 0x{literal:x} <pool+0x{literal - 0x20001100:x}>\n"
+                "20001002:      \tbx\tlr\n\n"
+                "20001100 <pool>:\n20001100:      \tbx\tlr\n"
+                "20001104:      \t.word\t0x11111111\n20001108:      \t.word\t0x22222222\n"
+            )
+            return listing, "20001000 00000004 T reset\n20001100 0000000c T pool\n"
+
+        status, printed = self.run_main(
+            {"a.elf": image(0x20001104), "b.elf": image(0x20001108)}
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  reset"), printed)
+
+    def test_an_arm_adr_is_placed_by_the_arm_rule(self):
+        # ARM code (`$a`): Align(pc + 8, 4) + imm. 0x20001000 + 8 + 4 is the second literal; Thumb's + 4 would be the
+        # first, so the two images below read alike only by the ARM rule.
+        def image(imm: int, literal: int) -> tuple[str, str]:
+            listing = (
+                "20001000 <foo>:\n"
+                f"20001000:      \tadr\tr1, #{imm} <foo+0x{literal - 0x20001000:x}>\n"
+                "20001004:      \tbx\tlr\n"
+                "20001008:      \t.word\t0x11111111\n"
+                "2000100c:      \t.word\t0x22222222\n"
+                "20001010:      \t.word\t0x33333333\n"
+            )
+            return listing, "20001000 00000000 t $a\n20001000 00000014 T foo\n"
+
+        status, _ = self.run_main(
+            {"a.elf": image(4, 0x2000100C), "b.elf": image(4, 0x2000100C)}
+        )
+        self.assertEqual(status, 0)
+        status, _ = self.run_main(
+            {"a.elf": image(4, 0x2000100C), "b.elf": image(8, 0x20001010)}
+        )
+        self.assertEqual(status, 1)
+        # By Thumb's rule `#0` names 0x20001004 and `#4` names 0x20001008; by ARM's they are 0x20001008 and 0x2000100c.
+        status, _ = self.run_main(
+            {"a.elf": image(0, 0x20001008), "b.elf": image(0, 0x20001008)}
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            compare_codegen.normalise(
+                "\tadr\tr1, #0 <foo+0x8>",
+                local={0x20001008: 2}.get,
+                address=0x20001000,
+                arm=True,
+            ),
+            "adr r1 <.2>",
+        )
+
     def test_the_same_loads_at_another_address_compare_identical(self):
         moved = tuple(
             t.replace("2000100", "2000300").replace("20001000 ", "20003000 ")
