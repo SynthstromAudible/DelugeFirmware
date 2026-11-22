@@ -642,7 +642,10 @@ class MainTest(unittest.TestCase):
 
 
 class MainHarness:
-    """main() over fake tools: a disassembly and an `nm` listing per image path, DEMANGLED for llvm-cxxfilt."""
+    """main() over fake tools: a disassembly and an `nm` listing per image path, DEMANGLED for llvm-cxxfilt and
+    GNU_DEMANGLED for GNU c++filt."""
+
+    GNU_DEMANGLED: ClassVar[dict[str, str]] = {}
 
     SEGMENTS = "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n"
     DEMANGLED: ClassVar[dict[str, str]] = {
@@ -661,7 +664,17 @@ class MainHarness:
                     "\n".join(self.DEMANGLED.get(n, n) for n in stdin.splitlines())
                     + "\n"
                 )
+            if tool[0].endswith("c++filt"):
+                return (
+                    "\n".join(self.GNU_DEMANGLED.get(n, n) for n in stdin.splitlines())
+                    + "\n"
+                )
             disassembly, nm = images[tool[-1]]
+            if tool[0] == "nm" and "--special-syms" not in tool:
+                # llvm-nm lists mapping symbols (`$a`, `$t`, `$d`) only when asked to.
+                nm = "".join(
+                    line for line in nm.splitlines(keepends=True) if " $" not in line
+                )
             return {"objdump": disassembly, "nm": nm, "readelf": self.SEGMENTS}[tool[0]]
 
         argv = ["compare_codegen.py", *images, "--objdump", "objdump", "--nm", "nm"]
@@ -699,12 +712,68 @@ class SameNamedSymbols(MainHarness, unittest.TestCase):
     def test_the_same_layout_under_other_hashes_is_identical(self):
         status, printed = self.run_main(
             {
-                "a.elf": self.promoted("111", "222", "0x20251190"),
-                "b.elf": self.promoted("333", "444", "0x20251190"),
+                "a.elf": self.anchored(
+                    [("a_mod", 0x20251190, "111"), ("b_mod", 0x20251200, "222")],
+                    "0x20251190",
+                ),
+                "b.elf": self.anchored(
+                    [("a_mod", 0x20251190, "333"), ("b_mod", 0x20251200, "444")],
+                    "0x20251190",
+                ),
             }
         )
         self.assertEqual(status, 0)
         self.assertIn(mock.call("changed: 0"), printed)
+
+    def test_copies_behind_one_anchor_never_pair(self):
+        # Back to back behind `foo`: the first copy dropped, a third added after the second, `foo` moved to the second.
+        base = (
+            SAMPLE,
+            (
+                "20001000 00000018 T foo\n20251190 00000010 d _ZL1k.llvm.111\n20251200 00000010 d _ZL1k.llvm.222\n"
+            ),
+        )
+        new = (
+            SAMPLE.replace("0x20251190", "0x20251200"),
+            (
+                "20001000 00000018 T foo\n20251200 00000010 d _ZL1k.llvm.222\n20251300 00000010 d _ZL1k.llvm.333\n"
+            ),
+        )
+        status, printed = self.run_main({"a.elf": base, "b.elf": new})
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+        self.assertNotIn(mock.call("changed: 0"), printed)
+
+    def arm_adr_image(self, imm: int) -> tuple[str, str]:
+        # An ARM `adr` at 0x20001008: Align(0x20001010, 4) + imm. `$a` marks the function as ARM code.
+        listing = (
+            "20001000 <foo>:\n20001000:      \tpush\t{r4, lr}\n"
+            f"20001008:      \tadr\tr0, #{imm} <_ZL1k.llvm.111>\n20001010:      \tpop\t{{r4, pc}}\n"
+        )
+        nm = (
+            "20001000 00000000 t $a\n20001000 00000018 T foo\n20001020 00000010 d p_mod\n"
+            "20001100 00000010 d _ZL1k.llvm.111\n20001120 00000010 d q_mod\n20001200 00000010 d _ZL1k.llvm.222\n"
+        )
+        return listing, nm
+
+    def test_an_arm_adr_is_placed_by_the_arm_pc(self):
+        # 0x20001010 + 0xf0 is the first copy; + 0x1f0 the second. As Thumb, 0xf0 would land 4 bytes short of it.
+        status, printed = self.run_main(
+            {"a.elf": self.arm_adr_image(0xF0), "b.elf": self.arm_adr_image(0x1F0)}
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+        status, _ = self.run_main(
+            {"a.elf": self.arm_adr_image(0xF0), "b.elf": self.arm_adr_image(0xF0)}
+        )
+        self.assertEqual(status, 0)
+
+    def test_an_arm_adr_that_lands_in_no_copy_is_an_error(self):
+        # 0x20001010 + 0x100 is just past the first copy; as Thumb it would land inside it.
+        with self.assertRaises(ValueError):
+            self.run_main(
+                {"a.elf": self.arm_adr_image(0x100), "b.elf": self.arm_adr_image(0x100)}
+            )
 
     def test_a_call_retargeted_between_two_modules_statics_is_a_change(self):
         flag = "_ZN12_GLOBAL__N_14flagEb"
@@ -965,6 +1034,16 @@ def fake_cxxfilt(table):
     return fake
 
 
+def gnu_only(table):
+    """A stand-in for `run`: names in @p table demangle only through GNU c++filt (`gnu-cxxfilt`)."""
+
+    def fake(tool, stdin=None):
+        known = table if tool[0] == "gnu-cxxfilt" else {}
+        return "\n".join(known.get(n, n) for n in stdin.splitlines()) + "\n"
+
+    return fake
+
+
 class WrappedNames(unittest.TestCase):
     PAIR = (("deluge::gfx", "deluge::ui::gfx"),)
     TABLE: ClassVar[dict[str, str]] = {
@@ -1001,19 +1080,30 @@ class WrappedNames(unittest.TestCase):
         self.assertEqual(rename(old), rename(new))
         self.assertTrue(rename(old).startswith("__dtor_"))
 
-    def test_a_name_the_demangler_rejects_is_renamed_as_mangled_text(self):
+    def test_a_name_llvm_cxxfilt_rejects_follows_a_rename_through_gnu_cxxfilt(self):
         old = "_ZZZN6deluge3gui1fERKNS_6scenes1WEENK3$_0clIZNS2_1fES7_E3$_1EEDav"
         new = "_ZZZN6deluge3gui1fERKNS_2ui6scenes1WEENK3$_0clIZNS2_1fES8_E3$_1EEDav"
+        lambda_ = "::$_0::operator()<deluge::gui::f({0} const&)::$_1>() const"
+        texts = {
+            old: "auto deluge::gui::f(deluge::scenes::W const&)"
+            + lambda_.format("deluge::scenes::W"),
+            new: "auto deluge::gui::f(deluge::ui::scenes::W const&)"
+            + lambda_.format("deluge::ui::scenes::W"),
+        }
         pair = [("deluge::scenes", "deluge::ui::scenes")]
-        with mock.patch.object(compare_codegen, "run", fake_cxxfilt({})):
+        with mock.patch.object(compare_codegen, "run", gnu_only(texts)):
             rename = demangler(
                 "cxxfilt",
                 [f"10 <{old}>:\n10 <{new}>:\n"],
                 namespace_renamer(pair),
                 mangled_renamer(pair),
                 [[f"10 <{old}>:\n"], [f"10 <{new}>:\n"]],
+                "gnu-cxxfilt",
             )
         self.assertEqual(rename(old), rename(new))
+        self.assertIn(
+            " | auto deluge::gui::f(deluge::ui::scenes::W const&)", rename(old)
+        )
 
     def test_a_component_run_is_renamed_to_the_new_spelling(self):
         rename = mangled_renamer(
@@ -1379,13 +1469,55 @@ class WrappedNameKeys(unittest.TestCase):
         table = {a: text, b: text, c: panic, d: panic, alone: "deluge_bsp_rust::main"}
         self.assertEqual(self.keys(table), [a, b, c, d, "deluge_bsp_rust::main"])
 
+    def test_a_name_only_gnu_cxxfilt_reads_is_keyed_by_both_texts(self):
+        name = "_ZGTtNKSt13bad_exception4whatEv"
+        text = "transaction clone for std::bad_exception::what() const"
+
+        with mock.patch.object(compare_codegen, "run", gnu_only({name: text})):
+            rename = demangler(
+                "cxxfilt",
+                [f"10 <{name}>:\n"],
+                mangled=mangled_renamer([]),
+                gnu_cxxfilt="gnu-cxxfilt",
+            )
+        self.assertEqual(rename(name), f"{name} | {text}")
+
+    def test_a_name_no_demangler_reads_keeps_its_raw_name_under_a_rename(self):
+        # A real fixture name; without its demangled text a reduced mangled key could pair two entities.
+        old = (
+            "_ZZZN6deluge3gui10shell_host12HostEditSink5applyERKNS_2ui6scenes4bind12WriteRequestEENK3$_0clINS2_5"
+            "ApplyEEEDaT_ENKUlRS9_E_clESB_"
+        )
+        new = old.replace("3gui10shell_host", "2ui10shell_host")
+        pair = [("deluge::gui::shell_host", "deluge::ui::shell_host")]
+        with mock.patch.object(compare_codegen, "run", fake_cxxfilt({})):
+            rename = demangler(
+                "cxxfilt",
+                [f"10 <{old}>:\n", f"10 <{new}>:\n"],
+                namespace_renamer(pair),
+                mangled_renamer(pair),
+                [[f"10 <{old}>:\n"], [f"10 <{new}>:\n"]],
+                gnu_cxxfilt="gnu-cxxfilt",
+            )
+        self.assertEqual((rename(old), rename(new)), (old, new))
+
     def test_collapsing_is_judged_per_image(self):
         # The same pair of spellings in two images, one name each, is a rename, not a collision.
         a = "_ZZZN6deluge3gfx1fEENK3$_0clIS3_EEDaT_"
         b = "_ZZZN6deluge2ui3gfx1fEENK3$_0clIS4_EEDaT_"
-        rename = self.names(
-            {}, [f"10 <{a}>:\n", f"10 <{b}>:\n"], [[f"10 <{a}>:\n"], [f"10 <{b}>:\n"]]
-        )
+        texts = {
+            a: "auto deluge::gfx::f()::$_0::operator()<int>(int) const",
+            b: "auto deluge::ui::gfx::f()::$_0::operator()<int>(int) const",
+        }
+        with mock.patch.object(compare_codegen, "run", gnu_only(texts)):
+            rename = demangler(
+                "cxxfilt",
+                [f"10 <{a}>:\n", f"10 <{b}>:\n"],
+                namespace_renamer(self.PAIR),
+                mangled_renamer(self.PAIR),
+                [[f"10 <{a}>:\n"], [f"10 <{b}>:\n"]],
+                "gnu-cxxfilt",
+            )
         self.assertEqual(rename(a), rename(b))
 
 

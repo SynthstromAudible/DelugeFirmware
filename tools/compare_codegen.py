@@ -29,11 +29,13 @@ several bases; a Rust generic instantiated in two crates), the demangled text ca
 named by its mangled name instead, renamed as below, together with its full renamed demangled text. That needs no
 reading of the mangling. Within an image no two symbols share a key. Across images two symbols share a key only when
 both their renamed mangled text (with substitution references reduced) and their full renamed demangled text agree, so a
-renamed namespace's entities pair with themselves and nothing that either text tells apart. A name the demangler cannot
-read has only its mangled text: two such names that reduce alike across images still pair. The cost is false positives:
-such a symbol whose signature changes, or whose group gains or loses a member, shows as removed and added; and because a
-local keeps its enclosing signature, a signature-only change to a function that holds a lambda or a static local shows
-that lambda or local as added and removed (and the function as changed, as its calls name the new key).
+renamed namespace's entities pair with themselves and nothing that either text tells apart. A name llvm-cxxfilt cannot
+read is demangled by GNU c++filt (`--gnu-cxxfilt`, the dbt toolchain's by default) and keyed the same way; a name
+neither can read keeps its exact mangled text, renamed or not, so it pairs only with itself and a rename shows it as
+removed and added. The cost is false positives: such a symbol whose signature changes, or whose group gains or loses a
+member, shows as removed and added; and because a local keeps its enclosing signature, a signature-only change to a
+function that holds a lambda or a static local shows that lambda or local as added and removed (and the function as
+changed, as its calls name the new key).
 
 A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`) is
 read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named by its
@@ -46,11 +48,16 @@ rules do not recognise compares as a difference.
 Two symbols of one image can also share a name outright: two modules' statics or anonymous-namespace symbols, and
 promoted locals whose names differ only in `.llvm.<hash>`. Each copy is named by its place (number_twins()): the nearest
 symbol before it in its section that is no such twin, which stands for its module, by that symbol's key, and its ordinal
-among the copies behind that symbol. An `adr`, which prints no address, is placed by the address it computes. A
-reference moved from one copy to another is then a change, whichever copies the other image adds or drops. When a name's
-set of places differs between the images, none of its copies in the new image pairs with the base (`#?`), so every copy
-shows as removed and added and every reference to one as changed: a false positive at worst, but no copy is paired by a
-guess. The same holds when the anchor symbol itself changes its key.
+among the copies behind that symbol. An `adr`, which prints no address, is placed by the address it computes, in ARM or
+Thumb as the mapping symbols (`nm --special-syms`) say. Where each copy has an anchor of its own, a reference moved from
+one copy to another is a change, whichever copies the other image adds or drops. A copy that does not have one (it sits
+behind no anchor, or behind one with another copy of its name) cannot be told from its neighbour by place, so a name
+with such a copy never pairs: it is written `#!` in the base and `#?` in the new image, so its copies show as removed
+and added and every reference to one as changed, even between identical images. Local labels (`.…`,
+`GCC_except_table…`), of which an image has hundreds, keep pairing by place, so a reference moved between two of them
+behind one anchor can compare clean. When a name's set of places differs between the images, none of its copies in the
+new image pairs with the base (`#?`), so every copy shows as removed and added and every reference to one as changed: a
+false positive at worst, but no copy is paired by a guess. The same holds when the anchor symbol itself changes its key.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -85,10 +92,22 @@ from __future__ import annotations
 import argparse
 import bisect
 import difflib
+import os
 import re
+import shutil
 import subprocess
 import sys
 
+# GNU c++filt from the dbt toolchain, which reads some names llvm-cxxfilt cannot.
+GNU_CXXFILT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "toolchain",
+    "current",
+    "arm-none-eabi-gcc",
+    "bin",
+    "arm-none-eabi-c++filt",
+)
 HEADER = re.compile(r"^([0-9a-f]+) <(.+)>:$")
 INSN = re.compile(r"^\s*([0-9a-f]+):\s+(.*)$")
 ANNOTATION = re.compile(r"\s*@.*$")
@@ -599,9 +618,9 @@ TWIN_ADR = re.compile(
     r"^(\s*([0-9a-f]+):\s+adr\S*\s+\w+,\s+#(-?(?:0x[0-9a-f]+|\d+))\s+)<([^<>+]+)((?:\+0x[0-9a-f]+)?)>",
     re.MULTILINE,
 )
-# A twin's number as number_twins() writes it: `#N~anchor`, or `#?N~anchor` for a group whose places moved (not `@`,
-# which starts a disassembly's annotation).
-TWIN = re.compile(r"#(\??\d+)~(.+)$")
+# A twin's number as number_twins() writes it: `#N~anchor`; `#?N~anchor` in the new image and `#!N~anchor` in the base
+# for a copy that must not pair (not `@`, which starts a disassembly's annotation).
+TWIN = re.compile(r"#([?!]?\d+)~(.+)$")
 SECTION = re.compile(r"\]\s+(\S+)\s+\S+\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)")
 
 
@@ -672,19 +691,39 @@ def twin_places(nm_text: str, sections=()) -> dict[str, dict[int, tuple[str, int
 
 
 def number_twins(
-    nm_text: str, disassembly: str, sections=(), moved=frozenset()
+    nm_text: str,
+    disassembly: str,
+    sections=(),
+    moved=frozenset(),
+    mapping: str = "",
+    side: str = "!",
 ) -> tuple[str, str]:
     """@p nm_text (an `nm` listing) and @p disassembly with each copy of a twin name (twin_places()) named
-    `name#N~anchor` by its place, so a reference moved from one copy to another is a change, whichever copies the other
-    image adds or drops. A name in @p moved, whose places differ from the other image's, is written `#?N~anchor`, so
-    none of its copies pairs with the other image's. A disassembly's name is placed by its address (less its `+0x…`
-    offset); an `adr`'s by Align(pc, 4) + its immediate, pc being the instruction's address + 4 in Thumb and + 8 in ARM
-    (`$a` mapping symbols mark ARM code). An `adr` that lands in no copy of the twin it names is an error."""
+    `name#N~anchor` by its place. A copy pairs with the other image's copy in the same place, so a reference moved from
+    one copy to another is a change, provided each copy has an anchor of its own. Two cases do not pair at all:
+    - a name in @p moved, whose places differ from the other image's, is written `#?N~anchor`;
+    - a name that is no local label (`.…`, `GCC_except_table…`) and has a copy behind no anchor (`^`) or behind an
+      anchor with another of its copies is written with @p side (`!` in the base, `?` in the new image), because its
+      place does not tell the copies apart; it shows as removed and added, and its referrers as changed.
+    A disassembly's name is placed by its address (less its `+0x…` offset); an `adr`'s by Align(pc, 4) + its
+    immediate, pc being the instruction's address + 4 in Thumb and + 8 in ARM, as the `$a`/`$t` mapping symbols in
+    @p mapping (`nm --special-syms`) or @p nm_text mark the code. An `adr` that lands in no copy of the twin it names is
+    an error."""
     places = twin_places(nm_text, sections)
     if not places:
         return nm_text, disassembly
+    unpairable = {
+        name
+        for name, found in places.items()
+        if not name.startswith((".", "GCC_except_table"))
+        and any(anchor == "^" or ordinal for anchor, ordinal in found.values())
+    }
     extents: dict[str, list[tuple[int, int]]] = {}
-    modes = sorted((a, n[1]) for a, _, n in nm_symbols(nm_text) if n in ("$a", "$t"))
+    modes = sorted(
+        (a, n[1])
+        for a, _, n in nm_symbols(mapping + "\n" + nm_text)
+        if n.split(".")[0] in ("$a", "$t")
+    )
     for address, size, name in nm_symbols(nm_text):
         plain = LTO_SUFFIX.sub("", name)
         if plain in places:
@@ -695,7 +734,8 @@ def number_twins(
         place = places.get(plain, {}).get(address & ~1)
         if place is None:
             return name
-        return f"{plain}#{'?' if plain in moved else ''}{place[1]}~{place[0]}"
+        mark = "?" if plain in moved else side if plain in unpairable else ""
+        return f"{plain}#{mark}{place[1]}~{place[0]}"
 
     def adr(m: re.Match) -> str:
         plain = LTO_SUFFIX.sub("", m.group(4))
@@ -755,7 +795,14 @@ def moved_twins(
     )
 
 
-def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images=None):
+def demangler(
+    cxxfilt: str,
+    texts: list[str],
+    renames=None,
+    mangled=None,
+    images=None,
+    gnu_cxxfilt=None,
+):
     """A rename that maps every mangled symbol in @p texts to its key: its canonical() demangled name, with @p renames
     (see namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer,
     a static guard's destructor, a split global's `.0`, a clone's `.constprop.0`) is renamed through the mangled part
@@ -773,6 +820,21 @@ def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images
     split = [WRAPPED.match(stems[n]) for n in names]
     targets = [m.group(2) if m else stems[n] for m, n in zip(split, names)]
     demangled = run([cxxfilt], "\n".join(targets)).splitlines()
+    # What llvm-cxxfilt cannot read (some lambdas, transaction clones), GNU c++filt can.
+    unread = [
+        i
+        for i, (t, d) in enumerate(zip(targets, demangled))
+        if t == d and t.startswith("_Z")
+    ]
+    gnu_read = set()
+    if gnu_cxxfilt and unread:
+        for i, text in zip(
+            unread,
+            run([gnu_cxxfilt], "\n".join(targets[i] for i in unread)).splitlines(),
+        ):
+            if text != targets[i]:
+                demangled[i] = text
+                gnu_read.add(names[i])
     by_mangled = {}
     table = {}
     for raw, m, target, plain in zip(names, split, targets, demangled):
@@ -781,10 +843,14 @@ def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images
         else:
             by_mangled[raw] = m.group(1) + (mangled or keep)(target) + m.group(3)
         if plain == target:
-            table[raw] = by_mangled[raw]
+            # Read by neither demangler: only its exact text names it, so a rename never pairs it with another.
+            by_mangled[raw] = table[raw] = stems[raw]
             continue
         if renames:
             plain = renames(plain)
+        if raw in gnu_read:
+            table[raw] = by_mangled[raw] = by_mangled[raw] + " | " + plain
+            continue
         if m:
             # The reduced mangled text alone can make two entities alike across images; their full text cannot.
             by_mangled[raw] += " | " + plain
@@ -904,6 +970,11 @@ def main() -> int:
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
     parser.add_argument(
+        "--gnu-cxxfilt",
+        default=GNU_CXXFILT,
+        help="GNU c++filt, for the names llvm-cxxfilt cannot read (default: the dbt toolchain's)",
+    )
+    parser.add_argument(
         "--rename",
         action="append",
         default=[],
@@ -930,14 +1001,25 @@ def main() -> int:
     for which in (args.base, args.new):
         nm = run([args.nm, "-S", "-n", "--defined-only", which])
         sections = sections_of(run([args.readelf, "-SW", which]))
-        read.append((which, nm, sections))
+        mapping = run([args.nm, "-n", "--special-syms", "--defined-only", which])
+        mapping = "".join(
+            line for line in mapping.splitlines(keepends=True) if " $" in line
+        )
+        read.append((which, nm, sections, mapping))
     moved = moved_twins(
         read[0][1], read[1][1], read[0][2], read[1][2], mangled_renamer(pairs)
     )
     images = []
-    for (which, nm, sections), twins_moved in zip(read, (frozenset(), moved)):
+    for (which, nm, sections, mapping), twins_moved, side in zip(
+        read, (frozenset(), moved), "!?"
+    ):
         nm, disassembly = number_twins(
-            nm, disassemble(args.objdump, which, nm), sections, twins_moved
+            nm,
+            disassemble(args.objdump, which, nm),
+            sections,
+            twins_moved,
+            mapping,
+            side,
         )
         images.append((disassembly, nm, run([args.readelf, "-lW", which])))
     rename = demangler(
@@ -946,6 +1028,7 @@ def main() -> int:
         namespace_renamer(pairs),
         mangled_renamer(pairs),
         [list(image[:2]) for image in images],
+        shutil.which(args.gnu_cxxfilt),
     )
     base, new = (
         functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
