@@ -16,11 +16,14 @@ Gate compare-codegen-selftest:
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
+import compare_codegen
 from compare_codegen import (
     canonical,
     classifier,
     compare,
+    disassemble,
     functions,
     mask_address_halves,
     namespace_renamer,
@@ -244,6 +247,73 @@ class CompareTest(unittest.TestCase):
                 functions(one, rename), functions(one.replace("sub", "rsb"), rename)
             )[0],
             ["f"],
+        )
+
+
+SDRAM_NM = """\
+20001000 00000010 T foo
+2f000000 00000000 D __sdram_text_start
+2f000400 00000000 D __sdram_text_end
+"""
+
+TWO_SECTIONS = """\
+Disassembly of section .text:
+
+20001000 <foo>:
+20001000:      \tbx\tlr
+
+Disassembly of section .sdram_init:
+
+2f000000 <gui>:
+2f000000:      \tmov.w\tr2, #0x18
+2f000004:      \tbx\tlr
+"""
+
+
+class DisassembleTest(unittest.TestCase):
+    def test_the_sdram_range_is_disassembled_as_data_and_appended(self):
+        calls = []
+
+        def fake(tool, stdin=None):
+            calls.append(tool)
+            return f"out{len(calls)}\n"
+
+        with mock.patch.object(compare_codegen, "run", fake):
+            text = disassemble("objdump", "a.elf", SDRAM_NM)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], ["objdump", "-d", "--no-show-raw-insn", "a.elf"])
+        self.assertEqual(
+            calls[1],
+            [
+                "objdump",
+                "-D",
+                "--no-show-raw-insn",
+                "-j",
+                ".sdram_init",
+                "--start-address=0x2f000000",
+                "--stop-address=0x2f000400",
+                "a.elf",
+            ],
+        )
+        self.assertEqual(text, "out1\nout2\n")
+
+    def test_an_image_without_the_symbols_is_disassembled_once(self):
+        calls = []
+
+        def fake(tool, stdin=None):
+            calls.append(tool)
+            return "only\n"
+
+        nm = "20001000 00000010 T foo\n2f000000 00000000 D __sdram_text_start\n"
+        with mock.patch.object(compare_codegen, "run", fake):
+            text = disassemble("objdump", "a.elf", nm)
+        self.assertEqual(calls, [["objdump", "-d", "--no-show-raw-insn", "a.elf"]])
+        self.assertEqual(text, "only\n")
+
+    def test_a_change_in_the_sdram_code_is_a_change(self):
+        changed = TWO_SECTIONS.replace("#0x18", "#0x17")
+        self.assertEqual(
+            compare(functions(TWO_SECTIONS), functions(changed)), (["gui"], [], [])
         )
 
 

@@ -27,6 +27,10 @@ A ThinLTO image's code is not fixed by its own source alone: a change in one mod
 decisions elsewhere. A non-empty result is classified by reading each function's diff (`--diff NAME`), not taken as
 a verdict.
 
+The device image runs part of its code from SDRAM (the symbols __sdram_text_start and __sdram_text_end bound it, in
+.sdram_init). Once the image is packed that section is no longer flagged executable, so `objdump -d` skips it; it is
+disassembled as data over that range and compared with the rest. Images without those symbols are unaffected.
+
 With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images.
 
 Usage:
@@ -256,6 +260,31 @@ def run(tool: list[str], stdin: str | None = None) -> str:
     ).stdout
 
 
+def disassemble(objdump: str, elf: str, nm_text: str) -> str:
+    """@p elf's disassembly: its executable sections, plus the SDRAM-resident code when @p nm_text (its
+    `nm -S -n --defined-only` listing) defines both ends of that range."""
+    text = run([objdump, "-d", "--no-show-raw-insn", elf])
+    ends = {}
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if fields and fields[-1] in ("__sdram_text_start", "__sdram_text_end"):
+            ends[fields[-1]] = fields[0]
+    if len(ends) == 2:
+        text += run(
+            [
+                objdump,
+                "-D",
+                "--no-show-raw-insn",
+                "-j",
+                ".sdram_init",
+                f"--start-address=0x{ends['__sdram_text_start']}",
+                f"--stop-address=0x{ends['__sdram_text_end']}",
+                elf,
+            ]
+        )
+    return text
+
+
 def namespace_renamer(pairs: list[tuple[str, str]]):
     """Maps each renamed namespace to its new spelling wherever it stands in a demangled name, so a function that only
     moved namespace compares with itself. Pairs are ordered: at a given place the first pair that matches wins, and a
@@ -373,9 +402,10 @@ def main() -> int:
     args = parser.parse_args()
     images = {}
     for which in (args.base, args.new):
+        nm = run([args.nm, "-S", "-n", "--defined-only", which])
         images[which] = (
-            run([args.objdump, "-d", "--no-show-raw-insn", which]),
-            run([args.nm, "-S", "-n", "--defined-only", which]),
+            disassemble(args.objdump, which, nm),
+            nm,
             run([args.readelf, "-lW", which]),
         )
     pairs = []
