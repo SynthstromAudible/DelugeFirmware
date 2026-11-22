@@ -15,18 +15,21 @@ them. This compares what an address names instead of its value, so that what rem
 - the linker's trap fill between functions is dropped.
 A value outside every loaded segment is a constant and compares as is, as does every other immediate.
 
-Functions and call targets are named by their demangled name without its parameter list (or a template's return
-type), so a function whose signature changes type but whose code doesn't, and every call to it, compare alike.
-Overloads that share a name are compared as a set of bodies. ThinLTO's promoted-local suffixes (`.llvm.<hash>`) hash
-the module's source, so they are dropped too.
+Functions and call targets are named by their demangled name without the function's own parameter list, the
+qualifiers and requires clause after it, and a template's leading return type, so a function whose signature changes
+type but whose code doesn't, and every call to it, compare alike. Nothing else is cut: `(anonymous namespace)` is never
+a parameter list, a local or a lambda (`f(int) const::$_0::operator()`, `f()::table`) keeps its enclosing function's
+signature, a compiler clone keeps its `(.constprop.N)` suffix and a thunk its prefix, and data keeps its whole name.
+Two names therefore share a key only when they are overloads, which are compared as a set of bodies. ThinLTO's
+promoted-local suffixes (`.llvm.<hash>`) hash the module's source, so they are dropped too.
 
-A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`)
-is read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named
-by its target's canonical name; the other wrapped names keep the whole demangled text, because cutting the parameter
-list would merge distinct locals and anonymous-namespace data. A mangled name the demangler cannot read (some lambda
-names) has the renamed namespaces applied to its mangled text, on component boundaries, and its substitution
-references (`S0_`) reduced to `S_`, because their indexes shift with the names. If two such names of one image end up
-equal that way, both keep their raw names. A reference the text rules do not recognise compares as a difference.
+A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`) is
+read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named by its
+target's canonical name; the other wrapped names name data that belongs to what they wrap, so they keep the whole
+demangled text, as a local does. A mangled name the demangler cannot read (some lambda names) has the renamed namespaces
+applied to its mangled text, on component boundaries, and its substitution references (`S0_`) reduced to `S_`, because
+their indexes shift with the names. If two such names of one image end up equal that way, both keep their raw names. A
+reference the text rules do not recognise compares as a difference.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -94,25 +97,157 @@ def low_ram(value: int) -> str | None:
     return "ADDR" if 0x20000000 <= value < 0x30000000 else None
 
 
-def canonical(demangled: str) -> str:
-    """A demangled name without its final parameter list, the qualifiers after it, or a leading return type."""
-    name = demangled.strip()
-    if "(" not in name:
-        return name  # data and special symbols ("vtable for X") keep their whole name
-    close = name.rfind(")")
-    if close > 0 and not name.endswith(">"):
-        depth = 0
-        for i in range(close, -1, -1):
-            depth += {")": 1, "(": -1}.get(name[i], 0)
-            if depth == 0:
-                name = name[:i]
-                break
+# Demangler names that wrap a type or a datum: they keep their whole text, as data does.
+WRAPS_DATA = re.compile(
+    r"^(?:vtable|VTT|construction vtable|typeinfo|typeinfo name|guard variable|reference temporary #\d+"
+    r"|TLS (?:init|wrapper) function) for "
+)
+# Demangler names that wrap a function: the function inside is keyed as usual.
+WRAPS_FUNCTION = re.compile(r"^(?:non-virtual |virtual |covariant return )thunk to ")
+# A compiler clone's suffix (`f(int) (.constprop.0)`): a separate body, so it stays in the key.
+CLONE_SUFFIX = re.compile(r"(?: \(\.[\w.]+\))+$")
+# What may follow a function's own parameter list: cv and ref qualifiers, noexcept.
+OWN_QUALIFIERS = re.compile(r"(?:\s*(?:const\b|volatile\b|noexcept\b|&&|&))*\s*")
+# An operator's symbol, longest first; one that holds a bracket must not be read as one.
+OPERATOR_SYMBOLS = sorted(
+    [
+        "()",
+        "[]",
+        "<=>",
+        "<<=",
+        ">>=",
+        "->*",
+        "<<",
+        ">>",
+        "<=",
+        ">=",
+        "->",
+        "<",
+        ">",
+        "==",
+        "!=",
+        "+=",
+        "-=",
+        "*=",
+        "/=",
+        "%=",
+        "&=",
+        "|=",
+        "^=",
+        "++",
+        "--",
+        "&&",
+        "||",
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "^",
+        "&",
+        "|",
+        "~",
+        "!",
+        "=",
+        ",",
+    ],
+    key=len,
+    reverse=True,
+)
+OPENS = {")": "(", ">": "<", "}": "{", "]": "["}
+
+
+def operator_end(name: str, at: int) -> int:
+    """Where the operator name whose `operator` keyword starts at @p at ends: past its symbol, or for a word operator
+    (`new`, `delete[]`, a conversion `operator unsigned int`) at the bracket that follows its name at its own level."""
+    after = at + len("operator")
+    for symbol in OPERATOR_SYMBOLS:
+        end = after + len(symbol)
+        if name.startswith(symbol, after) and (end == len(name) or name[end] in "<(),"):
+            return end
     depth = 0
-    for i in range(len(name) - 1, -1, -1):
-        depth += {">": 1, ")": 1, "<": -1, "(": -1}.get(name[i], 0)
-        if depth == 0 and name[i] == " " and not name[:i].endswith("operator"):
-            return name[i + 1 :]
-    return name
+    for i in range(after, len(name)):
+        c = name[i]
+        if depth == 0 and c in "(),":
+            return i
+        if c == "<":
+            depth += 1
+        elif c == ">":
+            depth -= 1
+    return len(name)
+
+
+def top_level(name: str) -> tuple[list[tuple[int, int]], list[int]]:
+    """@p name's top-level `(…)` groups as (start, end) and its top-level spaces outside operator names. Brackets pair
+    as a stack; `<` and `>` inside parentheses are comparisons, and an operator's symbol is no bracket."""
+    groups: list[tuple[int, int]] = []
+    spaces: list[int] = []
+    stack: list[tuple[str, int]] = []
+    i = 0
+    while i < len(name):
+        if (
+            name.startswith("operator", i)
+            and (i == 0 or not (name[i - 1].isalnum() or name[i - 1] in "_$"))
+            and not (
+                i + 8 < len(name) and (name[i + 8].isalnum() or name[i + 8] in "_$")
+            )
+        ):
+            i = operator_end(name, i)
+            continue
+        c = name[i]
+        inside_parens = bool(stack) and stack[-1][0] == "("
+        if c in "({[" or (c == "<" and not inside_parens):
+            stack.append((c, i))
+        elif c in ")}]" or (c == ">" and not inside_parens):
+            while stack and stack[-1][0] != OPENS[c]:
+                stack.pop()
+            if stack:
+                opened = stack.pop()[1]
+                if not stack and c == ")":
+                    groups.append((opened, i + 1))
+        elif c == " " and not stack:
+            spaces.append(i)
+        i += 1
+    return groups, spaces
+
+
+def canonical(demangled: str) -> str:
+    """A demangled name without what a signature change alters: a function's own parameter list, the qualifiers after
+    it (and a requires clause), and a leading return type. Everything else stays, so that two different functions or
+    data never share a key unless they are overloads: `(anonymous namespace)` is never a parameter list, and a local or
+    a lambda (`f(int) const::$_0::operator()`, `f()::table`) keeps its enclosing function's signature as written."""
+    name = demangled.strip()
+    if WRAPS_DATA.match(name):
+        return name
+    thunk = WRAPS_FUNCTION.match(name)
+    if thunk:
+        return thunk.group(0) + canonical(name[thunk.end() :])
+    clone = CLONE_SUFFIX.search(name)
+    suffix = clone.group(0) if clone else ""
+    if clone:
+        name = name[: clone.start()]
+    groups, spaces = top_level(name)
+    # A requires clause is free text (braces, comparisons); it ends the name at the first top-level `requires`.
+    for space in spaces:
+        if name.startswith(" requires ", space):
+            name = name[:space]
+            groups = [g for g in groups if g[1] <= space]
+            spaces = [s for s in spaces if s < space]
+            break
+    if not groups:
+        return name + suffix
+    start, end = groups[-1]
+    if name[start:end] == "(anonymous namespace)" or not OWN_QUALIFIERS.fullmatch(
+        name[end:]
+    ):
+        return name + suffix
+    name = name[:start]
+    # A leading return type ends at the last top-level space that a qualifier does not follow (`f() const::$_0`).
+    for space in reversed([s for s in spaces if s < start]):
+        if not re.match(r"(?:const|volatile|noexcept)\b|&", name[space + 1 :]):
+            name = name[space + 1 :]
+            break
+    return name + suffix
 
 
 def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
@@ -433,8 +568,8 @@ def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images
     """A rename that maps every mangled symbol in @p texts to its canonical() demangled name, with @p renames (see
     namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer, a
     static guard's destructor) is renamed through the mangled part and keeps its prefix and suffix. A veneer is named by
-    its target's canonical name; any other wrapped name keeps the whole demangled text, which tells apart what
-    canonical() would cut (`(anonymous namespace)`, a local `f()::scene`). A mangled name the demangler cannot read goes
+    its target's canonical name; any other wrapped name names data and keeps the whole demangled text, as a local
+    does. A mangled name the demangler cannot read goes
     through @p mangled (mangled_renamer()). @p images holds each image's own texts: if two names of one image reach the
     same key that way, they keep their raw names instead, since renaming would merge them."""
     names = sorted(symbol_names(texts))

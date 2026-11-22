@@ -15,6 +15,10 @@ Gate compare-codegen-selftest:
 
 from __future__ import annotations
 
+import os
+import re
+import shutil
+import subprocess
 import unittest
 from typing import ClassVar
 from unittest import mock
@@ -187,6 +191,75 @@ class ClassifierTest(unittest.TestCase):
         )
 
 
+REAL_IMAGE = os.path.join(
+    os.path.dirname(__file__), "..", "build", "RelWithDebInfo", "deluge.elf"
+)
+
+# Shapes from a device image whose last `)` or space is not a signature.
+NAME_FIXTURE = [
+    "deluge::(anonymous namespace)::kTable",
+    "deluge::(anonymous namespace)::kOther",
+    "deluge::(anonymous namespace)::host()",
+    "deluge::(anonymous namespace)::host()::ops",
+    "guard variable for deluge::(anonymous namespace)::host()::ops",
+    "deluge::gfx::f()::scene",
+    "deluge::gfx::f()::list",
+    "deluge::gfx::f(int)::scene",
+    "BatteryLevelItem::render() const::$_0::operator()() const",
+    "PatchCableStrengthItem::on_focus() const::$_0::operator()() const",
+    "MarkerScene::pins() const::$_0::operator()() const",
+    "MarkerScene::pins() const::$_1::operator()() const",
+    "MarkerScene::pins() const::$_0::__invoke()",
+    "ModKnobs::next_timer() const::$_0::__invoke()",
+    "X::f(int) const::{lambda()#1}::operator()() const",
+    "X::f(int) const::{lambda()#2}::operator()() const",
+    "X::f(long) const::{lambda()#1}::operator()() const",
+    "bar()::'lambda'(unsigned int)::operator()(unsigned int) const",
+    "bar()::'lambda'(int)::operator()(int) const",
+    "std::vector<(anonymous namespace)::A>::push_back(int)",
+    "std::vector<(anonymous namespace)::B>::push_back(int)",
+    "non-virtual thunk to X::f(int)",
+    "X::f(int)",
+    "X::f(long)",
+    "vtable for X",
+    "typeinfo for X",
+    "(anonymous namespace)::pool::free(void*)",
+    "(anonymous namespace)::pool::free(void*) (.constprop.0)",
+    "X::operator bool() const::$_0::operator()() const",
+    "X::operator int() const::$_0::operator()() const",
+]
+
+
+def is_own_signature_of(key: str, name: str) -> bool:
+    """Whether @p name is @p key with its own parameter list (and what follows it) and perhaps a leading return type
+    added: what one key may hold several of."""
+    clone = re.search(r"(?: \(\.[\w.]+\))+$", key)
+    if clone:
+        if not name.endswith(clone.group(0)):
+            return False
+        key, name = key[: clone.start()], name[: -len(clone.group(0))]
+    at = name.find(key + "(")
+    while at >= 0:
+        if at == 0 or name[at - 1] == " ":
+            rest = name[at + len(key) :]
+            depth = 0
+            for i, c in enumerate(rest):
+                depth += {"(": 1, ")": -1}.get(c, 0)
+                if depth == 0:
+                    if rest[
+                        : i + 1
+                    ] != "(anonymous namespace)" and OWN_QUALIFIERS.fullmatch(
+                        rest[i + 1 :]
+                    ):
+                        return True
+                    break
+        at = name.find(key + "(", at + 1)
+    return False
+
+
+OWN_QUALIFIERS = re.compile(r"(?: (?:const|volatile|noexcept)| ?&&?)*(?: requires .*)?")
+
+
 class CanonicalTest(unittest.TestCase):
     def test_drops_parameters_qualifiers_and_a_template_return_type(self):
         self.assertEqual(
@@ -200,6 +273,161 @@ class CanonicalTest(unittest.TestCase):
         )
         self.assertEqual(canonical("operator new(unsigned int)"), "operator new")
         self.assertEqual(canonical("kTable"), "kTable")
+
+    def test_an_anonymous_namespace_is_never_a_parameter_list(self):
+        self.assertEqual(
+            canonical("deluge::(anonymous namespace)::kTable"),
+            "deluge::(anonymous namespace)::kTable",
+        )
+        self.assertEqual(
+            canonical("(anonymous namespace)::emergency_pool"),
+            "(anonymous namespace)::emergency_pool",
+        )
+        self.assertEqual(
+            canonical("deluge::(anonymous namespace)::host()"),
+            "deluge::(anonymous namespace)::host",
+        )
+        self.assertEqual(
+            canonical(
+                "std::vector<(anonymous namespace)::Node>::push_back((anonymous namespace)::Node&&)"
+            ),
+            "std::vector<(anonymous namespace)::Node>::push_back",
+        )
+        self.assertEqual(
+            canonical("Holder<(anonymous namespace)::Tag>::instance"),
+            "Holder<(anonymous namespace)::Tag>::instance",
+        )
+
+    def test_a_lambda_keeps_its_enclosing_functions_signature(self):
+        self.assertEqual(
+            canonical("BatteryLevelItem::render() const::$_0::operator()() const"),
+            "BatteryLevelItem::render() const::$_0::operator()",
+        )
+        self.assertEqual(
+            canonical("ModKnobs::next_timer(int) const::$_0::__invoke(int)"),
+            "ModKnobs::next_timer(int) const::$_0::__invoke",
+        )
+        self.assertEqual(
+            canonical("X::f(int) const::{lambda()#1}::operator()() const"),
+            "X::f(int) const::{lambda()#1}::operator()",
+        )
+        self.assertEqual(
+            canonical("X::f() &&::$_2::operator()(int) const"),
+            "X::f() &&::$_2::operator()",
+        )
+        self.assertEqual(
+            canonical("auto X::f() const::$_0::operator()<int>(int) const"),
+            "X::f() const::$_0::operator()<int>",
+        )
+
+    def test_a_local_keeps_its_enclosing_functions_signature(self):
+        self.assertEqual(
+            canonical("deluge::dsp::fixed::saw_bandlimited_table()::table"),
+            "deluge::dsp::fixed::saw_bandlimited_table()::table",
+        )
+        self.assertEqual(
+            canonical(
+                "AudioEngine::render(int const*, unsigned int) const::lastWarnTime"
+            ),
+            "AudioEngine::render(int const*, unsigned int) const::lastWarnTime",
+        )
+        self.assertEqual(
+            canonical("guard variable for ClearSong::getOptions()::options"),
+            "guard variable for ClearSong::getOptions()::options",
+        )
+        self.assertEqual(
+            canonical("X::operator bool() const::$_0::operator()() const"),
+            "X::operator bool() const::$_0::operator()",
+        )
+
+    def test_a_return_type_is_stripped_only_at_top_level(self):
+        self.assertEqual(
+            canonical(
+                "std::string std::operator+<char>(char const*, std::string const&)"
+            ),
+            "std::operator+<char>",
+        )
+        self.assertEqual(canonical("char const* name<int>()"), "name<int>")
+        self.assertEqual(canonical("int const f<int>()"), "f<int>")
+        self.assertEqual(
+            canonical("X::operator unsigned int() const"), "X::operator unsigned int"
+        )
+        self.assertEqual(canonical("operator delete[](void*)"), "operator delete[]")
+        self.assertEqual(
+            canonical("bool std::operator<<char>(std::string const&, char const*)"),
+            "std::operator<<char>",
+        )
+        self.assertEqual(
+            canonical(
+                "std::ostream& std::operator<<<std::char_traits<char>>(std::ostream&, char)"
+            ),
+            "std::operator<<<std::char_traits<char>>",
+        )
+        self.assertEqual(canonical("X::operator->() const"), "X::operator->")
+
+    def test_special_names_keep_what_they_name(self):
+        self.assertEqual(
+            canonical("non-virtual thunk to X::f(int)"), "non-virtual thunk to X::f"
+        )
+        self.assertEqual(canonical("vtable for X"), "vtable for X")
+        self.assertEqual(canonical("vtable for f()::Local"), "vtable for f()::Local")
+
+    def test_a_trailing_requires_clause_and_a_clone_suffix(self):
+        self.assertEqual(
+            canonical(
+                "std::expected<int, E>::~expected() requires !is_trivially_destructible_v<T> || "
+                "!is_trivially_destructible_v<T0>"
+            ),
+            "std::expected<int, E>::~expected",
+        )
+        self.assertEqual(
+            canonical(
+                "auto S::operator()<int>(int const&) const requires requires { {fp < fp0} -> B; }"
+            ),
+            "S::operator()<int>",
+        )
+        self.assertEqual(
+            canonical("(anonymous namespace)::pool::free(void*) (.constprop.0)"),
+            "(anonymous namespace)::pool::free (.constprop.0)",
+        )
+
+    def test_a_signature_change_keeps_one_key(self):
+        self.assertEqual(canonical("int f<int>(int)"), canonical("void f<int>(long)"))
+        self.assertEqual(canonical("X::g() const"), canonical("X::g()"))
+        self.assertEqual(canonical("X::g() const &"), canonical("X::g() &&"))
+
+    def test_only_overloads_share_a_key(self):
+        overloads = [
+            "deluge::project::encode(deluge::project::Groove const&, int)",
+            "deluge::project::encode(deluge::project::ScaleSettings const&)",
+        ]
+        self.assertEqual(len({canonical(n) for n in overloads}), 1)
+        self.assert_only_overloads_collide(NAME_FIXTURE)
+
+    def assert_only_overloads_collide(self, names):
+        keys: dict[str, set[str]] = {}
+        for name in names:
+            keys.setdefault(canonical(name), set()).add(name)
+        for key, group in keys.items():
+            if len(group) > 1:
+                for name in group:
+                    self.assertTrue(
+                        is_own_signature_of(key, name), (key, sorted(group))
+                    )
+
+    @unittest.skipUnless(
+        os.path.exists(REAL_IMAGE) and shutil.which("llvm-nm"), "no device image"
+    )
+    def test_only_overloads_share_a_key_in_a_real_image(self):
+        listing = subprocess.run(
+            ["llvm-nm", "-C", "--defined-only", REAL_IMAGE],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assert_only_overloads_collide(
+            {line[11:] for line in listing.splitlines() if len(line) > 11}
+        )
 
 
 class CompareTest(unittest.TestCase):
@@ -564,6 +792,46 @@ class WrappedNameKeys(unittest.TestCase):
         base = functions(caller.format(a), rename)
         new = functions(caller.format(b), rename)
         self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_a_call_retargeted_between_lambdas_of_const_members_is_a_change(self):
+        a = "_ZZNK16BatteryLevelItem6renderEvENK3$_0clEv"
+        b = "_ZZNK8ModKnobs10next_timerEvENK3$_0clEv"
+        table = {
+            a: "BatteryLevelItem::render() const::$_0::operator()() const",
+            b: "ModKnobs::next_timer() const::$_0::operator()() const",
+        }
+        listing = f"10 <{a}>:\n10:\tbx\tlr\n\n14 <{b}>:\n14:\tbx\tlr\n"
+        caller = "20 <caller>:\n20:      \tbl\t0x{} <{}> @ imm = #0x0\n"
+        rename = self.names(
+            table, [listing + caller.format(10, a) + caller.format(14, b)]
+        )
+        self.assertNotEqual(rename(a), rename(b))
+        base = functions(listing + "\n" + caller.format(10, a), rename)
+        new = functions(listing + "\n" + caller.format(14, b), rename)
+        self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_a_pointer_retargeted_between_anonymous_namespace_data_is_a_change(self):
+        a = "_ZN6deluge12_GLOBAL__N_16kTableE"
+        b = "_ZN6deluge12_GLOBAL__N_16kOtherE"
+        table = {
+            a: "deluge::(anonymous namespace)::kTable",
+            b: "deluge::(anonymous namespace)::kOther",
+        }
+        nm = f"20251190 00000010 d {a}\n20251200 00000010 d {b}\n"
+        rename = self.names(table, [nm])
+        classify = classifier(
+            "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n",
+            nm,
+            rename,
+        )
+        self.assertNotEqual(classify(0x20251190), classify(0x20251200))
+        new = SAMPLE.replace("0x20251190", "0x20251200")
+        self.assertEqual(
+            compare(
+                functions(SAMPLE, classify=classify), functions(new, classify=classify)
+            ),
+            (["foo"], [], []),
+        )
 
     def test_collapsing_is_judged_per_image(self):
         # The same pair of spellings in two images, one name each, is a rename, not a collision.
