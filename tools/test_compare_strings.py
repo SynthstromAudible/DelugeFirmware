@@ -105,8 +105,12 @@ class Strings(unittest.TestCase):
             blob[offset - 1 : offset - 1 + len(text)] = text
         return bytes(blob)
 
-    def pointed(self, text: bytes, pointer: int, base: int = 0x20010000) -> list[str]:
-        blob = self.section_with(text + struct.pack("<I", pointer) + b"\x01")
+    def pointed(
+        self, text: bytes, pointer: int, base: int = 0x20010000, targets=None
+    ) -> list[str]:
+        blob = self.section_with(
+            text + struct.pack("<I", pointer) + b"\x01", targets=targets
+        )
         found = self.read(
             at={".rodata": base}, ranges=[(0x20000000, 0x20300000)], rodata=blob
         )
@@ -130,7 +134,15 @@ class Strings(unittest.TestCase):
         # Two bytes off its alignment (the section loads at an address ≡ 2 mod 4), pointing at no text (a zero byte;
         # code, an encoded format string's argument bytes), or into the middle of a string, the word is text.
         self.assertEqual(
-            self.pointed(self.POINTED, 0x20013245, base=0x20010002), ["hello worldE2"]
+            # The string is planted where the word points from this base, so only the load address's alignment,
+            # not the blob offset's, keeps the word whole.
+            self.pointed(
+                self.POINTED,
+                0x20013245,
+                base=0x20010002,
+                targets={0x3243: b"\x00pointed-at text\x00"},
+            ),
+            ["hello worldE2"],
         )
         self.assertEqual(self.pointed(self.POINTED, 0x20012045), ["hello worldE "])
         self.assertEqual(self.pointed(self.POINTED, 0x20013247), ["hello worldG2"])
@@ -139,6 +151,17 @@ class Strings(unittest.TestCase):
         short = {0x3245: b"\x00seven c\x00"}
         blob = self.section_with(
             self.POINTED + struct.pack("<I", 0x20013245) + b"\x01", targets=short
+        )
+        found = self.read(
+            at={".rodata": 0x20010000}, ranges=[(0x20000000, 0x20300000)], rodata=blob
+        )
+        self.assertIn("hello worldE2", found)
+
+    def test_a_string_the_section_ends_short_of_eight_is_no_target(self):
+        blob = self.section_with(
+            self.POINTED + struct.pack("<I", 0x20013245) + b"\x01",
+            0x3248,
+            {0x3245: b"\x00abc"},
         )
         found = self.read(
             at={".rodata": 0x20010000}, ranges=[(0x20000000, 0x20300000)], rodata=blob
