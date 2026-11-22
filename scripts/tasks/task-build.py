@@ -121,6 +121,14 @@ def toolchain_dir(root: Path) -> Path:
     return Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root) / "toolchain/current"
 
 
+def toolchain_remap_flags(root: Path) -> list[str]:
+    """The `-fmacro-prefix-map` for a toolchain kept outside the repo (DBT_TOOLCHAIN_PATH), else nothing."""
+    tc_root = toolchain_dir(root).parent.parent
+    if tc_root.resolve().is_relative_to(root.resolve()):
+        return []
+    return [f"-fmacro-prefix-map={tc_root}/=toolchain/"]
+
+
 def path_remap_flags(root: Path) -> list[str]:
     """rustc flags that keep the build machine's paths out of the image.
 
@@ -178,6 +186,7 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
         f"--gcc-toolchain={gcc}",
         # __FILE__ names repo-relative paths, as the app's own objects do (CMakeLists.txt).
         f"-fmacro-prefix-map={root}/=",
+        *toolchain_remap_flags(root),
         # bits/c++config.h is per-multilib, and the fallback copy is soft-float.
         f"-isystem{cxx_inc[0]}/arm-none-eabi/{MULTILIB}",
     ]
