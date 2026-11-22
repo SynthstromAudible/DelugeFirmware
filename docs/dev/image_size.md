@@ -374,7 +374,7 @@ unless marked measured.
     - `chords.cpp`'s 3.8 KB of static initialisation, which could be `constexpr`.
 11. **Static destructors, ~6 KB.** 302 `__dtor_` thunks and 305 `atexit` registrations (`-fno-use-cxa-atexit`) for
     globals that are never destroyed. Use `-fno-c++-static-destructors`.
-12. **Streaming statics to SDRAM, ~45 KB.** `deluge_sample_source::abi::POOL` (28 KB) and the sample-stream
+12. **Streaming statics to SDRAM, ~45 KB.** `deluge_storage_sample_source::abi::POOL` (28 KB) and the sample-stream
     `REGISTRY` (12 KB), plus `streaming_fill_task::POOL` and `app_task::POOL` (4.4 KB, which the channel pattern
     misses). Check whether the render path walks them, then bench.
 

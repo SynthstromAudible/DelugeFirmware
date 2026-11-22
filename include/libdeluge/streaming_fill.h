@@ -49,7 +49,7 @@ extern "C" {
 /// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called by the Rust residency code right after it enqueues a chunk on the loader queue: a reservation's
 /// unfilled clusters (`deluge_storage_sample_reader`'s `reservation.rs`) and a region acquire's miss
-/// (`deluge_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
+/// (`deluge_storage_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
 void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 
 /// @brief Enqueue a chunk for filling, and return immediately. [task]

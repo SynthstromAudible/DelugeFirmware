@@ -2,7 +2,7 @@
 //!
 //! A zero-copy reader handle over a sample's source residency, for non-voice consumers that read
 //! raw-PCM frame ranges without touching `StreamedChunk` internals: the non-voice twin of
-//! `deluge_sample_source`'s region port. The stateless `deluge_sample_read` copy is composed from
+//! `deluge_storage_sample_source`'s region port. The stateless `deluge_sample_read` copy is composed from
 //! the same handle (open, window/advance, drop), so there is one frame-mapping and fill
 //! implementation.
 #![no_std]

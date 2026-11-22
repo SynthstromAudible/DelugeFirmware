@@ -18,8 +18,8 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeFileLocation", "deluge_storage_sample_fill::FileLocation"),
     ("StreamingFillDescriptor", "deluge_storage_sample_fill::StreamingFillDescriptor"),
     ("DelugeFrameWindow", "deluge_storage_sample_reader::abi::DelugeFrameWindow"),
-    ("DelugeSampleGeometry", "deluge_sample_source::geometry::Geometry"),
-    ("DelugeSampleRegion", "deluge_sample_source::abi::DelugeSampleRegion"),
+    ("DelugeSampleGeometry", "deluge_storage_sample_source::geometry::Geometry"),
+    ("DelugeSampleRegion", "deluge_storage_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_sample_stream::DelugeSampleStreamGeometry"),
 ];
 
@@ -29,7 +29,7 @@ const STRUCTS: &[(&str, &str)] = &[
 const ENUMS: &[(&str, &str)] = &[
     ("DelugeReadHint", "deluge_storage_sample_reader::reader::ReadHint"),
     ("DelugeLoadMode", "deluge_storage_sample_reader::reservation::LoadMode"),
-    ("DelugeRegionState", "deluge_sample_source::abi::DelugeRegionState"),
+    ("DelugeRegionState", "deluge_storage_sample_source::abi::DelugeRegionState"),
 ];
 
 /// Opaque handles, which have no layout to keep.
@@ -39,8 +39,8 @@ const OPAQUE: &[(&str, &str)] = &[
     ("DelugeResource", "core::ffi::c_void"),
     ("DelugeSampleReader", "deluge_storage_sample_reader::abi::DelugeSampleReader"),
     ("DelugeSampleReservation", "deluge_storage_sample_reader::reservation::DelugeSampleReservation"),
-    ("DelugeSampleSource", "deluge_sample_source::abi::DelugeSampleSource"),
-    ("DelugeStreamBacking", "deluge_sample_source::abi::DelugeStreamBacking"),
+    ("DelugeSampleSource", "deluge_storage_sample_source::abi::DelugeSampleSource"),
+    ("DelugeStreamBacking", "deluge_storage_sample_source::abi::DelugeStreamBacking"),
     ("DelugeChunkBacking", "deluge_storage_sample_fill::chunk::DelugeChunkBacking"),
 ];
 

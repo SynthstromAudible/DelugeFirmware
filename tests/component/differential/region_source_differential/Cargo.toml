@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 license = "GPL-3.0-or-later"
 
-# Payload-offset gate for the region cursor (`deluge_sample_source::cursor::SampleSource` over
+# Payload-offset gate for the region cursor (`deluge_storage_sample_source::cursor::SampleSource` over
 # `ManagerResidency`). Standalone crate, not a workspace member. It drives the cursor over a real
 # streamed chunk whose payload sits at a non-zero offset from its manager backing, so resolving the
 # chunk header instead of the payload is byte-detectable.
@@ -14,7 +14,7 @@ license = "GPL-3.0-or-later"
 
 [dev-dependencies]
 # The cursor under test.
-deluge_sample_source = { path = "../../../../crates/deluge_sample_source" }
+deluge_storage_sample_source = { path = "../../../../src/storage/sample/source" }
 # The real manager and asset `ManagerResidency` sits on, and the test heap.
 deluge_storage_resource = { path = "../../../../src/storage/resource" }
 fs_alloc = { package = "deluge_base_alloc", path = "../../../../src/base/alloc" }

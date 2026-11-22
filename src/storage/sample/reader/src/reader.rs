@@ -24,7 +24,7 @@ pub enum ReadHint {
 
 /// Mirrors `DelugeSampleGeometry` (`libdeluge/sample_source.h`) field for field.
 ///
-/// A local copy rather than a dependency on `deluge_sample_source`, keeping the non-voice reader
+/// A local copy rather than a dependency on `deluge_storage_sample_source`, keeping the non-voice reader
 /// decoupled from the voice cursor.
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug)]
@@ -44,7 +44,7 @@ pub(crate) const UNKNOWN_LENGTH_SENTINEL: u64 = 0x8FFF_FFFF_FFFF_FFFF;
 /// Returns the valid payload bytes of cluster `index`: the full cluster size, the remainder for a
 /// short last cluster, or `0` past the end. A zero or unknown length (recording, or not yet
 /// finalized) counts every cluster as full. Mirrors
-/// `deluge_sample_source::geometry::resident_bytes_for`.
+/// `deluge_storage_sample_source::geometry::resident_bytes_for`.
 fn resident_bytes_for(index: u32, geo: &Geometry) -> u32 {
     let cluster_size = geo.cluster_size_bytes;
     if geo.audio_data_length_bytes == 0 || geo.audio_data_length_bytes == UNKNOWN_LENGTH_SENTINEL {
@@ -732,7 +732,7 @@ mod tests {
         );
     }
 
-    /// The same cases as `deluge_sample_source::geometry::resident_bytes_for`'s test, checking the
+    /// The same cases as `deluge_storage_sample_source::geometry::resident_bytes_for`'s test, checking the
     /// mirror matches.
     #[test]
     fn resident_bytes_for_full_clusters_short_last_and_sentinel() {

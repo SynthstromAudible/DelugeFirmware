@@ -19,7 +19,7 @@ use deluge_storage_sample_fill::{DelugeStatus, DELUGE_ERR_PARAM, DELUGE_OK};
 
 use crate::{DelugeSampleStreamGeometry, DelugeStreamingFillContext, DELUGE_RESOURCE_NO_ASSET};
 
-/// Slot-table capacity, matching `deluge_sample_source`'s pool size.
+/// Slot-table capacity, matching `deluge_storage_sample_source`'s pool size.
 // TODO: confirm against `AudioFileManager`'s audio-file cap.
 pub const CAP: usize = 256;
 

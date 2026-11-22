@@ -52,7 +52,7 @@ typedef struct DelugeSampleGeometry {
 /// @note Fixed underlying type (`: uint8_t`, C23 + C++11): this enum crosses the FFI BY VALUE
 ///       (`deluge_sample_region_acquire_ex`'s return), so its width must be pinned explicitly
 ///       rather than left to "whatever the C++ build's default `int` enum happens to be" — the
-///       Rust side (`DelugeRegionState` in `crates/deluge_sample_source/src/abi.rs`) is
+///       Rust side (`DelugeRegionState` in `src/storage/sample/source/src/abi.rs`) is
 ///       `#[repr(u8)]` to match. Every OTHER libdeluge enum stays a plain (unfixed, `int`-sized) C
 ///       enum and relies on bindgen no longer passing `-fshort-enums` (see
 ///       `src/bsp/rust/build.rs`) to agree with the C++ side's default int width instead.

@@ -14,9 +14,6 @@ use core::ffi::c_void;
 use std::ptr;
 use std::sync::Mutex;
 
-use deluge_sample_source::cursor::{RegionOut, RegionState, SampleSource};
-use deluge_sample_source::geometry::Geometry;
-use deluge_sample_source::manager_residency::ManagerResidency;
 use deluge_storage_resource::value::COST_IO;
 use deluge_storage_resource::{
     deluge_resource_create, deluge_resource_define_asset, deluge_resource_lease_count_by_slot,
@@ -24,6 +21,9 @@ use deluge_storage_resource::{
     deluge_resource_set_construct, deluge_resource_try_acquire, manager::BACKING_HEAP,
     DelugeResource,
 };
+use deluge_storage_sample_source::cursor::{RegionOut, RegionState, SampleSource};
+use deluge_storage_sample_source::geometry::Geometry;
+use deluge_storage_sample_source::manager_residency::ManagerResidency;
 
 // `deluge_storage_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
 // dependency crates' own `#[cfg(test)]` stubs are compiled out here, so this binary supplies them.
@@ -90,7 +90,7 @@ extern "C" fn deluge_streaming_signal_fill() {}
 /// `abi.rs`; present in case that code is linked in. Never called.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_sample_stream_asset_id(
-    _stream_backing: *mut deluge_sample_source::abi::DelugeStreamBacking,
+    _stream_backing: *mut deluge_storage_sample_source::abi::DelugeStreamBacking,
 ) -> u32 {
     0
 }

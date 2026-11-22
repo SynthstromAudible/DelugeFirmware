@@ -56,13 +56,13 @@ compile_error!(
 #[cfg(has_app)]
 extern crate deluge_audio_format;
 #[cfg(has_app)]
-extern crate deluge_sample_source;
-#[cfg(has_app)]
 extern crate deluge_sample_stream;
 #[cfg(has_app)]
 extern crate deluge_storage_resource;
 #[cfg(has_app)]
 extern crate deluge_storage_sample_reader;
+#[cfg(has_app)]
+extern crate deluge_storage_sample_source;
 
 // First, because its macros are textually scoped.
 #[macro_use]

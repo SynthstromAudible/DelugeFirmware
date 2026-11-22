@@ -31,7 +31,7 @@ abi_pin!(in deluge_storage_sample_reader::abi: deluge_sample_reader_open, deluge
 abi_pin!(in deluge_storage_sample_reader::reservation: deluge_sample_reserve_open, deluge_sample_reserve_move,
     deluge_sample_reserve_close);
 
-abi_pin!(in deluge_sample_source::abi: deluge_sample_source_open, deluge_sample_region_acquire_ex,
+abi_pin!(in deluge_storage_sample_source::abi: deluge_sample_source_open, deluge_sample_region_acquire_ex,
     deluge_sample_region_acquire, deluge_sample_region_state, deluge_sample_region_retain,
     deluge_sample_region_release, deluge_sample_source_close);
 
@@ -47,8 +47,8 @@ abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manage
 abi_pin!(in deluge_storage_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
 abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
     deluge_streaming_signal_fill);
-abi_pin!(in deluge_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
-abi_pin!(in deluge_sample_source::manager_residency: deluge_streaming_signal_fill);
+abi_pin!(in deluge_storage_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
+abi_pin!(in deluge_storage_sample_source::manager_residency: deluge_streaming_signal_fill);
 abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_open_at, deluge_efatfs_close, deluge_efatfs_read_at,
     deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
 
@@ -89,11 +89,11 @@ abi_layout!(enum deluge_storage_sample_reader::reservation::LoadMode => DelugeLo
 abi_layout!(deluge_storage_sample_reader::reader::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
     audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format });
 
-abi_layout!(deluge_sample_source::geometry::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
+abi_layout!(deluge_storage_sample_source::geometry::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
     audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format });
-abi_layout!(enum deluge_sample_source::abi::DelugeRegionState => DelugeRegionState {
+abi_layout!(enum deluge_storage_sample_source::abi::DelugeRegionState => DelugeRegionState {
     Ready = DELUGE_REGION_READY, Loading = DELUGE_REGION_LOADING, Unavailable = DELUGE_REGION_UNAVAILABLE });
-abi_layout!(deluge_sample_source::abi::DelugeSampleRegion => DelugeSampleRegion { payload_base, region_index,
+abi_layout!(deluge_storage_sample_source::abi::DelugeSampleRegion => DelugeSampleRegion { payload_base, region_index,
     resident_bytes, lease });
 
 abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStreamGeometry {

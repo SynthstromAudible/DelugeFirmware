@@ -17,7 +17,7 @@ deluge_storage_resource = { path = "../../src/storage/resource" }
 deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
 # Keep the rev with src/bsp/rust/Cargo.toml's deluge-sdk pin.
 # The sample crates below are optional, pulled in only by `sample_abi`.
-deluge_sample_source = { path = "../deluge_sample_source", optional = true }
+deluge_storage_sample_source = { path = "../../src/storage/sample/source", optional = true }
 deluge_storage_sample_fill = { path = "../../src/storage/sample/fill", optional = true }
 # std-backed implementation for `deluge_storage_sample_fill`'s context-table mutex.
 critical-section = { version = "1", optional = true }
@@ -32,8 +32,8 @@ asan = ["deluge_base_alloc/asan"]
 ## `sample_reader` spec's separate umbrella build enables it. Each member's `c_abi` feature is what
 ## emits its `#[no_mangle]` symbols; the dependency alone would compile them dead.
 sample_abi = [
-    "dep:deluge_sample_source",
-    "deluge_sample_source/c_abi",
+    "dep:deluge_storage_sample_source",
+    "deluge_storage_sample_source/c_abi",
     "dep:deluge_storage_sample_fill",
     "deluge_storage_sample_fill/native_fill",
     "deluge_storage_sample_fill/app_convert",

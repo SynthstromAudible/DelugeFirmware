@@ -51,6 +51,7 @@ set(RUST_ALLOC ${CMAKE_CURRENT_LIST_DIR}/../../../src/base/alloc)
 set(RUST_RESOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/resource)
 set(RUST_SAMPLE_FILL ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/fill)
 set(RUST_SAMPLE_READER ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/reader)
+set(RUST_SAMPLE_SOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/source)
 
 if (UNIX AND NOT APPLE)
     # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
@@ -88,7 +89,7 @@ if (UNIX AND NOT APPLE)
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs
         ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs
-        ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB_SIM}
         COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --features sample_abi
@@ -99,7 +100,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_RESOURCE}/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
             ${RUST_SAMPLE_READER}/Cargo.toml ${RUST_SAMPLE_FILL}/Cargo.toml
-            ${RUST_WS}/deluge_sample_source/Cargo.toml
+            ${RUST_SAMPLE_SOURCE}/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib with the sim feature (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_sim_build DEPENDS ${RUST_LIB_SIM})

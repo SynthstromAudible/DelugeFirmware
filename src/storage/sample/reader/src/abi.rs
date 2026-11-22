@@ -4,7 +4,7 @@
 //! The stateless `deluge_sample_read`, `deluge_sample_peek` and `deluge_sample_invalidate` are
 //! thin shims over [`crate::reader`].
 //!
-//! Unlike `deluge_sample_source`, whose static pool exists because it opens and closes on the audio
+//! Unlike `deluge_storage_sample_source`, whose static pool exists because it opens and closes on the audio
 //! ISR, this reader is used only off the audio thread and may block, so it uses the heap freely.
 
 use alloc::boxed::Box;

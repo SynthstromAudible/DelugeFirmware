@@ -123,7 +123,7 @@ void deluge_sample_stream_set_geometry(DelugeHandle handle, DelugeSampleStreamGe
 /// Named `_get_` (not the plain `deluge_sample_stream_asset_id` its handle-based sibling setter's
 /// naming would suggest): this header also declares the UNRELATED
 /// `deluge_sample_stream_asset_id(DelugeStreamBacking*)` (the `SampleStream`-keyed accessor
-/// `sample_stream.cpp` defines and `deluge_sample_source::abi` consumes) — reusing that exact name
+/// `sample_stream.cpp` defines and `deluge_storage_sample_source::abi` consumes) — reusing that exact name
 /// here for a different signature would be a duplicate-symbol link error the moment both crates
 /// link into the same binary.
 /// @param handle A handle previously returned by deluge_sample_stream_open.

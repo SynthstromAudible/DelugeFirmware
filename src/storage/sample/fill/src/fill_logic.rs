@@ -24,7 +24,7 @@ pub struct FillGeometry {
     pub raw_data_format: u8,
 }
 
-/// The "still recording, length unknown" length sentinel. `deluge_sample_source` has the same
+/// The "still recording, length unknown" length sentinel. `deluge_storage_sample_source` has the same
 /// constant; it depends on this crate, so this one cannot import it.
 #[allow(dead_code)]
 const UNKNOWN_LENGTH_SENTINEL: u64 = 0x8FFF_FFFF_FFFF_FFFF;
@@ -245,7 +245,7 @@ mod tests {
         // ((1696 - 1) >> 9) + 1 = (1695 >> 9) + 1 = 3 + 1 = 4 sectors (2048 bytes,
         // the smallest whole-sector count covering 1696 bytes).
         //
-        // `deluge_sample_source::geometry::resident_bytes_for` gives 1696 bytes for the same
+        // `deluge_storage_sample_source::geometry::resident_bytes_for` gives 1696 bytes for the same
         // geometry, which the 2048 covers.
         let g = geo(100_000);
         let r = begin(3, &g);

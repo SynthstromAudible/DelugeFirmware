@@ -255,7 +255,7 @@ goodToGo:
 			// consumers expect. The DECISION above already acquired the start region through the port
 			// (source_->current is pinned, neighbour prefetched); this re-acquires the SAME index, which the
 			// port makes idempotent -- acquire_ex drops the duplicate lease get_cluster adds when src->current
-			// already holds the chunk (see the cursor's acquire_ex in deluge_sample_source), so the two
+			// already holds the chunk (see the cursor's acquire_ex in deluge_storage_sample_source), so the two
 			// acquires net one lease, and the standing prefetch is already the neighbour so it is not
 			// re-fetched. The priority passed below no longer matches the decision acquire's (which is
 			// now 0, most-urgent); it does not need to, because this re-acquire hits the already-pinned

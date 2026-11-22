@@ -1,17 +1,18 @@
 [package]
-name = "deluge_sample_source"
+name = "deluge_storage_sample_source"
+workspace = "../../../../crates"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-deluge_storage_resource = { path = "../../src/storage/resource" }
+deluge_storage_resource = { path = "../../resource" }
 # Only `chunk` is used (`ManagerPin::payload` reads a chunk's payload base directly). Default
 # features on purpose: `native_fill` is the manager-reaching fill core, which `deluge_storage_sample_reader`
 # enables for every real build anyway.
-deluge_storage_sample_fill = { path = "../../src/storage/sample/fill" }
+deluge_storage_sample_fill = { path = "../fill" }
 
 [dev-dependencies]
-deluge_base_alloc = { path = "../../src/base/alloc" }
+deluge_base_alloc = { path = "../../../base/alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]

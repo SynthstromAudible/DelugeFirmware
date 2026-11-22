@@ -1,4 +1,4 @@
-//! Payload-offset gate for `deluge_sample_source::cursor::SampleSource<ManagerResidency>`: over a
+//! Payload-offset gate for `deluge_storage_sample_source::cursor::SampleSource<ManagerResidency>`: over a
 //! real streamed chunk, the cursor must resolve a region's payload, not the chunk header. The gate
 //! is `tests/real_chunk_gate.rs`.
 #![deny(unsafe_op_in_unsafe_fn)]

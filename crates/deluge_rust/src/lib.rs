@@ -17,7 +17,7 @@ pub use deluge_storage_resource::*;
 // references them, so `extern crate` is what keeps their objects in the archive.
 // `critical_section` supplies the std implementation behind `deluge_storage_sample_fill`'s context table.
 #[cfg(feature = "sample_abi")]
-extern crate deluge_sample_source;
+extern crate deluge_storage_sample_source;
 
 #[cfg(feature = "sample_abi")]
 extern crate critical_section;
