@@ -890,6 +890,12 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Held grid pads are tied to their notes by screen row and changing the scale moves notes to other rows
+	// just end the presses for sanity
+	if (on && numEditPadPresses > 0) {
+		endAllEditPadPresses();
+	}
+
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
@@ -4666,7 +4672,14 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 					int32_t pos = editPadPresses[i].intendedPos;
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
-					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
+					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+					// If the row has gone from under the press, there's no note to carry along - let go of it
+					if (thisNoteRow == nullptr) {
+						endEditPadPress(i);
+						checkIfAllEditPadPressesEnded(false);
+						reassessAuditionStatus(editPadPresses[i].yDisplay);
+						continue;
+					}
 					thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
 					ParamCollectionSummary* mpeParamsSummary = thisNoteRow->paramManager.getExpressionParamSetSummary();
