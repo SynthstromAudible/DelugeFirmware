@@ -1,6 +1,6 @@
 //! Links the host-built C++ `deluge_app` and its integration scenarios into a host binary: this
 //! crate's own under `host_app`, and `tests/harness/golden_vt_render`, whose build script calls
-//! [`crate::link`] (link arguments do not reach dependents).
+//! [`link`] (link arguments do not reach dependents).
 //!
 //! The objects come from the CMake host tree `./dbt test` builds; this script never invokes CMake.
 

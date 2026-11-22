@@ -195,7 +195,7 @@ streaming), so it is moved function rather than language overhead:
 | Subsystem | Size |
 |---|---:|
 | Filesystem: `embedded_fatfs` (~50 KB, most of it instantiated over the SD block device), the efatfs layer (54 KB, of which 13 KB is `.data` handle tables) and the file channels (`file_bytes`, `file_stream`, `file_directory`, `file_prefix`, ~28 KB) | 139 KB |
-| Sample streaming and the resource manager (`deluge_sample_*`, `deluge_storage_resource`, audio loader, streaming loader) | 45 KB, of which 12 KB is the `.data` `REGISTRY` |
+| Sample streaming and the resource manager (`deluge_storage_sample_*`, `deluge_storage_stream`, `deluge_storage_resource`, audio loader, streaming loader) | 45 KB, of which 12 KB is the `.data` `REGISTRY` |
 | `compiler_builtins`: libm, memcpy, 64-bit division. It serves the C++ app: its `sinf`, `powf`, `expf` and the rest resolve here through 12-byte thunks, and newlib's libm is not linked | 20 KB |
 | USB and MIDI | 17 KB |
 | Runtime, executor and boot | 15 KB |

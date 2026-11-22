@@ -86,7 +86,7 @@ third-party plugin except that it ships in-tree and defines the reference sound.
                        │   libdeluge C ABI (the platform boundary)
   ┌────────────────────┴───────────────────────────────┴──────────────────┐
   │  PLATFORM  (deluge-sdk; Rust)                                         │
-  │   supervisor / app-loader · Embassy runtime · deluge_alloc arenas     │
+  │   supervisor / app-loader · Embassy runtime · deluge_base_alloc arenas     │
   │   deluge-bsp drivers · rza1l-hal (MMU, GIC, cache, SSI, SDHI, …)      │
   └───────────────────────────────────────────────────────────────────────┘
 ```
@@ -119,7 +119,7 @@ Every active effort is a step toward componentization. Grouped by what they enab
 | **libdeluge boundary** (allowlist→0) | *(gap: boundary spec)* | The platform seam; the fault-domain edge |
 | **Rust BSP/HAL bring-up** | deluge-sdk crate READMEs | The Rust platform under the boundary |
 | **Embassy scheduler migration** | *(in deluge-sdk)* | Separable executors → restartable task groups |
-| **Allocator redesign** (`deluge_alloc`) | `allocator_redesign.md` | The memory substrate; per-component arenas |
+| **Allocator redesign** (`deluge_base_alloc`) | `allocator_redesign.md` | The memory substrate; per-component arenas |
 | **Resource / asset manager** | `resource_manager.md` | Residency-managed cache; arena split |
 | **Project-model extraction** | *(gap: end-state doc)* | State off `Song`; restart-from-model; serialization swap |
 | **Synth untangling / dsp-next** | `synth_state_decoupling.md`, `synth_phase4_voice_kernel.md` | The synth as an extractable L3 CLAP component (pinned C++) |

@@ -52,6 +52,8 @@ set(RUST_RESOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/resource)
 set(RUST_SAMPLE_FILL ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/fill)
 set(RUST_SAMPLE_READER ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/reader)
 set(RUST_SAMPLE_SOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/source)
+set(RUST_STREAM ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/stream)
+set(RUST_CONVERT ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/convert)
 set(RUST_TEST_RUST ${CMAKE_CURRENT_LIST_DIR}/rust)
 
 if (UNIX AND NOT APPLE)
@@ -90,7 +92,8 @@ if (UNIX AND NOT APPLE)
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs
         ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs
-        ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
+        ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_STREAM}/src/*.rs ${RUST_CONVERT}/src/*.rs ${RUST_CONVERT}/build.rs
+        ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB_SIM}
         COMMAND cargo build -p deluge_test_rust --release --target ${RUST_TARGET} --features sample_abi
@@ -101,7 +104,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_RESOURCE}/Cargo.toml ${RUST_TEST_RUST}/Cargo.toml
             ${RUST_SAMPLE_READER}/Cargo.toml ${RUST_SAMPLE_FILL}/Cargo.toml
-            ${RUST_SAMPLE_SOURCE}/Cargo.toml
+            ${RUST_SAMPLE_SOURCE}/Cargo.toml ${RUST_STREAM}/Cargo.toml ${RUST_CONVERT}/Cargo.toml
         COMMENT "Building Rust deluge_test_rust staticlib with the sim feature (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_sim_build DEPENDS ${RUST_LIB_SIM})

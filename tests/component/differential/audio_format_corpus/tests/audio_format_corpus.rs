@@ -1,7 +1,7 @@
-//! Corpus differential: this crate decoding directly against the C++ entry points
+//! Corpus differential: `deluge-audio-format` decoding directly against the C++ entry points
 //! (`parseSampleHeader`/`parseWaveTableHeader`) over real WAV/AIFF files.
 //!
-//! Both sides use this crate's decoder, so the test catches defects between them rather than in
+//! Both sides use `deluge-audio-format`'s decoder, so the test catches defects between them rather than in
 //! the decode itself. Each entry point is compared against the walk it runs:
 //!
 //! * **Sample**: [`parse`] (prefix mode, [`WalkGoal::WholeHeader`]) against the C++ size-aware

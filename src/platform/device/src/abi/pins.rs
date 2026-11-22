@@ -35,8 +35,8 @@ abi_pin!(in deluge_storage_sample_source::abi: deluge_sample_source_open, deluge
     deluge_sample_region_acquire, deluge_sample_region_state, deluge_sample_region_retain,
     deluge_sample_region_release, deluge_sample_source_close);
 
-abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open, deluge_sample_stream_open_at, deluge_sample_stream_close,
-    deluge_sample_stream_set_geometry, deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id,
+abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
+    deluge_sample_stream_open_at, deluge_sample_stream_close, deluge_sample_stream_set_geometry, deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id,
     deluge_sample_stream_read_at);
 
 // --- The crates' own declarations of header functions (they cannot see `sys`) ---
@@ -49,8 +49,8 @@ abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource
     deluge_streaming_signal_fill);
 abi_pin!(in deluge_storage_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
 abi_pin!(in deluge_storage_sample_source::manager_residency: deluge_streaming_signal_fill);
-abi_pin!(in deluge_storage_stream: deluge_efatfs_open, deluge_efatfs_open_at, deluge_efatfs_close, deluge_efatfs_read_at,
-    deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
+abi_pin!(in deluge_storage_stream: deluge_efatfs_open, deluge_efatfs_open_at, deluge_efatfs_close,
+    deluge_efatfs_read_at, deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
 
 // --- The copies of header typedefs ---
 
@@ -73,12 +73,12 @@ abi_layout!(deluge_audio_format::abi::DelugeAudioWindow => DelugeAudioWindow { s
 // The header declares only sized, aligned storage for the parser.
 abi_layout!(deluge_audio_format::abi::DelugeAudioHeaderParser => DelugeAudioHeaderParser opaque);
 
-abi_layout!(deluge_storage_sample_fill::FillContext => DelugeStreamingFillContext { efatfs_handle, audio_data_start_pos_bytes,
-    audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size, cluster_size_magnitude,
-    raw_data_format, byte_depth, num_channels });
+abi_layout!(deluge_storage_sample_fill::FillContext => DelugeStreamingFillContext {
+    efatfs_handle, audio_data_start_pos_bytes, audio_data_length_bytes, first_cluster_index_with_no_audio_data,
+    cluster_size, cluster_size_magnitude, raw_data_format, byte_depth, num_channels });
 abi_layout!(deluge_storage_sample_fill::FileLocation => DelugeFileLocation { context, mount_generation, valid });
-abi_layout!(deluge_storage_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor { dest, num_sectors, ok, handle,
-    byte_offset });
+abi_layout!(deluge_storage_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor {
+    dest, num_sectors, ok, handle, byte_offset });
 
 abi_layout!(deluge_storage_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
 abi_layout!(enum deluge_storage_sample_reader::reader::ReadHint => DelugeReadHint {

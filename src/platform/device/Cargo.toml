@@ -95,7 +95,12 @@ deluge_storage_sample_reader = { path = "../../storage/sample/reader", features 
 deluge_storage_stream = { path = "../../storage/stream", features = ["c_abi"] }
 
 # Embassy versions match deluge-sdk's workspace pins.
-embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
+embassy-executor = { version = "0.10.0", features = [
+    "nightly",
+    "platform-cortex-ar",
+    "executor-thread",
+    "executor-interrupt",
+] }
 embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-usb = "0.6.0"
 embassy-usb-driver = "0.2.2"

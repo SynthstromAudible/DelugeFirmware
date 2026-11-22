@@ -2,8 +2,8 @@
 # of the Rust umbrella (deluge_rust_rs_sim, defined by the host tree's root) so the bridge's deluge_sample_reader_* and
 # deluge_sample_read calls resolve against the real C ABI, plus link-time stand-ins (mock_streaming_fill.cpp) for the
 # app-provided accessors that ABI reaches (that file says why they are needed although this spec's scenario never runs
-# them). The sim-feature reader pulls in deluge_storage_sample_fill's `app_convert` shim (deluge_storage_sample_convert), which needs
-# the real deluge::audio::stream::convert_word and stitch_boundaries, so convert.cpp, stitch.cpp and
+# them). The sim-feature reader pulls in deluge_storage_sample_fill's `app_convert` shim (deluge_storage_sample_convert),
+# which needs the real deluge::audio::stream::convert_word and stitch_boundaries, so convert.cpp, stitch.cpp and
 # audio_format_helpers.cpp are linked in with argon (NEON), as tests/unit/deluge/storage/audio/stream links them. The
 # same driver specs the sample's transpose snapping (sample_transpose.cpp), waveform peak math
 # (waveform_peak_math.cpp) and the overview cache's container (overview_cache_entry.h over util/segmented_vector.h).

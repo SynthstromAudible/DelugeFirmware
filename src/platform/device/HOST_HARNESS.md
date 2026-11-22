@@ -22,7 +22,7 @@ links.
 
 ### One-time setup
 
-The TSan build uses a custom target spec, `preemptive_race_tsan/sanitizer/x86_64-unknown-linux-gnu-tsan.json`: a copy
+The TSan build uses a custom target spec, `tests/harness/preemptive_race_tsan/sanitizer/x86_64-unknown-linux-gnu-tsan.json`: a copy
 of `x86_64-unknown-linux-gnu` under another name. With `-Zbuild-std`, a target triple equal to the
 host's makes Cargo build two `core`s for one crate (`error[E0152]: duplicate lang item`), because
 the build script's `bindgen` dependency graph overlaps the target's. The custom target has no

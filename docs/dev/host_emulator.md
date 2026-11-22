@@ -28,7 +28,7 @@ The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-
 the `deluge_bsp::host_panel` hook the BSP's peripherals call on the host), so any program on the Deluge's hardware
 can use them. This repository keeps its glue: the `sim` feature of `src/platform/device` (`sim_panel.rs`, the panel behind
 `deluge_bsp::host_panel`, adapted from deluge-sdk's own; `main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s
-`drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/platform/device/src/memory_card.rs`, which
+`drive_simulator`, `host_link_stubs.rs`'s DIN MIDI) and the card loader, `src/platform/device/src/storage/memory_card.rs`, which
 golden_vt_render uses too.
 
 ## Building
