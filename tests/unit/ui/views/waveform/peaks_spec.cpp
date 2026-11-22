@@ -1,6 +1,6 @@
 // peaks.h against the legacy arithmetic's transcription: the bars and the single-row brightness agree with the oracle
 // everywhere outside the Fixed-quirks rows, and each row's cases pin the correct value.
-#include "sample-view/peaks.h"
+#include "ui/views/waveform/peaks.h"
 
 #include "fixed_quirks.h"
 #include "legacy_oracle.h"
@@ -13,12 +13,12 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::sample_view;
-namespace oracle = deluge::sample_view::test::oracle;
-using deluge::sample_view::test::bar_quirk;
-using deluge::sample_view::test::brightness_quirk;
-using deluge::sample_view::test::Quirk;
-using deluge::sample_view::test::Skips;
+using namespace deluge::ui::views::waveform;
+namespace oracle = deluge::ui::views::waveform::test::oracle;
+using deluge::ui::views::waveform::test::bar_quirk;
+using deluge::ui::views::waveform::test::brightness_quirk;
+using deluge::ui::views::waveform::test::Quirk;
+using deluge::ui::views::waveform::test::Skips;
 
 namespace {
 

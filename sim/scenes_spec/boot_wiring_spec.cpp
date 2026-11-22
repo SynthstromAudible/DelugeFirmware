@@ -46,8 +46,8 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "sample-view/view.h"
 #include "storage/flash_storage.h"
+#include "ui/views/waveform/view.h"
 
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/project_address_printer.h"
@@ -463,7 +463,7 @@ describe boot_overlays("the overlays', the slicer's and the audio clip scene's p
 			const deluge::ui::scenes::spec::SliceHeld held{sample, "SAMPLES/BOOT.WAV"};
 			held.open();
 			// With no ports the scene would read no length, and open at a zoom of 1.
-			expect(scene.x_zoom()).to_equal(deluge::sample_view::WaveformView::open(16000, std::nullopt).zoom());
+			expect(scene.x_zoom()).to_equal(deluge::ui::views::waveform::WaveformView::open(16000, std::nullopt).zoom());
 		}
 		// The host and the preview drum have let it go.
 		sample->~Sample();

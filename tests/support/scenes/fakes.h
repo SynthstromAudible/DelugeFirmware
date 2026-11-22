@@ -7,13 +7,13 @@
 #include "project/midi_command.h"
 #include "project/owner_plugin.h"
 #include "project/param_address.h"
-#include "sample-view/peaks.h"
 #include "serialization/value.h"
 #include "ui/controls/sink.h"
 #include "ui/scenes/bind/knob_focus.h"
 #include "ui/scenes/bind/ports/param_info.h"
 #include "ui/scenes/bind/ports/ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <array>
 #include <bitset>
@@ -544,12 +544,12 @@ struct RecordingControlsSink final : ui::controls::Sink {
 struct FakeWaveforms final : Waveforms {
 	/// @brief One waveform the fake holds.
 	struct Entry {
-		WaveformAddress at;                                           ///< where it is
-		WaveformInfo info;                                            ///< what `info` answers
-		std::array<sample_view::Peak, sample_view::kColumns> peaks{}; ///< each column's peak
-		std::bitset<sample_view::kColumns> pending{};                 ///< columns answered PENDING while reads remain
-		int32_t pending_reads{0};                                     ///< how many reads answer them PENDING
-		std::optional<int64_t> position;                              ///< what `play_position` answers
+		WaveformAddress at;                                                   ///< where it is
+		WaveformInfo info;                                                    ///< what `info` answers
+		std::array<views::waveform::Peak, views::waveform::kColumns> peaks{}; ///< each column's peak
+		std::bitset<views::waveform::kColumns> pending{}; ///< columns answered PENDING while reads remain
+		int32_t pending_reads{0};                         ///< how many reads answer them PENDING
+		std::optional<int64_t> position;                  ///< what `play_position` answers
 		/// While `info.recording`, the frames the take has written: as on the host, a column that does not end by
 		/// then is past the end, the one straddling it too. None reads as `info.length_samples`.
 		std::optional<uint64_t> captured;
@@ -557,13 +557,14 @@ struct FakeWaveforms final : Waveforms {
 	mutable std::vector<Entry> waveforms; ///< looked up by address; a read counts its entry's pending reads down
 	/// @brief One recorded `peaks` call.
 	struct Read {
-		WaveformAddress at;     ///< the address
-		sample_view::Window in; ///< the window
+		WaveformAddress at;         ///< the address
+		views::waveform::Window in; ///< the window
 		bool operator==(const Read&) const = default;
 	};
 	mutable std::vector<Read> reads; ///< every `peaks` call, in order
 	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress& address) const override;
-	[[nodiscard]] sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const override;
+	[[nodiscard]] views::waveform::PeakRead peaks(const WaveformAddress& address,
+	                                              views::waveform::Window at) const override;
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress& address) const override;
 };
 

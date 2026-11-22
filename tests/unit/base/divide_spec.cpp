@@ -1,6 +1,6 @@
 // divide.h against the integer operators, which are exact on the host and on qemu. unsafe_math/ runs it again under
 // the device's float flags.
-#include "sample-view/divide.h"
+#include "base/divide.h"
 
 #include <array>
 #include <cmath>
@@ -13,7 +13,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::sample_view;
+using namespace deluge::base;
 
 namespace {
 

@@ -56,7 +56,7 @@
 #include <new>
 
 // The clip's peak cache has a column for each of the display's main columns.
-static_assert(deluge::sample_view::kColumns == kDisplayWidth);
+static_assert(deluge::ui::views::waveform::kColumns == kDisplayWidth);
 
 namespace params = deluge::modulation::params;
 

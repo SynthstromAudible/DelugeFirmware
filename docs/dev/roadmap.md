@@ -105,11 +105,11 @@ context holds one `bind::Ports` for everything the model does not hold. The read
 carries the per-device settings, and a device is a `midi::DeviceId` the host registry maps to its cable. `Waveforms`
 answers a waveform by its address: its info, its 16 columns at a window (each a peak, pending or past the end) and where
 a voice plays it. The scenes keep no peak cache; the host keeps each file's columns, keyed by the sample's lifetime
-serial, and the window, navigation and paint arithmetic are `src/sample-view/`'s. The device's own settings are the
+serial, and the window, navigation and paint arithmetic are `src/ui/views/waveform/`'s. The device's own settings are the
 DEVICE setting group (`project/device_settings.h`), read and written by row through the `DeviceSettings` port
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the settings
 root closes, never on a write. The ports speak `project::`, `plugin::`, `instrument::`, `effects::`, `controls::`,
-`midi::` and `sample_view::` words only. The host's implementations are in `src/deluge/gui/ui/shell_host/`; the fakes
+`midi::` and `views::waveform::` words only. The host's implementations are in `src/deluge/gui/ui/shell_host/`; the fakes
 and the contract cases both run against are in `tests/support/scenes/`. The value tables the menu reads (sync and swing,
 note lengths, filter and mod-FX words, reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names)
 are neutral. Layer rules keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
@@ -133,7 +133,7 @@ counts. The 13 includes, by what they read (each header with the number of count
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` include rule (`scripts/layers.toml`), whose per-file baseline in `scripts/layers_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the sample-view library (R2c-2). Left: R2c-3, the browser's, the context menu's and the rename scene's reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_ui_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the waveform view library (R2c-2). Left: R2c-3, the browser's, the context menu's and the rename scene's reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_ui_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
@@ -196,7 +196,7 @@ PIC and parity with main.
   not offered.
 - **The division rule's reach.** The legacy code R2c-2 did not rewrite still divides by runtime divisors: the
   renderer's collapse arithmetic, `pad_leds`' `divide_round_negative`, the timeline's `divide_round_negative` and the
-  audio clip scene's bar formatting. Each moves onto `sample-view/divide.h` when its code is rewritten.
+  audio clip scene's bar formatting. Each moves onto `base/divide.h` when its code is rewritten.
 
 R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
 through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,

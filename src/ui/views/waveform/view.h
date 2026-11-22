@@ -3,8 +3,8 @@
 /// @file
 /// @brief Scroll and zoom over a waveform that no timeline drives: a sample's markers, its slicer and its preview.
 
-#include "sample-view/divide.h"
-#include "sample-view/peaks.h"
+#include "base/divide.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <algorithm>
 #include <bit>
@@ -13,7 +13,7 @@
 #include <optional>
 #include <span>
 
-namespace deluge::sample_view {
+namespace deluge::ui::views::waveform {
 
 /// @brief A marker a zoom may pin in place: where it is, and the column it lands on now.
 struct MarkerPin {
@@ -167,7 +167,8 @@ constexpr std::optional<WaveformView> WaveformView::zoomed(int32_t offset, std::
 	}
 	const int64_t unaligned = pin_frame - new_zoom * pin_point;
 	// A right-edge pin keeps its column's right edge on a column boundary, so its scroll rounds up.
-	const int64_t scroll = (pin_right ? ceil_div(unaligned, new_zoom) : floor_div(unaligned, new_zoom)) * new_zoom;
+	const int64_t scroll =
+	    (pin_right ? base::ceil_div(unaligned, new_zoom) : base::floor_div(unaligned, new_zoom)) * new_zoom;
 	return WaveformView{length_, scroll, new_zoom}.clamped(extra_right);
 }
 
@@ -200,9 +201,9 @@ constexpr WaveformView WaveformView::clamped(bool extra_right) const {
 	if (extra_right) {
 		return *this;
 	}
-	const int64_t columns = ceil_div(static_cast<int64_t>(length_), zoom_); // the waveform's columns at this zoom
+	const int64_t columns = base::ceil_div(static_cast<int64_t>(length_), zoom_); // the waveform's columns at this zoom
 	const int64_t limit = std::max<int64_t>(0, (columns - kColumns) * zoom_);
 	return {length_, std::min(scroll_, limit), zoom_};
 }
 
-} // namespace deluge::sample_view
+} // namespace deluge::ui::views::waveform

@@ -86,10 +86,10 @@
 #include "ui/widgets/oled/scroll_text.h"
 #include "ui/widgets/oled/text_edit.h"
 
-#include "sample-view/view.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/oled/icon.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/views/waveform/view.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -526,7 +526,7 @@ public:
 	/// the browser claim each preview that lands.
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
-	const sample_view::WaveformView& waveform_view() const { return view_; }
+	const views::waveform::WaveformView& waveform_view() const { return view_; }
 	/// @brief The preview waveform's render counts since the process began.
 	const WaveformDrawStats& waveform_draw_stats() const { return draw_stats_; }
 	/// @brief Whether an unfinished waveform is still being repainted as its clusters land.
@@ -536,11 +536,11 @@ public:
 	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) sets up, `waveformBasicNavigator`.
 	/// @param identity The waveform the slicer opens on, as the waveforms port's info names it; 0 for none.
 	/// @return The file and its view; none where the preview shows another.
-	[[nodiscard]] std::optional<sample_view::ShownWaveform> shown_waveform(uint64_t identity) const {
+	[[nodiscard]] std::optional<views::waveform::ShownWaveform> shown_waveform(uint64_t identity) const {
 		if (identity == 0 || identity != nav_identity_) {
 			return std::nullopt;
 		}
-		return sample_view::ShownWaveform{.identity = identity, .view = view_};
+		return views::waveform::ShownWaveform{.identity = identity, .view = view_};
 	}
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
@@ -845,7 +845,7 @@ private:
 	std::optional<deluge::ui::widgets::core::PadEvent> reveal_press_{};
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample, as main's
 	/// `waveformBasicNavigator.opened()` does.
-	sample_view::WaveformView view_{};
+	views::waveform::WaveformView view_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
 	RGB waveform_shown_[deluge::ui::gfx::grid::kDelugeGrid.rows][deluge::ui::gfx::grid::kDelugeGrid.main_cols]{};
 	uint64_t nav_identity_ = 0;

@@ -5,7 +5,7 @@
 
 #include "project/clip_address.h"
 #include "project/instrument_slot.h"
-#include "sample-view/peaks.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <cstdint>
 #include <optional>
@@ -57,7 +57,8 @@ public:
 	///        that paints reads `info` after this.
 	/// @return The columns; every column past the end where nothing is loaded at @p address, or where @p at's zoom is
 	///         below 1.
-	[[nodiscard]] virtual sample_view::PeakRead peaks(const WaveformAddress& address, sample_view::Window at) const = 0;
+	[[nodiscard]] virtual views::waveform::PeakRead peaks(const WaveformAddress& address,
+	                                                      views::waveform::Window at) const = 0;
 	/// @brief Where a voice is playing in the waveform at @p address now, in frames: the sound's newest voice on that
 	///        range, or the audio clip's own (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`,
 	///        `SampleMarkerEditor::graphicsRoutine`).

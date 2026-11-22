@@ -8,11 +8,11 @@ add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
 add_subdirectory(instruments/classic) # deluge_instruments_classic: the Deluge instrument's state, words and codec
 add_subdirectory(host/chains) # deluge_host_chains: the host chain's param table and pages
 add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mapping
-add_subdirectory(sample-view) # deluge_sample_view: a waveform view's columns, peaks and navigation
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
 add_subdirectory(ui)         # deluge_ui_widgets_core / _oled / _grid: the immediate-mode toolkit
+add_subdirectory(app)        # deluge_app_ports_waveforms: the host side of the UI's ports
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 add_subdirectory(lib)

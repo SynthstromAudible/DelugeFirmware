@@ -459,11 +459,11 @@ std::optional<WaveformInfo> FakeWaveforms::info(const WaveformAddress& address) 
 	return entry != nullptr ? std::optional{entry->info} : std::nullopt;
 }
 
-sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sample_view::Window at) const {
+views::waveform::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, views::waveform::Window at) const {
 	reads.push_back({.at = address, .in = at});
 	Entry* entry = entry_at(waveforms, address);
 	if (entry == nullptr) {
-		return sample_view::PeakRead::all_past_end();
+		return views::waveform::PeakRead::all_past_end();
 	}
 	const bool pending_now = entry->pending_reads > 0;
 	if (pending_now) {
@@ -472,18 +472,18 @@ sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sampl
 	const auto length = static_cast<int64_t>(entry->info.length_samples);
 	// A take's columns end by its captured frames; a finished file's start before its length.
 	const auto captured = static_cast<int64_t>(entry->captured.value_or(entry->info.length_samples));
-	sample_view::PeakRead read;
-	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+	views::waveform::PeakRead read;
+	for (int32_t c = 0; c < views::waveform::kColumns; c++) {
 		const int64_t start = at.scroll + int64_t{c} * at.zoom;
 		const bool past = entry->info.recording ? start + at.zoom > captured : start >= length;
 		if (at.zoom < 1 || past || start + at.zoom <= 0) {
-			read.set(c, sample_view::ColumnRead::past_end());
+			read.set(c, views::waveform::ColumnRead::past_end());
 		}
 		else if (pending_now && entry->pending.test(static_cast<size_t>(c))) {
-			read.set(c, sample_view::ColumnRead::pending());
+			read.set(c, views::waveform::ColumnRead::pending());
 		}
 		else {
-			read.set(c, sample_view::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
+			read.set(c, views::waveform::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
 		}
 	}
 	return read;

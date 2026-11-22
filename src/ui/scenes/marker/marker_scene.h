@@ -24,8 +24,8 @@
 ///
 /// The read and the navigation are not widgets: the read goes through the context's waveforms port
 /// (`ui/scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the
-/// navigation is `sample_view::WaveformView` (`sample-view/view.h`). The scene keeps no columns: a frame with pending
-/// ones asks for another (`services::PeakRetry`).
+/// navigation is `views::waveform::WaveformView` (`ui/views/waveform/view.h`). The scene keeps no columns: a frame with
+/// pending ones asks for another (`services::PeakRetry`).
 ///
 /// @par Where the markers come from
 ///
@@ -83,12 +83,12 @@
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
 #include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
-#include "sample-view/view.h"
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/scenes/services/view_state.h"
 #include "ui/shell/scene.h"
+#include "ui/views/waveform/view.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/grid/effects.h"
 #include "ui/widgets/grid/markers.h"
@@ -212,7 +212,7 @@ public:
 	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
 	///        them: a start marker by its first frame, an end marker by its last.
 	/// @return The pins; an unset loop marker has no column.
-	[[nodiscard]] std::array<sample_view::MarkerPin, kNumMarkerTypes> pins() const;
+	[[nodiscard]] std::array<views::waveform::MarkerPin, kNumMarkerTypes> pins() const;
 	/// @}
 
 private:
@@ -306,7 +306,7 @@ private:
 	/// Whose view the editor shows and records, resolved as it opens.
 	std::optional<services::ViewKey> view_key_{};
 	/// The view over the waveform: which frames the main columns show.
-	sample_view::WaveformView view_{};
+	views::waveform::WaveformView view_{};
 	/// Which waveform `view_` is over (`bind::WaveformInfo::identity`).
 	uint64_t identity_{0};
 	/// The redraws of a frame whose read left columns pending.

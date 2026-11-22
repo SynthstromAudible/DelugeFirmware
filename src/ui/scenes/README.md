@@ -68,7 +68,7 @@ nothing.
   `openUI(`, `sessionView`, `renameClipUI`, `loadSongUI`, …), no `display->` (`scenes-no-display`), no legacy output
   driver (`scenes-no-legacy-hid-drivers`: `uiNeedsRendering(`, `PadLEDs::`, `indicator_leds::`,
   `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no peak cache
-  (`scenes-no-peak-cache`: `sample-view/peak_cache.h` is the host's and the legacy views'), no stem-export process
+  (`scenes-no-peak-cache`: `app/ports/waveforms/peak_cache.h` is the host's and the legacy views'), no stem-export process
   call (`scenes-no-stem-export-process`). Where a ported item has to run a root-UI behaviour it names it for the host
   instead — see "The action seam".
 * **Drawing.** No `OledFrame`/`GridFrame` primitive (`scenes-no-frame-primitives`): pixels come from
@@ -527,7 +527,7 @@ The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tie
 item with the `MarkerType` as `SceneId::arg`. Legacy draws **no waveform on the OLED** — a title, a lock badge, a
 duration and a sample count — so the OLED half is `ui::widgets::oled::sample_position` and the pad half `ui::widgets::grid::markers`
 over the waveforms port's columns at the range's or the audio clip's address, navigated by
-`sample_view::WaveformView` ("The waveform views" below). One legacy render bug is fixed in the port: `renderOLED`
+`views::waveform::WaveformView` ("The waveform views" below). One legacy render bug is fixed in the port: `renderOLED`
 draws the h/m unit letters at a fixed `x = 6`, over their own digits, past a minute; `ui::widgets::oled::sample_position` draws
 them at the cursor.
 
@@ -591,7 +591,7 @@ length edit does not. The `PadLEDs` scroll and zoom animations are not carried.
 
 `slicing::SlicerScene` ports `Slicer`, the page that cuts a kit into equal regions or hand-placed
 slices. It is not a root (`Slicer` is a plain `UI` opened over the browser) and does not use
-`TimelineState`: it navigates a sample through its own `sample_view::WaveformView`, and reads its
+`TimelineState`: it navigates a sample through its own `views::waveform::WaveformView`, and reads its
 columns from the waveforms port at the SLICE address. `occludes_grid()` is false, because `Slicer`
 overrides `renderMainPads` only and the sidebar beneath keeps painting. The directory is `slicing/`
 because `scenes-no-root-ui` forbids the whole word `slicer`.
@@ -657,11 +657,11 @@ pads. They share one read and one paint, and none of them holds the sample.
 * **The scenes keep no peak cache.** A frame reads its waveform's 16 columns through the waveforms port
   (`services::read_waveform`: `peaks` at the view's window, then `info`, so the bars are scaled by the range that read
   may have widened) and paints the PEAK columns (`services::paint_columns`, or the audio clip view's coloured bars).
-  `sample-view/peak_cache.h` is refused under `src/ui/scenes` (`scenes-no-peak-cache`).
-* **`src/sample-view/` holds the arithmetic** (`deluge_sample_view`, header-only, standard library only): the window
+  `app/ports/waveforms/peak_cache.h` is refused under `src/ui/scenes` (`scenes-no-peak-cache`).
+* **`src/ui/views/waveform/` holds the arithmetic** (`deluge_ui_views_waveform`, header-only, standard library only): the window
   (`Window`), the view's navigation (`WaveformView`: open, scroll, zoom and the marker pins), the column answers
   (`ColumnState`, `ColumnRead`, `PeakRead`) and the paint arithmetic (`Bar`, `bar_of`, `single_row_brightness`, in
-  Q8.24 pad units), with `sample-view/divide.h` for every division by a runtime divisor.
+  Q8.24 pad units), with `base/divide.h` for every division by a runtime divisor.
 * **The host answers the port.** `gui/ui/shell_host/waveforms.cpp` resolves the address to its sample and keeps each
   file's columns in a `PeakCacheSet`, keyed by the waveform's identity (the sample's lifetime serial), and the
   legacy column read (`sample::read_columns`, `model/sample/waveform_scan.h`) reads the columns a cache lacks. A
@@ -720,7 +720,7 @@ A scene's context holds one `bind::Ports`: a pointer per port, null where the ho
 changes outside its frames; `MidiDevices` for the per-device settings; `DeviceSettings` (`device`) for the device's
 own settings, by DEVICE row, read and written outside any song and its undo; and `controls::Facts` for live param
 values. Their vocabulary is `project::` addresses, `plugin::` ids, `instruments::classic::`, `effects::`, `controls::`, `midi::`
-and `sample_view::` words (`sample-view/peaks.h` only), never a legacy type; a MIDI device is a `midi::DeviceId`,
+and `views::waveform::` words (`ui/views/waveform/peaks.h` only), never a legacy type; a MIDI device is a `midi::DeviceId`,
 which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 
 * **`Transport`** answers whether playback is on, whether a clock drives it, what it records into

@@ -1036,10 +1036,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		// The `renderFullScreen` of main's `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), zoomed all the way out.
-		const deluge::sample_view::WaveformView view =
-		    deluge::sample_view::WaveformView::open(sample->lengthInSamples, std::nullopt);
+		const deluge::ui::views::waveform::WaveformView view =
+		    deluge::ui::views::waveform::WaveformView::open(sample->lengthInSamples, std::nullopt);
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		deluge::sample_view::PeakCache cache;
+		deluge::app::ports::waveforms::PeakCache cache;
 		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
 		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
 		int32_t differ = 0;
@@ -1099,16 +1099,16 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().shown_waveform(waveform_identity(*sample)).has_value()).to_be_false(); // nothing drawn
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		const std::optional<deluge::sample_view::ShownWaveform> shown =
+		const std::optional<deluge::ui::views::waveform::ShownWaveform> shown =
 		    browser_scene().shown_waveform(waveform_identity(*sample));
 		expect(shown.has_value()).to_be_true();
 		if (shown) {
 			expect(shown->view).to_equal(browser_scene().waveform_view());
 		}
 		// The columns the preview read are the waveforms port's, kept by file.
-		const deluge::sample_view::PeakRead read = menu::host_ports().waveforms->peaks(
+		const deluge::ui::views::waveform::PeakRead read = menu::host_ports().waveforms->peaks(
 		    {.kind = deluge::ui::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
-		expect(read.column(0).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		expect(read.column(0).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		Sample* other = make_overview_sample();
 		expect(browser_scene().shown_waveform(waveform_identity(*other)).has_value()).to_be_false();
 		expect(browser_scene().shown_waveform(0).has_value()).to_be_false();

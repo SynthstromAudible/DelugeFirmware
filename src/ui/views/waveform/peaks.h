@@ -4,7 +4,7 @@
 /// @brief What a waveform's columns show: each column's peak, or why it has none, and the bars a renderer draws from a
 ///        peak.
 
-#include "sample-view/divide.h"
+#include "base/divide.h"
 
 #include <algorithm>
 #include <array>
@@ -12,7 +12,7 @@
 #include <limits>
 #include <optional>
 
-namespace deluge::sample_view {
+namespace deluge::ui::views::waveform {
 
 /// @brief How many columns a waveform view shows.
 inline constexpr int32_t kColumns = 16;
@@ -105,7 +105,7 @@ struct Bar {
 		if (offset <= -limit) {
 			return kLow;
 		}
-		return trunc_div(offset * kOnePad, span);
+		return base::trunc_div(offset * kOnePad, span);
 	};
 	int64_t bottom = scaled(peak.min);
 	int64_t top = scaled(peak.max);
@@ -134,7 +134,7 @@ struct Bar {
 		return 256;
 	}
 	// Below max_peak the Q16 ratio is under 2^16, and magnitude << 16 is under 2^47: exact.
-	return static_cast<int32_t>(trunc_div(magnitude << 16, max_peak) >> 8);
+	return static_cast<int32_t>(base::trunc_div(magnitude << 16, max_peak) >> 8);
 }
 
 /// @brief A window's columns as one read answers them: each a peak, pending or past the end.
@@ -191,4 +191,4 @@ private:
 	std::array<ColumnRead, kColumns> columns_{};
 };
 
-} // namespace deluge::sample_view
+} // namespace deluge::ui::views::waveform

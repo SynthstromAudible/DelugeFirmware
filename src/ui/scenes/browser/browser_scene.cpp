@@ -1526,7 +1526,7 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 		first = true;
 		draw_stats_.draws++;
 		nav_identity_ = info->identity;
-		view_ = sample_view::WaveformView::open(info->length_samples, std::nullopt);
+		view_ = views::waveform::WaveformView::open(info->length_samples, std::nullopt);
 		retry_.restart();
 	}
 	const std::optional<services::WaveformFrame> wf =
@@ -2026,10 +2026,10 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || view_.zoomed_in())) {
 		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
 		// mode up. Either draws the waveform over whatever the pads showed.
-		const std::optional<sample_view::WaveformView> moved = holding_ || backspace_due_ms_.has_value() ? std::nullopt
-		                                                       : xenc_held_
-		                                                           ? view_.zoomed(delta, {}, std::nullopt, false)
-		                                                           : view_.scrolled(delta, false, std::nullopt);
+		const std::optional<views::waveform::WaveformView> moved =
+		    holding_ || backspace_due_ms_.has_value() ? std::nullopt
+		    : xenc_held_                              ? view_.zoomed(delta, {}, std::nullopt, false)
+		                                              : view_.scrolled(delta, false, std::nullopt);
 		if (moved) {
 			view_ = *moved;
 			pads_ = BrowserPads::Waveform;

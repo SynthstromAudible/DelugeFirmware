@@ -3,7 +3,7 @@
 /// @file
 /// @brief A test-only transcription of the legacy waveform arithmetic as this tree held it at `ba0d31ef8`, statement
 ///        for statement, with its types, truncations, sentinels and control flow kept. It is a record to compare the
-///        sample-view types with, not product code; a sim spec proved it equal to that code while the code was live.
+///        waveform view types with, not product code; a sim spec proved it equal to that code while the code was live.
 
 #include <algorithm>
 #include <array>
@@ -14,7 +14,7 @@
 // The transcription keeps legacy's narrowings, uninitialised locals and goto on purpose, so the lints that would
 // rewrite them are off for it.
 // NOLINTBEGIN
-namespace deluge::sample_view::test::oracle {
+namespace deluge::ui::views::waveform::test::oracle {
 
 inline constexpr int32_t kDisplayWidth = 16;
 inline constexpr int32_t kDisplayWidthMagnitude = 4;
@@ -315,5 +315,5 @@ bestYet:
 	}
 };
 
-} // namespace deluge::sample_view::test::oracle
+} // namespace deluge::ui::views::waveform::test::oracle
 // NOLINTEND

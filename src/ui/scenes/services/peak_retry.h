@@ -3,7 +3,7 @@
 /// @file
 /// @brief When a waveform view whose last read left columns pending draws again.
 
-#include "sample-view/peaks.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <cstdint>
 #include <optional>
@@ -47,13 +47,14 @@ public:
 	[[nodiscard]] constexpr bool retrying() const { return best_.has_value(); }
 	/// @brief Whether a redraw of @p window is under way: a frame read at another window starts over, so a redraw of
 	///        the last window does not carry to it.
-	[[nodiscard]] constexpr bool retrying(sample_view::Window window) const {
+	[[nodiscard]] constexpr bool retrying(views::waveform::Window window) const {
 		return best_.has_value() && window_ == window;
 	}
 	/// @brief Whether it stopped drawing again.
 	[[nodiscard]] constexpr bool gave_up() const { return given_up_; }
 	/// @brief Judge one frame's read of @p window at @p now_ms.
-	[[nodiscard]] constexpr Next after(const sample_view::PeakRead& read, sample_view::Window window, uint32_t now_ms) {
+	[[nodiscard]] constexpr Next after(const views::waveform::PeakRead& read, views::waveform::Window window,
+	                                   uint32_t now_ms) {
 		if (window_ != window) {
 			restart();
 			window_ = window;
@@ -83,9 +84,9 @@ public:
 	}
 
 private:
-	std::optional<int32_t> best_;               ///< the most columns a read has answered since the restart
-	uint32_t progress_ms_{0};                   ///< when that count last rose
-	std::optional<sample_view::Window> window_; ///< the window the last frame read
+	std::optional<int32_t> best_;                   ///< the most columns a read has answered since the restart
+	uint32_t progress_ms_{0};                       ///< when that count last rose
+	std::optional<views::waveform::Window> window_; ///< the window the last frame read
 	Patience patience_;
 	bool given_up_{false};
 };

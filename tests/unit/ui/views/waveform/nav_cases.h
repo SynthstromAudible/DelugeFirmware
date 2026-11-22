@@ -7,7 +7,7 @@
 /// Zooms run from 1 to 2^30: above that, the legacy zoom-in reads an uninitialised value and has no answer to
 /// compare with.
 
-#include "sample-view/view.h"
+#include "ui/views/waveform/view.h"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::sample_view::test {
+namespace deluge::ui::views::waveform::test {
 
 /// @brief A remembered view a waveform opens at: the open's inputs.
 struct NavOpen {
@@ -231,4 +231,4 @@ constexpr void for_each_zoom_case(Visit&& visit) {
 	}
 }
 
-} // namespace deluge::sample_view::test
+} // namespace deluge::ui::views::waveform::test

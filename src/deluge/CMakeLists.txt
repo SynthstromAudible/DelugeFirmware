@@ -130,7 +130,8 @@ target_link_libraries(deluge_app PUBLIC
     deluge_host_chains # the host chain's param table and pages
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music # note sets, scales, keys and scale mapping
-    deluge_sample_view # a waveform view's columns, peaks and navigation
+    deluge_ui_views_waveform # a waveform view's columns, peaks and navigation
+    deluge_app_ports_waveforms # the host's cache of a waveform's columns
     deluge_ui_gfx_oled # pure drawing primitives
     deluge_ui_gfx_grid
     deluge_ui_widgets_core # the immediate-mode UI toolkit

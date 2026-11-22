@@ -10,10 +10,10 @@
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/song.h"
-#include "sample-view/peaks.h"
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
+#include "ui/views/waveform/peaks.h"
 #include "ui/widgets/grid/waveform.h"
 
 #include "fakes.h"
@@ -100,7 +100,7 @@ struct AudioClipHost {
 		             .span = 1 << 26,
 		             .identity = 9},
 		};
-		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 			entry.peaks[static_cast<size_t>(c)] = {.min = -(c + 1) << 22, .max = (c + 1) << 23};
 		}
 		host.waveforms.waveforms.push_back(entry);
@@ -380,11 +380,11 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		}
 
 		// The same bars, composed through the toolkit from the entry's own read, centre and span.
-		const deluge::sample_view::PeakRead read = h.host.waveforms.peaks(at_clip(), {.scroll = 0, .zoom = 1000});
+		const deluge::ui::views::waveform::PeakRead read = h.host.waveforms.peaks(at_clip(), {.scroll = 0, .zoom = 1000});
 		const FakeWaveforms::Entry& e = h.entry();
 		std::array<deluge::ui::widgets::grid::PeakCol, 16> peaks{};
 		for (int32_t x = 0; x < 16; x++) {
-			if (const std::optional<deluge::sample_view::Bar> bar = read.bar(x, e.info.centre, e.info.span)) {
+			if (const std::optional<deluge::ui::views::waveform::Bar> bar = read.bar(x, e.info.centre, e.info.span)) {
 				peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
 			}
 		}

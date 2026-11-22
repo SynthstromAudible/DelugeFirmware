@@ -1,3 +1,4 @@
+#include "app/ports/waveforms/peak_cache.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "model/clip/audio_clip.h"
@@ -12,7 +13,6 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/source_resources.h"
-#include "sample-view/peak_cache.h"
 #include "storage/multi_range/multisample_range.h"
 #include "ui/scenes/menu/bind_host.h"
 
@@ -48,17 +48,18 @@ public:
 		                                              .recording = at.recorder != nullptr,
 		                                              .identity = waveform_identity(*at.sample)};
 	}
-	[[nodiscard]] sample_view::PeakRead peaks(const deluge::ui::scenes::bind::WaveformAddress& address,
-	                                          sample_view::Window at) const override {
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const deluge::ui::scenes::bind::WaveformAddress& address,
+	                                                          deluge::ui::views::waveform::Window at) const override {
 		const Resolved r = resolve(address);
 		if (r.sample == nullptr) {
-			return sample_view::PeakRead::all_past_end();
+			return deluge::ui::views::waveform::PeakRead::all_past_end();
 		}
 		const auto valid =
 		    static_cast<int64_t>(r.recorder != nullptr ? r.recorder->numSamplesCaptured : r.sample->lengthInSamples);
-		return caches_.read(
-		    waveform_identity(*r.sample), at, valid, r.recorder != nullptr,
-		    [&](sample_view::ColumnMask wanted) { return sample::read_columns(*r.sample, r.recorder, at, wanted); });
+		return caches_.read(waveform_identity(*r.sample), at, valid, r.recorder != nullptr,
+		                    [&](deluge::app::ports::waveforms::ColumnMask wanted) {
+			                    return sample::read_columns(*r.sample, r.recorder, at, wanted);
+		                    });
 	}
 	[[nodiscard]] std::optional<int64_t>
 	play_position(const deluge::ui::scenes::bind::WaveformAddress& address) const override {
@@ -113,7 +114,7 @@ private:
 	/// The columns read lately, one cache per waveform; the scenes keep none. `mutable` because a
 	/// read through the const port fills it; the port's answers do not depend on it, only how many card reads they
 	/// take.
-	mutable sample_view::PeakCacheSet<4> caches_;
+	mutable deluge::app::ports::waveforms::PeakCacheSet<4> caches_;
 
 	/// @brief The sample an address draws, and the recorder writing it, if one is.
 	struct Resolved {

@@ -6,11 +6,11 @@
 #include "ui/scenes/slicing/slicer_scene.h"
 
 #include "project/device_settings.h"
-#include "sample-view/view.h"
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
+#include "ui/views/waveform/view.h"
 
 #include "fake_slice_ops.h"
 #include "fakes.h"
@@ -226,9 +226,9 @@ describe slicer_fakes("slicing::SlicerScene over the ports' fakes", ${
 		SlicerHost h;
 		SlicerScene scene;
 		scene.set_ports(&h.ports);
-		const deluge::sample_view::WaveformView zoomed =
-		    deluge::sample_view::WaveformView::open(kLength, deluge::sample_view::Window{.scroll = 2000, .zoom = 100});
-		scene.open(a_wav(), deluge::sample_view::ShownWaveform{.identity = kIdentity, .view = zoomed});
+		const deluge::ui::views::waveform::WaveformView zoomed =
+		    deluge::ui::views::waveform::WaveformView::open(kLength, deluge::ui::views::waveform::Window{.scroll = 2000, .zoom = 100});
+		scene.open(a_wav(), deluge::ui::views::waveform::ShownWaveform{.identity = kIdentity, .view = zoomed});
 		expect(scene.x_zoom()).to_equal(int64_t{100});
 		scene.open(a_wav());
 		expect(scene.x_zoom()).to_equal(int64_t{100});
@@ -244,9 +244,9 @@ describe slicer_fakes("slicing::SlicerScene over the ports' fakes", ${
 		scene.set_ports(&h.ports);
 		scene.open(a_wav());
 		expect(scene.x_zoom()).to_equal(int64_t{1000});
-		const deluge::sample_view::WaveformView shown =
-		    deluge::sample_view::WaveformView::open(kLength, deluge::sample_view::Window{.scroll = 3000, .zoom = 200});
-		scene.open(a_wav(), deluge::sample_view::ShownWaveform{.identity = kIdentity, .view = shown});
+		const deluge::ui::views::waveform::WaveformView shown =
+		    deluge::ui::views::waveform::WaveformView::open(kLength, deluge::ui::views::waveform::Window{.scroll = 3000, .zoom = 200});
+		scene.open(a_wav(), deluge::ui::views::waveform::ShownWaveform{.identity = kIdentity, .view = shown});
 		expect(scene.x_zoom()).to_equal(int64_t{200});
 		expect(scene.x_scroll()).to_equal(int64_t{3000});
 	});

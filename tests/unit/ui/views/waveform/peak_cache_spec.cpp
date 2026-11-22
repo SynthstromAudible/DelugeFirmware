@@ -1,6 +1,6 @@
 // peak_cache.h against the legacy scan's prelude: a cache keeps, slides and clears its columns as the oracle's prelude
 // does, reads exactly what it lacks, and the set keeps one cache per waveform.
-#include "sample-view/peak_cache.h"
+#include "app/ports/waveforms/peak_cache.h"
 
 #include "legacy_oracle.h"
 
@@ -11,8 +11,9 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::sample_view;
-namespace oracle = deluge::sample_view::test::oracle;
+using namespace deluge::ui::views::waveform;
+using namespace deluge::app::ports::waveforms;
+namespace oracle = deluge::ui::views::waveform::test::oracle;
 
 namespace {
 

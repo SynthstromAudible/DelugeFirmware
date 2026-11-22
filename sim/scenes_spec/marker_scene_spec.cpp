@@ -279,12 +279,13 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::optional<uint64_t> length = std::nullopt) {
 	const bind::Waveforms& host = *menu::host_ports().waveforms;
 	const int64_t whole =
-	    deluge::sample_view::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
-	                                  deluge::sample_view::kColumns);
-	const deluge::sample_view::PeakRead read = host.peaks(at, {.scroll = 0, .zoom = std::max<int64_t>(1, whole)});
+	    deluge::base::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
+	                           deluge::ui::views::waveform::kColumns);
+	const deluge::ui::views::waveform::PeakRead read =
+	    host.peaks(at, {.scroll = 0, .zoom = std::max<int64_t>(1, whole)});
 	bind::test::FakeWaveforms::Entry entry{.at = at, .info = host.info(at).value_or(bind::WaveformInfo{})};
-	for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
-		entry.peaks[static_cast<size_t>(c)] = read.column(c).peak().value_or(deluge::sample_view::Peak{});
+	for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
+		entry.peaks[static_cast<size_t>(c)] = read.column(c).peak().value_or(deluge::ui::views::waveform::Peak{});
 	}
 	if (length) {
 		entry.info.length_samples = *length;
@@ -301,8 +302,8 @@ struct Counted final : bind::Waveforms {
 	[[nodiscard]] std::optional<bind::WaveformInfo> info(const bind::WaveformAddress& a) const override {
 		return menu::host_ports().waveforms->info(a);
 	}
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const bind::WaveformAddress& a,
-	                                                  deluge::sample_view::Window at) const override {
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const bind::WaveformAddress& a,
+	                                                          deluge::ui::views::waveform::Window at) const override {
 		reads++;
 		return menu::host_ports().waveforms->peaks(a, at);
 	}
@@ -326,7 +327,7 @@ int32_t main_pads_differ(const deluge::ui::gfx::grid::PadGrid& a, const deluge::
 }
 
 /// @brief The pin of marker @p m.
-deluge::sample_view::MarkerPin pin_of(MarkerType m) {
+deluge::ui::views::waveform::MarkerPin pin_of(MarkerType m) {
 	return marker_scene().pins()[static_cast<size_t>(m)];
 }
 
@@ -500,8 +501,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			FakeMarkerRig r;
 			r.open(r.range_context(), MarkerType::START);
 			r.tick(0);
-			const deluge::sample_view::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
-			expect(window.zoom).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			const deluge::ui::views::waveform::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
+			expect(window.zoom).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
 			expect(r.fakes.host.waveforms.reads.size()).to_equal(size_t{1});
 			if (!r.fakes.host.waveforms.reads.empty()) {
 				expect(r.fakes.host.waveforms.reads[0])
@@ -519,7 +520,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			FakeMarkerRig r;
 			r.open(r.range_context(), MarkerType::START);
 			r.tick(0);
-			expect(marker_scene().x_zoom()).to_equal(deluge::sample_view::ceil_div(1000, deluge::sample_view::kColumns));
+			expect(marker_scene().x_zoom()).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
 			bind::WaveformInfo& info = r.fakes.host.waveforms.waveforms[0].info;
 			info.length_samples = 160;
 			info.identity = 7; // another file

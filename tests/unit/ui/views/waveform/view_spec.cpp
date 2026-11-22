@@ -1,6 +1,6 @@
 // view.h against the legacy navigator's transcription: every open, clamp, scroll and zoom agrees with the oracle
 // outside the Fixed-quirks rows, and each row's cases pin the correct value.
-#include "sample-view/view.h"
+#include "ui/views/waveform/view.h"
 
 #include "fixed_quirks.h"
 #include "legacy_oracle.h"
@@ -15,8 +15,8 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::sample_view;
-using namespace deluge::sample_view::test;
+using namespace deluge::ui::views::waveform;
+using namespace deluge::ui::views::waveform::test;
 
 namespace {
 

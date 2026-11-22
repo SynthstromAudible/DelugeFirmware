@@ -31,10 +31,10 @@
 
 namespace deluge::sample {
 
-sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sample_view::Window at,
-                                   sample_view::ColumnMask wanted) {
+ui::views::waveform::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, ui::views::waveform::Window at,
+                                           app::ports::waveforms::ColumnMask wanted) {
 	if (at.zoom < 1) {
-		return sample_view::PeakRead::all_past_end();
+		return ui::views::waveform::PeakRead::all_past_end();
 	}
 
 	uint64_t num_valid_samples = 0;
@@ -54,7 +54,7 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 
 	const uint64_t numValidBytes = num_valid_samples * sample.byteDepth * sample.numChannels;
 
-	sample_view::PeakRead read; // every column pending until it is answered
+	ui::views::waveform::PeakRead read; // every column pending until it is answered
 
 	// One reader for the whole scan (SCAN hint: this is a one-shot whole-sample pass, so it must not evict
 	// the voice's own warm cluster set). Re-seeked per column below; cheap to open even if no column is
@@ -63,21 +63,23 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 
 	const auto valid = static_cast<int64_t>(num_valid_samples);
 	const int64_t frame_bytes = int64_t{sample.numChannels} * sample.byteDepth;
-	for (int32_t col = 0; col < sample_view::kColumns; col++) {
+	for (int32_t col = 0; col < ui::views::waveform::kColumns; col++) {
 		if (!wanted.test(static_cast<size_t>(col))) {
 			continue;
 		}
 		int64_t col_start = at.scroll + int64_t{col} * at.zoom;
 		int64_t col_end = col_start + at.zoom;
 		if (col_start >= valid || col_end <= 0) {
-			read.set(col, sample_view::ColumnRead::past_end()); // outside the waveform: past its end, or wholly before
+			read.set(
+			    col,
+			    ui::views::waveform::ColumnRead::past_end()); // outside the waveform: past its end, or wholly before
 			continue;
 		}
 		col_start = std::max<int64_t>(col_start, 0); // a column straddling the start reads from frame 0
 		if (col_end >= valid) {
 			if (recorder != nullptr) {
 				// A take still being written: the column is not wholly captured yet.
-				read.set(col, sample_view::ColumnRead::past_end());
+				read.set(col, ui::views::waveform::ColumnRead::past_end());
 				continue;
 			}
 			col_end = valid;
@@ -151,7 +153,7 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 		}
 
 		if (clusterIndexToDo >= endClusters) { // Could this actually happen?
-			read.set(col, sample_view::ColumnRead::past_end());
+			read.set(col, ui::views::waveform::ColumnRead::past_end());
 			continue;
 		}
 
@@ -169,7 +171,7 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
 		// previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigated) {
-			read.set(col, sample_view::ColumnRead::of(
+			read.set(col, ui::views::waveform::ColumnRead::of(
 			                  {.min = (int32_t)sampleCluster->min << 24, .max = (int32_t)sampleCluster->max << 24}));
 			continue;
 		}
@@ -181,7 +183,7 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 		const int64_t startByteAbs =
 		    clusterStartByte(clusterIndexToDo, Cluster::size_magnitude) + startByteWithinCluster;
 		const auto startFrame = static_cast<uint64_t>(
-		    sample_view::trunc_div(startByteAbs - static_cast<int64_t>(sample.audioDataStartPosBytes), frame_bytes));
+		    base::trunc_div(startByteAbs - static_cast<int64_t>(sample.audioDataStartPosBytes), frame_bytes));
 
 		reader.seek(startFrame);
 		DelugeFrameWindow window = reader.window();
@@ -197,15 +199,15 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 		// down rather than reading across the boundary).
 		const int64_t wantedBytes =
 		    endByteWithinCluster > startByteWithinCluster ? int64_t{endByteWithinCluster} - startByteWithinCluster : 0;
-		const auto numFramesToRead = static_cast<uint32_t>(
-		    std::min<int64_t>(sample_view::trunc_div(wantedBytes, frame_bytes), window.frame_count));
+		const auto numFramesToRead =
+		    static_cast<uint32_t>(std::min<int64_t>(base::trunc_div(wantedBytes, frame_bytes), window.frame_count));
 		const auto numBytesToRead = static_cast<uint32_t>(numFramesToRead * frame_bytes);
 
 		// If there are no whole frames to read here (e.g. audio ends very early in the final cluster, or
 		// this column's span collapsed to less than one frame near a cluster boundary), this column has no
 		// valid data: it has nothing to draw (#4460).
 		if (numBytesToRead == 0) {
-			read.set(col, sample_view::ColumnRead::past_end());
+			read.set(col, ui::views::waveform::ColumnRead::past_end());
 			continue;
 		}
 
@@ -251,7 +253,7 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 			}
 		}
 
-		read.set(col, sample_view::ColumnRead::of({.min = minThisCol, .max = maxThisCol}));
+		read.set(col, ui::views::waveform::ColumnRead::of({.min = minThisCol, .max = maxThisCol}));
 	}
 
 	if (recorder != nullptr) {
@@ -260,11 +262,11 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 	}
 	else {
 		// The columns just read. A column a cache keeps was folded when it was read, and the range only widens.
-		for (int32_t col = 0; col < sample_view::kColumns; col++) {
+		for (int32_t col = 0; col < ui::views::waveform::kColumns; col++) {
 			if (!wanted.test(static_cast<size_t>(col))) {
 				continue;
 			}
-			if (const std::optional<sample_view::Peak> p = read.column(col).peak()) {
+			if (const std::optional<ui::views::waveform::Peak> p = read.column(col).peak()) {
 				sample.maxValueFound = std::max(sample.maxValueFound, p->max);
 				sample.minValueFound = std::min(sample.minValueFound, p->min);
 			}
@@ -273,14 +275,16 @@ sample_view::PeakRead read_columns(Sample& sample, SampleRecorder* recorder, sam
 	return read;
 }
 
-sample_view::PeakRead find_peaks_per_col(Sample& sample, sample_view::Window at, sample_view::PeakCache& cache,
-                                         SampleRecorder* recorder, int32_t first, int32_t last) {
-	static_assert(sample_view::kColumns == kDisplayWidth);
+ui::views::waveform::PeakRead find_peaks_per_col(Sample& sample, ui::views::waveform::Window at,
+                                                 app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
+                                                 int32_t first, int32_t last) {
+	static_assert(ui::views::waveform::kColumns == kDisplayWidth);
 	const auto valid =
 	    static_cast<int64_t>(recorder != nullptr ? recorder->numSamplesCaptured : sample.lengthInSamples);
 	return cache.update(
 	    at, valid, recorder != nullptr,
-	    [&](sample_view::ColumnMask wanted) { return read_columns(sample, recorder, at, wanted); }, first, last);
+	    [&](app::ports::waveforms::ColumnMask wanted) { return read_columns(sample, recorder, at, wanted); }, first,
+	    last);
 }
 
 // Background "waveform overview" pre-scan (issue #4460). Investigates one whole cluster the same way

@@ -7,8 +7,8 @@
 /// Only the host's waveform reads and the legacy views use these. A scene asks the waveforms port for a window's
 /// columns and keeps nothing (`scripts/layers.toml`, `scenes-no-peak-cache`).
 
-#include "sample-view/divide.h"
-#include "sample-view/peaks.h"
+#include "base/divide.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <array>
 #include <bitset>
@@ -18,10 +18,10 @@
 #include <optional>
 #include <utility>
 
-namespace deluge::sample_view {
+namespace deluge::app::ports::waveforms {
 
 /// @brief A set of columns, bit `c` for column `c`: the columns a read is asked for.
-using ColumnMask = std::bitset<kColumns>;
+using ColumnMask = std::bitset<ui::views::waveform::kColumns>;
 
 /// @brief The columns read of one waveform, at the window they were last read at.
 class PeakCache {
@@ -42,22 +42,23 @@ public:
 	// TODO(c++26): take std::function_ref<…> once the device's libstdc++ provides it (arm-none-eabi GCC 16; 15.2.1 does
 	// not).
 	template <typename Read>
-	constexpr PeakRead update(Window at, int64_t valid_length, bool growing, Read&& read, int32_t first = 0,
-	                          int32_t last = kColumns);
+	constexpr ui::views::waveform::PeakRead update(ui::views::waveform::Window at, int64_t valid_length, bool growing,
+	                                               Read&& read, int32_t first = 0,
+	                                               int32_t last = ui::views::waveform::kColumns);
 	/// @brief The columns as the last update left them.
-	[[nodiscard]] constexpr const PeakRead& columns() const { return columns_; }
+	[[nodiscard]] constexpr const ui::views::waveform::PeakRead& columns() const { return columns_; }
 	/// @brief The window of the last update; none before the first or after a forget.
-	[[nodiscard]] constexpr std::optional<Window> window() const { return window_; }
+	[[nodiscard]] constexpr std::optional<ui::views::waveform::Window> window() const { return window_; }
 	/// @brief The valid length of the last update, which a later update's length is compared with.
 	/// @return The frames the last read saw; 0 before the first update or after a forget.
 	[[nodiscard]] constexpr int64_t valid_length() const { return valid_length_; }
 	bool operator==(const PeakCache&) const = default;
 
 private:
-	constexpr void retarget(Window at, int64_t valid_length, bool growing);
+	constexpr void retarget(ui::views::waveform::Window at, int64_t valid_length, bool growing);
 	constexpr void slide(int64_t columns);
-	PeakRead columns_{};
-	std::optional<Window> window_{};
+	ui::views::waveform::PeakRead columns_{};
+	std::optional<ui::views::waveform::Window> window_{};
 	int64_t valid_length_{0};
 	bool growing_{false};
 };
@@ -78,7 +79,8 @@ public:
 	// TODO(c++26): take std::function_ref<…> once the device's libstdc++ provides it (arm-none-eabi GCC 16; 15.2.1 does
 	// not).
 	template <typename Read>
-	constexpr PeakRead read(uint64_t identity, Window at, int64_t valid_length, bool growing, Read&& read);
+	constexpr ui::views::waveform::PeakRead read(uint64_t identity, ui::views::waveform::Window at,
+	                                             int64_t valid_length, bool growing, Read&& read);
 	/// @brief How many waveforms the set holds.
 	/// @return The count, at most @p Capacity.
 	[[nodiscard]] constexpr size_t held() const;
@@ -93,11 +95,11 @@ private:
 	uint64_t reads_{0};
 };
 
-constexpr void PeakCache::retarget(Window at, int64_t valid_length, bool growing) {
+constexpr void PeakCache::retarget(ui::views::waveform::Window at, int64_t valid_length, bool growing) {
 	const bool length_changed = !growing && valid_length != valid_length_;
 	const bool take_ended = growing_ && !growing; // the take may have been rewritten as it settled
 	if (!window_ || at.zoom != window_->zoom || length_changed || take_ended) {
-		columns_ = PeakRead{};
+		columns_ = ui::views::waveform::PeakRead{};
 	}
 	else if (at.scroll != window_->scroll) {
 		// Only a scroll of at most kColumns whole columns can slide. Two scrolls further apart than an int64_t holds
@@ -105,15 +107,16 @@ constexpr void PeakCache::retarget(Window at, int64_t valid_length, bool growing
 		constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
 		const int64_t from = window_->scroll;
 		const bool fits = from < 0 ? at.scroll <= kMax + from : at.scroll >= std::numeric_limits<int64_t>::min() + from;
-		const int64_t reach = at.zoom > (kMax >> kColumnsLog2) ? kMax : at.zoom << kColumnsLog2;
+		const int64_t reach =
+		    at.zoom > (kMax >> ui::views::waveform::kColumnsLog2) ? kMax : at.zoom << ui::views::waveform::kColumnsLog2;
 		const std::optional<int64_t> delta = fits ? std::optional{at.scroll - from} : std::nullopt;
 		const bool near = delta && *delta >= -reach && *delta <= reach;
-		const std::optional<int64_t> columns = near ? exact_div(*delta, at.zoom) : std::nullopt;
+		const std::optional<int64_t> columns = near ? base::exact_div(*delta, at.zoom) : std::nullopt;
 		if (columns && *columns != 0) {
 			slide(*columns);
 		}
 		else {
-			columns_ = PeakRead{};
+			columns_ = ui::views::waveform::PeakRead{};
 		}
 	}
 	window_ = at;
@@ -122,15 +125,15 @@ constexpr void PeakCache::retarget(Window at, int64_t valid_length, bool growing
 }
 
 constexpr void PeakCache::slide(int64_t columns) {
-	if (columns <= -kColumns || columns >= kColumns) {
-		columns_ = PeakRead{};
+	if (columns <= -ui::views::waveform::kColumns || columns >= ui::views::waveform::kColumns) {
+		columns_ = ui::views::waveform::PeakRead{};
 		return;
 	}
 	const auto n = static_cast<int32_t>(columns);
-	PeakRead slid; // every column pending: those the slide exposes stay so
-	for (int32_t c = 0; c < kColumns; c++) {
+	ui::views::waveform::PeakRead slid; // every column pending: those the slide exposes stay so
+	for (int32_t c = 0; c < ui::views::waveform::kColumns; c++) {
 		const int32_t from = c + n;
-		if (from >= 0 && from < kColumns) {
+		if (from >= 0 && from < ui::views::waveform::kColumns) {
 			slid.set(c, columns_.column(from));
 		}
 	}
@@ -138,22 +141,22 @@ constexpr void PeakCache::slide(int64_t columns) {
 }
 
 template <typename Read>
-constexpr PeakRead PeakCache::update(Window at, int64_t valid_length, bool growing, Read&& read, int32_t first,
-                                     int32_t last) {
+constexpr ui::views::waveform::PeakRead PeakCache::update(ui::views::waveform::Window at, int64_t valid_length,
+                                                          bool growing, Read&& read, int32_t first, int32_t last) {
 	if (at.zoom < 1) {
 		forget();
-		return PeakRead::all_past_end();
+		return ui::views::waveform::PeakRead::all_past_end();
 	}
 	retarget(at, valid_length, growing);
 	ColumnMask wanted;
 	for (int32_t c = first; c < last; c++) {
 		// Only a peak is kept: a pending column may be readable now, and a growing take's past-the-end ones may not
 		// be past it any more.
-		if (columns_.column(c).state() != ColumnState::PEAK) {
+		if (columns_.column(c).state() != ui::views::waveform::ColumnState::PEAK) {
 			wanted.set(static_cast<size_t>(c));
 		}
 	}
-	const PeakRead answer = std::forward<Read>(read)(wanted);
+	const ui::views::waveform::PeakRead answer = std::forward<Read>(read)(wanted);
 	for (int32_t c = first; c < last; c++) {
 		if (wanted.test(static_cast<size_t>(c))) {
 			columns_.set(c, answer.column(c));
@@ -164,8 +167,8 @@ constexpr PeakRead PeakCache::update(Window at, int64_t valid_length, bool growi
 
 template <size_t Capacity>
 template <typename Read>
-constexpr PeakRead PeakCacheSet<Capacity>::read(uint64_t identity, Window at, int64_t valid_length, bool growing,
-                                                Read&& read) {
+constexpr ui::views::waveform::PeakRead PeakCacheSet<Capacity>::read(uint64_t identity, ui::views::waveform::Window at,
+                                                                     int64_t valid_length, bool growing, Read&& read) {
 	Entry* entry = nullptr;
 	for (Entry& e : entries_) {
 		if (e.identity == identity) {
@@ -206,4 +209,4 @@ constexpr size_t PeakCacheSet<Capacity>::held() const {
 	return n;
 }
 
-} // namespace deluge::sample_view
+} // namespace deluge::app::ports::waveforms

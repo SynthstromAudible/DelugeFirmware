@@ -544,7 +544,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		while (r.clock < 50) {
 			r.step();
 		}
-		const deluge::sample_view::WaveformView view = browser::browser_scene().waveform_view();
+		const deluge::ui::views::waveform::WaveformView view = browser::browser_scene().waveform_view();
 		const deluge::ui::gfx::grid::PadGrid preview = r.fake.grid().grid();
 		for (int32_t i = 0; i < kNumClusters; i++) {
 			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));

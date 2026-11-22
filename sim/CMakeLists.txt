@@ -234,10 +234,10 @@ add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_
 add_subdirectory(${REPO_ROOT}/src/instruments/classic ${CMAKE_BINARY_DIR}/instruments-classic) # deluge_instruments_classic
 add_subdirectory(${REPO_ROOT}/src/host/chains ${CMAKE_BINARY_DIR}/host-chains) # deluge_host_chains
 add_subdirectory(${REPO_ROOT}/src/music ${CMAKE_BINARY_DIR}/music) # deluge_music
-add_subdirectory(${REPO_ROOT}/src/sample-view ${CMAKE_BINARY_DIR}/sample-view) # deluge_sample_view
 add_subdirectory(${REPO_ROOT}/src/project ${CMAKE_BINARY_DIR}/project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
 add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_widgets_core / _oled / _grid
+add_subdirectory(${REPO_ROOT}/src/app        ${CMAKE_BINARY_DIR}/app-ports)  # deluge_app_ports_waveforms
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # deluge_synth

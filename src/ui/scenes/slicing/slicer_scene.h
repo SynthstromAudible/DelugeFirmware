@@ -117,9 +117,9 @@
 #include "ui/widgets/grid/frame.h"
 #include "ui/widgets/oled/frame.h"
 
-#include "sample-view/view.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/views/waveform/view.h"
 
 #include <array>
 #include <cstdint>
@@ -272,7 +272,7 @@ public:
 	/// resets legacy's global between two slicer opens.
 	/// @param file  The file to slice; none leaves the scene with nothing to draw.
 	/// @param shown The view the browser's preview drew @p file at, or none.
-	void open(std::optional<SliceFile> file, std::optional<sample_view::ShownWaveform> shown = std::nullopt);
+	void open(std::optional<SliceFile> file, std::optional<views::waveform::ShownWaveform> shown = std::nullopt);
 
 	/// @brief Switch between REGION and MANUAL.
 	///
@@ -435,7 +435,7 @@ private:
 	/// The scroll and zoom, over the file's length, which is fixed while the file is loaded. Main shares one navigator
 	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; each scene here owns its
 	/// view, and the waveforms port keeps the columns by file.
-	sample_view::WaveformView view_{};
+	views::waveform::WaveformView view_{};
 	/// The redraws of a frame whose read left columns pending.
 	services::PeakRetry retry_{};
 

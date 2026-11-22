@@ -100,7 +100,7 @@ STEM_EXPORT_PROCESS_CALLS = (
 # `ROOT_UI_GLOBALS` is: `--audit-symbols` checks it is a global the source really declares, from its
 # `extern` declaration: `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`).
 #
-# The waveform's arithmetic (columns, peaks, scroll and zoom) is `src/sample-view/`'s, and its scan is
+# The waveform's arithmetic (columns, peaks, scroll and zoom) is `src/ui/views/waveform/`'s, and its scan is
 # `model/sample/waveform_scan.h`'s, both of which `src/ui/scenes` may reach; the drawing into `PadLEDs`'
 # images stays in `gui/waveform/waveform_renderer.h`, which the scenes layer draws around through
 # `ui/widgets/grid/`. This row is what keeps the split split. It is a SYMBOL row for the same reason

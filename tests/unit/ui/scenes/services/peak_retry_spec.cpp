@@ -10,9 +10,9 @@
 #include <cstdint>
 
 using namespace deluge::ui::scenes::services;
-using deluge::sample_view::ColumnRead;
-using deluge::sample_view::PeakRead;
-using deluge::sample_view::Window;
+using deluge::ui::views::waveform::ColumnRead;
+using deluge::ui::views::waveform::PeakRead;
+using deluge::ui::views::waveform::Window;
 
 namespace {
 

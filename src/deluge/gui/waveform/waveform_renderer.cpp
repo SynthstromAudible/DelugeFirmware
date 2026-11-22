@@ -45,10 +45,10 @@ WaveformRenderer::WaveformRenderer() {
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
                                         RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                        deluge::sample_view::PeakCache& cache, SampleRecorder* recorder,
+                                        deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
                                         std::optional<RGB> rgb, bool reversed, int32_t xEnd) {
 
-	const deluge::sample_view::PeakRead read = deluge::sample::find_peaks_per_col(
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
 	    *sample, {.scroll = static_cast<int64_t>(xScroll), .zoom = static_cast<int64_t>(xZoom)}, cache, recorder);
 	if (read.pending()) {
 		return false;
@@ -68,8 +68,8 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 
 // Returns false if had trouble loading some (will often not be all) Clusters
 bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
-                                         deluge::sample_view::PeakCache& cache, SampleRecorder* recorder, RGB rgb,
-                                         bool reversed, int32_t xStart, int32_t xEnd) {
+                                         deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
+                                         RGB rgb, bool reversed, int32_t xStart, int32_t xEnd) {
 
 	int32_t xStartSource = xStart;
 	int32_t xEndSource = xEnd;
@@ -78,7 +78,7 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		xEndSource = kDisplayWidth - 1 - xStart;
 	}
 
-	const deluge::sample_view::PeakRead read = deluge::sample::find_peaks_per_col(
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
 	    *sample, {.scroll = xScroll, .zoom = static_cast<int64_t>(xZoom)}, cache, recorder, xStartSource, xEndSource);
 	if (read.pending(xStartSource, xEndSource)) {
 		return false;
@@ -94,13 +94,13 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		}
 
 		// If no data here (e.g. if Sample not recorded this far yet...)
-		const std::optional<deluge::sample_view::Peak> peak = read.column(xDisplaySource).peak();
+		const std::optional<deluge::ui::views::waveform::Peak> peak = read.column(xDisplaySource).peak();
 		if (!peak) {
 			thisImage[xDisplayOutput] = deluge::gui::colours::black;
 			continue;
 		}
 
-		int32_t colourValue = deluge::sample_view::single_row_brightness(*peak, maxPeakFromZero);
+		int32_t colourValue = deluge::ui::views::waveform::single_row_brightness(*peak, maxPeakFromZero);
 		colourValue = (colourValue * colourValue); // >> 8;
 		// if (colourValue > 255) colourValue = 255; // May sometimes go juuust over
 
@@ -118,7 +118,7 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform, int32_t xDisplayOutput,
                                                         int32_t maxPeakFromZero, int32_t progress,
                                                         RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                                        const deluge::sample_view::PeakRead& read,
+                                                        const deluge::ui::views::waveform::PeakRead& read,
                                                         std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint,
                                                         int32_t valueSpan) {
 
@@ -127,14 +127,15 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 		xDisplayData = kDisplayWidth - 1 - xDisplayData;
 	}
 
-	const std::optional<deluge::sample_view::Peak> peak = read.column(xDisplayData).peak();
+	const std::optional<deluge::ui::views::waveform::Peak> peak = read.column(xDisplayData).peak();
 	if (!peak) {
 		return;
 	}
 
-	const deluge::sample_view::Bar bar = deluge::sample_view::bar_of(*peak, valueCentrePoint, valueSpan);
+	const deluge::ui::views::waveform::Bar bar =
+	    deluge::ui::views::waveform::bar_of(*peak, valueCentrePoint, valueSpan);
 
-	int32_t singleSquareBrightness = deluge::sample_view::single_row_brightness(*peak, maxPeakFromZero);
+	int32_t singleSquareBrightness = deluge::ui::views::waveform::single_row_brightness(*peak, maxPeakFromZero);
 
 	renderOneColForCollapseAnimationInterpolation(xDisplayOutput, bar.bottom, bar.top, singleSquareBrightness, progress,
 	                                              thisImage, rgb);
@@ -145,7 +146,7 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
     int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge, int32_t xDisplayOutput,
     int32_t maxPeakFromZero, int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
-    const deluge::sample_view::PeakRead& read, std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint,
+    const deluge::ui::views::waveform::PeakRead& read, std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint,
     int32_t valueSpan) {
 
 	int32_t xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
@@ -161,12 +162,13 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
 	int32_t singleSquareBrightnessTotal = 0;
 
 	for (int32_t xDisplayDataNow = xDisplayDataLeftEdge; xDisplayDataNow <= xDisplayDataRightEdge; xDisplayDataNow++) {
-		const std::optional<deluge::sample_view::Peak> peak = read.column(xDisplayDataNow).peak();
+		const std::optional<deluge::ui::views::waveform::Peak> peak = read.column(xDisplayDataNow).peak();
 		if (!peak) {
 			return;
 		}
 
-		const deluge::sample_view::Bar bar = deluge::sample_view::bar_of(*peak, valueCentrePoint, valueSpan);
+		const deluge::ui::views::waveform::Bar bar =
+		    deluge::ui::views::waveform::bar_of(*peak, valueCentrePoint, valueSpan);
 
 		if (bar.bottom < min24Total) {
 			min24Total = bar.bottom;
@@ -175,7 +177,7 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
 			max24Total = bar.top;
 		}
 
-		int32_t singleSquareBrightness = deluge::sample_view::single_row_brightness(*peak, maxPeakFromZero);
+		int32_t singleSquareBrightness = deluge::ui::views::waveform::single_row_brightness(*peak, maxPeakFromZero);
 
 		if (singleSquareBrightness > singleSquareBrightnessTotal) {
 			singleSquareBrightnessTotal = singleSquareBrightness;
@@ -242,14 +244,15 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 }
 
 void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                    const deluge::sample_view::PeakRead& read, bool reversed, std::optional<RGB> rgb) {
+                                    const deluge::ui::views::waveform::PeakRead& read, bool reversed,
+                                    std::optional<RGB> rgb) {
 	int32_t brightness = rgb ? 256 : 128;
 
 	int32_t xDisplaySource = reversed ? (kDisplayWidth - 1 - xDisplay) : xDisplay;
 
-	if (const std::optional<deluge::sample_view::Peak> peak = read.column(xDisplaySource).peak()) {
-		const deluge::sample_view::Bar bar =
-		    deluge::sample_view::bar_of(*peak, sample->getFoundValueCentrePoint(), sample->getValueSpan());
+	if (const std::optional<deluge::ui::views::waveform::Peak> peak = read.column(xDisplaySource).peak()) {
+		const deluge::ui::views::waveform::Bar bar =
+		    deluge::ui::views::waveform::bar_of(*peak, sample->getFoundValueCentrePoint(), sample->getValueSpan());
 
 		drawColBar(xDisplay, bar.bottom, bar.top, thisImage, brightness, rgb);
 	}

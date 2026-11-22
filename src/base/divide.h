@@ -26,7 +26,7 @@
 #include <limits>
 #include <optional>
 
-namespace deluge::sample_view {
+namespace deluge::base {
 
 /// @brief A quotient rounded toward zero and the remainder it leaves, signed as integer `/` and `%` sign them.
 struct Quotient {
@@ -129,4 +129,4 @@ namespace detail {
 	return d.remainder == 0 ? std::optional{d.quotient} : std::nullopt;
 }
 
-} // namespace deluge::sample_view
+} // namespace deluge::base

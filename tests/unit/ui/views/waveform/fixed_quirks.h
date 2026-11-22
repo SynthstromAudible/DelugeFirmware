@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The Fixed-quirks rows the sample-view specs skip in their comparisons with the oracle, and the predicates
+/// @brief The Fixed-quirks rows the waveform view specs skip in their comparisons with the oracle, and the predicates
 ///        that say which row an input falls in.
 ///
 /// The new types are correct on every input; legacy was not. Each predicate answers, from an input alone, the row
@@ -14,7 +14,7 @@
 /// lie outside it and have named cases of their own.
 
 #include "nav_cases.h"
-#include "sample-view/peaks.h"
+#include "ui/views/waveform/peaks.h"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@
 #include <optional>
 #include <string_view>
 
-namespace deluge::sample_view::test {
+namespace deluge::ui::views::waveform::test {
 
 /// @brief The library's Fixed-quirks rows.
 enum class Quirk : uint8_t { Q1, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q29 };
@@ -262,4 +262,4 @@ namespace detail {
 	return std::nullopt;
 }
 
-} // namespace deluge::sample_view::test
+} // namespace deluge::ui::views::waveform::test

@@ -41,6 +41,9 @@ path = "effects"
 target = "src/effects"
 
 [[directory]]
+path = "app"
+
+[[directory]]
 path = "base"
 target = "src/base"
 
@@ -71,10 +74,6 @@ target = "src/music"
 [[directory]]
 path = "plugin"
 target = "src/plugin"
-
-[[directory]]
-path = "sample-view"
-target = "divide.h to src/base, peaks.h and view.h to src/ui/views/waveform, peak_cache.h to src/app/ports/waveforms"
 
 [[directory]]
 path = "serialization"
@@ -182,9 +181,21 @@ may_include = [
 ]
 
 [[library]]
-name = "sample-view"
-root = "src/sample-view"
-prefix = "sample-view/"
+name = "ui-views-waveform"
+root = "src/ui/views/waveform"
+prefix = "ui/views/waveform/"
+may_include = [
+    "base/divide.h",
+]
+
+[[library]]
+name = "app-ports-waveforms"
+root = "src/app/ports/waveforms"
+prefix = "app/ports/waveforms/"
+may_include = [
+    "base/divide.h",
+    "ui/views/waveform/peaks.h",
+]
 
 [[library]]
 name = "project"
@@ -226,7 +237,7 @@ may_include = [
     "midi/device_id.h",
     "music/",
     # a waveform's columns and peaks, the Waveforms port's vocabulary (header-only)
-    "sample-view/peaks.h",
+    "ui/views/waveform/peaks.h",
     "base/panic.h",
     "gui/l10n/setting_names.h",
     "gui/l10n/strings.h",
@@ -322,7 +333,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/ui/scenes/**"]
-pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|music/|sample-view/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|music/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]
@@ -352,7 +363,7 @@ reason = "a scene's write leaves as a request; it names no Edit"
 [[rule]]
 name = "scenes-no-peak-cache"
 files = ["src/ui/scenes/**"]
-pattern = '^sample-view/peak_cache\.h$'
+pattern = '^app/ports/waveforms/peak_cache\.h$'
 reason = "a scene asks the waveforms port for a window's columns and draws the answer; the column cache is the host's"
 
 [[rule]]

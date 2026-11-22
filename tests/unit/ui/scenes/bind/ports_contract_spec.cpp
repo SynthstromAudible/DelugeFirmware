@@ -44,15 +44,15 @@ constexpr WaveformInfo kThousandFrames{.length_samples = 1000, .sample_rate = 44
 ///        never comes.
 class EagerWaveforms final : public Waveforms {
 	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
-	                                                  deluge::sample_view::Window at) const override {
-		deluge::sample_view::PeakRead read;
-		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const WaveformAddress&,
+	                                                          deluge::ui::views::waveform::Window at) const override {
+		deluge::ui::views::waveform::PeakRead read;
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 			if (at.scroll + int64_t{c} * at.zoom < static_cast<int64_t>(kThousandFrames.length_samples)) {
-				read.set(c, deluge::sample_view::ColumnRead::of({.min = -1, .max = 1}));
+				read.set(c, deluge::ui::views::waveform::ColumnRead::of({.min = -1, .max = 1}));
 			}
 			else {
-				read.set(c, deluge::sample_view::ColumnRead::pending());
+				read.set(c, deluge::ui::views::waveform::ColumnRead::pending());
 			}
 		}
 		return read;
@@ -63,12 +63,12 @@ class EagerWaveforms final : public Waveforms {
 /// @brief A broken waveforms port: each read answers every column another peak.
 class FlakyWaveforms final : public Waveforms {
 	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
-	                                                  deluge::sample_view::Window) const override {
-		deluge::sample_view::PeakRead read;
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const WaveformAddress&,
+	                                                          deluge::ui::views::waveform::Window) const override {
+		deluge::ui::views::waveform::PeakRead read;
 		reads_++;
-		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
-			read.set(c, deluge::sample_view::ColumnRead::of({.min = -reads_, .max = reads_}));
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
+			read.set(c, deluge::ui::views::waveform::ColumnRead::of({.min = -reads_, .max = reads_}));
 		}
 		return read;
 	}
@@ -83,9 +83,9 @@ class UnnamedWaveforms final : public Waveforms {
 		unnamed.identity = 0;
 		return unnamed;
 	}
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
-	                                                  deluge::sample_view::Window) const override {
-		return deluge::sample_view::PeakRead::all_past_end();
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const WaveformAddress&,
+	                                                          deluge::ui::views::waveform::Window) const override {
+		return deluge::ui::views::waveform::PeakRead::all_past_end();
 	}
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
 };
@@ -93,9 +93,9 @@ class UnnamedWaveforms final : public Waveforms {
 /// @brief A broken waveforms port: it answers every column past the end over a loaded file.
 class BlankWaveforms final : public Waveforms {
 	[[nodiscard]] std::optional<WaveformInfo> info(const WaveformAddress&) const override { return kThousandFrames; }
-	[[nodiscard]] deluge::sample_view::PeakRead peaks(const WaveformAddress&,
-	                                                  deluge::sample_view::Window) const override {
-		return deluge::sample_view::PeakRead::all_past_end();
+	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const WaveformAddress&,
+	                                                          deluge::ui::views::waveform::Window) const override {
+		return deluge::ui::views::waveform::PeakRead::all_past_end();
 	}
 	[[nodiscard]] std::optional<int64_t> play_position(const WaveformAddress&) const override { return std::nullopt; }
 };
@@ -835,8 +835,8 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
 	});
 	it("answers the waveforms as the spec set them, records every read, and holds the waveforms contract", _ {
-		using deluge::sample_view::ColumnRead;
-		using deluge::sample_view::PeakRead;
+		using deluge::ui::views::waveform::ColumnRead;
+		using deluge::ui::views::waveform::PeakRead;
 		test::FakeHost host;
 		const Ports p = host.ports();
 		expect(p.waveforms).to_equal(static_cast<const Waveforms*>(&host.waveforms));
@@ -844,7 +844,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, 4}};
 		const WaveformAddress nowhere{.kind = WaveformAddress::Kind::PREVIEW};
 		test::FakeWaveforms::Entry entry{.at = range, .info = kThousandFrames, .position = 250};
-		for (int32_t c = 0; c < deluge::sample_view::kColumns; c++) {
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
 			entry.peaks[static_cast<size_t>(c)] = {.min = -c, .max = c};
 		}
 		entry.pending.set(3);
@@ -882,7 +882,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		recording.recording = true;
 		host.waveforms.waveforms.push_back({.at = take, .info = recording, .captured = 550});
 		const PeakRead taken = host.waveforms.peaks(take, {.scroll = 0, .zoom = 100});
-		expect(taken.column(4).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
+		expect(taken.column(4).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		expect(taken.column(5)).to_equal(ColumnRead::past_end());
 		expect(taken.column(9)).to_equal(ColumnRead::past_end());
 	});

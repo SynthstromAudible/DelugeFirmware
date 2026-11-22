@@ -86,7 +86,7 @@ std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
-void SlicerScene::open(std::optional<SliceFile> file, std::optional<sample_view::ShownWaveform> shown) {
+void SlicerScene::open(std::optional<SliceFile> file, std::optional<views::waveform::ShownWaveform> shown) {
 	// `waveformBasicNavigator` as main's `SampleBrowser::previewIfPossible`
 	// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) left it: the preview's view. The waveforms port
 	// keeps the columns the preview read, by file, so the slicer draws those rather than the overview's coarse peaks.
@@ -108,7 +108,7 @@ void SlicerScene::open(std::optional<SliceFile> file, std::optional<sample_view:
 	file_ = std::move(file);
 	if (file_) {
 		const std::optional<bind::WaveformInfo> info = slice_info();
-		view_ = sample_view::WaveformView::open(info ? info->length_samples : 0, std::nullopt);
+		view_ = views::waveform::WaveformView::open(info ? info->length_samples : 0, std::nullopt);
 		retry_.restart();
 	}
 }
@@ -693,7 +693,7 @@ void SlicerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= view_.scroll()) {
-		const int64_t col = sample_view::floor_div(*pos - view_.scroll(), view_.zoom());
+		const int64_t col = base::floor_div(*pos - view_.scroll(), view_.zoom());
 		if (col < kMainCols) {
 			for (int32_t y = kRows - 4; y < kRows; y++) {
 				per_row[y] = deluge::ui::widgets::grid::TickSquare{
