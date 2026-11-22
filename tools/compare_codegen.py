@@ -59,6 +59,14 @@ behind one anchor can compare clean. When a name's set of places differs between
 new image pairs with the base (`#?`), so every copy shows as removed and added and every reference to one as changed: a
 false positive at worst, but no copy is paired by a guess. The same holds when the anchor symbol itself changes its key.
 
+rustc and LLVM uniquify a Rust internal function that would clash as `name.N`, with N counted across the image, so a
+change anywhere renumbers it. Such a code symbol is read as `name.0`, and when several are, they are twins as above:
+named by their places, never merged, and a reference moved between them is a change. The symbol left unsuffixed keeps
+its name, and a data symbol's `.N` (a global split into its parts) and other suffixes (`.constprop.0`) keep their text.
+A Rust name keyed by its mangled text drops its crates' hashes (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`), because a
+moved crate changes its own hash and the hashes of the crates that depend on it; the crate names stay, so one generic's
+instantiations in two crates stay apart.
+
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
 moves to another group is a change; a call to it names it by the least of its names.
@@ -652,12 +660,43 @@ def nm_symbols(nm_text: str) -> list[tuple[int, int, str]]:
     return found
 
 
+# A Rust v0 crate root's disambiguator (`Cs6NFbV2PXKjr_` before `15deluge_bsp_rust`).
+RUST_CRATE_HASH = re.compile(r"Cs[0-9a-zA-Z]+_(?=\d)")
+# A Rust function's name as rustc and LLVM uniquify it in an image: `name.N`, N counted across the image.
+UNIQUIFIED = re.compile(r"^(_R[^.]*\.)\d+$")
+
+
+def uniquified(nm_text: str) -> set[str]:
+    """The Rust functions (code symbols, `t`/`T`) of @p nm_text named `name.N`. The number tells nothing about which
+    function it is (a change elsewhere renumbers it), so every such name is read as `name.0`, and two of them are
+    twins, told apart by their places. The symbol LLVM left unsuffixed stays `name`: it often sits beside a copy, where
+    a shared anchor could not tell the two apart. A data symbol's `.N` (a global split into its parts) and other
+    suffixes (`.constprop.0`) are not uniquifiers and keep their text."""
+    found = set()
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if (
+            len(fields) >= 3
+            and fields[-2] in ("t", "T")
+            and UNIQUIFIED.match(fields[-1])
+        ):
+            found.add(fields[-1])
+    return found
+
+
+def stem(name: str, copies: set[str]) -> str:
+    """@p name without its ThinLTO suffix and, when it is one of @p copies (uniquified()), its `.N` read as `.0`."""
+    name = LTO_SUFFIX.sub("", name)
+    return UNIQUIFIED.match(name).group(1) + "0" if name in copies else name
+
+
 def twin_places(nm_text: str, sections=()) -> dict[str, dict[int, tuple[str, int]]]:
-    """For each name that several symbols of an image share once `.llvm.<hash>` is dropped, each copy's place by its
-    address: the nearest symbol before it in its section that is no twin (its anchor, `^` when none), and its ordinal
-    among the copies behind that anchor."""
+    """For each name that several symbols of an image share once `.llvm.<hash>` and a uniquifier's `.N` are dropped,
+    each copy's place by its address: the nearest symbol before it in its section that is no twin (its anchor, `^`
+    when none), and its ordinal among the copies behind that anchor."""
+    copies = uniquified(nm_text)
     symbols = [
-        (a & ~1, size, LTO_SUFFIX.sub("", n))
+        (a & ~1, size, stem(n, copies))
         for a, size, n in nm_symbols(nm_text)
         if not n.startswith("$")
     ]
@@ -710,7 +749,8 @@ def number_twins(
     @p mapping (`nm --special-syms`) or @p nm_text mark the code. An `adr` that lands in no copy of the twin it names is
     an error."""
     places = twin_places(nm_text, sections)
-    if not places:
+    copies = uniquified(nm_text)
+    if not places and not copies:
         return nm_text, disassembly
     unpairable = {
         name
@@ -725,22 +765,22 @@ def number_twins(
         if n.split(".")[0] in ("$a", "$t")
     )
     for address, size, name in nm_symbols(nm_text):
-        plain = LTO_SUFFIX.sub("", name)
+        plain = stem(name, copies)
         if plain in places:
             extents.setdefault(plain, []).append((address & ~1, max(size, 1)))
 
     def numbered(name: str, address: int) -> str:
-        plain = LTO_SUFFIX.sub("", name)
+        plain = stem(name, copies)
         place = places.get(plain, {}).get(address & ~1)
         if place is None:
-            return name
+            return plain if LTO_SUFFIX.sub("", name) in copies else name
         mark = "?" if plain in moved else side if plain in unpairable else ""
         return f"{plain}#{mark}{place[1]}~{place[0]}"
 
     def adr(m: re.Match) -> str:
-        plain = LTO_SUFFIX.sub("", m.group(4))
+        plain = stem(m.group(4), copies)
         if plain not in places:
-            return m.group(0)
+            return f"{m.group(1)}<{numbered(m.group(4), 0)}{m.group(5)}>"
         pc = int(m.group(2), 16)
         mode = next((kind for start, kind in reversed(modes) if start <= pc), "t")
         target = ((pc + (8 if mode == "a" else 4)) & ~3) + int(m.group(3), 0)
@@ -795,6 +835,27 @@ def moved_twins(
     )
 
 
+def place_names(
+    cxxfilt: str, nm_texts: list[str], sections: list, renames=keep, mangled=keep
+):
+    """A rename for moved_twins(): each twin name and anchor of @p nm_texts by its renamed canonical() demangled name
+    (or, unreadable, its renamed mangled text), so that a place survives what demangling hides, such as a Rust crate's
+    hash, as the twin's key does."""
+    names = sorted(
+        {
+            n
+            for nm_text, found in zip(nm_texts, sections)
+            for name, copies in twin_places(nm_text, found).items()
+            for n in (name, *(anchor for anchor, _ in copies.values()))
+        }
+    )
+    plain = run([cxxfilt], "\n".join(names)).splitlines() if names else []
+    table = {
+        n: mangled(n) if p == n else canonical(renames(p)) for n, p in zip(names, plain)
+    }
+    return lambda name: table.get(name, name)
+
+
 def demangler(
     cxxfilt: str,
     texts: list[str],
@@ -839,7 +900,13 @@ def demangler(
     table = {}
     for raw, m, target, plain in zip(names, split, targets, demangled):
         if not m:
-            by_mangled[raw] = stems[raw]
+            # A Rust crate's hash follows its metadata, so a moved crate changes it and every hash that depends on
+            # it; the crate's name stays.
+            by_mangled[raw] = (
+                RUST_CRATE_HASH.sub("Cs_", stems[raw])
+                if stems[raw].startswith("_R")
+                else stems[raw]
+            )
         else:
             by_mangled[raw] = m.group(1) + (mangled or keep)(target) + m.group(3)
         if plain == target:
@@ -1006,9 +1073,14 @@ def main() -> int:
             line for line in mapping.splitlines(keepends=True) if " $" in line
         )
         read.append((which, nm, sections, mapping))
-    moved = moved_twins(
-        read[0][1], read[1][1], read[0][2], read[1][2], mangled_renamer(pairs)
+    places = place_names(
+        args.cxxfilt,
+        [read[0][1], read[1][1]],
+        [read[0][2], read[1][2]],
+        namespace_renamer(pairs),
+        mangled_renamer(pairs),
     )
+    moved = moved_twins(read[0][1], read[1][1], read[0][2], read[1][2], places)
     images = []
     for (which, nm, sections, mapping), twins_moved, side in zip(
         read, (frozenset(), moved), "!?"

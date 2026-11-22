@@ -902,6 +902,116 @@ class SameNamedSymbols(MainHarness, unittest.TestCase):
             number_twins(nm, listing)
 
 
+class UniquifiedCopies(MainHarness, unittest.TestCase):
+    """rustc and LLVM uniquify a Rust internal function as `name.N`, numbering it across the image, so a change
+    elsewhere renumbers it; the copies are read as twins, placed by their anchors."""
+
+    DEMANGLED: ClassVar[dict[str, str]] = {
+        "_RNvCs1a_3crt4next.0": "crt::next (.0)",
+        "_RNvCs1a_3crt1p": "crt::p",
+        "_RNvCs1a_3crt1q": "crt::q",
+    }
+
+    def image(self, first: str, second: str, target: int) -> tuple[str, str]:
+        """Two copies of `crt::next`, suffixed @p first and @p second, each behind its own module's function, and a
+        caller of the copy at @p target."""
+        nxt = "_RNvCs1a_3crt4next"
+        listing = (
+            f"10 <_RNvCs1a_3crt1p>:\n10:\tnop\n\n14 <{nxt}.{first}>:\n14:\tbx\tlr\n\n"
+            f"20 <_RNvCs1a_3crt1q>:\n20:\tnop\n\n24 <{nxt}.{second}>:\n24:\tbx\tlr\n\n"
+            f"30 <caller>:\n30:      \tbl\t0x{target:x} <{nxt}.{first if target == 0x14 else second}> @ imm = #0x0\n"
+        )
+        nm = (
+            f"00000010 00000004 t _RNvCs1a_3crt1p\n00000014 00000004 t {nxt}.{first}\n"
+            f"00000020 00000004 t _RNvCs1a_3crt1q\n00000024 00000004 t {nxt}.{second}\n"
+            "00000030 00000004 T caller\n"
+        )
+        return listing, nm
+
+    def test_renumbered_copies_compare_identical(self):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.image("173", "16", 0x14),
+                "b.elf": self.image("171", "14", 0x14),
+            }
+        )
+        self.assertEqual(status, 0)
+        self.assertIn(mock.call("added: 0"), printed)
+
+    def test_a_call_moved_between_renumbered_copies_is_a_change(self):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.image("173", "16", 0x14),
+                "b.elf": self.image("171", "14", 0x24),
+            }
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("changed: 1"), printed)
+        self.assertIn(mock.call("  caller"), printed)
+        self.assertIn(mock.call("added: 0"), printed)
+
+    def test_a_single_renumbered_function_compares_identical(self):
+        def image(n: str) -> tuple[str, str]:
+            name = f"_RNvCs1a_3crt4next.{n}"
+            listing = f"14 <{name}>:\n14:\tbx\tlr\n\n30 <caller>:\n30:      \tbl\t0x14 <{name}> @ imm = #0x0\n"
+            return listing, f"00000014 00000004 t {name}\n00000030 00000004 T caller\n"
+
+        status, _ = self.run_main({"a.elf": image("19"), "b.elf": image("17")})
+        self.assertEqual(status, 0)
+
+    def test_a_copy_beside_the_unsuffixed_function_pairs_with_itself(self):
+        nxt = "_RNvCs1a_3crt4next"
+
+        def image(n: str) -> tuple[str, str]:
+            listing = (
+                f"10 <_RNvCs1a_3crt1p>:\n10:\tnop\n\n14 <{nxt}.{n}>:\n14:\tbx\tlr\n\n18 <{nxt}>:\n18:\tnop\n\n"
+                f"30 <caller>:\n30:      \tbl\t0x14 <{nxt}.{n}> @ imm = #0x0\n"
+            )
+            nm = (
+                f"00000010 00000004 t _RNvCs1a_3crt1p\n00000014 00000004 t {nxt}.{n}\n"
+                f"00000018 00000004 t {nxt}\n00000030 00000004 T caller\n"
+            )
+            return listing, nm
+
+        self.DEMANGLED = {**self.DEMANGLED, nxt: "crt::next"}
+        status, _ = self.run_main({"a.elf": image("662"), "b.elf": image("660")})
+        self.assertEqual(status, 0)
+
+    def test_copies_behind_anchors_whose_crate_hash_changed_compare_identical(self):
+        # A moved crate changes its hash in every mangled name; the anchors' demangled names stay.
+        nxt = "_RNvCs1a_3crt4next"
+
+        def image(h: str, first: str, second: str) -> tuple[str, str]:
+            p, q = f"_RNvCs{h}_3crt1p", f"_RNvCs{h}_3crt1q"
+            listing = (
+                f"10 <{p}>:\n10:\tnop\n\n14 <{nxt}.{first}>:\n14:\tbx\tlr\n\n"
+                f"20 <{q}>:\n20:\tnop\n\n24 <{nxt}.{second}>:\n24:\tbx\tlr\n\n"
+                f"30 <caller>:\n30:      \tbl\t0x14 <{nxt}.{first}> @ imm = #0x0\n"
+            )
+            nm = (
+                f"00000010 00000004 t {p}\n00000014 00000004 t {nxt}.{first}\n"
+                f"00000020 00000004 t {q}\n00000024 00000004 t {nxt}.{second}\n00000030 00000004 T caller\n"
+            )
+            return listing, nm
+
+        self.DEMANGLED = {
+            **self.DEMANGLED,
+            **{f"_RNvCs{h}_3crt1{f}": f"crt::{f}" for h in ("1a", "2b") for f in "pq"},
+        }
+        status, _ = self.run_main(
+            {"a.elf": image("1a", "173", "16"), "b.elf": image("2b", "171", "14")}
+        )
+        self.assertEqual(status, 0)
+
+    def test_other_suffixes_keep_their_text(self):
+        # A clone's `.constprop.0`, and a split global's numbered parts (data), are not uniquifiers.
+        nm = (
+            "00000010 00000004 t _RNvCs1a_3crt4next.constprop.0\n00000020 00000004 b _RNvCs1a_3crt6READER.0\n"
+            "00000024 00000004 b _RNvCs1a_3crt6READER.1\n"
+        )
+        self.assertEqual(number_twins(nm, "")[0], nm)
+
+
 class RenamedMangledKeys(MainHarness, unittest.TestCase):
     """Under --rename, a name keyed by its mangled text has its substitution references reduced to `S_`, which can
     make two entities' mangled texts equal across images; their demangled text keeps them apart."""
@@ -1470,7 +1580,7 @@ class WrappedNameKeys(unittest.TestCase):
             ],
         )
 
-    def test_rust_names_that_demangle_alike_keep_their_raw_names(self):
+    def test_rust_names_that_demangle_alike_are_keyed_by_their_mangled_names(self):
         core = "_RNvXNtNtCskEwzLGIm5x3_4core5slice3cmpShNtNtB6_3cmp9PartialEq2eq"
         a, b = (
             core + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
@@ -1482,7 +1592,30 @@ class WrappedNameKeys(unittest.TestCase):
         text = "<[u8] as core::cmp::PartialEq>::eq"
         panic = "core::slice::index::slice_index_fail::do_panic::runtime"
         table = {a: text, b: text, c: panic, d: panic, alone: "deluge_bsp_rust::main"}
-        self.assertEqual(self.keys(table), [a, b, c, d, "deluge_bsp_rust::main"])
+        unhashed = [re.sub(r"Cs[0-9a-zA-Z]+_(?=\d)", "Cs_", n) for n in (a, b, c, d)]
+        self.assertEqual(self.keys(table), [*unhashed, "deluge_bsp_rust::main"])
+
+    def test_a_rust_name_keyed_by_its_mangled_text_ignores_crate_hashes(self):
+        # A moved crate changes its hash, and every hash that depends on it, in every mangled name.
+        core = "_RNvXNtNtCskEwzLGIm5x3_4core5slice3cmpShNtNtB6_3cmp9PartialEq2eq"
+        text = "<[u8] as core::cmp::PartialEq>::eq"
+        old = [
+            core + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
+            core + "Csj1bDsIbZyCz_14embedded_fatfs",
+        ]
+        new = [
+            core + "Csh7C7QbC2mqq_15deluge_bsp_rust",
+            core + "CsgRZEcTCdbfK_14embedded_fatfs",
+        ]
+        listings = ["".join(f"10 <{n}>:\n" for n in names) for names in (old, new)]
+        with mock.patch.object(
+            compare_codegen, "run", fake_cxxfilt(dict.fromkeys(old + new, text))
+        ):
+            rename = demangler(
+                "cxxfilt", listings, images=[[listings[0]], [listings[1]]]
+            )
+        self.assertEqual([rename(n) for n in old], [rename(n) for n in new])
+        self.assertNotEqual(rename(old[0]), rename(old[1]))
 
     def test_a_name_only_gnu_cxxfilt_reads_is_keyed_by_both_texts(self):
         name = "_ZGTtNKSt13bad_exception4whatEv"
