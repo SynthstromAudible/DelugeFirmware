@@ -1,4 +1,5 @@
 #include "util/string.h"
+#include "definitions_cxx.hpp"
 #include "printf.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
@@ -65,7 +66,7 @@ std::string fromSlot(int32_t slot, int32_t subSlot, size_t minNumDigits) {
 	return buffer;
 }
 
-std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool appendOctaveNo) {
+std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool appendOctaveNo, bool useSharps) {
 	std::string output;
 	// Floor division / positive modulo so negative note codes land in the right octave
 	int32_t noteCodeWithinOctave = noteCode % 12;
@@ -75,9 +76,9 @@ std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool app
 		octave--;
 	}
 
-	output += noteCodeToNoteLetter[noteCodeWithinOctave];
+	output += useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		output += display->haveOLED() ? '#' : '.';
+		output += display->haveOLED() ? (useSharps ? '#' : (char)FLAT_CHAR) : '.';
 	}
 	if (appendOctaveNo) {
 		output += std::to_string(octave);

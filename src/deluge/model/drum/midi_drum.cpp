@@ -21,6 +21,7 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/song/note_spelling.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
 
@@ -132,7 +133,7 @@ std::string MIDIDrum::getDrumName() {
 		buffer.append(deluge::string::fromInt(note));
 		buffer.append(" (");
 		char noteLabel[kNoteCodeStringBufferSize];
-		noteCodeToString(note, noteLabel);
+		noteCodeToString(note, noteLabel, nullptr, true, useSharpsForNoteNames());
 		buffer.append(noteLabel);
 		buffer.append(")");
 	}

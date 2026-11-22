@@ -123,6 +123,7 @@ void Arpeggiator::reset() {
 	notesAsPlayed.empty();
 	notesByPattern.empty();
 	anyArpeggiated = false;
+	notesByPatternStale = false;
 	active_note.resetPostArpArrays();
 	active_note.velocity = 0;
 }
@@ -1246,7 +1247,19 @@ void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uin
 	}
 }
 
+// Call whenever `notes` changes. Only records the pattern to use: see notesByPatternStale.
 void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
+	if (settings != nullptr) {
+		notePatternForRebuild = settings->notePattern;
+	}
+	notesByPatternStale = true;
+}
+
+void Arpeggiator::rebuildNotesByPatternIfStale() {
+	if (!notesByPatternStale) {
+		return;
+	}
+	notesByPatternStale = false;
 	// Wipe the array
 	notesByPattern.empty();
 	// Add again the note codes in the order dictated by the pattern
@@ -1254,7 +1267,7 @@ void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 	uint32_t notesByPatternIndex;
 	int32_t numNotes = notes.getNumElements();
 	for (uint32_t i = 0; i < numNotes; i++) {
-		notesByPatternIndex = std::min((uint32_t)settings->notePattern[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
+		notesByPatternIndex = std::min((uint32_t)notePatternForRebuild[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
 		// insert at the position in the array indicated by the pattern
 		error = notesByPattern.insertAtIndex(notesByPatternIndex);
 		if (error != Error::NONE) {
@@ -1312,6 +1325,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 	else if (settings->noteMode == ArpNoteMode::PATTERN) {
 		// Defined-pattern step
+		rebuildNotesByPatternIfStale();
 		ArpJustNoteCode* arpByPatternNote =
 		    (ArpJustNoteCode*)notesByPattern.getElementAddress(whichNoteCurrentlyOnPostArp);
 		int32_t notesKey = notes.search(arpByPatternNote->noteCode, GREATER_OR_EQUAL);

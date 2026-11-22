@@ -23,7 +23,7 @@ Note::Note() : lockSet(0) {
 }
 
 #if defined(__arm__)
-// lockSet must stay in the padding: NoteVectors are big and their memory traffic is hot.
+// lockSet and anchorMarker must stay in the padding: NoteVectors are big and their memory traffic is hot.
 static_assert(sizeof(Note) == 24, "Note grew");
 #endif
 

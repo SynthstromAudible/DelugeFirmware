@@ -34,4 +34,5 @@ public:
 	/// The copied notes' parameter locks. The clipboard outlives songs, so the notes' lockSet indices point in here
 	/// rather than into a Song's pool; pasting re-interns them into the destination song's pool.
 	deluge::note_locks::Pool locks;
+	int8_t accidentalOffset; // Semitones from the in-scale row this was displayed on (accidentals)
 };

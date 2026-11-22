@@ -144,6 +144,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
 						newNote->setLockSet(oldNote->getLockSet());
+						newNote->anchorMarker = oldNote->anchorMarker;
 					}
 				}
 
@@ -162,6 +163,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 
@@ -191,6 +193,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 		}
@@ -1094,6 +1097,7 @@ modifyNote:
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
 			uint16_t lockSet = note->getLockSet();
+			AnchorMarker anchorMarker = note->anchorMarker;
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1103,6 +1107,7 @@ modifyNote:
 			note->setIterance(iterance);
 			note->setFill(fill);
 			note->setLockSet(lockSet);
+			note->anchorMarker = anchorMarker;
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -2974,6 +2979,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -3025,6 +3031,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -3619,6 +3626,34 @@ getOut: {}
 			noteLocksReader.readLocks(reader, notes, song->noteLocks);
 		}
 
+		// Accidental lineage markers (AnchorMarker::raw()), one byte per note, written after the notes. Ignored unless
+		// they match.
+		else if (!strcmp(tagName, "noteAnchors")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t numMarkers = 0;
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (!hexChars) {
+							break;
+						}
+						auto marker = AnchorMarker::fromRaw(static_cast<int8_t>(hexToIntFixedLength(hexChars, 2)));
+						if (numMarkers < notes.getNumElements()) {
+							notes.getElement(numMarkers)->anchorMarker = marker;
+						}
+						numMarkers++;
+					}
+					// If this doesn't match the notes we read, drop it all
+					if (numMarkers != notes.getNumElements()) {
+						for (int32_t n = 0; n < notes.getNumElements(); n++) {
+							notes.getElement(n)->anchorMarker = AnchorMarker::derived();
+						}
+					}
+				}
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3700,6 +3735,25 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		// Accidental lineage markers (see model/scale/accidentals.h), only if any note has one
+		bool anyAnchors = false;
+		for (int32_t n = 0; n < notes.getNumElements(); n++) {
+			anyAnchors = anyAnchors || !notes.getElement(n)->anchorMarker.isDerived();
+		}
+		if (anyAnchors) {
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("noteAnchors");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < notes.getNumElements(); n++) {
+				char buffer[9];
+				intToHex(static_cast<uint8_t>(notes.getElement(n)->anchorMarker.raw()), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
 
 		deluge::note_locks::writeToFile(writer, notes, song->noteLocks);
 	}
@@ -4313,6 +4367,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
 				newNote->setLockSet(oldNote->getLockSet());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 
@@ -4344,6 +4399,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
 				newNote->setLockSet(oldNote->getLockSet());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 	}
@@ -4362,6 +4418,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
 			newNote->lockSet = oldNote->lockSet;
+			newNote->anchorMarker = oldNote->anchorMarker;
 		}
 	}
 

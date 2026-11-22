@@ -136,7 +136,8 @@ ChangeResult changeLocks(ModelStackWithNoteRow* rowStack, const EditPadPress& ta
 std::optional<NoteLockEditor::PressedRow> NoteLockEditor::getRowOfPress(int32_t i) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	int32_t noteRowIndex;
-	NoteRow* row = clip->getNoteRowOnScreen(clipView_.editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+	// Accidental-aware: a press on a greyed pad targets the hidden out-of-scale row, not the in-scale one it sits on
+	NoteRow* row = AccidentalRows::noteRowForPress(clipView_.editPadPresses[i], &noteRowIndex);
 	if (row == nullptr) {
 		return std::nullopt;
 	}
