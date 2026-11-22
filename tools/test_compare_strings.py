@@ -6,7 +6,7 @@
 
 Gate compare-strings-selftest:
     the string comparison of two images equates strings that differ only by the renamed paths and crates, applied in
-    order and once each, and reports a changed message or a changed count
+    one pass with the earlier rename first at a position, and reports a changed message or a changed count
 """
 
 from __future__ import annotations
