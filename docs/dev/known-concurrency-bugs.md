@@ -67,11 +67,11 @@ touches that asset's chunks during teardown.
   `enqueue`/`queue_nonempty`, no longer exists: the fiber and its queue were deleted in `af4c28e3d`.
 - **B6 — `CLUSTER_LOAD_IMMEDIATELY` and the file-load family doing card transfers outside the single storage owner.**
   The hazard was two contexts entering the non-reentrant C FatFS. C FatFS is deleted (`60af3ddf7`); every efatfs
-  call serialises on the `FS` mutex (`src/bsp/rust/src/efatfs_fs.rs`, `with_fs`) and every transfer on `SD_BUS`
-  (`src/bsp/rust/src/sd.rs`), from any context. A synchronous post-boot call from the interaction tier is legal and
-  holds the UI for the transfer; `src/bsp/rust/src/tier_meter.rs` inventories where that still happens.
+  call serialises on the `FS` mutex (`src/platform/device/src/efatfs_fs.rs`, `with_fs`) and every transfer on `SD_BUS`
+  (`src/platform/device/src/sd.rs`), from any context. A synchronous post-boot call from the interaction tier is legal and
+  holds the UI for the transfer; `src/platform/device/src/tier_meter.rs` inventories where that still happens.
 - **B7 — efatfs block device bypassed `SD_BUS`.** `SdBlockDevice::read`/`write`
-  (`src/bsp/rust/src/fat_block_device.rs`) go through `crate::sd::locked_read_sectors`/`locked_write_sectors`.
+  (`src/platform/device/src/fat_block_device.rs`) go through `crate::sd::locked_read_sectors`/`locked_write_sectors`.
   Fixed: `3c3fd1562`.
 - **B8 — clip delete could free the `AudioClip` an undo/redo revert was mid-load on.** The window was the SD yield
   inside `ConsequenceAudioClipSetSample::revert`. `deluge::gui::Reversion` (`src/deluge/gui/ui/reversion.h`) loads

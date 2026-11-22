@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drive a rig-harness image on the J-Trace rig as if it were a delugemu session.
 
-`DeviceSession` speaks the rig harness's RTT protocol (src/bsp/rust/src/peripherals/rig_harness/: `wire.rs`
+`DeviceSession` speaks the rig harness's RTT protocol (src/platform/device/src/peripherals/rig_harness/: `wire.rs`
 for the `@` lines the device sends, `input.rs` for the command lines it takes) and offers the part of
 delugemu's `DelugeSession` that tools/emu_parity.py's `run_image` uses, so a level-3 script runs on the
 device unchanged. The device runs in real time: `run_until` waits for its clock, and times are counted

@@ -67,7 +67,7 @@ endif()
 # deluge_app: the PORTABLE application. It links only the portable libraries and
 # the <libdeluge/...> boundary headers — no HAL and no BSP. The boundary's
 # deluge_* functions are undefined symbols here, resolved when the Rust BSP links
-# the app (src/bsp/rust/build/, on the device and on the host).
+# the app (src/platform/device/build/, on the device and on the host).
 # scripts/check_layers.py's platform-boundary rule keeps HAL and BSP includes out of the app.
 # ---------------------------------------------------------------------------
 # An OBJECT library (not STATIC): its object files embed directly into whichever

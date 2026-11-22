@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sdram_pack
 
 FIXTURES = (
-    Path(__file__).resolve().parents[2] / "src/bsp/rust/tests/fixtures/sdram_pack"
+    Path(__file__).resolve().parents[2]
+    / "src/platform/device/tests/fixtures/sdram_pack"
 )
 
 

@@ -1,7 +1,7 @@
 # `libdeluge`: the platform boundary
 
 These headers are the C ABI between the portable Deluge application (`src/deluge`) and the platform that runs
-it. One platform implements them: the Rust BSP (`src/bsp/rust`, on deluge-sdk's `deluge-bsp`), on the device and,
+it. One platform implements them: the Rust BSP (`src/platform/device`, on deluge-sdk's `deluge-bsp`), on the device and,
 under the `host_app` feature, on the Embassy host that `dbt sim` and the gates run.
 
 ## Rules
@@ -13,11 +13,11 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    (`abi.h`), so the compiler holds every C++ definition to it. A failure that carries a reason crosses as
    `DelugeStatus`, a channel's collect answers a `DelugeChannelStatus` (`DELUGE_CHANNEL_*`), and a path is bounded
    by `DELUGE_PATH_MAX`.
-2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h`, just
+2. **The header is the contract.** bindgen reads every header (`src/platform/device/wrapper.h`, just
    `#include <libdeluge/libdeluge.h>`), and every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
    one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
-   imports, via its `in path:` form, in `src/bsp/rust/src/abi/pins.rs`. That file also holds the `abi_layout!`
+   imports, via its `in path:` form, in `src/platform/device/src/abi/pins.rs`. That file also holds the `abi_layout!`
    and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
    type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
    field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
@@ -54,7 +54,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 Every table handle that crosses the ABI (an open file, directory or stream) is a `DelugeHandle` (`types.h`, a
 `uint32_t`), and `DELUGE_HANDLE_NONE` (0) is none: no call hands it out, and a caller tests a stored handle against
 it. The tables behind the handles index their slots from 0, so a slot crosses as `slot + 1`; the Rust exports
-convert with `src/bsp/rust/src/abi/handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
+convert with `src/platform/device/src/abi/handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
 work in slots. `sample_stream.h`'s registry numbers its handles the same way.
 
 A call passed `DELUGE_HANDLE_NONE` does nothing and gives its bad-argument answer: a status-returning call (a stream

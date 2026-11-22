@@ -1394,7 +1394,7 @@ runtime_s = 20
 
 [[harness]]
 name = "bsp-host"
-path = "src/bsp/rust"
+path = "src/platform/device"
 level = "unit"
 runner = "cargo"
 kind = "unit"

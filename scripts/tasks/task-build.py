@@ -60,7 +60,7 @@ CPP_TARGETS = [
     "deluge_ui_scenes_bind",
 ]
 
-RUST_BSP_DIR = Path("src/bsp/rust")
+RUST_BSP_DIR = Path("src/platform/device")
 BUILD_DIR = "build"
 # Feature set matching clang's, so LLVM will inline across the language boundary.
 RUST_TARGET = "./armv7a-deluge-eabihf.json"

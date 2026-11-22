@@ -2,7 +2,7 @@
 
 /// @file
 /// @brief The DIN MIDI the app sent, as hex: the engine's queue is flushed, then the bytes the host stub kept
-///        (`deluge_host_midi_out_take`, `src/bsp/rust/src/host_link_stubs.rs`) are taken.
+///        (`deluge_host_midi_out_take`, `src/platform/device/src/host_link_stubs.rs`) are taken.
 
 #include "io/midi/midi_engine.h"
 #include "libdeluge/system.h"

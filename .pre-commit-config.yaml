@@ -16,7 +16,7 @@ repos:
         types_or: [c, c++]
   - repo: local
     hooks:
-      # Rust has two separate workspaces (crates/ and src/bsp/rust/); cargo fmt
+      # Rust has two separate workspaces (crates/ and src/platform/device/); cargo fmt
       # is per-manifest, so each needs its own hook. --check only (no rewrite) to
       # match the other formatters' fail-and-report behaviour in this file.
       - id: cargo-fmt-crates
@@ -44,10 +44,10 @@ repos:
         pass_filenames: false
       - id: cargo-fmt-bsp
         name: rustfmt (bsp)
-        entry: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check --
+        entry: cargo fmt --manifest-path src/platform/device/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^src/bsp/rust/.*\.rs$
+        files: ^src/platform/device/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-harness
         name: rustfmt (harness)
@@ -61,7 +61,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|tests/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

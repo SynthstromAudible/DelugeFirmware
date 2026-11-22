@@ -64,7 +64,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-RUST_DIR="$REPO_ROOT/src/bsp/rust"
+RUST_DIR="$REPO_ROOT/src/platform/device"
 # Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt test`
 # sets it (task-harness.py points every harness at one shared `target/harness` root), so a
 # hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"

@@ -136,7 +136,7 @@ extern uint8_t slowFlashSquares[];
 extern bool needToSendOutMainPadColours;
 } // namespace PadLEDs
 /// The harness's record of every pad colour the app sent, column-major, eight rows of RGB
-/// (`src/bsp/rust/src/peripherals/ui_harness.rs`).
+/// (`src/platform/device/src/peripherals/ui_harness.rs`).
 extern "C" const uint8_t* host_script_pad_shadow();
 extern uint32_t whichMainRowsNeedRendering; // `gui/ui/ui.cpp`: the main rows a render is pending for
 

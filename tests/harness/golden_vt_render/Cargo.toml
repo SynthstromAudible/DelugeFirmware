@@ -20,7 +20,7 @@ test = false
 deluge_platform_host_link = { path = "../../../src/platform/host/link" }
 
 [dependencies]
-deluge-bsp-rust = { path = "../../../src/bsp/rust", default-features = false, features = ["host_app"] }
+deluge_platform_device = { path = "../../../src/platform/device", default-features = false, features = ["host_app"] }
 # No platform feature: golden_vt_render's own main supplies the `__pender` and drives the executor itself.
 embassy-executor = { version = "0.10.0", default-features = false, features = ["nightly"] }
 # No `std` or `mock-driver` feature: `src/clock.rs` is the time driver.

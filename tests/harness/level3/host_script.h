@@ -25,7 +25,7 @@
 ///   - the host              the clock and the exit (`host_script_now_ms`, `host_script_exit`), and
 ///                           the BSP half: the shadows the writers read and the two injection points
 ///                           (`host_script_push_event`, `host_script_add_encoder_edges`). On the
-///                           Embassy host, `src/bsp/rust/src/peripherals/ui_harness.rs` and
+///                           Embassy host, `src/platform/device/src/peripherals/ui_harness.rs` and
 ///                           `golden_vt_render`.
 ///   - host_script_tables.c  the button-matrix and encoder-order name tables, split out (with
 ///                           `host_script_tables.h`) so they compile dependency-free into both the

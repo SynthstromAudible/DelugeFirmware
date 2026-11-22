@@ -4,7 +4,7 @@
 ///        on both sides of an example that writes it.
 ///
 /// **Why this exists.** The host backs `deluge_flash_read`/`_erase`/`_program` with one process-global
-/// settings buffer (`src/bsp/rust/src/peripherals/flash.rs`, `HOST_SETTINGS`). The NOR
+/// settings buffer (`src/platform/device/src/peripherals/flash.rs`, `HOST_SETTINGS`). The NOR
 /// semantics it models are right -- erased reads as `0xFF`, programming can only clear bits -- but
 /// the *lifetime* is the whole process, and a spec binary runs many examples in one process. So
 /// any example that reaches `FlashStorage::writeSettings()` leaves 256 bytes of settings sitting

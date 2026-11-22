@@ -1,6 +1,6 @@
 # Rust documentation style
 
-How the Rust in this repository is documented: `crates/`, `src/bsp/rust/`, and the Rust harnesses
+How the Rust in this repository is documented: `crates/`, `src/platform/device/`, and the Rust harnesses
 under `tests/component/differential/`.
 
 Two goals, in order: **accurate**, then **short**. A comment says what the code is and guarantees

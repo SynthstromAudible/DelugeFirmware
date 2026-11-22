@@ -26,10 +26,6 @@ path = "OSLikeStuff"
 target = "retires with the Embassy scheduler; what remains goes to src/platform"
 
 [[directory]]
-path = "bsp"
-target = "src/platform/device"
-
-[[directory]]
 path = "deluge"
 target = "legacy: shrinks to zero by rewrite, then is deleted"
 

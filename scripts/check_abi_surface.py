@@ -6,7 +6,7 @@
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
-``src/bsp/rust/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
+``src/platform/device/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
 dependency outside this repository instead, and each of its functions counts as defined only when an
 ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function nobody
 calls keeps nothing alive.
@@ -17,7 +17,7 @@ function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test
 Callers are counted by name, per area:
 - ``app``: ``src/deluge`` and ``src/OSLikeStuff``;
 - ``tests``: ``tests/``, excluding the mocks' own definitions;
-- ``rust``: ``src/bsp/rust`` and ``crates``, excluding the definitions.
+- ``rust``: ``src/platform/device`` and ``crates``, excluding the definitions.
 
 Comments are ignored.
 
@@ -171,7 +171,7 @@ def workspace_excluded() -> list[Path]:
 
 MEMBERS = workspace_members()
 RUST = source_files(
-    "src/bsp/rust/src",
+    "src/platform/device/src",
     "tests/harness",
     *(d.relative_to(ROOT).as_posix() for d in (*MEMBERS, *workspace_excluded())),
     suffixes=(".rs",),
@@ -209,13 +209,13 @@ ABI_PIN = re.compile(r"abi_pin!\s*\(\s*(?:in\s+([\w:]+)\s*:)?([^)]*)\)", re.DOTA
 # defines it, which differ only when the C name isn't a legal Rust identifier (a keyword). `local_name` then
 # spells the C name as a raw identifier (`r#yield`), so stripping the `r#` recovers it.
 ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
-BSP_SRC = ROOT / "src" / "bsp" / "rust" / "src"
+BSP_SRC = ROOT / "src" / "platform" / "device" / "src"
 HARNESS = ROOT / "tests" / "harness"
 # Headers whose functions a dependency defines outside this repository, by the crate name `abi/pins.rs` pins them
 # `in`. Its source is not here to scan, so the pin, which checks each function against the header, stands for the
 # definition: a function with no pin into the crate is reported undefined.
 EXTERNAL: dict[str, str] = {
-    # deluge-sdk's `deluge-audio-format`, at the pin in src/bsp/rust/Cargo.toml.
+    # deluge-sdk's `deluge-audio-format`, at the pin in src/platform/device/Cargo.toml.
     "audio_format.h": "deluge_audio_format",
 }
 # `extern "C" { ... }` (optionally `unsafe`): an import block, as opposed to `extern "C" fn`, a definition.
@@ -223,18 +223,18 @@ EXTERN_BLOCK = re.compile(r'\bextern\s+"C"\s*\{')
 EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
-# `src/bsp/rust/src` and `tests/harness`, whose pins sit beside what they pin, or the crate's package name for a crates-workspace member's `src`,
+# `src/platform/device/src` and `tests/harness`, whose pins sit beside what they pin, or the crate's package name for a crates-workspace member's `src`,
 # which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
 
 def crate_names() -> dict[str, Scope]:
-    """Every name `src/bsp/rust/src` can spell an in-tree crate by, mapped to that crate's scope: the crate's own
-    name, and any `alias = { package = "crate" ... }` rename in `src/bsp/rust/Cargo.toml`."""
+    """Every name `src/platform/device/src` can spell an in-tree crate by, mapped to that crate's scope: the crate's own
+    name, and any `alias = { package = "crate" ... }` rename in `src/platform/device/Cargo.toml`."""
     names: dict[str, Scope] = {}
     for package in MEMBERS.values():
         names[package] = package
-    cargo = (ROOT / "src" / "bsp" / "rust" / "Cargo.toml").read_text()
+    cargo = (ROOT / "src" / "platform" / "device" / "Cargo.toml").read_text()
     for alias, package in re.findall(
         r'(?m)^([\w-]+)\s*=\s*\{[^}\n]*package\s*=\s*"([^"]+)"', cargo
     ):
@@ -255,7 +255,7 @@ def scope_of(path: Path) -> Scope | None:
 
 
 def pinned() -> dict[str, set[Scope]]:
-    """Every C name pinned by an `abi_pin!` in `src/bsp/rust/src` or `tests/harness`, with the scope each pin checks. A plain or
+    """Every C name pinned by an `abi_pin!` in `src/platform/device/src` or `tests/harness`, with the scope each pin checks. A plain or
     rename pin checks the item in scope at the invocation: the definition or import in its own file. The
     `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
     scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is

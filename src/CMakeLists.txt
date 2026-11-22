@@ -21,8 +21,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/printf ${CMAKE_BINARY_DIR}/prin
 
 # ---------------------------------------------------------------------------
 # No firmware executable is assembled here. The device image is linked by cargo
-# from src/bsp/rust: it archives deluge_app's objects plus the static-library
+# from src/platform/device: it archives deluge_app's objects plus the static-library
 # closure above and links them against the Rust BSP (see scripts/tasks/task-build.py
-# and src/bsp/rust/build/). src/platform/host/CMakeLists.txt builds the same libraries for the
+# and src/platform/device/build/). src/platform/host/CMakeLists.txt builds the same libraries for the
 # host, which the Rust BSP's host builds link.
 # ---------------------------------------------------------------------------

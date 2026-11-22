@@ -113,7 +113,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)
 # there was no bug at the call site at all, only codegen assuming a capability the hardware does
 # not offer here.
 #
-# Keep this identical to `src/bsp/rust/armv7a-deluge-eabihf.json`'s `+strict-align`. The custom
+# Keep this identical to `src/platform/device/armv7a-deluge-eabihf.json`'s `+strict-align`. The custom
 # Rust target exists to make the two feature sets MATCH (LLVM only inlines across languages when
 # the callee's features are a subset of the caller's), so adding strict-align to one side alone
 # silently switches cross-language inlining back off — which is the whole reason that target

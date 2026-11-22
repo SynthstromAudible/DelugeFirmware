@@ -119,7 +119,7 @@ jobs:
         with:
           workspaces: |
             crates
-            src/bsp/rust
+            src/platform/device
             tests/component/differential/audio_format_corpus
             tests/component/differential/fs_differential
             tests/component/differential/region_fill_differential
@@ -132,7 +132,7 @@ jobs:
       - name: rustfmt
         run: |
           (cd crates && cargo fmt --all --check)
-          (cd src/bsp/rust && cargo fmt --check)
+          (cd src/platform/device && cargo fmt --check)
           (cd src/storage/sample/convert && cargo fmt --check)
           for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml src/platform/host/link/Cargo.toml; do
             (cd "$(dirname "$m")" && cargo fmt --check)
@@ -155,7 +155,7 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: |
-          for m in crates/Cargo.toml src/storage/sample/convert/Cargo.toml src/bsp/rust/Cargo.toml \
+          for m in crates/Cargo.toml src/storage/sample/convert/Cargo.toml src/platform/device/Cargo.toml \
                    tests/component/differential/*/Cargo.toml; do
             echo "== $m"
             (cd "$(dirname "$m")" && cargo doc --workspace --no-deps --document-private-items)
@@ -502,7 +502,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: toolchain
-          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/platform/device/rust-toolchain.toml') }}
 
       - name: Compare sizes
         if: steps.baseline.outputs.found == 'true'

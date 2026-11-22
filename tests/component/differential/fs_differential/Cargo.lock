@@ -304,39 +304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge-bsp-rust"
-version = "0.1.0"
-dependencies = [
- "aligned",
- "bindgen",
- "block-device-driver",
- "cortex-ar",
- "critical-section",
- "deluge-audio-format",
- "deluge-block-device-adapters",
- "deluge-bsp",
- "deluge-embedded-fatfs",
- "deluge-usb-classes",
- "deluge_base_alloc",
- "deluge_storage_resource",
- "deluge_storage_sample_fill",
- "deluge_storage_sample_reader",
- "deluge_storage_sample_source",
- "deluge_storage_stream",
- "embassy-executor",
- "embassy-futures",
- "embassy-sync",
- "embassy-time",
- "embassy-usb",
- "embassy-usb-driver",
- "embedded-io-async 0.7.0",
- "heapless 0.8.0",
- "log",
- "miniz_oxide",
- "rza1-hal",
-]
-
-[[package]]
 name = "deluge-embedded-fatfs"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -368,6 +335,44 @@ dependencies = [
 
 [[package]]
 name = "deluge_base_alloc"
+version = "0.1.0"
+
+[[package]]
+name = "deluge_platform_device"
+version = "0.1.0"
+dependencies = [
+ "aligned",
+ "bindgen",
+ "block-device-driver",
+ "cortex-ar",
+ "critical-section",
+ "deluge-audio-format",
+ "deluge-block-device-adapters",
+ "deluge-bsp",
+ "deluge-embedded-fatfs",
+ "deluge-usb-classes",
+ "deluge_base_alloc",
+ "deluge_platform_host_link",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
+ "deluge_storage_sample_reader",
+ "deluge_storage_sample_source",
+ "deluge_storage_stream",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb",
+ "embassy-usb-driver",
+ "embedded-io-async 0.7.0",
+ "heapless 0.8.0",
+ "log",
+ "miniz_oxide",
+ "rza1-hal",
+]
+
+[[package]]
+name = "deluge_platform_host_link"
 version = "0.1.0"
 
 [[package]]
@@ -663,8 +668,8 @@ dependencies = [
  "aligned",
  "block-device-driver",
  "deluge-block-device-adapters",
- "deluge-bsp-rust",
  "deluge-embedded-fatfs",
+ "deluge_platform_device",
  "embassy-futures",
  "embedded-io-async 0.7.0",
 ]

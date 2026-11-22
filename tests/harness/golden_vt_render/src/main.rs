@@ -47,16 +47,16 @@ use embassy_time_driver::Driver as _;
 
 mod clock;
 
-use deluge_bsp_rust::audio::host as audio_host;
-use deluge_bsp_rust::audio::render;
-use deluge_bsp_rust::channel::{
+use deluge_platform_device::audio::host as audio_host;
+use deluge_platform_device::audio::render;
+use deluge_platform_device::channel::{
     audio_loader, file_bytes, file_directory, file_prefix, file_stream,
 };
-use deluge_bsp_rust::deluge_bsp;
-use deluge_bsp_rust::peripherals::{board, control, display};
-use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
-use deluge_bsp_rust::storage::{card_manifest, memory_card, sd, sd_image, streaming_loader};
-use deluge_bsp_rust::{app_loop, boot, sys, tier_meter};
+use deluge_platform_device::deluge_bsp;
+use deluge_platform_device::peripherals::{board, control, display};
+use deluge_platform_device::storage::efatfs::host as efatfs_host;
+use deluge_platform_device::storage::{card_manifest, memory_card, sd, sd_image, streaming_loader};
+use deluge_platform_device::{app_loop, boot, sys, tier_meter};
 
 /// How a scenario's audio is paced: `ScenarioPacing` in `scenario_table.h`, in its order.
 #[repr(u8)]

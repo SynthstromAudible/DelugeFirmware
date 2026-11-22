@@ -17,7 +17,7 @@
 
 /// libdeluge/streaming_fill.h — the sample-streaming fill queue.
 ///
-/// The Rust async fill task (deluge-bsp-rust's `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
+/// The Rust async fill task (deluge_platform_device's `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
 /// `native_begin`/`native_finish`) resolves each queued chunk's read geometry into a
 /// `StreamingFillDescriptor`, performs the read, then converts/stitches/publishes. This header
 /// carries the queue's entry points (wake, enqueue a chunk, drain, drained?) and the per-asset

@@ -240,12 +240,12 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   not ctest-driven.
 - **`tests/harness/golden_vt_render/`, `tests/harness/preemptive_race_tsan/`** — harnesses built on the BSP
   library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
-  host app through `src/platform/host/link`. `src/bsp/rust/HOST_HARNESS.md` documents both.
+  host app through `src/platform/host/link`. `src/platform/device/HOST_HARNESS.md` documents both.
 
 Three constraints keep these as separate Cargo packages rather than one
 workspace, and they are worth knowing before adding a tenth:
 
-1. `[patch.crates-io]` is workspace-global. Only `src/bsp/rust/Cargo.toml`
+1. `[patch.crates-io]` is workspace-global. Only `src/platform/device/Cargo.toml`
    carries the embassy fork patch; a workspace spanning it and the host clock
    harnesses would force the fork onto them silently.
 2. `embassy-time`'s `std` and `mock-driver` features both emit
@@ -420,7 +420,7 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
    settings, and `OwnClock` when it drives the app's machines as a BSP task does, one tick per virtual millisecond,
    rather than as interaction-tier entries. golden_vt_render applies all of them and runs any row by name, so nothing
    on the Rust side changes. A card of the scenario's own is a manifest beside it,
-   `integration/scenarios/<name>.card`, in the format `src/bsp/rust/src/storage/card_manifest.rs` documents.
+   `integration/scenarios/<name>.card`, in the format `src/platform/device/src/storage/card_manifest.rs` documents.
    A row on the song-corpus fixture (`kCorpusFixture`) makes its tests local-only: each entry that runs it must
    require `song-corpus` (a registry unit test checks this, and golden_vt_render refuses the card otherwise).
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print

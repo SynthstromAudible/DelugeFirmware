@@ -55,7 +55,7 @@ typedef struct DelugeSampleGeometry {
 ///       Rust side (`DelugeRegionState` in `src/storage/sample/source/src/abi.rs`) is
 ///       `#[repr(u8)]` to match. Every OTHER libdeluge enum stays a plain (unfixed, `int`-sized) C
 ///       enum and relies on bindgen no longer passing `-fshort-enums` (see
-///       `src/bsp/rust/build.rs`) to agree with the C++ side's default int width instead.
+///       `src/platform/device/build.rs`) to agree with the C++ side's default int width instead.
 typedef enum DelugeRegionState : uint8_t {
 	/// Resident AND loaded. `out` is filled and the source holds the pin backing it; the caller may
 	/// read `payload_base` until it releases the lease, closes, or acquires a different region.
