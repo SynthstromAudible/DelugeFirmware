@@ -13,7 +13,7 @@ add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mappin
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(project) # deluge_project: the project model (deluge::project::Song)
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
-add_subdirectory(ui)         # deluge_ui_widgets_core / _oled / _grid: the immediate-mode toolkit
+add_subdirectory(ui)         # deluge_ui_*: gfx, widgets, controls, shell, the waveform view and the scenes (src/ui/CMakeLists.txt)
 add_subdirectory(app)        # deluge_app_ports_waveforms: the host side of the UI's ports
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)

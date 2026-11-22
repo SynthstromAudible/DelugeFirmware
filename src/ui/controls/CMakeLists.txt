@@ -1,4 +1,5 @@
-# deluge_ui_controls — the controls' vocabulary: what a gold knob points at, as addresses into the model (deluge::ui::controls).
+# deluge_ui_controls — the controls' vocabulary: what a gold knob points at, as addresses into the model
+# (deluge::ui::controls).
 # It includes only the model (and the serialization values a written setting carries) and the plugin API;
 # scripts/check_layers.py (its library in scripts/layers.toml) holds it to that.
 

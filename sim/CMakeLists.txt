@@ -238,7 +238,7 @@ add_subdirectory(${REPO_ROOT}/src/host/chains ${CMAKE_BINARY_DIR}/host-chains) #
 add_subdirectory(${REPO_ROOT}/src/music ${CMAKE_BINARY_DIR}/music) # deluge_music
 add_subdirectory(${REPO_ROOT}/src/project ${CMAKE_BINARY_DIR}/project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
-add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_widgets_core / _oled / _grid
+add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_*: see src/ui/CMakeLists.txt
 add_subdirectory(${REPO_ROOT}/src/app        ${CMAKE_BINARY_DIR}/app-ports)  # deluge_app_ports_waveforms
 add_subdirectory(${REPO_ROOT}/third_party/printf ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler

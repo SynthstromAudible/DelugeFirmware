@@ -11,7 +11,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
-# projects. The UI leaf libraries libs.cmake adds (src/ui/gfx, ui, shell, notify) apply
+# projects. The UI libraries libs.cmake adds (src/ui's and src/base/notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_common_options.cmake)
 
@@ -145,7 +145,7 @@ add_library(deluge_spec STATIC
   ${_src}/deluge/storage/value_tree_deserializer.cpp
   ${_src}/deluge/util/audio_format_helpers.cpp
   ${_src}/deluge/util/string.cpp
-  # intToString and floatToString, from the dependency-free foundation library.
+  # intToString and floatToString, from the dependency-free base library.
   ${_src}/base/string_format.c
   ${_src}/deluge/util/c_string.cpp
   ${_src}/deluge/util/lookuptables/lookuptables.cpp
@@ -179,8 +179,8 @@ add_library(deluge_spec STATIC
   ${_tests}/harness/level3/host_snapshot.c
 )
 # deluge_ui_widgets_oled: the starfield and rainfall animations the specs and previews drive. deluge_rust_rs: the
-# umbrella staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's deluge-audio-format,
-# reached through include/libdeluge/audio_format.h).
+# umbrella staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's
+# deluge-audio-format, reached through include/libdeluge/audio_format.h).
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_widgets_oled deluge_ui_gfx_oled
   deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_grid deluge_ui_shell deluge_base_notify deluge_rust_rs)
 target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks

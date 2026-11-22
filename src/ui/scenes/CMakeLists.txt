@@ -1,10 +1,7 @@
 # deluge_ui_scenes -- the first UI layer allowed to include the model.
-# May include ui/scenes/**, ui/shell/**, ui/**, ui/gfx/**, base/**, libdeluge/**, midi/** (the MIDI
-# protocol library), the standard library, and -- being the first model-aware layer --
-# model/**, modulation/**, playback/**, processing/**, storage/**, io/**, gui/l10n/**, and the
-# model's words and values: engines/**, plugin/**, serialization/**, sequence/**,
-# music/**, and the model's records: project/** (ui/scenes/bind binds menu nodes to
-# them). Never gui/ otherwise, never hid/.
+# May include ui/**, base/**, libdeluge/**, midi/** (the MIDI protocol library), the standard library, and
+# -- being the first model-aware layer -- the model and its words and values. The exact list is
+# scripts/layers.toml's `scenes-includes-outside`; never gui/ otherwise, never hid/.
 #
 # Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no
 # allowed subdirectory:

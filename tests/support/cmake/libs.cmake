@@ -21,29 +21,30 @@ if(NOT DEFINED DELUGE_CXX_STANDARD)
   include(${DELUGE_REPO_ROOT}/cmake/deluge_common_options.cmake)
 endif()
 
-# The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the waveform
-# view, the plugin API and its types, the effects, the host chain's table, the Deluge instrument, the model and the
-# controls. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app fails
+# The standalone engine libraries, which the host and the ARM tree both test: serialization, music, the plugin
+# contract and its types, the effects, the host chains' table, the classic instrument, the project model and the
+# host's waveform cache; the controls and the waveform view are added here only off the host tree, which gets them
+# through src/ui. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app fails
 # the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/music ${_deluge_libs}/music EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin/types ${_deluge_libs}/plugin-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin ${_deluge_libs}/plugin EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/host/chains ${_deluge_libs}/host-chain EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/instruments/classic ${_deluge_libs}/instrument EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/project ${_deluge_libs}/model EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/app ${_deluge_libs}/app EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/host/chains ${_deluge_libs}/host-chains EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/instruments/classic ${_deluge_libs}/instruments-classic EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/project ${_deluge_libs}/project EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/app ${_deluge_libs}/app-ports EXCLUDE_FROM_ALL)
 # The host tree gets the controls and the waveform view through src/ui below.
 if(NOT DELUGE_TEST_TREE STREQUAL "host")
-  add_subdirectory(${_deluge_src}/ui/controls ${_deluge_libs}/controls EXCLUDE_FROM_ALL)
+  add_subdirectory(${_deluge_src}/ui/controls ${_deluge_libs}/ui-controls EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui/views/waveform ${_deluge_libs}/ui-views-waveform EXCLUDE_FROM_ALL)
 endif()
 
 if(DELUGE_TEST_TREE STREQUAL "host")
-  # The host tree's own: printf and MIDI for the app's specs; the scenes' binding to the model; the UI leaf libraries
-  # (deluge_ui_gfx_oled / deluge_ui_gfx_grid, deluge_ui_widgets_core / deluge_ui_widgets_oled /
-  # deluge_ui_widgets_grid, deluge_ui_shell and deluge_base_notify), which include from SHARED_INCLUDE; and the level-3 UI script runner (tests/harness/level3).
+  # The host tree's own: printf and MIDI for the app's specs; the scenes' binding to the model; the UI libraries
+  # under src/ui (gfx, widgets, controls, shell, the waveform view), which include from SHARED_INCLUDE; and the
+  # level-3 UI script runner (tests/harness/level3).
   add_subdirectory(${DELUGE_REPO_ROOT}/third_party/printf ${_deluge_libs}/printf EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/midi ${_deluge_libs}/midi EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui/scenes/bind ${_deluge_libs}/ui-scenes-bind EXCLUDE_FROM_ALL)

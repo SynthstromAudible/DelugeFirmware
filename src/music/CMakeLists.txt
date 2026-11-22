@@ -1,5 +1,6 @@
 # deluge_music: note sets, the preset scales, keys, scale mapping and note-length names. Standard library only
-# (plus base/panic.h and the plugin/types sync words); scripts/check_layers.py (its library in scripts/layers.toml) enforces that.
+# (plus base/panic.h and the plugin/types sync words); scripts/check_layers.py (its library in scripts/layers.toml)
+# enforces that.
 add_library(deluge_music STATIC
     musical_key.cpp
     note_length.cpp
