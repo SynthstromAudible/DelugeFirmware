@@ -435,7 +435,7 @@ MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample)
 	deluge::test::set(*sound->state_, "osc1/type", "sample");
 	deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
 	deluge::test::set(*sound->state_, "osc1/reversed", "0");
-	sound->projectSnapshot();
+	sound->deriveConfig();
 	auto* range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 	if (sample != nullptr) {
 		range->sampleHolder.audioFile = sample;

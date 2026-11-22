@@ -181,7 +181,7 @@ Sound::Sound()
 	// tier can reach this Sound, keeps the list's buffer where it is for the Sound's lifetime. The bound is the pool's
 	// capacity rather than the voice limit, since cull-fading voices do not count toward the limit but are listed;
 	// nothing ever shrinks the list's capacity.
-	voicePool_.reserve(AudioEngine::VoicePool::get().capacity());
+	synth_.voices().reserve(AudioEngine::VoicePool::get().capacity());
 
 	deluge::model::changeEffects(*effectsOwner(),
 	                             [](deluge::effects::EffectStates& e) { e.mod_fx.type = ModFXType::NONE; });
@@ -196,7 +196,6 @@ Sound::Sound()
 
 	paramLPF.p = PARAM_LPF_OFF;
 
-	doneReadingFromFile();
 	// A new sound plays a new synth's state, its effects following the song
 	adoptState(deluge::instrument::with_song_defaults(deluge::instrument::SoundState{}, deluge::model::songDefaults()));
 	AudioEngine::sounds.add(this);
@@ -283,7 +282,6 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	doneReadingFromFile();
 	adoptState(deluge::instrument::as_sample_sound(before));
 }
 
@@ -332,7 +330,6 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	doneReadingFromFile();
 	adoptState(deluge::instrument::as_default_synth(before));
 }
 
@@ -385,7 +382,6 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	doneReadingFromFile();
 	adoptState(deluge::instrument::as_blank_synth(before, is_dx));
 }
 
@@ -466,7 +462,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 	// Or local (do to each voice)...
 	const deluge::synth::matrix::MatrixBlock block = matrixBlock(*paramManager, PresetGather::ALL);
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
-	for (SoundVoice* voice : voicePool_.list()) {
+	for (SoundVoice* voice : synth_.voices().list()) {
 		voice->kernel.recalculate_param_with_no_cables(p, block);
 	}
 }
@@ -765,12 +761,12 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::GLOBAL_LFO_FREQ_1:
-		return (config_.lfos[LFO1_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                             : PatchCableAcceptance::DISALLOWED;
+		return (synth_.config().lfos[LFO1_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                     : PatchCableAcceptance::DISALLOWED;
 
 	case params::GLOBAL_LFO_FREQ_2:
-		return (config_.lfos[LFO3_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                             : PatchCableAcceptance::DISALLOWED;
+		return (synth_.config().lfos[LFO3_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                     : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
@@ -889,9 +885,9 @@ deluge::synth::NoteFacts Sound::noteFacts(ModelStackWithSoundFlags* modelStack) 
 	    .note_tails_counting_loops = allowNoteTails(modelStack),
 	    .arpeggiating = arpSettings != nullptr && arpSettings->mode != ArpMode::OFF,
 	};
-	facts.falls_back =
-	    (config_.voicing.polyphony == PolyphonyMode::LEGATO || config_.voicing.polyphony == PolyphonyMode::MONO)
-	    && !isDrum() && facts.note_tails_counting_loops;
+	facts.falls_back = (synth_.config().voicing.polyphony == PolyphonyMode::LEGATO
+	                    || synth_.config().voicing.polyphony == PolyphonyMode::MONO)
+	                   && !isDrum() && facts.note_tails_counting_loops;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		facts.source_active_now[s] = isSourceActiveCurrently(s, paramManager);
 	}
@@ -905,16 +901,17 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	// so that whole path runs with the render excluded (free on the audio tier), through to the note's MIDI out. A
 	// polyphonic note-on builds its new voice with the render running and only publishes it excluded.
 	std::optional<AudioExcludedSection> nonPolyphonic;
-	if (config_.voicing.polyphony != PolyphonyMode::POLY) {
+	if (synth_.config().voicing.polyphony != PolyphonyMode::POLY) {
 		nonPolyphonic.emplace();
 	}
 
 	// The facts are read only by a non-polyphonic sound's walk over its voices
-	const deluge::synth::NoteFacts facts = config_.voicing.polyphony != PolyphonyMode::POLY && !voicePool_.empty()
-	                                           ? noteFacts(modelStack)
-	                                           : deluge::synth::NoteFacts{};
-	if (!voicePool_.note_on(
-	        config_, facts,
+	const deluge::synth::NoteFacts facts =
+	    synth_.config().voicing.polyphony != PolyphonyMode::POLY && !synth_.voices().empty()
+	        ? noteFacts(modelStack)
+	        : deluge::synth::NoteFacts{};
+	if (!synth_.voices().note_on(
+	        synth_.config(), facts,
 	        noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true, fromMIDIChannel, mpeValues),
 	        sampleSyncLength, ticksLate, modelStack)) {
 		return; // no memory, and no voice of this sound's to take: the note cannot play
@@ -1095,7 +1092,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
 	}
 
-	if (voicePool_.empty()) {
+	if (synth_.voices().empty()) {
 		return;
 	}
 
@@ -1118,7 +1115,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		}
 	}
 	const std::optional<HeldNote> restart =
-	    voicePool_.note_off(config_, facts, noteCode, noteCode == ALL_NOTES_OFF, held, modelStack);
+	    synth_.voices().note_off(synth_.config(), facts, noteCode, noteCode == ALL_NOTES_OFF, held, modelStack);
 	if (restart.has_value()) {
 		// MONO: the held note sounds as a new note, at the velocity of the note just switched off and with the MPE
 		// values of the held note's own keypress
@@ -1157,7 +1154,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (oscType(s) != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
+		    && (oscType(s) != OscType::SAMPLE || synth_.config().sources[s].repeat_mode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sourceResources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1177,9 +1174,10 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
 		if (sourceEverActive && oscType(s) == OscType::SAMPLE
-		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
+		    && synth_.config().sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
-				return sourceResources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
+				return sourceResources[s].getLengthInSamplesAtSystemSampleRate(note + synth_.config().voicing.transpose,
+				                                                               true);
 			}
 			return 1;
 		}
@@ -1213,10 +1211,10 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		if (oscType(s) != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (config_.sources[s].repeat_mode == SampleRepeatMode::CUT
-		         || config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
+		else if (synth_.config().sources[s].repeat_mode == SampleRepeatMode::CUT
+		         || synth_.config().sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
+			if (anyLooping && synth_.config().sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sourceResources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1248,7 +1246,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 		}
 
 		if (oscType(s) != OscType::SAMPLE || !sourceResources[s].hasAtLeastOneAudioFileLoaded()
-		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
+		    || synth_.config().sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
 	}
@@ -1280,7 +1278,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
-			if (config_.sources[s].repeat_mode == SampleRepeatMode::ONCE
+			if (synth_.config().sources[s].repeat_mode == SampleRepeatMode::ONCE
 			    || !sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
 				              // tried to do a late start otherwise?
@@ -1329,7 +1327,7 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!config_.engine.osc_sync) {
+	if (!synth_.config().engine.osc_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1340,7 +1338,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!config_.engine.osc_sync) {
+	if (!synth_.config().engine.osc_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1353,7 +1351,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 
 void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
-	if (voicePool_.empty()) {
+	if (synth_.voices().empty()) {
 		return;
 	}
 
@@ -1361,14 +1359,14 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 
-	for (auto it = voicePool_.list().begin(); it != voicePool_.list().end();) {
+	for (auto it = synth_.voices().list().begin(); it != synth_.voices().list().end();) {
 		SoundVoice* voice = *it;
 		bool still_going = voiceSampleZoneChanged(*voice, *modelStack, s, markerType);
 		if (still_going) {
 			it++;
 			continue;
 		}
-		it = voicePool_.erase(it, modelStack);
+		it = synth_.voices().erase(it, modelStack);
 	}
 }
 
@@ -1383,7 +1381,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// The arpeggiator's pending notes are started only from render(), so keep rendering while one is pending:
 	// otherwise it would stay pending forever (issue #2262)
 	bool skippingStatusNow =
-	    (voicePool_.empty() && (core().delay().repeatsUntilAbandon() == 0u)
+	    (synth_.voices().empty() && (core().delay().repeatsUntilAbandon() == 0u)
 	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(core()))
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
 	     && !getArp()->hasPendingNotes(arpSettings));
@@ -1626,7 +1624,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO1
-		        .render(output.size(), config_.lfos[LFO1_ID],
+		        .render(output.size(), synth_.config().lfos[LFO1_ID],
 		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_1>(LFO1_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
@@ -1642,7 +1640,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO3
-		        .render(output.size(), config_.lfos[LFO3_ID],
+		        .render(output.size(), synth_.config().lfos[LFO3_ID],
 		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_2>(LFO3_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
@@ -1745,7 +1743,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 	delayWorkingState.userDelayRate = params.param_final_values[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	core().delay().setupWorkingState(delayWorkingState, renderEffects().delay, timePerTickInverse, !voicePool_.empty());
+	core().delay().setupWorkingState(delayWorkingState, renderEffects().delay, timePerTickInverse,
+	                                 !synth_.voices().empty());
 	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
@@ -1759,115 +1758,75 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	std::span sound_mono{sound_memory, output.size()};
 	std::span sound_stereo{(StereoSample*)sound_memory, output.size()};
 
-	if (!voicePool_.empty()) {
+	if (!synth_.voices().empty()) {
 
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel = (AudioEngine::renderInStereo && paramView.modulated(params::LOCAL_PAN));
 
-		// Setup filters
-		bool thisHasFilters = hasFilters();
-		int32_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager);
-		int32_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager);
-		int32_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
-		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
-		bool doLPF = thisHasFilters
-		             && (renderEffects().filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
-		                 || paramView.modulated(params::LOCAL_LPF_FREQ) || (lpfFreq < 0x7FFFFFD2)
-		                 || (lpfMorph > std::numeric_limits<int32_t>::min()));
-		bool doHPF = thisHasFilters
-		             && (paramView.modulated(params::LOCAL_HPF_FREQ) || (hpfFreq != std::numeric_limits<int32_t>::min())
-		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
-		// What changes this block for each of the sound's voices; their settings are its config.
-		std::array<bool, kNumSources> dxPatchChangeds;
-		std::array<bool, kNumSources> sourceEverActives;
-		std::array<bool, kNumSources> sourceActiveCurrentlys;
-		for (int32_t s = 0; s < kNumSources; s++) {
-			dxPatchChangeds[s] = sourceResources[s].dxPatchChanged;
-			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
-			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
-		}
-		const deluge::synth::BlockValues blockValues{
-		    .low_pass = doLPF ? deluge::effects::low_pass_slot(renderEffects().filter.lpf_mode)
-		                      : deluge::dsp::fixed::LowPassSlot{},
-		    .high_pass = doHPF ? deluge::effects::high_pass_slot(renderEffects().filter.hpf_mode)
-		                       : deluge::dsp::fixed::HighPassSlot{},
-		    .filter_route = deluge::effects::filter_route(renderEffects().filter.route),
+		// The block's facts, the engine's and the sound's own, which the synth makes the block's values of
+		const deluge::synth::HostBlock hostBlock{
 		    .cpu_direness = AudioEngine::cpuDireness,
-		    .lfo2_synced_phase_increment = (config_.lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
+		    .engine_in_stereo = AudioEngine::renderInStereo,
+		    .pitch_adjust = pitchAdjust,
+		};
+		deluge::instrument::SoundBlockFacts facts{
+		    .has_filters = hasFilters(),
+		    .lpf_mode = renderEffects().filter.lpf_mode,
+		    .hpf_mode = renderEffects().filter.hpf_mode,
+		    .filter_route = renderEffects().filter.route,
+		    .lpf_morph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager),
+		    .lpf_freq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager),
+		    .hpf_morph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager),
+		    .hpf_freq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager),
+		    .lpf_modulated = paramView.modulated(params::LOCAL_LPF_FREQ),
+		    .hpf_modulated = paramView.modulated(params::LOCAL_HPF_FREQ),
+		    .noise_can_sound = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
+		    .local_wired = paramView.sources_wired(GLOBALITY_LOCAL),
+		    .bend_ranges = paramView.bend_ranges(),
+		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
+		    .lfo2_synced_phase_increment = (synth_.config().lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
-		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO2_ID]),
-		    .lfo4_synced_phase_increment = (config_.lfos[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       : getSyncedLFOPhaseIncrement(synth_.config().lfos[LFO2_ID]),
+		    .lfo4_synced_phase_increment = (synth_.config().lfos[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
-		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO4_ID]),
-		    .has_filters = thisHasFilters,
-		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
+		                                       : getSyncedLFOPhaseIncrement(synth_.config().lfos[LFO4_ID]),
+		    .expression_sources_changed = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
 		    .clipping_amount = renderEffects().saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
-		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
-		    .dx_patch_changed = dxPatchChangeds,
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
-		    .source_ever_active = sourceEverActives,
-		    .noise_volume_contains_something = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
-		    .local_sources_patched_to_anything = paramView.sources_wired(GLOBALITY_LOCAL),
-		    .bend_ranges = paramView.bend_ranges(),
-		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
-		    .source_active_currently = sourceActiveCurrentlys,
 		};
+		for (int32_t s = 0; s < kNumSources; s++) {
+			facts.dx_patch_changed[s] = sourceResources[s].dxPatchChanged;
+			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
+			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
+		}
+		const deluge::synth::BlockValues blockValues = deluge::instrument::DelugeSynth::begin_block(hostBlock, facts);
 
 		// The matrix's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
 		const deluge::synth::matrix::MatrixBlock controlBlock = matrixBlock(*paramManager, PresetGather::ROUTED);
 
 #if defined(DELUGE_STREAM_BENCH)
-		const auto kind = static_cast<size_t>(voiceKind());
+		voiceHost_.benchFrames = sound_mono.size();
 #endif
 		const uint32_t voicesStart = deluge_cycle_count();
-		uint32_t voicesRendered = 0;
-		for (auto it = voicePool_.list().begin(); it != voicePool_.list().end();) {
-			SoundVoice* voice = *it;
-
-			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
-			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previously_ignored_note_off() && blockValues.note_tails_allowed) {
-				releaseVoiceNote(*voice, paramManager, blockValues.note_tails_allowed);
-			}
-			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
-#if defined(DELUGE_STREAM_BENCH)
-			const uint32_t t0 = deluge::bench::render_profile::cycles();
-#endif
-			// A voice's first render call (just_created not yet set) only marks it created and renders nothing: only
-			// the calls after it count toward the voices' cost.
-			const bool renders = voice->just_created;
-			voicesRendered += renders ? 1 : 0;
-			bool stillGoing = renderVoice(*voice, controlBlock, config_, blockValues,
-			                              {
-			                                  .buffer = sound_mono.data(),
-			                                  .num_samples = static_cast<int32_t>(sound_mono.size()),
-			                                  .sound_in_stereo = voice_rendered_in_stereo,
-			                                  .pan_at_voice_level = applyingPanAtVoiceLevel,
-			                                  .sources_changed = voiceSourcesChanged,
-			                                  .pitch_adjust = pitchAdjust,
-			                                  .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
-			                                                    spareRenderingBuffer[2], spareRenderingBuffer[3]},
-			                                  .filter_scratch = deluge::render::filter_scratch(),
-			                                  .sync_scratch = deluge::render::osc_sync_scratch(),
-			                                  .noise = &deluge::synth_noise,
-			                              });
-#if defined(DELUGE_STREAM_BENCH)
-			const uint32_t voiceCycles = deluge::bench::render_profile::cycles() - t0;
-			deluge::bench::render_profile::g_totals.voice_render += voiceCycles;
-			++deluge::bench::render_profile::g_totals.voice_blocks;
-			deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += voiceCycles;
-			deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += renders ? sound_mono.size() : 0;
-#endif
-			if (!stillGoing) {
-				voicePool_.unassign(*voice, modelStackWithSoundFlags);
-			}
-			++it;
-		}
-		voicePool_.erase_if([](const SoundVoice* voice) { return voice->unassigned; });
+		const uint32_t voicesRendered =
+		    synth_.voices().render(controlBlock, synth_.config(), blockValues,
+		                           deluge::synth::VoiceRenderArgs{
+		                               .buffer = sound_mono.data(),
+		                               .num_samples = static_cast<int32_t>(sound_mono.size()),
+		                               .sound_in_stereo = voice_rendered_in_stereo,
+		                               .pan_at_voice_level = applyingPanAtVoiceLevel,
+		                               .pitch_adjust = hostBlock.pitch_adjust,
+		                               .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
+		                                                 spareRenderingBuffer[2], spareRenderingBuffer[3]},
+		                               .filter_scratch = deluge::render::filter_scratch(),
+		                               .sync_scratch = deluge::render::osc_sync_scratch(),
+		                               .noise = &deluge::synth_noise,
+		                           },
+		                           modelStackWithSoundFlags);
 		voiceCost_.add_render(deluge_cycle_count() - voicesStart,
 		                      voicesRendered * static_cast<uint32_t>(sound_mono.size()));
 
@@ -1920,7 +1879,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	checkStack("delay");
 	if (fxSection_.process(
 	        sound_stereo,
-	        fxSectionInputs(*this, *paramManager, delayWorkingState, !voicePool_.empty(), reverbSendAmount),
+	        fxSectionInputs(*this, *paramManager, delayWorkingState, !synth_.voices().empty(), reverbSendAmount),
 	        {reverbBuffer, sound_stereo.size()})) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
@@ -2027,7 +1986,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 
 template <deluge::modulation::params::Global P>
 deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId) {
-	const deluge::synth::LfoState& config = config_.lfos[lfoId];
+	const deluge::synth::LfoState& config = synth_.config().lfos[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
 		return deluge::synth::matrix::global_param_value<P>(params.param_final_values);
 	}
@@ -2058,13 +2017,13 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		return; // no clock, no sync
 	}
 	// TOOD: convert to a guard clause. Now avoiding re-indenting the whole function.
-	if (config_.lfos[LFO1_ID].sync_level != SYNC_LEVEL_NONE) {
+	if (synth_.config().lfos[LFO1_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.set_global_initial_phase(config_.lfos[LFO1_ID], reset_state);
+		globalLFO1.set_global_initial_phase(synth_.config().lfos[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2072,9 +2031,10 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			                                           - deluge::plugin::index_of(config_.lfos[LFO1_ID].sync_level));
-			switch (config_.lfos[LFO1_ID].sync_type) {
+			uint32_t numInternalTicksPerPeriod =
+			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			          - deluge::plugin::index_of(synth_.config().lfos[LFO1_ID].sync_level));
+			switch (synth_.config().lfos[LFO1_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2098,13 +2058,13 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 			}
 		}
 	}
-	if (config_.lfos[LFO3_ID].sync_level != SYNC_LEVEL_NONE) {
+	if (synth_.config().lfos[LFO3_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.set_global_initial_phase(config_.lfos[LFO3_ID], reset_state);
+		globalLFO3.set_global_initial_phase(synth_.config().lfos[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2112,9 +2072,10 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			                                           - deluge::plugin::index_of(config_.lfos[LFO3_ID].sync_level));
-			switch (config_.lfos[LFO3_ID].sync_type) {
+			uint32_t numInternalTicksPerPeriod =
+			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			          - deluge::plugin::index_of(synth_.config().lfos[LFO3_ID].sync_level));
+			switch (synth_.config().lfos[LFO3_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2266,54 +2227,21 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 	}
 }
 
-void Sound::doneReadingFromFile() {
-	recalculateFineTuner();
-
-	setupUnisonDetuners(nullptr);
-	refreshUnison();
-
-	for (int32_t m = 0; m < kNumModulators; m++) {
-		recalculateModulatorTransposer(m, nullptr);
-	}
-}
-
-// Setup master transpose
-void Sound::recalculateFineTuner() {
-	config_.voicing.tune = deluge::dsp::fixed::FineTune::of_cents(config_.voicing.cents);
-}
-
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it.
 void Sound::voiceUnassigned(ModelStackWithSoundFlags* modelStack) {
 	reassessRenderSkippingStatus(modelStack);
 }
 
-// modelStack may be NULL if no voices currently active
-void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
-	refreshUnison();
-	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
-}
-
-void Sound::refreshUnison() {
-	config_.voicing.unison = deluge::synth::derive_unison(config_.voicing.unison.count, config_.voicing.unison_detune,
-	                                                      config_.voicing.unison_spread);
-}
-
-// Can handle NULL modelStack, which you'd only want to do if no Voices active
-void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack) {
-	config_.engine.modulators[m].tune = deluge::dsp::fixed::FineTune::of_cents(config_.engine.modulators[m].cents);
-	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
-}
-
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 
-	if (voicePool_.empty() || modelStack == nullptr) {
+	if (synth_.voices().empty() || modelStack == nullptr) {
 		return; // These two "should" always be false in tandem...
 	}
 
-	for (SoundVoice* voice : voicePool_.list()) {
+	for (SoundVoice* voice : synth_.voices().list()) {
 		calculateVoicePhaseIncrements(*voice, *modelStack);
 	}
 }
@@ -2321,7 +2249,7 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	// Effective volume has changed. Need to pass that change onto Voices
-	for (SoundVoice* voice : voicePool_.list()) {
+	for (SoundVoice* voice : synth_.voices().list()) {
 		if (getSynthMode() == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				bool sourceEverActive = modelStack->checkSourceEverActive(s);
@@ -2355,7 +2283,7 @@ void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFla
 							newVoiceSample.stopUsingCache(
 							    &voice->part.guides[s], (Sample*)voice->part.guides[s].audioFileHolder->audioFile,
 							    voiceRating(*voice),
-							    voice->part.guides[s].getLoopingType(config_.sources[s].repeat_mode)
+							    voice->part.guides[s].getLoopingType(synth_.config().sources[s].repeat_mode)
 							        == LoopType::LOW_LEVEL);
 							// TODO: should really check success of that...
 						}
@@ -2379,7 +2307,7 @@ bool Sound::anyNoteIsOn() {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
-	return !voicePool_.empty();
+	return !synth_.voices().empty();
 }
 
 bool Sound::hasFilters() {
@@ -2472,8 +2400,6 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		                                           true);
 	}
 
-	doneReadingFromFile();
-
 	// The sound plays what the file holds, as the decode makes it; the reader above set its runtime to the same, but
 	// for a mod FX type the runtime could not allocate, which it plays without
 	deluge::instrument::sound_effects(decoded).mod_fx.type = effects().mod_fx.type;
@@ -2508,8 +2434,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	                                     writer, writeAutomation);
 }
 
-void Sound::projectSnapshot() {
-	config_ = deluge::instrument::DelugeSynth::derive(*state_);
+void Sound::deriveConfig() {
+	synth_.configure(*state_);
 }
 
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
@@ -2518,7 +2444,7 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
 
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	// The config the rest of the read plays with, until the read's state is adopted
-	config_ = deluge::instrument::DelugeSynth::derive(state);
+	synth_.configure(state);
 	resyncGlobalLFOs();
 
 	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
@@ -2609,7 +2535,7 @@ void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	// A sound bound into a slot plays the slot's record; any other plays its own state
 	*state_ = std::move(loaded);
 	bindEffects(&deluge::instrument::sound_effects(*state_));
-	projectSnapshot();
+	deriveConfig();
 }
 
 void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing) {
@@ -2632,7 +2558,7 @@ void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::S
 		ownedState_ = {}; // no second copy stays behind
 		ownedRouting_ = {};
 	}
-	projectSnapshot();
+	deriveConfig();
 	applyRouting();
 }
 
@@ -2645,7 +2571,7 @@ void Sound::unbindState() {
 	state_ = &ownedState_;
 	routing_ = &ownedRouting_;
 	bindEffects(&deluge::instrument::sound_effects(ownedState_));
-	projectSnapshot();
+	deriveConfig();
 	applyRouting();
 }
 
@@ -2722,13 +2648,13 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	int32_t maxRawOscTranspose = -32768;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
-			maxRawOscTranspose = std::max<int32_t>(maxRawOscTranspose, config_.sources[s].transpose);
+			maxRawOscTranspose = std::max<int32_t>(maxRawOscTranspose, synth_.config().sources[s].transpose);
 		}
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)config_.engine.modulators[0].transpose);
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)config_.engine.modulators[1].transpose);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)synth_.config().engine.modulators[0].transpose);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)synth_.config().engine.modulators[1].transpose);
 	}
 
 	if (maxRawOscTranspose == -32768) {
@@ -2741,7 +2667,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
-	return maxRawOscTranspose + config_.voicing.transpose;
+	return maxRawOscTranspose + synth_.config().voicing.transpose;
 }
 
 int16_t Sound::getMinOscTranspose() {
@@ -2749,20 +2675,20 @@ int16_t Sound::getMinOscTranspose() {
 	int32_t minRawOscTranspose = 32767;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
-			minRawOscTranspose = std::min<int32_t>(minRawOscTranspose, config_.sources[s].transpose);
+			minRawOscTranspose = std::min<int32_t>(minRawOscTranspose, synth_.config().sources[s].transpose);
 		}
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)config_.engine.modulators[0].transpose);
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)config_.engine.modulators[1].transpose);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)synth_.config().engine.modulators[0].transpose);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)synth_.config().engine.modulators[1].transpose);
 	}
 
 	if (minRawOscTranspose == 32767) {
 		minRawOscTranspose = 0;
 	}
 
-	return minRawOscTranspose + config_.voicing.transpose;
+	return minRawOscTranspose + synth_.config().voicing.transpose;
 }
 
 deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor) {
@@ -2804,8 +2730,8 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 
 // modelStack may be NULL
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
-	AudioExcludedSection section;                                // the render walks and edits this Sound's voices
-	voicePool_.fast_release_all(kSoftCullIncrement, modelStack); // Accepts NULL
+	AudioExcludedSection section;                                     // the render walks and edits this Sound's voices
+	synth_.voices().fast_release_all(kSoftCullIncrement, modelStack); // Accepts NULL
 }
 
 void Sound::prepareForHibernation() {
@@ -2854,7 +2780,7 @@ VoiceKind Sound::voiceKind() const {
 		return VoiceKind::RINGMOD;
 	}
 	bool sample = false;
-	for (const deluge::synth::SourceConfig& source : config_.sources) {
+	for (const deluge::synth::SourceConfig& source : synth_.config().sources) {
 		if (source.osc_type == OscType::DX7) {
 			return VoiceKind::FM;
 		}
@@ -2875,7 +2801,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return false;
 	}
 
-	if (voicePool_.empty()) {
+	if (synth_.voices().empty()) {
 		return false;
 	}
 
@@ -2889,7 +2815,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return true;
 	}
 
-	if (config_.voicing.unison_spread && config_.voicing.unison.count > 1) {
+	if (synth_.config().voicing.unison_spread && synth_.config().voicing.unison.count > 1) {
 		return true;
 	}
 
@@ -2927,7 +2853,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to
 	// investigate each Voice
 	if (mustExamineSourceInEachVoice) {
-		for (const SoundVoice* voice : voicePool_.list()) {
+		for (const SoundVoice* voice : synth_.voices().list()) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (mustExamineSourceInEachVoice & (1 << s)) {
 					AudioFileHolder* holder = voice->part.guides[s].audioFileHolder;
@@ -2948,15 +2874,15 @@ void Sound::killAllVoices() {
 	// Reset invertReversed flag so all voices get its reverse settings back to normal
 	invertReversed = false;
 
-	voicePool_.kill_all();
+	synth_.voices().kill_all();
 }
 
 std::optional<uint32_t> Sound::cullRating(bool skipCullFading) const {
-	return voicePool_.cull_rating(config_.voicing.priority, skipCullFading);
+	return synth_.voices().cull_rating(synth_.config().voicing.priority, skipCullFading);
 }
 
 void Sound::cull(deluge::synth::CullKind kind, uint32_t increment) {
-	voicePool_.cull(config_.voicing.priority, kind, increment);
+	synth_.voices().cull(synth_.config().voicing.priority, kind, increment);
 }
 
 #pragma GCC diagnostic pop

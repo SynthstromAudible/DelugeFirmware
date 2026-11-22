@@ -58,13 +58,13 @@ void Sound::bindVoice(SoundVoice& voice) {
 }
 
 uint32_t Sound::voiceRating(const SoundVoice& voice) const {
-	return voice.kernel.priority_rating(config_.voicing.priority, numActiveVoices());
+	return voice.kernel.priority_rating(synth_.config().voicing.priority, numActiveVoices());
 }
 
 void Sound::calculateVoicePhaseIncrements(SoundVoice& voice, ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	voice.kernel.calculate_phase_increments(
-	    note_setup_for(voice, *this, paramManager, flags, voice.kernel.note_code(), 0, 0, true), config_);
+	    note_setup_for(voice, *this, paramManager, flags, voice.kernel.note_code(), 0, 0, true), synth_.config());
 }
 
 deluge::synth::ReleaseInfo Sound::prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager,
@@ -84,28 +84,9 @@ void Sound::voiceReleased() {
 	}
 }
 
-void Sound::releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed) {
-	voice.kernel.note_off(prepareVoiceRelease(voice, paramManager, noteTailsAllowed), true, AudioEngine::voiceClock());
-	voiceReleased();
-}
-
 void Sound::voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s) {
 	voice.kernel.expression_event_immediate(monophonicExpressionValues[s - util::to_underlying(PatchSource::X)],
 	                                        voiceLevelValue, s);
-}
-
-bool Sound::renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
-                        const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
-                        const deluge::synth::VoiceRenderArgs& args) {
-	if (!voice.just_created) {
-		voice.just_created = true;
-		return true;
-	}
-	checkStack("Sound::renderVoice");
-	const bool keep = voice.kernel.render(controlBlock, config, cfg, voiceBlock(voice), args);
-	deluge::param_dump::plane(GLOBALITY_LOCAL, this, &voice, voice.kernel.param_final_values());
-	dumpVoiceSources(voice, controlBlock, config, cfg);
-	return keep;
 }
 
 void Sound::dumpVoiceSources(const SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
@@ -113,7 +94,7 @@ void Sound::dumpVoiceSources(const SoundVoice& voice, const deluge::synth::matri
 #if defined(DELUGE_PARAM_DUMP)
 	std::array<deluge::param_dump::SourceState, kMaxNumVoicesUnison * kNumSources> states{};
 	size_t n = 0;
-	for (int32_t u = 0; u < config_.voicing.unison.count; u++) {
+	for (int32_t u = 0; u < synth_.config().voicing.unison.count; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			const auto& slot = voice.kernel.unison_parts[u].slots[s];
 			states[n++] = {
@@ -147,16 +128,16 @@ deluge::synth::VoiceBlock Sound::voiceBlock(const SoundVoice& voice) const {
 		block.sample_can_auto_release[s] =
 		    type == OscType::SAMPLE && holder != nullptr
 		    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !voice.part.guides[s].noteOffReceived);
-		block.source_in_stereo[s] = SourceResources::renderInStereo(
-		    type, config_.voicing.unison_spread, config_.voicing.unison.count, static_cast<SampleHolder*>(holder));
+		block.source_in_stereo[s] =
+		    SourceResources::renderInStereo(type, synth_.config().voicing.unison_spread,
+		                                    synth_.config().voicing.unison.count, static_cast<SampleHolder*>(holder));
 	}
 	return block;
 }
 
 // Unusually, modelStack may be null: unassigning every voice on a song swap has none.
 void Sound::unassignVoice(SoundVoice& voice, ModelStackWithSoundFlags* modelStack) {
-	voice.kernel.unassign_sources(config_.voicing.unison.count, false);
-	voice.unassigned = true;
+	voice.kernel.unassign_sources(synth_.config().voicing.unison.count, false);
 	voiceUnassigned(modelStack);
 }
 
@@ -178,7 +159,7 @@ bool Sound::voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& 
 	const bool reversed = playsReversed(s);
 	voice.part.guides[s].setupPlaybackBounds(reversed);
 
-	LoopType loopingType = voice.part.guides[s].getLoopingType(config_.sources[s].repeat_mode);
+	LoopType loopingType = voice.part.guides[s].getLoopingType(synth_.config().sources[s].repeat_mode);
 
 	// Check we're still within bounds - for each unison part.
 	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into
@@ -186,7 +167,7 @@ bool Sound::voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& 
 
 	bool anyStillActive = false;
 
-	for (int32_t u = 0; u < config_.voicing.unison.count; u++) {
+	for (int32_t u = 0; u < synth_.config().voicing.unison.count; u++) {
 		SourceSlot* voiceUnisonPartSource = &voice.kernel.unison_parts[u].slots[s];
 
 		if (voiceUnisonPartSource->active) {
@@ -326,3 +307,28 @@ void SoundVoiceHost::note_released(SoundVoice& /*voice*/) const {
 void SoundVoiceHost::last_note(int32_t note) const {
 	sound->lastNoteCode = note;
 }
+
+deluge::synth::VoiceBlock SoundVoiceHost::voice_block(SoundVoice& voice) const {
+	return sound->voiceBlock(voice);
+}
+
+uint32_t SoundVoiceHost::sources_changed() const {
+	return sound->sourcesChanged.load(std::memory_order_acquire);
+}
+
+void SoundVoiceHost::voice_rendered(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+                                    const deluge::synth::SoundConfig& config,
+                                    const deluge::synth::BlockValues& values) const {
+	deluge::param_dump::plane(GLOBALITY_LOCAL, sound, &voice, voice.kernel.param_final_values());
+	sound->dumpVoiceSources(voice, controlBlock, config, values);
+}
+
+#if defined(DELUGE_STREAM_BENCH)
+void SoundVoiceHost::countVoice(uint32_t cycles, bool renders) const {
+	const auto kind = static_cast<size_t>(sound->voiceKind());
+	deluge::bench::render_profile::g_totals.voice_render += cycles;
+	++deluge::bench::render_profile::g_totals.voice_blocks;
+	deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += cycles;
+	deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += renders ? benchFrames : 0;
+}
+#endif

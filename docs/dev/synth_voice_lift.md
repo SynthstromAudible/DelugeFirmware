@@ -8,19 +8,22 @@ holds it to the library's boundary. A host spec plays it with nothing of the app
 The app holds each voice as a `SoundVoice` (`src/deluge/model/voice/voice_part.h`): the instrument's slot
 (`instrument::VoiceSlot`) over one kernel and the app's part — the firmware ports its sources play through and the
 playback guides of the files its note plays. It has no back-reference: its `Sound` builds what the kernel reads from
-the sound and hands it over (`src/deluge/processing/sound/sound_voices.cpp`).
+the sound and hands it over (`src/deluge/processing/sound/sound_voices.cpp`). The sound's `instrument::VoicePool`
+(`src/instruments/deluge/voice_pool.h`, held by its `DelugeSynth::Instance`) is the only code that edits its voice
+list: it runs note on and off, the render loop and the culls, drawing on the app through `SoundVoiceHost`, which
+implements the seam in `src/synth/voice/voice_host.h`.
 
 ## What the kernel is handed
 
 | When | Input | Built by |
 |---|---|---|
-| Each block, per sound | `BlockValues` (`synth/voice/block_values.h`): the filter slots and route, CPU direness, the synced LFO rates, the sound's MPE values, the osc sync and the slot settings the runtime holds | `Sound::render`, once for all its voices |
+| Each block, per sound | `BlockValues` (`synth/voice/block_values.h`): the filter slots and route, CPU direness, the synced LFO rates, the sound's MPE values, the osc sync and the slot settings the runtime holds | `DelugeSynth::begin_block`, once for all its voices, from the engine's `synth::HostBlock` and the `instrument::SoundBlockFacts` `Sound::render` gathers |
 | Each block, per sound | `MatrixBlock` (`synth/matrix/matrix_block.h`): the compiled matrix program, preset values and cable depths the matrix evaluator reads (see `synth_mod_matrix.md`) | `Sound::matrixBlock` |
 | Each block, per voice | `VoiceBlock` (`voice_inputs.h`): each wavetable source's band data, whether a play-once sample may auto-release, which sources render in stereo, the sound's voice count, the voice clock | `Sound::voiceBlock` |
-| Each block, per voice | `VoiceRenderArgs`: the sound's buffer and sample count, stereo and panning flags, the changed sources, the pitch adjust, and the shared scratch (spare buffers, filter scratch, osc-sync scratch) | `Sound::render` |
+| Each block, per voice | `VoiceRenderArgs`: the sound's buffer and sample count, stereo and panning flags, the changed sources, the pitch adjust, and the shared scratch (spare buffers, filter scratch, osc-sync scratch) | `Sound::render`, for the pool's `render` |
 | Note-on and note change | `NoteSetup`: each source's type, file pitch and DX7 patch; portamento and the previous note; the sound's MPE and global source values; which attacks are instant; which FM modulators sound; the initial-patching block. `NoteOnEvent`: the note, velocity, lateness, MPE | `note_setup_for` (`src/deluge/model/voice/voice_setup.h`) |
 | Note-off | `ReleaseInfo`: which envelopes sustain, whether note tails are allowed, the sources' types, the voice count and priority | `release_info_for` |
-| Always | `SoundConfig` (`synth/voice/sound_config.h`): the voicing (priority, polyphony, transpose, unison), the engine settings (synth mode, retrigger phases, FM's modulators), the LFOs' states, each source's playback | `DelugeSynth::derive`, from the sound's record |
+| Always | `SoundConfig` (`synth/voice/sound_config.h`): the voicing (priority, polyphony, transpose, unison), the engine settings (synth mode, retrigger phases, FM's modulators), the LFOs' states, each source's playback | `DelugeSynth::derive`, from the sound's record, held by its `DelugeSynth::Instance` (`Sound::deriveConfig`) |
 | Bound once | The ports behind each unison part's sample, DX7 and input sources | `Sound::bindVoice` |
 | Each call | The synth's one noise stream: note-on, phase randomizing and each render (`VoiceRenderArgs::noise`) | `Sound` (`sound_voices.cpp`, `Sound::render`) |
 
@@ -36,9 +39,11 @@ itself: the sample reader reads the rating partway through a note-on and a rende
 - **`voice_setup.cpp`**: resolving each note's sample and wavetable range into the guides (with a time-stretched
   sample's sync and a sample's bounds), FM's modulator levels, porta, the initial-patching block and the note-off's
   sustain test.
-- **`Sound`**: building the config and render arguments, taking a note-off the voice ignored once note tails are
-  allowed again, culling and stealing voices, and the zone change the sample marker editor makes
-  (`Sound::voiceSampleZoneChanged`); a voice's lifecycle steps (`sound_voices.cpp`).
+- **`Sound`**: gathering the block's facts and the render arguments, the pool's host (`SoundVoiceHost`), the zone
+  change the sample marker editor makes (`Sound::voiceSampleZoneChanged`) and a voice's lifecycle steps
+  (`sound_voices.cpp`). The pool takes a note-off a voice ignored once note tails are allowed again, steals and culls
+  its voices; `AudioEngine` keeps the cull policy (the voice budget) and reaches voices only through each sound's cull
+  queries.
 
 ## Tests
 
@@ -56,5 +61,6 @@ the kernel.
 
 ## What is next
 
-The engines and sources below the kernel are `synth_l1_engine_architecture.md`. Next is the mod matrix's runtime (M3),
-whose descriptor-published IDs take the synth's vocabulary out of `definitions_cxx.hpp` (`TODO.md`).
+The engines and sources below the kernel are `synth_l1_engine_architecture.md`. Next is Track A step 4 part 2
+(`roadmap.md`, its own spec): an engine registry in place of the note-on `OscType` dispatch, and DX7 as a
+sound-level engine.

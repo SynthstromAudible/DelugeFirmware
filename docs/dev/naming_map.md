@@ -39,7 +39,12 @@ for routing edges and summing buffers.
 | `synth::kNoRetrigger` | `synth::kFreeRunningPhase` | done | one free-running phase word for the file and the render |
 | a sound's sidechain send and MIDI output in its state | `project::SoundRouting` on the slot | done | the `SOUND_ROUTING` setting group |
 | `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
-| `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
+| `SoundVoice` (`model/voice/sound_voice.h`: the kernel, the ports, the guides and the lifecycle steps) | `instrument::VoiceSlot<VoicePart, synth::Voice>` (`instruments/deluge/voice_pool.h`) over the app's `VoicePart` (`model/voice/voice_part.h`) | done | `SoundVoice` names the app's slot type; the lifecycle steps are `Sound` members (`sound_voices.cpp`) |
+| `Sound::voicePool_` and its edits | `instrument::VoicePool`, held by `DelugeSynth::Instance` | done | the only code that edits a sound's voice list: note on and off, steals, the render loop, culls; the host it draws on is the app's `SoundVoiceHost` |
+| `Sound::config_` | `DelugeSynth::Instance::config()` | done | one sound's synth: its derived `SoundConfig` and its `VoicePool`; `configure(state)` derives the config |
+| `Sound::projectSnapshot` | `Sound::deriveConfig` | done | calls `DelugeSynth::Instance::configure` |
+| `Sound::render`'s `BlockValues` | `DelugeSynth::begin_block(synth::HostBlock, instrument::SoundBlockFacts)` | done | `HostBlock` (`synth/voice/host_block.h`) is the engine's facts for a block, `SoundBlockFacts` (`instruments/deluge/block_facts.h`) the sound's; the render's shared scratch stays in `VoiceRenderArgs` |
+| `Sound` | deleted | after Track A step 4 part 2 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
 
 ## Slot
 

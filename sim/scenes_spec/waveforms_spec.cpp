@@ -78,7 +78,7 @@ struct PreviewSound {
 	SoundDrum* drum = new (memory) SoundDrum();
 	PreviewSound() {
 		deluge::test::set(drum->record(), "osc1/type", "sample");
-		drum->projectSnapshot();
+		drum->deriveConfig();
 		AudioEngine::sampleForPreview = drum;
 	}
 	~PreviewSound() {
@@ -110,7 +110,7 @@ describe waveforms("a waveform by its address", ${
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		SourceResources& source = sound->sourceResources[0];
 		deluge::test::set(sound->record(), "osc1/type", "sample");
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
@@ -146,7 +146,7 @@ describe waveforms("a waveform by its address", ${
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		SourceResources& source = sound->sourceResources[0];
 		deluge::test::set(sound->record(), "osc1/type", "sample");
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;

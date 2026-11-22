@@ -165,7 +165,7 @@ struct Rig {
 		deluge::test::set(*sound->state_, "osc1/type", "sample");
 		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
 		deluge::test::set(*sound->state_, "osc1/reversed", "0");
-		sound->projectSnapshot();
+		sound->deriveConfig();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.startPos = 0;

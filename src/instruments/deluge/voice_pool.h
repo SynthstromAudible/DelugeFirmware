@@ -75,11 +75,12 @@ public:
 		voices_.push_back(slot);
 	}
 
-	/// @brief Frees @p slot's resources while it stays listed; erase_if() later removes it.
+	/// @brief Frees @p slot's resources while it stays listed, marking it for the render's sweep.
 	/// @param context What the host frees them with.
 	void unassign(Slot& slot, Context context = {}) {
 		const Exclusion excluded;
 		host_->unassign(slot, context);
+		slot.unassigned = true;
 	}
 
 	/// @brief Frees the voice at @p it: its resources while it is still listed, then its slot.
@@ -287,6 +288,47 @@ public:
 			host_->note_released(*voice);
 		}
 		return std::nullopt;
+	}
+
+	/// @brief Renders a block of every voice into @p args' buffer: a note-off a voice ignored is taken once note
+	///        tails are allowed, a voice's first call only marks it created, and a voice that ends is unassigned while
+	///        listed, then swept with the rest.
+	/// @param control The sound's matrix block, handed to the kernel.
+	/// @param config The sound's config, handed to the kernel.
+	/// @param values The block's values, handed to the kernel; their note_tails_allowed is read here.
+	/// @param args The render's buffer and scratch; their sources_changed is set per voice from the host.
+	/// @param context What the host frees an ended voice's resources with.
+	/// @return How many voices rendered, their first call left out, for the host's cost.
+	template <class Control, class Config, class Values, class Args>
+	requires synth::render_host<H>
+	uint32_t render(const Control& control, const Config& config, const Values& values, Args args, Context context) {
+		uint32_t rendered = 0;
+		for (Slot* voice : voices_) {
+			if (voice->just_created && voice->kernel.previously_ignored_note_off() && values.note_tails_allowed) {
+				voice->kernel.note_off(host_->prepare_release(*voice, context, values.note_tails_allowed), true,
+				                       host_->clock());
+				host_->note_released(*voice);
+			}
+			args.sources_changed = host_->sources_changed();
+			const bool renders = voice->just_created;
+			rendered += renders ? 1 : 0;
+			const bool going = host_->timed_voice(
+			    [&] {
+				    if (!voice->just_created) {
+					    voice->just_created = true;
+					    return true;
+				    }
+				    const bool keep = voice->kernel.render(control, config, values, host_->voice_block(*voice), args);
+				    host_->voice_rendered(*voice, control, config, values);
+				    return keep;
+			    },
+			    renders);
+			if (!going) {
+				unassign(*voice, context);
+			}
+		}
+		erase_if([](const Slot* voice) { return voice->unassigned; });
+		return rendered;
 	}
 
 private:

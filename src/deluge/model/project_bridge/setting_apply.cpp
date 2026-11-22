@@ -236,7 +236,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			// The render reads the type from the config: it learns the new one as soon as the ranges have it. Retyping
 			// itself can release clusters, which must not happen with the render excluded.
 			AudioExcludedSection section;
-			sound.projectSnapshot();
+			sound.deriveConfig();
 		}
 		if (deluge::instrument::sample_playback(before, id).reversed != reversedNow) {
 			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
@@ -249,7 +249,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	{
 		// The render sees the new config with its voices already retuned and re-voiced.
 		AudioExcludedSection section;
-		sound.projectSnapshot();
+		sound.deriveConfig();
 		if (changed(Part::TUNING) || changed(Part::UNISON_COUNT) || changed(Part::UNISON_DETUNE)
 		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)) {
 			sound.recalculateAllVoicePhaseIncrements(modelStack);

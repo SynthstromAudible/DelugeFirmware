@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
+#include "memory/stack_guard.h"
 #include "model/fx/channel_setup.h"
 #include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
@@ -81,6 +82,7 @@ class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
 #include "effects/fx_section.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/voice_pool.h"
 #include <optional>
@@ -190,6 +192,48 @@ struct SoundVoiceHost {
 	void note_released(SoundVoice& voice) const;
 	/// @brief A LEGATO fall-back's note, which the next glide starts from.
 	void last_note(int32_t note) const;
+	// --- The render (synth::render_host)
+	/// @brief What differs between the sound's voices for @p voice's render.
+	/// @param voice The voice about to render.
+	/// @return Its wavetables, auto-release and stereo flags, the voice count and the clock.
+	[[nodiscard]] deluge::synth::VoiceBlock voice_block(SoundVoice& voice) const;
+	/// @brief The patch sources whose values changed since the last block, read once per voice.
+	/// @return A bit per source.
+	[[nodiscard]] uint32_t sources_changed() const;
+	/// @brief After @p voice's render: the parameter dump's plane and sources.
+	/// @param voice The voice that rendered.
+	/// @param controlBlock The sound's matrix block for the block.
+	/// @param config The sound's config.
+	/// @param values The block's values.
+	void voice_rendered(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
+	                    const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& values) const;
+	/// @brief Runs @p fn, one voice's render answering whether the voice goes on, inside the stream bench's voice
+	/// counters; a voice that @p renders (past its first call) checks the stack first.
+	/// @param fn The voice's render.
+	/// @param renders Whether the voice renders this call (its first call only marks it created).
+	/// @return What @p fn returns: whether the voice goes on.
+	template <class Fn>
+	bool timed_voice(Fn&& fn, bool renders) const {
+#if defined(DELUGE_STREAM_BENCH)
+		const uint32_t t0 = deluge::bench::render_profile::cycles();
+#endif
+		if (renders) {
+			checkStack("SoundVoiceHost::timed_voice");
+		}
+		const bool going = std::forward<Fn>(fn)();
+#if defined(DELUGE_STREAM_BENCH)
+		countVoice(deluge::bench::render_profile::cycles() - t0, renders);
+#endif
+		return going;
+	}
+#if defined(DELUGE_STREAM_BENCH)
+	uint32_t benchFrames{}; ///< The block's frames, for the bench's per-kind frame count
+	/// @brief Adds one voice's render, of @p cycles, to the stream bench's totals.
+	/// @param cycles The render's cycles.
+	/// @param renders Whether it rendered frames (past its first call).
+	void countVoice(uint32_t cycles, bool renders) const;
+#endif
+
 	/// @brief Runs @p fn, a note-on answering whether it started, inside the stream bench's note-on bracket.
 	template <class Fn>
 	static bool timed(Fn&& fn) {
@@ -201,7 +245,7 @@ class Sound : public ModControllable, public virtual Voiced {
 public:
 	Sound();
 	~Sound() override {
-		const bool liveVoices = !voicePool_.empty();
+		const bool liveVoices = !synth_.voices().empty();
 		if (liveVoices) {
 			noteDestroyedWithLiveVoices();
 		}
@@ -209,7 +253,7 @@ public:
 		deluge::model::releaseDelayMemory(core().delay());
 		deluge::model::endStutterIfStuttering(core());
 		if (liveVoices) {
-			voicePool_.kill_all();
+			synth_.voices().kill_all();
 		}
 	}
 
@@ -285,15 +329,11 @@ public:
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
 
-	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
-	/// doneReadingFromFile and after edits; the render reads it.
-	///
-	/// Always present, so the render never needs a fallback.
-	deluge::synth::SoundConfig config_{};
-	/// @brief Re-derive config_ from state_.
-	void projectSnapshot();
-	/// @brief The sound's settings as its voices play them.
-	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
+	/// @brief The sound's settings as its voices play them, derived from state_ at bind, on a read and after
+	/// edits; the render reads it. Always present, so the render never needs a fallback.
+	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return synth_.config(); }
+	/// @brief Derives the config again from state_ (after an edit of the record).
+	void deriveConfig();
 	/// @brief Oscillator @p s's first range, made when it has none and then recorded as the record's.
 	/// @details The range it makes is the empty default, written to the record at once so a gesture's range Edit
 	/// (`editRange`) finds it there; the gesture's own Edit then records what it puts in the range.
@@ -305,10 +345,10 @@ public:
 	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it, when the record holds another.
 	void recordHeldDxPatch(int32_t s);
 	/// @brief What oscillator @p s plays.
-	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
+	[[nodiscard]] OscType oscType(int32_t s) const { return synth_.config().sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
 	[[nodiscard]] bool playsReversed(int32_t s) const {
-		return config_.sources[s].reversed != sourceResources[s].invertReversed;
+		return synth_.config().sources[s].reversed != sourceResources[s].invertReversed;
 	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
@@ -346,7 +386,7 @@ public:
 
 	int32_t sideChainSendLevel = 0;
 
-	// The sound's transpose lives in the SoundConfig read-view (see config_ / getTranspose()).
+	// The sound's transpose lives in the SoundConfig read-view (see synth_.config() / getTranspose()).
 
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
@@ -354,7 +394,7 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	[[nodiscard]] int16_t getTranspose() const { return config_.voicing.transpose; }
+	[[nodiscard]] int16_t getTranspose() const { return synth_.config().voicing.transpose; }
 
 	bool skippingRendering = true;
 
@@ -453,7 +493,7 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	[[nodiscard]] SynthMode getSynthMode() const { return config_.engine.mode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return synth_.config().engine.mode; }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
 
@@ -482,7 +522,6 @@ public:
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
-	void doneReadingFromFile();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
@@ -524,12 +563,12 @@ public:
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
-		return voicePool_.read([](const SoundVoiceHost::List& voices) { return !voices.empty(); });
+		return synth_.voices().read([](const SoundVoiceHost::List& voices) { return !voices.empty(); });
 	}
 
 	/// @brief Get the number of active voices
 	[[nodiscard]] size_t numActiveVoices() const {
-		return voicePool_.read([](const SoundVoiceHost::List& voices) { return voices.size(); });
+		return synth_.voices().read([](const SoundVoiceHost::List& voices) { return voices.size(); });
 	}
 
 	/// @brief Immediately ends all active voices
@@ -544,7 +583,7 @@ public:
 	void cull(deluge::synth::CullKind kind, uint32_t increment = 0);
 	/// @brief The sound's voices, to read through the pool with the render excluded.
 	/// @return The pool.
-	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return voicePool_; }
+	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return synth_.voices(); }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
@@ -566,7 +605,7 @@ protected:
 	void voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s);
 	/// @brief The sound's voices, for its kinds to change in place through the pool.
 	/// @return The pool.
-	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return voicePool_; }
+	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return synth_.voices(); }
 
 private:
 	friend struct SoundVoiceHost;
@@ -591,16 +630,9 @@ private:
 	prepareVoiceRelease(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
 	/// @brief After a voice's note-off: the samples' arpeggiated reverse goes back to normal.
 	void voiceReleased();
-	/// @brief Releases @p voice's note.
-	void releaseVoiceNote(SoundVoice& voice, ParamManagerForTimeline* paramManager, bool noteTailsAllowed);
 	/// @brief Source @p s's sample zone moved under @p voice's note.
 	/// @return False if the voice must be unassigned now.
 	bool voiceSampleZoneChanged(SoundVoice& voice, ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
-	/// @brief Renders one block of @p voice.
-	/// @return False once it has ended and must be unassigned.
-	bool renderVoice(SoundVoice& voice, const deluge::synth::matrix::MatrixBlock& controlBlock,
-	                 const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
-	                 const deluge::synth::VoiceRenderArgs& args);
 	/// @brief What differs between this sound's voices for @p voice's render.
 	[[nodiscard]] deluge::synth::VoiceBlock voiceBlock(const SoundVoice& voice) const;
 	/// @brief @p voice's sources as this block left them, to the parameter dump (a host render's only).
@@ -621,11 +653,6 @@ private:
 
 	template <deluge::modulation::params::Global P>
 	deluge::dsp::UQ<32> getGlobalLFOPhaseIncrement(LFO_ID lfoId);
-	void recalculateFineTuner();
-	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
-	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
-	/// @brief The unison layout and level its count, detune and spread make (synth::derive_unison).
-	void refreshUnison();
 	void ensureKnobReferencesCorrectVolume(ModKnob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
@@ -641,19 +668,19 @@ private:
 
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
-	/// @brief The sound's effects after its voices; outlives voicePool_, whose teardown reads its delay.
+	/// @brief The sound's effects after its voices; outlives synth_'s voices, whose teardown reads its delay.
 	deluge::effects::FxSection fxSection_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
 	/// @brief Set by a read whose element held an arpeggiator.
 	bool arp_read_{false};
 
-	/// @brief What the sound's voice pool draws on; declared before it, which holds it.
+	/// @brief What the sound's voice pool draws on; declared before the synth, whose pool holds it.
 	SoundVoiceHost voiceHost_{this};
-	/// @brief The sound's voices. Only the pool edits the list, each edit inside an AudioExcludedSection (free on the
-	/// audio tier, the render walking every Sound's voices) and reported to the structural-edit probe
-	/// (util/structural_edit_probe.h).
-	deluge::instrument::VoicePool<SoundVoiceHost> voicePool_{voiceHost_};
+	/// @brief The sound's synth: its config and its voices. Only the pool edits the voice list, each edit inside an
+	/// AudioExcludedSection (free on the audio tier, the render walking every Sound's voices) and reported to the
+	/// structural-edit probe (util/structural_edit_probe.h).
+	deluge::instrument::DelugeSynth::Instance<SoundVoiceHost> synth_{voiceHost_};
 
 	static void noteVoicesEdit();
 };
