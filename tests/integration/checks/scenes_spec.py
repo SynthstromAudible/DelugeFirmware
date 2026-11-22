@@ -1,23 +1,23 @@
 """The scenes' specs (tests/integration/ui/scenes) on golden_vt_render, one file per process.
 
-The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under tests/integration/ui/scenes,
-selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
-own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
-on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never
-reaches its result line fails by name, as does one still running after RUN_TIMEOUT_S. The gate fails when no spec file
-ran at all. The runner's self-specs pin that a passing file and the card checks pass and that a failing, a crashing and
-an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover state (a stack song in
-currentSong, a guard it left open) can reach another.
+The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under
+tests/integration/ui/scenes, selftest/ aside: the table is generated from the files, so a mismatch means a stale build.
+Each file then runs in its own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card
+otherwise) and passes only on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash
+or a file that never reaches its result line fails by name, as does one still running after RUN_TIMEOUT_S. The gate
+fails when no spec file ran at all. The runner's self-specs pin that a passing file and the card checks pass and that a
+failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
+state (a stack song in currentSong, a guard it left open) can reach another.
 
 Gate ui-scenes-spec:
-    the scenes' specs (tests/integration/ui/scenes) run on golden_vt_render, one file per process from the app's own init, each on
-    its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table
-    must list exactly the spec files under tests/integration/ui/scenes (selftest/ aside), and every file must exit 0 and print its
-    own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one still running after two
-    minutes fails by name. The runner's self-specs pin a passing file and the card checks (SdRoot/NoSdRoot) passing and
-    a failing and a crashing one failing; each file's process is fresh, so one file's leftover state cannot reach
-    another. A file that runs no examples fails. The net is temporary: as each scene moves onto model addresses and
-    Edits its specs move down to unit specs, and the gate goes when the directory is empty.
+    the scenes' specs (tests/integration/ui/scenes) run on golden_vt_render, one file per process from the app's own
+    init, each on its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's
+    entry table must list exactly the spec files under tests/integration/ui/scenes (selftest/ aside), and every file
+    must exit 0 and print its own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one
+    still running after two minutes fails by name. The runner's self-specs pin a passing file and the card checks
+    (SdRoot/NoSdRoot) passing and a failing and a crashing one failing; each file's process is fresh, so one file's
+    leftover state cannot reach another. A file that runs no examples fails. The net is temporary: as each scene moves
+    onto model addresses and Edits its specs move down to unit specs, and the gate goes when the directory is empty.
 
 Gate app-asan-ui-scenes-spec:
     the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap

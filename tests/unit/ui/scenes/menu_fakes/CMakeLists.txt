@@ -1,8 +1,8 @@
 # Specs for the menu's own sources that link without the app: each one compiled here from src/ui/scenes/menu, over the
-# ports' fakes (tests/support/ui/scenes), with no legacy song, no host and no other scene. A menu source that still reaches
-# the app -- a `host_*` hook, another scene's entry point, or a legacy symbol, directly or through a menu source that
-# does -- cannot link here and is not listed. The l10n sources are the strings' definitions, which the app builds for
-# itself.
+# ports' fakes (tests/support/ui/scenes), with no legacy song, no host and no other scene. A menu source that still
+# reaches the app -- a `host_*` hook, another scene's entry point, or a legacy symbol, directly or through a menu source
+# that does -- cannot link here and is not listed. The l10n sources are the strings' definitions, which the app builds
+# for itself.
 if(NOT TARGET deluge_ui_scenes_fakes)
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/support/ui/scenes ${CMAKE_CURRENT_BINARY_DIR}/scenes_fakes)
 endif()

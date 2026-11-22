@@ -246,7 +246,7 @@ add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # d
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
-add_subdirectory(${REPO_ROOT}/tests/integration/ui/scenes ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_ui_scenes_spec: the scenes' specs
+add_subdirectory(${REPO_ROOT}/tests/integration/ui/scenes ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_ui_scenes_spec
 
 # The UI's level-3 scripts, the menu dump and the scenes' specs run as golden_vt_render scenarios (the ui-scripts,
 # ui-menu-dump and ui-scenes-spec gates); the UI layers' BSP-free specs run with the unit specs.

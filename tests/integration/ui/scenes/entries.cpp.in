@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Generated from tests/integration/ui/scenes/entries.cpp.in by tests/integration/ui/scenes/CMakeLists.txt: one row per ported spec file.
+// Generated from tests/integration/ui/scenes/entries.cpp.in by tests/integration/ui/scenes/CMakeLists.txt: one row per
+// ported spec file.
 
 #include "entries.h"
 
