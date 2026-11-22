@@ -87,6 +87,11 @@ public:
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
+	/// Which multitrack USB bus this track goes to instead of the main mix: 0 for none (the main mix), or 1 to
+	/// usb_audio::kNumTrackBuses for channels 3/4, 5/6 and 7/8. Shared by all its clips, saved with the song, and only
+	/// acted on while multitrack USB audio is on
+	[[nodiscard]] uint8_t getUSBBus() const { return usbBus_; }
+	void setUSBBus(uint8_t bus) { usbBus_ = bus; }
 	String name; // Contains the display name as the user sees it.
 	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
@@ -235,4 +240,7 @@ protected:
 	Output* outputRecordingThisOutput{nullptr};
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
+
+private:
+	uint8_t usbBus_{0};
 };
