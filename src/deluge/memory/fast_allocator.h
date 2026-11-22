@@ -7,7 +7,7 @@ namespace deluge::memory {
 /**
  * @brief A C++ Allocator-trait wrapper over the fast (SRAM-preferred) heap.
  * (see: https://en.cppreference.com/w/cpp/named_req/Allocator). Routes through
- * deluge::memory::alloc_fast — the Rust deluge_alloc core (or, gate-off, the
+ * deluge::memory::alloc_fast — the Rust deluge_base_alloc core (or, gate-off, the
  * legacy GeneralMemoryAllocator) — without reaching GeneralMemoryAllocator::get().
  *
  * @tparam T The type to allocate for

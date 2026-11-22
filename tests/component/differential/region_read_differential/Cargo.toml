@@ -16,7 +16,7 @@ deluge_resource = { path = "../../../../crates/deluge_resource" }
 # `native_finish` runs the real convert/stitch/publish tail, so the chunks' trailing-slack bytes
 # are really stitched rather than hand-seeded.
 deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill", features = ["native_fill"] }
-deluge_alloc = { path = "../../../../crates/deluge_alloc" }
+deluge_base_alloc = { path = "../../../../src/base/alloc" }
 # The test binary's host stand-ins for `deluge_resource`'s C-ABI critical-section primitives
 # need a registered `critical-section` implementation.
 critical-section = { version = "1", features = ["std"] }

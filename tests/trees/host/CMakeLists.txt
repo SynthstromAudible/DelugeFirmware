@@ -46,16 +46,19 @@ set(DELUGE_TEST_TREE host)
 include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/specs.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/libs.cmake)
 
+# The allocator crate is a member of the crates workspace that lives outside it.
+set(RUST_ALLOC ${CMAKE_CURRENT_LIST_DIR}/../../../src/base/alloc)
+
 if (UNIX AND NOT APPLE)
     # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
-    # conformance specs (it re-exports both the deluge_alloc and deluge_resource C
+    # conformance specs (it re-exports both the allocator and deluge_resource C
     # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
     # the same output.
     set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
     set(RUST_TARGET i686-unknown-linux-gnu)
     set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_ALLOC}/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named, as RUST_LIB is: `dbt test` sets CARGO_TARGET_DIR for its own cargo builds, and a
@@ -64,7 +67,7 @@ if (UNIX AND NOT APPLE)
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
-            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"
         VERBATIM)
@@ -80,7 +83,7 @@ if (UNIX AND NOT APPLE)
     # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
     # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
-        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_ALLOC}/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
         ${RUST_WS}/deluge_sample_reader/src/*.rs ${RUST_WS}/deluge_sample_fill/src/*.rs
         ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
@@ -90,7 +93,7 @@ if (UNIX AND NOT APPLE)
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES_SIM}
             ${RUST_WS}/Cargo.lock
-            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
             ${RUST_WS}/deluge_sample_reader/Cargo.toml ${RUST_WS}/deluge_sample_fill/Cargo.toml
             ${RUST_WS}/deluge_sample_source/Cargo.toml
@@ -109,7 +112,7 @@ elseif (APPLE)
     set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
     set(RUST_LIB ${RUST_WS}/target/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_ALLOC}/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named for the reason the Linux branch gives: `dbt test` sets CARGO_TARGET_DIR, and a
@@ -118,7 +121,7 @@ elseif (APPLE)
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
-            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib (host)"
         VERBATIM)

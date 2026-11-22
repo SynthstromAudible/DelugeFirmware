@@ -6,7 +6,7 @@
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
-``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
+``src/bsp/rust/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
 dependency outside this repository instead, and each of its functions counts as defined only when an
 ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function nobody
 calls keeps nothing alive.
@@ -35,6 +35,8 @@ import argparse
 import re
 import sys
 from pathlib import Path
+
+import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h"))
@@ -145,8 +147,27 @@ def source_files(*roots: str, suffixes: tuple[str, ...]) -> list[Path]:
     return files
 
 
+CRATES = ROOT / "crates"
+
+
+def workspace_members() -> dict[Path, str]:
+    """Every member of the crates workspace, by resolved directory, mapped to its package name. The members are
+    listed in `crates/Cargo.toml`, as paths relative to it, so a crate may live outside `crates/`."""
+    members = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]["members"]
+    found: dict[Path, str] = {}
+    for member in members:
+        directory = (CRATES / member).resolve()
+        manifest = tomllib.loads((directory / "Cargo.toml").read_text())
+        found[directory] = manifest["package"]["name"].replace("-", "_")
+    return found
+
+
+MEMBERS = workspace_members()
 RUST = source_files(
-    "src/bsp/rust/src", "src/bsp/rust/harness", "crates", suffixes=(".rs",)
+    "src/bsp/rust/src",
+    "src/bsp/rust/harness",
+    *(d.relative_to(ROOT).as_posix() for d in MEMBERS),
+    suffixes=(".rs",),
 )
 CXX_APP = source_files(
     "src/deluge", "src/OSLikeStuff", suffixes=(".c", ".cpp", ".h", ".hpp")
@@ -183,7 +204,6 @@ ABI_PIN = re.compile(r"abi_pin!\s*\(\s*(?:in\s+([\w:]+)\s*:)?([^)]*)\)", re.DOTA
 ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
 BSP_SRC = ROOT / "src" / "bsp" / "rust" / "src"
 HARNESS = ROOT / "src" / "bsp" / "rust" / "harness"
-CRATES = ROOT / "crates"
 # Headers whose functions a dependency defines outside this repository, by the crate name `abi/pins.rs` pins them
 # `in`. Its source is not here to scan, so the pin, which checks each function against the header, stands for the
 # definition: a function with no pin into the crate is reported undefined.
@@ -196,7 +216,7 @@ EXTERN_BLOCK = re.compile(r'\bextern\s+"C"\s*\{')
 EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
-# `src/bsp/rust/src` and `src/bsp/rust/harness`, whose pins sit beside what they pin, or the crate's directory name for `crates/<dir>/src`,
+# `src/bsp/rust/src` and `src/bsp/rust/harness`, whose pins sit beside what they pin, or the crate's package name for a crates-workspace member's `src`,
 # which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
@@ -205,10 +225,8 @@ def crate_names() -> dict[str, Scope]:
     """Every name `src/bsp/rust/src` can spell an in-tree crate by, mapped to that crate's scope: the crate's own
     name, and any `alias = { package = "crate" ... }` rename in `src/bsp/rust/Cargo.toml`."""
     names: dict[str, Scope] = {}
-    for manifest in CRATES.glob("*/Cargo.toml"):
-        package = re.search(r'(?m)^name\s*=\s*"([^"]+)"', manifest.read_text())
-        if package:
-            names[package.group(1).replace("-", "_")] = manifest.parent.name
+    for package in MEMBERS.values():
+        names[package] = package
     cargo = (ROOT / "src" / "bsp" / "rust" / "Cargo.toml").read_text()
     for alias, package in re.findall(
         r'(?m)^([\w-]+)\s*=\s*\{[^}\n]*package\s*=\s*"([^"]+)"', cargo
@@ -223,10 +241,9 @@ def scope_of(path: Path) -> Scope | None:
     """The scope a pin must name to check an item in `path`, or None for a file no pin reaches."""
     if path.is_relative_to(BSP_SRC) or path.is_relative_to(HARNESS):
         return path.relative_to(ROOT).as_posix()
-    if path.is_relative_to(CRATES):
-        parts = path.relative_to(CRATES).parts
-        if len(parts) > 2 and parts[1] == "src":
-            return parts[0]
+    for directory, package in MEMBERS.items():
+        if path.is_relative_to(directory / "src"):
+            return package
     return None
 
 
@@ -377,7 +394,7 @@ def main() -> int:
         for name in names:
             for scope, kind in sorted(items.get(name, ())):
                 if scope not in pins.get(name, ()):
-                    where = scope if "/" in scope else f"crates/{scope}"
+                    where = scope if "/" in scope else f"crate {scope}"
                     unpinned.append(name)
                     print(f"unpinned: {name} ({kind} in {where})")
     missing = untagged() if args.tags else []

@@ -1,6 +1,6 @@
 //! The Deluge's cached-asset resource manager, behind the C ABI in `deluge_resource.h`.
 //!
-//! A value-scored, lease-based cache of reconstructable assets on the `deluge_alloc` TLSF heap.
+//! A value-scored, lease-based cache of reconstructable assets on the `deluge_base_alloc` TLSF heap.
 //! [`manager`] holds the core and the C ABI, [`facade`] a safe Rust interface, [`value`] the
 //! eviction policy, and [`sync`] the critical-section helpers every shared access goes through.
 //!
@@ -55,7 +55,7 @@ mod tests {
     use super::*;
     use core::cell::Cell;
     use core::ffi::c_void;
-    use deluge_alloc::deluge_heap_create;
+    use deluge_base_alloc::deluge_heap_create;
 
     fn owner(n: usize) -> *mut c_void {
         n as *mut c_void
@@ -109,7 +109,7 @@ mod tests {
 
     // A heap over a `Vec<u128>`: miri tracks declared alignment, and a `Vec<u8>` arena would
     // flag the TLSF's 16-aligned headers. The caller keeps the buffer alive (no leak for miri).
-    fn arena(bytes: usize) -> (Vec<u128>, *mut deluge_alloc::DelugeHeap) {
+    fn arena(bytes: usize) -> (Vec<u128>, *mut deluge_base_alloc::DelugeHeap) {
         let words = bytes.div_ceil(16);
         let mut buf = vec![0u128; words];
         let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
@@ -368,7 +368,7 @@ mod tests {
         // BACKING_SLAB chunks come from an unmanaged slab; the manager drives their eviction.
         let (_buf, h) = arena(256 * 1024);
         let slot = 16 * 1024;
-        let slab = unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, slot, 64) };
+        let slab = unsafe { deluge_base_alloc::slab::deluge_slab_create_unmanaged(h, slot, 64) };
         assert!(!slab.is_null());
         let mgr = unsafe { deluge_resource_create(h, 16, 64) };
         unsafe { deluge_resource_set_slab(mgr, slab) };
@@ -1012,8 +1012,8 @@ mod tests {
             )
         };
         // Adopt a pinned (leased) block + an unpinned one (both heap blocks we "own").
-        let pinned = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
-        let cold = unsafe { deluge_alloc::deluge_alloc(h, 32 * 1024, 16) };
+        let pinned = unsafe { deluge_base_alloc::deluge_alloc(h, 32 * 1024, 16) };
+        let cold = unsafe { deluge_base_alloc::deluge_alloc(h, 32 * 1024, 16) };
         assert!(!pinned.is_null() && !cold.is_null());
         assert_eq!(
             unsafe {
@@ -1058,7 +1058,7 @@ mod tests {
         );
         // The manager freed `cold`; `pinned` is still adopted, so free it here.
         unsafe { deluge_resource_release(mgr, pinned) };
-        unsafe { deluge_alloc::deluge_free(h, pinned) };
+        unsafe { deluge_base_alloc::deluge_free(h, pinned) };
     }
 
     #[test]
@@ -1561,7 +1561,7 @@ mod tests {
         Vec<u128>,
         *mut DelugeResource,
         u32,
-        *mut deluge_alloc::DelugeHeap,
+        *mut deluge_base_alloc::DelugeHeap,
     ) {
         let (buf, h) = arena(arena_bytes);
         let m = unsafe { deluge_resource_create(h, 16, chunk_cap) };
@@ -1743,7 +1743,7 @@ mod tests {
 
         let blocks: Vec<*mut u8> = (0..8)
             .map(|_| {
-                let raw = unsafe { deluge_alloc::deluge_alloc(h, 1024, 16) };
+                let raw = unsafe { deluge_base_alloc::deluge_alloc(h, 1024, 16) };
                 assert!(!raw.is_null());
                 unsafe { deluge_resource_adopt(m, raw, 1024, COST_IO, core::ptr::null_mut(), None) }
             })

@@ -461,11 +461,12 @@ mod tests {
             let mut buf: Vec<u128> = std::vec![0u128; words];
             let ptr = buf.as_mut_ptr() as *mut u8;
             // SAFETY: `buf` is leaked below, so the arena outlives the test.
-            let h = unsafe { deluge_alloc::deluge_heap_create(ptr, words * 16) };
+            let h = unsafe { deluge_base_alloc::deluge_heap_create(ptr, words * 16) };
             std::mem::forget(TestHeap { _buf: buf });
             // SAFETY: `h` is live. Uniform `BACKING_SIZE` slots, like production's streaming slab.
-            let slab =
-                unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, 16) };
+            let slab = unsafe {
+                deluge_base_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, 16)
+            };
             assert!(!slab.is_null());
             // SAFETY: `h` is live.
             let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };

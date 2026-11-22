@@ -17,7 +17,7 @@ deluge_sample_convert = { path = "../../../../crates/deluge_sample_convert" }
 [dev-dependencies]
 # A real resource manager and the test heap it is built over.
 deluge_resource = { path = "../../../../crates/deluge_resource" }
-fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
+fs_alloc = { package = "deluge_base_alloc", path = "../../../../src/base/alloc" }
 # `native_fill` enables `native_begin`/`native_finish`, which `tests/native_finish_glue.rs` drives.
 deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill", features = ["native_fill"] }
 # `deluge_sample_fill`'s `FILL_CONTEXTS` uses a `CriticalSectionRawMutex`, which needs a registered

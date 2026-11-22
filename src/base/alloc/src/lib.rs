@@ -1,7 +1,7 @@
 //! TLSF + slab allocator core for the Deluge, behind the C ABI in `libdeluge/alloc.h`.
 //!
 //! - TLSF backbone (`tlsf`): O(1) general allocator, 16-byte aligned by construction. The C++
-//!   conformance suite in `tests/unit/crates/deluge_alloc` and the host unit/proptest tests validate it.
+//!   conformance suite in `tests/unit/base/alloc` and the host unit/proptest tests validate it.
 //! - [`slab`]: the cache pool for stealable memory — uniform slots, LRU, pinning — registered as
 //!   the heap's reclaim hook.
 //! - [`DelugeGlobalAlloc`]: a [`GlobalAlloc`](core::alloc::GlobalAlloc) over one heap, so Rust

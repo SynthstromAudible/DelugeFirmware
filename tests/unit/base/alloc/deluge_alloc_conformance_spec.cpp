@@ -4,7 +4,7 @@
 #include "cppspec.hpp"
 
 // Phase 3 of the allocator rewrite (docs/dev/allocator_implementation_plan.md):
-// the Rust TLSF core (crates/deluge_alloc) run through its C ABI against the
+// the Rust TLSF core (src/base/alloc) run through its C ABI against the
 // *same* allocator-agnostic conformance suite (tests/support/fixtures/memory/conformance.h)
 // that the legacy C++ MemoryRegion passes. This proves the new core honors the
 // 16-byte-alignment / non-overlap / data-integrity / realloc / drain invariants

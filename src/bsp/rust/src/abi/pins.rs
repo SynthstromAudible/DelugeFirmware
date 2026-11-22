@@ -5,7 +5,7 @@
 
 // --- The in-tree crates' exports ---
 
-// Only the device build depends on `deluge_alloc` directly (as `fs_alloc`).
+// Only the device build depends on `deluge_base_alloc` directly (as `fs_alloc`).
 #[cfg(target_os = "none")]
 abi_pin!(in fs_alloc::abi: deluge_heap_create, deluge_alloc, deluge_heap_register_reclaim, deluge_free,
     deluge_realloc, deluge_usable_size, deluge_slab_acquire, deluge_slab_pin, deluge_slab_unpin, deluge_slab_touch,

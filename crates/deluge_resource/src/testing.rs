@@ -68,8 +68,9 @@ impl Harness {
         // `Vec<u128>` for a 16-aligned arena, as in the crate tests' `arena` helper.
         let words = heap_bytes.div_ceil(16);
         let mut buf = std::vec![0u128; words];
-        let h =
-            unsafe { deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        let h = unsafe {
+            deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+        };
         let mgr = unsafe { deluge_resource_create(h, NUM_ASSETS as usize + 1, chunk_cap) };
         assert!(!mgr.is_null());
         let assets = (0..NUM_ASSETS)

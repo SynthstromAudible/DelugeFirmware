@@ -17,7 +17,7 @@ license = "GPL-3.0-or-later"
 deluge_sample_source = { path = "../../../../crates/deluge_sample_source" }
 # The real manager and asset `ManagerResidency` sits on, and the test heap.
 deluge_resource = { path = "../../../../crates/deluge_resource" }
-fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
+fs_alloc = { package = "deluge_base_alloc", path = "../../../../src/base/alloc" }
 # `deluge_sample_fill::chunk`: streamed-chunk construction and payload resolution. No
 # `native_fill`; this gate never runs the fill.
 deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill" }

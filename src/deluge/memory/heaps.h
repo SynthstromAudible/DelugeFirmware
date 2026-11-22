@@ -21,7 +21,7 @@
 #include <cstdint>
 
 // The application's allocator heaps, built over the BSP's memory regions
-// (deluge_memory_region) and backed by the Rust deluge_alloc core. These free
+// (deluge_memory_region) and backed by the Rust deluge_base_alloc core. These free
 // functions are the clean way to reach a heap — the typed C++ allocators
 // (fast/sdram/external_allocator) and the GeneralMemoryAllocator forwarders
 // allocate from here, rather than each owning/locating heaps via

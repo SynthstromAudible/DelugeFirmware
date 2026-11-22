@@ -402,7 +402,7 @@ dependencies = [
  "deluge-bsp",
  "deluge-embedded-fatfs",
  "deluge-usb-classes",
- "deluge_alloc",
+ "deluge_base_alloc",
  "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",
@@ -452,14 +452,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge_alloc"
+name = "deluge_base_alloc"
 version = "0.1.0"
 
 [[package]]
 name = "deluge_resource"
 version = "0.1.0"
 dependencies = [
- "deluge_alloc",
+ "deluge_base_alloc",
 ]
 
 [[package]]
@@ -803,7 +803,7 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge-bsp-rust",
- "deluge_alloc",
+ "deluge_base_alloc",
  "embassy-executor",
  "embassy-futures",
  "embassy-time",

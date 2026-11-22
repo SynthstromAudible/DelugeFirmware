@@ -244,8 +244,9 @@ mod tests {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf = std::vec![0u128; words];
         // SAFETY: `buf` is a live 16-aligned arena of `words * 16` bytes, kept in `_buf`.
-        let h =
-            unsafe { deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        let h = unsafe {
+            deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+        };
         // SAFETY: `h` is the live heap handle just created above.
         let handle = unsafe { crate::deluge_resource_create(h, 4, 16) };
         assert!(!handle.is_null());

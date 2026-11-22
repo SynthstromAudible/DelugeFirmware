@@ -11,7 +11,7 @@ name = "deluge_rust"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-deluge_alloc = { path = "../deluge_alloc" }
+deluge_base_alloc = { path = "../../src/base/alloc" }
 deluge_resource = { path = "../deluge_resource" }
 # Unconditional: the app's sample and wavetable header parsing calls it, with no C++ fallback.
 deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
@@ -27,7 +27,7 @@ deluge_sample_stream = { path = "../deluge_sample_stream", optional = true }
 [features]
 ## Forwards the allocator's AddressSanitizer poisoning. Opt-in, for a link built with
 ## `-fsanitize=address`; no build enables it.
-asan = ["deluge_alloc/asan"]
+asan = ["deluge_base_alloc/asan"]
 ## Exports the sample crates' C ABIs (source cursor, fill, reader, stream slots); the
 ## `sample_reader` spec's separate umbrella build enables it. Each member's `c_abi` feature is what
 ## emits its `#[no_mangle]` symbols; the dependency alone would compile them dead.

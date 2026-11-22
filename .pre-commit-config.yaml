@@ -24,7 +24,7 @@ repos:
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^crates/(?!deluge_sample_convert/).*\.rs$
+        files: ^(crates/(?!deluge_sample_convert/)|src/base/alloc/).*\.rs$
         pass_filenames: false
       - id: cargo-fmt-sample-convert
         # deluge_sample_convert is a production dependency of the Rust BSP, but
@@ -61,7 +61,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

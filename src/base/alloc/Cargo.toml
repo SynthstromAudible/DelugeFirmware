@@ -1,7 +1,8 @@
 # TLSF + slab allocator core behind the C ABI in `libdeluge/alloc.h`. `no_std`. The BSP links it
-# directly; the C++ conformance suite in `tests/unit/crates/deluge_alloc` links it through `deluge_rust`.
+# directly; the C++ conformance suite in `tests/unit/base/alloc` links it through `deluge_rust`.
 [package]
-name = "deluge_alloc"
+name = "deluge_base_alloc"
+workspace = "../../../crates"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -17,7 +18,7 @@ fuzzing = []
 asan = []
 
 [lib]
-name = "deluge_alloc"
+name = "deluge_base_alloc"
 crate-type = ["rlib"]
 
 [dev-dependencies]

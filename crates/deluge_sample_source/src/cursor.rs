@@ -344,11 +344,12 @@ mod tests {
         let ptr = buf.as_mut_ptr() as *mut u8;
         // SAFETY: `buf` is leaked below so the arena stays alive for the whole test
         // binary's life, matching `ManagerResidency::new`'s boot-singleton contract.
-        let h = unsafe { deluge_alloc::deluge_heap_create(ptr, words * 16) };
+        let h = unsafe { deluge_base_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
         // SAFETY: `h` is the live heap handle just created above.
-        let slab =
-            unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, CHUNK_CAP) };
+        let slab = unsafe {
+            deluge_base_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, CHUNK_CAP)
+        };
         assert!(!slab.is_null());
         // SAFETY: `h` is the live heap handle just created above.
         let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, CHUNK_CAP) };

@@ -63,7 +63,7 @@ version = "0.2.0"
 source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 
 [[package]]
-name = "deluge_alloc"
+name = "deluge_base_alloc"
 version = "0.1.0"
 dependencies = [
  "proptest",
@@ -74,7 +74,7 @@ name = "deluge_resource"
 version = "0.1.0"
 dependencies = [
  "critical-section",
- "deluge_alloc",
+ "deluge_base_alloc",
  "proptest",
 ]
 
@@ -84,7 +84,7 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "deluge-audio-format",
- "deluge_alloc",
+ "deluge_base_alloc",
  "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",
@@ -113,7 +113,7 @@ name = "deluge_sample_reader"
 version = "0.1.0"
 dependencies = [
  "critical-section",
- "deluge_alloc",
+ "deluge_base_alloc",
  "deluge_resource",
  "deluge_sample_fill",
 ]
@@ -123,7 +123,7 @@ name = "deluge_sample_source"
 version = "0.1.0"
 dependencies = [
  "critical-section",
- "deluge_alloc",
+ "deluge_base_alloc",
  "deluge_resource",
  "deluge_sample_fill",
 ]

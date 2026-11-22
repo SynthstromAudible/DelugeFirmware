@@ -169,7 +169,7 @@ impl ChunkHarness {
         let mut arena: Vec<u128> = vec![0u128; words];
         let base = arena.as_mut_ptr() as *mut u8;
         // SAFETY: `arena` is a 16-aligned `words * 16`-byte allocation kept alive by the harness.
-        let heap = unsafe { deluge_alloc::deluge_heap_create(base, words * 16) };
+        let heap = unsafe { deluge_base_alloc::deluge_heap_create(base, words * 16) };
         assert!(!heap.is_null());
 
         let payload_offset =
@@ -178,8 +178,9 @@ impl ChunkHarness {
 
         // SAFETY: `heap` is the live handle just created above; capacity comfortably exceeds every
         // case's own cluster count.
-        let slab =
-            unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(heap, backing_size, 32) };
+        let slab = unsafe {
+            deluge_base_alloc::slab::deluge_slab_create_unmanaged(heap, backing_size, 32)
+        };
         assert!(!slab.is_null());
         // SAFETY: `heap` is live.
         let handle = unsafe { deluge_resource_create(heap, 4, 32) };

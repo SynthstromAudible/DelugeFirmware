@@ -83,7 +83,7 @@ block-device-adapters = { package = "deluge-block-device-adapters", version = "0
 aligned = "0.4"
 # The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs.
 # Imported as `fs_alloc`, the name its call sites use.
-fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
+fs_alloc = { package = "deluge_base_alloc", path = "../../base/alloc" }
 
 # The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
 # `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep them on the
@@ -205,7 +205,7 @@ opt-level = "s"
 opt-level = "s"
 [profile.release.package.deluge_resource]
 opt-level = "s"
-[profile.release.package.deluge_alloc]
+[profile.release.package.deluge_base_alloc]
 opt-level = "s"
 [profile.release.package.rza1-hal]
 opt-level = "s"

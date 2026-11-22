@@ -29,14 +29,14 @@
 
 // Linker-defined small-internal ("frunk") SRAM region — a reserved slack area that
 // is NOT a deluge_memory_region, so its heap is built from these symbols here.
-// (The Rust deluge_alloc crate stays linker-symbol-free; this app-layer file may
+// (The Rust deluge_base_alloc crate stays linker-symbol-free; this app-layer file may
 // reference them, as the GeneralMemoryAllocator historically did.)
 // NOLINTBEGIN — addresses are only meaningful via &symbol
 extern uint32_t __frunk_bss_end;
 extern uint32_t __frunk_slack_end;
 // NOLINTEND
 
-/// [task] [isr] [audio] A heap step's section (crates/deluge_alloc/src/section.rs), with AudioExcludedSection's rule
+/// [task] [isr] [audio] A heap step's section (src/base/alloc/src/section.rs), with AudioExcludedSection's rule
 /// and depth count (libdeluge/system.h): the audio render masks nothing -- nothing that touches a heap preempts it --
 /// and every other context masks for the one step.
 extern "C" bool deluge_heap_section_enter(void) {
@@ -54,7 +54,7 @@ extern "C" void deluge_heap_section_exit(void) {
 	EXIT_CRITICAL_SECTION();
 }
 
-/// [task] [isr] [audio] Each heap step reports here from inside its section (crates/deluge_alloc/src/section.rs).
+/// [task] [isr] [audio] Each heap step reports here from inside its section (src/base/alloc/src/section.rs).
 extern "C" void deluge_heap_step_note(uint8_t kind) {
 	deluge::noteStructuralEdit(kind == 0 ? deluge::StructuralContainer::HEAP : deluge::StructuralContainer::SLAB);
 }

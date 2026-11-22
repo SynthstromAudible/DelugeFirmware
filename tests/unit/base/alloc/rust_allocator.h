@@ -4,7 +4,7 @@
 #include "libdeluge/alloc.h"
 #include <cstdlib>
 
-// AllocatorUnderTest adapter over the Rust TLSF core (crates/deluge_alloc) via
+// AllocatorUnderTest adapter over the Rust TLSF core (src/base/alloc) via
 // its C ABI. Owns a malloc-backed arena and builds a DelugeHeap over it, so the
 // same conformance suite the C++ MemoryRegion passes (tests/support/fixtures/memory) runs
 // against the Rust allocator through the FFI boundary — apples-to-apples.

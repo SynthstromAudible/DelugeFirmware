@@ -92,7 +92,7 @@ public:
 
 	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). Validates every heap's
 	// physical block chain via deluge_heap_check() across the libdeluge/alloc.h boundary (the Rust
-	// deluge_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
+	// deluge_base_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
 
 private:

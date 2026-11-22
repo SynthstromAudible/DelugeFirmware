@@ -6,7 +6,7 @@
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    if let Err(e) = deluge_alloc::testing::run_bytes(data) {
+    if let Err(e) = deluge_base_alloc::testing::run_bytes(data) {
         panic!("allocator invariant violated: {e}");
     }
 });

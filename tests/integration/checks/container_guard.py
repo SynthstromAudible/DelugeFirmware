@@ -41,7 +41,7 @@ kinds=<kind=n,...>`:
                              voice goes back to the pool unpublished and the note-on still runs to its end
                              (CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 lastNoteSet=1 required)
     CG-HEAP                  the interaction tier allocating and freeing on the heaps while the render plays: every
-                             heap step (crates/deluge_alloc/src/section.rs) must run inside a section
+                             heap step (src/base/alloc/src/section.rs) must run inside a section
     CG-SLAB                  a cluster-slab slot claimed, touched and released from the interaction tier while the
                              render plays: each slot's claim or clear must run inside a section
     CG-MODFXOOM              the song master's mod FX type set to chorus with its ring's allocation made to fail:

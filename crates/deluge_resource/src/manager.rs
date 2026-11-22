@@ -1,5 +1,5 @@
 //! The resource manager: a value-scored, lease-based cache of reconstructable assets on the
-//! `deluge_alloc` TLSF heap, and its C ABI.
+//! `deluge_base_alloc` TLSF heap, and its C ABI.
 //!
 //! An **asset** (an owner token, a [`Source`] recipe, soft references) is split into **chunks**,
 //! the unit that is individually leased and evicted. Both live in fixed-capacity tables allocated
@@ -19,8 +19,8 @@ use crate::value::evict_rank;
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
-use deluge_alloc::slab::{deluge_slab_acquire, deluge_slab_release, DelugeSlab};
-use deluge_alloc::{deluge_alloc, deluge_free, deluge_heap_register_reclaim, DelugeHeap};
+use deluge_base_alloc::slab::{deluge_slab_acquire, deluge_slab_release, DelugeSlab};
+use deluge_base_alloc::{deluge_alloc, deluge_free, deluge_heap_register_reclaim, DelugeHeap};
 
 const NONE: u32 = u32::MAX;
 /// Invalid chunk-slot index (the C ABI's `DELUGE_RESOURCE_NO_SLOT`), returned by `slot_of` for a
@@ -2946,8 +2946,9 @@ mod tests {
         let mut buf = std::vec![0u128; words];
         // SAFETY: `buf` is a live, 16-aligned, `words * 16`-byte arena for as long as
         // the returned tuple (and thus `buf`) is alive.
-        let h =
-            unsafe { deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        let h = unsafe {
+            deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+        };
         // SAFETY: `h` is the live heap handle just created above.
         let handle = unsafe { deluge_resource_create(h, 4, 1) }; // 1 chunk slot
         assert!(!handle.is_null());
@@ -3109,7 +3110,7 @@ mod tests {
             let mut buf = std::vec![0u128; words];
             // SAFETY: `buf` is a live, 16-aligned arena for the whole sequence.
             let h = unsafe {
-                deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+                deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
             };
             // SAFETY: `h` is the live heap just created.
             let handle = unsafe { deluge_resource_create(h, 8, 64) };
@@ -3189,13 +3190,13 @@ mod tests {
                     16 => {
                         let bytes = 256 << rng.below(4);
                         // SAFETY: `h` is live; the block is handed to (or freed past) the manager.
-                        let raw = unsafe { deluge_alloc::deluge_alloc(h, bytes, 16) };
+                        let raw = unsafe { deluge_base_alloc::deluge_alloc(h, bytes, 16) };
                         if !raw.is_null()
                             && m.adopt(raw, bytes, rng.below(5), ptr::null_mut(), None)
                                 .is_null()
                         {
                             // SAFETY: not adopted, so still ours.
-                            unsafe { deluge_alloc::deluge_free(h, raw) };
+                            unsafe { deluge_base_alloc::deluge_free(h, raw) };
                         }
                     }
                     17 => {
@@ -3261,8 +3262,9 @@ mod tests {
         let words = (4 * 1024 * 1024usize).div_ceil(16);
         let mut buf = std::vec![0u128; words];
         // SAFETY: `buf` is a live, 16-aligned arena for the whole test.
-        let h =
-            unsafe { deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        let h = unsafe {
+            deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+        };
         // SAFETY: `h` is the live heap just created.
         let handle = unsafe { deluge_resource_create(h, 4, SLOTS) };
         assert!(!handle.is_null());

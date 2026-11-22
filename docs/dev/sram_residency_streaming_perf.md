@@ -4,7 +4,7 @@
 Verification). Hand-off doc for a session resident in this repo.
 
 **Target branch:** the audio-stream refactor lives on **`next`** (`src/deluge/storage/audio/stream/`,
-`crates/deluge_resource`, `crates/deluge_alloc`). Base new work on `next` (or a branch off it). The
+`crates/deluge_resource`, `src/base/alloc`). Base new work on `next` (or a branch off it). The
 reference docs below (`allocator_sdram_strangle.md`, `allocator_redesign.md`) were *removed from `next`*
 but still exist on `deepclone`, `deluge-project`, `feat/immediate-mode`, `feat/synth-golden-masters` —
 `git show deepclone:docs/dev/allocator_sdram_strangle.md`.
@@ -97,7 +97,7 @@ placement possible at all.
 
 ### The Rust allocator + resource manager
 
-- `crates/deluge_alloc` — `no_std` TLSF heap + **slab pager** (`src/slab.rs`). Slab = fixed-capacity table
+- `src/base/alloc` — `no_std` TLSF heap + **slab pager** (`src/slab.rs`). Slab = fixed-capacity table
   of uniform slots borrowed from the TLSF heap; registers as the heap's reclaim hook and evicts the
   coldest **unpinned** slot on pressure (`EvictFn`, the `Stealable::steal()` analogue). Pinning ==
   `numReasonsToBeLoaded`.
@@ -325,7 +325,7 @@ refresh stalls, bus serialization, cache behavior) is a **hardware-timing phenom
 | Slab/manager creation (one SDRAM slab) | `memory/general_memory_allocator.cpp:80,99-101` |
 | Memory heap API | `src/deluge/memory/heaps.h` |
 | Resource manager C ABI | `crates/deluge_resource/include/deluge_resource.h` |
-| Slab pager | `crates/deluge_alloc/src/slab.rs`; manager `crates/deluge_resource/src/manager.rs` |
+| Slab pager | `src/base/alloc/src/slab.rs`; manager `crates/deluge_resource/src/manager.rs` |
 | Hardware: SDRAM part/config | Alliance `AS4C32M16SM-7TCN` (512 Mbit, 32M×16, 4-bank, CL2); config in deluge-sdk `crates/deluge-bsp/src/sdram.rs` — see §1 |
 | Hardware: memory map + uncached mirror | deluge-sdk `crates/rza1l-hal/src/memmap.rs` |
 | Hardware: cache mapping | deluge-sdk `crates/rza1l-hal/src/mmu.rs` (`PARA_NORMAL_CACHE`) |

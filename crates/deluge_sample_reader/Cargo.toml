@@ -24,7 +24,7 @@ deluge_resource = { path = "../deluge_resource" }
 deluge_sample_fill = { path = "../deluge_sample_fill", features = ["native_fill"] }
 
 [dev-dependencies]
-deluge_alloc = { path = "../deluge_alloc" }
+deluge_base_alloc = { path = "../../src/base/alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]
