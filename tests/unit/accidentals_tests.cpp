@@ -508,3 +508,55 @@ TEST(AccidentalsTest, inKeyTransposeKeepsNoteShape) {
 	song.transposeInKey(-2);
 	checkSame(original, song.sorted());
 }
+
+TEST(AccidentalsTest, bluesToMajorMapsByDegree) {
+	const NoteSet blues = presetScaleNotes[BLUES_SCALE];
+	SimSong song(blues, 0, {60, 63, 65, 66, 67, 70});
+	CHECK(song.setScaleNotes(kMajor));
+	// 1 b3 4 b5 5 b7 -> C E F F# G B, with b5 the secondary on the 5th, which keeps its offset from the 5 (an
+	// accidental)
+	CHECK((std::vector<int32_t>{60, 64, 65, 66, 67, 71}) == pitchesOf(song));
+	// F# is an accidental in major, hanging off the G it was the b5 of
+	CHECK_EQUAL(1, song.sorted()[3].marker);
+	CHECK(song.setScaleNotes(blues));
+	CHECK((std::vector<int32_t>{60, 63, 65, 66, 67, 70}) == pitchesOf(song));
+}
+
+TEST(AccidentalsTest, majorBluesMajorRoundTrips) {
+	const NoteSet blues = presetScaleNotes[BLUES_SCALE];
+	for (int16_t root : {0, 5, 66}) {
+		for (bool accidentals : {false, true}) {
+			SimSong song(kMajor, root, {});
+			for (int32_t p : kAllDegrees) {
+				song.notes.push_back({p + root, 0});
+			}
+			if (accidentals) {
+				// F# (hanging off F), C# and A#, as well as G
+				for (int32_t p : {66, 61, 70}) {
+					song.notes.push_back({p + root, 0});
+				}
+			}
+			auto original = song.sorted();
+			CHECK(song.setScaleNotes(blues));
+			CHECK_EQUAL(original.size(), song.notes.size());
+			CHECK(song.setScaleNotes(kMajor));
+			checkSame(original, song.sorted());
+			CHECK_EQUAL(0, song.numPitchPreserving);
+		}
+	}
+}
+
+TEST(AccidentalsTest, bluesStateThroughMajorRoundTrips) {
+	// Starting in blues with every note of it, plus the b5 as the secondary on the 5th
+	const NoteSet blues = presetScaleNotes[BLUES_SCALE];
+	for (int16_t root : {0, 5, 66}) {
+		SimSong song(blues, root, {});
+		for (int32_t p : {60, 63, 65, 66, 67, 70}) {
+			song.notes.push_back({p + root, 0});
+		}
+		auto original = song.sorted();
+		CHECK(song.setScaleNotes(kMajor));
+		CHECK(song.setScaleNotes(blues));
+		checkSame(original, song.sorted());
+	}
+}

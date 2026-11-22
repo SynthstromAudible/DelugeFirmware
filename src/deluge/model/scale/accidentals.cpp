@@ -1,6 +1,8 @@
 #include "model/scale/accidentals.h"
 #include "model/scale/scale_degrees.h"
 
+#include <cstdlib>
+
 namespace deluge::accidentals {
 
 int32_t lineageAnchor(int32_t y, int8_t m, const MusicalKey& k) {
@@ -38,8 +40,37 @@ NoteDestination destination(int32_t y, int8_t m, const MusicalKey& oldKey, const
 			// degree again, even if it sits on another degree's pitch meanwhile.
 			return {y, a, native ? tagged(letter, a - y) : (int8_t)0};
 		}
-		int32_t shift = c.targetNote[letter] - reference;
-		return {y + shift, a + shift};
+		int primary = c.targetNote[letter];
+		int second = c.targetSecond[letter];
+		int target = primary;
+		int32_t anchorBase = a;
+		if (second >= 0) {
+			// Two notes on this letter. A note of the source scale takes the one whose offset from the target's primary
+			// is nearest its own offset from the source's primary (so the 5th goes to the 5th, and a b5 which was a
+			// second note on the letter goes to the target's second note), the primary if equally near. Others, and
+			// notes remembering a letter, take the one nearest their pitch.
+			if (native && !isTagged(m)) {
+				int offset = interval - c.sourcePrimary[letter];
+				target = std::abs(second - primary - offset) < std::abs(offset) ? second : primary;
+			}
+			else {
+				target = std::abs(second - interval) < std::abs(primary - interval) ? second : primary;
+			}
+		}
+		else if (native && !isTagged(m)) {
+			// One note: a note which was a second one on its letter keeps its offset from the primary, so it moves
+			// by the primary's shift and hangs off where the primary goes
+			reference = c.sourcePrimary[letter];
+			anchorBase = a + (reference - interval);
+		}
+		int32_t shift = target - reference;
+		int32_t newPitch = y + shift;
+		int32_t newAnchor = anchorBase + shift;
+		if (second >= 0 && target == primary && y != a && newPitch - newAnchor == second - primary) {
+			// Hanging off the primary from exactly where the second note is: it is the second note itself
+			newAnchor = newPitch;
+		}
+		return {newPitch, newAnchor};
 	}
 	if (c.isIdentity()) {
 		// Pitch-preserving: nothing moves. A marked note keeps its marker, as the anchor it names is the one it hangs

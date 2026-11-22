@@ -25,6 +25,12 @@ bool degreeLetters(NoteSet scale, std::array<int8_t, 12>& letters);
  */
 int spellLetter(int interval, bool flats);
 
+/** Splits the notes sharing letters into primary and secondary: for each letter 0..6, the interval of its primary note
+ * (-1 if none) and of its second note (-1 if only one). The primary is the one nearer the major scale's note, the
+ * lower one if equally near.
+ */
+void letterNotes(const std::array<int8_t, 12>& letters, int8_t primary[7], int8_t secondary[7]);
+
 /** Interval of the major scale's note with this letter. */
 int majorNote(int letter);
 

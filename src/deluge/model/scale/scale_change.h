@@ -46,6 +46,8 @@ public:
 	bool preferFlats = false;
 	int8_t sourceLetter[12] = {0};
 	int8_t targetNote[7] = {0};
+	int8_t targetSecond[7] = {-1, -1, -1, -1, -1, -1, -1};
+	int8_t sourcePrimary[7] = {0};
 
 private:
 	int8_t degreeOffset[kMaxScaleSize] = {0};

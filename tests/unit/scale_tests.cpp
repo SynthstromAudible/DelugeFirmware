@@ -790,13 +790,16 @@ std::array<int8_t, 12> lettersOf(NoteSet scale) {
 void checkSane(NoteSet scale, const std::array<int8_t, 12>& l) {
 	static const int major[7] = {0, 2, 4, 5, 7, 9, 11};
 	int prev = -1;
+	int uses[7] = {0};
 	for (int i = 0; i < 12; i++) {
 		if (!scale.has(i)) {
 			CHECK_EQUAL(-1, l[i]);
 			continue;
 		}
-		CHECK(l[i] > prev && l[i] <= 6);
+		CHECK(l[i] >= prev && l[i] <= 6); // Non-decreasing: a letter may be shared
 		prev = l[i];
+		CHECK(++uses[l[i]] <= 2);
+		CHECK(l[i] != 0 || i == 0); // The root is alone on the 1st
 		CHECK(std::abs(i - major[l[i]]) <= 2);
 	}
 }
@@ -848,11 +851,11 @@ TEST(ScaleDegreesTest, wholeToneAndBluesPinned) {
 	NoteSet blues{0, 3, 5, 6, 7, 10};
 	auto b = lettersOf(blues);
 	checkSane(blues, b);
-	// 1 #2 #3 #4 5 b7: the least total alteration, though not the usual spelling (a 6-note scale must skip a letter)
+	// 1 b3 4 b5 5 b7: b5 and 5 share the 5th
 	CHECK_EQUAL(0, b[0]);
-	CHECK_EQUAL(1, b[3]);
-	CHECK_EQUAL(2, b[5]);
-	CHECK_EQUAL(3, b[6]);
+	CHECK_EQUAL(2, b[3]);
+	CHECK_EQUAL(3, b[5]);
+	CHECK_EQUAL(4, b[6]);
 	CHECK_EQUAL(4, b[7]);
 	CHECK_EQUAL(6, b[10]);
 }
@@ -861,4 +864,15 @@ TEST(ScaleDegreesTest, moreThanSevenNotesHaveNone) {
 	std::array<int8_t, 12> l;
 	CHECK_FALSE(deluge::scale_degrees::degreeLetters({0, 1, 2, 3, 4, 5, 7, 9}, l));
 	CHECK_EQUAL(-1, l[0]);
+}
+
+TEST(ScaleDegreesTest, letterNotesPrimaryAndSecondary) {
+	int8_t primary[7];
+	int8_t secondary[7];
+	deluge::scale_degrees::letterNotes(lettersOf({0, 3, 5, 6, 7, 10}), primary, secondary);
+	CHECK_EQUAL(7, primary[4]); // the natural 5th is primary, b5 secondary
+	CHECK_EQUAL(6, secondary[4]);
+	CHECK_EQUAL(5, primary[3]);
+	CHECK_EQUAL(-1, secondary[3]);
+	CHECK_EQUAL(-1, primary[1]);
 }
