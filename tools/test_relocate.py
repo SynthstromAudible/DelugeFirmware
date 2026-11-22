@@ -698,6 +698,27 @@ class RepoMoves(unittest.TestCase):
             "the `src/platform/host/` tree and `src/platform/host/compat`\n",
         )
 
+    def test_a_path_starting_a_regex_alternative_is_rewritten_but_a_bare_one_is_listed(
+        self,
+    ):
+        r = self.repo(
+            {
+                "sim/a": "",
+                "c.yaml": "files: ^(src/|sim/|tests/)\nfiles: ^(tests/|sim/scenes_spec/)\nfiles: ^(src|sim|tests)/\n",
+            }
+        )
+        out = r.dry("--repo-move", "sim", "src/platform/host")
+        r.relocate("--repo-move", "sim", "src/platform/host")
+        self.assertEqual(
+            r.read("c.yaml"),
+            "files: ^(src/|src/platform/host/|tests/)\n"
+            "files: ^(tests/|src/platform/host/scenes_spec/)\n"
+            "files: ^(src|sim|tests)/\n",
+        )
+        listing = out.split("bare mentions, not rewritten")[1]
+        self.assertIn("c.yaml:3:", listing)
+        self.assertNotIn("c.yaml:1:", listing)
+
     def test_a_bare_single_component_is_left_and_listed(self):
         r = self.repo(
             {

@@ -29,8 +29,8 @@ under third_party/, toolchain/, lib/ or website/. An include spelled from tests/
 --repo-move OLD NEW moves any tracked directory (both relative to the repo root) with git mv, and cannot be combined
 with --move. In every tracked text file outside the never-rewritten set, and never in a Cargo.lock, the token OLD is
 respelled NEW wherever it starts a path: after the start of a line, whitespace, a quote, a backtick, `(`, `=`, `:`, `,`
-or `[`, a variable prefix (`${X}/`, `$X/`), `./` or a `../` chain (never after a `word/` component), and before `/`, a
-quote, a backtick, whitespace, `)` or the end. A single-component OLD (`sim`) is respelled only before a `/` and as the
+or `[`, `|` or `^` (before a `/` only), a variable prefix (`${X}/`, `$X/`), `./` or a `../` chain (never after a `word/` component), and before `/`, a
+quote, a backtick, whitespace, `)` or the end. `OLD/` is also respelled after `|` or `^` (a regex alternative). A single-component OLD (`sim`) is respelled only before a `/` and as the
 bare directory of a CMake `-S`, `add_subdirectory(` or `${X}/` position; every other bare mention is listed under "bare
 mentions, not rewritten". The tool's own tests and fixtures (tools/test_relocate.py, test_compare_*.py, tools/testdata/)
 are never rewritten. In every Cargo.toml, each `path = "..."`, `workspace = "..."` and
@@ -394,15 +394,19 @@ def rewrite_path_tokens(text: str, old: str, new: str) -> str:
     """
     o = re.escape(old)
     if "/" in old:
-        patterns = [rf"{PATH_START}{o}(?=[/\"'`\s),\]]|$)"]
+        patterns = [
+            rf"{PATH_START}{o}(?=[/\"'`\s),\]]|$)",
+            rf"(?<=[|^]){o}(?=/)",
+        ]
     else:
         patterns = [
             rf"{PATH_START}{o}(?=/)",
+            rf"(?<=[|^]){o}(?=/)",
             rf"(?P<pre>-S\s+|add_subdirectory\(\s*|\$\{{[^}}]*\}}/|\$\w+/){o}(?=[\s\"'`)]|$)",
         ]
 
     def respell(m: re.Match[str]) -> str:
-        return f"{m.group('pre') or ''}{sentinel(new)}"
+        return f"{m.groupdict().get('pre') or ''}{sentinel(new)}"
 
     for pattern in patterns:
         text = "".join(
