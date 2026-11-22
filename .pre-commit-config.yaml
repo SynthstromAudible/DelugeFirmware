@@ -61,7 +61,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

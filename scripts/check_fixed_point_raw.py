@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -160,16 +161,28 @@ def count(text: str) -> Counts:
     return Counts(raw, len(TYPED_BOUNDARY.findall(code)), len(SEAM_VIEW.findall(code)))
 
 
+def tracked_files(root: Path) -> set[str]:
+    """The paths git tracks under @p root, relative to it; empty when @p root is not a git work tree."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False
+    )
+    return set(result.stdout.decode().split("\0")) if result.returncode == 0 else set()
+
+
 def scan(root: Path = REPO_ROOT) -> dict[str, Counts]:
     """Every in-scope file's counts, keyed by its path relative to @p root; files with none are left out."""
     counts: dict[str, Counts] = {}
+    tracked = tracked_files(root)
     for scope in SCOPE:
         for path in sorted((root / scope).rglob("*")):
             if not path.is_file() or path.suffix not in SUFFIXES:
                 continue
             rel = path.relative_to(root).as_posix()
-            # A crate's `third_party/` is a gitignored cache of fetched vendor headers, not the project's code.
-            if rel in EXEMPT or "third_party" in path.relative_to(root).parts:
+            # A crate's untracked `third_party/` is a cache of fetched vendor headers, not the project's code; a tracked
+            # file under a `third_party/` is still counted.
+            if rel in EXEMPT or (
+                "third_party" in path.relative_to(root).parts and rel not in tracked
+            ):
                 continue
             counted = count(path.read_text(errors="replace"))
             if any(counted):
