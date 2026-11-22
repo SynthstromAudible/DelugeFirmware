@@ -3,9 +3,9 @@
 if(DELUGE_TEST_TREE STREQUAL "host" AND NOT (UNIX AND NOT APPLE))
   return()
 endif()
-deluge_specs_driver(sample_view_unsafe_math_specs TREES host arm
+deluge_specs_driver(base_unsafe_math_specs TREES host arm
   INCLUDES ${DELUGE_REPO_ROOT}/src)
-if(TARGET sample_view_unsafe_math_specs)
-  target_compile_options(sample_view_unsafe_math_specs PRIVATE
+if(TARGET base_unsafe_math_specs)
+  target_compile_options(base_unsafe_math_specs PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${DELUGE_TEST_UNSAFE_MATH_OPTIONS}>")
 endif()
