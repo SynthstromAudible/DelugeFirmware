@@ -62,8 +62,6 @@ src/                      directories and CMakeLists.txt only
     stream/               sample streaming (crate)
     resource/             the resource manager (crate)
     sample/               convert/, fill/, reader/, source/ (crates) and the sample-owned waveform peak index
-    fs/                   the FAT filesystem (crate)
-    block_device/         block-device driver and adapters (crates)
   ui/                     deluge::ui
     gfx/                  oled/, grid/, seg7/: pure drawing
     widgets/              core/, oled/, grid/: the immediate-mode toolkit, namespaces
@@ -141,8 +139,8 @@ the `src/*.h` row); the paths in the left column are the pre-relocation ones.
 | `crates/deluge_resource` | `storage/resource/` |
 | `crates/deluge_sample_stream` | `storage/stream/` |
 | `crates/deluge_sample_{convert,fill,reader,source}` | `storage/sample/{convert,fill,reader,source}/` |
-| `crates/embedded-fatfs` | `storage/fs/`, a crate that comes from deluge-sdk |
-| `crates/block-device-*` | `storage/block_device/`, crates that come from deluge-sdk |
+| `crates/embedded-fatfs` | none: deluge-sdk's crates.io fork (`deluge-embedded-fatfs`) |
+| `crates/block-device-*` | none: deluge-sdk's crates.io forks (`deluge-block-device-adapters`, `block-device-driver`) |
 | `crates/deluge_rust` | `tests/trees/host/rust/` (test support) |
 | `src/gsl`, `src/lib` | `third_party/gsl/`, `third_party/printf/` |
 | `src/bsp/rust` | `platform/device/` |
@@ -195,8 +193,8 @@ The legacy tree's destinations:
 7. **`src/deluge` only shrinks.** A ratchet on its file count refuses additions; code leaves it only by rewrite into
    its destination; only `app/` includes it.
 8. **Rust crates live in their layer.** Each crate's directory holds its `Cargo.toml`; the root `Cargo.toml` is a
-   workspace over `src/**` (until the Cargo roots merge, `crates/` holds the workspace root of the library crates). A crate is named `deluge_<path>`, and C++ reaches it only through the C header in its
-   own directory.
+   workspace over `src/**` (until the Cargo roots merge, `crates/` holds the workspace root of the library crates). A
+   crate is named `deluge_<path>`, and C++ reaches it only through the C header in its own directory.
 9. **Tests mirror sources** under `tests/<level>/`; the registry (`tests/registry.toml`) names them by path.
 10. **C++23 or later outside `src/deluge`**, and every library has a README stating its rules.
 
