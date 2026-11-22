@@ -112,6 +112,24 @@ private:
 	                               int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
 	                               int32_t interpolationBufferSize, int32_t whichKernel, int32_t priorityRating);
 
+	struct LoopCrossfadeGains {
+		int32_t outgoingAmplitude;
+		int32_t outgoingAmplitudeIncrement;
+		int32_t incomingAmplitude;
+		int32_t incomingAmplitudeIncrement;
+		bool done; // The crossfade finishes within this window
+	};
+	// These are out of line so they don't bloat render() and push its hot path out of the instruction cache
+	[[gnu::noinline]] LoopCrossfadeGains getLoopCrossfadeGains(SamplePlaybackGuide* guide, Sample* sample,
+	                                                           int32_t numSamples, int32_t phaseIncrement,
+	                                                           int32_t amplitude, int32_t amplitudeIncrement);
+	[[gnu::noinline]] bool mixInLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* sample, int32_t* outputBuffer,
+	                                                  int32_t numSamples, int32_t numChannels,
+	                                                  int32_t numChannelsInOutputBuffer, int32_t phaseIncrement,
+	                                                  const LoopCrossfadeGains& gains, int32_t interpolationBufferSize,
+	                                                  int32_t whichKernel, LoopType loopingType,
+	                                                  int32_t priorityRating);
+
 	// Loop crossfade: the next pass through the loop, started early so it can fade in while we fade out. Taken from
 	// AudioEngine's LoopCrossfadeReaderPool when the note first crossfades, and given back when the voice ends
 	SampleLowLevelReader* loopIncoming = nullptr;

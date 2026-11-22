@@ -159,6 +159,50 @@ static void getLoopCrossfadeLevels(int32_t progress, int32_t length, int32_t* in
 	*outgoing = static_cast<int32_t>(sqrtf(1.0f - x) * 1073741824.0f);
 }
 
+// The amplitude ramps for both passes over the next numSamples of output, and whether the crossfade finishes in them
+VoiceSample::LoopCrossfadeGains VoiceSample::getLoopCrossfadeGains(SamplePlaybackGuide* guide, Sample* sample,
+                                                                   int32_t numSamples, int32_t phaseIncrement,
+                                                                   int32_t amplitude, int32_t amplitudeIncrement) {
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t progress = (loopIncoming->getPlayByteLowLevel(sample, guide, true) - guide->getBytePosToStartPlayback(true))
+	                   * guide->playDirection / bytesPerSample;
+	int32_t progressAfter = progress + (int32_t)(((uint64_t)numSamples * (uint32_t)phaseIncrement) >> 24);
+
+	int32_t inStart, outStart, inEnd, outEnd;
+	getLoopCrossfadeLevels(progress, loopCrossfadeLength, &inStart, &outStart);
+	getLoopCrossfadeLevels(progressAfter, loopCrossfadeLength, &inEnd, &outEnd);
+	int32_t amplitudeAfter = amplitude + amplitudeIncrement * numSamples;
+
+	LoopCrossfadeGains gains;
+	gains.outgoingAmplitude = multiply_32x32_rshift32(amplitude, outStart) << 2;
+	gains.outgoingAmplitudeIncrement =
+	    ((multiply_32x32_rshift32(amplitudeAfter, outEnd) << 2) - gains.outgoingAmplitude) / numSamples;
+	gains.incomingAmplitude = multiply_32x32_rshift32(amplitude, inStart) << 2;
+	gains.incomingAmplitudeIncrement =
+	    ((multiply_32x32_rshift32(amplitudeAfter, inEnd) << 2) - gains.incomingAmplitude) / numSamples;
+	gains.done = (progressAfter >= loopCrossfadeLength);
+	return gains;
+}
+
+// Mixes the incoming pass in over the window we just read, and hands over to it if the crossfade is done. Returns false
+// if the voice should stop
+bool VoiceSample::mixInLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* sample, int32_t* outputBuffer,
+                                             int32_t numSamples, int32_t numChannels, int32_t numChannelsInOutputBuffer,
+                                             int32_t phaseIncrement, const LoopCrossfadeGains& gains,
+                                             int32_t interpolationBufferSize, int32_t whichKernel, LoopType loopingType,
+                                             int32_t priorityRating) {
+	if (!readLoopCrossfadeIncoming(guide, sample, outputBuffer, numSamples, numChannels, numChannelsInOutputBuffer,
+	                               phaseIncrement, gains.incomingAmplitude, gains.incomingAmplitudeIncrement,
+	                               interpolationBufferSize, whichKernel, priorityRating)) {
+		cancelLoopCrossfade();
+		return true;
+	}
+	if (gains.done) {
+		return finishLoopCrossfade(guide, sample, loopingType, priorityRating);
+	}
+	return true;
+}
+
 // Returns false if error
 bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* guide) {
 
@@ -1227,30 +1271,12 @@ readNonTimestretched:
 			// While crossfading, this pass reads with its own fading-out copy of the amplitude
 			int32_t* readAmplitude = &amplitude;
 			int32_t readAmplitudeIncrement = amplitudeIncrement;
-			int32_t outgoingAmplitude = 0;
-			int32_t incomingAmplitude = 0;
-			int32_t incomingAmplitudeIncrement = 0;
-			bool crossfadeDone = false;
-			if (isLoopCrossfading()) {
-				int32_t numRead = numSamplesThisNonTimestretchedRead;
-				int32_t progress =
-				    (loopIncoming->getPlayByteLowLevel(sample, guide, true) - guide->getBytePosToStartPlayback(true))
-				    * guide->playDirection / bytesPerSample;
-				int32_t progressAfter = progress + (int32_t)(((uint64_t)numRead * (uint32_t)phaseIncrement) >> 24);
-				crossfadeDone = (progressAfter >= loopCrossfadeLength);
-
-				int32_t inStart, outStart, inEnd, outEnd;
-				getLoopCrossfadeLevels(progress, loopCrossfadeLength, &inStart, &outStart);
-				getLoopCrossfadeLevels(progressAfter, loopCrossfadeLength, &inEnd, &outEnd);
-				int32_t amplitudeAfter = amplitude + amplitudeIncrement * numRead;
-
-				outgoingAmplitude = multiply_32x32_rshift32(amplitude, outStart) << 2;
-				readAmplitude = &outgoingAmplitude;
-				readAmplitudeIncrement =
-				    ((multiply_32x32_rshift32(amplitudeAfter, outEnd) << 2) - outgoingAmplitude) / numRead;
-				incomingAmplitude = multiply_32x32_rshift32(amplitude, inStart) << 2;
-				incomingAmplitudeIncrement =
-				    ((multiply_32x32_rshift32(amplitudeAfter, inEnd) << 2) - incomingAmplitude) / numRead;
+			LoopCrossfadeGains crossfadeGains{};
+			if (isLoopCrossfading()) [[unlikely]] {
+				crossfadeGains = getLoopCrossfadeGains(guide, sample, numSamplesThisNonTimestretchedRead,
+				                                       phaseIncrement, amplitude, amplitudeIncrement);
+				readAmplitude = &crossfadeGains.outgoingAmplitude;
+				readAmplitudeIncrement = crossfadeGains.outgoingAmplitudeIncrement;
 			}
 
 			// No pitch adjustment - in which case we know we're not writing to cache either
@@ -1281,18 +1307,14 @@ readNonTimestretched:
 				                     readAmplitude, readAmplitudeIncrement, interpolationBufferSize, (cache != nullptr),
 				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
 			}
-			if (isLoopCrossfading()) {
+			if (isLoopCrossfading()) [[unlikely]] {
 				amplitude += amplitudeIncrement * numSamplesThisNonTimestretchedRead;
 				int32_t* readStartPos =
 				    outputBufferWritePos - numSamplesThisNonTimestretchedRead * numChannelsInOutputBuffer;
-				bool incomingOk = readLoopCrossfadeIncoming(
-				    guide, sample, readStartPos, numSamplesThisNonTimestretchedRead, sampleSourceNumChannels,
-				    numChannelsInOutputBuffer, phaseIncrement, incomingAmplitude, incomingAmplitudeIncrement,
-				    interpolationBufferSize, whichKernel, priorityRating);
-				if (!incomingOk) {
-					cancelLoopCrossfade();
-				}
-				else if (crossfadeDone && !finishLoopCrossfade(guide, sample, loopingType, priorityRating)) {
+				if (!mixInLoopCrossfadeIncoming(guide, sample, readStartPos, numSamplesThisNonTimestretchedRead,
+				                                sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
+				                                crossfadeGains, interpolationBufferSize, whichKernel, loopingType,
+				                                priorityRating)) {
 					return false;
 				}
 			}
