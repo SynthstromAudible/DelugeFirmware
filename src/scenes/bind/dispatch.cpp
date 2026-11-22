@@ -1,5 +1,6 @@
 #include "scenes/bind/dispatch.h"
 
+#include "deluge-project/device_settings.h"
 #include "effects/host_chain/params.h"
 #include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
@@ -8,6 +9,7 @@
 #include "plugin-api/types/plugin_id.h"
 #include "plugin-api/types/setting.h"
 #include "scenes/bind/chain_reader.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/model_reader.h"
 #include "scenes/bind/param_display.h"
 #include "scenes/bind/setting_context.h"
@@ -25,12 +27,13 @@ namespace {
 /// A choice list holds at most this many entries: the most choices any row has, plus a stale one.
 constexpr size_t kMaxEntries = 32;
 
-/// A row's held values, read from a sound's slot or a host chain.
+/// A row's held values, read from a sound's slot, a host chain, a model group's record or the device.
 class Reader {
 public:
 	explicit Reader(SlotReader slot) : reader_{slot} {}
 	explicit Reader(ChainReader chain) : reader_{chain} {}
 	explicit Reader(ModelReader model) : reader_{model} {}
+	explicit Reader(DeviceReader device) : reader_{device} {}
 	[[nodiscard]] bool resolved() const {
 		return std::visit([](const auto& reader) { return reader.resolved(); }, reader_);
 	}
@@ -43,7 +46,7 @@ public:
 	}
 
 private:
-	std::variant<SlotReader, ChainReader, ModelReader> reader_;
+	std::variant<SlotReader, ChainReader, ModelReader, DeviceReader> reader_;
 };
 
 /// A target resolved against the song: its row, its reader, its context and whose name table names it.
@@ -73,14 +76,38 @@ std::optional<Resolved> resolve_model(const Target& target, const project::Song&
 	return Resolved{row, reader, setting_context(model, *address, where.instrument, *ports.audio), address->group};
 }
 
-std::optional<Resolved> resolve(const Target& target, const project::Song& model, const Addresses& where,
+/// A DEVICE target, resolved against the device port alone: no song is read, and the device's rows are shown for the
+/// device itself (Owner DEVICE, Instrument NONE).
+std::optional<Resolved> resolve_device(const Target& target, const Ports& ports) {
+	if (ports.device == nullptr) {
+		return std::nullopt;
+	}
+	const plugin::SettingInfo* row = plugin::find_setting(project::device_table(), target.path);
+	if (row == nullptr) {
+		return std::nullopt;
+	}
+	using Owner = plugin::SettingContext::Owner;
+	using Instrument = plugin::SettingContext::Instrument;
+	return Resolved{row,
+	                Reader{DeviceReader{*ports.device}},
+	                {.owner = Owner::DEVICE, .instrument = Instrument::NONE},
+	                project::SettingGroupId::DEVICE};
+}
+
+std::optional<Resolved> resolve(const Target& target, const project::Song* model, const Addresses& where,
                                 const Ports& ports) {
 	if ((target.shown_on == Target::ShownOn::ON_LANE && !where.lane)
 	    || (target.shown_on == Target::ShownOn::OFF_LANE && where.lane)) {
 		return std::nullopt; // a twin page on the other kind of root
 	}
+	if (target.on_device()) {
+		return resolve_device(target, ports);
+	}
+	if (model == nullptr) {
+		return std::nullopt;
+	}
 	if (target.kind == Target::Kind::MODEL || (target.kind == Target::Kind::SOUND && !where.slot)) {
-		return resolve_model(target, model, where, ports);
+		return resolve_model(target, *model, where, ports);
 	}
 	const bool effect = target.kind == Target::Kind::EFFECT;
 	if (target.kind != Target::Kind::SOUND && !effect) {
@@ -94,15 +121,15 @@ std::optional<Resolved> resolve(const Target& target, const project::Song& model
 		return std::nullopt;
 	}
 	if (where.slot) {
-		Reader reader{SlotReader{model, *where.slot, *ports.sound}};
+		Reader reader{SlotReader{*model, *where.slot, *ports.sound}};
 		if (!reader.resolved()) {
 			return std::nullopt;
 		}
-		return Resolved{row, reader, setting_context(model, *where.slot, *ports.sound, *ports.audio),
+		return Resolved{row, reader, setting_context(*model, *where.slot, *ports.sound, *ports.audio),
 		                plugin::kDelugeInstrument};
 	}
 	if (effect && where.chain) {
-		Reader reader{ChainReader{model, *where.chain, *ports.tracks}};
+		Reader reader{ChainReader{*model, *where.chain, *ports.tracks}};
 		if (!reader.resolved()) {
 			return std::nullopt;
 		}
@@ -182,7 +209,7 @@ bool param_applies(const Target& target, const ResolvedParam& resolved, const pr
 	if (target.shown_with == nullptr) {
 		return true;
 	}
-	const std::optional<View> partner = view(*target.shown_with, model, where, ports);
+	const std::optional<View> partner = view(*target.shown_with, &model, where, ports);
 	return partner.has_value() && partner->applies;
 }
 
@@ -273,6 +300,8 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 		return on(target.group, where.note_row);
 	case SettingGroupId::SOUND_ROUTING:
 		return where.lane ? on(target.group, where.lane) : on(target.group, where.track);
+	case SettingGroupId::DEVICE:
+		return project::SettingAddress{SettingGroupId::DEVICE, project::DeviceAddress{}};
 	}
 	return std::nullopt;
 }
@@ -320,16 +349,20 @@ std::optional<project::ParamAddress> param_address(const Target& target, const A
 	return std::nullopt;
 }
 
-std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where, const Ports& ports) {
+namespace {
+
+std::optional<View> view_of(const Target& target, const project::Song* model, const Addresses& where,
+                            const Ports& ports) {
 	if (target.kind == Target::Kind::PARAM) {
-		const std::optional<ResolvedParam> resolved = resolve_param(target, model, where, ports);
+		const std::optional<ResolvedParam> resolved =
+		    model != nullptr ? resolve_param(target, *model, where, ports) : std::nullopt;
 		if (!resolved) {
 			return std::nullopt;
 		}
 		// Where the runtime holds the param, the value it plays; where it does not (an owner not yet in the song the
 		// engine runs), the value a new owner starts with. Where it shows is the owner's rows' either way.
 		const int32_t playing = ports.controls->param_value(resolved->address).value_or(resolved->info->default_value);
-		View shown{.applies = param_applies(target, *resolved, model, where, ports),
+		View shown{.applies = param_applies(target, *resolved, *model, where, ports),
 		           .value = menu_of(resolved->info->mapping, playing)};
 		std::tie(shown.least, shown.greatest) = menu_range(resolved->info->mapping);
 		return shown;
@@ -360,15 +393,13 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 	return shown;
 }
 
-namespace {
 /// @brief Choice @p index's short spelling in @p names, or `EMPTY_STRING` when the setting has none.
 l10n::String short_choice(const l10n::SettingNames& names, size_t index) {
 	return index < names.short_choices.size() ? names.short_choices[index] : l10n::String::EMPTY_STRING;
 }
-} // namespace
 
-size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const Ports& ports,
-                    std::span<ChoiceName> out) {
+size_t choice_names_of(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports,
+                       std::span<ChoiceName> out) {
 	const std::optional<Resolved> resolved = resolve(target, model, where, ports);
 	if (!resolved) {
 		return 0;
@@ -409,10 +440,11 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 	return written;
 }
 
-std::optional<WriteRequest> request_for(const Target& target, const project::Song& model, const Addresses& where,
-                                        const Ports& ports, int32_t menu) {
+std::optional<WriteRequest> request_of(const Target& target, const project::Song* model, const Addresses& where,
+                                       const Ports& ports, int32_t menu) {
 	if (target.kind == Target::Kind::PARAM) {
-		const std::optional<ResolvedParam> resolved = resolve_param(target, model, where, ports);
+		const std::optional<ResolvedParam> resolved =
+		    model != nullptr ? resolve_param(target, *model, where, ports) : std::nullopt;
 		if (!resolved) {
 			return std::nullopt;
 		}
@@ -446,6 +478,61 @@ std::optional<WriteRequest> request_for(const Target& target, const project::Son
 		return std::nullopt;
 	}
 	return WriteRequest{.target = target, .where = where, .menu_value = menu};
+}
+
+/// The rows a target of @p target's kind and group is a row of: none for a param or a cable, which name no row.
+std::span<const plugin::SettingInfo> rows_named_by(const Target& target) {
+	switch (target.kind) {
+	case Target::Kind::MODEL:
+		return project::table_of(target.group);
+	case Target::Kind::SOUND:
+		return instrument::kSettings;
+	case Target::Kind::EFFECT:
+		return effects::kEffectSettings;
+	case Target::Kind::NONE:
+	case Target::Kind::PARAM:
+	case Target::Kind::CABLE:
+		break;
+	}
+	return {};
+}
+
+} // namespace
+
+std::optional<Target> concrete(const Target& target, const Addresses& where) {
+	if (!target.source_indexed) {
+		return target;
+	}
+	if (!where.source_index) {
+		return std::nullopt;
+	}
+	const size_t index = *where.source_index;
+	for (const plugin::SettingInfo& row : rows_named_by(target)) {
+		if (plugin::index_in(target.path, row.path) == index) {
+			Target named = target;
+			named.path = row.path;
+			named.source_indexed = false;
+			return named;
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<View> view(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? view_of(*named, model, where, ports) : std::nullopt;
+}
+
+size_t choice_names(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports,
+                    std::span<ChoiceName> out) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? choice_names_of(*named, model, where, ports, out) : 0;
+}
+
+std::optional<WriteRequest> request_for(const Target& target, const project::Song* model, const Addresses& where,
+                                        const Ports& ports, int32_t menu) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? request_of(*named, model, where, ports, menu) : std::nullopt;
 }
 
 } // namespace deluge::scenes::bind

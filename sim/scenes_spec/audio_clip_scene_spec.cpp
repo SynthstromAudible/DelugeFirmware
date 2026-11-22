@@ -7,7 +7,7 @@
 ///
 /// Every comparison here runs the same state twice, each side from its own sentinel:
 ///
-///   * the port, through the `Shell` -- `audio_clip_scene().open(clip, song)` and then
+///   * the port, through the `Shell` -- `audio_clip_scene().open(clip, &song->project)` and then
 ///     `Shell::tick`, rendered into `FakeSurfaceSet`;
 ///   * legacy, through **`AudioClipView`'s own public entry points** --
 ///     `renderMainPads`, `renderSidebar`, `renderOLED`, `graphicsRoutine`, `padAction`,
@@ -124,6 +124,7 @@
 #include <ostream>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 /// @brief `PlaybackHandler`'s "the swung-tick answer is zero" latch
@@ -158,7 +159,6 @@ extern bool shiftCurrentlyStuck;
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;
 using deluge::scenes::audio_clip::AudioClipScene;
-using deluge::scenes::audio_clip::FlashCursor;
 using deluge::scenes::audio_clip::kAudioClipSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
@@ -360,8 +360,7 @@ struct Rig {
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleControls.reversed = false;
 		f.clip->recorder = nullptr;
-		f.clip->renderData.xScroll = -1;
-		f.clip->renderData.xZoom = -1;
+		f.clip->renderData.forget();
 		// `Clip::getLivePos()`'s SIGFPE guard -- see the extern's docstring.
 		currentlyActioningSwungTickOrResettingPlayPos = true;
 		// Legacy's `graphicsRoutine` gate and `prepareColour`'s substitution both read this; the
@@ -370,6 +369,8 @@ struct Rig {
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		playbackHandler.playbackState = 0;
 		currentPlaybackMode = &session;
+		// The app's ports, which act on the current song: the fixture's.
+		audio_clip_scene().set_ports(&menu::host_ports());
 	}
 
 	/// @brief Tear the stack down, so `AudioClipScene` -- a process singleton -- never carries state
@@ -379,6 +380,7 @@ struct Rig {
 			shell.stack().pop(SceneKind::Null);
 		}
 		audio_clip_scene().open(std::nullopt, nullptr);
+		audio_clip_scene().set_ports(nullptr);
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		PadLEDs::flashCursor = saved_flash_cursor;
 		playbackHandler.playbackState = saved_playback_state;
@@ -403,8 +405,7 @@ struct Rig {
 		f.clip->soloingInSessionMode = false;
 		f.clip->armState = ArmState::OFF;
 		// Both caches invalidated, so each side's own scan runs from scratch.
-		f.clip->renderData.xScroll = -1;
-		f.clip->renderData.xZoom = -1;
+		f.clip->renderData.forget();
 	}
 
 	/// @brief Put the model back to EXACTLY what @p s describes -- the clip's length, the sample's
@@ -450,7 +451,7 @@ struct Rig {
 
 	/// @brief Open the port's scene on the fixture's clip.
 	void open() {
-		audio_clip_scene().open(address(), f.song);
+		audio_clip_scene().open(address(), &f.song->project);
 		shell.init(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -465,10 +466,8 @@ struct Rig {
 	/// singleton, so an example that leaves a marker up otherwise poisons the next one: the
 	/// end-marker drag example leaves `end_marker_visible_` true and the start-marker example then
 	/// takes the wrong branch of `padAction`.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	/// @param clip_writes Where the scene's clip edits go; the app's when null.
-	void open_scene_only(bind::WriteSink* sink = nullptr, bind::ClipWrites* clip_writes = nullptr) {
-		audio_clip_scene().open(address(), f.song, sink, clip_writes);
+	void open_scene_only() {
+		audio_clip_scene().open(address(), &f.song->project);
 		(void)audio_clip_scene().on_enter(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -1078,7 +1077,7 @@ describe audio_clip_scene_spec_body(
 			        e.max = 100;
 		        }
 		        r.f.clip->sampleHolder.audioFile = flat;
-		        r.f.clip->renderData.xScroll = -1; // as the clip's own sample changes leave it, for legacy's scan
+		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
 		        deluge::notify::raise(deluge::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
@@ -1244,7 +1243,8 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // The one setting, which legacy reads directly and the port through `UiFacts::flash_cursor`.
+		        // The one setting, which legacy reads directly and the port through the device port's
+		        // `pads/playCursor` row.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.tick(1);
@@ -1846,7 +1846,12 @@ describe audio_clip_scene_spec_body(
 		        const ModelSnapshot seeded = model_snapshot(r);
 		        bind::test::RecordingWrites recording;
 		        bind::test::RecordingClipWrites clip_writes;
-		        r.open_scene_only(&recording, &clip_writes);
+		        // The app's ports with the two recorders in place of its sinks, kept alive for the case.
+		        bind::Ports held = menu::host_ports();
+		        held.writes = &recording;
+		        held.clip_writes = &clip_writes;
+		        audio_clip_scene().set_ports(&held);
+		        r.open_scene_only();
 		        using Kind = bind::test::RecordingClipWrites::Call::Kind;
 		        using Resize = bind::ResizeKind;
 		        // The last call of a kind: a length change also records the view a redo returns to, after its resize.
@@ -1917,6 +1922,7 @@ describe audio_clip_scene_spec_body(
 		        }
 		        // Only requests: nothing else wrote.
 		        expect(model_snapshot(r)).to_equal(seeded);
+		        audio_clip_scene().set_ports(&menu::host_ports()); // before `held` goes
 	        });
 
 	    it(
@@ -2281,7 +2287,7 @@ describe audio_clip_scene_spec_body(
 	        "offers the Waveform item on a clip whose file is loaded, and not while the clip is still recording", _ {
 		        // Legacy tests the clip's own file, which a linear recording has not attached yet.
 		        Rig r;
-		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
+		        const deluge::scenes::menu::MenuContext ctx = deluge::scenes::spec::ctx_of(
 		            *r.f.song, deluge::gui::menuViewOf(r.f.clip), 0, false, false, false, false);
 		        expect(deluge::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_true();
 		        auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take

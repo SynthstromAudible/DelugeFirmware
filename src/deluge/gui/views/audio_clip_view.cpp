@@ -154,7 +154,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 	int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
-	bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData,
+	bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, clip.renderData,
 	                                                 recorder, rgb, clip.sampleControls.isCurrentlyReversed(), xEnd);
 
 	// If card being accessed and waveform would have to be re-examined, come back later
@@ -288,7 +288,7 @@ void AudioClipView::graphicsRoutine() {
 
 		// Linearly recording
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-			getCurrentAudioClip()->renderData.xScroll = -1;      // Make sure values are recalculated
+			getCurrentAudioClip()->renderData.forget();          // Make sure values are recalculated
 			needsRenderingDependingOnSubMode();
 		}
 	}

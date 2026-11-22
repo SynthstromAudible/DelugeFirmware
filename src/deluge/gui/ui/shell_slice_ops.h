@@ -27,7 +27,14 @@
 ///
 /// This header names no `scenes/` type; `shell_slice_ops.cpp` is where the scene is reached.
 
+class Sample;
+
 namespace deluge::gui::ui {
+
+/// @brief The sample the slicer's host opened it on, which the waveforms port's SLICE address resolves to; null
+///        before an open, once the slicer has closed (`SliceOps::closed`), and once the guest's close has released it
+///        (`releaseShellSlicerBeforeClose`).
+[[nodiscard]] ::Sample* shellSlicedSample();
 
 /// @brief Install the host's `SliceOps` on `SlicerScene`.
 void wireShellSliceOps();

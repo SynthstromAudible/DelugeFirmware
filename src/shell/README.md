@@ -9,7 +9,8 @@ path, no mutable globals, `snake_case` members, `PascalCase` types, `k` constant
 
 ## Layer rules
 
-`scripts/check_layer_rules.py` enforces, over `src/shell/**`:
+Over `src/shell/**`, `scripts/layers.toml` holds the include rule (checked by `scripts/check_layers.py`) and
+`scripts/check_layer_rules.py` the others:
 
 | row | rule |
 |---|---|
@@ -279,9 +280,8 @@ claim a sample -- is not an `Action::Kind`, which would put legacy root-UI conce
 It reaches the host one of three ways:
 
 1. **A synchronous call**, when the host acts before the scene goes on: a setting's side effect is
-   one of the `host_*` calls in `scenes/menu/bind_host.h` (`host_screensaver_settings_changed`,
-   `host_pad_brightness_changed`, `host_clear_tick_squares` and their siblings), made by its setter
-   at the write.
+   the device port's store (`Ports::device`), made at the write, and the recorder's opening clear of
+   the slow flash's tick squares is `Indicators::clear_tick_squares` (`Ports::indicators`).
 2. **A service**, when the work ends later: the browser hands its claims, imports, slices, deletes,
    loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
    `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced

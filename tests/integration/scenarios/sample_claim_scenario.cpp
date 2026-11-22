@@ -36,6 +36,7 @@
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/browser_host.h"
 #include "gui/ui/load/instrument_load.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
@@ -97,6 +98,7 @@
 #include "notify/notice_queue.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/sample.h"
@@ -371,6 +373,8 @@ bool g_imEmptySucceeded = false;
 
 /// The slicer scene's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
 bool g_shellCommitBegun = false;
+/// The slicer's bound open has been checked against the sample the host bound.
+bool g_shellFileChecked = false;
 /// The manual leg's landed audition: pressed, and checked once its load landed.
 bool g_landedAuditionPressed = false;
 bool g_landedAuditionChecked = false;
@@ -1556,6 +1560,7 @@ void observeEmptyImport(deluge::gui::FolderImportRequest request) {
 
 void actShellSlice() {
 	g_shellCommitBegun = false;
+	g_shellFileChecked = false;
 	g_landedAuditionPressed = false;
 	g_landedAuditionChecked = false;
 	g_shellEnded = false;
@@ -1563,12 +1568,13 @@ void actShellSlice() {
 	g_shellBackNoContextRefused = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
-	// What the menu edits: the kit's drum, as the clip view selected it.
+	// What the menu edits: the kit's drum, as the clip view selected it, in the song the app's ports act on.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
-	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
+	    currentSong->project, &deluge::scenes::menu::host_ports(), deluge::gui::menuViewOf(g_kitClip), 0, false, false,
+	    false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
 	auto& scene = deluge::scenes::slicing::slicer_scene();
-	scene.open(nullptr);
+	scene.open(std::nullopt);
 	if (g_leg == Leg::ShellSliceBack) {
 		// A first drum that holds no file, as a brand-new kit's has: main dereferences its missing sample here.
 		auto* drum = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);
@@ -1604,6 +1610,11 @@ void actShellSlice() {
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 	}
 	deluge::gui::ui::openShellSlice(legFile());
+	// The first slicer leg's open is a card load the host binds; the manual leg's finds that file in the preview
+	// drum and takes it as it is.
+	if (g_leg == Leg::ShellSlice && !deluge::gui::ui::shellSlicerBusy()) {
+		setupFailed(legName(g_leg), "the slicer opened at once, so no load was bound");
+	}
 }
 
 /// A press on the slicer before the slice, which holds a load for the first drum, then every UI taken down as a song
@@ -1698,6 +1709,17 @@ void tickShellSlice() {
 	if (!g_shellCommitBegun) {
 		if (!scene.has_sample()) {
 			return;
+		}
+		// The open the card load bound: the scene names the sample the host holds, by its identity and its path.
+		if (!g_shellFileChecked) {
+			g_shellFileChecked = true;
+			const ::Sample* bound = deluge::gui::ui::shellSlicedSample();
+			const std::optional<deluge::scenes::slicing::SliceFile>& file = scene.file();
+			if (bound == nullptr || !file || file->path != bound->filePath
+			    || file->identity != deluge::gui::shell_host::waveform_identity(*bound)) {
+				g_report.fail("leg=%s the slicer's file is not the sample the host bound", legName(g_leg));
+			}
+			printf("SC-PROBE leg=%s sliceFileBound path=%s\n", legName(g_leg), file ? file->path.c_str() : "");
 		}
 		if (g_leg == Leg::ShellSlice) {
 			checkTeardownDropsAudition(scene);

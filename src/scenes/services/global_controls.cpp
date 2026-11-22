@@ -20,52 +20,25 @@
 ///        MIDI-learn boundary and the full list of what is deliberately not ported.
 
 #include "scenes/services/global_controls.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 
-#include "definitions_cxx.hpp" // AudioInputChannel, GlobalMIDICommand, kInternalButtonPressLatency
 #include "shell/input_lowering.h"
 
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
+#include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
-#include "model/action/action_logger.h"
-#include "model/clip/clip.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
-#include "playback/mode/playback_mode.h"
-#include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/recording/foreground_recording.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
-
-/// @name The two pending-command globals the `BACK` arm writes
-///
-/// Declared here rather than included, exactly as `View::buttonAction` itself declares them
-/// (`gui/views/view.cpp`): they are defined in `playback/playback_handler.cpp`
-/// with no declaration in `playback_handler.h`, so a bare `extern` is the only spelling either
-/// side has. (`nodes/settings.cpp`'s `extern uint32_t jcong;` is the same pattern, and
-/// `scripts/check_layer_rules.py`'s `scenes-no-root-ui` comment names it as the expected shape.)
-///
-/// @warning The second one is declared `extern GlobalMIDICommand` in `gui/views/view.cpp` and **defined
-///          `int32_t`** in `playback_handler.cpp` -- a type mismatch across translation units.
-///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
-///          `definitions_cxx.hpp`) and so takes `int` as its underlying type, making the two
-///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
-///          == 0, by `View::buttonAction`'s BACK arm) the same bits as the `0` its dead-code undo
-///          and redo arm writes.
-///          Declared with the *defining* type here, and 0 written, rather than reproducing the pun.
-/// @{
-extern GlobalMIDICommand pendingGlobalMIDICommand;
-extern int32_t pendingGlobalMIDICommandNumClustersWritten;
-/// @}
 
 namespace deluge::scenes::services {
 
@@ -81,16 +54,17 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// @brief Make clip @p clip_id the song's sync-scaling clip (-1 for none): a SONG request to the app's sink, over the
-///        song it plays. Another song's is left alone.
-void write_sync_scaling(::Song* song, int32_t clip_id) {
-	if (song == nullptr || !menu::host_binds(*song)) {
+/// @brief Make clip @p clip_id the song's sync-scaling clip (-1 for none): a SONG request to @p writes.
+/// @param writes  The installed write sink, or null: nothing is written.
+/// @param clip_id The clip's id, or -1 for none.
+void write_sync_scaling(bind::WriteSink* writes, int32_t clip_id) {
+	if (writes == nullptr) {
 		return;
 	}
-	(void)menu::host_ports().writes->write({.target = {.kind = bind::Target::Kind::MODEL,
-	                                                   .path = "syncScalingClip",
-	                                                   .group = deluge::project::SettingGroupId::SONG},
-	                                        .menu_value = clip_id});
+	(void)writes->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                .path = "syncScalingClip",
+	                                .group = deluge::project::SettingGroupId::SONG},
+	                     .menu_value = clip_id});
 }
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every
@@ -200,7 +174,8 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 		// A long press just drops the LED, which `leds()` now does.
 		return;
 	}
-	if (song_ != nullptr && song_->hasAnyPendingNextOverdubs()) {
+	if (const bind::Transport* t = bind::port_of(ports_, &bind::Ports::transport);
+	    t != nullptr && t->overdubs_pending()) {
 		popup(result, String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING);
 		return;
 	}
@@ -260,11 +235,13 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 }
 
 void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& result) {
-	if (song_ == nullptr) {
+	if (model_ == nullptr) {
 		return;
 	}
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-	    == RuntimeFeatureStateSyncScalingAction::Fill) {
+	if (bind::read_device<project::SyncScalingAction>(
+	        bind::port_of(ports_, &bind::Ports::device),
+	        project::device_path::feature(project::Feature::SYNC_SCALING_ACTION))
+	    == project::SyncScalingAction::FILL) {
 		// `View::buttonAction` (`gui/views/view.cpp`) (the note editor / note-row editor test) needs no port here: in a
 		// note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`) and
 		// gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test. The fill adjustments
@@ -273,7 +250,9 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		// @warning **Not ported.** In this port the arm always takes legacy's "otherwise" branch,
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases
 		//          legacy redirects it to a note-fill adjustment.
-		song_->changeFillMode(on);
+		if (bind::TransportActions* a = actions(); a != nullptr) {
+			a->fill(on);
+		}
 		return;
 	}
 
@@ -283,12 +262,13 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 
 	// Legacy's `cant:` label, reached from here and from the arrangement-only and linear-recording refusals below.
 	const auto refuse = [&result]() { popup(result, String::STRING_FOR_RECORDING_TO_ARRANGEMENT); };
-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+	if (recording() == bind::TransportRecording::ARRANGEMENT) {
 		refuse();
 		return;
 	}
 
-	if (!song_->project.transport.sync_scaling_clip_id) {
+	bind::WriteSink* const writes = bind::port_of(ports_, &bind::Ports::writes);
+	if (!model_->transport.sync_scaling_clip_id) {
 		if (!view_.current_ui_is_clip_minder) {
 			// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)`, which is
 			// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp`). Here that is a deadline
@@ -297,29 +277,31 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 			return;
 		}
 		// The clip the view has open: legacy dereferences `getCurrentClip()` unguarded (a clip minder always
-		// has one); with none, or a song the app does not play, nothing is done.
+		// has one); with none, or no clip facts installed, nothing is done.
 		const std::optional<project::ClipAddress> clip = services::view_state().current_view().clip;
-		if (!clip || !menu::host_binds(*song_)) {
+		const bind::ClipFacts* const clips = bind::port_of(ports_, &bind::Ports::clips);
+		if (!clip || clips == nullptr) {
 			return;
 		}
-		const bind::ClipFacts& clips = *menu::host_ports().clips;
-		if (clips.clip_arrangement_only(*clip)) {
+		if (clips->clip_arrangement_only(*clip)) {
 			refuse();
 			return;
 		}
-		if (clips.clip_recording_linearly(*clip)) {
+		if (clips->clip_recording_linearly(*clip)) {
 			refuse();
 			return;
 		}
 		// The setting's Edit re-derives the tick magnitude and re-syncs the internal ticks.
-		write_sync_scaling(song_, static_cast<int32_t>(clip->clip_id));
+		write_sync_scaling(writes, static_cast<int32_t>(clip->clip_id));
 	}
 	else {
-		write_sync_scaling(song_, -1);
+		write_sync_scaling(writes, -1);
 	}
 
-	actionLogger.deleteAllLogs(); // can't undo past this
-	                              // `setTimeBaseScaleLedState()` has no port: `leds()` recomputes it every tick.
+	// Undo cannot reach past this. `setTimeBaseScaleLedState()` has no port: `leds()` recomputes it every tick.
+	if (bind::DeviceActions* const device = bind::port_of(ports_, &bind::Ports::device_actions); device != nullptr) {
+		device->delete_all_logs();
+	}
 }
 
 void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) {
@@ -327,11 +309,11 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	if (effective_ui_mode() != UiMode::None) {
 		return;
 	}
-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+	if (recording() == bind::TransportRecording::ARRANGEMENT) {
 		popup(result, String::STRING_FOR_RECORDING_TO_ARRANGEMENT);
 		return;
 	}
-	if (song_ == nullptr) {
+	if (model_ == nullptr) {
 		return;
 	}
 	// `soundEditor.setup(); openUI(&soundEditor);`.
@@ -343,7 +325,9 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// Buttons::isShiftButtonPressed()` (`View::buttonAction`). So the root is `settingsRootMenu`
 	// (its final `else`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
-	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
+	// The menu binds through the installed set, whose device port the settings root reads; with none installed it
+	// reads every row's default.
+	menu::MenuContext menu_ctx = menu::context_for(*model_, ports_, services::MenuView{}, /*source_index=*/0,
 	                                               /*performance_view=*/false,
 	                                               /*session_or_arranger_root=*/false,
 	                                               /*session_view_root=*/false, /*kit_global_fx=*/false);
@@ -372,15 +356,20 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 		}
 		if (mode == UiMode::None || mode == UiMode::RecordCountIn) {
 			if (on) {
+				bind::TransportActions* const a = actions();
 				if (ctx.shift) {
-					playbackHandler.toggleMetronomeStatus();
+					if (a != nullptr) {
+						a->toggle_metronome();
+					}
 				}
 				else if (mode == UiMode::None) {
 					// Tap tempo, but not during a record count-in.
-					const bool use_normal_tap_tempo_behaviour =
-					    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour)
-					    == RuntimeFeatureStateToggle::Off;
-					playbackHandler.tapTempoButtonPress(use_normal_tap_tempo_behaviour);
+					const bool use_normal_tap_tempo_behaviour = !bind::read_device_flag(
+					    bind::port_of(ports_, &bind::Ports::device),
+					    project::device_path::feature(project::Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR));
+					if (a != nullptr) {
+						a->tap_tempo(use_normal_tap_tempo_behaviour);
+					}
 				}
 			}
 		}
@@ -418,24 +407,14 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 
 	case ButtonId::Back:
 		if (on) {
-#ifndef undoButtonX
-			// the `#ifndef undoButtonX` of the BACK arm, and `undoButtonX` is defined nowhere in this repository --
-			// see the class doc. This is the live undo/redo; the `#ifdef undoButtonX` branches' dedicated undo
-			// and redo buttons are dead code.
-			if (actionLogger.allowedToDoReversion()) {
-				// Legacy pends the command rather than performing it, reusing the
-				// machinery the MIDI-triggered case needs anyway, then runs `slowRoutine()` to
-				// perform it immediately if the card is not being read.
-				pendingGlobalMIDICommand = ctx.shift ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO;
-				// Writes `GlobalMIDICommand::PLAYBACK_RESTART` (== 0) into a variable
-				// `playback_handler.cpp` defines as `int32_t`, through a mismatched `extern
-				// GlobalMIDICommand` declaration in `gui/views/view.cpp`. The value is 0 either way (and
-				// the dead-code twin simply writes `0`), so this writes 0 rather than reproducing the type
-				// pun.
-				pendingGlobalMIDICommandNumClustersWritten = 0;
-				playbackHandler.slowRoutine();
+			// The BACK arm's undo, or redo with shift. The reversion runs inside this call, so nothing is read after
+			// it.
+			if (const bind::Transport* t = bind::port_of(ports_, &bind::Ports::transport);
+			    t != nullptr && t->undo_allowed()) {
+				if (bind::TransportActions* const a = actions(); a != nullptr) {
+					a->undo(ctx.shift);
+				}
 			}
-#endif
 		}
 		return ViewArm::Handled; // BACK is dealt with by `View` on press AND on release
 
@@ -468,21 +447,29 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			return r;
 		}
 		const bool record_held = ctx.held.has(ButtonId::Record);
-		// `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`, the same test
-		// legacy's PLAY arm makes on the same storage (see `scenes/recorder/recorder_scene.h`).
-		const bool output_recording = AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE;
+		// Legacy's PLAY arm asks whether the foreground recorder has a source, the same storage the recorder reads (see
+		// `scenes/recorder/recorder_scene.h`).
+		const bind::ForegroundRecording source = foreground();
+		const bool output_recording =
+		    source == bind::ForegroundRecording::EXTERNAL || source == bind::ForegroundRecording::INTERNAL;
+		bind::TransportActions* const a = actions();
 		if (output_recording && record_held) {
 			// Stop output-recording at end of loop.
-			if (!lowering_.press_used_up(ButtonId::Record) && playbackHandler.isEitherClockActive()
-			    && currentPlaybackMode != nullptr) {
-				currentPlaybackMode->stopOutputRecordingAtLoopEnd();
+			const bind::Transport* const t = bind::port_of(ports_, &bind::Ports::transport);
+			if (!lowering_.press_used_up(ButtonId::Record) && t != nullptr && t->clocks_active() && a != nullptr) {
+				a->stop_output_recording_at_loop_end();
 			}
 		}
 		else {
-			playbackHandler.playButtonPressed(kInternalButtonPressLatency);
-			if (record_held && playbackHandler.playbackState != 0 && !lowering_.press_used_up(ButtonId::Record)) {
+			if (a != nullptr) {
+				a->play();
+			}
+			// Read after the press: it reads whether the press started playback.
+			if (record_held && playing() && !lowering_.press_used_up(ButtonId::Record)) {
 				// Begin output-recording simultaneously with playback.
-				(void)deluge::recording::beginOutputRecording();
+				if (a != nullptr) {
+					a->begin_output_recording();
+				}
 			}
 		}
 		// `recordButtonPressUsedUp = true` sits INSIDE `if (on)` and OUTSIDE the if/else above (by the braces of
@@ -508,9 +495,11 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `recordButtonPressUsedUp = false` are both
 			// already done by `InputLowering::on_button`, which stamps the press clock and clears the used-up bit for
 			// every button on its own press.
-			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
+			if (foreground() == bind::ForegroundRecording::NONE) {
 				if (ctx.shift) {
-					(void)deluge::recording::beginOutputRecording();
+					if (bind::TransportActions* const a = actions(); a != nullptr) {
+						a->begin_output_recording();
+					}
 					lowering_.mark_press_used_up(ButtonId::Record);
 				}
 			}
@@ -530,11 +519,15 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
 			if (own_press && !lowering_.press_used_up(ButtonId::Record)
 			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
-				if (deluge::recording::isCurrentlyResampling()) {
-					deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
+				const bind::AudioFacts* const audio = bind::port_of(ports_, &bind::Ports::audio);
+				bind::TransportActions* const a = actions();
+				if (audio != nullptr && audio->resampling()) {
+					if (a != nullptr) {
+						a->end_recording_soon();
+					}
 				}
-				else {
-					playbackHandler.recordButtonPressed();
+				else if (a != nullptr) {
+					a->record();
 				}
 			}
 		}
@@ -543,17 +536,24 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 
 	case ButtonId::TempoEnc:
 		if (on) {
+			bind::TransportActions* const a = actions();
 			if (ctx.shift) {
-				playbackHandler.commandClearTempoAutomation();
+				if (a != nullptr) {
+					a->clear_tempo_automation();
+				}
 			}
 			else if (ctx.held.has(ButtonId::TapTempo)) {
-				playbackHandler.commandDisplaySwingInterval();
+				if (a != nullptr) {
+					a->show_swing_interval();
+				}
 			}
 			else if (!view_.loading_song && !view_.current_ui_is_song_or_arranger) {
 				// Legacy's `isOLEDSessionView` is `currentUI == &sessionView ||
 				// currentUI == &arrangerView`, injected here because `src/scenes` may not
 				// read the root UI.
-				playbackHandler.commandDisplayTempo();
+				if (a != nullptr) {
+					a->show_tempo();
+				}
 			}
 		}
 		r.handled = true;
@@ -611,22 +611,44 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 	return tail_button_action(event.button, event.on, ctx);
 }
 
+// -- The installed ports ---------------------------------------------------------------------------
+
+bool GlobalControls::playing() const {
+	const bind::Transport* const t = bind::port_of(ports_, &bind::Ports::transport);
+	return t != nullptr && t->playing();
+}
+
+bind::TransportRecording GlobalControls::recording() const {
+	const bind::Transport* const t = bind::port_of(ports_, &bind::Ports::transport);
+	return t != nullptr ? t->recording() : bind::TransportRecording::OFF;
+}
+
+bind::ForegroundRecording GlobalControls::foreground() const {
+	const bind::AudioFacts* const audio = bind::port_of(ports_, &bind::Ports::audio);
+	return audio != nullptr ? audio->foreground_recording() : bind::ForegroundRecording::NONE;
+}
+
+bind::TransportActions* GlobalControls::actions() const {
+	return bind::port_of(ports_, &bind::Ports::transport_actions);
+}
+
 // -- LEDs ----------------------------------------------------------------------------------------
 
 void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// `PlaybackHandler::setLedStates` (`playback/playback_handler.cpp`).
-	(void)frame.set(led(ButtonId::Play), playbackHandler.playbackState != 0 ? kOn : kOff);
+	(void)frame.set(led(ButtonId::Play), playing() ? kOn : kOff);
 
 	// The guard is legacy's: while an internal (resample/output) recording is live,
 	// or while recording to the arrangement, the RECORD LED is owned by whoever set it -- so
 	// legacy declares nothing and neither does this.
-	if (AudioEngine::foregroundRecordingSource() < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
-	    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
-		(void)frame.set(led(ButtonId::Record), playbackHandler.recording == RecordingMode::NORMAL ? kOn : kOff);
+	const bind::TransportRecording mode = recording();
+	if (foreground() != bind::ForegroundRecording::INTERNAL && mode != bind::TransportRecording::ARRANGEMENT) {
+		(void)frame.set(led(ButtonId::Record), mode == bind::TransportRecording::NORMAL ? kOn : kOff);
 	}
 	// The tail's `deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)` has no `LedId`; see the
 	// class doc.
-	(void)frame.set(led(ButtonId::TapTempo), playbackHandler.metronomeOn ? kOn : kOff);
+	const bind::Transport* const t = bind::port_of(ports_, &bind::Ports::transport);
+	(void)frame.set(led(ButtonId::TapTempo), t != nullptr && t->metronome_on() ? kOn : kOff);
 
 	// `View::setTimeBaseScaleLedState`, which is the whole of
 	// `View::setLedStates`.
@@ -640,7 +662,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	}
 	else {
 		(void)frame.set(led(ButtonId::SyncScaling),
-		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff);
+		                model_ != nullptr && model_->transport.sync_scaling_clip_id ? kOn : kOff);
 	}
 
 	// `View::buttonAction`'s own two LEDs: SAVE on while held, off otherwise
@@ -715,10 +737,10 @@ std::optional<uint32_t> GlobalControls::next_timer() const {
 
 bool GlobalControls::blinking_sync_scaling() const {
 	// The sync-scaling clip is the one the view has open (`View::setTimeBaseScaleLedState`).
-	if (!view_.current_ui_is_clip_minder || song_ == nullptr) {
+	if (!view_.current_ui_is_clip_minder || model_ == nullptr) {
 		return false;
 	}
-	const std::optional<uint32_t> sync_clip = song_->project.transport.sync_scaling_clip_id;
+	const std::optional<uint32_t> sync_clip = model_->transport.sync_scaling_clip_id;
 	const std::optional<project::ClipAddress> current = services::view_state().current_view().clip;
 	return sync_clip && current && current->clip_id == *sync_clip;
 }

@@ -75,6 +75,12 @@ describe state_access("the Deluge instrument's state, as code outside the instru
 		expect(same_slot(dx, s, SourceId::B)).to_equal(true);
 	});
 
+	it("sizes a sound's sources by the source count, one slot per SourceId", _ {
+		expect(SoundState{}.recall.slots.size()).to_equal(kSourceCount);
+		expect(kSourceCount).to_equal(size_t{2});
+		expect(static_cast<size_t>(SourceId::B) + 1).to_equal(kSourceCount);
+	});
+
 	it("reads the mode and the sound's effects", _ {
 		SoundState s = deluge::test::with(SoundState{}, "mode", to_string(SynthMode::FM));
 		sound_effects(s).saturation.clipping_amount = 3;

@@ -832,6 +832,8 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		sound->applyRouting();
 		return Error::NONE;
 	}
+	case SettingGroupId::DEVICE:
+		return Error::UNSPECIFIED; // no song holds the device's own settings; the host's device port stores them
 	}
 	return Error::UNSPECIFIED;
 }

@@ -26,9 +26,9 @@
 #include "notify/notice_queue.h"
 
 #include "gui/l10n/short_label.h"
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "ui/oled/list.h"
 
+#include "deluge-project/song.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -230,9 +230,7 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 }
 
 int32_t input_tick_magnitude(const MenuContext& ctx) {
-	return ctx.model != nullptr ? ctx.model->transport.inside_world_tick_magnitude
-	                                  + ctx.model->transport.inside_world_tick_magnitude_offset_from_bpm
-	                            : 0;
+	return ctx.model != nullptr ? ctx.model->transport.input_tick_magnitude() : 0;
 }
 
 std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32_t value, std::span<char> out) {

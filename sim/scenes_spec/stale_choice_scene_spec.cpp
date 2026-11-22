@@ -29,6 +29,7 @@
 
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -81,7 +82,7 @@ describe stale_choice_scene("the menu scene over a stored choice that no longer 
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		deluge::edits::settingFor(*drum, "osc1/type", deluge::serialization::Value::makeScalar("dx7"));
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		LeafRig r;
 		r.open(menu::nodes::osc0_type, ctx);
 		const OscType first = deluge::instrument::source_type(drum->state(), deluge::instrument::SourceId::A);

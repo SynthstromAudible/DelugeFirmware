@@ -10,11 +10,10 @@
 ///
 /// `Slicer` reaches its work through four `gui/` globals -- `sampleBrowser`, `soundEditor`,
 /// `instrumentClipView` and `PadLEDs` -- every one of which `src/scenes/**` may never name
-/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui` and `scenes-includes-gui`). The calls that
-/// reach them are collected into `SliceOps` below, and the scene keeps everything else: the state,
-/// the guards, the snapshot at Select and the commit gate. The slice is asynchronous: the host
-/// answers `SliceOps::begin_commit` later with `commit_done`. See `SliceOps` for what a null `ops()`
-/// means.
+/// (`scripts/check_layer_rules.py`'s `scenes-no-root-ui` and `scripts/layers.toml`'s `scenes-includes-gui`). The calls
+/// that reach them are collected into `SliceOps` below, and the scene keeps everything else: the state, the guards, the
+/// snapshot at Select and the commit gate. The slice is asynchronous: the host answers `SliceOps::begin_commit` later
+/// with `commit_done`. See `SliceOps` for what a null `ops()` means.
 ///
 /// @par This is not a root scene
 ///
@@ -50,11 +49,19 @@
 /// `waveformRenderer` or `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
 ///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
-///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> `deluge::sample::find_peaks_per_col` +
-///     `services::paint_columns` (`ui::grid::waveform_full` over the scanned columns).
+///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> the waveforms port's read at the SLICE
+///     address (`services::read_waveform`) + `services::paint_columns` (`ui::grid::waveform_full` over its columns).
 ///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
+///
+/// A frame whose read left a column pending paints no main pad and asks again (`services::PeakRetry`).
+///
+/// @par Its ports are installed, not given by a context
+///
+/// The menu does not open this scene, so it has no `MenuContext`: it reads the set the host installs with `set_ports`
+/// (`gui::shell_host::install_scene_ports`), each port through `bind::port_of`. With no set installed it reads not
+/// auditioning, a Slow play cursor and no waveform, wipes no logs, and its `next_timer` never reads live.
 ///
 /// @par The commit does not need `RecorderScene`'s settled-recorder wait
 ///
@@ -109,14 +116,13 @@
 #include "ui/oled/frame.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "model/sample/waveform_navigator.h"
+#include "sample-view/view.h"
+#include "scenes/services/peak_retry.h"
 
 #include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
-
-class Sample;
 
 namespace deluge::scenes::slicing {
 
@@ -217,6 +223,11 @@ public:
 	/// @brief Forget a held audition, so its load sounds nothing when it lands (enter, X_ENC, Select, BACK).
 	virtual void cancel_audition() {}
 
+	/// @brief The slicer is closing: BACK, the mute column's exit, or a landed slice. The host lets the file go, so
+	///        the waveforms port's SLICE address names nothing until the next open; the scene keeps its file and view,
+	///        which a reopen on the same file draws again.
+	virtual void closed() {}
+
 	/// @return Where the first drum's newest voice on the sliced file is playing, in samples, if one is.
 	virtual std::optional<int32_t> play_position() { return std::nullopt; }
 
@@ -233,6 +244,13 @@ public:
 	}
 };
 
+/// @brief The file the slicer opens on: which waveform it is, and its path, which a reopen compares.
+struct SliceFile {
+	uint64_t identity{0}; ///< the waveform's identity, as `bind::WaveformInfo::identity` gives it
+	std::string path;     ///< the file's path
+	bool operator==(const SliceFile&) const = default;
+};
+
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 8` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kSlicerSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 8);
@@ -240,18 +258,19 @@ inline constexpr deluge::ui::shell::SceneKind kSlicerSceneKind =
 /// @brief The slicer. One instance for the whole application (`registry.h`).
 class SlicerScene final : public deluge::ui::shell::Scene {
 public:
-	/// @brief Point the scene at the sample the browser previewed.
+	/// @brief Point the scene at the file the browser previewed.
 	///
 	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason `MarkerScene::open` is.
 	/// Legacy has no equivalent line inside `Slicer` at all: it reads the **`waveformBasicNavigator` global**, which
 	/// the sample browser's preview path set up and scanned (`SampleBrowser::previewIfPossible`,
-	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view, scroll,
-	/// zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens zoomed out on
-	/// a fresh navigator; called again on the sample and file it already shows, it keeps the navigator, as nothing
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The scene draws whatever the waveforms port's SLICE
+	/// address answers, which is the file the host opened it on. With @p shown the scene takes the preview's view, and
+	/// the port answers the columns the preview read, since it keeps them by file. Without it the scene opens zoomed
+	/// out over the length SLICE answers; called again on the file it already shows, it keeps its view, as nothing
 	/// resets legacy's global between two slicer opens.
-	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
-	/// @param shown  The navigator the browser's preview drew @p sample through, or null.
-	void open(Sample* sample, const deluge::sample::WaveformNav* shown = nullptr);
+	/// @param file  The file to slice; none leaves the scene with nothing to draw.
+	/// @param shown The view the browser's preview drew @p file at, or none.
+	void open(std::optional<SliceFile> file, std::optional<sample_view::ShownWaveform> shown = std::nullopt);
 
 	/// @brief Switch between REGION and MANUAL.
 	///
@@ -267,9 +286,13 @@ public:
 	///            owned; it must outlive the scene's use of it.
 	void set_ops(SliceOps* ops) { ops_ = ops; }
 
-	/// @brief Answer the ports from @p ports instead of the host's, for a spec that needs a state the host cannot be
-	///        put into on demand; a null port goes back to the host's.
-	void set_ports(const bind::Ports& ports) { ports_ = ports; }
+	/// @brief Install the ports the scene reads: the app installs its own at boot
+	///        (`gui::shell_host::install_scene_ports`), a spec the app's or a copy with fakes in it.
+	///
+	/// With none, or a null port, the scene reads nothing auditioned, the SLOW play cursor and no waveform, and
+	/// wipes no undo log.
+	/// @param ports The set, or null. Borrowed, not owned; it must outlive the scene's use of it.
+	void set_ports(const bind::Ports* ports) { ports_ = ports; }
 
 	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
 	///
@@ -345,14 +368,16 @@ public:
 	/// @return That slice's start position and transpose (`manualSlicePoints[i]`).
 	const SlicePoint& slice(int32_t i) const { return points_[i]; }
 	/// @return The left edge of the waveform view, in samples.
-	int64_t x_scroll() const { return nav_.xScroll; }
+	int64_t x_scroll() const { return view_.scroll(); }
 	/// @return Samples per waveform column.
-	int64_t x_zoom() const { return nav_.xZoom; }
+	int64_t x_zoom() const { return view_.zoom(); }
 	/// @return Is a slice commit out? Legacy's `currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate,
 	///         which refuses every button and pad until the host ends the commit (`commit_done`).
 	bool committing() const { return committing_; }
-	/// @return Whether `open` handed the scene a sample to slice.
-	bool has_sample() const { return nav_.sample != nullptr; }
+	/// @return Whether `open` handed the scene a file to slice.
+	bool has_sample() const { return file_.has_value(); }
+	/// @return The file the scene was last opened on, or none.
+	[[nodiscard]] const std::optional<SliceFile>& file() const { return file_; }
 	/// @}
 
 	/// @brief How often the playhead is redrawn while something plays.
@@ -402,12 +427,15 @@ private:
 	/// @param req The audition request.
 	void preview(const PreviewRequest& req);
 
-	/// The scroll/zoom and per-column peak cache. Legacy shares one global
-	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; every
-	/// port owns its own, as `MarkerScene` already does.
-	deluge::sample::WaveformNav nav_{};
-	/// The file `nav_` was opened on: a reopen keeps the navigator only for the same sample on the same file.
-	std::string nav_path_{};
+	/// The file the scene slices, and `view_` was opened on: a reopen keeps the view only for the same file. None
+	/// before an open.
+	std::optional<SliceFile> file_{};
+	/// The scroll and zoom, over the file's length, which is fixed while the file is loaded. Main shares one navigator
+	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; each scene here owns its
+	/// view, and the waveforms port keeps the columns by file.
+	sample_view::WaveformView view_{};
+	/// The redraws of a frame whose read left columns pending.
+	services::PeakRetry retry_{};
 
 	/// `int16_t`, as legacy declares it (`Slicer::numClips` in `origin/main:src/deluge/gui/ui/slicer.h`) -- the wrap in
 	/// `selectEncoderAction` is written against exactly 257 and 1, so the width is part of the behaviour.
@@ -420,10 +448,12 @@ private:
 	/// The audio/model/card boundary; null until an application wires one. See `SliceOps`.
 	SliceOps* ops_ = nullptr;
 
-	/// The ports `set_ports` installed; each null one is the host's.
-	bind::Ports ports_{};
-	/// @brief The ports the scene reads: the installed ones, each null one filled from the host's.
-	[[nodiscard]] bind::Ports ports() const;
+	/// The ports `set_ports` installed, or null.
+	const bind::Ports* ports_ = nullptr;
+	/// @return The waveforms port the scene draws through, or null with none.
+	[[nodiscard]] const bind::Waveforms* waveforms() const;
+	/// @return What the waveforms port answers at the SLICE address, or none with no port.
+	[[nodiscard]] std::optional<bind::WaveformInfo> slice_info() const;
 
 	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};

@@ -43,6 +43,7 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/knob_math.h"
+#include "deluge-project/device_settings.h"
 
 #include "gui/views/knob_focus_from_stack.h"
 #include "scenes/bind/knob_assignment.h"
@@ -61,6 +62,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action.h"
@@ -89,6 +91,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
+#include "support/fake_host_rig.h"
 #include "support/global_guest_menu.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/fx_chain_printer.h"
@@ -108,8 +111,10 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -495,9 +500,11 @@ struct KnobRig {
 	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering, kDelugeControls};
 	Song* song = nullptr;
 
+	/// Point the knobs at @p s's record, over the app's ports.
 	void set_song(Song* s) {
 		song = s;
-		knobs.set_song(s);
+		knobs.set_ports(&deluge::scenes::menu::host_ports());
+		knobs.set_model(s != nullptr ? &s->project : nullptr);
 	}
 	/// Point the knobs where legacy's view would point them at @p counter.
 	void set_target_with_timeline(TimelineCounter* counter, bool send_midi_feedback) {
@@ -614,6 +621,43 @@ std::vector<std::string> indicator_disagreements(KnobRig& rig, Song* song, const
 	}
 	return found;
 }
+
+/// The CC the fake's MIDI follow sends a synth's LPF frequency on.
+constexpr uint8_t kLpfFrequencyCc = 74;
+
+/// @brief The knobs over the ports' fakes (`spec::FakeHostRig`) and its model song: one synth on the filter's mod
+///        button, whose upper knob moves the LPF frequency, with the knobs on its clip and the fakes' set installed.
+struct FakeKnobs {
+	spec::FakeHostRig fakes;
+	bind::Ports ports = fakes.host.ports();
+	KnobRig rig;
+	CountingPresentation out;
+
+	FakeKnobs() {
+		fakes.hold_synth(deluge::instrument::SoundState{});
+		deluge::project::DocOutput& output =
+		    fakes.model.output_structure.getOrCreate(spec::FakeHostRig::kSynthOutputId);
+		output.mod_knob_mode = 1;
+		output.controls = {{.control = {.button = 1, .knob = 1}, .target = deluge::instrument::param::kLpfFrequency}};
+		fakes.host.midi_feedback.ccs.emplace_back(
+		    deluge::project::OwnerPlugin::INSTRUMENT,
+		    deluge::project::engine_target(deluge::instrument::param::kLpfFrequency.value), kLpfFrequencyCc);
+		rig.knobs.set_ports(&ports);
+		rig.knobs.set_model(&fakes.model);
+		rig.knobs.set_focus(bind::KnobFocus{.owner = bind::SoundFocus{.slot = spec::FakeHostRig::kSynthSlot,
+		                                                              .clip = spec::FakeHostRig::kSynthClip}},
+		                    false);
+	}
+	FakeKnobs(const FakeKnobs&) = delete;
+	FakeKnobs& operator=(const FakeKnobs&) = delete;
+
+	/// @brief How many region grabs the knobs' sink was asked for.
+	[[nodiscard]] size_t grabs() const {
+		return static_cast<size_t>(std::ranges::count_if(fakes.host.controls_sink.gestures, [](const auto& g) {
+			return g.kind == bind::test::RecordingControlsSink::Gesture::Kind::GRAB_REGION;
+		}));
+	}
+};
 
 /// @brief Report each disagreement as its own line.
 void report_indicators(const std::vector<std::string>& found) {
@@ -1827,7 +1871,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region();
 
-		const menu::MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const menu::MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(mod_knobs_spec_nodes::kRoots);
 		menu_scene().open(mod_knobs_spec_nodes::res_page, ctx);
 		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))
@@ -2757,6 +2801,71 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.tick(5025, 15);
 		expect(rig.knobs.automation_display_pending()).to_be_false();
 		expect(rig.knobs.next_timer().has_value()).to_be_false();
+	});
+
+	context("over the ports' fakes", _ {
+		using FeedbackCall = bind::test::RecordingMidiFeedback::Call;
+
+		it("sends a turned param's CC and the knob's new position when MIDI follow's feedback is on", _ {
+			FakeKnobs k;
+			k.fakes.host.midi_feedback.on = true;
+			k.rig.knobs.turn(1, 3, 1000, k.out); // from the fake's unheld param, which reads 0, to 3
+			expect(k.fakes.host.controls_sink.param_writes.size()).to_equal(size_t{1});
+			expect(k.fakes.host.midi_feedback.calls.size()).to_equal(size_t{1});
+			if (k.fakes.host.midi_feedback.calls.size() == 1) {
+				const FeedbackCall& sent = k.fakes.host.midi_feedback.calls[0];
+				expect(sent.kind).to_equal(FeedbackCall::Kind::SEND);
+				expect(sent.cc).to_equal(kLpfFrequencyCc);
+				expect(sent.knob_pos).to_equal(int32_t{3});
+			}
+		});
+
+		it("sends nothing for a turn when MIDI follow's feedback is off", _ {
+			FakeKnobs k;
+			k.rig.knobs.turn(1, 1, 1000, k.out);
+			expect(k.fakes.host.controls_sink.param_writes.size()).to_equal(size_t{1});
+			expect(k.fakes.host.midi_feedback.calls.empty()).to_be_true();
+		});
+
+		it("sends every automated param's CC on a new mod region when the feedback automation row is on", _ {
+			FakeKnobs k;
+			k.fakes.host.midi_feedback.on = true;
+			(void)k.fakes.host.device.write(deluge::project::device_path::kFollowFeedbackAutomation,
+			                                std::to_underlying(deluge::project::FeedbackAutomation::LOW));
+			k.rig.knobs.set_mod_region();
+			expect(k.fakes.host.midi_feedback.calls.size()).to_equal(size_t{1});
+			if (k.fakes.host.midi_feedback.calls.size() == 1) {
+				expect(k.fakes.host.midi_feedback.calls[0].kind).to_equal(FeedbackCall::Kind::SEND_ALL);
+				expect(k.fakes.host.midi_feedback.calls[0].automation).to_be_true();
+			}
+		});
+
+		it("sends nothing on a new mod region when the feedback automation row is DISABLED", _ {
+			FakeKnobs k;
+			k.fakes.host.midi_feedback.on = true;
+			k.rig.knobs.set_mod_region();
+			expect(k.fakes.host.midi_feedback.calls.empty()).to_be_true();
+		});
+
+		it("grabs a held region's values on a stopped clip, and not while a clock runs", _ {
+			FakeKnobs stopped;
+			stopped.rig.knobs.set_mod_region(0, 96, 0);
+			expect(stopped.grabs()).to_equal(size_t{1});
+
+			FakeKnobs running;
+			running.fakes.host.transport.clocks = true;
+			running.rig.knobs.set_mod_region(0, 96, 0);
+			expect(running.grabs()).to_equal(size_t{0});
+		});
+
+		it("writes and sends nothing for a turn once the set is taken away", _ {
+			FakeKnobs k;
+			k.rig.knobs.set_ports(nullptr);
+			k.fakes.host.midi_feedback.on = true;
+			k.rig.knobs.turn(1, 1, 1000, k.out);
+			expect(k.fakes.host.controls_sink.param_writes.empty()).to_be_true();
+			expect(k.fakes.host.midi_feedback.calls.empty()).to_be_true();
+		});
 	});
 });
 // clang-format on

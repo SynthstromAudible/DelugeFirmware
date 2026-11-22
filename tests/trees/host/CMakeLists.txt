@@ -19,9 +19,8 @@ enable_testing()
 
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
-    add_test(NAME gfx_layer_check
-             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../../scripts/check_gfx_layer.py
-                     --root ${CMAKE_CURRENT_LIST_DIR}/../../../src/gfx)
+    add_test(NAME layers
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../../scripts/check_layers.py)
     add_test(NAME layer_rules
              COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../../scripts/check_layer_rules.py)
 endif ()

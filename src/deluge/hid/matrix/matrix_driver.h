@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "board_layout.hpp"
 #include "definitions_cxx.hpp"
-#include "model/sample/waveform_render_data.h"
 #include "pad.h"
 #include <cstdint>
 

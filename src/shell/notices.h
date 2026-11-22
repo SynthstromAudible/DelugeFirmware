@@ -21,9 +21,8 @@ namespace deluge::ui::shell {
 /// `NONE=0, GENERAL=1, LOADING=2, PROBABILITY=3, ITERANCE=4, FILL=5, SWING=6, TEMPO=7,
 /// QUANTIZE=8, THRESHOLD_RECORDING_MODE=9, NOTIFICATION=10`.
 ///
-/// `src/shell` may not include `hid/display` (the layer-rule ratchet's `ui-includes-outside`
-/// only exempts `board_surfaces.cpp` for libdeluge headers, and this is not that file), so the
-/// numbers are reproduced here rather than named from the real enum -- exactly as
+/// `src/shell` may not include `hid/display` (`scripts/layers.toml`'s `shell-includes-outside`
+/// rule), so the numbers are reproduced here rather than named from the real enum -- exactly as
 /// `shell::Action::popup_type` already documents doing for the same reason. `Notice::popup_type`
 /// (`notify/notice_queue.h`) is a bare `uint8_t` for the same boundary reason, and
 /// `notify_drain.cpp`'s `popup_type_of()` folds 0 ("unspecified") to `GENERAL`, never to `NONE` --

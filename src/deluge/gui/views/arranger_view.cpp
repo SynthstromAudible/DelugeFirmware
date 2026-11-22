@@ -63,6 +63,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/sample/sample.h"
 #include "model/sample/waveform_scan.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -1912,8 +1913,11 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
 			                                &xZoomSamples);
 
-			deluge::sample::find_peaks_per_col((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                   xZoomSamples, &((AudioClip*)clip)->renderData);
+			auto* const audio_clip = (AudioClip*)clip;
+			(void)deluge::sample::find_peaks_per_col(
+			    *static_cast<Sample*>(audio_clip->sampleHolder.audioFile),
+			    {.scroll = static_cast<int64_t>(xScrollSamples), .zoom = static_cast<int64_t>(xZoomSamples)},
+			    audio_clip->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}

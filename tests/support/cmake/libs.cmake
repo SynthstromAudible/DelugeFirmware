@@ -19,11 +19,13 @@ if(NOT DEFINED DELUGE_CXX_STANDARD)
   include(${DELUGE_REPO_ROOT}/cmake/deluge_common_options.cmake)
 endif()
 
-# The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the plugin
-# API and its types, the effects, the host chain's table, the Deluge instrument, the model and the controls. Each
-# is built with only the standalone libraries' include roots, so a hidden dependency on the app fails the tree's build.
+# The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the sample
+# view, the plugin API and its types, the effects, the host chain's table, the Deluge instrument, the model and the
+# controls. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app fails
+# the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/music-theory ${_deluge_libs}/music-theory EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/sample-view ${_deluge_libs}/sample-view EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api/types ${_deluge_libs}/plugin-api-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api ${_deluge_libs}/plugin-api EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL)

@@ -84,6 +84,7 @@
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -121,7 +122,7 @@ constexpr int32_t kVibratoCableId = static_cast<int32_t>(
 /// @brief Open a real `MenuScene` at `nodes::root_song` on the global guest's OWN scene stack --
 ///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
 ///
-/// `root_song` needs no clip (`context_for`'s second argument is `nullptr`), so this needs nothing
+/// `root_song` needs no clip (the view names none: `menuViewOf(nullptr)`), so this needs nothing
 /// from `spec::SongFixture` but the `Song&` itself -- unlike `sound_root`, which the spec fixture
 /// resolves a clip and instrument for.
 ///
@@ -129,9 +130,9 @@ constexpr int32_t kVibratoCableId = static_cast<int32_t>(
 /// on the guest's *scene* stack, not the guest on `uiNavigationHierarchy` -- the root UI for the one
 /// example that calls this is seated separately, with `setRootUILowLevel`.
 bool open_menu_on_global_guest(Song& song) {
-	const MenuContext ctx = menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false,
-	                                          /*session_or_arranger_root=*/true, /*session_view_root=*/true,
-	                                          /*kit_global_fx=*/false);
+	const MenuContext ctx = spec::ctx_of(song, deluge::gui::menuViewOf(nullptr), 0, false,
+	                                     /*session_or_arranger_root=*/true, /*session_view_root=*/true,
+	                                     /*kit_global_fx=*/false);
 	static const Node* const roots[] = {&nodes::root_song};
 	(void)menu::assign_node_ids(roots);
 	menu_scene().open(nodes::root_song, ctx);
@@ -200,8 +201,8 @@ struct RecordingNotePads {
 ///        stack entirely -- none of them asks `Scene::grid_pad_claim()` of these nodes.
 void open_menu_node(Song& song, InstrumentClip* clip, const Node& node) {
 	const MenuContext ctx =
-	    menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, /*session_or_arranger_root=*/false,
-	                      /*session_view_root=*/false, /*kit_global_fx=*/false);
+	    spec::ctx_of(song, deluge::gui::menuViewOf(clip), 0, false, /*session_or_arranger_root=*/false,
+	                 /*session_view_root=*/false, /*kit_global_fx=*/false);
 	menu_scene().open(node, ctx);
 }
 

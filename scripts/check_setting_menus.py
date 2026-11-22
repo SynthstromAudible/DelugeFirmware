@@ -216,7 +216,7 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
         "setChannel(-1)": "the channel search parks the instrument off every channel while it looks for a free one",
         "setChannel(oldChannel)": "and puts it back before the in-place re-channel, which is a SetSetting",
     },
-    "scenes/menu/nodes/sound_fx.cpp": {
+    "deluge/gui/ui/shell_host/edit_sink.cpp": {
         "reverbSidechainSettings.sync_type = type;": "the reverb sidechain's sync type is the "
         "engine's alone, with no row to write; its level is the song's record, written through SetSetting",
     },

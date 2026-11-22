@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Layer-rule ratchet enforcing the UI redesign's dependency direction.
+"""Symbol-rule ratchet enforcing the UI redesign's dependency direction.
 
-Each rule is (name, from_glob, kind, regex, spec). `kind` is "include" (match the include
-path) or "symbol" (match any source line). The baseline holds counts per (file, rule) and
-may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fails. For the rules in
-`SHRINK_ONLY_RULES`, `--update` refuses to raise a count too.
+Each rule is (name, from_glob, kind, regex, spec), and every kind is "symbol": the regex matches any source line
+that is not a comment or an #include. The include rules are scripts/layers.toml's, checked by
+scripts/check_layers.py. The baseline holds counts per (file, rule) and may only shrink: a PR that raises a count,
+or adds a new (file, rule) pair, fails.
 
   scripts/check_layer_rules.py            # check (exit 1 on regression)
   scripts/check_layer_rules.py --list     # print current counts
@@ -20,9 +20,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "scripts" / "layer_rules_baseline.txt"
-# Rules whose baseline `--update` may lower but never raise: a scene read outside `scenes/bind` is never an agreed
-# move, so the count only falls as the reads move behind `bind`.
-SHRINK_ONLY_RULES = ("scenes-reads-outside-bind",)
 SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
 
@@ -79,16 +76,13 @@ ROOT_UI_GLOBALS = (
 # above, and `Screensaver::settingsChanged` lives in `hid/display/screensaver.h`, which
 # `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
 # `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
-# `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
-# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s in
-# `menu/nodes/roots.cpp` (the stem-export block, `DELUGE_STEM_TOGGLE`) read and write `allowNormalization`,
-# `exportMixdown` and five more through one macro. So
-# `MenuAction::StartStemExport` is the one
-# verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
+# `processing/**` is on `scenes-includes-outside`' allow-list on purpose, so
+# `MenuAction::StartStemExport` is the one verb whose target the scenes layer could reach through an
+# allowed include. The export's seven options are DEVICE rows the host stores on `stemExport`, so the
+# menu reaches them through the device port, not the global.
 #
 # The split is `CATALOGUE_DISPATCH_CALLS`' split, for the same reason: the *settings* stay readable
-# and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's. A row on
-# the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
+# and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's.
 #
 # The other public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
 # `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT
@@ -102,23 +96,17 @@ STEM_EXPORT_PROCESS_CALLS = (
     "stopStemExportProcess",
     "abortStemExportProcess",
 )
-# The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
-# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global the source really declares.
-# Both were taken from their `extern` declarations, not from memory:
-# `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`) and
-# `extern WaveformBasicNavigator waveformBasicNavigator` (`gui/waveform/waveform_basic_navigator.h`).
+# The `scenes-no-legacy-waveform` row's alternative, named here for the same reason
+# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks it is a global the source really declares, from its
+# `extern` declaration: `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`).
 #
-# `gui/waveform/` is split in two: the *arithmetic* (peak scanning, the scroll/zoom
-# navigator) moved verbatim to `model/sample/waveform_scan.h` and
-# `model/sample/waveform_navigator.h`, where `src/scenes` may reach it, while the *drawing* stayed
-# behind in `gui/waveform/waveform_renderer.h`, which the scenes layer draws for itself through
-# `ui/grid/markers.h`. This row is what keeps the split split. It is a SYMBOL row for the same
-# reason `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a
-# regression would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
-LEGACY_WAVEFORM_GLOBALS = (
-    "waveformRenderer",
-    "waveformBasicNavigator",
-)
+# The waveform's arithmetic (columns, peaks, scroll and zoom) is `src/sample-view/`'s, and its scan is
+# `model/sample/waveform_scan.h`'s, both of which `src/scenes` may reach; the drawing into `PadLEDs`'
+# images stays in `gui/waveform/waveform_renderer.h`, which the scenes layer draws around through
+# `ui/grid/`. This row is what keeps the split split. It is a SYMBOL row for the same reason
+# `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a regression
+# would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
+LEGACY_WAVEFORM_GLOBALS = ("waveformRenderer",)
 # The `FileCatalogue` entry points that DISPATCH a listing -- they read the card, refill or
 # re-order the single shared `FileCatalogue::fileItems`, and so may only be called while the
 # catalogue's single-flight claim is held (`storage/file_catalogue.h`, `claim`/`release`). The
@@ -317,28 +305,6 @@ LEGACY_PORT_SEAMS = (
 
 RULES = [
     (
-        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link closures
-        # (`src/bsp/rust/build/device.rs`, `src/bsp/rust/build/host_app.rs`, `sim/CMakeLists.txt`), so the link does not
-        # stop a legacy file reaching into the scenes UI (`src/scenes`, `src/shell`, `src/ui`): this row does.
-        #
-        # The rule: the scenes UI enters the firmware
-        # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
-        # listed in `LEGACY_PORT_SEAMS` above. Everything else under `src/deluge/**` -- 1,000-odd
-        # files, `model/`, `storage/`, `playback/`, and the rest of `gui/` -- is held to zero, so
-        # the second legacy->port edge is a decision somebody writes into that list.
-        #
-        # `ui/`, `gfx/` and `notify/` are deliberately NOT in the pattern, and the reason is that
-        # they are other seams: `hid/display/screensaver.h` includes `ui/oled/rainfall.h` because
-        # `Rainfall`/`Starfield` live there, `gui/colour/rgb.h` re-exports `gfx/grid/rgb.h`, and
-        # `util/notify.h` is the notify channel's own legacy-side header. Widening this row over
-        # them would claim more than its mechanism.
-        "legacy-includes-port",
-        ("src/deluge/**", *LEGACY_PORT_SEAMS),
-        "include",
-        r"^(scenes/|shell/)",
-        "2026-08-26-ui-migration-design.md",
-    ),
-    (
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
         # a symbol row rather than an include row: the source routinely names a symbol through a
         # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
@@ -359,13 +325,6 @@ RULES = [
         "2026-08-26-ui-migration-design.md",
     ),
     (
-        "model-includes-ui",
-        NON_UI,
-        "include",
-        r"^(gui/(?!l10n/)|hid/)",
-        "2026-08-26-ui-notifications-design.md",
-    ),
-    (
         "model-calls-ui",
         NON_UI,
         "symbol",
@@ -383,44 +342,6 @@ RULES = [
         "2026-08-26-ui-notifications-design.md",
     ),
     (
-        "gfx-includes-outside",
-        "src/gfx/**",
-        "include",
-        r"^(?!gfx/).*/",
-        "2026-08-26-ui-stack-redesign-design.md",
-    ),
-    (
-        "notify-is-leaf",
-        "src/notify/**",
-        "include",
-        r"^(?!notify/).*/",
-        "2026-08-26-ui-notifications-design.md",
-    ),
-    (
-        # Slashed paths outside ui/ and gfx/ -- which is every project header except the handful
-        # named explicitly below (definitions*, board_config.h, board_layout.hpp): a std header
-        # (<cstdint>, <span>) has no slash and no such name, so it still never matches.
-        "ui-includes-outside",
-        "src/ui/**",
-        "include",
-        r"^(?!ui/|gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
-        "2026-08-26-ui-toolkit-design.md",
-    ),
-    (
-        "ui-oled-no-grid",
-        "src/ui/oled/**",
-        "include",
-        r"^ui/grid/",
-        "2026-08-26-ui-toolkit-design.md",
-    ),
-    (
-        "ui-grid-no-oled",
-        "src/ui/grid/**",
-        "include",
-        r"^ui/oled/",
-        "2026-08-26-ui-toolkit-design.md",
-    ),
-    (
         # The input-consumption contract (ui/core/frame_context.h): a widget reads input only
         # through its frame's accessors -- f.turn(), f.edit(0), f.select_pressed() -- so that
         # focus masking and input claims are not something a widget can forget to apply. Reaching
@@ -436,18 +357,6 @@ RULES = [
         "symbol",
         r"\binput\.(turn|edit|horizontal|vertical|select_pressed|back_pressed|shift|now_ms)\b",
         "2026-08-26-ui-toolkit-design.md",
-    ),
-    (
-        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/**,
-        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) and midi/** (the
-        # dependency-free MIDI protocol library, whose `midi::DeviceId` a MIDI `UiEvent` carries)
-        # may be included -- never model/, gui/, hid/, or the root headers (definitions*,
-        # board_config.h, board_layout.hpp) that would pull the model layer in by the back door.
-        "shell-includes-outside",
-        "src/shell/**",
-        "include",
-        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
-        "2026-08-26-ui-shell-design.md",
     ),
     (
         # The shell reads no wall clock of its own -- every tick and gate deadline is
@@ -468,101 +377,6 @@ RULES = [
         "symbol",
         r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
         "2026-08-26-ui-test-harness-design.md",
-    ),
-    (
-        # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
-        # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
-        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol library),
-        # and -- being the first UI layer allowed to reach into the model -- model/**,
-        # modulation/**, playback/**, processing/**, storage/**, gui/l10n/**, definitions_cxx.hpp.
-        # Never gui/ otherwise (gui/l10n/ is the sole exception), never hid/. `definitions_cxx.hpp`
-        # sits in the allow-list itself (not the trailing catch-all group, unlike
-        # shell-includes-outside's `definitions.*`, which shell must NOT reach): scenes is
-        # deliberately the first model-aware UI layer, so the header that pulls in `params::Kind`
-        # and friends is expected, not a back door.
-        #
-        # `io/**` is on the list on the argument made for `processing/**` below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
-        # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root needs it -- `midiEngine`
-        # (`io/midi/midi_engine.h`), `MIDIDeviceManager` (`io/midi/midi_device_manager.h`) and
-        # `MIDITranspose` (`io/midi/midi_transpose.h`) hold the state seven of the MIDI page's
-        # items edit, and there is no `model/` spelling of any of them.
-        #
-        # `processing/**` is on the list. It is not a widening of what
-        # "model-aware" means -- `check_layer_rules`'s own NON_UI glob above already counts
-        # `src/deluge/processing/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as
-        # `model/` -- it is where two of the types `MenuContext` is *defined* in terms
-        # of happen to live: `Sound` (`processing/sound/sound.h`) and `SourceResources`
-        # (`processing/sound/source_resources.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
-        # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
-        # the menu's context could not be written at all.
-        # NOTE: the pattern's `(?:.*/)` tail means this row only
-        # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
-        # `src/deluge/deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
-        # allowed. That is deliberate: dropping the tail would
-        # also flag every standard-library include, and this row has no way to tell `<cstdint>`
-        # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
-        # is the comment at the top of src/scenes/CMakeLists.txt, enforced by review.
-        # `effects/`, `instruments/`, `plugin-api/`, `serialization/` and `sequence/` hold the model's own
-        # words and values: an effect's or a sound's setting is written as a `serialization::Value` in the
-        # word `effects/words.h` or `instruments/deluge/words.h` spells, through `model/edits/setting_edit.h`,
-        # and a note's iterance is `sequence/iterance.h`. `synth/modulation/` is the patch cables' vocabulary
-        # (a cable's target, which a cable menu learns). None of them reaches a UI. `deluge-project/` is the
-        # model's records, which a menu node's binding reads and addresses (scenes/bind). `controls/` is what the
-        # gold knobs point at, as addresses into those records.
-        "scenes-includes-outside",
-        "src/scenes/**",
-        "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
-        "2026-08-26-ui-scenes-menus-design.md",
-    ),
-    (
-        # Narrower than the rule above: no scene reaches `model/model_stack.h`. The scenes address the model's
-        # records and act through the runtime facts and the write sink; an engine stack is the app's to build.
-        "scenes-model-stack-outside-context",
-        "src/scenes/**",
-        "include",
-        r"^model/model_stack\.h$",
-        "2026-08-26-ui-scenes-menus-design.md",
-    ),
-    (
-        # Mirrors ui-includes-outside/shell-includes-outside for the gui/hid split specifically:
-        # scenes-includes-outside above already forbids gui/ (except gui/l10n/) and hid/ wholesale,
-        # but names every other allowed directory explicitly rather than the two forbidden ones --
-        # this row restates the gui/hid half on its own so a reviewer scanning by rule name finds
-        # it without re-deriving the negation. This row needs no `except` field of its own.
-        "scenes-includes-gui",
-        "src/scenes/**",
-        "include",
-        r"^(gui/(?!l10n/)|hid/)",
-        "2026-08-26-ui-scenes-menus-design.md",
-    ),
-    (
-        # `modulation/automation/auto_param.h` reaches into the same machinery as `model_stack.h`, and no scene
-        # includes it either.
-        "scenes-model-stack",
-        "src/scenes/**",
-        "include",
-        r"^(model/model_stack\.h|modulation/automation/auto_param\.h)",
-        "2026-08-26-ui-scenes-menus-design.md",
-    ),
-    (
-        # A scene names no Edit: it hands a request to its menu's sink, which the app applies as the Edit, so the
-        # scenes build against the model's records and never reach the engine through an Edit's arguments.
-        "scenes-no-edits",
-        "src/scenes/**",
-        "include",
-        r"^model/edits/",
-        "2026-10-18-scenes-bind-to-model-design.md",
-    ),
-    (
-        # A scene reads the model and the runtime through `scenes/bind`'s readers. Every include from these six
-        # families outside `scenes/bind` counts, vocabulary headers included, so the count is the reads still to move
-        # behind `bind`. It may only fall (`SHRINK_ONLY_RULES`).
-        "scenes-reads-outside-bind",
-        ("src/scenes/**", "src/scenes/bind/**"),
-        "include",
-        r"^(model|modulation|io|processing|storage|playback)/",
-        "docs/dev/roadmap.md (UI read interface)",
     ),
     (
         # The gold knobs' focus is addresses (View::knobFocus()); a gesture resolves the owner's stack when it acts
@@ -706,7 +520,7 @@ RULES = [
         # `MenuState`, drained where `pending_scene` drains, and the application-side wiring
         # performs it. This row is what makes the seam necessary rather than merely tidy.
         #
-        # It must be a SYMBOL row, not an include row: `scenes-includes-gui` above already
+        # It must be a SYMBOL row, not an include row: `scenes-includes-gui` (scripts/layers.toml) already
         # forbids `#include "gui/ui/session_view.h"`, but this library routinely names a legacy
         # global through a bare `extern` declaration instead of its header (`extern uint32_t
         # jcong;`, `nodes/settings.cpp`) precisely because the include rule forbids the
@@ -939,6 +753,8 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
 ]
+# Every row is a symbol row: the include rows live in scripts/layers.toml, which scripts/check_layers.py checks.
+assert all(kind == "symbol" for _, _, kind, _, _ in RULES)
 
 # A class declaring itself a `shell::Service`, in any of the spellings the source uses:
 # `: public Service`, `: public deluge::ui::shell::Service`, and as the second base
@@ -946,11 +762,8 @@ RULES = [
 SERVICE_DECL_RE = re.compile(r"public\s+(?:\w+\s*::\s*)*Service\b")
 # The row `audit_service_scope` guards, and which files it is allowed not to cover.
 SERVICE_ROW = "services-no-oled-timer-claim"
-# Matches both #include "path" and #include <path>, capturing only the path (the delimiter
-# itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
-# are real layer violations and must count the same as the quoted spelling -- mirrors the
-# include regex in scripts/check_gfx_layer.py, which treats angle-bracket project includes
-# the same way.
+# Matches both #include "path" and #include <path>: a symbol row skips every include line, whichever
+# spelling it uses (`count_file`).
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
 
 
@@ -1014,10 +827,10 @@ def count_file(path: Path) -> dict[str, int]:
     directory name, not the coupling the row exists to forbid.
 
     It loses nothing, and that is checkable rather than argued. Every symbol row here is
-    scoped to a directory that an INCLUDE row already gates: `scenes-no-root-ui` and
+    scoped to a directory that an include rule in scripts/layers.toml already gates: `scenes-no-root-ui` and
     `scenes-no-legacy-waveform` cover `src/scenes/**`, where `scenes-includes-gui` already
     forbids `gui/` and `hid/` outright, so a real `#include "gui/ui/slicer.h"` still fails
-    the checker -- under the row that names the actual violation, with the actual spec. What
+    scripts/check_layers.py -- under the rule that names the actual violation, with the actual spec. What
     a symbol row uniquely catches is the spelling an include row cannot see: the bare
     `extern Slicer slicer;` a scene would write precisely BECAUSE the header is forbidden.
     That spelling is untouched by this skip.
@@ -1035,11 +848,7 @@ def count_file(path: Path) -> dict[str, int]:
         r = re.compile(rx)
         n = 0
         for line in text:
-            if kind == "include":
-                m = INCLUDE_RE.match(line)
-                if m and r.search(m.group(1)):
-                    n += 1
-            elif (
+            if (
                 r.search(line)
                 and not is_comment_line(line)
                 and not INCLUDE_RE.match(line)
@@ -1178,22 +987,6 @@ def main() -> int:
             print(f"{f}\t{r}\t{n}")
         return 0
     if a.update:
-        base = load_baseline()
-        grown = sorted(
-            (key, n)
-            for key, n in cur.items()
-            if key[1] in SHRINK_ONLY_RULES and n > base.get(key, 0)
-        )
-        for (f, r), n in grown:
-            print(
-                f"{f}: rule '{r}' count {n} > baseline {base.get((f, r), 0)}, which --update may not raise"
-            )
-        if grown:
-            print(
-                f"{len(grown)} shrink-only count(s) grew; baseline not written. Remove the new dependency.",
-                file=sys.stderr,
-            )
-            return 1
         BASELINE.write_text(
             "# Layer-rule baseline: file<TAB>rule<TAB>count. May only shrink.\n"
             + "".join(f"{f}\t{r}\t{n}\n" for (f, r), n in sorted(cur.items()))
@@ -1218,8 +1011,8 @@ def main() -> int:
             bad += 1
     if bad:
         print(
-            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move, and never "
-            "for a SHRINK_ONLY_RULES row) run --update.",
+            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move) run "
+            "--update.",
             file=sys.stderr,
         )
         return 1

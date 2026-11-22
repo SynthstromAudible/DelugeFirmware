@@ -12,7 +12,7 @@
 /// Why not the firmware's failure path: the app has `FREEZE_WITH_ERROR` (`foundation/panic.h` ->
 /// `display->freezeWithError()`), which parks the display with a code and is the right thing for
 /// an app-layer invariant. `src/gfx` is a leaf — it depends on nothing but the C/C++ standard
-/// library (enforced by `scripts/check_gfx_layer.py`), so `display` is not reachable from here and
+/// library (enforced by `scripts/check_layers.py`), so `display` is not reachable from here and
 /// making it reachable would invert the layering. A leaf library therefore cannot report; it can
 /// only stop.
 ///

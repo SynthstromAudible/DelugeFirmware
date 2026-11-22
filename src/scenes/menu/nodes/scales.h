@@ -9,7 +9,7 @@
 // clang-format off
 /// | node | legacy global | `ActiveScaleMenu::Kind` | the bitset it edits |
 /// |---|---|---|---|
-/// | `default_active_scale` | `defaultActiveScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `DEFAULT` | `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h`) |
+/// | `default_active_scale` | `defaultActiveScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `DEFAULT` | the device's `defaults/scales/disabled/<i>` rows (`FlashStorage::defaultDisabledPresetScales`) |
 /// | `active_scales` | `activeScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`Song::disabledPresetScales`) |
 // clang-format on
 ///
@@ -70,7 +70,8 @@ enum class ScaleSet : uint8_t {
 	/// `currentSong->disabledPresetScales` (`ActiveScaleMenu::isDisabled` in
 	/// `origin/main:src/deluge/gui/menu_item/active_scales.cpp`, `ActiveScaleMenu::setDisabled`).
 	Song,
-	/// `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h`).
+	/// The device's `defaults/scales/disabled/<i>` rows, through the context's device port; the host keeps them in
+	/// `FlashStorage::defaultDisabledPresetScales`.
 	Default,
 };
 

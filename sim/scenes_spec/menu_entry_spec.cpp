@@ -22,6 +22,7 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -87,6 +88,7 @@
 #include "support/card_access.h"
 #include "support/feature_setting.h"
 #include "support/printers/scene_printer.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 #include "support/ui_mode_guard.h"
 
@@ -102,6 +104,7 @@
 #include <optional>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 #include "unit/ui/support/frames.h"
 
@@ -304,8 +307,6 @@ void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Samp
 	range->sampleHolder.audioFile = sample;
 	range->sampleHolder.startPos = 0;
 	range->sampleHolder.endPos = sample->lengthInSamples;
-	range->sampleHolder.waveformViewZoom = 0;
-	range->sampleHolder.waveformViewScroll = 0;
 	deluge::bridge::recordLoadedSound(sound, *f.song);
 }
 
@@ -355,8 +356,7 @@ bool is_horizontal_page(const menu::Node* node) {
 
 bool openGuestOnPlayCommand(Song& song) {
 	(void)quiet_audio();
-	const menu::MenuContext ctx =
-	    menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+	const menu::MenuContext ctx = spec::ctx_of(song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 	const uint16_t arg = menu::node_id(nodes::midi_command_play);
 	if (arg == 0) {
 		return false;
@@ -474,11 +474,11 @@ describe menu_entry_roots("openMenu resolves the root each site's arguments name
 	it("a UI teardown empties the guest and forgets the song the menu was open on", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(entry::openMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().song).not_().to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).not_().to_be_null();
 		// A song load or a clear takes every UI down (`nullifyUIs`) before the song the menu was open on goes.
 		nullifyUIs();
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t{0});
-		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).to_be_null();
 		closeGuest();
 	});
 
@@ -490,9 +490,9 @@ describe menu_entry_roots("openMenu resolves the root each site's arguments name
 		expect(entry::openMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		shellHostUI.closeNow(); // the guest's own close, the clip view beneath
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().song).to_equal(f.song);
+		expect(deluge::scenes::menu_scene().menu_context().model).to_equal(&f.song->project);
 		nullifyUIs();
-		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).to_be_null();
 		entry::clearMenuKitGlobalFx();
 	});
 
@@ -667,10 +667,11 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 
 describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the menu on that pad's node", $ {
 	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it, focused on it
 		// (`maybeGetParentMenu` and `parent->focusChild`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7)).to_equal(&nodes::lpf_freq);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 8, 7)).to_equal(&nodes::lpf_freq);
 
 		expect(entry::openMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
@@ -683,8 +684,9 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("an odd column addresses source 1", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, false, 3, 2);
+		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 3, 2);
 		expect(node).not_().to_be_null();
 
 		expect(entry::openMenuAtShortcut(f.clip, 3, 2, false, false, false, false)).to_be_true();
@@ -695,25 +697,27 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("a cell with no shortcut opens nothing", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 15, 0)).to_be_null();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 15, 0)).to_be_null();
 
 		expect(entry::openMenuAtShortcut(f.clip, 15, 0, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
 	it("a node that does not apply opens nothing and says PARAMETER NOT APPLICABLE, as setup() does", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		// The first even-column pad whose node does not apply to this synth.
 		const menu::MenuContext ctx =
-		    menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		    spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		int32_t px = -1;
 		int32_t py = -1;
 		for (int32_t x = 0; x < 14 && px < 0; x += 2) {
 			for (int32_t y = 0; y < 8 && px < 0; y++) {
-				const menu::Node* n = menu::shortcut_node(menu::MenuContext::Root::Sound, false, static_cast<uint8_t>(x),
+				const menu::Node* n = menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, static_cast<uint8_t>(x),
 				                                          static_cast<uint8_t>(y));
 				if (n != nullptr && menu::node_id(*n) != 0 && !menu::shortcut_applies(*n, ctx)) {
 					px = x;
@@ -764,13 +768,14 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("Shift + (4,0) on a DX7 sound opens the DX7 parameter page alone, on the param it showed last", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::test::setOscType(*sound, 0, OscType::DX7);
 		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0)).to_equal(&nodes::modulator0_volume);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 4, 0)).to_equal(&nodes::modulator0_volume);
 
 		expect(entry::openMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_true();
 		expect(opened_on())
@@ -1925,6 +1930,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 
 	it("an audition pad and the sequence-direction pad open the note-row editor on PLAY DIRECTION from a closed menu", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `enterNoteRowEditor`.
 		deluge::gui::ui::wireShellNoteBridge();
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
@@ -1935,7 +1941,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		HeldAudition audition{2};
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 7)).to_equal(&nodes::sequence_direction);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 4, 7)).to_equal(&nodes::sequence_direction);
 
 		expect(entry::menuShortcutPadAction(4, 7, true)).to_equal(ActionResult::DEALT_WITH);
 		expect(getCurrentUI()).to_equal(&shellHostUI);
@@ -2009,13 +2015,14 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 
 	it("a range-dependent pad on a multisampled source opens the range picker first, as setup() does", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sourceResources[0].ranges.insertMultiRange(0);
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 2, 1)).to_equal(&nodes::source0_transpose);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 2, 1)).to_equal(&nodes::source0_transpose);
 
 		expect(entry::openMenuAtShortcut(f.clip, 2, 1, false, false, false, false)).to_be_true();
 		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::multi_range);

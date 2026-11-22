@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/fixed/tables/cent_adjust.h"
+#include "music-theory/note_names.h"
 #include "plugin-api/types/rate_tables.h"
 
 #include <array>
@@ -49,9 +50,29 @@ extern const int32_t noteIntervalTable[12];
 inline constexpr const auto& attackRateTable = deluge::plugin::kSidechainAttackRates;
 inline constexpr const auto& releaseRateTable = deluge::plugin::kSidechainReleaseRates;
 
-extern const uint8_t noteCodeToNoteLetter[];
-extern const uint8_t noteCodeToNoteLetterFlats[];
-extern const bool noteCodeIsSharp[];
+// The note-name tables are music-theory's (music-theory/note_names.h), laid out by pitch class under the names the
+// app's callers index.
+inline constexpr std::array<char, 12> noteCodeToNoteLetter = [] {
+	std::array<char, 12> letters{};
+	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
+		letters[pitchClass] = deluge::music::note_letter(pitchClass, true);
+	}
+	return letters;
+}();
+inline constexpr std::array<char, 12> noteCodeToNoteLetterFlats = [] {
+	std::array<char, 12> letters{};
+	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
+		letters[pitchClass] = deluge::music::note_letter(pitchClass, false);
+	}
+	return letters;
+}();
+inline constexpr std::array<bool, 12> noteCodeIsSharp = [] {
+	std::array<bool, 12> black{};
+	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
+		black[pitchClass] = deluge::music::is_accidental(pitchClass);
+	}
+	return black;
+}();
 
 // iterancePresets -> util/lookuptables/preset_tables.h (needs Iterance)
 

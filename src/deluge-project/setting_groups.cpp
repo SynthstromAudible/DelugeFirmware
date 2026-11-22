@@ -2,6 +2,7 @@
 
 #include "deluge-project/arp_record.h"
 #include "deluge-project/audio_input.h"
+#include "deluge-project/device_settings.h"
 
 #include "deluge-project/fraction.h"
 #include "deluge-project/midi_command.h"
@@ -880,6 +881,8 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return plugin::kArpRows;
 	case SettingGroupId::SOUND_ROUTING:
 		return kSoundRoutingTable;
+	case SettingGroupId::DEVICE:
+		return device_table();
 	}
 	return {};
 }
@@ -951,6 +954,8 @@ std::optional<Value> read_setting(const Song& song, const SettingAddress& addres
 		const SoundRouting* routing = routing_of(song, address.owner);
 		return routing != nullptr ? read_routing(*routing, path) : std::nullopt;
 	}
+	case SettingGroupId::DEVICE:
+		return std::nullopt; // the device's own settings: no song holds them
 	}
 	return std::nullopt;
 }
@@ -1057,6 +1062,8 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 		SoundRouting* routing = routing_of(song, address.owner);
 		return routing != nullptr && write_routing_setting(*routing, path, value);
 	}
+	case SettingGroupId::DEVICE:
+		return false; // the device's own settings: no song holds them
 	}
 	return false;
 }

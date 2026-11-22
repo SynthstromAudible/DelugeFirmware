@@ -40,6 +40,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 namespace params = deluge::modulation::params;
@@ -117,8 +118,8 @@ struct Rig {
 
 	/// Open the menu at @p root, over the automation view.
 	void open(const Node& root) {
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                               /*kit_global_fx=*/false);
 		ctx.root_is_automation = true;
 		ctx.root_greyout = MenuContext::RootGreyout::SpareSidebar;
 		(void)menu::assign_node_ids(nodes::kAllRoots);

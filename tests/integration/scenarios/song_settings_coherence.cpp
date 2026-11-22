@@ -59,6 +59,8 @@ const char* groupName(SettingGroupId group) {
 		return "LANE_ARP";
 	case SettingGroupId::SOUND_ROUTING:
 		return "SOUND_ROUTING";
+	case SettingGroupId::DEVICE:
+		return "DEVICE";
 	}
 	return "?";
 }

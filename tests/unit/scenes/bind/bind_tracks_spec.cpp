@@ -1,8 +1,11 @@
 #include "scenes/bind/ports/track_facts.h"
 
+#include "deluge-project/track_kind.h"
+
 #include <cppspec.hpp>
 
 using namespace deluge::scenes::bind;
+using deluge::project::TrackKind;
 
 // clang-format off
 describe bind_tracks("which tracks an audio track may record from", ${

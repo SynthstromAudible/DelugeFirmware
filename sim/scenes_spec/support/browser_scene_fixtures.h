@@ -31,6 +31,7 @@
 #include "support/browser_host_fake.h"
 #include "support/card_access.h"
 
+#include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
 
 #include <cstdint>
@@ -361,13 +362,13 @@ struct Rig {
 };
 
 inline MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 inline MenuContext context_of(spec::AudioSongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 /// @brief One run's answer: the four navigation numbers, the text, and the panel.

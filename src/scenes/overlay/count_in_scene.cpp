@@ -5,8 +5,6 @@
 
 #include "ui/oled/popup.h"
 
-#include "playback/playback_handler.h"
-
 #include <algorithm>
 #include <cstdio>
 
@@ -18,7 +16,7 @@ using deluge::ui::shell::SurfaceRole;
 
 void CountInScene::tick(uint32_t /*dt_ms*/) {
 	// `drain_notifications` (`notify_drain.cpp`): the fact this scene polls for, and its edge-detector.
-	const int32_t count = playbackHandler.count_in_visual();
+	const int32_t count = transport_ != nullptr ? transport_->count_in_visual() : 0;
 	if (count == shown_count_) {
 		return;
 	}

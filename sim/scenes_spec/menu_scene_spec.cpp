@@ -11,6 +11,7 @@
 /// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
 ///       `bindings_spec.cpp` runs under.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/l10n_bridge.h"
@@ -46,6 +47,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -65,6 +67,7 @@
 #include <span>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -403,8 +406,8 @@ struct Rig {
 
 	/// @brief Resolve a `MenuContext` from the fixture's synth clip and open @p root on it.
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -779,7 +782,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `gate_selection` lives there,
 		                                               // not in this file's synthetic `settings_root`.
 		menu_scene().open(nodes::gate_selection, ctx);
@@ -844,7 +847,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree, not this file's synthetic one
 		menu_scene().open(nodes::runtime_features, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::runtime_features)});
@@ -1176,7 +1179,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `cv_selection` lives there
 		menu_scene().open(nodes::cv_selection, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::cv_selection)});
@@ -1554,6 +1557,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a pad whose node does not apply stays put and says PARAMETER NOT APPLICABLE", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::setup`: `checkPermissionToBeginSession` answers NO, it shows the popup and
 		// opens nothing.
 		select_language();
@@ -1566,7 +1570,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		uint8_t py = 255;
 		for (uint8_t x = 0; x < 14 && px == 255; x++) {
 			for (uint8_t y = 0; y < 8 && px == 255; y++) {
-				const Node* n = menu::shortcut_node(menu_scene().menu_context().root, false, x, y);
+				const Node* n = menu::shortcut_node(menu_scene().menu_context().root, deluge::project::ShortcutsVersion::V3, false, x, y);
 				if (n != nullptr && !menu::shortcut_applies(*n, menu_scene().menu_context())) {
 					px = x;
 					py = y;
@@ -1648,6 +1652,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a range-dependent jump on a multisampled source lands, after the range pick, on the page", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `setup()` puts the picker first (MUST_SELECT_RANGE); the picker's select answers the item, and
 		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it
 		// (`maybeGetParentMenu`, `focusChild`, then `enterSubmenu`).
@@ -1660,7 +1665,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
-		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, false, 2, 1);
+		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, deluge::project::ShortcutsVersion::V3, false, 2, 1);
 		expect(target).to_equal(&nodes::source0_transpose);
 
 		r.button(kShiftX, kShiftY, true, 10);
@@ -2294,7 +2299,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::ui::shell::SceneState saved{};
 		menu_scene().save_state(saved);
 
-		menu_scene().open(settings_root, menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false));
+		menu_scene().open(settings_root, spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false));
 		expect(depth_of()).to_equal(0);
 
 		menu_scene().restore_state(saved);
@@ -3003,6 +3008,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("flashes no pad for the name editors and the sample-marker editors", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::updatePadLightsFor` sets no shortcut blink
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
@@ -3011,7 +3017,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			Rig r;
 			(void)r.open(*node);
 			expect(menu_scene().focused()).to_equal(node);
-			expect(menu::shortcut_pos(MenuContext::Root::Sound, *node).valid).to_be_true();
+			expect(menu::shortcut_pos(MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, *node).valid).to_be_true();
 			expect(menu_scene().next_timer().has_value()).to_be_false();
 
 			for (const uint32_t offset : {uint32_t{0}, uint32_t{menu::kSourceBlinkMs}, uint32_t{100},

@@ -17,6 +17,7 @@
 #include "io/midi/midi_device.h"
 #include "model/song/song.h"
 
+#include "support/menu_context.h"
 #include "support/song_fixture.h"
 
 #include <cstddef>
@@ -126,7 +127,7 @@ inline Fixture& fixture() {
 		k.b = std::make_unique<SpecCable>("CABLE B");
 		// The settings root's own context: no clip, not a session root. `context_for` never assigns `midi_device` --
 		// the device list publishes it -- so each example sets it, as `MenuScene::after_render` would.
-		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		k.ctx = spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		return k;
 	}();
 	return f;

@@ -16,6 +16,7 @@
  */
 
 #include "hid/led/pad_leds.h"
+#include "board_config.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
@@ -38,9 +39,9 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
-#include "model/sample/waveform_render_data.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "sample-view/peaks.h"
 
 #include <algorithm>
 #include <cstring>
@@ -104,7 +105,9 @@ int32_t explodeAnimationXWidthBig;
 int32_t sampleValueCentrePoint;
 int32_t sampleValueSpan;
 int32_t sampleMaxPeakFromZero;
-WaveformRenderData waveformRenderData;
+// UI-transition state only, never read by the audio tier: SDRAM's zeroed bss holds it (an empty PeakRead is all zero
+// bits, every column PENDING).
+PLACE_SDRAM_BSS deluge::sample_view::PeakRead waveformColumns;
 RGB audioClipColour;
 bool sampleReversed;
 
@@ -549,7 +552,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 		sampleMaxPeakFromZero = 1;
 		sampleValueCentrePoint = 0;
 		sampleValueSpan = 1;
-		waveformRenderData = clip->renderData;
+		waveformColumns = clip->renderData.columns();
 		return;
 	}
 
@@ -557,7 +560,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	sampleValueCentrePoint = sample->getFoundValueCentrePoint();
 	sampleValueSpan = sample->getValueSpan();
 
-	waveformRenderData = clip->renderData;
+	waveformColumns = clip->renderData.columns();
 }
 
 void renderAudioClipCollapseAnimation(int32_t progress) {
@@ -572,7 +575,7 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 
 	for (int32_t col = 0; col < xEnd; col++) {
 		waveformRenderer.renderOneColForCollapseAnimation(col, col, sampleMaxPeakFromZero, progress, PadLEDs::image,
-		                                                  &waveformRenderData, audioClipColour, sampleReversed,
+		                                                  waveformColumns, audioClipColour, sampleReversed,
 		                                                  sampleValueCentrePoint, sampleValueSpan);
 	}
 
@@ -651,7 +654,7 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		int32_t xDest = xDestSquareRightEdge - 1;
 		waveformRenderer.renderOneColForCollapseAnimationZoomedOut(
 		    xSourceLeftEdgeLimited, xSourceRightEdgeLimited, xDest, sampleMaxPeakFromZero, explodedness, PadLEDs::image,
-		    &waveformRenderData, audioClipColour, sampleReversed, sampleValueCentrePoint, sampleValueSpan);
+		    waveformColumns, audioClipColour, sampleReversed, sampleValueCentrePoint, sampleValueSpan);
 
 		if (xSourceRightEdge >= kDisplayWidth) {
 			break; // If we got to the right edge of everything we want to draw onscreen

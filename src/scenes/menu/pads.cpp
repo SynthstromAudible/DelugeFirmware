@@ -146,14 +146,15 @@ std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, Valu
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	const uint8_t sx = x - (kShortcutCols - 2);
-	PatchSource source = patching::mod_source_shortcut(sx, y, false);
+	const project::ShortcutsVersion version = shortcuts_version(ctx);
+	PatchSource source = patching::mod_source_shortcut(version, sx, y, false);
 	// A second press on the source a patch-cable page edits (its pad blinks white every cycle) takes the pad's second
 	// layer, ENV3 for ENV1 (`SoundEditor::potentialShortcutPadAction` in
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	const SourceBlink& blink = st.blink_plan.sources[sx][y];
 	if (blink.freq_mask == 0 && blink.colour != deluge::ui::grid::FlashColour::Yellow
 	    && is_patch_cable_item(focused_value(ctx, st))) {
-		if (const PatchSource second = patching::mod_source_shortcut(sx, y, true);
+		if (const PatchSource second = patching::mod_source_shortcut(version, sx, y, true);
 		    second != PatchSource::NOT_AVAILABLE) {
 			source = second;
 		}
@@ -227,7 +228,8 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		    sound_arm && (!is_patching_source_pad(event.x, event.y) || is_randomizer_pad(event.x, event.y));
 		if (toggles_layer) {
 			const Node* current = pad_subject(ctx, st);
-			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx.root, *current) : ShortcutPos{};
+			const ShortcutPos here =
+			    current != nullptr ? shortcut_pos(ctx.root, shortcuts_version(ctx), *current) : ShortcutPos{};
 			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
 			// `getCurrentMenuItem()->getParamKind()`: on a horizontal page that is the focused
 			// column's own when it is not a submenu (`Submenu::getParamKind`, `shouldForwardButtons`),
@@ -236,7 +238,8 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 			st.second_layer = (same_pad && !is_patch_cable_item(value)) ? !st.second_layer : false;
 		}
 
-		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
+		const Node* target =
+		    shortcut_node(ctx.root, shortcuts_version(ctx), toggles_layer && st.second_layer, event.x, event.y);
 		// A `comingSoonMenu` cell pops its message ahead of every other check (`potentialShortcutPadAction`).
 		if (target == nullptr && shortcut_coming_soon(ctx.root, event.x, event.y)) {
 			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));

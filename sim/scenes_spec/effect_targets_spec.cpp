@@ -25,6 +25,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <string>
@@ -80,7 +81,7 @@ ChainAddress output_chain(Output& output) {
 describe effect_targets("an effect target's write reaches the owner its menu names", ${
 	it("writes a synth's own effects by its slot", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.addresses.slot.has_value()).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_false();
 		const FilterMode master = lpf_of(f.song->live.master_channel);
@@ -93,7 +94,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		auto* kit = static_cast<Kit*>(f.instrument);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.addresses.slot.has_value()).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_false();
 		const FilterMode chain = lpf_of(*deluge::bridge::chainSlotAt(output_chain(*kit), *f.song));
@@ -106,7 +107,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		auto* kit = static_cast<Kit*>(f.instrument);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain).to_equal(std::optional{output_chain(*kit)});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::KIT);
@@ -120,7 +121,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 
 	it("writes an audio track's chain", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.addresses.chain).to_equal(std::optional{output_chain(*f.output)});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::AUDIO_TRACK);
 		write_notch(ctx);
@@ -131,7 +132,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 
 	it("writes the master's chain from the song root", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		expect(ctx.addresses.chain).to_equal(std::optional{ChainAddress{.kind = ChainAddress::Kind::SONG}});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::SONG);
 		const FilterMode synth = lpf_of(*static_cast<SoundInstrument*>(f.instrument));
@@ -144,9 +145,9 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 	it("edits the master from performance view, entered as production enters it", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		// performance_view.cpp's openMenu: no clip, performance view, not a session or arranger root.
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
 		expect(ctx.root).to_equal(MenuContext::Root::Performance);
-		expect(deluge::scenes::spec::menu_engine(ctx).mod)
+		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod)
 		    .to_equal(static_cast<ModControllable*>(&f.song->live.master_channel));
 		expect(ctx.addresses.chain).to_equal(std::optional{ChainAddress{.kind = ChainAddress::Kind::SONG}});
 		write_notch(ctx);
@@ -156,8 +157,8 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 	it("recomputes the reverb after a sidechain timing write on any owner, and not after a filter write", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext row = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const MenuContext kit = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
+		const MenuContext row = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext kit = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = false;
 		write(row, "sidechain/attack", 20);
 		expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender).to_be_true();

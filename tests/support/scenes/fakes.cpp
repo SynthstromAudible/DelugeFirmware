@@ -1,5 +1,13 @@
 #include "fakes.h"
 
+#include "deluge-project/device_settings.h"
+
+#include <algorithm>
+#include <array>
+#include <optional>
+#include <string>
+#include <tuple>
+
 namespace deluge::scenes::bind::test {
 
 uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
@@ -210,6 +218,63 @@ bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, mid
 	return accept;
 }
 
+namespace {
+
+/// @brief Keep @p binding in @p kept under @p key, or forget @p key for nullopt; a binding naming a device @p devices
+///        does not know keeps nothing.
+template <typename Key>
+void keep(const FakeMidiDevices& devices, std::map<Key, LearnedBinding>& kept, Key key,
+          const std::optional<LearnedBinding>& binding) {
+	if (!binding) {
+		kept.erase(key);
+		return;
+	}
+	if (binding->device && !devices.settings(*binding->device)) {
+		return;
+	}
+	kept.insert_or_assign(key, *binding);
+}
+
+} // namespace
+
+void RecordingLearnSink::learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_GLOBAL, .global = command, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->globals, command, binding);
+	}
+}
+
+void RecordingLearnSink::learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_FOLLOW, .follow = input, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->follows, input, binding);
+	}
+}
+
+FakeDeviceSettings::FakeDeviceSettings() {
+	for (const plugin::SettingInfo& row : project::device_table()) {
+		std::array<char, 12> digits{};
+		const std::optional<std::string_view> text = plugin::stored_text(row, row.default_value, digits);
+		values.emplace(std::string{row.path}, row.kind == plugin::SettingKind::CHOICE && text
+		                                          ? serialization::Value::makeScalar(std::string{*text})
+		                                          : serialization::Value::makeNumber(row.default_value));
+	}
+}
+
+serialization::Value FakeDeviceSettings::load(const plugin::SettingInfo& row) const {
+	const auto found = values.find(row.path);
+	return found != values.end() ? found->second : serialization::Value::makeNumber(row.default_value);
+}
+
+DeviceWrite FakeDeviceSettings::store(const plugin::SettingInfo& row, const serialization::Value& value) {
+	stores.emplace_back(std::string{row.path}, value);
+	if (refuse.contains(row.path)) {
+		return DeviceWrite::REFUSED;
+	}
+	values.insert_or_assign(std::string{row.path}, value);
+	return accept_restart.contains(row.path) ? DeviceWrite::STORED_FOR_RESTART : DeviceWrite::STORED;
+}
+
 std::string_view FakeMidiDevices::name(midi::DeviceId device) const {
 	const auto at = names.find(device.value);
 	return at != names.end() ? std::string_view{at->second} : std::string_view{};
@@ -220,6 +285,11 @@ std::optional<MidiDeviceSettings> FakeMidiDevices::settings(midi::DeviceId devic
 	return at != kept.end() ? std::optional{at->second} : std::nullopt;
 }
 
+std::optional<project::MidiDeviceRef> FakeMidiDevices::reference(midi::DeviceId device) const {
+	const auto at = refs.find(device.value);
+	return at != refs.end() ? std::optional{at->second} : std::nullopt;
+}
+
 bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& settings) {
 	writes.emplace_back(device, settings);
 	const auto at = kept.find(device.value);
@@ -228,6 +298,44 @@ bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& set
 	}
 	at->second = settings;
 	return true;
+}
+
+std::optional<LearnedBinding> FakeMidiDevices::global_command(project::GlobalCommand command) const {
+	const auto at = globals.find(command);
+	return at != globals.end() ? std::optional{at->second} : std::nullopt;
+}
+
+std::optional<LearnedBinding> FakeMidiDevices::follow_input(project::FollowInput input) const {
+	const auto at = follows.find(input);
+	return at != follows.end() ? std::optional{at->second} : std::nullopt;
+}
+
+void FakeMidiDevices::connect(midi::DeviceId device, std::string_view device_name) {
+	list.push_back(device);
+	names.insert_or_assign(device.value, std::string{device_name});
+	kept.insert_or_assign(device.value, MidiDeviceSettings{});
+	refs.insert_or_assign(device.value, project::MidiDeviceRef{.port = project::MidiDeviceRef::Port::HOSTED,
+	                                                           .name = std::string{device_name}});
+}
+
+std::optional<uint8_t> RecordingMidiFeedback::cc_of(project::OwnerPlugin owner, project::ParamTarget target) const {
+	const auto at = std::ranges::find_if(
+	    ccs, [&](const auto& entry) { return std::get<0>(entry) == owner && std::get<1>(entry) == target; });
+	return at != ccs.end() ? std::optional{std::get<2>(*at)} : std::nullopt;
+}
+
+void RecordingTransportActions::play() {
+	calls.push_back({.kind = Call::Kind::PLAY});
+	if (transport != nullptr) {
+		transport->is_playing = !transport->is_playing;
+	}
+}
+
+void RecordingTransportActions::toggle_metronome() {
+	calls.push_back({.kind = Call::Kind::TOGGLE_METRONOME});
+	if (transport != nullptr) {
+		transport->metronome = !transport->metronome;
+	}
 }
 
 bool RecordingWrites::write(const WriteRequest& request) {
@@ -242,11 +350,22 @@ bool RecordingWrites::delete_automation(const project::ParamAddress& address) {
 
 bool RecordingWrites::write_text(const Target& target, const Addresses& where, std::string_view text) {
 	gestures.push_back({.kind = Gesture::Kind::TEXT, .target = target, .where = where, .text = std::string{text}});
+	if (order != nullptr) {
+		order->push_back("name");
+	}
 	return accept;
 }
 
 void RecordingWrites::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = Gesture::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
+}
+
+void RecordingWrites::set_song_threshold_recording(int32_t mode) {
+	gestures.push_back({.kind = Gesture::Kind::THRESHOLD_RECORDING, .value = mode});
+}
+
+void RecordingWrites::set_reverb_sidechain_sync_type(plugin::SyncType type) {
+	gestures.push_back({.kind = Gesture::Kind::SIDECHAIN_SYNC_TYPE, .value = std::to_underlying(type)});
 }
 
 bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,
@@ -322,6 +441,85 @@ bool RecordingControlsSink::delete_knob_automation(const project::ParamAddress& 
 bool RecordingControlsSink::instrument_edited(const KnobFocus& focus) {
 	gestures.push_back({.kind = Gesture::Kind::INSTRUMENT_EDITED, .focus = focus});
 	return accept;
+}
+
+namespace {
+
+/// @brief The first entry of @p waveforms at @p address, or null.
+template <typename Entries>
+auto* entry_at(Entries& waveforms, const WaveformAddress& address) {
+	const auto found = std::ranges::find(waveforms, address, &FakeWaveforms::Entry::at);
+	return found != waveforms.end() ? &*found : nullptr;
+}
+
+} // namespace
+
+std::optional<WaveformInfo> FakeWaveforms::info(const WaveformAddress& address) const {
+	const Entry* entry = entry_at(waveforms, address);
+	return entry != nullptr ? std::optional{entry->info} : std::nullopt;
+}
+
+sample_view::PeakRead FakeWaveforms::peaks(const WaveformAddress& address, sample_view::Window at) const {
+	reads.push_back({.at = address, .in = at});
+	Entry* entry = entry_at(waveforms, address);
+	if (entry == nullptr) {
+		return sample_view::PeakRead::all_past_end();
+	}
+	const bool pending_now = entry->pending_reads > 0;
+	if (pending_now) {
+		entry->pending_reads--;
+	}
+	const auto length = static_cast<int64_t>(entry->info.length_samples);
+	// A take's columns end by its captured frames; a finished file's start before its length.
+	const auto captured = static_cast<int64_t>(entry->captured.value_or(entry->info.length_samples));
+	sample_view::PeakRead read;
+	for (int32_t c = 0; c < sample_view::kColumns; c++) {
+		const int64_t start = at.scroll + int64_t{c} * at.zoom;
+		const bool past = entry->info.recording ? start + at.zoom > captured : start >= length;
+		if (at.zoom < 1 || past || start + at.zoom <= 0) {
+			read.set(c, sample_view::ColumnRead::past_end());
+		}
+		else if (pending_now && entry->pending.test(static_cast<size_t>(c))) {
+			read.set(c, sample_view::ColumnRead::pending());
+		}
+		else {
+			read.set(c, sample_view::ColumnRead::of(entry->peaks[static_cast<size_t>(c)]));
+		}
+	}
+	return read;
+}
+
+std::optional<int64_t> FakeWaveforms::play_position(const WaveformAddress& address) const {
+	const Entry* entry = entry_at(waveforms, address);
+	return entry != nullptr ? entry->position : std::nullopt;
+}
+
+bool RecordingTakeActions::begin(TakeChannels c) {
+	calls.push_back(Kind::BEGIN);
+	channels = c;
+	if (order != nullptr) {
+		order->push_back("begin");
+	}
+	if (begins && audio != nullptr) {
+		audio->take = InputTake{.channels = static_cast<uint8_t>(c)};
+	}
+	return begins;
+}
+
+void RecordingTakeActions::finish() {
+	calls.push_back(Kind::FINISH);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
+}
+
+void RecordingTakeActions::orphan() {
+	calls.push_back(Kind::ORPHAN);
+	if (audio != nullptr) {
+		audio->take.reset();
+		audio->take_path.reset();
+	}
 }
 
 } // namespace deluge::scenes::bind::test

@@ -23,9 +23,9 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
-#include "model/sample/waveform_render_data.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
+#include "sample-view/peak_cache.h"
 #include "util/c_string.h"
 #include <atomic>
 
@@ -128,7 +128,7 @@ public:
 
 	std::string outputNameWhileLoading{}; // Only valid while loading
 
-	WaveformRenderData renderData;
+	deluge::sample_view::PeakCache renderData;
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
 	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
 	                          // SampleRecorder itself will usually persist slightly longer

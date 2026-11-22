@@ -129,7 +129,7 @@ constexpr std::array kUnheldRows{
 constexpr SettingInfo kMode{.path = "mode", .kind = SettingKind::CHOICE, .choices = kTypes};
 constexpr SettingInfo kName{.path = "name", .kind = SettingKind::TEXT};
 constexpr std::array<int32_t, 1> kPastChoices{12};
-constexpr std::array<int32_t, 1> kNotAnOwner{5};
+constexpr std::array<int32_t, 1> kNotAnOwner{deluge::plugin::kOwnerCount}; // one past the last Owner
 constexpr std::array<int32_t, 1> kNotABool{2};
 constexpr std::array<int32_t, 1> kSomeValue{1};
 
@@ -470,6 +470,7 @@ describe setting_condition("A setting's applicability as data", $ {
 			return context_is_coherent({.owner = owner, .instrument = instrument});
 		};
 		expect(coherent(Owner::SONG, Instrument::NONE)).to_be_true();
+		expect(coherent(Owner::DEVICE, Instrument::NONE)).to_be_true();
 		expect(coherent(Owner::TRACK, Instrument::SYNTH)).to_be_true();
 		expect(coherent(Owner::TRACK, Instrument::AUDIO)).to_be_true();
 		expect(coherent(Owner::CLIP, Instrument::KIT)).to_be_true();
@@ -481,6 +482,8 @@ describe setting_condition("A setting's applicability as data", $ {
 		expect(coherent(Owner::TRACK, Instrument::NONE)).to_be_false();
 		expect(coherent(Owner::CLIP, Instrument::NONE)).to_be_false();
 		expect(coherent(Owner::SONG, Instrument::SYNTH)).to_be_false();
+		expect(coherent(Owner::DEVICE, Instrument::SYNTH)).to_be_false();
+		expect(coherent(Owner::DEVICE, Instrument::KIT)).to_be_false();
 		expect(coherent(Owner::KIT, Instrument::SOUND_DRUM)).to_be_false();
 		expect(coherent(Owner::KIT_LANE, Instrument::SYNTH)).to_be_false();
 		expect(coherent(Owner::TRACK, Instrument::MIDI_DRUM)).to_be_false();

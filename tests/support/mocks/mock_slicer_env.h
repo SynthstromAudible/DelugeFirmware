@@ -41,6 +41,8 @@
 /// returns a plausible-but-inert value (`nullptr`, `Error::NONE`) is still only inert: a spec that
 /// drives a path THROUGH one has to give it real behaviour, exactly as the collaborators above
 /// were given theirs.
+class Sample;
+
 namespace deluge::test {
 
 /// How a tick of the async sample load answers.
@@ -49,6 +51,9 @@ enum class LoadAnswer : uint8_t {
 	Loaded,  ///< Loaded: the holder is bound to the mock sample.
 	Stalled, ///< Failed, `AsyncSampleLoad::Reason::Stalled`: nothing more will arrive.
 };
+
+/// The mock sample the slicer is open on: the sample the specs audition, set by `resetSlicerEnv()`.
+extern Sample* g_preview_sample;
 
 /// How every `AsyncSampleLoad::tick()` answers, until a spec changes it. The only seam between the audition and the
 /// card: the core's `LatestSampleLoad` ticks a load of one holder, and this decides what that tick finds.

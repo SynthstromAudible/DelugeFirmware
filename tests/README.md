@@ -145,7 +145,7 @@ builds only `golden-vt-render`.
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
+| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, sample-view, serialization, plugin-api, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
@@ -191,7 +191,7 @@ builds only `golden-vt-render`.
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
-| library-boundary-selftest | unit | script | unit | gate | each standalone library's boundary check rejects every way an undeclared header could slip in | pr | tooling | ~1s |
+| layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
 | registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes (golden data only under tests/golden), the SDRAM packer's format, and three source checkers | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
@@ -201,8 +201,10 @@ builds only `golden-vt-render`.
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
 | device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
 | ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
+| x86-parity-tool | unit | script | unit | gate | x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on | pr | tooling | ~1s |
 | deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | pr | tooling | ~1s |
 | ui-parity | integration | script | differential | investigative | the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name | manual | tooling | ~20m |
+| x86-parity | integration | script | differential | gate | every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on | manual | tooling | ~1m |
 | ui-parity-card | integration | script | differential | investigative | the content-card parity scripts show the same panels on this image as on main's, in delugemu | manual | tooling | ~5m |
 | ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | manual | tooling | ~90s |
 | ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | manual | tooling | ~3m |

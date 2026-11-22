@@ -37,20 +37,9 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp" // ThresholdRecordingMode
 #include "deluge-project/song.h"
-#include "model/clip/audio_clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/instrument.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/output.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_holder.h"
-#include "model/song/song.h"
 #include "notify/dirty_set.h"
 #include "plugin-api/types/display_mapping.h"
-#include "processing/stem_export/stem_export.h"
 
 namespace deluge::scenes::menu::nodes {
 
@@ -84,39 +73,14 @@ void set_swing_interval(const MenuContext& ctx, int32_t value) {
 int32_t get_song_threshold_recording(const MenuContext& ctx) {
 	// `record::ThresholdMode::readCurrentValue`'s SONG arm
 	// (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`).
-	return ctx.song != nullptr ? static_cast<int32_t>(ctx.song->thresholdRecordingMode) : 0;
+	return ctx.ports.audio != nullptr ? ctx.ports.audio->song_threshold_recording() : 0;
 }
 void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
-	if (ctx.song != nullptr) { // `ThresholdMode::writeCurrentValue`
-		                       // (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
-		ctx.song->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
+	// `ThresholdMode::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
+	if (ctx.ports.writes != nullptr) {
+		ctx.ports.writes->set_song_threshold_recording(value);
 	}
 }
-
-// ---------------------------------------------------------------------------------------------
-// Stem export
-//
-// Seven `ToggleBool`s over `stemExport`'s own members (`configureNormalizationMenu` through `configureMixdownMenu` in
-// `origin/main:src/deluge/gui/ui/menus.cpp`); `StemExport` lives in `processing/stem_export/`, inside this layer's
-// allow-list, so each is a direct read and write.
-
-#define DELUGE_STEM_TOGGLE(fn, member)                                                                                 \
-	int32_t get_stem_##fn(const MenuContext&) {                                                                        \
-		return stemExport.member ? 1 : 0;                                                                              \
-	}                                                                                                                  \
-	void set_stem_##fn(const MenuContext&, int32_t value) {                                                            \
-		stemExport.member = value != 0;                                                                                \
-	}
-
-DELUGE_STEM_TOGGLE(normalization, allowNormalization)
-DELUGE_STEM_TOGGLE(normalization_drums, allowNormalizationForDrums)
-DELUGE_STEM_TOGGLE(silence, exportToSilence)
-DELUGE_STEM_TOGGLE(song_fx, includeSongFX)
-DELUGE_STEM_TOGGLE(kit_fx, includeKitFX)
-DELUGE_STEM_TOGGLE(offline, renderOffline)
-DELUGE_STEM_TOGGLE(mixdown, exportMixdown)
-
-#undef DELUGE_STEM_TOGGLE
 
 // ---------------------------------------------------------------------------------------------
 

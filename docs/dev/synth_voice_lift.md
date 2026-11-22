@@ -2,7 +2,7 @@
 
 `deluge::synth::Voice` (`src/synth/voice/voice.h`) plays one voice of a synth sound — its sources in each unison
 part, its envelopes, local LFOs, modulation, filters and output stage — from what it is handed. It names nothing of
-the app: it lives in the synth library, builds with the library's flags and warnings, and `check_synth_boundary.py`
+the app: it lives in the synth library, builds with the library's flags and warnings, and `scripts/check_layers.py`'s transitive `synth-boundary` rule
 holds it to the library's boundary. A host spec plays it with nothing of the app linked.
 
 The app holds each voice as a `SoundVoice` (`src/deluge/model/voice/voice_part.h`): the instrument's slot

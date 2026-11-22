@@ -214,7 +214,7 @@ Subtractive: `render_basic_source`, `guides`, `envelopes`, `filterSet`).
    engine selection — the L1 plug point. A closed registry over the coordinators (Subtractive/RingMod/FM) first,
    with the contract left open to a future self-contained whole-voice engine (DX7/Plaits); runtime registration when
    foreign engines become a goal.
-5. **Move the Engine tier to `synth/`** behind `check_synth_boundary.py`. Co-lands with step 1's typed-param bridge
+5. **Move the Engine tier to `synth/`** behind `scripts/check_layers.py`'s transitive `synth-boundary` rule. Co-lands with step 1's typed-param bridge
    where the engines feed their owned Sources (`synth_source_ownership.md` Stage A) so no `LOCAL_*`/`model/` leak
    crosses the boundary.
 

@@ -266,7 +266,7 @@ void encode_mappings(const MappingTable& table, MappingOwner owner, Value& eleme
 void decode_section_command(const Value& node, uint8_t section, MappingTable& table) {
 	const auto channel = static_cast<uint8_t>(serialization::int_of(node.find("midiCommandChannel")).value_or(255));
 	const auto note = static_cast<uint8_t>(serialization::int_of(node.find("midiCommandNote")).value_or(255));
-	if (channel >= MidiCommand::kFirstProgramChange || note > kHighestNote) {
+	if (channel >= kFirstProgramChangeChannel || note > kHighestNote) {
 		return;
 	}
 	const Value* device = node.find("midiCommandDevice");

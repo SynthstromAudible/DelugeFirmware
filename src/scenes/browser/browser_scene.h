@@ -73,6 +73,7 @@
 ///          makes that satisfiable.
 
 #include "definitions_cxx.hpp" // Error
+#include "scenes/browser/browser_kind.h"
 #include "scenes/browser/listing.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcut_blink.h"
@@ -87,7 +88,8 @@
 
 #include "gfx/grid/pad_grid.h"
 #include "gfx/oled/icon.h"
-#include "model/sample/waveform_navigator.h"
+#include "sample-view/view.h"
+#include "scenes/services/peak_retry.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -213,7 +215,7 @@ struct Descriptor {
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
 	///       (`gui/ui/load/instrument_load.h`). Both are `gui/` symbols this layer may not name
-	///       (`scripts/check_layer_rules.py`, `scenes-includes-outside`). That is the same wall
+	///       (`scripts/layers.toml`, `scenes-includes-outside`). That is the same wall
 	///       `scenes/menu/action.h` was built for, and the same answer: the scene hands the chosen
 	///       path to its `BrowserHost`, and the application's host performs the load.
 	///
@@ -366,10 +368,6 @@ BrowserHost& null_browser_host();
 ///       `char const*`. What the fixed buffer does buy is that the *render* path allocates nothing.
 inline constexpr size_t kMaxEnteredChars = 128;
 
-/// @brief `SceneKind` this scene is registered under: `FirstApp + 3` (`registry.h`).
-inline constexpr deluge::ui::shell::SceneKind kBrowserSceneKind =
-    static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 3);
-
 /// @brief `Browser::renderOLED`'s two x origins, on the shipped `PartialInversion` profile.
 ///
 /// Legacy: `textStartX = 14`, `iconStartX = 1`, each stepped by one `kTextSpacingX` when
@@ -399,10 +397,6 @@ inline constexpr int32_t kRowIconX = 1;
 /// what both APIs take.
 inline constexpr uint32_t kListingPollMs = 10;
 
-/// @brief How long a preview's incomplete render keeps being redrawn with no column newly resolved:
-///        `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
-inline constexpr uint32_t kWaveformRedrawGiveUpMs = 300;
-
 /// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`) in the default layout, without banks;
 /// with
 ///        banks it is the row below, and the banks take this one. A first press there reveals the keyboard and does
@@ -423,7 +417,7 @@ struct WaveformDrawStats {
 	int32_t draws = 0;    ///< renders of a newly previewed sample
 	int32_t redraws = 0;  ///< renders of the same sample while it was unfinished
 	int32_t complete = 0; ///< renders that finished the sample's waveform
-	int32_t give_ups = 0; ///< unfinished waveforms left after `kWaveformRedrawGiveUpMs` with no column resolved
+	int32_t give_ups = 0; ///< unfinished waveforms left after `services::kPeakRetryGiveUpMs` with no column answered
 };
 
 /// @brief The file browser. One instance for the whole application (`registry.h`).
@@ -532,17 +526,21 @@ public:
 	/// the browser claim each preview that lands.
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
-	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	const sample_view::WaveformView& waveform_view() const { return view_; }
 	/// @brief The preview waveform's render counts since the process began.
 	const WaveformDrawStats& waveform_draw_stats() const { return draw_stats_; }
 	/// @brief Whether an unfinished waveform is still being repainted as its clusters land.
-	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
-	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
-	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
-	///        `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) sets up.
-	/// @param sample The sample the slicer opens on.
-	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
-		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
+	bool waveform_redraw_pending() const { return retry_.retrying() && !retry_.gave_up(); }
+	/// @brief The view the preview drew the waveform of identity @p identity at, or none when the preview shows another
+	///        waveform or none. `main`'s slicer renders through the view `SampleBrowser::previewIfPossible`
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) sets up, `waveformBasicNavigator`.
+	/// @param identity The waveform the slicer opens on, as the waveforms port's info names it; 0 for none.
+	/// @return The file and its view; none where the preview shows another.
+	[[nodiscard]] std::optional<sample_view::ShownWaveform> shown_waveform(uint64_t identity) const {
+		if (identity == 0 || identity != nav_identity_) {
+			return std::nullopt;
+		}
+		return sample_view::ShownWaveform{.identity = identity, .view = view_};
 	}
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
@@ -845,16 +843,14 @@ private:
 	bool pads_changed_ = false;
 	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.
 	std::optional<deluge::ui::PadEvent> reveal_press_{};
-	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
-	deluge::sample::WaveformNav nav_{};
+	/// The previewed waveform's scroll and zoom, opened afresh on each new sample, as main's
+	/// `waveformBasicNavigator.opened()` does.
+	sample_view::WaveformView view_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
 	RGB waveform_shown_[deluge::gfx::grid::kDelugeGrid.rows][deluge::gfx::grid::kDelugeGrid.main_cols]{};
 	uint64_t nav_identity_ = 0;
-	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
-	int32_t redraw_resolved_cols_ = -1;
-	uint32_t redraw_progress_ms_ = 0;
-	/// The unfinished render stopped being repainted for want of progress.
-	bool redraw_given_up_ = false;
+	/// The redraws of a render whose read left columns pending.
+	services::PeakRetry retry_{};
 	WaveformDrawStats draw_stats_{};
 	/// The BROWSE pad's blink: which one runs, the cycle's start (reset whenever one is armed), and the last step
 	/// flashed.

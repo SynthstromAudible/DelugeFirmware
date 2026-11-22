@@ -19,7 +19,8 @@
 /// @brief The one place the menu system touches the model. See `bindings.h` for the interface.
 ///
 /// A node edits through its target: `scenes/bind` reads its value, range, names and applicability from its descriptor
-/// and the model, and its writes go to the menu's write sink as requests the app applies as Edits. A param node's
+/// and the model, and its writes go to the menu's write sink as requests the app applies as Edits; a device setting's
+/// target reads and writes the device port instead, which holds the settings no song does. A param node's
 /// target is a PARAM target (`scenes/bind/param_display.h` for its display; the app's sink writes it through
 /// SetParamValue, or SetKitParamValue under affect-entire). What remains here is the hook nodes' own read and write,
 /// the per-kind ranges, names and learn.
@@ -69,16 +70,10 @@
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/drum.h"
-#include "model/instrument/kit.h"
-#include "model/note/note_row.h"
-#include "model/output.h"
-#include "model/song/song.h"
+#include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
+#include "notify/notice_queue.h" // a device setting's "restart to apply"
 #include "plugin-api/types/display_mapping.h"
-#include "processing/sound/sound_drum.h"
 
 #include <algorithm>
 #include <array>
@@ -89,12 +84,45 @@ namespace deluge::scenes::menu::bindings {
 
 namespace {
 
-/// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
-std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
-	if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+/// Whether the dispatch can read @p target in @p ctx: a DEVICE row reads the device port alone (which the dispatch
+/// checks), every other target the model and the bind ports.
+bool readable(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
+	return target.on_device() || (ctx.model != nullptr && ctx.ports.has_bind_ports());
+}
+
+/// The addresses @p ctx's targets resolve against: the context's, with the output its selector chose for a
+/// source-indexed target, where it chose one.
+deluge::scenes::bind::Addresses addresses_of(const MenuContext& ctx) {
+	deluge::scenes::bind::Addresses where = ctx.addresses;
+	if (ctx.source_index >= 0) {
+		where.source_index = static_cast<uint8_t>(ctx.source_index);
+	}
+	return where;
+}
+
+/// What @p target shows, or nullopt where it does not resolve or the menu has nothing to read it from.
+std::optional<deluge::scenes::bind::View> target_view(const deluge::scenes::bind::Target& target,
+                                                      const MenuContext& ctx) {
+	if (!readable(target, ctx)) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, ctx.ports);
+	return deluge::scenes::bind::view(target, ctx.model, addresses_of(ctx), ctx.ports);
+}
+
+/// What a target node shows, or nullopt where its target does not resolve or the menu has nothing to read it from.
+std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
+	return target_view(node.bind.target, ctx);
+}
+
+/// The upper edge of range node @p node: its own target with the spec's upper row, or nullopt for a node with none.
+std::optional<deluge::scenes::bind::Target> upper_target(const Node& node) {
+	const RangeSpec* spec = node.bind.range_spec;
+	if (!node.bind.target.valid() || spec == nullptr) {
+		return std::nullopt;
+	}
+	deluge::scenes::bind::Target upper = node.bind.target;
+	upper.path = spec->upper_path;
+	return upper;
 }
 
 /// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
@@ -127,6 +155,36 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 		return std::min(node.bind.dynamic_names(ctx, std::span<std::string_view>{window}), kMaxDynamicNames);
 	}
 	return std::min(node.bind.names.size(), kMaxDynamicNames);
+}
+
+/// @brief A write of menu value @p value to DEVICE target @p target: through the device port, never the song's sink.
+///        A setting the device applies only after a restart says so, as the USB audio item does
+///        (`STRING_FOR_RESTART_TO_APPLY`); a stored write then reaches the open menu through @p after_write, and
+///        repaints the pad grid too where @p repaints_grid says the grid shows it.
+/// @return Whether the device kept the value: false where the target did not resolve or the port refused it.
+bool write_device(const deluge::scenes::bind::Target& target, SetFn after_write, bool repaints_grid,
+                  const MenuContext& ctx, int32_t value) {
+	using deluge::scenes::bind::DeviceWrite;
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    deluge::scenes::bind::request_for(target, ctx.model, addresses_of(ctx), ctx.ports, value);
+	if (!request || ctx.ports.device == nullptr) {
+		return false;
+	}
+	const DeviceWrite done = ctx.ports.device->write(request->target.path, request->menu_value);
+	if (done == DeviceWrite::REFUSED) {
+		return false;
+	}
+	if (done == DeviceWrite::STORED_FOR_RESTART) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+	}
+	if (after_write != nullptr) {
+		after_write(ctx, request->menu_value);
+	}
+	notify::raise(notify::Dirty::Oled);
+	if (repaints_grid) {
+		notify::raise(notify::Dirty::GridMain);
+	}
+	return true;
 }
 
 } // namespace
@@ -218,19 +276,20 @@ const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t co
 }
 
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
+	const std::optional<deluge::scenes::bind::Target> named = deluge::scenes::bind::concrete(target, addresses_of(ctx));
+	if (!named || ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(target.path);
+	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(named->path);
 }
 
 std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
-	if (!node.bind.target.valid() || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+	if (!node.bind.target.valid() || !readable(node.bind.target, ctx)) {
 		return std::nullopt;
 	}
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
+	    deluge::scenes::bind::request_for(node.bind.target, ctx.model, addresses_of(ctx), ctx.ports, value);
 	if (!request) {
 		return std::nullopt;
 	}
@@ -256,67 +315,90 @@ int32_t read(const Node& asked, const MenuContext& ctx) {
 	return 0;
 }
 
-void write(const Node& asked, const MenuContext& ctx, int32_t value) {
+bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
 	const Binding& bind = node.bind;
 
-	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
-	// outside the range and an unresolved target ask for nothing.
+	// A target node: the request goes to the menu's sink, which applies the target's Edit; a device setting's goes to
+	// the device port, which stores it outside any song and its undo. The stale entry, a value outside the range, an
+	// unresolved target and a refused write ask for nothing and raise nothing.
 	if (bind.target.valid()) {
-		if (ctx.model == nullptr || !ctx.ports.has_bind_ports() || ctx.ports.writes == nullptr) {
-			return;
+		if (bind.target.on_device()) {
+			return write_device(bind.target, bind.after_write, bind.repaints_grid, ctx, value);
+		}
+		if (!readable(bind.target, ctx) || ctx.ports.writes == nullptr) {
+			return false;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
-		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
-		if (request && ctx.ports.writes->write(*request)) {
-			notify::raise(notify::Dirty::Oled);
-			if (bind.repaints_grid) {
-				notify::raise(notify::Dirty::GridMain);
-			}
-			if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
-				// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
-				// gated; over-invalidation, never loss.
-				//
-				//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two ways:
-				//    `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
-				//    `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp` /
-				//    `UnpatchedParam::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)),
-				//    and the knob-indicator refresh `setCurrentValueInResponseToUserInput` triggers through
-				//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`, whose
-				//    deferred `displayAutomation()` calls `setKnobIndicatorLevels()` (`View::displayAutomation`).
-				//    `legacy_redraw_for` lists both enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp`).
-				//
-				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
-				//    `possiblyRefreshAutomationEditorGrid` ends in `uiNeedsRendering(&automationView)`
-				//    (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e. a main-pad re-render
-				//    (`AutomationView::renderMainPads`) -- and `ParamAutomation`/`ModTarget` appear *only* in `r.oled`,
-				//    never in `r.main_rows` (`legacy_redraw_for` in `notify_drain_mapping.cpp`). Without this third
-				//    raise, editing the param the automation view is showing would stop repainting its grid the moment
-				//    `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator `r.main_rows` carries
-				//    for exactly this; the mapping file itself is left alone.
-				//
-				//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
-				//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
-				//    every param write asks for one grid repaint the drain already coalesces, rather than
-				//    silently dropping the one that mattered.
-				notify::raise(notify::Dirty::ParamAutomation);
-				notify::raise(notify::Dirty::ModTarget);
-				notify::raise(notify::Dirty::GridMain);
-			}
+		    deluge::scenes::bind::request_for(bind.target, ctx.model, addresses_of(ctx), ctx.ports, value);
+		if (!request || !ctx.ports.writes->write(*request)) {
+			return false;
 		}
-		return;
+		notify::raise(notify::Dirty::Oled);
+		if (bind.repaints_grid) {
+			notify::raise(notify::Dirty::GridMain);
+		}
+		if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
+			// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
+			// gated; over-invalidation, never loss.
+			//
+			//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two ways:
+			//    `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
+			//    `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp` /
+			//    `UnpatchedParam::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)),
+			//    and the knob-indicator refresh `setCurrentValueInResponseToUserInput` triggers through
+			//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`, whose
+			//    deferred `displayAutomation()` calls `setKnobIndicatorLevels()` (`View::displayAutomation`).
+			//    `legacy_redraw_for` lists both enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp`).
+			//
+			//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
+			//    `possiblyRefreshAutomationEditorGrid` ends in `uiNeedsRendering(&automationView)`
+			//    (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e. a main-pad re-render
+			//    (`AutomationView::renderMainPads`) -- and `ParamAutomation`/`ModTarget` appear *only* in `r.oled`,
+			//    never in `r.main_rows` (`legacy_redraw_for` in `notify_drain_mapping.cpp`). Without this third
+			//    raise, editing the param the automation view is showing would stop repainting its grid the moment
+			//    `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator `r.main_rows` carries
+			//    for exactly this; the mapping file itself is left alone.
+			//
+			//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
+			//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
+			//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
+			//    every param write asks for one grid repaint the drain already coalesces, rather than
+			//    silently dropping the one that mattered.
+			notify::raise(notify::Dirty::ParamAutomation);
+			notify::raise(notify::Dirty::ModTarget);
+			notify::raise(notify::Dirty::GridMain);
+		}
+		return true;
 	}
 
 	// A `get`/`set` (or `action`) node: the hook owns the model write, so all this layer knows is
 	// that something the OLED shows has changed. Tested before `param` -- `node.h`'s documented
 	// precedence, and the reason a `menu_item::Transpose` node can carry a learn-only `ParamRef`
-	// without this function writing to it.
+	// without this function writing to it. The hook reports no refusal, so the write stands as taken.
 	if (bind.set != nullptr) {
 		bind.set(ctx, value);
 		notify::raise(notify::Dirty::Oled);
-		return;
+		return true;
 	}
+	// Nothing to write, so nothing refused it.
+	return true;
+}
+
+int32_t read_upper(const Node& node, const MenuContext& ctx) {
+	const std::optional<deluge::scenes::bind::Target> upper = upper_target(node);
+	const std::optional<deluge::scenes::bind::View> shown = upper ? target_view(*upper, ctx) : std::nullopt;
+	return shown ? shown->value : 0;
+}
+
+bool write_upper(const Node& node, const MenuContext& ctx, int32_t value) {
+	// A range's ends are DEVICE rows; the upper edge writes as the lower one does, and the node's after-write is the
+	// lower edge's alone. A node with no DEVICE upper row has nothing to write, so nothing refused it.
+	const std::optional<deluge::scenes::bind::Target> upper = upper_target(node);
+	if (upper && upper->on_device()) {
+		return write_device(*upper, nullptr, node.bind.repaints_grid, ctx, value);
+	}
+	return true;
 }
 
 void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
@@ -394,12 +476,13 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return text.text_or_digits(id, slot);
 	};
 	if (node.bind.target.valid()) {
-		if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+		if (!readable(node.bind.target, ctx)) {
 			return 0;
 		}
 		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
 		const size_t count = std::min(
-		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, listed), limit);
+		    deluge::scenes::bind::choice_names(node.bind.target, ctx.model, addresses_of(ctx), ctx.ports, listed),
+		    limit);
 		for (size_t i = 0; i < count; ++i) {
 			const std::string_view name =
 			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
@@ -505,7 +588,7 @@ deluge::scenes::bind::Target direction_target(const MenuContext& ctx) {
 /// @brief The addresses the play direction resolves against: the kit row's note row is its lane's, whatever kind of
 ///        drum it plays.
 deluge::scenes::bind::Addresses direction_where(const MenuContext& ctx) {
-	deluge::scenes::bind::Addresses where = ctx.addresses;
+	deluge::scenes::bind::Addresses where = addresses_of(ctx);
 	if (ctx.addresses.lane && ctx.addresses.clip) {
 		where.note_row = deluge::project::NoteRowAddress{.clip_id = ctx.addresses.clip->clip_id,
 		                                                 .is_kit = true,
@@ -551,7 +634,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
 	const std::optional<deluge::scenes::bind::View> shown =
-	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), ctx.ports);
+	    deluge::scenes::bind::view(target, ctx.model, direction_where(ctx), ctx.ports);
 	return shown ? shown->value : 0;
 }
 
@@ -578,7 +661,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
 	// row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), ctx.ports, value);
+	    deluge::scenes::bind::request_for(direction_target(ctx), ctx.model, direction_where(ctx), ctx.ports, value);
 	if (request) {
 		(void)ctx.ports.writes->write(*request);
 	}

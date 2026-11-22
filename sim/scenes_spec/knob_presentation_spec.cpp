@@ -8,6 +8,7 @@
 #include "board_controls.hpp"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
@@ -143,7 +144,8 @@ struct Rig {
 	Rig() {
 		display = &stub;
 		currentSong = f.song;
-		knobs.set_song(f.song);
+		knobs.set_ports(&deluge::scenes::menu::host_ports());
+		knobs.set_model(&f.song->project);
 		knobs.set_focus(focus_of(*f.song, f.clip), false);
 		knobs.set_mod_region();
 		deluge::notify::Notice discarded;
@@ -326,7 +328,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 	it("reads no indicator with no song", _ {
 		Rig rig;
 		rig.set_mode(0);
-		rig.knobs.set_song(nullptr);
+		rig.knobs.set_model(nullptr);
 		const deluge::scenes::services::ModIndicatorInfo info = rig.knobs.indicator_info(0);
 		expect(info.has_auto_param).to_be_false("the indicator's auto param");
 		expect(info.non_existent_param).to_be_false("the indicator's non-existent param");

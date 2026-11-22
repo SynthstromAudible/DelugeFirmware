@@ -123,7 +123,7 @@ this design as follows — and the headline is: **Engines need no ports of their
    `SoundVoice` (`UnisonPartPorts`); each unison part's sources hold the ports they are bound to.
 
 Per port: interface in `synth/` → source depends on it (bit-exact, impl unchanged behind the adapter) → relocate
-the App-free source into `synth/` (each step golden-bit-exact + `check_synth_boundary`-gated).
+the App-free source into `synth/` (each step golden-bit-exact + `synth-boundary`-gated (`scripts/check_layers.py`)).
 
 ## Out of scope (separate later arcs)
 

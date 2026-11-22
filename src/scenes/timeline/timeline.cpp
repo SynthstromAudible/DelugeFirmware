@@ -41,9 +41,8 @@
 
 #include "scenes/timeline/timeline.h"
 
-#include "definitions_cxx.hpp" // kMaxZoom, NAVIGATION_CLIP
+#include "definitions_cxx.hpp" // kMaxZoom
 #include "gfx/grid/pad_grid.h"
-#include "model/song/song.h"
 
 #include <algorithm>
 
@@ -52,18 +51,11 @@ namespace deluge::scenes::timeline {
 /// @brief The pad grid's main columns and rows.
 constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
 
-void TimelineState::adopt(const Song& song) {
-	x_scroll = song.persistentView.xScroll[NAVIGATION_CLIP];
-	x_zoom = song.persistentView.xZoom[NAVIGATION_CLIP];
-	triplets_on = song.persistentView.tripletsOn;
-	triplets_level = song.persistentView.tripletsLevel;
-}
-
-void TimelineState::publish(Song& song) const {
-	song.persistentView.xScroll[NAVIGATION_CLIP] = x_scroll;
-	song.persistentView.xZoom[NAVIGATION_CLIP] = x_zoom;
-	song.persistentView.tripletsOn = triplets_on;
-	song.persistentView.tripletsLevel = triplets_level;
+void TimelineState::adopt(const bind::ClipNavigation& navigation) {
+	x_scroll = navigation.x_scroll;
+	x_zoom = navigation.x_zoom;
+	triplets_on = navigation.triplets_on;
+	triplets_level = navigation.triplets_level;
 }
 
 // --- pure arithmetic --------------------------------------------------------------------------

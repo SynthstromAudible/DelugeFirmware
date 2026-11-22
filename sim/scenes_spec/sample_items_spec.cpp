@@ -59,6 +59,7 @@
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/sample_items_fixtures.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 #include "support/torn_down_take.h"
 
@@ -80,6 +81,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -108,7 +110,7 @@ struct ScratchCard {
 // ---------------------------------------------------------------------------------------------
 // The samples the marker examples open on
 
-/// `WaveformNav::max_zoom()` for a sample of @p num_clusters clusters.
+/// `WaveformView::max_zoom()` for a sample of @p num_clusters clusters.
 int64_t zoom_max(int32_t num_clusters) {
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
 	return static_cast<int64_t>(((length - 1) >> 4) + 1);
@@ -262,16 +264,14 @@ struct SoundRig {
 		range[i]->sampleHolder.loopStartPos = 0;
 		range[i]->sampleHolder.loopEndPos = 0;
 		range[i]->sampleHolder.loopLocked = false;
-		range[i]->sampleHolder.waveformViewZoom = 0;
-		range[i]->sampleHolder.waveformViewScroll = 0;
 	}
 
 	/// @brief The context `SoundEditor::setup` would have resolved for **source 0** -- which is the
 	///        point: nothing re-resolves it on the way into source 1's page, so an item that opens a
 	///        scene over source 1 has to say so itself.
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -308,13 +308,11 @@ struct ClipRig {
 		song.clip->setSampleFilePath("SAMPLES/OSC_A/A1.WAV");
 		song.clip->sampleHolder.startPos = 0;
 		song.clip->sampleHolder.endPos = sample->lengthInSamples;
-		song.clip->sampleHolder.waveformViewZoom = 0;
-		song.clip->sampleHolder.waveformViewScroll = 0;
 	}
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 
 	void focus(const Node& node) { focus_in(shell, ctx(), node); }
@@ -558,7 +556,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 
 	it("sample1_start opens it on source 1's sample, not source 0's", _ {
 		// The per-source discriminator for this scene. The two samples are 32 and 64 clusters long,
-		// so `WaveformNav::opened` -- which zooms all the way out on a holder with no remembered view
+		// so `WaveformView::open` -- which zooms all the way out on a holder with no remembered view
 		// -- lands on a different `xZoom` for each. A `sample1_start` wired to source 0 opens the
 		// editor, shows a waveform, and reports 32 clusters' zoom.
 		spec::QuietAudio quiet;
@@ -618,8 +616,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		ClipRig r;
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		const spec::ShortcutLayout v1{deluge::project::ShortcutsVersion::V1};
 		// The menu is open on an audio clip item; SHIFT + pad (0, 7) is the START item's shortcut.
 		focus_in(r.shell, r.ctx(), nodes::audio_clip_reverse);
 		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_false();
@@ -642,7 +639,6 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		}
 		const bool still = r.on_stack(marker::kMarkerSceneKind);
 		const size_t depth = r.shell.stack().depth();
-		menu::set_shortcuts_version(saved);
 		expect(landed).to_be_true();
 		expect(type).to_equal(static_cast<int>(MarkerType::START));
 		expect(still).to_be_false();
@@ -764,11 +760,11 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/true};
 		MenuContext c = r.ctx();
-		expect(spec::menu_engine(c).range).to_equal(r.range[0]);
+		expect(spec::menu_engine(c, *r.song.song).range).to_equal(r.range[0]);
 
 		menu::select_source(c, 1);
 		expect(static_cast<int>(c.source_index)).to_equal(1);
-		const spec::MenuEngine engine = spec::menu_engine(c);
+		const spec::MenuEngine engine = spec::menu_engine(c, *r.song.song);
 		expect(engine.source).to_equal(r.source[1]);
 		expect(engine.range).to_equal(r.range[1]);
 
@@ -776,7 +772,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		// `currentMultiRange == nullptr` guard (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is what stops
 		// a range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
-		expect(spec::menu_engine(c).range).to_equal(r.range[1]);
+		expect(spec::menu_engine(c, *r.song.song).range).to_equal(r.range[1]);
 
 		// A context with no `Sound` is left exactly as it is -- the audio-clip case.
 		MenuContext none{};
@@ -802,8 +798,8 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		for (const OscCase& c : kOscCases) {
 			for (int32_t which = 0; which < 2; which++) {
 				seed_osc_case(*sound, *song.song, sample, c, which);
-				const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip),
-				                                          static_cast<int8_t>(which), false, false, false, false);
+				const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip),
+				                                     static_cast<int8_t>(which), false, false, false, false);
 				const std::string path = std::string{"sample/"} + c.name + "/" + std::to_string(which);
 				const std::vector<std::string>* frozen = table().find(path, "rel");
 				const auto flag = [](bool on) { return std::string{on ? "1" : "0"}; };

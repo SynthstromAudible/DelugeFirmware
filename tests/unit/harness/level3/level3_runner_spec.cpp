@@ -20,11 +20,13 @@
 
 #include "harness/level3/host_script.h"
 
+#include <algorithm>
 #include <array>
 #include <csetjmp>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,6 +44,8 @@ struct Push {
 };
 std::vector<Push> g_pushes;
 std::vector<std::pair<uint8_t, int32_t>> g_edges;
+std::vector<uint8_t> g_midi_in;
+std::vector<uint8_t> g_midi_out;
 std::array<uint8_t, 768> g_oled{};
 bool g_blitted = false;
 std::array<uint8_t, HOST_SCRIPT_LED_COUNT> g_leds{};
@@ -61,6 +65,15 @@ void host_script_push_event(DelugeInputEventKind kind, uint8_t x, uint8_t y, int
 }
 void host_script_add_encoder_edges(uint8_t index, int32_t edges) {
 	g_edges.emplace_back(index, edges);
+}
+void host_script_push_midi(const uint8_t* bytes, uint32_t len) {
+	g_midi_in.insert(g_midi_in.end(), bytes, bytes + len);
+}
+uint32_t deluge_host_midi_out_take(uint8_t* dst, uint32_t cap) {
+	const auto n = static_cast<uint32_t>(std::min<size_t>(cap, g_midi_out.size()));
+	std::copy_n(g_midi_out.begin(), n, dst);
+	g_midi_out.erase(g_midi_out.begin(), g_midi_out.begin() + n);
+	return n;
 }
 int host_script_set_displays(const char*) {
 	return -1;
@@ -127,6 +140,8 @@ int start(const std::string& body) {
 	g_exit_code = -1;
 	g_pushes.clear();
 	g_edges.clear();
+	g_midi_in.clear();
+	g_midi_out.clear();
 	write_script(body);
 	if (setjmp(g_exit) != 0) {
 		return g_exit_code;
@@ -174,6 +189,36 @@ describe level3_runner(
 
 		        expect(start("0 encoder Select -33\n10 quit\n")).to_equal(-1);
 		        expect(run_until(20)).to_equal(2);
+	        });
+
+	    it(
+	        "queues a midi step's bytes on the DIN input, in order", _ {
+		        g_blitted = false;
+		        expect(start("10 midi 903c7f\n20 midi b04a40\n30 quit\n")).to_equal(-1);
+		        expect(run_until(15)).to_equal(-1);
+		        expect(g_midi_in).to_equal(std::vector<uint8_t>{0x90, 0x3c, 0x7f});
+		        expect(run_until(40)).to_equal(0);
+		        expect(g_midi_in).to_equal(std::vector<uint8_t>{0x90, 0x3c, 0x7f, 0xb0, 0x4a, 0x40});
+	        });
+
+	    it(
+	        "writes the MIDI sent since the last snapshot only when UI_SNAPSHOT_MIDI asks", _ {
+		        g_blitted = true;
+		        const auto got = std::filesystem::temp_directory_path() / "level3_runner_spec" / "got";
+		        expect(start("10 snapshot s\n20 quit\n")).to_equal(-1);
+		        g_midi_out = {0xf8, 0xfa};
+		        expect(run_until(30)).to_equal(0);
+		        expect(std::filesystem::exists(got / "s.midi")).to_be_false();
+
+		        setenv("UI_SNAPSHOT_MIDI", "1", 1);
+		        expect(start("10 snapshot s\n20 quit\n")).to_equal(-1);
+		        g_midi_out = {0xf8, 0xfa};
+		        expect(run_until(30)).to_equal(0);
+		        unsetenv("UI_SNAPSHOT_MIDI");
+		        std::ifstream in(got / "s.midi");
+		        const std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+		        expect(text).to_equal(std::string{"f8 fa \n"});
+		        expect(g_midi_out.empty()).to_be_true();
 	        });
 
 	    it(

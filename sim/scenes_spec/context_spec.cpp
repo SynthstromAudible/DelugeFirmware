@@ -15,6 +15,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -58,13 +59,13 @@ deluge::project::SlotAddress drum_slot(const SoundDrum& drum) {
 describe menu_context("scenes::menu::context_for", $ {
 	it("resolves a synth clip to the sound root, addressing the synth's slot and the clip", _ {
 		auto f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Sound));
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.addresses.slot).to_equal(std::optional{instrument_slot(f)});
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::scenes::spec::menu_engine(ctx).mod)
+		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod)
 		    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
@@ -76,7 +77,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		auto f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f); // a selected drum the kit-global-FX branch must win over
 		f.clip->affectEntire = true;
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 
 		// Not `Root::Sound`: `setup()` sends a kit with affectEntire to
 		// `soundEditorRootMenuKitGlobalFX` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is what
@@ -86,7 +87,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::scenes::spec::menu_engine(ctx).mod).not_().to_be_null();
+		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::KIT);
@@ -101,7 +102,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_false();
@@ -117,8 +118,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		auto f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = false;
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-		                                          /*kit_global_fx=*/true);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/true);
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.is_drum).to_be_false();
@@ -130,8 +131,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		auto m = spec::make_kit_song();
 		(void)spec::add_drum<MIDIDrum>(m);
 		m.clip->affectEntire = false;
-		const MenuContext midi = menu::context_for(*m.song, deluge::gui::menuViewOf(m.clip), 0, false, false, false,
-		                                           /*kit_global_fx=*/true);
+		const MenuContext midi = spec::ctx_of(*m.song, deluge::gui::menuViewOf(m.clip), 0, false, false, false,
+		                                      /*kit_global_fx=*/true);
 		expect(root_of(midi)).to_equal(static_cast<int>(Root::MidiDrum));
 		expect(midi.is_kit_global_fx).to_be_true();
 	});
@@ -139,7 +140,7 @@ describe menu_context("scenes::menu::context_for", $ {
 	it("resolves a kit clip with a selected sound drum to the drum root", _ {
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
 		expect(ctx.is_kit).to_be_true();
@@ -155,7 +156,7 @@ describe menu_context("scenes::menu::context_for", $ {
 	it("resolves a kit clip with a selected MIDI drum to the MIDI-drum root, with only an arp", _ {
 		auto f = spec::make_kit_song();
 		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiDrum));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
@@ -167,7 +168,7 @@ describe menu_context("scenes::menu::context_for", $ {
 
 	it("refuses a kit clip with neither affect-entire nor a selected drum", _ {
 		auto f = spec::make_kit_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(ctx.resolved).to_be_false();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
@@ -176,17 +177,17 @@ describe menu_context("scenes::menu::context_for", $ {
 
 	it("resolves a MIDI instrument clip to the MIDI/CV root, with no sound", _ {
 		auto f = spec::make_midi_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiOrCv));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod).to_be_null();
+		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).to_be_null();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
 	});
 
 	it("resolves no clip and no session root to the settings root", _ {
 		auto f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Settings));
 		expect(ctx.addresses.clip.has_value()).to_be_false();
@@ -195,19 +196,19 @@ describe menu_context("scenes::menu::context_for", $ {
 
 	it("resolves the performance view to the performance root, with the song's own chain", _ {
 		auto f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, true, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, true, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Performance));
 		expect(ctx.is_performance).to_be_true();
 		expect(ctx.is_song_view).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::SONG);
-		expect(deluge::scenes::spec::menu_engine(ctx).mod).not_().to_be_null();
+		expect(deluge::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
 	});
 
 	it("resolves a session/arranger root with no clip to the song root", _ {
 		auto f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Song));
 		expect(ctx.addresses.chain.has_value()).to_be_true();
@@ -223,32 +224,32 @@ describe menu_context("scenes::menu::context_for", $ {
 		// asserted, including the impossible one.
 		auto f = spec::make_synth_song();
 
-		const MenuContext arranger = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                              /*session_view_root=*/false, false);
+		const MenuContext arranger = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
+		                                          /*session_view_root=*/false, false);
 		expect(root_of(arranger)).to_equal(static_cast<int>(Root::Song));
 		expect(arranger.is_song_view).to_be_true();
 		expect(arranger.is_session_view).to_be_false();
 
-		const MenuContext session = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                             /*session_view_root=*/true, false);
+		const MenuContext session = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
+		                                         /*session_view_root=*/true, false);
 		expect(root_of(session)).to_equal(static_cast<int>(Root::Song));
 		expect(session.is_song_view).to_be_true();
 		expect(session.is_session_view).to_be_true();
 		// The narrow bool steers no branch: same root, same addresses, same mod controllable.
 		expect(session.addresses).to_equal(arranger.addresses);
-		expect(deluge::scenes::spec::menu_engine(session).mod)
-		    .to_equal(deluge::scenes::spec::menu_engine(arranger).mod);
+		expect(deluge::scenes::spec::menu_engine(session, *f.song).mod)
+		    .to_equal(deluge::scenes::spec::menu_engine(arranger, *f.song).mod);
 
 		// A clip minder: neither fact holds, and the narrow bool is not silently inherited.
-		const MenuContext clip = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext clip = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(clip.is_song_view).to_be_false();
 		expect(clip.is_session_view).to_be_false();
 
 		// The inconsistent pair a caller could write (`session_view_root` without the wide bool) is
 		// transcribed, not repaired -- `context_for` polices no argument, and this pins that so the
 		// day someone adds a repair they have to argue for it here.
-		const MenuContext impossible = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/false,
-		                                                /*session_view_root=*/true, false);
+		const MenuContext impossible = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/false,
+		                                            /*session_view_root=*/true, false);
 		expect(root_of(impossible)).to_equal(static_cast<int>(Root::Settings));
 		expect(impossible.is_song_view).to_be_false();
 		expect(impossible.is_session_view).to_be_true();
@@ -263,7 +264,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(-1));
 		expect(static_cast<int>(menu::permission_for(range_dependent_node, ctx)))
 		    .to_equal(static_cast<int>(Permission::MustSelectRange));
@@ -278,7 +279,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(param_node.range_specific).to_be_false();
 		expect(static_cast<int>(menu::permission_for(param_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
 	});
@@ -289,7 +290,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		sound->sourceResources[0].ranges.insertMultiRange(0);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
 		expect(static_cast<int>(menu::permission_for(range_dependent_node, ctx)))
 		    .to_equal(static_cast<int>(Permission::Yes));
@@ -305,7 +306,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		ctx.range_index = 1;
 		expect(static_cast<int>(menu::permission_for(range_dependent_node, ctx)))
 		    .to_equal(static_cast<int>(Permission::Yes));
@@ -318,7 +319,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(static_cast<int>(menu::permission_for(submenu_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
 	});
 
@@ -329,14 +330,14 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		drum->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*drum, 0); // recorded, as a gesture records them
 
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 		expect(static_cast<int>(menu::permission_for(range_dependent_node, ctx)))
 		    .to_equal(static_cast<int>(Permission::Yes));
 	});
 
 	it("refuses a node whose relevance predicate says no", _ {
 		auto f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		menu::Node irrelevant = param_node;
 		irrelevant.bind.target = {}; // a hook node: its predicate decides

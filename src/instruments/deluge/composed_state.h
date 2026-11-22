@@ -58,7 +58,7 @@ struct SlotMemory {
 /// @brief A sound's memory of what its current engine and oscillator kinds cannot hold, so a switch back loses nothing
 /// (a sample kept through a sine and back; FM's modulators through subtractive and back). Its file never writes it.
 struct Recall {
-	std::array<SlotMemory, 2> slots;
+	std::array<SlotMemory, kSourceCount> slots;
 	std::array<synth::Pitch, 2> modulators{synth::FmState{}.modulators}; ///< FM's, while another engine plays
 	bool modulator1_to_modulator0{false};                                ///< FM's, while another engine plays
 	bool sync{false}; ///< the oscillators' sync, while the second is a sample (the file writes it in its pitch)

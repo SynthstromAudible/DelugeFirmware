@@ -230,14 +230,15 @@ enum class RangeClamp : uint8_t { Push, Bound };
 ///        (`origin/main:src/deluge/gui/menu_item/range.h`), which is pure virtual there for the same reason it is a
 ///        function pointer here.
 ///
-/// A plain function pointer, not a callable object: both shipped spellings are pure functions of the
-/// value (`intToString` for `IntegerRange`, the note-letter table for `KeyRange`), and this library
-/// allocates nothing and stores no closures.
+/// A plain function pointer with the caller's context beside it, not a callable object: this library allocates
+/// nothing and stores no closures. A spelling that reads a setting (`KeyRange`'s sharps or flats) reads it through
+/// the context, as `ValueStyle`'s hooks do.
 ///
-/// @param value   The end to spell.
-/// @param scratch Storage the returned view may point into; it must outlive the `range_value` call.
+/// @param value    The end to spell.
+/// @param hook_ctx The caller's context, as `range_value` was given it; may be null.
+/// @param scratch  Storage the returned view may point into; it must outlive the `range_value` call.
 /// @return The spelling. May point at static storage instead of @p scratch.
-using RangeFormatFn = std::string_view (*)(int32_t value, std::span<char> scratch);
+using RangeFormatFn = std::string_view (*)(int32_t value, const void* hook_ctx, std::span<char> scratch);
 
 /// @brief The most characters one end of a range may spell, and therefore the scratch
 ///        `range_value` gives each `RangeFormatFn`.
@@ -297,9 +298,10 @@ inline constexpr size_t kRangeTextMax = 12;
 /// @param format  How to spell one end.
 /// @param clamp   Which of legacy's two crossing rules applies (`RangeClamp`).
 /// @param focused Whether this control currently owns the select and horizontal encoders.
+/// @param hook_ctx What @p format is given as its context.
 /// @return `changed` when @p lower, @p upper or @p edge actually moved this tick; `focused` echoes
 ///         @p focused.
 Response range_value(OledFrame& f, gfx::oled::Rect rect, int32_t& lower, int32_t& upper, Range range, RangeEdge& edge,
-                     RangeFormatFn format, RangeClamp clamp, bool focused = true);
+                     RangeFormatFn format, RangeClamp clamp, bool focused = true, const void* hook_ctx = nullptr);
 
 } // namespace deluge::ui::oled

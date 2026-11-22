@@ -26,6 +26,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/ui.h"
@@ -49,6 +50,7 @@
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/multi_range.h"
@@ -168,7 +170,8 @@ deluge::scenes::services::ModKnobs& sharedModKnobs() {
 
 void refreshKnobsForRoot() {
 	GuestServices& services = guestServices();
-	services.knobs.set_song(currentSong);
+	services.knobs.set_ports(&deluge::scenes::menu::host_ports());
+	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	setKnobViewState(services);
 }
 
@@ -455,12 +458,14 @@ void wireShellGuestServices() {
 	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 	wireShellKitGlobalShortcuts();
 
-	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
-	// `scenes-currentSong` row) and which all three services resolve against
-	// (`ModKnobs::set_song`, `GlobalControls::set_song`, `MidiLearn::set_song`).
-	services.learn.set_song(currentSong);
-	services.knobs.set_song(currentSong);
-	services.controls.set_song(currentSong);
+	// The app's ports and the record of the song it plays, which the learn, the global controls and the knobs act
+	// through and read.
+	services.learn.set_ports(&deluge::scenes::menu::host_ports());
+	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
+	services.controls.set_ports(&deluge::scenes::menu::host_ports());
+	services.controls.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
+	services.knobs.set_ports(&deluge::scenes::menu::host_ports());
+	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
 	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
 	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
@@ -470,6 +475,9 @@ void wireShellGuestServices() {
 
 	// The browser's host: what the browser scene asks to load, claim, import, slice, delete or preview.
 	wireShellBrowserHost();
+
+	// The ports the overlays read: the count-in's transport and the screensaver's device settings.
+	deluge::gui::shell_host::install_scene_ports();
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a

@@ -100,9 +100,9 @@ struct Timer {
 	uint32_t due_ms = 0;
 	bool armed = false;
 };
-/// State for the OLED `waveform` widget, **not implemented** -- its data shape
-/// depends on `WaveformRenderData`, which is model-side, so it is deferred to a later sample-view
-/// scene. Retained for it; the *grid* waveform components (`ui/grid/waveform.h`) are unrelated and
+/// State for the OLED `waveform` widget, **not implemented** -- it would draw a waveform's columns
+/// (`sample_view::PeakRead`, `src/sample-view/`), and waits for a scene that shows a waveform on the
+/// OLED. Retained for it; the *grid* waveform components (`ui/grid/waveform.h`) are unrelated and
 /// keep no state.
 struct WaveformState {
 	int32_t scroll_cols = 0;

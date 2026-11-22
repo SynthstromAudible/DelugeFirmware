@@ -23,12 +23,14 @@
 #include "modulation/patch/patch_cable.h"
 
 #include "support/menu_rig.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 #include <algorithm>
 #include <string>
@@ -78,8 +80,8 @@ struct Rig {
 
 	/// @brief Open the sound menu on @p at, as a shortcut landing would.
 	void open(const Node& at) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(MenuScene::roots());
 		menu_scene().open(at, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(at)});
@@ -187,8 +189,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		// `exitCompletely()`). Driven at the unit: the page opens only with its walk already chosen.
 		select_language();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		                                     false, /*kit_global_fx=*/false);
 		menu::MenuContext core_ctx = ctx;
 		menu::MenuState st{};
 		st.path[0] = &nodes::patch_cable_strength_regular;
@@ -212,23 +214,22 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("falls through to the randomizer on (15,1) when no item takes it", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		r.open(nodes::synth_mode);
 		r.shift_press(15, 1);
-		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, false, 15, 1);
+		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 15, 1);
 		expect(randomizer).not_().to_be_null();
 		expect(menu_scene().focused_value()).to_equal(randomizer);
 	});
 
 	it("swallows a source cell past the last patch source", _ {
 		select_language();
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1); // (15, 7) names no source
+		const spec::ShortcutLayout v1{deluge::project::ShortcutsVersion::V1}; // (15, 7) names no source
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);
-		menu::set_shortcuts_version(saved);
 		deluge::notify::Notice notice;
 		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
@@ -245,10 +246,11 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("never toggles the second layer from a fixed cable's own pad", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		r.open(nodes::vibrato);
-		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, nodes::vibrato);
+		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, nodes::vibrato);
 		expect(own.valid).to_be_true();
 		r.shift_press(own.x, own.y);
 		expect(r.st().second_layer).to_be_false();

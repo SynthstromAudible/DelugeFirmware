@@ -5,6 +5,7 @@
 ///        MIDI or gate drum selected; and every column of the kit's own arp and randomizer pages by the selected drum's
 ///        kind and the arp's mode.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
@@ -28,6 +29,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -36,6 +38,7 @@
 #include <cstring>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
@@ -46,7 +49,7 @@ namespace {
 
 /// @brief What a menu opened over @p f's clip edits; @p kit_global_fx as `context_for` takes it.
 MenuContext context_of(const spec::SongFixture& f, bool kit_global_fx = false) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, kit_global_fx);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, kit_global_fx);
 }
 
 bool arp_rate_relevant(const MenuContext& ctx) {
@@ -84,12 +87,13 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 	});
 
 	it("is the kit's own table's (11,0), which the menu's overlay paints black and Shift + pad refuses", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		const MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
-		expect(menu::shortcut_node(ctx.root, false, 11, 0)).to_equal(&menu::nodes::arp_rate);
-		const RGB pad = menu::shortcut_colour(ctx, 11, 0);
+		expect(menu::shortcut_node(ctx.root, deluge::project::ShortcutsVersion::V3, false, 11, 0)).to_equal(&menu::nodes::arp_rate);
+		const RGB pad = menu::shortcut_colour(ctx, deluge::project::ShortcutsVersion::V3, 11, 0);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);
 		expect(pad.b).to_equal(0);
@@ -151,14 +155,15 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 
 describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomizer items: where they are relevant", $ {
 	it("asks the arp octaves of the latch: relevant with it clear, not with it set", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, false))).to_be_true();
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, true))).to_be_false();
 		// The kit's own menu is latched: its overlay paints (11,3) black and Shift + pad refuses it.
 		const MenuContext menu_ctx = kit_table_context(f, true);
-		expect(menu::shortcut_node(menu_ctx.root, false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
-		const RGB pad = menu::shortcut_colour(menu_ctx, 11, 3);
+		expect(menu::shortcut_node(menu_ctx.root, deluge::project::ShortcutsVersion::V3, false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
+		const RGB pad = menu::shortcut_colour(menu_ctx, deluge::project::ShortcutsVersion::V3, 11, 3);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);
 		expect(pad.b).to_equal(0);

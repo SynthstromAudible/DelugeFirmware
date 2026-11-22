@@ -15,11 +15,22 @@
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
-/// The same reason `ModKnobs` gives (`services/mod_knobs.h`): `shell::Service` is a shell
-/// interface, but `src/shell/**` may not include `model/**` (`scripts/check_layer_rules.py`'s
-/// `shell-includes-outside` row) and every arm here writes the model -- `PlaybackHandler`,
-/// `Song::setInputTickScaleClip`, `ActionLogger`. So the shell's interface is implemented from
-/// inside the scenes library, which may see both.
+/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `deluge-project/**`
+/// (`scripts/layers.toml`'s `shell-includes-outside` rule), and every arm here acts on the song through the
+/// scenes' ports and reads the song's record -- the transport, the sync-scaling clip's write, the undo history. So the
+/// shell's interface is implemented from inside the scenes library, which may see both, as `ModKnobs` and `MidiLearn`
+/// do.
+///
+/// @par Its ports
+///
+/// The host installs its port set (`set_ports`) and the song's record (`set_model`). The service reads the transport
+/// (`bind::Transport`: playback, the clocks, recording, the metronome, what undo allows and pending overdubs), the
+/// foreground recorder's source and resampling (`bind::AudioFacts`), the clips' play state (`bind::ClipFacts`) and
+/// the two features the TAP TEMPO and SYNC_SCALING arms branch on (`bind::DeviceSettings`). It acts through
+/// `bind::TransportActions` (the buttons' transport calls, each with the popup it draws), writes the sync-scaling
+/// clip through `bind::WriteSink`, forgets the undo history through `bind::DeviceActions`, and opens the settings
+/// menu over the installed set. With no set installed every read answers an idle device's default and every action
+/// is skipped; each press is still handled as legacy handles it.
 ///
 /// @par Where this sits in the chain, and why that is legacy's own shape
 ///
@@ -123,14 +134,14 @@
 ///     `shell::PopupScene`, so even an injected `PopupScene` could not see it. **This one is a
 ///     behaviour difference, not merely a missing call**: with that popup up, legacy's short
 ///     RECORD tap dismisses it and does nothing else, while this port falls through to
-///     `PlaybackHandler::recordButtonPressed()` and toggles recording.
+///     `bind::TransportActions::record()` and toggles recording.
 ///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`View::buttonAction` in `gui/views/view.cpp`). The
 ///     note-editor test needs no port here: it holds only in a note mode, and the note mode never lets this
 ///     service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler, whose
 ///     `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
 ///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` . The two fill adjustments name `instrumentClipView`, on
 ///     `scenes-no-root-ui`'s list, and `InstrumentClipScene` is not ported. What survives is the arm's "otherwise",
-///     `currentSong->changeFillMode(on)`.
+///     fill mode, `bind::TransportActions::fill`.
 ///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`PlaybackHandler::setLedStates`).
 ///     The external-clock LED is a board *signal*, not an `IndicatorLED`, so it has no `ButtonId`
 ///     and therefore no `ui::LedId` (`shell/profiles/deluge.h`: "LedId values = ButtonId values").
@@ -161,13 +172,12 @@
 /// called from `on_button` *before* the event is ever emitted. `handle()` therefore reports
 /// `ButtonId::Shift` handled -- legacy's tail does deal with it -- and does nothing.
 ///
-/// @par `#ifdef undoButtonX` is dead code
+/// @par Undo is the BACK arm
 ///
-/// The undo and redo buttons look like arms this service must port, but they are
-/// inside `#ifdef undoButtonX` (`View::buttonAction` in `gui/views/view.cpp`), and **`undoButtonX` is
-/// defined nowhere in this repository** -- the only two occurrences are that `#ifdef` and the
-/// `#ifndef` on the `BACK` arm. The `BACK` arm *is* the undo/redo, and it
-/// is what this service ports.
+/// The dedicated undo and redo buttons of `View::buttonAction` (`origin/main:src/deluge/gui/views/view.cpp`) sit
+/// inside `#ifdef undoButtonX`, a macro defined nowhere, so they never build. The `BACK` arm is the undo, or redo with
+/// shift, and it is what this service ports: when `bind::Transport::undo_allowed`, `bind::TransportActions::undo`
+/// runs the reversion before it returns.
 ///
 /// @par The play flash is the clip-arm flash, and it is not a Play-LED flash
 ///
@@ -190,16 +200,17 @@
 ///       once per `flash_play_enable()` and stops. A future `SessionScene` re-arms it exactly where legacy does.
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` and `UiContext::now_ms` are the only
-///          places a clock arrives (`shell-no-clock`). Legacy's `AudioEngine::audioSampleTimer`
+///          places a clock arrives (`shell-no-clock`). Legacy's sample-timer
 ///          press timings (`View::buttonAction`'s SAVE and LOAD arms, `Buttons::buttonAction`) become milliseconds
 ///          here; `kShortPressTime` is `kSampleRate / 2` (`definitions_cxx.hpp`), which is
 ///          exactly the 500 ms `LoweringConfig::short_press_ms` already carries
 ///          (`shell/input_lowering.h`).
 
+#include "scenes/bind/ports/ports.h"
 #include "scenes/menu/context.h"
 #include "scenes/services/learn_mode.h"
 
-#include "definitions_cxx.hpp" // MidiLearn
+#include "deluge-project/song.h"
 #include "ui/core/led_frame.h"
 
 #include "shell/scene.h"
@@ -208,8 +219,6 @@
 
 #include <cstdint>
 #include <optional>
-
-class Song;
 
 namespace deluge::ui::shell {
 class InputLowering;
@@ -293,17 +302,21 @@ public:
 	/// @name The model this service edits
 	/// @{
 
-	/// @brief Which song the arms resolve against -- legacy's `currentSong`, read throughout
-	///        `View::buttonAction`.
-	///
-	/// An explicit setter because `scenes-currentSong` forbids this layer the global, exactly as
-	/// `ModKnobs::set_song` does.
-	/// @warning A stale song makes every sync-scaling decision and the SYNC_SCALING LED read the
-	///          wrong one; update it whenever the song changes.
-	/// @param song The current song, or null before one exists.
-	void set_song(Song* song) { song_ = song; }
-	/// @return What was last passed to `set_song`.
-	Song* song() const { return song_; }
+	/// @brief The port set the service reads and acts through: the transport and its actions, the audio facts, the
+	///        clip facts, the device's settings and actions, and the write sink. The set is not owned and must outlive
+	///        the service's use of it.
+	/// @param ports The set, or null for none: every read answers its default and every action is skipped.
+	void set_ports(const deluge::scenes::bind::Ports* ports) { ports_ = ports; }
+	/// @brief The record of the song the arms resolve against: its sync-scaling clip, and the model the settings menu
+	///        opens over. Not owned.
+	/// @warning A stale record makes every sync-scaling decision and the SYNC_SCALING LED read the wrong song; update
+	///          it whenever the song changes.
+	/// @param model The song's record, or null before one exists: the SYNC_SCALING and settings arms then do nothing.
+	void set_model(const deluge::project::Song* model) { model_ = model; }
+	/// @return What was last passed to `set_ports`.
+	[[nodiscard]] const deluge::scenes::bind::Ports* ports() const { return ports_; }
+	/// @return What was last passed to `set_model`.
+	[[nodiscard]] const deluge::project::Song* model() const { return model_; }
 
 	/// @brief Tell this service what the root view is -- see `ViewState`.
 	/// @param state The view's answers.
@@ -500,11 +513,20 @@ private:
 	/// @return True when the LED is declared `Blink` rather than solid.
 	bool blinking_sync_scaling() const;
 
+	/// @name Reads and actions through the installed ports, each answering an idle device with none
+	/// @{
+	[[nodiscard]] bool playing() const;                                         ///< the transport's, false with none
+	[[nodiscard]] deluge::scenes::bind::TransportRecording recording() const;   ///< the transport's, OFF with none
+	[[nodiscard]] deluge::scenes::bind::ForegroundRecording foreground() const; ///< the audio facts', NONE with none
+	[[nodiscard]] deluge::scenes::bind::TransportActions* actions() const;      ///< the transport's actions, or null
+	/// @}
+
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
 	LearnMode& learn_;
 
-	Song* song_ = nullptr;
+	const deluge::scenes::bind::Ports* ports_ = nullptr; ///< the installed ports, or null for none
+	const deluge::project::Song* model_ = nullptr;       ///< the song's record, or null for none
 	ViewState view_{};
 
 	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `gui/views/view.cpp`).

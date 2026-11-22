@@ -25,6 +25,7 @@
 #include "modulation/patch/patch_cable.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/menu_context.h"
 #include "support/menu_engine.h"
 #include "support/oracle_tree.h"
 #include "support/song_fixture.h"
@@ -45,7 +46,7 @@ using deluge::scenes::menu::Node;
 ///        the same objects through one fixture.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
-	song->setCurrentClip(menu_engine(ctx).clip);
+	song->setCurrentClip(menu_engine(ctx, *song).clip);
 	currentUIMode = ctx.affect_entire_held ? UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR : 0;
 }
 
@@ -104,8 +105,8 @@ inline Rigged& fixture() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Rigged r;
 		r.song = spec::make_synth_song();
-		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                          /*kit_global_fx=*/false);
+		r.ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                     /*kit_global_fx=*/false);
 		return r;
 	}();
 	install(f.ctx, f.song.song);
@@ -131,8 +132,8 @@ inline KitRig& kit_fixture() {
 		r.drum_a = spec::add_drum<SoundDrum>(r.song);
 		r.drum_b = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum_a;
-		r.ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                          /*kit_global_fx=*/false);
+		r.ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                     /*kit_global_fx=*/false);
 		return r;
 	}();
 	return k;
@@ -142,8 +143,8 @@ inline KitRig& kit_fixture() {
 inline MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
 	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
 	currentSong = k.song.song; // a context binds the app's facts and sink over the current song only
-	MenuContext ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
-	                                    /*kit_global_fx=*/false);
+	MenuContext ctx = spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
+	                               /*kit_global_fx=*/false);
 	ctx.affect_entire_held = affect_entire_held;
 	ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx); // as the menu scene sets it
 	install(ctx, k.song.song);

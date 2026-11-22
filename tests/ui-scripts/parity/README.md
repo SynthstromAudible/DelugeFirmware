@@ -156,6 +156,12 @@ differences (D164, D165 in `DIFFERENCES.md`) are pinned by specs.
   to `fm_back`), and the volume bar on the menu's second visit (`sub_menu`, `sub_first_turn`, `sub_set`); every knob
   snapshot in these sections matches `main`.
 
+`p28-metronome` covers the metronome and a recording's count-in: SHIFT+TAP TEMPO turns the metronome on and off (the
+TAP TEMPO LED), the settings menu's RECORDING page sets COUNT-IN to one bar, and RECORD then PLAY show the count-in's
+countdown popup before the take. Its settings walk is counted for the host app (`tools/x86_parity.py`), which turns the
+encoder by exactly its detents. On delugemu, which drops the first detent of some turns (see `sm00-select-turn`), the
+walk reaches COUNT-IN too, so both runners cover the count-in.
+
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
 preset shows the conversion in every comparison that touches it instead of the UI.

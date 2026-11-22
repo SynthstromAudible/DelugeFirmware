@@ -35,8 +35,7 @@ Value encode(const Transport& transport) {
 	map.set("timePerTimerTick", Value::makeNumber(static_cast<int32_t>(transport.samples_per_timer_tick_big >> 32)));
 	map.set("timerTickFraction",
 	        Value::makeNumber(static_cast<int32_t>(static_cast<uint32_t>(transport.samples_per_timer_tick_big))));
-	map.set("inputTickMagnitude", Value::makeNumber(transport.inside_world_tick_magnitude
-	                                                + transport.inside_world_tick_magnitude_offset_from_bpm));
+	map.set("inputTickMagnitude", Value::makeNumber(transport.input_tick_magnitude()));
 	return map;
 }
 

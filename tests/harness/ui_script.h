@@ -10,13 +10,14 @@
 #ifdef __cplusplus
 #include "fixed_vector.h"
 
+#include <memory>
 #include <optional>
 #include <string_view>
 
 namespace deluge::harness {
 
 /// @brief Which field of `Step` a parsed line filled in.
-enum class StepKind : uint8_t { Board, Snapshot, Button, Encoder, Pad, Released, Model, Notice, Quit };
+enum class StepKind : uint8_t { Board, Snapshot, Button, Encoder, Pad, Released, Model, Notice, Quit, Midi };
 
 /// @brief One parsed line of a UI test script.
 ///
@@ -31,7 +32,7 @@ struct Step {
 	char name[32] = {}; ///< snapshot name / button name / role name / dirty name / notice kind
 	int32_t a = 0, b = 0, c = 0;
 	bool down = false;
-	char text[64] = {}; ///< board spec, notice arg
+	char text[64] = {}; ///< board spec, notice arg, midi bytes as hex
 };
 
 /// @brief A parse failure, with the 1-based source line it occurred on.
@@ -42,7 +43,8 @@ struct ParseError {
 
 /// @brief Result of `parse_script`: either every step, or the first error.
 struct ScriptResult {
-	FixedVector<Step, 256> steps;
+	/// Every parsed step. About 500 KB at this capacity, so a result lives on the heap (`parse_script`).
+	FixedVector<Step, 4096> steps;
 	std::optional<ParseError> error;
 };
 
@@ -52,8 +54,8 @@ struct ScriptResult {
 /// Unknown commands are errors, not warnings. Times must be non-decreasing. Stops at the first
 /// error and reports its (1-based) line number.
 /// @param text Full script text.
-/// @return Steps parsed so far, and the first error if parsing failed.
-ScriptResult parse_script(std::string_view text);
+/// @return The steps or the first error, on the heap: a script of 4096 steps is too large for a stack.
+[[nodiscard]] std::unique_ptr<ScriptResult> parse_script(std::string_view text);
 
 } // namespace deluge::harness
 #endif // __cplusplus
@@ -72,6 +74,7 @@ typedef enum UiScriptStepKind {
 	UI_SCRIPT_MODEL = 6,
 	UI_SCRIPT_NOTICE = 7,
 	UI_SCRIPT_QUIT = 8,
+	UI_SCRIPT_MIDI = 9, ///< DIN MIDI input: `text` holds the bytes as hex
 } UiScriptStepKind;
 
 #ifdef __cplusplus
@@ -84,6 +87,7 @@ static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Released) == UI_SC
 static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Model) == UI_SCRIPT_MODEL);
 static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Notice) == UI_SCRIPT_NOTICE);
 static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Quit) == UI_SCRIPT_QUIT);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Midi) == UI_SCRIPT_MIDI);
 #endif
 
 /// @brief C mirror of `deluge::harness::Step`, for the host BSP, which is C.

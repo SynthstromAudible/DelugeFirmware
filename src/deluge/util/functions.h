@@ -19,6 +19,7 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/track_kind.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
@@ -33,6 +34,7 @@
 #include <bit>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 
 class UI;
@@ -45,6 +47,10 @@ extern const uint8_t modButtonY[];
 extern uint8_t subModeToReturnTo;
 
 char const* getThingName(OutputType outputType);
+/// @brief The model's track kind for an output type.
+/// @param outputType The output's type.
+/// @return The kind, or nullopt for OutputType::NONE.
+[[nodiscard]] std::optional<deluge::project::TrackKind> trackKindOf(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 /**

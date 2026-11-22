@@ -2,7 +2,7 @@
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
-#include "scenes/menu/bind_host.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/services/source_names.h"
 
 #include "controls/pages.h"
@@ -42,8 +42,8 @@ namespace ip = deluge::instrument::param;
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
-/// What a push reads beyond the song's records: the owner's effects (from the host's track and sound ports), the device
-/// facts (from the controls port) and the gesture's context.
+/// What a push reads beyond the song's records: the owner's effects (through the gesture's track and sound ports), the
+/// device facts (through its controls port) and the gesture's context.
 struct Reads {
 	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
 	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
@@ -53,12 +53,17 @@ struct Reads {
 
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
-	const bind::Ports& ports = menu::host_ports();
-	Reads out{.pages = bind::app_page_sources(*ports.controls, gesture.board),
+	const controls::Facts* const facts = bind::port_of(gesture.ports, &bind::Ports::controls);
+	Reads out{.pages = facts != nullptr ? bind::app_page_sources(*facts, gesture.board)
+	                                    : bind::app_turn_sources(gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const effects::EffectStates* fx = owner_effects(focus, *ports.tracks, *ports.sound)) {
-		out.effects = *fx;
+	const bind::TrackFacts* const tracks = bind::port_of(gesture.ports, &bind::Ports::tracks);
+	const bind::SoundFacts* const sound = bind::port_of(gesture.ports, &bind::Ports::sound);
+	if (tracks != nullptr && sound != nullptr) {
+		if (const effects::EffectStates* fx = owner_effects(focus, *tracks, *sound)) {
+			out.effects = *fx;
+		}
 	}
 	return out;
 }
@@ -69,7 +74,7 @@ const char* text(String s) {
 
 /// The song's input tick magnitude, as its transport records it.
 int32_t tick_magnitude(const project::Song& song) {
-	return song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
+	return song.transport.input_tick_magnitude();
 }
 
 const char* filter_type_name(effects::FilterType type) {

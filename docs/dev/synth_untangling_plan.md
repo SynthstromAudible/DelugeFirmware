@@ -207,9 +207,11 @@ Thumb and a low inline threshold (5).
 | Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
 
-The end state puts every library directly under `src/`, the app among them: `src/dsp/` (today `src/deluge/dsp-next/`,
-once the legacy `src/deluge/dsp/` is retired), `src/app/` (today `src/deluge/`) and `src/foundation/` for the leaf
-utilities the libraries share. No library has the app on its include path. The steps are in TODO.md (layout arc 2).
+The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/deluge/dsp-next/`, once the legacy
+`src/deluge/dsp/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;
+one directory per instrument plugin under `src/instruments/` (`classic/`, the q31 instrument that holds `Fixed`, and
+`modern/`, the float one); `src/effects/` and `src/note_devices/` beside them. Only instruments include `synth/`, no
+instrument includes another, and the host reaches plugins only through `src/plugin/`.
 
 ### Layer contracts
 

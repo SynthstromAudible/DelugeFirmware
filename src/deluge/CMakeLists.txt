@@ -68,7 +68,7 @@ endif()
 # the <libdeluge/...> boundary headers — no HAL and no BSP. The boundary's
 # deluge_* functions are undefined symbols here, resolved when the Rust BSP links
 # the app (src/bsp/rust/build/, on the device and on the host).
-# scripts/check_platform_boundary.py keeps HAL and BSP includes out of the app.
+# scripts/check_layers.py's platform-boundary rule keeps HAL and BSP includes out of the app.
 # ---------------------------------------------------------------------------
 # An OBJECT library (not STATIC): its object files embed directly into whichever
 # executable links it. That keeps the app objects always-present, so the mutual
@@ -130,6 +130,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_host_chain # the host chain's param table and pages
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music_theory # note sets, scales, keys and scale mapping
+    deluge_sample_view # a waveform view's columns, peaks and navigation
     deluge_gfx_oled # pure drawing primitives
     deluge_gfx_grid
     deluge_ui_core # the immediate-mode UI toolkit

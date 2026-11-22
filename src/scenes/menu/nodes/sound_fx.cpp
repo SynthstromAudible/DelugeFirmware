@@ -34,10 +34,8 @@
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
 #include "instruments/deluge/state_access.h"
-#include "model/song/song.h"
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/sync.h"
-#include "processing/engines/audio_engine.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
@@ -116,13 +114,13 @@ void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value) {
 // `is_reverb_sidechain_`), with no affect-entire loop: there is one reverb sidechain, not one per drum.
 
 int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
-	if (ctx.model == nullptr) {
+	if (ctx.model == nullptr || ctx.ports.audio == nullptr) {
 		return 0;
 	}
 	// The sync type is runtime-only for the reverb; the level is the song's.
 	return deluge::plugin::combined_sync_menu(
 	    deluge::plugin::index_of(ctx.model->reverb.sidechain_sync),
-	    deluge::plugin::sync_type_choice(AudioEngine::reverbSidechainSettings.sync_type));
+	    deluge::plugin::sync_type_choice(ctx.ports.audio->reverb_sidechain_sync_type()));
 }
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	if (ctx.ports.writes == nullptr) {
@@ -131,7 +129,7 @@ void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	// The sync type is the engine's alone; the level is the song's record.
 	const auto [level, type_choice] = deluge::plugin::combined_sync_stored(value);
 	const deluge::plugin::SyncType type = deluge::plugin::kSyncTypeChoices[static_cast<size_t>(type_choice)];
-	AudioEngine::reverbSidechainSettings.sync_type = type;
+	ctx.ports.writes->set_reverb_sidechain_sync_type(type);
 	bindings::write_song(ctx, "reverb/compressor/syncLevel", level);
 }
 

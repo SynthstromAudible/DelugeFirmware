@@ -14,17 +14,18 @@
 /// (`check_layer_rules.py`, `scenes-no-frame-primitives`):
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`)
-///     -> `services::paint_full` (the scan through the waveform's address, then `ui::grid::waveform_full`).
+///     -> `services::read_waveform` then `services::paint_columns` (the read through the waveform's address, then
+///     `ui::grid::waveform_full`).
 ///   * `renderColumn` / `renderMarkerInCol` -> `ui::grid::marker_column` /
 ///     `marker_tint`.
 ///   * `renderOLED`'s `drawScreenTitle` -> `ui::oled::title`.
 ///   * its lock icon + `invertArea` -> `ui::oled::title_badge`.
 ///   * its time and sample-count lines -> `ui::oled::sample_position`.
 ///
-/// The scan and the navigation are not widgets: the scan reads the card through the waveform
-/// service (`scenes/services/waveforms.h`), and the navigation arithmetic lives in
-/// `model/sample/waveform_navigator.h`, which this layer may include and `src/ui` may not. That
-/// split is `ui/grid/waveform.h`'s own, written down before this scene existed.
+/// The read and the navigation are not widgets: the read goes through the context's waveforms port
+/// (`scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the navigation
+/// is `sample_view::WaveformView` (`sample-view/view.h`). The scene keeps no columns: a frame with pending ones asks
+/// for another (`services::PeakRetry`).
 ///
 /// @par Where the markers come from
 ///
@@ -81,10 +82,11 @@
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
 #include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
+#include "sample-view/view.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/context.h"
+#include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
-#include "scenes/services/waveform_address.h"
-#include "scenes/services/waveforms.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/grid/effects.h"
@@ -92,9 +94,9 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
+#include "deluge-project/device_settings.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
-#include "model/sample/waveform_navigator.h"
 
 #include <array>
 #include <cstdint>
@@ -190,9 +192,9 @@ public:
 	/// @return Which marker the encoder and an untargeted pad press move.
 	MarkerType marker_type() const { return marker_type_; }
 	/// @return The left edge of the view, in samples.
-	int64_t x_scroll() const { return nav_.xScroll; }
+	int64_t x_scroll() const { return view_.scroll(); }
 	/// @return Samples per column.
-	int64_t x_zoom() const { return nav_.xZoom; }
+	int64_t x_zoom() const { return view_.zoom(); }
 	/// @return The blink's phase, 0..3 (`SampleMarkerEditor::blinkPhase`
 	/// (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`)).
 	int8_t blink_phase() const { return blink_phase_; }
@@ -205,18 +207,19 @@ public:
 	bool sliding() const { return zoom_pending_.has_value() || zoom_.active; }
 	/// @brief The last zoom slide begun, running or not.
 	const deluge::ui::grid::ZoomTransition& zoom_slide() const { return zoom_; }
-	/// @brief Read waveforms from @p waveforms in place of the host's, or the host's again with null. For specs.
-	void set_waveforms(const services::Waveforms* waveforms) { waveforms_override_ = waveforms; }
+	/// @brief The zone's markers in zone order, each with its frame and the column it lands on now, as
+	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
+	///        them: a start marker by its first frame, an end marker by its last.
+	/// @return The pins; an unset loop marker has no column.
+	[[nodiscard]] std::array<sample_view::MarkerPin, kNumMarkerTypes> pins() const;
 	/// @}
 
 private:
-	/// @brief `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
-	/// @param[out] cols `kNumMarkerTypes` entries, filled in.
-	void cols_on_screen(MarkerColumn* cols) const;
 	/// @brief `SampleMarkerEditor::writeValue`.
-	/// @param value The new position, in samples.
+	/// @param value The new position, in samples, at least 0. A record that stores less than 64 bits takes it
+	///              clamped to what it stores.
 	/// @param which Which marker to write, or `NOT_AVAILABLE` for the selected one.
-	void write_value(uint32_t value, MarkerType which = MarkerType::NOT_AVAILABLE);
+	void write_value(int64_t value, MarkerType which = MarkerType::NOT_AVAILABLE);
 	/// @brief `SampleMarkerEditor::selectEncoderAction`.
 	/// @param offset Signed detents.
 	void select_encoder(int32_t offset);
@@ -271,7 +274,7 @@ private:
 	///        (`getCurrentSampleHolder` in `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	/// @param ctx The context to resolve.
 	/// @return The address, or nullopt when the context names neither.
-	static std::optional<services::WaveformAddress> address_of(const menu::MenuContext& ctx);
+	static std::optional<bind::WaveformAddress> address_of(const menu::MenuContext& ctx);
 	/// @brief The edited sound's state, or null on an audio clip, where the facts hold no sound, or where the edited
 	///        source is not one of the sound's two.
 	const deluge::instrument::SoundState* sound_state() const;
@@ -291,18 +294,22 @@ private:
 	std::optional<services::ViewKey> view_key_of() const;
 	/// @brief The view the store remembers for the waveform's range or clip, or an empty one.
 	services::SampleView view() const;
-	/// @brief Follow the waveform @p info describes: its length, and a fresh cache when it is another waveform.
-	void follow_waveform(const services::WaveformInfo& info);
+	/// @brief Follow the waveform @p info describes: the view takes a growing take's length, and another file reopens
+	///        it at its window, clamped into the new file's zooms and scrolls as an open clamps a remembered view.
+	void follow_waveform(const bind::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};
 	/// The popup `set_loop_locked` queued during the pad press being handled, filed when `handle` returns.
 	std::optional<l10n::String> pending_popup_{};
-	services::WaveformAddress where_{};
+	bind::WaveformAddress where_{};
 	/// Whose view the editor shows and records, resolved as it opens.
 	std::optional<services::ViewKey> view_key_{};
-	/// The identity of the waveform nav_'s cache holds.
-	uint64_t waveform_identity_ = 0;
-	deluge::sample::WaveformNav nav_{};
+	/// The view over the waveform: which frames the main columns show.
+	sample_view::WaveformView view_{};
+	/// Which waveform `view_` is over (`bind::WaveformInfo::identity`).
+	uint64_t identity_{0};
+	/// The redraws of a frame whose read left columns pending.
+	services::PeakRetry retry_{};
 
 	MarkerType marker_type_ = MarkerType::START;
 	int8_t blink_phase_ = 0;
@@ -314,10 +321,18 @@ private:
 	bool holding_ = false;
 	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
 	bool xenc_held_ = false;
-	/// A spec's waveforms, in place of the host's.
-	const services::Waveforms* waveforms_override_ = nullptr;
-	/// The waveforms the editor reads: the host's, unless a spec gave its own.
-	const services::Waveforms& waveforms() const;
+	/// @brief The waveforms the editor reads: its context's port.
+	/// @return The port; null where the context has none, which `can` refuses.
+	[[nodiscard]] const bind::Waveforms* waveforms() const { return ctx_.ports.waveforms; }
+	/// @brief What the waveform the markers sit on is.
+	/// @return The info; none where the context has no waveforms port or no file is loaded there.
+	[[nodiscard]] std::optional<bind::WaveformInfo> waveform_info() const;
+	/// @brief Where a voice plays in the waveform the markers sit on.
+	/// @return The frame; none where the context has no waveforms port or nothing plays there.
+	[[nodiscard]] std::optional<int64_t> play_position() const;
+	/// @brief How the playhead is shown: the device's `pads/playCursor` row through the context's device port; Slow,
+	///        the row's default, with no device port.
+	[[nodiscard]] deluge::project::FlashCursor play_cursor() const;
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
@@ -343,8 +358,8 @@ private:
 	/// @note **Two different widths decide "on screen" in this scene, and they can disagree.**
 	///       This one is `render_grid`'s `main.bounds().w` -- the frame it was actually given. The
 	///       *scroll* and *hit-test* arms (`select_encoder`'s `old_col >= 0 && old_col <
-	///       kDisplayWidth`, `pad_action`'s column tests, and `cols_on_screen`'s `kInvalidColumn`
-	///       arithmetic) use `kDisplayWidth`, because they are transcriptions of legacy, which has
+	///       kDisplayWidth`, `pad_action`'s column tests, and `pins()`' unset markers)
+	///       use `kDisplayWidth`, because they are transcriptions of legacy, which has
 	///       only that constant. On every shipped board the two are both 16 and the question does
 	///       not arise; on a wider grid the blink would follow the frame while scrolling followed
 	///       the constant. Deliberately not unified here: making the scroll arms read a width the

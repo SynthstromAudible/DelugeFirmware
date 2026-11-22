@@ -55,6 +55,9 @@
 #include "util/notify.h"
 #include <new>
 
+// The clip's peak cache has a column for each of the display's main columns.
+static_assert(deluge::sample_view::kColumns == kDisplayWidth);
+
 namespace params = deluge::modulation::params;
 
 namespace {
@@ -77,7 +80,7 @@ AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song
 
 	recorder = nullptr;
 
-	renderData.xScroll = -1;
+	renderData.forget();
 
 	// The DocAudioClip (freshly created with its default descriptor values) is authoritative; derive the engine's
 	// runtime cache (sampleHolder / sampleControls / overdubs) from it. The defaults live in DocAudioClip's member
@@ -167,7 +170,7 @@ void AudioClip::abortRecording() {
 		return; // This is allowed to happen
 	}
 
-	renderData.xScroll = -1; // Force re-render
+	renderData.forget(); // Force re-render
 
 	recorder->pointerHeldElsewhere = false; // Must do before calling recorder->abort()
 
@@ -272,7 +275,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		// Not our own clear(), which aborts the recorder we're about to take the sample from if no clock is running
 		Clip::clear(nullptr, modelStack, true, true);
 		clearSample(nullptr);
-		renderData.xScroll = -1;
+		renderData.forget();
 	}
 	auto ao = (AudioOutput*)output;
 	// if we're a sampler then turn off monitoring
@@ -292,7 +295,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// record; reflect the resolved window into docAudioClip_ so save persists the recorded length, not a stale zone.
 	syncSampleRecordFromEngine();
 
-	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
+	renderData.forget(); // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
 		setAttack(kAudioClipDefaultAttackIfPreMargin); // TODO: make these undoable?
@@ -1122,7 +1125,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder,
+		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, renderData, recorder,
 		                                             rgb, sampleControls.isCurrentlyReversed(), xStart, xEnd);
 	}
 
@@ -1530,7 +1533,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 		// with overdubs these could both be true
 		clearSample(action);
 
-		renderData.xScroll = -1;
+		renderData.forget();
 	}
 }
 

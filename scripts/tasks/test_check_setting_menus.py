@@ -306,16 +306,18 @@ class SongStateWrites(unittest.TestCase):
     ):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "scenes" / "menu" / "nodes").mkdir(parents=True)
-            (root / "scenes" / "menu" / "nodes" / "sound_fx.cpp").write_text(
+            (root / "deluge" / "gui" / "ui" / "shell_host").mkdir(parents=True)
+            (
+                root / "deluge" / "gui" / "ui" / "shell_host" / "edit_sink.cpp"
+            ).write_text(
                 "void hook() {\n"
                 "\tAudioEngine::reverbSidechainSettings.sync_type = type;\n"
                 "\tAudioEngine::reverbSidechainSettings.sync_type = SYNC_TYPE_EVEN;\n"
                 "}\n"
             )
             allowed = {
-                "scenes/menu/nodes/sound_fx.cpp": csm.SONG_STATE_ALLOWED[
-                    "scenes/menu/nodes/sound_fx.cpp"
+                "deluge/gui/ui/shell_host/edit_sink.cpp": csm.SONG_STATE_ALLOWED[
+                    "deluge/gui/ui/shell_host/edit_sink.cpp"
                 ]
             }
             found = csm.song_state_writes((root,), allowed=allowed)

@@ -24,7 +24,7 @@ in `website/src/data/generated/menu-tree.json`.
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
 | `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
-| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, waveforms, favourites) |
+| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, the waveform read and paint, the peak retry, favourites) |
 
 | `SceneKind` | scene |
 |---|---|
@@ -67,9 +67,10 @@ nothing.
 * **No legacy UI.** No root-UI global or UI-stack call (`scenes-no-root-ui`: `getRootUI(`,
   `openUI(`, `sessionView`, `renameClipUI`, `loadSongUI`, …), no `display->` (`scenes-no-display`), no legacy output
   driver (`scenes-no-legacy-hid-drivers`: `uiNeedsRendering(`, `PadLEDs::`, `indicator_leds::`,
-  `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no
-  stem-export process call (`scenes-no-stem-export-process`). Where a ported item has to run a
-  root-UI behaviour it names it for the host instead — see "The action seam".
+  `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no peak cache
+  (`scenes-no-peak-cache`: `sample-view/peak_cache.h` is the host's and the legacy views'), no stem-export process
+  call (`scenes-no-stem-export-process`). Where a ported item has to run a root-UI behaviour it names it for the host
+  instead — see "The action seam".
 * **Drawing.** No `OledFrame`/`GridFrame` primitive (`scenes-no-frame-primitives`): pixels come from
   `ui::oled` and `ui::grid` widgets, so layout rules live in one place.
 * **No wall clock** (`shell-no-clock`): the frame's `now_ms()` and `tick(dt)` are the only time a
@@ -311,12 +312,16 @@ one tick, so one slot holds only while its consumer polls every tick.
 from `ShellHostUI::timerCallback` after every `Shell::tick` and above the close check, so no tick
 skips it. If it ever wants to be lazy, the slot has to become a queue first.
 
-**A setting's side effect is a call, not an action.** A settings write `main` applies at once is a synchronous call
-the setter makes into `menu/bind_host.h`, and the host has applied it when the setter returns:
-`host_screensaver_settings_changed` (the screensaver's mode and timeout), `host_pad_brightness_changed`,
-`host_highlighting_changed`, `host_rounded_corners_changed`, `host_shift_sticky_changed`, `host_pad_colours_changed`,
-and `host_clear_tick_squares` when the flash status leaves its slow flash. The file selector ends a keyboard
-audition the same way, with `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
+**A setting's side effect is the host's, not an action.** A setting that is a DEVICE row has no setter: its node
+writes the device port (`Ports::device`), whose host store does what the item's write does, and has done it when the
+write returns: both screensavers take a new mode or timeout, the pads dim to a new brightness and re-render for a new
+colour, main's canvas and the guest's panels take a new highlighting, the play cursor leaving its slow flash clears
+the tick squares, sticky shift reaches the shift machines, rounded corners restyles the display, a trigger clock's
+pulses resync the ticks, a MIDI clock starts or stops, a CV output's voltage goes out again and a gate switches. A
+write the device applies only after a restart (USB audio's enable) says so, and the menu raises "restart to apply".
+What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus feature's re-lays
+out the menu. The file selector ends a keyboard audition the same way, through the view actions port
+(`Ports::view_actions`, `end_audition(AuditionEnd::KeyboardWhenAuditioning)`).
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`
 (`scenes/browser/browser_scene.h`): `perform` takes a `BrowserChoice` (the claim of a chosen file, the folder imports
@@ -388,10 +393,10 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (`UiFacts::dx7_engine_enabled`):
-  `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
-  first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
-  the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
+* **The parameter page has its own pads** while the DX7 engine feature is on (the device's
+  `features/EnableDX7Engine` row): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
+  (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of
+  the blink's `dx::param_pad`), and the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
 * **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or
   with the page open toggles and carries the param as `openForOpOrGlobal` does (`dx::column_param`,
   `MenuScene::dx_column_press`, which re-targets the menu from another page). The column flashes the edited
@@ -467,12 +472,14 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   `preview_settled` from its poll after the tick; `next_timer` polls while the answer is owed. Each load's path
   becomes `deluge::model::lastFilePathLoaded`, which the browser opens beside when its holder names no
   file in SAMPLES/ (`menu::host_last_sample_path`).
-* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
-  legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
-  legacy's image does not always follow them. The keyboard appears on the first main-pad press (typing only below
-  the favourites row) or a horizontal turn, and hides on every move and every folder listing unless KEYBOARD keeps
-  it. The audition column stays the instrument clip view's (`GridPadClaim::AllButAudition`), and the mute column
-  closes the browser.
+* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's,
+  zoomed and scrolled with X_ENC) or `Keyboard`. The preview's waveform is read at the PREVIEW address through
+  `menu::host_waveforms()`, the one scene that still reaches the port by its hook ("The waveform views" below), and
+  `shown_waveform` hands the slicer the view it shows of a file. Beside it the scene keeps legacy's own flags
+  (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because legacy's image does not
+  always follow them. The keyboard appears on the first main-pad press (typing only below the favourites row) or a
+  horizontal turn, and hides on every move and every folder listing unless KEYBOARD keeps it. The audition column
+  stays the instrument clip view's (`GridPadClaim::AllButAudition`), and the mute column closes the browser.
   The BROWSE pad's blink is `BrowseBlink`, `main`'s `SoundEditor::blinkShortcut` timer
   (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the file selector's 200 ms blink from the
   open (the drum creator's door has none), surviving the open's own preview; stopped by a later preview, a move off a
@@ -516,14 +523,13 @@ The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tie
 
 ### The sample marker editor (`marker/`)
 
-`marker::MarkerScene` ports `SampleMarkerEditor`, opened by the four loop-point items and the audio
-clip's waveform item with the `MarkerType` as `SceneId::arg`. Legacy draws **no waveform on the
-OLED** — a title, a lock badge, a duration and a sample count — so the OLED half is
-`ui::oled::sample_position` and the pad half `ui::grid::markers` over the waveform scan in
-`model/sample/waveform_scan.h` and `waveform_navigator.h` (arithmetic in `model/`, drawing in the
-toolkit). One legacy render bug is fixed in the port: `renderOLED` draws the h/m unit letters at a
-fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws them at the
-cursor.
+`marker::MarkerScene` ports `SampleMarkerEditor`, opened by the four loop-point items and the audio clip's waveform
+item with the `MarkerType` as `SceneId::arg`. Legacy draws **no waveform on the OLED** — a title, a lock badge, a
+duration and a sample count — so the OLED half is `ui::oled::sample_position` and the pad half `ui::grid::markers`
+over the waveforms port's columns at the range's or the audio clip's address, navigated by
+`sample_view::WaveformView` ("The waveform views" below). One legacy render bug is fixed in the port: `renderOLED`
+draws the h/m unit letters at a fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws
+them at the cursor.
 
 A zoom slides as `PadLEDs::renderZoom` does, through `ui::grid::ZoomTransition`: from the last settled
 frame to the new view's bare waveform over 110 ms, a step every 50 ms, every input refused while it slides.
@@ -542,10 +548,14 @@ host's (`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the ed
 `processing/recording/foreground_recording.h`). Legacy's `process()` loop in
 the item's own stack frame is the shell's tick plus a poll in `after_render`, every 10 ms.
 
-**The foreground recording is published, not re-derived.** Many subsystems read its channel as "a
-recording is live", `setMonitoringMode` among them, so the scene writes that same storage through
-`AudioEngine::setForegroundRecording`, in the order that keeps the pointer's visible window around
-the channel's (see the use-after-free in the ledger below).
+**The take goes through its port, and the host publishes it.** Many subsystems read the foreground recording's
+channel as "a recording is live", `setMonitoringMode` among them, so the take is published, not re-derived:
+`bind::TakeActions::begin` makes the take and publishes it through `AudioEngine::setForegroundRecording` in one step,
+`finish` unpublishes and frees a settled take in the order that keeps the pointer's visible window around the
+channel's (see the use-after-free in the ledger below), and `orphan` hands a running take to the foreground recording
+on an exit. The scene reads the take on `bind::AudioFacts::input_take` and its file on `input_take_path`, holds no
+recorder, and opens with two calls of the opener's: the tick squares cleared (`bind::Indicators`) and a held audition
+ended (`bind::ViewActions`).
 
 The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
 all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
@@ -571,8 +581,9 @@ transcription of legacy's.
 `timeline::TimelineState` is the state and pure arithmetic of legacy's `TimelineView` →
 `ClipNavigationTimelineView` → `ClipView` chain: a plain aggregate a root scene owns, not a scene.
 `timeline.h` has the symbol-by-symbol split. One `TimelineState` is one of `Song`'s two navigation
-slots; `adopt`/`publish` are the only functions that name `NAVIGATION_CLIP`. **Every horizontal turn
-clears the linear-recording restore point** (`stop_following()`), including one the gates refuse —
+slots; `adopt` takes it from the clip-facts port's `clip_navigation()`, whose host alone names
+`NAVIGATION_CLIP`. **Every horizontal turn clears the linear-recording restore point**
+(`stop_following()`), including one the gates refuse —
 it is the first statement of `ClipNavigationTimelineView::horizontalEncoderAction` — and a shift
 length edit does not. The `PadLEDs` scroll and zoom animations are not carried.
 
@@ -580,22 +591,27 @@ length edit does not. The `PadLEDs` scroll and zoom animations are not carried.
 
 `slicing::SlicerScene` ports `Slicer`, the page that cuts a kit into equal regions or hand-placed
 slices. It is not a root (`Slicer` is a plain `UI` opened over the browser) and does not use
-`TimelineState`: it navigates a sample through its own `WaveformNav`. `occludes_grid()` is false,
-because `Slicer` overrides `renderMainPads` only and the sidebar beneath keeps painting. The
-directory is `slicing/` because `scenes-no-root-ui` forbids the whole word `slicer`.
+`TimelineState`: it navigates a sample through its own `sample_view::WaveformView`, and reads its
+columns from the waveforms port at the SLICE address. `occludes_grid()` is false, because `Slicer`
+overrides `renderMainPads` only and the sidebar beneath keeps painting. The directory is `slicing/`
+because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 * **Everything it does to the audio, the model and the card goes through `SliceOps`**: preview,
-  voices, the playhead walk, restoring the range, and `begin_commit`. The host
+  voices, the playhead walk, restoring the range, `begin_commit`, and the close (`closed`). The host
   (`gui/ui/shell_slice_ops.cpp`) performs them with `gui::ui::SliceCore`, the core legacy's `Slicer`
   drives. The commit is asynchronous: until `SlicerScene::commit_done` the scene refuses buttons and
   pads, then removes itself and the browser closes with it.
 * **Two doors open it:** SLICE in the kit's SAMPLES menu, and Shift+Select on a file in a brand-new
   kit. Either asks the browser host to slice; the host loads the file into the preview drum
   without sounding it, and `BrowserScene::slice_ready` pushes the slicer.
-* **It opens on the browser's preview navigator when that shows the same sample**
-  (`BrowserScene::shown_waveform`), as legacy's slicer draws through `waveformBasicNavigator`, which the preview
-  scanned from the audio. **Reopened on the same sample and file, it keeps its navigator**, as legacy's global
-  navigator draws the first open's peaks.
+* **It holds its file as a `SliceFile`, the waveform's identity and its path**, never the sample. The SLICE address
+  resolves through the sample the host opened it on, and to nothing once the slicer closes (`SliceOps::closed`: BACK,
+  the mute column's exit, a landed slice) or a guest close releases the host. The scene keeps its file, so a reopen on
+  the same file keeps its view.
+* **It opens on the browser's preview view when that shows the same file** (`BrowserScene::shown_waveform`, asked by
+  the file's identity), as legacy's slicer draws through the `waveformBasicNavigator` the preview left. The columns
+  are the host's, kept for that file, so the slicer's first frame shows the columns the preview read. **Reopened on
+  the same file, it keeps its view.**
 * **`on_resume()` is `focusRegained`**, and resets the scene. It fires only when `input_top()`
   changes hands, so a popup the slicer raised expiring above it resets nothing, and a real scene
   closing above it does; `slicer_scene_spec.cpp` asserts both.
@@ -621,6 +637,10 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
   X_ENC with shift held enters no mode.
 * An `OutputType::AUDIO` output with no name draws the type text alone (legacy's
   `drawOutputNameFromDetails` matches none of its arms), so the scene passes `name_empty = false`.
+* **It reads and acts through the ports the host installs** (`set_ports`) and the song's record `open` names: the clip
+  and its play state on `ClipFacts`, the clocks and the arrangement's mode on `Transport`, the tempo grab on
+  `TransportActions`, its clip edits on `ClipWrites` and the edit sink, and its waveform at the
+  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`.
 
 **A spec that compares a rendered grid against legacy must make the comparison non-vacuous.** With no
 card mounted the waveform scan fails on most arms and both sides draw black, so a pad-for-pad match
@@ -628,6 +648,27 @@ proves nothing. `expect_pads_match` takes a `PadExpectation` with no default (`w
 `waveform_with_cursor(n)`, `waveform_without_cursor(n)`, `.and_column(x, colour)`) and asserts its
 non-black floor before comparing; fold that assertion into any new comparison rather than asking
 callers to precede it.
+
+### The waveform views
+
+The marker editor, the slicer, the audio clip view and the browser's preview draw a sample's waveform on the main
+pads. They share one read and one paint, and none of them holds the sample.
+
+* **The scenes keep no peak cache.** A frame reads its waveform's 16 columns through the waveforms port
+  (`services::read_waveform`: `peaks` at the view's window, then `info`, so the bars are scaled by the range that read
+  may have widened) and paints the PEAK columns (`services::paint_columns`, or the audio clip view's coloured bars).
+  `sample-view/peak_cache.h` is refused under `src/scenes` (`scenes-no-peak-cache`).
+* **`src/sample-view/` holds the arithmetic** (`deluge_sample_view`, header-only, standard library only): the window
+  (`Window`), the view's navigation (`WaveformView`: open, scroll, zoom and the marker pins), the column answers
+  (`ColumnState`, `ColumnRead`, `PeakRead`) and the paint arithmetic (`Bar`, `bar_of`, `single_row_brightness`, in
+  Q8.24 pad units), with `sample-view/divide.h` for every division by a runtime divisor.
+* **The host answers the port.** `gui/ui/shell_host/waveforms.cpp` resolves the address to its sample and keeps each
+  file's columns in a `PeakCacheSet`, keyed by the waveform's identity (the sample's lifetime serial), and the
+  legacy column read (`sample::read_columns`, `model/sample/waveform_scan.h`) reads the columns a cache lacks. A
+  column whose cluster the card could not give now answers PENDING; a scene whose read left one pending asks again
+  through `services::PeakRetry`, every `kPeakRetryPollMs` (10). The marker editor, the slicer and the browser preview
+  give up after `kPeakRetryGiveUpMs` (300) with none newly answered; the audio clip view asks until none is pending,
+  as `main`'s does. A read at another window starts the count over.
 
 ## The services (`services/`)
 
@@ -654,7 +695,8 @@ shell's; every model-aware implementation is here, as with `Scene`.
   construct the services over `shell.stack()`/`shell.lowering()`, then `Shell::set_services`.
 * **Installing is not sufficient.** A `ModKnobs` with no focus declares all eight mod LEDs off and
   both indicators at 0 every tick, so the application's reads and moves `View::knobFocus()`
-  (`use_focus`), and the wiring re-seeds the song and the view state on every open. The root views reach
+  (`use_focus`), and the wiring re-installs the ports and the song's record, and re-seeds the view state, on every
+  open. The root views reach
   the same service through `gui/ui/root_knobs` (`turn`, `section_button`, `push`), shown through the legacy
   display; no engine object has a gold-knob path of its own. `root_knobs` numbers each physical control through
   `controls::map_input` and `kDelugeControls` before the service sees it, so the service speaks sections and slots.
@@ -672,14 +714,91 @@ shell's; every model-aware implementation is here, as with `Scene`.
 ## The host's ports
 
 A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
-`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
-`SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
-settings; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
-`instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
-`midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
+`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport` and `Waveforms` for reads;
+`ClipWrites`, `SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `TransportActions`,
+`DeviceActions`, `MidiFeedback`, `TakeActions` and `ViewActions` for calls; `Indicators` for the indicators a scene
+changes outside its frames; `MidiDevices` for the per-device settings; `DeviceSettings` (`device`) for the device's
+own settings, by DEVICE row, read and written outside any song and its undo; and `controls::Facts` for live param
+values. Their vocabulary is `project::` addresses, `plugin::` ids, `instrument::`, `effects::`, `controls::`, `midi::`
+and `sample_view::` words (`sample-view/peaks.h` only), never a legacy type; a MIDI device is a `midi::DeviceId`,
+which the host's registry (`io/midi/device_registry.h`) maps to its cable.
+
+* **`Transport`** answers whether playback is on, whether a clock drives it, what it records into
+  (`TransportRecording`), whether the metronome is on, the count-in's digit, whether undo is allowed, whether any
+  clip waits to overdub, and whether the playback mode is the arrangement's (`arrangement_mode`).
+  **`TransportActions`** is PLAY, RECORD, tap tempo, the metronome toggle, the tempo popups, undo and redo, the output
+  recording's start and end, fill, and the tempo grab from an audio clip's sample length (`grab_tempo`): each a
+  one-to-one wrapper of the legacy call, popups included.
+* **`AudioFacts`** also answers whether the audio routine is running (`audio_busy`), whether the foreground recorder
+  is resampling, what it records from (`ForegroundRecording`: `UNSET`, `NONE`, `EXTERNAL`, `INTERNAL`), the input
+  take `TakeActions` holds (`input_take`, an `InputTake`, and its file, `input_take_path`), and the audio clock in
+  frames (`audio_sample_timer`).
+* **`ClipFacts`** also answers the song's clip navigation (`clip_navigation`: the scroll, the zoom and the triplets
+  view every clip view starts from), which `timeline::TimelineState::adopt` takes.
+* **`Waveforms`** is a waveform by its `WaveformAddress` (a sound's source range, an audio clip, the browser's
+  preview or the slicer's file), with three reads: `info` (the length, rate and channels, the centre and span the
+  bars are drawn against, whether it is a take still being written, and its identity), `peaks` (the 16 columns at a
+  window, each a peak, pending or past the end) and `play_position` (the frame a voice plays there now). The
+  identity is the sample's lifetime serial (`Sample::serial`, through `gui::shell_host::waveform_identity`), so
+  another file, a take, or a sample made later in a freed one's memory has another. See "The waveform views" above.
+* **`TakeActions`** is an input take's lifecycle (`begin`, `end_soon`, `take_levels`, `take_clipped`, `finish`,
+  `orphan`), each the legacy step it names; the host holds the take between `begin` and `finish` or `orphan`.
+  **`ViewActions`** ends a held audition the way the scene's legacy opener does (`end_audition`, by `AuditionEnd`).
+  **`Indicators`** clears the views' tick squares at once (`clear_tick_squares`).
+* **`DeviceActions`** saves the device's settings and forgets the undo history. **`MidiFeedback`** is MIDI follow's
+  feedback: whether it is on, which CC follows a param, and sending one CC or every followed param's. **`MidiDevices`**
+  also answers how a song names a device (`reference`).
+* **How a scene gets its ports.** A scene the menu opens reads its context's: the recorder and the marker editor
+  read `ctx_.ports`, the `MenuContext`'s set, and so do the menu's nodes. A scene opened outside the menu holds a
+  non-owning pointer the host installs, as a context holds its `Ports`: the slicer and the audio clip scene take
+  `set_ports` (the whole set, read through `bind::port_of`, which answers null when no set is installed or the set
+  has no such port); each service takes `set_ports` and `set_model` (the song's record); and each overlay the one
+  port it reads (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices`
+  installs the services at boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the
+  overlays', the slicer's and the audio clip scene's. A specification installs `&menu::host_ports()` or a set over
+  fakes and keeps it alive while the scene or service runs. No scene or service calls `host_ports()`.
+* **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
+  recording, no clocks, metronome off, count 0, undo not allowed, no overdubs and not the arrangement; `AudioFacts`
+  reads no foreground source, not resampling, not busy and no take; `Waveforms` reads no waveform; `MidiDevices` knows
+  no device, so `MidiLearn` leaves MIDI events unhandled; `DeviceSettings` reads each row's default; every call port
+  is a no-op. With no set installed, the slicer reads not auditioning, a Slow play cursor and no waveform, and wipes
+  no logs; the audio clip scene reads no clip fact, makes no writes, and reads a Slow play cursor, not playing and no
+  clocks; neither scene's `next_timer` reads live.
+* **A menu context binds exactly the ports it is given.** A caller that wants the device port passes it.
 
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
+* **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
+  `scenes-reads-outside-bind` rule counts none there), and the menu calls none of the `menu::host_*` hooks left in
+  `menu/bind_host.h`: those are the browser's and the context menu's. The services, the overlays, the recorder, the
+  marker editor, the slicer, the audio clip scene and the timeline count none either; the rule's remaining rows are
+  the browser's, the context menu's and the rename scene's.
+
+### The DEVICE setting group
+
+The device's own settings are a setting group, `project::SettingGroupId::DEVICE`, with its own owner
+(`SettingContext::Owner::DEVICE`, `project::DeviceAddress`), so no song reader evaluates a DEVICE row.
+
+* **The rows** are `project::device_table()` (`src/deluge-project/device_settings.{h,cpp}`), with their paths as
+  typed `project::DevicePath` constants there. They cover the defaults, the pads and screen, the recording and
+  sample settings, audio (input monitoring, metronome volume, USB audio), the trigger and MIDI clocks, MIDI and MIDI
+  follow, the CV and gate outputs, the community features (`deluge-project/features.h`), the play cursor, and the stem
+  export's options. A CHOICE row's value is its choice's index; the few rows a scene branches on have a neutral
+  `enum class` (`ShortcutsVersion`, `FlashCursor`, `FavouritesLayout` and `FeedbackAutomation` beside the table,
+  `ShortcutOverlay` beside the features).
+* **A scene reads** a row through `bind::DeviceSettings::read` or `reader()` (`bind/ports/device_settings.h`), or
+  typed through `bind/device_reader.h`; the menu's bindings dispatch DEVICE nodes there without reading
+  `MenuContext::model`. A CHOICE value outside the row's choices reads clamped into them, as a choice widget shows it.
+* **A scene writes** a row through `DeviceSettings::write`, the one place a value is refused, checked against the
+  row. A DEVICE write does not go through `WriteSink` or the edit log: it is not an undoable song edit, and it works
+  with no song.
+* **The host stores them** where the device keeps them, in `gui/ui/shell_host/device_settings.cpp`: the flash
+  settings, the pad controller's play cursor, the community features, the audio engine, USB audio, the playback
+  handler's clocks, the MIDI engine and MIDI follow, MIDI transpose, the CV engine and the stem export. Its `store`
+  does what the legacy item's write did, side effects included, and answers `STORED_FOR_RESTART` for a value that
+  takes effect only after a restart.
+* **A write never saves.** The host saves the whole batch when the settings root closes
+  (`gui::ui::saveSettingsBeforeClose`). The stem export's options are DEVICE rows that nothing saves.
 * **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
   and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
@@ -736,17 +855,18 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
-  and `menu::set_shortcuts_version` writes. The settings item writes it.
+* **The shortcut layout** is the device's `pads/shortcutsVersion` row, which `menu::shortcuts_version` reads through
+  the device port. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`). The settings item writes
+  it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
-  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the two screensaver
-  setters reach through `menu::host_screensaver_settings_changed()` (`menu/bind_host.h`).
+  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the device port's store calls for a
+  write of either screensaver row.
 * **The services** are installed by `gui/ui/shell_guest_services.cpp`, from `deluge_boot` and from
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
-* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `UiFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the device's
+  `pads/playCursor` row, which the audio clip view, the slicer and the marker editor read each frame: Slow
   paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware

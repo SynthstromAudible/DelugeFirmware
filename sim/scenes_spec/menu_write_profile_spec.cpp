@@ -24,6 +24,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <array>
@@ -129,7 +130,7 @@ void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, i
 		const auto slot =
 		    phases.time("slot_address", [&] { return deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum)); });
 		const auto shown = phases.time("view", [&] {
-			return bind::view(target, song.project, bind::Addresses{.slot = slot}, menu::host_ports());
+			return bind::view(target, &song.project, bind::Addresses{.slot = slot}, menu::host_ports());
 		});
 		if (!slot || !shown || !shown->applies) {
 			continue;
@@ -162,8 +163,8 @@ describe menu_write_profile("a kit-wide menu write's cost, by phase", ${
 		for (int32_t d = 0; d < kKitDrums; ++d) {
 			spec::add_drum<SoundDrum>(f);
 		}
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(menu::host_binds(*f.song)).to_be_true();
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		expect(currentSong).to_equal(f.song);
 		expect(ctx.addresses.kit_output.has_value()).to_be_true();
 		profile(f, "voicePriority", 0, 2);
 		profile(f, "transpose", 100, -100);

@@ -1,12 +1,12 @@
 # deluge_scenes_bind — what a scenes menu node edits, bound to the model's records and the engines' descriptors.
 #
 # Standalone of the app: it depends on the model and the engine libraries only, so its specs (tests/unit/scenes/bind)
-# run against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
+# run against a project::Song with no engine runtime objects, and scripts/check_layers.py (its library in scripts/layers.toml) holds it to that.
 # The app supplies what it cannot see: the sink that applies Edits (WriteSink) and the ports
 # (ports/), one interface per domain.
 
-add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp
-                                      ports/param_info.cpp)
+add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp device_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp
+                                      ports/param_info.cpp ports/device_settings.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_scenes_bind)
 # src/ for its own and the model's headers; src/deluge for the name table (gui/l10n/setting_names.h, whose definitions
@@ -17,5 +17,5 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_scenes_bind PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                       CXX_EXTENSIONS ON)
 endif()
-target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_controls deluge_instrument deluge_host_chain)
+target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_controls deluge_instrument deluge_host_chain deluge_sample_view)
 target_compile_options(deluge_scenes_bind PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

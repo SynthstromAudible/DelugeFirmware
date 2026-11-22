@@ -85,6 +85,7 @@
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
 #include "support/reset_witness.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
 
@@ -111,6 +112,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -666,7 +668,7 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 		size_t ever_true = 0;
 		for (const auto& [root, e] : every_entry()) {
 			install(root->ctx, root->song);
-			if (t3::recorder_on_soundless_row(e, root->ctx)) {
+			if (t3::recorder_on_soundless_row(e, *root)) {
 				// Main dereferences a null sound here; the port answers hidden.
 				expect(menu::bindings::relevant(*e.node, root->ctx)).to_be_false();
 				continue;
@@ -702,9 +704,9 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 		const Node* const guarded[] = {&nodes::configure_song_macros, &nodes::song_midi_learn};
 		const std::vector<spec::TreeEntry> entries = spec::tree_entries("song", nodes::root_song);
 		for (const Case& c : cases) {
-			const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0,
-			                                          /*performance_view=*/false, /*session_or_arranger_root=*/true,
-			                                          c.session_view_root, false);
+			const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0,
+			                                     /*performance_view=*/false, /*session_or_arranger_root=*/true,
+			                                     c.session_view_root, false);
 			// All three views take the same root: the port must differ on relevance, not on routing.
 			expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Song));
 			expect(ctx.is_song_view).to_be_true();
@@ -779,8 +781,8 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 			return;
 		}
 		// The fixture really is a MIDI param manager, and it really does look servable structurally.
-		expect(spec::menu_engine(midi->ctx).params).not_().to_be_null();
-		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
+		expect(spec::menu_engine(midi->ctx, *midi->song).params).not_().to_be_null();
+		expect(spec::menu_engine(midi->ctx, *midi->song).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
 		// `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`: `setupMIDI` leaves
 		// `expressionParamSetOffset == 1` (`param_manager.cpp`), so `ensureExpressionParamSetExists` puts an
@@ -788,8 +790,8 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 		// `getOrCreateExpressionParamSet()` (`origin/main:src/deluge/gui/menu_item/bend_range/main.h`) from `bendMenu`,
 		// which is a child of this very root. So the scenario is reproduced here rather than assumed away: create the
 		// expression set the way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
-		expect(spec::menu_engine(midi->ctx).params->getOrCreateExpressionParamSet()).not_().to_be_null();
-		expect(spec::menu_engine(midi->ctx).params->summaries[1].paramCollection).not_().to_be_null();
+		expect(spec::menu_engine(midi->ctx, *midi->song).params->getOrCreateExpressionParamSet()).not_().to_be_null();
+		expect(spec::menu_engine(midi->ctx, *midi->song).params->summaries[1].paramCollection).not_().to_be_null();
 
 		install(midi->ctx, midi->song);
 		static constexpr Node kPatchedProbe =
@@ -984,20 +986,20 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 
 		{ // --- synth_mode: the mode Edit on the target, not just a stored int --------------------
 			const TablesRoot& sound = installed_root("sound");
-			const SynthMode before = spec::menu_engine(sound.ctx).sound->getSynthMode();
+			const SynthMode before = spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
 			// relevance does; SAW on both, and the fixture's own types put back after.
-			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->oscType(0),
-			                              spec::menu_engine(sound.ctx).sound->oscType(1)};
-			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 0, OscType::SAW);
-			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 1, OscType::SAW);
+			const OscType before_osc[] = {spec::menu_engine(sound.ctx, *sound.song).sound->oscType(0),
+			                              spec::menu_engine(sound.ctx, *sound.song).sound->oscType(1)};
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 0, OscType::SAW);
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 1, OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
+			expect(spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
+			expect(spec::menu_engine(sound.ctx, *sound.song).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(before));
-			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 0, before_osc[0]);
-			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 1, before_osc[1]);
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 0, before_osc[0]);
+			deluge::test::setOscType(*spec::menu_engine(sound.ctx, *sound.song).sound, 1, before_osc[1]);
 			covered.insert(&nodes::synth_mode);
 		}
 
@@ -1007,16 +1009,16 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			// `bindings::read` sees only the middle one, which is why deleting either of the others
 			// would leave this suite green without a direct check.
 			const TablesRoot& sound = installed_root("sound");
-			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
+			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx, *sound.song).arp;
 			expect(arp).not_().to_be_null();
 			// The toggle's silencing only fires on a clip that is actually sounding (main
 			// `origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`). `song_fixture.h` builds the clip without
 			// making it its output's active one -- nothing in the fixture plays -- so this is the one bit of state the
 			// example has to arrange for itself.
-			expect(spec::menu_engine(sound.ctx).clip).not_().to_be_null();
-			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
-			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
-			expect(spec::menu_engine(sound.ctx).clip->isActiveOnOutput()).to_be_true();
+			expect(spec::menu_engine(sound.ctx, *sound.song).clip).not_().to_be_null();
+			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output);
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output) = spec::menu_engine(sound.ctx, *sound.song).clip;
+			expect(spec::menu_engine(sound.ctx, *sound.song).clip->isActiveOnOutput()).to_be_true();
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
@@ -1024,7 +1026,7 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			arp->noteMode = ArpNoteMode::DOWN;
 			// `Sound::allNotesOff` clears this first thing -- the one effect
 			// of `silenceArp`'s synth arm that survives in model state a spec can read.
-			spec::menu_engine(sound.ctx).sound->invertReversed = true;
+			spec::menu_engine(sound.ctx, *sound.song).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
 
@@ -1033,23 +1035,23 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			// unless `updatePresetFromCurrentSettings()` actually ran.
 			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
-			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
-			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = saved_active;
+			expect(spec::menu_engine(sound.ctx, *sound.song).sound->invertReversed).to_be_false();
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output) = saved_active;
 			covered.insert(&nodes::arp_mode);
 		}
 
 		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block -------
 			const TablesRoot& sound = installed_root("sound");
-			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
-			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
-			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
+			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx, *sound.song).arp;
+			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output);
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output) = spec::menu_engine(sound.ctx, *sound.song).clip;
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::RANDOM;
 			arp->noteMode = ArpNoteMode::RANDOM;
 			arp->flagForceArpRestart = false;
-			spec::menu_engine(sound.ctx).sound->invertReversed = true;
+			spec::menu_engine(sound.ctx, *sound.song).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_preset, sound.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
@@ -1060,31 +1062,31 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			expect(arp->octaveMode).to_equal(ArpOctaveMode::DOWN);
 			expect(arp->noteMode).to_equal(ArpNoteMode::DOWN);
 			expect(arp->flagForceArpRestart).to_be_true();
-			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
+			expect(spec::menu_engine(sound.ctx, *sound.song).sound->invertReversed).to_be_false();
 
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->flagForceArpRestart = false;
-			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = saved_active;
+			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx, *sound.song).output) = saved_active;
 			covered.insert(&nodes::arp_preset);
 		}
 
 		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);
 		}
 
 		{ // --- audio_clip_reverse: the clip's own sample controls --------------------------------
 			const TablesRoot& audio = installed_root("audio clip");
-			auto* clip = static_cast<AudioClip*>(spec::menu_engine(audio.ctx).clip);
+			auto* clip = static_cast<AudioClip*>(spec::menu_engine(audio.ctx, *audio.song).clip);
 			expect(clip).not_().to_be_null();
 			const bool before = clip->sampleControls.reversed;
 			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 1);
@@ -1205,7 +1207,7 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			}
 			// A param node is only round-trippable where the context can actually serve it; the settings root has no
 			// param manager at all.
-			if (spec::menu_engine(root->ctx).params == nullptr) {
+			if (spec::menu_engine(root->ctx, *root->song).params == nullptr) {
 				continue;
 			}
 			install(root->ctx, root->song);
@@ -1297,7 +1299,8 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 
 			// The two trigger polarities always, plus CLOCK or RUN SIGNAL on the two outputs that carry them.
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
-			const size_t n = nodes::gate_mode.bind.dynamic_names(ctx, std::span<std::string_view>{names});
+			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+			const size_t n = bindings::names(nodes::gate_mode, ctx, names, scratch);
 			const std::vector<std::string>* want = table().find("chain/gate_mode", "options/" + std::to_string(which));
 			expect(want).not_().to_be_null();
 			if (want == nullptr) {
@@ -1313,9 +1316,8 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 		    .to_equal(table().value("chain/gate_off_time", "read"));
 		expect(text_of(nodes::gate_off_time.title)).to_equal(table().value("chain/gate_off_time", "title"));
 		expect(nodes::gate_off_time.bind.decimal_places).to_equal(uint8_t(1));
-		expect(nodes::gate_off_time.bind.fixed_range.has_value()).to_be_true();
-		expect(nodes::gate_off_time.bind.fixed_range->min).to_equal(int32_t(1));
-		expect(nodes::gate_off_time.bind.fixed_range->max).to_equal(int32_t(100));
+		expect(bindings::range(nodes::gate_off_time, settings.ctx).min).to_equal(int32_t(1));
+		expect(bindings::range(nodes::gate_off_time, settings.ctx).max).to_equal(int32_t(100));
 	});
 
 	it("numbers the three chain-only settings pages, which no children span reaches", _ {
@@ -1734,7 +1736,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   const deluge::scenes::menu::CustomItem* item = focused_item();
 			   expect(item).not_().to_be_null();
 			   if (item != nullptr) {
-				   expect(item->learn_program_change(spec_device(), 2, static_cast<int32_t>(7 + i)))
+				   expect(item->learn_program_change(settings.ctx, spec_device(), 2, static_cast<int32_t>(7 + i)))
 				       .to_equal(!is_fill); // FILL refuses
 			   }
 			   const std::string pc_got = CommandSlots::capture().describe();
@@ -1790,7 +1792,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 0)).to_be_false();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 0)).to_be_false();
 		}
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 0)).to_be_true();
@@ -2412,9 +2414,10 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	it("offers CLOCK or RUN SIGNAL only on the outputs that carry them, once a selection has been "
 	   "made through the scene",
 	   _ {
-		   // The port's counterpart of the options main rebuilds on the way through the selector is `gate_mode_names`
-		   // reading `MenuContext::source_index`, so this is the second, independent proof that the selector's cursor
-		   // really reached the context -- a different mechanism from the `enum_index` check above, on the same write.
+		   // The port's counterpart of the options main rebuilds on the way through the selector is the mode page's
+		   // per-output row, chosen by `MenuContext::source_index`, so this is the second, independent proof that the
+		   // selector's cursor really reached the context -- a different mechanism from the `enum_index` check above, on
+		   // the same write.
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
 
@@ -2642,7 +2645,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
@@ -2662,7 +2665,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_note_on(spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+			expect(item->learn_note_on(settings.ctx, spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
@@ -2678,7 +2681,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
@@ -2845,7 +2848,7 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 	it("round-trips the shortcuts version through the port's own copy", _ {
 		const TablesRoot& settings = installed_root("settings");
-		const auto saved = menu::shortcuts_version();
+		const spec::ShortcutLayout layout{deluge::project::ShortcutsVersion::V3};
 
 		// Main's two options are the generic options row of the shortcuts-version path, checked by the options example;
 		// the port's own copy is what this node reads, so it is excluded from the value rows and round-tripped here.
@@ -2856,18 +2859,17 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 		// The round trip, each direction driven from the other value. The layer it selects is checked cell for cell in
 		// `shortcuts_spec.cpp`, which is where the tables live.
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V3);
+		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V3);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 0);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(0));
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
+		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V1);
 
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V1);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 1);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(1));
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
+		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V3);
 
 		covered.insert(&nodes::shortcuts_version);
-		menu::set_shortcuts_version(saved);
 	});
 
 	it("round-trips all six pad colours through writeSettings and readSettings", _ {
@@ -2934,8 +2936,10 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 		for (const Node* n : kBatch4) {
 			expect(n->kind).to_equal(menu::Kind::Enum);
 			expect(n->custom).to_be_null();
-			expect(n->bind.get).not_().to_be_null();
-			expect(n->bind.set).not_().to_be_null();
+			// A DEVICE row's node binds through its target, which the device port reads and writes; the rest through
+			// their hooks.
+			const bool bound = n->bind.target.on_device() || (n->bind.get != nullptr && n->bind.set != nullptr);
+			expect(bound).to_be_true();
 		}
 	});
 });

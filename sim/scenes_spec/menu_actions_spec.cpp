@@ -24,9 +24,9 @@
 ///   * **Covered in `menu_action_three_verbs`:** that the remaining three verbs are
 ///     *performed* -- the clip's length really moves to the sample's, MIDI learn really arms, and
 ///     each context menu really lands on `uiNavigationHierarchy`.
-///   * **Covered in `menu_action_screensaver`:** that both screensaver setters move the legacy screensaver's
-///     idle timer and the guest's `shell::Screensaver` idle period at the write, through
-///     `menu::host_screensaver_settings_changed`, with no reboot.
+///   * **Covered in `menu_action_screensaver`:** that both screensaver items move the legacy screensaver's
+///     idle timer and the guest's `shell::Screensaver` idle period at the write, through the device port's store for
+///     their rows, with no reboot.
 ///   * **NOT covered:** the acting half of `StartStemExport` -- `startStemExportProcess` would arm the recorder and
 ///     leave `UI_MODE_STEM_EXPORT` entered for an export job no spec drives (see that group's own note) -- and
 ///     `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp`)'s `STRING_FOR_NO_SAMPLE` arm, which no
@@ -112,6 +112,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -210,9 +211,9 @@ struct Rig {
 		// views, because that is the one where both items are shown.
 		const bool song_root = &root == &nodes::root_song;
 		const MenuContext ctx =
-		    menu::context_for(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
-		                      /*session_or_arranger_root=*/song_root,
-		                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+		    spec::ctx_of(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
+		                 /*session_or_arranger_root=*/song_root,
+		                 /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -283,9 +284,9 @@ struct GuestRig {
 	bool open(const Node& root) {
 		const bool song_root = &root == &nodes::root_song;
 		const MenuContext ctx =
-		    menu::context_for(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
-		                      /*session_or_arranger_root=*/song_root,
-		                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+		    spec::ctx_of(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
+		                 /*session_or_arranger_root=*/song_root,
+		                 /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		ui.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -528,10 +529,9 @@ struct GlobalGuestGuard {
 /// process, and so no root view's `focusRegained` either.
 bool open_global_guest(const Node& root, spec::SongFixture& song) {
 	const bool song_root = &root == &nodes::root_song;
-	const MenuContext ctx =
-	    menu::context_for(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
-	                      /*session_or_arranger_root=*/song_root,
-	                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
+	                                     /*session_or_arranger_root=*/song_root,
+	                                     /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 	(void)menu::assign_node_ids(kRoots);
 	menu_scene().open(root, ctx);
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -558,10 +558,9 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 ///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
 bool open_global_guest_on_ui_stack(const Node& root, spec::SongFixture& song) {
 	const bool song_root = &root == &nodes::root_song;
-	const MenuContext ctx =
-	    menu::context_for(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
-	                      /*session_or_arranger_root=*/song_root,
-	                      /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
+	                                     /*session_or_arranger_root=*/song_root,
+	                                     /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 	(void)menu::assign_node_ids(kRoots);
 	menu_scene().open(root, ctx);
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -854,8 +853,8 @@ std::array<int, 2> both_at(PerformanceEditingMode mode) {
 ///        indices.
 ///
 /// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE }`
-/// (`definitions_cxx.hpp`), and `nodes::kScreensaverModeNames` (`scenes/menu/nodes/settings.h`) lists the four
-/// strings in that order, as `ScreensaverModeMenu::getOptions`' own `@warning` requires
+/// (`definitions_cxx.hpp`), and the `ui/screensaver/mode` row's choices (`deluge-project/device_settings.cpp`) list the
+/// four in that order, as `ScreensaverModeMenu::getOptions`' own `@warning` requires
 /// (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`). Spelled as cursor indices because what the examples
 /// drive is a cursor.
 constexpr int32_t kModeOffIndex = 0;
@@ -1274,7 +1273,9 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// stops it before the browser opens; anywhere else it does nothing.
 		select_language();
 		UiStackGuard ui_guard;
-		const menu::MenuContext ctx{};
+		// The audition ends through the context's view actions port, the app's here.
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports();
 
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
@@ -1298,9 +1299,9 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
-		                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,
-		                                          /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
+		                                     /*session_or_arranger_root=*/false, /*session_view_root=*/false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(nodes::stem_export, ctx);
 		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::stem_export)});
@@ -1369,10 +1370,10 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	});
 });
 
-describe menu_action_screensaver("the screensaver setters -- host_screensaver_settings_changed", $ {
-	// Both setters (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) store their `FlashStorage`
-	// global and then call `menu::host_screensaver_settings_changed()`, which is main's `Screensaver::settingsChanged()`:
-	// the second statement of both items' `writeCurrentValue`. That one call moves both screensavers, so every example
+describe menu_action_screensaver("the screensaver items -- the device port's store", $ {
+	// Both items write a DEVICE row (`ui/screensaver/mode`, `ui/screensaver/timeout`), whose store in the device port
+	// sets its `FlashStorage` global and then calls main's `Screensaver::settingsChanged()`: the second statement of
+	// both items' `writeCurrentValue`. That one call moves both screensavers, so every example
 	// reads both: `shellHostUI.shell().screensaver_idle_ms()` is the guest's `shell::Screensaver` period and
 	// `legacy_armed_ms()` is `TimerName::SCREENSAVER`, which the call re-arms, or unsets for `ScreensaverMode::OFF`.
 	//
@@ -2378,32 +2379,37 @@ describe menu_action_perform_fact("UiFacts::performance_editing_mode over the re
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
 	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour`, the highlighting item and the rounded-corners toggle
-	// each do one thing besides storing, `hid/` or the guest's shell, so each setter calls the host for it
-	// (`scenes/menu/bind_host.h`) at the write, as main's `writeCurrentValue` does.
-	it("each setter applies its side effect at the write, and only on main's own condition", _ {
-		const menu::MenuContext ctx{};
+	// each do one thing besides storing, `hid/` or the guest's shell. Each writes a DEVICE row, whose store in the
+	// device port does it at the write, as main's `writeCurrentValue` does.
+	it("each write applies its side effect at the write, and only on main's own condition", _ {
+		menu::MenuContext on_device{};
+		on_device.ports = menu::host_ports();
 		const uint8_t saved_brightness = FlashStorage::defaultPadBrightness;
 		const MenuHighlighting saved_highlighting = FlashStorage::accessibilityMenuHighlighting;
 		const uint8_t saved_flash = PadLEDs::flashCursor;
 		const uint8_t saved_colour = FlashStorage::padColours[0];
 
-		// `PadBrightness::writeCurrentValue`: the pads' dimmer takes the stored level at once.
+		// `PadBrightness::writeCurrentValue`: the pads' dimmer takes the stored level at once, a quarter of what the
+		// item shows.
 		PadLEDs::dimmerInterval = 0;
-		nodes::set_default_pad_brightness(ctx, 40);
+		menu::bindings::write(nodes::default_pad_brightness, on_device, 40);
+		expect(static_cast<int>(FlashStorage::defaultPadBrightness)).to_equal(40 >> 2);
 		expect(PadLEDs::dimmerInterval).to_equal(int32_t{kMaxLedBrightness - (40 >> 2)});
 
 		// The highlighting item: main's canvas flag and the guest's panels follow the stored value.
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
-		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
+		menu::bindings::write(nodes::default_menu_highlighting, on_device,
+		                      static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
+		expect(FlashStorage::accessibilityMenuHighlighting).to_equal(MenuHighlighting::FULL_INVERSION);
 		expect(deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts).to_be_true();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
 		    .to_equal(deluge::ui::Highlighting::FullInversion);
 
-		// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares and, the slow flash
-		// still current, sends the column pair that held one; leaving another does nothing. The send shows in the
-		// harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's queue. A clear made after
-		// the store sends nothing.
+		// `flash::Status::writeCurrentValue`, through the play cursor's device row: leaving the slow flash clears its
+		// tick squares and, the slow flash still current, sends the column pair that held one; leaving another does
+		// nothing. The send shows in the harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's
+		// queue. A clear made after the store sends nothing.
 		const auto sent = [] {
 			const uint8_t* p = host_script_pad_shadow() + (2 * 8 + 2) * 3;
 			return (int32_t{p[0]} << 16) | (int32_t{p[1]} << 8) | int32_t{p[2]};
@@ -2418,19 +2424,20 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		PadLEDs::image[2][2] = RGB{.r = static_cast<uint8_t>((before >> 16) ^ 0x55),
 		                            .g = static_cast<uint8_t>((before >> 8) ^ 0x55),
 		                            .b = static_cast<uint8_t>(before ^ 0x55)};
-		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
+		menu::bindings::write(nodes::flash_status, on_device, FLASH_CURSOR_FAST);
 		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(255);
 		const bool went_out = sent() != before || PadLEDs::needToSendOutMainPadColours;
 		expect(went_out).to_be_true();
 		PadLEDs::image[2][2] = saved_pad;
 		PadLEDs::needToSendOutMainPadColours = false;
 		PadLEDs::slowFlashSquares[2] = 3;
-		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
+		menu::bindings::write(nodes::flash_status, on_device, FLASH_CURSOR_OFF);
 		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(3);
 
 		// `Colour::writeCurrentValue`: every pad re-renders, whatever the UI.
 		whichMainRowsNeedRendering = 0;
-		nodes::pad_colour_set(0, 3);
+		menu::bindings::write(nodes::pad_colour_active, on_device, 3);
+		expect(static_cast<int>(FlashStorage::padColours[0])).to_equal(3);
 		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
 
 		// Nothing waits in the menu for a dispatcher.
@@ -2488,7 +2495,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		Rig r;
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
-		const menu::MenuContext ctx{};
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
@@ -2536,7 +2544,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		Rig r;
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
-		const menu::MenuContext ctx{};
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
 		shellHostUI.shell().lowering().set_shift_is_sticky(false);
 
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
@@ -2551,6 +2560,37 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, saved_light);
 		shellHostUI.shell().lowering().set_shift_is_sticky(saved == RuntimeFeatureStateToggle::On);
 		Buttons::clearShiftSticky();
+	});
+
+	it("shows a pad-grid layout the menu does not list as its last choice, as main's list clamps it", _ {
+		// The flash may hold any of `KeyboardLayoutType`'s seven layouts; `defaults::KeyboardLayout::getOptions`
+		// (`origin/main:src/deluge/gui/menu_item/defaults/keyboard_layout.h`) lists the first three.
+		select_language();
+		const KeyboardLayoutType saved = FlashStorage::defaultKeyboardLayout;
+		FlashStorage::defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeChord;
+		{
+			Rig r;
+			const MenuContext ctx = r.open(nodes::default_ui_keyboard);
+			r.shell.tick(5);
+			const int32_t row = visible_index_of(nodes::default_ui_keyboard, nodes::default_keyboard_layout, ctx);
+			expect(row).to_equal(0);
+			r.enter(20);
+			r.shell.tick(30);
+			expect(scene().focused()).to_equal(&nodes::default_keyboard_layout);
+			expect(static_cast<int32_t>(scene().state().enum_index)).to_equal(2);
+			std::array<std::string_view, menu::kMaxDynamicNames> names{};
+			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+			const size_t count = menu::bindings::names(nodes::default_keyboard_layout, ctx, names, scratch);
+			expect(count).to_equal(size_t{3});
+			if (count == 3) {
+				expect(std::string{names[2]}).to_equal(std::string{"Piano"});
+			}
+			r.shell.tick(60);
+		}
+		// Showing it heals nothing: the flash keeps the layout the menu does not list.
+		expect(static_cast<int>(FlashStorage::defaultKeyboardLayout))
+		    .to_equal(static_cast<int>(KeyboardLayoutType::KeyboardLayoutTypeChord));
+		FlashStorage::defaultKeyboardLayout = saved;
 	});
 });
 

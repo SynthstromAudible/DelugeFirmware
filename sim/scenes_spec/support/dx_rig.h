@@ -26,6 +26,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
 
+#include "support/menu_context.h"
 #include "support/menu_engine.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/oracle_table.h"
@@ -69,7 +70,7 @@ struct DxRig {
 	DxPatch& patch() { return *sound->sourceResources[0].ensureDxPatch(); }
 
 	deluge::project::SlotAddress slot() {
-		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
+		return *spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
 };
@@ -166,7 +167,7 @@ struct MenuRig : DxRig {
 	MenuRig& operator=(const MenuRig&) = delete;
 
 	MenuContext menu_context() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 	}
 	/// @brief Open the menu on @p root, its sound edits going to @p sound_writes (the app's when null), over the
 	///        keyboard screen when @p keyboard_root, and draw it once.

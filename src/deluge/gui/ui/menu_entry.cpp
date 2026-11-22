@@ -40,6 +40,7 @@
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -120,9 +121,10 @@ bool kitGlobalFxLatch = false;
 /// @brief `menu::context_for` plus the two facts about the root UI that `src/scenes` may not read.
 menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                                  bool sessionViewRoot, bool kitGlobalFx) {
-	menu::MenuContext ctx =
-	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
-	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	// The menu opens in the song the app plays, which the app's ports act on.
+	menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(), deluge::gui::menuViewOf(clip),
+	                                          static_cast<int8_t>(sourceIndex), performanceView, sessionOrArrangerRoot,
+	                                          sessionViewRoot, kitGlobalFx);
 	ctx.root_greyout = deluge::gui::menuRootGreyout();
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
 	ctx.root_is_automation = getRootUI() == &automationView;
@@ -345,7 +347,8 @@ bool openMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, 
 		return false;
 	}
 	// A pad with no node opens nothing and says nothing: legacy's item is null there.
-	const menu::Node* node = menu::shortcut_node(ctx.root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	const menu::Node* node = menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, static_cast<uint8_t>(x),
+	                                             static_cast<uint8_t>(y));
 	const menu::Node* root = rootNodeFor(ctx);
 	if (node == nullptr || menu::node_id(*node) == 0 || root == nullptr) {
 		return false;
@@ -384,10 +387,11 @@ void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
 	// latch, as legacy's items ask `editingKitAffectEntire()` (`setupKitGlobalFXMenu`) and not the clip.
 	menu::MenuContext asked = ctx;
 	asked.is_kit_global_fx = ctx.is_kit && kitGlobalFxLatch;
+	const deluge::project::ShortcutsVersion version = menu::shortcuts_version(asked);
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			image[y][x] = editingNothing ? deluge::gui::colours::black
-			                             : menu::shortcut_colour(asked, static_cast<uint8_t>(x),
+			                             : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
 			                                                     static_cast<uint8_t>(y), askRelevance);
 			occupancyMask[y][x] = 64;
 		}
@@ -440,7 +444,7 @@ ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return ActionResult::DEALT_WITH;
 	}
-	const menu::Node* const padNode = menu::shortcut_node(ctx.root, false, px, py);
+	const menu::Node* const padNode = menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, px, py);
 	// With the menu current over the automation view, only a parameter's shortcut is taken; any other pad is swallowed
 	// before the sequence-direction arm and before `setup()`.
 	if (padNode != nullptr && getCurrentUI() == &shellHostUI && getRootUI() == &automationView

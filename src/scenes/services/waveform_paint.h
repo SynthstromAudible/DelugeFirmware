@@ -1,16 +1,13 @@
 #pragma once
 
 /// @file
-/// @brief A sample's full-screen waveform on the main pads: legacy's `WaveformRenderer::renderFullScreen`, as its two
-/// halves -- the scan, through the waveform's address, and the paint.
+/// @brief A sample's full-screen waveform on the main pads: the read through the waveform's address, then the paint.
 
-#include "scenes/services/waveform_address.h"
-#include "scenes/services/waveforms.h"
-
-#include "model/sample/waveform_navigator.h"
-#include "model/sample/waveform_render_data.h"
+#include "sample-view/peaks.h"
+#include "scenes/bind/ports/waveforms.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace deluge::ui::grid {
 class GridFrame;
@@ -18,14 +15,22 @@ class GridFrame;
 
 namespace deluge::scenes::services {
 
-/// @brief Paint @p cache's investigated columns as full-height monochrome bars across @p f's main columns (at most
-/// `kDisplayWidth`), centred on @p centre and scaled to @p span. A column the scan could not read stays black.
-void paint_columns(deluge::ui::grid::GridFrame& f, const WaveformRenderData& cache, int32_t centre, int32_t span);
+/// @brief A waveform as one frame draws it: its columns, and the centre and span its info gives after they were read.
+struct WaveformFrame {
+	sample_view::PeakRead read; ///< the columns
+	int32_t centre{0};          ///< the value the bars are centred on
+	int32_t span{0};            ///< the value range one pad shows
+};
 
-/// @brief Scan the waveform at @p address at @p nav's scroll and zoom into its cache, then paint it with
-/// @ref paint_columns against @p info's centre and span.
-/// @return The scan's result: false where some cluster could not be read (those columns paint black).
-bool paint_full(deluge::ui::grid::GridFrame& f, const Waveforms& waveforms, const WaveformAddress& address,
-                const WaveformInfo& info, deluge::sample::WaveformNav& nav);
+/// @brief Read the waveform at @p address at @p at, then its info, so the bars are scaled by the range this read may
+///        have widened (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`,
+///        `WaveformRenderer::renderFullScreen` reads the range after its scan).
+/// @return The frame; none where nothing is loaded at @p address.
+[[nodiscard]] std::optional<WaveformFrame> read_waveform(const bind::Waveforms& waveforms,
+                                                         const bind::WaveformAddress& address, sample_view::Window at);
+
+/// @brief Paint @p read's PEAK columns as full-height monochrome bars across @p f's main columns, centred on @p centre
+///        and scaled to @p span. A column with no peak stays black.
+void paint_columns(deluge::ui::grid::GridFrame& f, const sample_view::PeakRead& read, int32_t centre, int32_t span);
 
 } // namespace deluge::scenes::services

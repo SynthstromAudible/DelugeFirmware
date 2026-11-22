@@ -61,7 +61,8 @@ public:
 	/// @param cause Why this focus is happening -- see `FocusCause`. A `Kind::Custom` node whose item answers
 	///              `CustomItem::on_focus_is_press()` is given `on_focus` only for `FocusCause::RowPress`.
 	void enter_leaf(MenuCore core, const Node& node, FocusCause cause) const;
-	/// @brief Commit the edit storage for @p node through `bindings::write`.
+	/// @brief Commit the edit storage for @p node through `bindings::write`; a refused write puts the stored value back
+	///        in the edit storage.
 	void commit(MenuCore core, const Node& node) const;
 	/// @brief `MenuItem::readValueAgain`: the focused node's value read again from the model, and a redraw asked for.
 	///
@@ -71,6 +72,13 @@ public:
 	void read_again(MenuCore core) const;
 
 private:
+	/// @brief A write @p node's commit made was refused: its edit storage reads the stored value again and the screen
+	///        is redrawn, so the page shows only what is stored.
+	/// @param ctx  The scene's context.
+	/// @param st   The scene's state.
+	/// @param node The node whose write was refused.
+	static void refused(MenuContext& ctx, MenuState& st, const Node& node);
+
 	const Node* value_ = nullptr;
 };
 

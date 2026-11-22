@@ -42,9 +42,10 @@
 /// `soundEditor`'s current MIDI cable through `MenuWalkState::midi_device_choice`.
 ///
 /// With that in place `cv_selection` / `gate_selection` are finished items rather than `kPending` placeholders:
-/// `gate_selection_chain` (`nodes/settings.cpp`) now sees the output the user actually picked, and `gate_mode_names` --
-/// legacy's `gateModeMenu.updateOptions(value)` (`Selection::selectButtonPress` in
-/// `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- offers CLOCK or RUN SIGNAL on the right output.
+/// `gate_selection_chain` (`nodes/settings.cpp`) now sees the output the user actually picked, and `gate_mode` edits
+/// that output's `gate/<n>/mode` row, whose choices -- legacy's `gateModeMenu.updateOptions(value)`
+/// (`Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- offer CLOCK or RUN
+/// SIGNAL on the right output.
 ///
 /// ## Divergence
 ///

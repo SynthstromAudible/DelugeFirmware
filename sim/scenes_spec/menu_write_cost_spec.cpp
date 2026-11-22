@@ -30,6 +30,7 @@
 #include "cppspec.hpp"
 #include "instruments/deluge/state_access.h"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <algorithm>
@@ -148,7 +149,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		{
 			spec::SongFixture f = spec::make_synth_song();
 			f.song->setCurrentClip(f.clip);
-			const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			report("synth", 0, "voicePriority", time_writes(ctx, "voicePriority", 0, 2));
 			report("synth", 0, "polyphonic", time_writes(ctx, "polyphonic", 1, 2));
 			report("synth", 0, "transpose", time_writes(ctx, "transpose", 100, -100));
@@ -159,7 +160,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			for (int32_t d = 0; d < kKitDrums; ++d) {
 				spec::add_drum<SoundDrum>(f);
 			}
-			MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			ctx.affect_entire_held = true;
 			ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx);
 			expect(ctx.addresses.affect_entire).to_be_true();
@@ -176,7 +177,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		{
 			spec::SongFixture f = spec::make_synth_song();
 			f.song->setCurrentClip(f.clip);
-			const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			report("synth", 0, "lpfFrequency", time_param_writes(ctx, lpf, 0x40000000, -0x40000000));
 		}
 		{
@@ -186,7 +187,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 				last = spec::add_drum<SoundDrum>(f);
 			}
 			f.song->setCurrentClip(f.clip);
-			MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			ctx.affect_entire_held = true;
 			ctx.addresses.affect_entire = menu::bindings::writes_whole_kit(ctx);
 			expect(ctx.addresses.affect_entire).to_be_true();
@@ -204,7 +205,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 	it("measures a cable strength detent and a gold knob's region detent on a synth", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		changeRootUI(&sessionView); // each write logs its undo step, as on the device
 		deluge::synth::CableTarget pitch = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
 		const Target cable{.kind = Target::Kind::CABLE,

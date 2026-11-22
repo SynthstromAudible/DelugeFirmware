@@ -3,6 +3,7 @@
 
 #include "scenes/marker/marker_scene.h"
 
+#include "board_config.h"      // PLACE_SDRAM_TEXT
 #include "definitions_cxx.hpp" // MarkerType, kNumMarkerTypes, kNumSources
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
@@ -15,25 +16,30 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
-#include "scenes/menu/bind_host.h"
+#include "scenes/bind/ports/waveforms.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_paint.h"
-#include "scenes/services/waveforms.h"
 
+#include "sample-view/divide.h"
+#include "sample-view/view.h"
+
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
-#include "model/sample/waveform_scan.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -58,21 +64,20 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// `SampleMarkerEditor::kInvalidColumn` (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`): the column a marker
-/// that is not set at all reports. Deliberately the most negative `int32_t` rather than -1, so every `colOnScreen <= x`
-/// comparison in `pad_action` refuses on it without a separate test.
-constexpr int32_t kInvalidColumn = -2147483648;
-
-/// `divide_round_negative` (`util/functions.cpp`), inlined: `src/scenes` may not include `util/`
-/// (`check_layer_rules.py`, `scenes-includes-outside`) and this is the only thing it was wanted
-/// for. Floors toward minus infinity, which is what makes a marker one sample left of the view
-/// report column -1 rather than 0.
-int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
-	if (dividend >= 0) {
-		return static_cast<int32_t>(static_cast<uint32_t>(dividend) / static_cast<uint32_t>(divisor));
-	}
-	return -static_cast<int32_t>(static_cast<uint32_t>(-dividend - 1) / static_cast<uint32_t>(divisor)) - 1;
+/// @brief A pin's column for the comparisons that place and refuse markers: an unset marker compares as left of every
+///        column, so every `column <= x` test refuses on it and every `column >= x` test passes it by.
+[[nodiscard]] constexpr int64_t column_or_far_left(const sample_view::MarkerPin& p) {
+	return p.column.value_or(std::numeric_limits<int64_t>::min());
 }
+
+/// @brief The last frame a range's loop point can name: its record (`synth::SourceRange`'s zone) and the preset and
+/// song
+///        files store loop points as 32-bit unsigned.
+constexpr int64_t kLastLoopPoint = std::numeric_limits<uint32_t>::max();
+
+/// @brief The last frame an audio clip's start or end can name: the song file and the clip's rows store them as 32-bit
+///        signed.
+constexpr int64_t kLastAudioClipMarker = std::numeric_limits<int32_t>::max();
 
 int32_t idx(MarkerType t) {
 	return static_cast<int32_t>(t);
@@ -104,23 +109,22 @@ std::span<const RGB> marker_colours() {
 // ---------------------------------------------------------------------------------------------
 // Context
 
-std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
+std::optional<bind::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
 	// `getCurrentSampleHolder` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): the audio clip's own sample,
 	// else the selected multisample range's.
 	if (ctx.is_audio_clip) {
 		if (!ctx.addresses.clip) {
 			return std::nullopt;
 		}
-		return services::WaveformAddress{.kind = services::WaveformAddress::Kind::AUDIO_CLIP,
-		                                 .clip = *ctx.addresses.clip};
+		return bind::WaveformAddress{.kind = bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip};
 	}
 	if (!ctx.addresses.slot || ctx.range_index < 0) {
 		return std::nullopt;
 	}
-	return services::WaveformAddress{.kind = services::WaveformAddress::Kind::RANGE,
-	                                 .slot = *ctx.addresses.slot,
-	                                 .source = static_cast<uint8_t>(ctx.source_index),
-	                                 .range = static_cast<uint16_t>(ctx.range_index)};
+	return bind::WaveformAddress{.kind = bind::WaveformAddress::Kind::RANGE,
+	                             .slot = *ctx.addresses.slot,
+	                             .source = static_cast<uint8_t>(ctx.source_index),
+	                             .range = static_cast<uint16_t>(ctx.range_index)};
 }
 
 const deluge::instrument::SoundState* MarkerScene::sound_state() const {
@@ -180,7 +184,7 @@ std::optional<services::ViewKey> MarkerScene::view_key_of() const {
 	// Main keeps the view and the lock on the sample holder: the audio clip's own, or the range's. The range's
 	// identity names that range object, so its view stays with it whatever file is loaded into it and wherever it
 	// moves among its source's ranges.
-	if (where_.kind == services::WaveformAddress::Kind::AUDIO_CLIP) {
+	if (where_.kind == bind::WaveformAddress::Kind::AUDIO_CLIP) {
 		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
 	}
 	const std::optional<uint64_t> range =
@@ -197,12 +201,14 @@ services::SampleView MarkerScene::view() const {
 	                 : services::SampleView{};
 }
 
-void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
-	nav_.length_samples = info.length_samples;
-	if (info.identity != waveform_identity_) {
-		waveform_identity_ = info.identity;
-		nav_.renderData.xScroll = -1; // the cached columns are another waveform's
+void MarkerScene::follow_waveform(const bind::WaveformInfo& info) {
+	if (info.identity != identity_) {
+		identity_ = info.identity;
+		view_ = sample_view::WaveformView::open(info.length_samples, view_.window());
+		retry_.restart();
+		return;
 	}
+	view_ = view_.with_length(info.length_samples);
 }
 
 bool MarkerScene::loop_locked() const {
@@ -235,8 +241,8 @@ bool MarkerScene::can(const menu::MenuContext& ctx) {
 	// `SampleMarkerEditor::opened`'s refusal, plus the holder test legacy gets from
 	// `LoopPoint::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) before
 	// it ever opens: no file loaded where the context points, or nowhere to point.
-	const std::optional<services::WaveformAddress> address = address_of(ctx);
-	return address && menu::host_waveforms().info(*address).has_value();
+	const std::optional<bind::WaveformAddress> address = address_of(ctx);
+	return address && ctx.ports.waveforms != nullptr && ctx.ports.waveforms->info(*address).has_value();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -265,11 +271,14 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	where_ = *address_of(ctx_);
 	view_key_ = view_key_of();
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
-	nav_.sample = nullptr;
-	waveform_identity_ = 0;
-	follow_waveform(*waveforms().info(where_));
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	const services::SampleView remembered = view();
-	nav_.opened(remembered.scroll, remembered.zoom);
+	view_ = sample_view::WaveformView::open(
+	    info->length_samples,
+	    remembered.zoom != 0 ? std::optional{sample_view::Window{.scroll = remembered.scroll, .zoom = remembered.zoom}}
+	                         : std::nullopt);
+	identity_ = info->identity;
+	retry_.restart();
 
 	blink_phase_ = 0;
 	blink_accum_ms_ = 0;
@@ -304,52 +313,44 @@ void MarkerScene::forget_modes() {
 // ---------------------------------------------------------------------------------------------
 // Marker positions
 
-void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
+// UI-tier code, run per input and per frame, never by the audio tier: it runs from SDRAM, as the GUI's code does.
+PLACE_SDRAM_TEXT std::array<sample_view::MarkerPin, kNumMarkerTypes> MarkerScene::pins() const {
 	// `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), with its two
 	// column mappings inlined: `getStartColOnScreen` floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen` floors
 	// `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST sample is in, which is why the two are
 	// not the same function.
 	const Zone z = zone();
-	const auto start_col = [this](int32_t pos) {
-		return divide_round_negative(static_cast<int32_t>(pos - nav_.xScroll), static_cast<int32_t>(nav_.xZoom));
+	const auto start_pin = [this](int64_t pos) {
+		return sample_view::MarkerPin{
+		    .position = pos, .column = sample_view::floor_div(pos - view_.scroll(), view_.zoom()), .right_edge = false};
 	};
-	const auto end_col = [this](int32_t pos) {
-		return divide_round_negative(static_cast<int32_t>(pos - 1 - nav_.xScroll), static_cast<int32_t>(nav_.xZoom));
+	const auto end_pin = [this](int64_t pos) {
+		return sample_view::MarkerPin{.position = pos,
+		                              .column = sample_view::floor_div(pos - 1 - view_.scroll(), view_.zoom()),
+		                              .right_edge = true};
+	};
+	const auto unset = [](bool right_edge) {
+		return sample_view::MarkerPin{.position = 0, .column = std::nullopt, .right_edge = right_edge};
 	};
 
-	cols[idx(MarkerType::START)].pos = static_cast<int32_t>(z.start);
-	cols[idx(MarkerType::START)].colOnScreen = start_col(cols[idx(MarkerType::START)].pos);
-
-	if (!ctx_.is_audio_clip) {
-		cols[idx(MarkerType::LOOP_START)].pos = static_cast<int32_t>(z.loop_start);
-		cols[idx(MarkerType::LOOP_START)].colOnScreen = cols[idx(MarkerType::LOOP_START)].pos != 0
-		                                                    ? start_col(cols[idx(MarkerType::LOOP_START)].pos)
-		                                                    : kInvalidColumn;
-
-		cols[idx(MarkerType::LOOP_END)].pos = static_cast<int32_t>(z.loop_end);
-		cols[idx(MarkerType::LOOP_END)].colOnScreen =
-		    cols[idx(MarkerType::LOOP_END)].pos != 0 ? end_col(cols[idx(MarkerType::LOOP_END)].pos) : kInvalidColumn;
-	}
-	else {
-		// An audio clip has no loop markers at all.
-		cols[idx(MarkerType::LOOP_START)].pos = 0;
-		cols[idx(MarkerType::LOOP_START)].colOnScreen = kInvalidColumn;
-		cols[idx(MarkerType::LOOP_END)].pos = 0;
-		cols[idx(MarkerType::LOOP_END)].colOnScreen = kInvalidColumn;
-	}
-
-	cols[idx(MarkerType::END)].pos = static_cast<int32_t>(z.end);
-	cols[idx(MarkerType::END)].colOnScreen = end_col(cols[idx(MarkerType::END)].pos);
+	std::array<sample_view::MarkerPin, kNumMarkerTypes> pins{};
+	pins[idx(MarkerType::START)] = start_pin(static_cast<int64_t>(z.start));
+	// An audio clip has no loop markers at all; a range's loop point at 0 is not set.
+	pins[idx(MarkerType::LOOP_START)] =
+	    !ctx_.is_audio_clip && z.loop_start != 0 ? start_pin(z.loop_start) : unset(false);
+	pins[idx(MarkerType::LOOP_END)] = !ctx_.is_audio_clip && z.loop_end != 0 ? end_pin(z.loop_end) : unset(true);
+	pins[idx(MarkerType::END)] = end_pin(static_cast<int64_t>(z.end));
+	return pins;
 }
 
 // `SampleMarkerEditor::getStartPosFromCol` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
-int32_t start_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
-	return static_cast<int32_t>(nav.xScroll + col * nav.xZoom);
+int64_t start_pos_from_col(const sample_view::WaveformView& view, int64_t col) {
+	return view.scroll() + col * view.zoom();
 }
 
 // `SampleMarkerEditor::getEndPosFromCol` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
-int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
-	return static_cast<int32_t>(nav.xScroll + (col + 1) * nav.xZoom);
+int64_t end_pos_from_col(const sample_view::WaveformView& view, int64_t col) {
+	return view.scroll() + (col + 1) * view.zoom();
 }
 
 void MarkerScene::record_scroll_and_zoom() {
@@ -357,8 +358,8 @@ void MarkerScene::record_scroll_and_zoom() {
 	// view-state store.
 	if (marker_type_ != MarkerType::NONE && view_key_) {
 		services::SampleView v = view();
-		v.scroll = nav_.xScroll;
-		v.zoom = nav_.xZoom;
+		v.scroll = view_.scroll();
+		v.zoom = view_.zoom();
 		services::view_state().set_sample_view(*view_key_, v);
 	}
 }
@@ -394,7 +395,7 @@ void MarkerScene::set_loop_locked(bool locked, bool announce) {
 // ---------------------------------------------------------------------------------------------
 // Writing
 
-void MarkerScene::write_value(uint32_t value, MarkerType which) {
+void MarkerScene::write_value(int64_t value, MarkerType which) {
 	// `SampleMarkerEditor::writeValue`.
 	if (which == MarkerType::NOT_AVAILABLE) {
 		which = marker_type_;
@@ -406,7 +407,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		if (ctx_.ports.clip_writes != nullptr && (which == MarkerType::START || which == MarkerType::END)) {
 			(void)ctx_.ports.clip_writes->move_audio_clip_marker(
 			    where_.clip, which == MarkerType::START ? "startSamplePos" : "endSamplePos",
-			    static_cast<int64_t>(value));
+			    std::min(value, kLastAudioClipMarker));
 		}
 		return;
 	}
@@ -428,37 +429,39 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	std::vector<synth::SourceRange> ranges{held.begin(), held.end()};
 	synth::SourceRange& range = ranges[where_.range];
 	const bool locked = loop_locked();
-	const uint32_t loop_length = range.zone.loop_end - range.zone.loop_start;
+	const int64_t loop_length = int64_t{range.zone.loop_end} - range.zone.loop_start;
+	const auto loop_point = [](int64_t v) { return static_cast<uint32_t>(std::min(v, kLastLoopPoint)); };
 	if (which == MarkerType::START) {
-		range.zone.start = value;
+		range.zone.start = static_cast<uint64_t>(value);
 	}
 	else if (which == MarkerType::LOOP_START) {
 		if (locked) {
-			const uint32_t intended_end = value + loop_length;
-			if (uint64_t{intended_end} <= range.zone.end) {
-				range.zone.loop_start = value;
-				range.zone.loop_end = intended_end;
+			const int64_t intended_end = value + loop_length;
+			if (intended_end <= static_cast<int64_t>(range.zone.end) && intended_end <= kLastLoopPoint) {
+				range.zone.loop_start = loop_point(value);
+				range.zone.loop_end = loop_point(intended_end);
 			}
 		}
 		else {
-			range.zone.loop_start = value;
+			range.zone.loop_start = loop_point(value);
 		}
 	}
 	else if (which == MarkerType::LOOP_END) {
 		if (locked) {
-			const int32_t intended_start = static_cast<int32_t>(value - loop_length);
+			const int64_t intended_start = value - loop_length;
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intended_start >= 1 && static_cast<uint64_t>(intended_start) >= range.zone.start) {
-				range.zone.loop_end = value;
-				range.zone.loop_start = intended_start;
+			if (intended_start >= 1 && intended_start >= static_cast<int64_t>(range.zone.start)
+			    && value <= kLastLoopPoint) {
+				range.zone.loop_end = loop_point(value);
+				range.zone.loop_start = loop_point(intended_start);
 			}
 		}
 		else {
-			range.zone.loop_end = value;
+			range.zone.loop_end = loop_point(value);
 		}
 	}
 	else if (which == MarkerType::END) {
-		range.zone.end = value;
+		range.zone.end = static_cast<uint64_t>(value);
 	}
 	(void)ctx_.ports.sound_writes->write_ranges(
 	    where_.slot, where_.source, ranges,
@@ -473,25 +476,27 @@ void MarkerScene::select_encoder(int32_t offset) {
 	if (holding_ || xenc_held_ || sliding()) {
 		return;
 	}
-	MarkerColumn cols[kNumMarkerTypes];
-	cols_on_screen(cols);
+	std::array<sample_view::MarkerPin, kNumMarkerTypes> cols = pins();
 
-	const int32_t old_col = cols[idx(marker_type_)].colOnScreen;
-	const int32_t old_pos = cols[idx(marker_type_)].pos;
-	int32_t new_col = old_col + offset;
+	const int64_t old_col = column_or_far_left(cols[idx(marker_type_)]);
+	const int64_t old_pos = cols[idx(marker_type_)].position;
+	// An unset marker has no column to move from: it stays far left, and its write below is 0, which leaves it unset.
+	const bool set = cols[idx(marker_type_)].column.has_value();
+	int64_t new_col = set ? old_col + offset : old_col;
 
 	// Make sure we don't drive one marker into the other
 	for (int32_t c = 0; c < kNumMarkerTypes; c++) {
 		if (c == idx(marker_type_)) {
 			continue;
 		}
-		if (cols[c].colOnScreen == old_col || cols[c].colOnScreen == new_col) {
+		if (column_or_far_left(cols[c]) == old_col || column_or_far_left(cols[c]) == new_col) {
 			return;
 		}
 	}
 
-	int32_t new_pos =
-	    (marker_type_ < MarkerType::LOOP_END) ? start_pos_from_col(nav_, new_col) : end_pos_from_col(nav_, new_col);
+	int64_t new_pos = !set                                    ? 0
+	                  : (marker_type_ < MarkerType::LOOP_END) ? start_pos_from_col(view_, new_col)
+	                                                          : end_pos_from_col(view_, new_col);
 	if (new_pos < 0) {
 		new_pos = 0;
 	}
@@ -503,27 +508,24 @@ void MarkerScene::select_encoder(int32_t offset) {
 			}
 		}
 		else {
-			if (new_pos > static_cast<int32_t>(nav_.length())) {
-				new_pos = static_cast<int32_t>(nav_.length());
+			if (new_pos > static_cast<int64_t>(view_.length())) {
+				new_pos = static_cast<int64_t>(view_.length());
 			}
 		}
 	}
 
-	write_value(static_cast<uint32_t>(new_pos));
+	write_value(new_pos);
 
 	// If marker was on-screen...
 	if (old_col >= 0 && old_col < kMainCols) {
-		cols_on_screen(cols);
+		cols = pins();
 		// It might have changed, and despite having a new_col variable above, that's only our
 		// desired value - we might have run into the end of the sample
-		new_col = cols[idx(marker_type_)].colOnScreen;
+		new_col = column_or_far_left(cols[idx(marker_type_)]);
 
 		// But isn't anymore...
 		if (new_col < 0 || new_col >= kMainCols) {
-			nav_.xScroll += nav_.xZoom * offset;
-			if (nav_.xScroll < 0) {
-				nav_.xScroll = 0; // Shouldn't happen...
-			}
+			view_ = view_.moved(offset);
 			record_scroll_and_zoom();
 		}
 	}
@@ -545,14 +547,13 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		return;
 	}
 
-	MarkerColumn cols[kNumMarkerTypes];
-	cols_on_screen(cols);
+	const std::array<sample_view::MarkerPin, kNumMarkerTypes> cols = pins();
 
 	// See which one we pressed, including legacy's toggle between two markers that
 	// share a column.
 	MarkerType marker_pressed = MarkerType::NONE;
 	for (int32_t m = 0; m < kNumMarkerTypes; m++) {
-		if (cols[m].colOnScreen == x) {
+		if (column_or_far_left(cols[m]) == x) {
 			if (marker_pressed != MarkerType::NONE) {
 				if (static_cast<MarkerType>(m) != marker_type_) {
 					marker_pressed = static_cast<MarkerType>(m);
@@ -575,14 +576,14 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		// See which one we were holding down.
 		MarkerType marker_held = MarkerType::NONE;
 		for (int32_t m = 0; m < kNumMarkerTypes; m++) {
-			if (cols[m].colOnScreen == press_x_) {
+			if (column_or_far_left(cols[m]) == press_x_) {
 				marker_held = static_cast<MarkerType>(m);
 			}
 		}
 
 		if (marker_held == MarkerType::START) {
 			// Unless we actually just tapped the already existing loop point: remove it.
-			if (x == cols[idx(MarkerType::LOOP_START)].colOnScreen) {
+			if (x == column_or_far_left(cols[idx(MarkerType::LOOP_START)])) {
 				marker_type_ = MarkerType::LOOP_START;
 				set_loop_locked(false);
 				write_value(0);
@@ -590,54 +591,55 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 				return;
 			}
 			// Limit position.
-			if (cols[idx(MarkerType::START)].colOnScreen >= x) {
+			if (column_or_far_left(cols[idx(MarkerType::START)]) >= x) {
 				return;
 			}
-			if (cols[idx(MarkerType::LOOP_END)].pos != 0 && cols[idx(MarkerType::LOOP_END)].colOnScreen <= x) {
+			if (cols[idx(MarkerType::LOOP_END)].position != 0
+			    && column_or_far_left(cols[idx(MarkerType::LOOP_END)]) <= x) {
 				return;
 			}
-			if (cols[idx(MarkerType::END)].colOnScreen <= x) {
+			if (column_or_far_left(cols[idx(MarkerType::END)]) <= x) {
 				return;
 			}
-			const int32_t new_value = start_pos_from_col(nav_, x);
+			const int64_t new_value = start_pos_from_col(view_, x);
 			// Loop start and end points are not allowed to be further right than the waveform length
-			if (new_value >= static_cast<int32_t>(nav_.length())) {
+			if (new_value >= static_cast<int64_t>(view_.length())) {
 				return;
 			}
 			marker_type_ = MarkerType::LOOP_START;
 			holding_ = false;
 			blink_phase_ = 0;
 			blink_accum_ms_ = 0;
-			write_value(static_cast<uint32_t>(new_value));
+			write_value(new_value);
 			return;
 		}
 
 		if (marker_held == MarkerType::END) {
-			if (x == cols[idx(MarkerType::LOOP_END)].colOnScreen) {
+			if (x == column_or_far_left(cols[idx(MarkerType::LOOP_END)])) {
 				marker_type_ = MarkerType::LOOP_END;
 				set_loop_locked(false);
 				write_value(0);
 				marker_type_ = MarkerType::END;
 				return;
 			}
-			if (cols[idx(MarkerType::START)].colOnScreen >= x) {
+			if (column_or_far_left(cols[idx(MarkerType::START)]) >= x) {
 				return;
 			}
-			if (cols[idx(MarkerType::LOOP_START)].colOnScreen >= x) {
+			if (column_or_far_left(cols[idx(MarkerType::LOOP_START)]) >= x) {
 				return; // Will be a big negative number if inactive
 			}
-			if (cols[idx(MarkerType::END)].colOnScreen <= x) {
+			if (column_or_far_left(cols[idx(MarkerType::END)]) <= x) {
 				return;
 			}
-			const int32_t new_value = end_pos_from_col(nav_, x);
-			if (new_value >= static_cast<int32_t>(nav_.length())) {
+			const int64_t new_value = end_pos_from_col(view_, x);
+			if (new_value >= static_cast<int64_t>(view_.length())) {
 				return;
 			}
 			marker_type_ = MarkerType::LOOP_END;
 			holding_ = false;
 			blink_phase_ = 0;
 			blink_accum_ms_ = 0;
-			write_value(static_cast<uint32_t>(new_value));
+			write_value(new_value);
 			return;
 		}
 
@@ -649,7 +651,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 
 		if (marker_held == MarkerType::LOOP_START) {
 			// Or if a loop point and they pressed the end marker, remove the loop point.
-			if (x == cols[idx(MarkerType::START)].colOnScreen) {
+			if (x == column_or_far_left(cols[idx(MarkerType::START)])) {
 				set_loop_locked(false);
 				write_value(0);
 				marker_type_ = MarkerType::START;
@@ -661,7 +663,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		}
 
 		if (marker_held == MarkerType::LOOP_END) {
-			if (x == cols[idx(MarkerType::END)].colOnScreen) {
+			if (x == column_or_far_left(cols[idx(MarkerType::END)])) {
 				set_loop_locked(false);
 				write_value(0);
 				marker_type_ = MarkerType::END;
@@ -695,61 +697,62 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	// Otherwise, move the current marker to where we tapped. Make sure it doesn't go
 	// past any other markers it shouldn't.
 	if (marker_type_ == MarkerType::START) {
-		if (cols[idx(MarkerType::LOOP_START)].pos != 0 && cols[idx(MarkerType::LOOP_START)].colOnScreen <= x) {
+		if (cols[idx(MarkerType::LOOP_START)].position != 0
+		    && column_or_far_left(cols[idx(MarkerType::LOOP_START)]) <= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::LOOP_END)].pos != 0 && cols[idx(MarkerType::LOOP_END)].colOnScreen <= x) {
+		if (cols[idx(MarkerType::LOOP_END)].position != 0 && column_or_far_left(cols[idx(MarkerType::LOOP_END)]) <= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::END)].colOnScreen <= x) {
+		if (column_or_far_left(cols[idx(MarkerType::END)]) <= x) {
 			return;
 		}
 	}
 	else if (marker_type_ == MarkerType::LOOP_START) {
-		if (cols[idx(MarkerType::START)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::START)]) >= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::LOOP_END)].pos != 0 && cols[idx(MarkerType::LOOP_END)].colOnScreen <= x) {
+		if (cols[idx(MarkerType::LOOP_END)].position != 0 && column_or_far_left(cols[idx(MarkerType::LOOP_END)]) <= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::END)].colOnScreen <= x) {
+		if (column_or_far_left(cols[idx(MarkerType::END)]) <= x) {
 			return;
 		}
 	}
 	else if (marker_type_ == MarkerType::LOOP_END) {
-		if (cols[idx(MarkerType::START)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::START)]) >= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::LOOP_START)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::LOOP_START)]) >= x) {
 			return; // Will be a big negative number if inactive
 		}
-		if (cols[idx(MarkerType::END)].colOnScreen <= x) {
+		if (column_or_far_left(cols[idx(MarkerType::END)]) <= x) {
 			return;
 		}
 	}
 	else if (marker_type_ == MarkerType::END) {
-		if (cols[idx(MarkerType::START)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::START)]) >= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::LOOP_START)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::LOOP_START)]) >= x) {
 			return;
 		}
-		if (cols[idx(MarkerType::LOOP_END)].colOnScreen >= x) {
+		if (column_or_far_left(cols[idx(MarkerType::LOOP_END)]) >= x) {
 			return;
 		}
 	}
 
-	int32_t value = (marker_type_ < MarkerType::LOOP_END) ? start_pos_from_col(nav_, x) : end_pos_from_col(nav_, x);
+	int64_t value = (marker_type_ < MarkerType::LOOP_END) ? start_pos_from_col(view_, x) : end_pos_from_col(view_, x);
 
 	{
-		const int32_t length = static_cast<int32_t>(nav_.length());
+		const auto length = static_cast<int64_t>(view_.length());
 		// Only the END marker, and only in some cases, is allowed to be further right than the
 		// waveform length
 		if (marker_type_ == MarkerType::END && allow_extra_scroll_right()) {
-			if (x > cols[idx(marker_type_)].colOnScreen && value < cols[idx(marker_type_)].pos) {
+			if (x > column_or_far_left(cols[idx(marker_type_)]) && value < cols[idx(marker_type_)].position) {
 				return; // Probably not actually necessary
 			}
-			if (value > length && value < length + static_cast<int32_t>(nav_.xZoom)) {
+			if (value > length && value < length + view_.zoom()) {
 				value = length;
 			}
 		}
@@ -762,7 +765,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 
 	blink_phase_ = 0;
 	blink_accum_ms_ = 0;
-	write_value(static_cast<uint32_t>(value));
+	write_value(value);
 }
 
 Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift) {
@@ -773,12 +776,12 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 	// locked loop.
 	if (loop_locked() && shift) {
 		const Zone z = zone();
-		uint32_t proposed_end = z.loop_end;
-		const uint32_t loop_length = z.loop_end - z.loop_start;
+		int64_t proposed_end = z.loop_end;
+		const int64_t loop_length = int64_t{z.loop_end} - z.loop_start;
 
 		if (offset > 0) { // turn clockwise
-			proposed_end = z.loop_start + 2 * loop_length;
-			if (proposed_end <= z.end) {
+			proposed_end = int64_t{z.loop_start} + 2 * loop_length;
+			if (proposed_end <= static_cast<int64_t>(z.end) && proposed_end <= kLastLoopPoint) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup, .popup_string = sid(String::STRING_FOR_LOOP_DOUBLED)});
 			}
@@ -790,7 +793,7 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		}
 		else { // turn anti-clockwise
 			if (loop_length > 2) {
-				proposed_end = z.loop_start + loop_length / 2;
+				proposed_end = int64_t{z.loop_start} + (loop_length >> 1);
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup, .popup_string = sid(String::STRING_FOR_LOOP_HALVED)});
 			}
@@ -809,12 +812,13 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		return r;
 	}
 
-	MarkerColumn cols[kNumMarkerTypes];
-	const MarkerColumn* to_send = nullptr;
-	if (marker_type_ != MarkerType::NONE) {
-		cols_on_screen(cols);
-		to_send = cols;
-	}
+	// The markers a zoom may pin, and the end marker a scroll may reach past the waveform's end: none with no marker
+	// selected (legacy passes no columns then).
+	const std::array<sample_view::MarkerPin, kNumMarkerTypes> cols = pins();
+	const std::optional<size_t> preferred =
+	    marker_type_ >= MarkerType::START ? std::optional{static_cast<size_t>(idx(marker_type_))} : std::nullopt;
+	const std::optional<int64_t> end_column =
+	    marker_type_ != MarkerType::NONE ? cols[idx(MarkerType::END)].column : std::nullopt;
 
 	// Zoom with X_ENC held, scroll without, and either only with no mode up but X_ENC held and auditioning
 	// (`SampleMarkerEditor::horizontalEncoderAction`'s `zoomUIModes`): never while a marker is held. X_ENC cannot be
@@ -824,19 +828,25 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		// `UI_MODE_HORIZONTAL_ZOOM` is in neither of `zoomUIModes`' ranges: a turn while a zoom slides is dropped.
 	}
 	else if (zooming) {
-		// `WaveformBasicNavigator::zoom`: the arithmetic, then the slide from the old view to the new one,
-		// pinned at the square whose position both views share.
-		const uint32_t old_scroll = nav_.xScroll;
-		const uint32_t old_zoom = nav_.xZoom;
-		success = nav_.zoom(offset, allow_extra_scroll_right(), to_send, marker_type_);
+		// The arithmetic, then the slide from the old view to the new one, pinned at the square whose position both
+		// views share (`origin/main:src/deluge/gui/waveform/waveform_basic_navigator.cpp`,
+		// `WaveformBasicNavigator::zoom`). With no marker selected, `preferred` is none and no pin is weighed.
+		const int64_t old_scroll = view_.scroll();
+		const int64_t old_zoom = view_.zoom();
+		const std::optional<sample_view::WaveformView> zoomed =
+		    view_.zoomed(offset, cols, preferred, allow_extra_scroll_right());
+		success = zoomed.has_value();
 		if (success) {
-			const auto new_zoom = static_cast<int32_t>(nav_.xZoom);
-			const int32_t pin =
-			    static_cast<int32_t>((static_cast<int64_t>(static_cast<int32_t>(old_scroll - nav_.xScroll)) << 16)
-			                         / (new_zoom - static_cast<int32_t>(old_zoom)));
+			view_ = *zoomed;
+			// A file the card holds is under 2^32 frames, so its zoom is at most 2^28 and fits.
+			const auto slide_zoom = [](int64_t zoom) {
+				return static_cast<int32_t>(std::clamp<int64_t>(zoom, 1, std::numeric_limits<int32_t>::max()));
+			};
+			const int32_t pin = static_cast<int32_t>(
+			    sample_view::trunc_div((old_scroll - view_.scroll()) << 16, view_.zoom() - old_zoom));
 			zoom_pending_ = deluge::gfx::grid::ZoomParams{
-			    .old_zoom = static_cast<int32_t>(old_zoom),
-			    .new_zoom = new_zoom,
+			    .old_zoom = slide_zoom(old_zoom),
+			    .new_zoom = slide_zoom(view_.zoom()),
 			    .pin_square_from = pin,
 			    .pin_square_to = pin,
 			    .t = 0,
@@ -847,7 +857,12 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		}
 	}
 	else if (!holding_) {
-		success = nav_.scroll(offset, allow_extra_scroll_right(), to_send);
+		const std::optional<sample_view::WaveformView> scrolled =
+		    view_.scrolled(offset, allow_extra_scroll_right(), end_column);
+		success = scrolled.has_value();
+		if (success) {
+			view_ = *scrolled;
+		}
 	}
 
 	if (success) {
@@ -866,7 +881,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
-	if (const std::optional<services::WaveformInfo> info = waveforms().info(where_)) {
+	if (const std::optional<bind::WaveformInfo> info = waveform_info()) {
 		follow_waveform(*info);
 	}
 
@@ -1004,9 +1019,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 		next = kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
-	if (playing_
-	    || (menu::host_ports().ui->flash_cursor() != bind::FlashCursor::Off
-	        && waveforms().play_position(where_).has_value())) {
+	if (playing_ || (play_cursor() != deluge::project::FlashCursor::OFF && play_position().has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
 	return next;
@@ -1017,14 +1030,13 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	if (!info) {
 		return;
 	}
 
-	MarkerColumn cols[kNumMarkerTypes];
-	cols_on_screen(cols);
-	const uint32_t pos = static_cast<uint32_t>(cols[idx(marker_type_)].pos);
+	const std::array<sample_view::MarkerPin, kNumMarkerTypes> cols = pins();
+	const auto pos = static_cast<uint64_t>(cols[idx(marker_type_)].position);
 
 	// `renderOLED`'s title switch, through `reverseRemap` -- so a reversed sample's
 	// START marker is labelled "End point".
@@ -1064,7 +1076,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
+	const std::optional<bind::WaveformInfo> info = waveform_info();
 	if (!info) {
 		// Nothing to slide or to play: a slide left running would hold every input refused.
 		zoom_pending_.reset();
@@ -1087,7 +1099,10 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			gfx::grid::PadGrid& to = deluge::ui::grid::begin_zoom(zoom_, *shown_, params, f.now_ms());
 			deluge::ui::grid::GridFrame bare =
 			    deluge::ui::grid::root_grid_frame(to, f.ctx, deluge::ui::InputMask::none(), nullptr, nullptr, true);
-			(void)services::paint_full(bare, waveforms(), where_, *info, nav_);
+			if (const std::optional<services::WaveformFrame> wf =
+			        services::read_waveform(*waveforms(), where_, view_.window())) {
+				services::paint_columns(bare, wf->read, wf->centre, wf->span);
+			}
 		}
 	}
 	if (zoom_.active) {
@@ -1100,17 +1115,22 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 
-	// `renderMainPads`' `waveformRenderer.renderFullScreen`. A column the scan could not load paints black,
-	// which is legacy's own fallback, so the scan's result is not consulted.
+	// `renderMainPads`' `waveformRenderer.renderFullScreen`, scaled by the range after the read. A column the card
+	// could not give paints black this frame, and the frame asks again for it.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		(void)services::paint_full(main, waveforms(), where_, *info, nav_);
+		if (const std::optional<services::WaveformFrame> wf =
+		        services::read_waveform(*waveforms(), where_, view_.window())) {
+			services::paint_columns(main, wf->read, wf->centre, wf->span);
+			if (retry_.after(wf->read, view_.window(), f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
+				f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
+			}
+		}
 
 		if (marker_type_ == MarkerType::NONE) {
 			return;
 		}
 
-		MarkerColumn cols[kNumMarkerTypes];
-		cols_on_screen(cols);
+		const std::array<sample_view::MarkerPin, kNumMarkerTypes> cols = pins();
 
 		// The blink, as `timerCallback` draws it rather than as `renderMainPads`
 		// does -- see the class docstring for why the two disagree.
@@ -1127,7 +1147,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 
-		const int32_t selected_col = cols[idx(marker_type_)].colOnScreen;
+		const int64_t selected_col = column_or_far_left(cols[idx(marker_type_)]);
 
 		// Colours are resolved here rather than in the widget: `reverseRemap` reads
 		// `SampleControls`, which `src/ui` may not include.
@@ -1146,7 +1166,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 			uint32_t active = 0;
 			for (int32_t m = 0; m < kNumMarkerTypes; m++) {
-				if (cols[m].colOnScreen == col) {
+				if (column_or_far_left(cols[m]) == col) {
 					active |= 1u << m;
 				}
 			}
@@ -1185,29 +1205,40 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const bind::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
+	const deluge::project::FlashCursor cursor = play_cursor();
 	playing_ = false;
-	if (cursor == bind::FlashCursor::Off) {
+	if (cursor == deluge::project::FlashCursor::OFF) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
-	const std::optional<int64_t> pos = waveforms().play_position(where_);
+	const std::optional<int64_t> pos = play_position();
 	playing_ = pos.has_value();
-	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
-		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+	if (pos.has_value() && *pos >= view_.scroll()) {
+		const int64_t col = sample_view::floor_div(*pos - view_.scroll(), view_.zoom());
 		if (col < main_cols) {
 			per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
 			                                          .colour = deluge::ui::grid::TickColour::Normal});
 		}
 	}
-	if (cursor == bind::FlashCursor::Slow) {
+	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
-const services::Waveforms& MarkerScene::waveforms() const {
-	return waveforms_override_ != nullptr ? *waveforms_override_ : menu::host_waveforms();
+std::optional<bind::WaveformInfo> MarkerScene::waveform_info() const {
+	const bind::Waveforms* w = waveforms();
+	return w != nullptr ? w->info(where_) : std::nullopt;
+}
+
+std::optional<int64_t> MarkerScene::play_position() const {
+	const bind::Waveforms* w = waveforms();
+	return w != nullptr ? w->play_position(where_) : std::nullopt;
+}
+
+deluge::project::FlashCursor MarkerScene::play_cursor() const {
+	return bind::read_device<deluge::project::FlashCursor>(ctx_.ports.device,
+	                                                       deluge::project::device_path::kPlayCursor);
 }
 
 MarkerScene& marker_scene() {

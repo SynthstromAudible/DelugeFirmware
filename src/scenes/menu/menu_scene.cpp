@@ -328,7 +328,7 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	}
 	// Over the automation view any item is taken: `potentialShortcutPadAction` refuses a non-param one only while
 	// the editor itself is the current UI, and here the scene over the menu is.
-	const Node* target = shortcut_node(press.root, false, x, y);
+	const Node* target = shortcut_node(press.root, shortcuts_version(press), false, x, y);
 	if (target == nullptr) {
 		return std::nullopt;
 	}
@@ -547,8 +547,8 @@ void MenuScene::unlearn() {
 
 void MenuScene::read_learned_value_again() {
 	const Node* at = focused();
-	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom && at->bind.get != nullptr
-	    && (at->learn != nullptr || at->unlearn != nullptr)) {
+	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom
+	    && (at->bind.get != nullptr || at->bind.target.valid()) && (at->learn != nullptr || at->unlearn != nullptr)) {
 		read_value_again();
 	}
 }
@@ -790,7 +790,8 @@ Result MenuScene::after_render() {
 }
 
 void MenuScene::flip_in_place(const Node& node) {
-	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
+	// The list row reads its value live, so a refused flip already draws the stored one.
+	(void)bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
 }
 
 void MenuScene::mark_edited_after_turn() {
@@ -865,8 +866,8 @@ Result MenuScene::after_render_navigation() {
 	// device list's assignment of `soundEditor`'s current MIDI cable from `getCable(...)` (`Devices::beginSession` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`, `Devices::selectEncoderAction`). Same shape as
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns `currentSourceIndex` on the
-	// way through `selectButtonPress`, so `gate_selection_chain` and `gate_mode_names` must both see the output the
-	// user just picked, not the previous one.
+	// way through `selectButtonPress`, so `gate_selection_chain` and the mode page's per-output row must both see the
+	// output the user just picked, not the previous one.
 	if (st_.walk.source_choice >= 0) {
 		trace_drain(DrainBand::SourceChoice);
 		ctx_.source_index = st_.walk.source_choice;

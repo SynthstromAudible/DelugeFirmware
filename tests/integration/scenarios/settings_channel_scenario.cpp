@@ -94,16 +94,16 @@ struct SettingsChannelProbe {
 	/// Everything a factory reset throws away, so the scenario can put it back for the gates that read the card image
 	/// after it.
 	struct Saved {
-		decltype(runtimeFeatureSettings.settings) settings;
+		decltype(runtimeFeatureSettings.values) values;
 		std::string startupSong;
 		decltype(runtimeFeatureSettings.unknownSettings) unknown;
 	};
 	static Saved save() {
-		return {runtimeFeatureSettings.settings, runtimeFeatureSettings.startupSong,
+		return {runtimeFeatureSettings.values, runtimeFeatureSettings.startupSong,
 		        runtimeFeatureSettings.unknownSettings};
 	}
 	static void restore(const Saved& saved) {
-		runtimeFeatureSettings.settings = saved.settings;
+		runtimeFeatureSettings.values = saved.values;
 		runtimeFeatureSettings.startupSong = saved.startupSong;
 		runtimeFeatureSettings.unknownSettings = saved.unknown;
 	}

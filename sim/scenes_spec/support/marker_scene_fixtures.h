@@ -37,6 +37,7 @@
 
 #include "support/song_fixture.h"
 
+#include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/record_state.h"
 
@@ -69,7 +70,7 @@ inline constexpr int32_t kBytesPerFrame = 2; // 16-bit mono, so one frame is two
 /// waveform black -- found by doing exactly that.
 inline constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
 inline constexpr int32_t kNumClusters = 32;
-/// `WaveformNav::max_zoom()` for `kSampleLength`: `((len - 1) >> 4) + 1`.
+/// `WaveformView::max_zoom()` for `kSampleLength`: `ceil(len / 16)`.
 inline constexpr int32_t kZoomMax = static_cast<int32_t>(((kSampleLength - 1) >> 4) + 1);
 
 /// The per-cluster peak the fixture writes into the overview cache: a widening shape, so a golden
@@ -132,6 +133,10 @@ struct Rig {
 	Sound* sound = nullptr;
 	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
+	/// The view the editor remembers for the range as it opens: none (zoom 0) opens zoomed out.
+	deluge::scenes::services::SampleView remembered{};
+	/// The waveforms the editor reads; the app's when null.
+	const bind::Waveforms* waveforms = nullptr;
 
 	const BoardProfile& profile;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
@@ -173,16 +178,23 @@ struct Rig {
 		range->sampleHolder.loopStartPos = 0;
 		range->sampleHolder.loopEndPos = 0;
 		range->sampleHolder.loopLocked = false;
-		range->sampleHolder.waveformViewZoom = 0; // "no remembered view" -- open zoomed out
-		range->sampleHolder.waveformViewScroll = 0;
 		// The sound was set up field by field; record it as a load does, so its record is its truth.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 	}
 
 	MenuContext ctx() {
 		// `context_for` resolves the range only when the source has exactly one, as it has here.
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
+		if (waveforms != nullptr) {
+			c.ports.waveforms = waveforms;
+		}
+		return c;
+	}
+
+	/// @brief The waveform the editor opens on: the range.
+	[[nodiscard]] bind::WaveformAddress address() {
+		return {.kind = bind::WaveformAddress::Kind::RANGE, .slot = slot(), .source = 0, .range = 0};
 	}
 
 	/// @brief The key the scene remembers the range's view under: the range's own identity.
@@ -201,12 +213,12 @@ struct Rig {
 		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
 		// record.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
-		// Main remembers the view and the loop lock on the holder, the scene in the view-state store: both start from
-		// the holder's.
+		// The scene remembers the view and the loop lock in the view-state store: the view is the example's, the loop
+		// lock the holder's, as main keeps it.
 		const SampleHolderForVoice& h = range->sampleHolder;
 		deluge::scenes::services::view_state().forget_unless(song.song->project.identity());
 		deluge::scenes::services::view_state().set_sample_view(
-		    key(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
+		    key(), {.scroll = remembered.scroll, .zoom = remembered.zoom, .loop_locked = h.loopLocked});
 		MenuContext c = ctx();
 		if (sound_writes != nullptr) {
 			c.ports.sound_writes = sound_writes;
@@ -292,14 +304,12 @@ struct HolderState {
 	uint32_t loop_start{};
 	uint32_t loop_end{};
 	bool locked{};
-	int32_t view_scroll{};
-	int32_t view_zoom{};
+	deluge::scenes::services::SampleView view{};
 };
 
 inline HolderState holder_snapshot(Rig& r) {
 	const SampleHolderForVoice& h = r.range->sampleHolder;
-	return HolderState{h.startPos,           h.endPos,          h.loopStartPos, h.loopEndPos, h.loopLocked,
-	                   h.waveformViewScroll, h.waveformViewZoom};
+	return HolderState{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos, h.loopLocked, r.remembered};
 }
 
 inline void restore(Rig& r, const HolderState& s) {
@@ -309,8 +319,7 @@ inline void restore(Rig& r, const HolderState& s) {
 	h.loopStartPos = s.loop_start;
 	h.loopEndPos = s.loop_end;
 	h.loopLocked = s.locked;
-	h.waveformViewScroll = s.view_scroll;
-	h.waveformViewZoom = s.view_zoom;
+	r.remembered = s.view;
 	// Set by hand, so recorded as a load would: the record is what an Edit starts from.
 	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
 }
@@ -325,6 +334,8 @@ struct AudioRig {
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake;
 	Shell shell;
+	/// The waveforms the editor reads; the app's when null.
+	const bind::Waveforms* waveforms = nullptr;
 
 	AudioRig(const AudioRig&) = delete;
 	AudioRig& operator=(const AudioRig&) = delete;
@@ -336,8 +347,6 @@ struct AudioRig {
 		    f.song); // the app's ports and waveforms resolve addresses in the current song
 		f.clip->sampleHolder.audioFile = sample;
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
-		f.clip->sampleHolder.waveformViewZoom = 0;
-		f.clip->sampleHolder.waveformViewScroll = 0;
 		f.clip->setSampleStartPos(0);
 		f.clip->setSampleEndPos(kSampleLength);
 		f.clip->sampleControls.reversed = false;
@@ -352,10 +361,13 @@ struct AudioRig {
 	/// @brief Open the scene on @p marker over the audio clip.
 	/// @param clip_writes Where the scene's clip edits go; the app's when null.
 	void open(MarkerType marker, bind::ClipWrites* clip_writes = nullptr) {
-		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		if (clip_writes != nullptr) {
 			c.ports.clip_writes = clip_writes;
+		}
+		if (waveforms != nullptr) {
+			c.ports.waveforms = waveforms;
 		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
@@ -363,6 +375,11 @@ struct AudioRig {
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 	void turn_select(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+	}
+
+	/// @brief The waveform the editor opens on: the clip's.
+	[[nodiscard]] bind::WaveformAddress address() const {
+		return {.kind = bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = deluge::project::ClipAddress{f.clip->id()}};
 	}
 
 	/// @brief The descriptor record's markers, as a save writes them.

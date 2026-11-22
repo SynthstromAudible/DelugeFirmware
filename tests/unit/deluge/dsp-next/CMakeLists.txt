@@ -31,7 +31,7 @@ endif()
 # Standalone-link proof for the synth core (x86 only: the closure is arch-agnostic). The synth TUs and only their
 # gui-free dependency TUs link into an executable with nothing from the app; a successful link (no undefined symbols,
 # no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This is the link-time companion
-# to scripts/check_synth_boundary.py's transitive include check. The source set is the `nm -u` closure of the synth
+# to scripts/check_layers.py's transitive synth-boundary rule. The source set is the `nm -u` closure of the synth
 # objects: param-math (param_functions), the numeric LUTs, interpolation, the noise stream (synth_noise), the routing
 # compile (patch_routing) and the matrix (compiler, evaluator). It is listed by hand, not linked from the libraries:
 # the list is what the proof states.

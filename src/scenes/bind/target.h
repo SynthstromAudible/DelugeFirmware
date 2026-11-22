@@ -36,7 +36,8 @@ struct Target {
 		SOUND,  ///< a row of instrument::kSettings, on the sound at Addresses::slot
 		EFFECT, ///< a row of effects::kEffectSettings, on the sound at Addresses::slot, else the chain at
 		        ///< Addresses::chain
-		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group
+		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group; a DEVICE row
+		        ///< on the device itself, through Ports::device
 		PARAM,  ///< a param of the owner's engine (the sound at Addresses::slot, else the chain's owner), by id
 		CABLE,  ///< a patch cable of the sound at Addresses::slot, by its depth id in @ref param
 	};
@@ -53,7 +54,14 @@ struct Target {
 		NOTE_TAILS, ///< a sound drum takes it only where it can hold note tails (controls::Facts::allows_note_tails)
 	};
 	Kind kind{Kind::NONE};
-	std::string_view path; ///< the row's path, e.g. "osc1/type"
+	/// The row's path, e.g. "osc1/type"; with @ref source_indexed, a pattern for one row per output, e.g.
+	/// "cv/*/transpose".
+	std::string_view path;
+	/// Whether @ref path holds one `*` segment for the output the menu edits: the dispatch fills it with
+	/// Addresses::source_index and resolves the row of that path in the table @ref kind and @ref group name. A path
+	/// with no `*`, addresses that name no output, or an index the table has no row at resolve to nothing, as any
+	/// unresolved target does.
+	bool source_indexed{false};
 	/// Whether a write with affect-entire held on a kit reaches the kit's sound drums. False for the settings legacy
 	/// edits on the selected drum alone (an oscillator's type, a retrigger phase).
 	bool whole_kit{true};
@@ -86,11 +94,17 @@ struct Target {
 	const Target* shown_with{nullptr};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
+	/// @brief Whether the target is a row of the device's own settings, which the device port holds and no song does.
+	/// @return True for a MODEL target of the DEVICE group.
+	[[nodiscard]] constexpr bool on_device() const {
+		return kind == Kind::MODEL && group == project::SettingGroupId::DEVICE;
+	}
 	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
 	constexpr bool operator==(const Target& other) const {
-		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
-		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size()
-		       && group == other.group && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
+		return kind == other.kind && path == other.path && source_indexed == other.source_indexed
+		       && whole_kit == other.whole_kit && fan_out_when.data() == other.fan_out_when.data()
+		       && fan_out_when.size() == other.fan_out_when.size() && group == other.group
+		       && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
 		       && shown_on == other.shown_on && param == other.param && applies_when.data() == other.applies_when.data()
 		       && applies_when.size() == other.applies_when.size() && applies_any.data() == other.applies_any.data()
 		       && applies_any.size() == other.applies_any.size() && shown_with == other.shown_with;
@@ -113,12 +127,15 @@ struct Addresses {
 	std::optional<project::NoteRowAddress> note_row; ///< the note row edited: a kit row's bend range
 	/// What plays the track or clip, which the model does not hold: the host's root knows it.
 	plugin::SettingContext::Instrument instrument{plugin::SettingContext::Instrument::NONE};
+	/// The output a source-indexed target's `*` names: the menu's selector's choice (`MenuContext::source_index`); none
+	/// resolves a source-indexed target to nothing.
+	std::optional<uint8_t> source_index{};
 	bool operator==(const Addresses&) const = default;
 };
 
 /// @brief The group and owner @p target edits at @p where: a MODEL target's group on the owner its group takes (a
-/// CLIP_ARP target on a lane, its LANE_ARP), or a SOUND target's audio clip row where @p where names an audio clip
-/// and no sound.
+/// CLIP_ARP target on a lane, its LANE_ARP; a DEVICE target on the device, whatever @p where names), or a SOUND
+/// target's audio clip row where @p where names an audio clip and no sound.
 /// @param target What a node edits.
 /// @param where  Where the menu edits.
 /// @return The address, or nullopt where @p where names no such owner or @p target edits no model group.

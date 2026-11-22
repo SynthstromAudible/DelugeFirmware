@@ -6,6 +6,7 @@
 ///        process's globals with.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "model/edits/setting_edit.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -34,6 +35,7 @@
 // drags in.
 #include "support/card_access.h"
 
+#include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/record_state.h"
 
@@ -94,7 +96,7 @@ struct Rig {
 	/// @brief Tear the stack down, so the scene's `on_exit` always runs.
 	///
 	/// **Scenes are process singletons.** An example that left the recorder armed would make the
-	/// NEXT example's `on_enter` refuse (`recorder_ != nullptr`) and cascade into a wall of
+	/// NEXT example's `on_enter` refuse (`recording()`) and cascade into a wall of
 	/// unrelated failures. Popping
 	/// here means every example starts from the same place whatever the one before it did, so a
 	/// mutation kills the assertions that actually see it and no others.
@@ -119,8 +121,8 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -235,8 +237,9 @@ struct Rig {
 ///        finish, if it is not.
 ///
 /// The foreground recording's channel and recorder (`AudioEngine::foregroundRecordingSource()` /
-/// `foregroundRecorder()`) are process globals many subsystems read, so an example that leaks one poisons the next;
-/// clearing it silently is what hid the leak in the first place.
+/// `foregroundRecorder()`) are process globals many subsystems read, and the host's take port holds its take for the
+/// process, so an example that leaks one poisons the next; clearing it silently is what hid the leak in the first
+/// place.
 struct NoForegroundRecording {
 	NoForegroundRecording() { check("a foreground recording was already published when an example started"); }
 	~NoForegroundRecording() { check("an example finished with a foreground recording still published"); }
@@ -244,7 +247,7 @@ struct NoForegroundRecording {
 	NoForegroundRecording& operator=(const NoForegroundRecording&) = delete;
 	static void check(const char* what) {
 		if (AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE
-		    || AudioEngine::foregroundRecorder() != nullptr) {
+		    || AudioEngine::foregroundRecorder() != nullptr || deluge::gui::shell_host::input_take() != nullptr) {
 			spec_bail(what);
 		}
 	}

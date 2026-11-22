@@ -458,9 +458,9 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 }
 
 const char* groupName(SettingGroupId group) {
-	constexpr const char* kNames[] = {"SONG",       "TRACK",        "INSTRUMENT_DEVICE", "LANE",        "NOTE_ROW",
-	                                  "AUDIO_CLIP", "CLIP",         "CLIP_VALUES",       "AUDIO_INPUT", "CLIP_ARP",
-	                                  "LANE_ARP",   "SOUND_ROUTING"};
+	constexpr const char* kNames[] = {
+	    "SONG",        "TRACK",       "INSTRUMENT_DEVICE", "LANE",     "NOTE_ROW",      "AUDIO_CLIP", "CLIP",
+	    "CLIP_VALUES", "AUDIO_INPUT", "CLIP_ARP",          "LANE_ARP", "SOUND_ROUTING", "DEVICE"};
 	static_assert(std::size(kNames) == deluge::project::kSettingGroupCount, "a name for every setting group");
 	return kNames[static_cast<size_t>(group)];
 }

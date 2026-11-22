@@ -101,6 +101,10 @@ SECTIONS {
         __menu_tables_start = .;
         *(.rodata.*11menu_tables*)
         __menu_tables_end = .;
+        /* The DEVICE rows' path handles (`deluge::project::device_path`'s constants), which the scenes and
+         * the host's device port read; their text is `menu_tables` data, above. Matched by the struct's
+         * name in the mangled name, so a rename returns them to SRAM. */
+        *(.rodata.*6deluge7project11device_path*)
         /* The scenes' menu: its node and cell tables, read by the menu scene and its shortcuts, never
          * the audio tier or an interrupt. Matched by the `deluge::scenes::menu` namespace in the
          * mangled name, so a rename returns them to SRAM, as for the setting tables above. */
@@ -112,11 +116,31 @@ SECTIONS {
         __scenes_vtables_start = .;
         *(.rodata._ZTV*6deluge6scenes*)
         __scenes_vtables_end = .;
-        /* The host's port objects and their vtables (`deluge::gui::shell_host`), which only the
+        /* The host's port objects and their vtables (`deluge::gui::shell_host`), the waveforms port's
+         * column caches among them (its object is `constinit`, so `.data`), which only the
          * scenes and the GUI's own code, already here, call through. */
         *(.data.*6deluge3gui10shell_host* .rodata.*6deluge3gui10shell_host*)
-        PROVIDE(__sdram_init_end = .);
+        /* The C++ unwind tables' entries, which rza1-rt's link.x would place in SRAM; the index is
+         * .sdram_exidx below. */
+        . = ALIGN(4);
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
     } > SDRAM
+
+    /* The C++ unwind index. Only a throw reads it and the tables above, never before the boot has
+     * inflated them and rarely after, so they cost SDRAM rather than SRAM. Their entries are prel31
+     * offsets, which reach the SRAM code from here (+-1 GB). Its own output section because lld
+     * puts SHT_ARM_EXIDX in no PROGBITS one; right after .sdram_init, so the pack covers both as one
+     * span (scripts/tasks/sdram_pack.py) and the boot inflates [__sdram_init_start, __sdram_init_end). */
+    .sdram_exidx : ALIGN(4) {
+        __sdram_exidx_start = .;
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __sdram_exidx_end = .;
+    } > SDRAM
+    __sdram_init_end = __sdram_exidx_end;
+    /* The unwinder reads only .sdram_exidx (build/device.rs points __exidx_start/__exidx_end at it),
+     * so an entry left in link.x's .ARM.exidx would make every throw through it terminate. */
+    ASSERT(SIZEOF(.ARM.exidx) == 0 && __sdram_exidx_end > __sdram_exidx_start,
+           "sdram_sections.x: the unwind index is not all in .sdram_exidx")
 
     /* The deflated load copy, reserved zero-filled at 15/32 of the content and written after the
      * link; the staging fails when it does not fit. The content deflates to about 43% (the GUI's code
@@ -126,13 +150,13 @@ SECTIONS {
     .sdram_init_pack : ALIGN(16) {
         __sdram_init_pack_start = .;
         BYTE(0)
-        . = __sdram_init_pack_start + SIZEOF(.sdram_init) * 15 / 32 + 256;
+        . = __sdram_init_pack_start + (__sdram_init_end - __sdram_init_start) * 15 / 32 + 256;
         __sdram_init_pack_end = .;
     } > RAM
 
     /* The end of all static SDRAM content, where the SDRAM heap starts. `.sdram_bss` precedes
      * `.sdram_init` in the region, but neither the boot nor the heap relies on which comes first. */
-    __sdram_static_end = MAX(__sdram_bss_end, ADDR(.sdram_init) + SIZEOF(.sdram_init));
+    __sdram_static_end = MAX(__sdram_bss_end, __sdram_init_end);
 
     /* C++ global constructors, iterated by the Rust boot. Last, and `> RAM`, so the location
      * counter leaves this block tracking SRAM rather than the SDRAM VMA: rza1-rt's link.x takes the

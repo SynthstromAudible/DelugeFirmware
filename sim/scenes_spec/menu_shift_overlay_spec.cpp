@@ -2,6 +2,7 @@
 /// @brief The SHIFT shortcut colour overlay under a sound menu: when it shows, what it paints, and that it takes and
 ///        gives back the main pads and the greyout with SHIFT, as `main`'s `SoundEditor::renderMainPads` does.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -26,6 +27,7 @@
 #include "modulation/params/param.h"
 
 #include "support/menu_rig.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -36,6 +38,7 @@
 
 #include <functional>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -77,8 +80,8 @@ struct Rig {
 	~Rig() { spec::reset_menu_singleton(shell); }
 
 	MenuContext menu_context() const {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 	/// @brief Open the menu on @p at, after @p adjust has had the context.
 	void open(const Node& at, const std::function<void(MenuContext&)>& adjust = {}) {
@@ -106,7 +109,7 @@ struct Rig {
 /// Whether either layer's source on pad (14 + sx, y) passes @p allowed.
 bool either_layer(uint8_t sx, uint8_t y, const std::function<bool(PatchSource)>& allowed) {
 	for (const bool second : {false, true}) {
-		const PatchSource s = menu::patching::mod_source_shortcut(sx, y, second);
+		const PatchSource s = menu::patching::mod_source_shortcut(deluge::project::ShortcutsVersion::V3, sx, y, second);
 		if (s < kLastPatchSource && allowed(s)) {
 			return true;
 		}
@@ -135,6 +138,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 	});
 
 	it("paints the source column blue where a source may patch to the focused param", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.menu_context();
@@ -159,6 +163,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 	});
 
 	it("uses the range rule while a source pad is held on a cable page", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.menu_context();

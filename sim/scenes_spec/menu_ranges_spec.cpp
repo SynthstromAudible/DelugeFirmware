@@ -9,6 +9,8 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
+#include "scenes/menu/bind_host.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -47,6 +49,7 @@
 #include <string_view>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -77,6 +80,13 @@ constexpr uint8_t kGoldUpper = 4;
 constexpr uint8_t kGoldLower = 5;
 
 constexpr const Node* kRoots[] = {&nodes::root_settings};
+
+/// @brief A context over the host's ports alone: what the range nodes read their DEVICE rows through.
+MenuContext host_context() {
+	MenuContext ctx{};
+	ctx.ports = menu::host_ports();
+	return ctx;
+}
 
 /// @brief Saves and restores every `FlashStorage::defaultRanges` slot, plus the global the comparisons steer.
 ///
@@ -130,8 +140,8 @@ struct Rig {
 	    : profile(p), fake(board, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -176,18 +186,17 @@ menu::MenuScene& scene() {
 	return menu_scene();
 }
 
-/// @brief Which `FlashStorage::defaultRanges` slot a node addresses. Read through the node's own
-///        hooks so this cannot disagree with the table.
-FlashStorage::DefaultRangeSlot slot_of(const Node& node) {
-	// Probe: park a unique value in each slot's lower field, ask the node, and see which one it
-	// answered with. Beats a hand-written node -> slot table, which is the thing under test.
+/// @brief Which `FlashStorage::defaultRanges` slot a node's lower end reads, and which its upper end reads, each read
+///        through the node's own rows so this cannot disagree with the table.
+std::pair<int, int> slots_of(const Node& node) {
+	// Probe: park a unique value in each slot's fields, ask the node, and see which one it answered with. Beats a
+	// hand-written node -> slot table, which is the thing under test.
 	RangeStorageGuard guard;
-	const MenuContext ctx{};
+	const MenuContext ctx = host_context();
 	for (uint8_t i = 0; i < FlashStorage::NUM_DEFAULT_RANGE_SLOTS; i++) {
-		FlashStorage::defaultRanges[i].lower = 1000 + i;
+		FlashStorage::defaultRanges[i] = {.lower = 1000 + i, .upper = 2000 + i};
 	}
-	const int32_t answer = node.bind.get(ctx);
-	return static_cast<FlashStorage::DefaultRangeSlot>(answer - 1000);
+	return {menu::bindings::read(node, ctx) - 1000, menu::bindings::read_upper(node, ctx) - 2000};
 }
 
 /// @brief The rows the port's root frame can actually ink on the 48-row panel.
@@ -310,7 +319,7 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		expect(static_cast<int>(found.size())).to_equal(3);
 	});
 
-	it("gives each node a spec, and points each at its own storage slot", _ {
+	it("gives each node a spec, and points both ends of each at its own storage slot", _ {
 		// The lookalike-mapping trap: three nodes, three near-identical specs. Probed, not asserted
 		// from a hand-written table -- and then the probe result is checked against a single
 		// transposition of itself, so an all-zero answer cannot pass.
@@ -319,9 +328,10 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		for (const Node* n : order) {
 			expect(n->bind.range_spec).not_().to_be_null();
 			expect(n->bind.range_spec->format).not_().to_be_null();
-			expect(n->bind.range_spec->get_upper).not_().to_be_null();
-			expect(n->bind.range_spec->set_upper).not_().to_be_null();
-			observed.push_back(static_cast<int>(slot_of(*n)));
+			expect(n->bind.range_spec->upper_path.text().empty()).to_be_false();
+			const auto [lower, upper] = slots_of(*n);
+			expect(upper).to_equal(lower);
+			observed.push_back(lower);
 		}
 		const std::vector<int> expected{FlashStorage::DEFAULT_RANGE_TEMPO, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT,
 		                                FlashStorage::DEFAULT_RANGE_KEY};
@@ -332,34 +342,46 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 	});
 
 	it("takes main's bounds", _ {
-		expect(std::to_string(nodes::kDefaultTempoRange.min) + " " + std::to_string(nodes::kDefaultTempoRange.max))
-		    .to_equal(frozen_pair("default_tempo", "bounds"));
-		expect(std::to_string(nodes::kDefaultSwingAmountRange.min) + " "
-		       + std::to_string(nodes::kDefaultSwingAmountRange.max))
-		    .to_equal(frozen_pair("default_swing_amount", "bounds"));
-		expect(nodes::kDefaultKeyRange.min).to_equal(0);  // KEY_MIN
-		expect(nodes::kDefaultKeyRange.max).to_equal(11); // KEY_MAX
+		const MenuContext ctx = host_context();
+		const auto bounds = [&](const Node& node) {
+			const menu::IntRange range = menu::bindings::range(node, ctx);
+			return std::to_string(range.min) + " " + std::to_string(range.max);
+		};
+		expect(bounds(nodes::default_tempo)).to_equal(frozen_pair("default_tempo", "bounds"));
+		expect(bounds(nodes::default_swing_amount)).to_equal(frozen_pair("default_swing_amount", "bounds"));
+		expect(bounds(nodes::default_key)).to_equal(std::string{"0 11"}); // KEY_MIN, KEY_MAX
 	});
 
-	it("reads and writes FlashStorage::defaultRanges through its hooks, both ends", _ {
+	it("reads and writes FlashStorage::defaultRanges through its DEVICE rows, both ends", _ {
 		RangeStorageGuard guard;
-		const MenuContext ctx{};
+		const MenuContext ctx = host_context();
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 77, .upper = 188};
-		expect(nodes::default_tempo.bind.get(ctx)).to_equal(77);
-		expect(nodes::default_tempo.bind.range_spec->get_upper(ctx)).to_equal(188);
-		nodes::default_tempo.bind.set(ctx, 100);
-		nodes::default_tempo.bind.range_spec->set_upper(ctx, 200);
+		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(77);
+		expect(menu::bindings::read_upper(nodes::default_tempo, ctx)).to_equal(188);
+		menu::bindings::write(nodes::default_tempo, ctx, 100);
+		menu::bindings::write_upper(nodes::default_tempo, ctx, 200);
 		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(100);
 		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper).to_equal(200);
+	});
+
+	it("shows an end the flash holds past the range as it is, as main's widget does", _ {
+		// Main's `IntegerRange` and `KeyRange` show `lower`/`upper` as they hold them; only a turn clamps. A flash byte
+		// can hold anything.
+		RangeStorageGuard guard;
+		const MenuContext ctx = host_context();
+		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 250, .upper = 30};
+		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(250);
+		expect(menu::bindings::read_upper(nodes::default_tempo, ctx)).to_equal(30);
 	});
 });
 
 describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
 	it("spells an integer end as main does, over the whole range", _ {
 		char scratch[deluge::ui::oled::kRangeTextMax];
-		for (int32_t v = nodes::kDefaultTempoRange.min; v <= nodes::kDefaultTempoRange.max; v++) {
+		const menu::IntRange tempo = menu::bindings::range(nodes::default_tempo, host_context());
+		for (int32_t v = tempo.min; v <= tempo.max; v++) {
 			const std::string at = "tempo " + std::to_string(v) + " ";
-			expect(at + std::string(nodes::format_range_integer(v, std::span{scratch})))
+			expect(at + std::string(nodes::format_range_integer(v, nullptr, std::span{scratch})))
 			    .to_equal(at + table().value("tempo/" + std::to_string(v), "text"));
 		}
 	});
@@ -367,11 +389,12 @@ describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
 	it("spells a note end as main does, in both sharps and flats", _ {
 		RangeStorageGuard guard;
 		char scratch[deluge::ui::oled::kRangeTextMax];
+		const MenuContext ctx = host_context();
 		for (const bool sharps : {true, false}) {
 			FlashStorage::defaultUseSharps = sharps;
 			for (int32_t v = 0; v <= 11; v++) {
 				const std::string path = std::string{"key/"} + (sharps ? "sharps/" : "flats/") + std::to_string(v);
-				expect(path + " " + std::string(nodes::format_range_key(v, std::span{scratch})))
+				expect(path + " " + std::string(nodes::format_range_key(v, &ctx, std::span{scratch})))
 				    .to_equal(path + " " + table().value(path, "text"));
 			}
 		}

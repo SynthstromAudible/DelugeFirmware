@@ -17,10 +17,14 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
 namespace deluge::instrument {
+
+/// @brief The oscillator sources a sound has.
+inline constexpr size_t kSourceCount = 2;
 
 /// @brief How the two sources make sound: subtractive, FM, or ring-modulated.
 enum class SynthMode : uint8_t {

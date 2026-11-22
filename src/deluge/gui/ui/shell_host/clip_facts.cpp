@@ -63,6 +63,16 @@ public:
 		return scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
 		                                        .row_interval = clip->keyboardState.isomorphic.rowInterval};
 	}
+	[[nodiscard]] std::optional<scenes::bind::ClipNavigation> clip_navigation() const override {
+		if (currentSong == nullptr) {
+			return std::nullopt;
+		}
+		const PersistentViewState& view = currentSong->persistentView;
+		return scenes::bind::ClipNavigation{.x_scroll = view.xScroll[NAVIGATION_CLIP],
+		                                    .x_zoom = view.xZoom[NAVIGATION_CLIP],
+		                                    .triplets_on = view.tripletsOn,
+		                                    .triplets_level = view.tripletsLevel};
+	}
 };
 
 } // namespace

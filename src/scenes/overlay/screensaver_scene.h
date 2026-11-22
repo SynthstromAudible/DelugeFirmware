@@ -7,30 +7,29 @@
 /// Ports the **drawing** half of legacy's `hid::display::Screensaver`
 /// (`hid/display/screensaver.h`). The *policy* half -- when to show it and when to wake --
 /// already shipped as `shell::Screensaver` (`shell/screensaver.h`), which pushes this scene by
-/// kind; this scene is what that service could not find until now.
+/// kind; this scene is what that service finds.
 ///
-/// The two animations themselves moved out of `hid/display/` to `ui/oled/rainfall.h` and
-/// `ui/oled/starfield.h` in the same task, because `src/scenes/**` may include neither `gui/` nor
-/// `hid/` (`check_layer_rules.py`'s `scenes-includes-gui` row). Legacy's `Screensaver` still draws
-/// the same two objects, now through the moved symbols; see `ui/oled/rainfall.h`'s file doc.
+/// The two animations live in `ui/oled/rainfall.h` and `ui/oled/starfield.h`, because `src/scenes/**` may include
+/// neither `gui/` nor `hid/` (`scripts/layers.toml`'s `scenes-includes-gui` rule). Legacy's `Screensaver` draws the
+/// same two objects; see `ui/oled/rainfall.h`'s file doc.
 ///
 /// @par What chooses the mode, and where legacy chooses it
 ///
-/// `FlashStorage::screensaverMode` (`storage/flash_storage.h`), the same global legacy reads --
-/// and read **live**, on every question, exactly as legacy does: `Screensaver::timerEvent`
-/// (`hid/display/screensaver.cpp`) reads it for the OFF early-out, the activation switch that
-/// scatters, the per-frame switch that advances and the frame interval, and
-/// `Screensaver::render` reads it again for the switch that draws. Nothing here snapshots
-/// it at `on_enter`, because legacy does not: a mode edit while the screensaver is showing is
-/// legacy's `settingsChanged()` path (`shell::Screensaver::set_idle_ms`, and
-/// see the policy list below), and outside that path the remaining
-/// behaviour is whatever the live read produces -- which is what legacy would do too.
+/// The `ui/screensaver/mode` DEVICE row (`project::device_path::kScreensaverMode`), read through the installed device
+/// port (`set_device`) as a `project::ScreensaverMode`. Legacy reads its global on every question:
+/// `Screensaver::timerEvent` (`hid/display/screensaver.cpp`) for the OFF early-out, the activation switch that
+/// scatters, the per-frame switch that advances and the frame interval, and `Screensaver::render` again for the switch
+/// that draws. This scene reads the row where legacy's timer event does -- in `on_enter` and in every `tick` -- and
+/// keeps it in a member that `render_oled`, `next_timer` and `mode()` answer from, so the shell's several
+/// `next_timer()` questions per tick cost no row read. The setting cannot change while the screensaver shows: a mode
+/// edit is legacy's `settingsChanged()` path (`shell::Screensaver::set_idle_ms`, and see the policy list below), which
+/// takes the screensaver down first. With no port installed the row reads its default, `DELUGE`.
 ///
 /// @par The legacy policy this scene leaves to `shell::Screensaver`
 ///
 ///   * **`settingsChanged()`** (`Screensaver::settingsChanged` in `hid/display/screensaver.cpp`): wake, then re-arm or
 ///     cancel for the new settings -- `shell::Screensaver::set_idle_ms`, reached through
-///     `Shell::set_screensaver_idle_ms` from the boot wiring and `menu::host_screensaver_settings_changed`
+///     `Shell::set_screensaver_idle_ms` from the boot wiring and the device port's store for the screensaver rows
 ///     (`scenes/registry.h`'s boot-wiring record).
 ///   * **The inhibitors** (`Screensaver::timerEvent` in `hid/display/screensaver.cpp`): the working animation, a
 ///     permanent-looking popup or a running stem export takes the screensaver down and re-arms the full timeout. The
@@ -41,7 +40,7 @@
 ///     A `BLANK` -> `STARSCAPE`/`DELUGE` change cannot happen while this scene is up: changing the
 ///     setting needs physical input, and input runs `shell::Screensaver::note_activity` first, which
 ///     pops this scene. The next push re-reads the mode and scatters the right field.
-///   * **`ScreensaverMode::OFF`** (`Screensaver::arm`, `Screensaver::timerEvent` and `Screensaver::render` in
+///   * **`project::ScreensaverMode::OFF`** (`Screensaver::arm`, `Screensaver::timerEvent` and `Screensaver::render` in
 ///     `hid/display/screensaver.cpp`): the port of "off" is `shell::Screensaver`'s `idle_ms == 0` (that service's own
 ///     class note), decided by whatever wires the shell up. If this scene is nonetheless pushed with the mode at `OFF`
 ///     it draws nothing and asks for no timer, which is the closest thing to legacy's "never activates".
@@ -60,12 +59,12 @@
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
 ///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
 
+#include "deluge-project/device_settings.h"
+#include "scenes/bind/device_reader.h"
 #include "shell/scene.h"
 
 #include "ui/oled/rainfall.h"
 #include "ui/oled/starfield.h"
-
-#include "definitions_cxx.hpp" // ScreensaverMode
 
 #include <cstdint>
 #include <optional>
@@ -156,11 +155,17 @@ public:
 	///        calls `noteActivity()` and then continues into the real UI's handler.
 	bool input_transparent() const override { return true; }
 
+	/// @brief Read the mode from @p device, or the row's default when it is null. Not owned; it must outlive the
+	///        scene's use of it.
+	/// @param device The host's device settings, or null.
+	void set_device(const deluge::scenes::bind::DeviceSettings* device) { device_ = device; }
+
 	/// @name Observable state
 	/// For specs.
 	/// @{
-	/// @return The mode this scene is currently drawing, read live from `FlashStorage`.
-	::ScreensaverMode mode() const;
+	/// @return The mode this scene is drawing: the row as `on_enter` or the latest `tick` read it; `OFF` before the
+	///         first `on_enter`.
+	[[nodiscard]] deluge::project::ScreensaverMode mode() const { return mode_; }
 	/// @return The rain field, for a spec comparing it against the pre-move oracle.
 	const deluge::ui::oled::Rainfall& rainfall() const { return rainfall_; }
 	/// @return The star field, for the same reason.
@@ -176,8 +181,10 @@ private:
 	/// interval and its advance switch make.
 	/// @param mode The screensaver mode.
 	/// @return Whether it animates.
-	static bool animated(::ScreensaverMode mode);
+	static bool animated(deluge::project::ScreensaverMode mode);
 
+	const deluge::scenes::bind::DeviceSettings* device_ = nullptr; ///< the installed port; null reads the row's default
+	deluge::project::ScreensaverMode mode_ = deluge::project::ScreensaverMode::OFF; ///< the mode last read
 	deluge::ui::oled::Rainfall rainfall_;
 	deluge::ui::oled::Starfield starfield_;
 	/// Milliseconds accumulated since the last animation frame; legacy's `TimerName::SCREENSAVER`

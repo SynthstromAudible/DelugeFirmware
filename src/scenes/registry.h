@@ -55,10 +55,11 @@ uint16_t assigned_node_ids();
 /// the top of `main` either, because two of the three are settings the user can change while the
 /// firmware is running.
 ///
-///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, flash byte 60 --
-///     `FlashStorage::shortcutsVersion` itself, which this layer reads where it needs it, so no push is wired.
-///     `FlashStorage::readSettings` fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item
-///     reaches that) and `nodes::set_shortcuts_version` writes it from the settings item. Covered by
+///   * **`menu::shortcuts_version(ctx)` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, the device's
+///     `pads/shortcutsVersion` row, which this layer reads through the device port where it needs it, so no push is
+///     wired. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`): `FlashStorage::readSettings`
+///     fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item reaches that) and the settings
+///     item writes the row through the device port. Covered by
 ///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
 ///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///
@@ -69,10 +70,9 @@ uint16_t assigned_node_ids();
 ///     `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp`), through `Shell::set_screensaver_idle_ms` --
 ///     which is also the **port of `settingsChanged()` itself** (`shell::Screensaver::set_idle_ms`), the gap
 ///     `overlay/screensaver_scene.h` records. That function is where every writer funnels: `deluge_boot`, the two
-///     legacy settings items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and the *ported* tree's
-///     own two setters (`menu/nodes/settings.cpp`). Those write the two globals directly and still cannot call it,
-///     because this layer may not include `hid/`; they call `menu::host_screensaver_settings_changed()`
-///     (`menu/bind_host.h`) instead, which makes the call at the write.
+///     legacy settings items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and the device port's
+///     store for the `ui/screensaver/mode` and `ui/screensaver/timeout` rows, which the ported tree's two items write;
+///     this layer may not include `hid/`, so the host makes the call at the write.
 ///
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an

@@ -70,22 +70,13 @@ jobs:
       - name: Every libdeluge declaration is defined, pinned, tagged and DELUGE_NOEXCEPT
         run: python3 scripts/check_abi_surface.py --check --pins --tags --dead --noexcept
 
-      - name: The application does not bypass the libdeluge boundary
-        run: python3 scripts/check_platform_boundary.py
-
-      - name: dsp-next stays within the L0 boundary
-        run: python3 scripts/check_dsp_boundary.py
-
       - name: Raw fixed-point arithmetic does not grow outside the format types
         run: python3 scripts/check_fixed_point_raw.py
 
-      - name: The synth core stays within its boundary
-        run: python3 scripts/check_synth_boundary.py
-
-      - name: Each library includes only what it declares
+      - name: Every include is where scripts/layers.toml allows it
         run: |
-          python3 scripts/check_library_boundary.py
-          (cd scripts && python3 -m unittest test_check_library_boundary)
+          python3 scripts/check_layers.py
+          (cd scripts && python3 -m unittest test_check_layers)
 
       - name: The model names no engine's state
         run: python3 scripts/check_model_words.py

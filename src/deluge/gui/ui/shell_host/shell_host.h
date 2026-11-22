@@ -12,12 +12,18 @@
 #include <vector>
 
 class AudioClip;
+class SampleRecorder;
+class Sample;
 
 namespace deluge::edits {
 class Edit;
 } // namespace deluge::edits
 
 namespace deluge::gui::shell_host {
+
+/// @brief The identity a waveform's info carries for @p sample: its lifetime serial (`Sample::serial`), so another
+///        file, a take, or a sample constructed later in the same memory has another. Never 0.
+[[nodiscard]] uint64_t waveform_identity(const ::Sample& sample);
 
 /// @brief The host's AudioFacts.
 [[nodiscard]] const scenes::bind::AudioFacts& audio_facts();
@@ -50,6 +56,44 @@ namespace deluge::gui::shell_host {
 /// @brief The host's MidiDevices: the cables `MIDIDeviceManager` keeps, and their own settings.
 [[nodiscard]] scenes::bind::MidiDevices& midi_devices();
 
+/// @brief The host's DeviceSettings: the device's own settings where it keeps them (the flash settings, the pad
+///        controller's play cursor), each stored with the side effects its menu item has. Nothing is saved on a write.
+[[nodiscard]] scenes::bind::DeviceSettings& device_settings();
+
+/// @brief The host's DeviceActions: the device's own actions, each the legacy call it names.
+[[nodiscard]] scenes::bind::DeviceActions& device_actions();
+
+/// @brief The host's MidiFeedback: MIDI follow's feedback, read and sent through the `midiFollow` engine.
+[[nodiscard]] scenes::bind::MidiFeedback& midi_feedback();
+
+/// @brief The host's Transport: playback, the clocks, recording and the metronome from `playbackHandler`, what undo
+///        allows from `actionLogger`, and the current song's pending overdubs.
+[[nodiscard]] const scenes::bind::Transport& transport();
+
+/// @brief The host's TransportActions: each the call the legacy buttons make, popups included.
+[[nodiscard]] scenes::bind::TransportActions& transport_actions();
+
+/// @brief The host's Waveforms: the samples a song's ranges and audio clips, the browser's preview and the slicer
+///        hold, with the columns read lately kept per sample.
+[[nodiscard]] const scenes::bind::Waveforms& waveforms();
+
+/// @brief The host's TakeActions: the recorder screen's input take, one recorder held from begin to finish or orphan.
+[[nodiscard]] scenes::bind::TakeActions& take_actions();
+
+/// @brief The take `take_actions` holds.
+/// @return The recorder, or null when no take is held.
+[[nodiscard]] ::SampleRecorder* input_take();
+
+/// @brief The host's Indicators: the pads' tick squares, through `PadLEDs`.
+[[nodiscard]] scenes::bind::Indicators& indicators();
+
+/// @brief The host's ViewActions: each the call the legacy opener it names makes on the root view.
+[[nodiscard]] scenes::bind::ViewActions& view_actions();
+
+/// @brief Give the overlays, the slicer and the audio clip scene the app's ports they read. Idempotent; the boot and
+///        every guest open call it.
+void install_scene_ports();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///
@@ -68,6 +112,8 @@ public:
 	bool write_text(const scenes::bind::Target& target, const scenes::bind::Addresses& where,
 	                std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_song_threshold_recording(int32_t mode) override;
+	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
 	                 controls::Resolution resolution) override;

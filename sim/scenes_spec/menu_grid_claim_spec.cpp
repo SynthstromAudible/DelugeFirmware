@@ -25,6 +25,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -38,8 +39,8 @@ namespace {
 ///        performance view, no session/arranger root -- `context_for`'s branch that lands on
 ///        `MenuContext::Root::Sound` (`menu::context_for`).
 MenuContext sound_context(spec::SongFixture& fx) {
-	return menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 } // namespace

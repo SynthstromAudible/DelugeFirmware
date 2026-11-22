@@ -76,6 +76,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -863,7 +864,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		f.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
 		f.output->setOutputRecordingFrom(nullptr);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);

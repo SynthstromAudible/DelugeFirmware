@@ -16,7 +16,6 @@
  */
 
 #include "gui/ui/slice_core.h"
-#include "gui/waveform/waveform_basic_navigator.h"
 
 #include "mock_display.h"
 #include "mock_slicer_env.h"
@@ -46,16 +45,16 @@ public:
 
 	/// The audition a held slice pad asks for, as the slice ops' audition request makes it.
 	void press() {
-		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+		core_.audition(*deluge::test::g_preview_sample, {.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
 	}
 	/// A press of a slice from @p start to @p end, transposed by @p transpose.
 	void press_slice(int64_t start, int64_t end, int32_t transpose) {
-		core_.audition(*waveformBasicNavigator.sample,
+		core_.audition(*deluge::test::g_preview_sample,
 		               {.startPoint = start, .endPoint = end, .transpose = transpose, .on = 1});
 	}
 	/// The release of that pad.
 	void release() {
-		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = 0, .transpose = 0, .on = 0});
+		core_.audition(*deluge::test::g_preview_sample, {.startPoint = 0, .endPoint = 0, .transpose = 0, .on = 0});
 	}
 
 	/// What leaving the slicer, switching its mode or committing a slice calls.
