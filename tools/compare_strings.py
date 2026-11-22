@@ -5,17 +5,21 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """Diffs the printable strings two device images load (.rodata, .data and the SDRAM content inflated from
 .sdram_init_pack), after renaming paths and crates in the first image's strings. A string is a run of printable ASCII of
-at least six characters, or of at least three when a NUL byte ends it (a C string). Equal multisets after the renames
-prove that no such string changed; they say nothing about tables and other non-text data, which bytes_check covers, nor
-about strings that sit next to other bytes without a NUL after them and are shorter than six characters.
+at least six characters, or of at least three when a NUL byte ends it (a C string).
 
 A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
 pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
 that ends inside or at the end of a 4-byte-aligned word (aligned by the section's load address; the inflated SDRAM
-content's is `.sdram_init`'s) holding an address inside a LOAD segment or the SDRAM content at which the image loads
-printable text, ends where that word starts; cut short, it needs six characters. A word the run reads on past is text, a
-C string is never cut, and bytes that only read as an address into code or zeroed memory (a Rust format string's encoded
-arguments) are left as they are.
+content's is `.sdram_init`'s) holding an address inside a LOAD segment or the SDRAM content where a string of at least
+eight characters starts (the byte before it is no text), ends where that word starts; cut short, it needs six
+characters. A word the run reads on past is text, and a C string is never cut. Bytes that only read as an address into
+code, zeroed memory, the middle of a string or a lone printable byte (a Rust format string's encoded arguments, a jump
+table) are text.
+
+Equal multisets after the renames show that every string found this way is unchanged. They do not show:
+- that the bytes of a word cut as a pointer are unchanged (that word is not compared);
+- anything about a run shorter than six characters that no NUL ends, including one a pointer cut made that short;
+- anything about tables and other non-text data, which bytes_check covers.
 
 The renames are trusted: each is a substring replacement on the first image's strings, so a changed string that
 contains renamed text compares equal to the same string with the new text. That is why the renames are exact moved
@@ -37,12 +41,19 @@ import tempfile
 import zlib
 from pathlib import Path
 
+# The fewest characters of the string a pointer word must point at the start of (a `&str` after a Rust string points
+# at a file path, a type name or a message).
+STRING_START = 8
 PRINTABLE = re.compile(rb"[\x20-\x7e]{3,}(?=\x00)|[\x20-\x7e]{6,}")
 SECTIONS = (".rodata", ".data")
 DEFAULT_OBJCOPY = (
     Path(__file__).resolve().parent.parent
     / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objcopy"
 )
+
+
+def printable(byte: int) -> bool:
+    return 0x20 <= byte <= 0x7E
 
 
 def section(objcopy: str, elf: str, name: str) -> bytes:
@@ -106,12 +117,11 @@ def runs(
     ranges: list[tuple[int, int]],
     text_at=lambda address: False,
 ) -> list[str]:
-    """The printable runs (PRINTABLE) of @p blob, loaded at @p base. A run no NUL ends that ends inside, or at the
-    end of, a 4-byte-aligned word holding the address of text the image loads ends where that word starts instead
-    (again, while the new end does): those bytes are a pointer's low bytes, such as a `&str`'s after the Rust string
-    before it, not the string's. A word the run reads on past is text, and a C string, which its NUL ends, is never
-    cut. The word must point at text: bytes that only read as an address into code or zeroed memory (a Rust format
-    string's encoded arguments, `20 c0 12 20`) are left."""
+    """The printable runs (PRINTABLE) of @p blob, loaded at @p base. A run no NUL ends that ends inside, or at the end
+    of, a 4-byte-aligned word holding an address inside @p ranges at which @p text_at finds a string start ends where
+    that word starts instead (again, while the new end does): those bytes are a pointer's low bytes, such as a `&str`'s
+    after the Rust string before it, not the string's. A word the run reads on past is text, and a C string, which its
+    NUL ends, is never cut."""
     found = []
     for m in PRINTABLE.finditer(blob):
         start, end = m.span()
@@ -138,9 +148,15 @@ def strings(objcopy: str, elf: str, readelf: str = "llvm-readelf") -> list[str]:
     ]
 
     def text_at(address: int) -> bool:
+        """Whether a string of STRING_START or more characters starts at @p address."""
         for blob, base in blobs:
             if base is not None and base <= address < base + len(blob):
-                return 0x20 <= blob[address - base] <= 0x7E
+                at = address - base
+                return (
+                    (at == 0 or not printable(blob[at - 1]))
+                    and all(printable(b) for b in blob[at : at + STRING_START])
+                    and at + STRING_START <= len(blob)
+                )
         return False
 
     return [text for blob, base in blobs for text in runs(blob, base, ranges, text_at)]

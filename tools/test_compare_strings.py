@@ -15,6 +15,7 @@ import struct
 import unittest
 import zlib
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 import compare_strings
@@ -89,44 +90,142 @@ class Strings(unittest.TestCase):
         ):
             return strings("objcopy", "x.elf")
 
-    # A string with no NUL after it, then a pointer to text elsewhere in the section whose two low bytes print
-    # (`E2`, `@2`: 0x20013245, 0x20013240, into `pointed-at text` at offset 0x3240), then a byte that does not.
+    # A string with no NUL after it, then a pointer whose two low bytes print (`E2`, `E3`: 0x20013245, 0x20013345)
+    # to the start of a string elsewhere in the section, then a byte that does not.
     POINTED = b"\x00hello world"
+    TARGETS: ClassVar[dict[int, bytes]] = {
+        0x3245: b"\x00pointed-at text\x00",
+        0x3345: b"\x00another target\x00",
+    }
+
+    def section_with(self, head: bytes, size: int = 0x3400, targets=None) -> bytes:
+        """@p head, then zeros, with each of @p targets (offset of its first character -> NUL-framed text) in place."""
+        blob = bytearray(head + bytes(size - len(head)))
+        for offset, text in (self.TARGETS if targets is None else targets).items():
+            blob[offset - 1 : offset - 1 + len(text)] = text
+        return bytes(blob)
 
     def pointed(self, text: bytes, pointer: int, base: int = 0x20010000) -> list[str]:
-        blob = bytearray(text + struct.pack("<I", pointer) + b"\x01")
-        blob += bytes(0x3240 - len(blob)) + b"pointed-at text\x00"
-        return [
-            s
-            for s in self.read(
-                at={".rodata": base},
-                ranges=[(0x20000000, 0x20300000)],
-                rodata=bytes(blob),
-            )
-            if s != "pointed-at text"
-        ]
+        blob = self.section_with(text + struct.pack("<I", pointer) + b"\x01")
+        found = self.read(
+            at={".rodata": base}, ranges=[(0x20000000, 0x20300000)], rodata=blob
+        )
+        return [s for s in found if s not in ("pointed-at text", "another target")]
 
     def test_a_run_ends_where_a_pointer_word_starts(self):
         self.assertEqual(self.pointed(self.POINTED, 0x20013245), ["hello world"])
         self.assertEqual(
             self.pointed(self.POINTED, 0x20013245),
-            self.pointed(self.POINTED, 0x20013240),
+            self.pointed(self.POINTED, 0x20013345),
         )
 
     def test_a_changed_character_before_a_pointer_is_reported(self):
         old, new = (
             self.pointed(self.POINTED, 0x20013245),
-            self.pointed(b"\x00hello wurld", 0x20013240),
+            self.pointed(b"\x00hello wurld", 0x20013345),
         )
         self.assertEqual(diff_strings(old, new, []), (["hello world"], ["hello wurld"]))
 
-    def test_a_word_is_a_pointer_only_aligned_and_at_loaded_text(self):
-        # Two bytes off its alignment (the section loads at an address ≡ 2 mod 4), or pointing at no text (a zero byte
-        # of the section; code, an encoded format string's argument bytes), the word is text.
+    def test_a_word_is_a_pointer_only_aligned_and_at_a_string_start(self):
+        # Two bytes off its alignment (the section loads at an address ≡ 2 mod 4), pointing at no text (a zero byte;
+        # code, an encoded format string's argument bytes), or into the middle of a string, the word is text.
         self.assertEqual(
             self.pointed(self.POINTED, 0x20013245, base=0x20010002), ["hello worldE2"]
         )
         self.assertEqual(self.pointed(self.POINTED, 0x20012045), ["hello worldE "])
+        self.assertEqual(self.pointed(self.POINTED, 0x20013247), ["hello worldG2"])
+
+    def test_a_word_is_a_pointer_only_to_a_string_of_eight_or_more(self):
+        short = {0x3245: b"\x00seven c\x00"}
+        blob = self.section_with(
+            self.POINTED + struct.pack("<I", 0x20013245) + b"\x01", targets=short
+        )
+        found = self.read(
+            at={".rodata": 0x20010000}, ranges=[(0x20000000, 0x20300000)], rodata=blob
+        )
+        self.assertIn("hello worldE2", found)
+
+    def lone_targets(self, head: bytes, at: int, base: int) -> list[str]:
+        """strings() over @p head, loaded at @p base, with a printable byte alone wherever the word at @p at of any
+        variant of the last character could point: what a jump table or a code byte looks like."""
+        blob = bytearray(head + bytes(0x10000))
+        for last in range(0x20, 0x7F):
+            word = bytearray(blob[at : at + 4])
+            value = struct.unpack("<I", bytes(word))[0]
+            for candidate in (
+                value,
+                (value & ~0xFF) | last,
+                (value & ~0xFF00) | (last << 8),
+            ):
+                offset = candidate - base
+                if (
+                    at + 4 < offset - 1
+                    and offset + 1 < len(blob)
+                    and not any(blob[offset - 1 : offset + 2])
+                ):
+                    blob[offset - 1 : offset + 2] = b"\x018\x01"
+        return self.read(
+            at={".rodata": base}, ranges=[(0x20000000, 0x20300000)], rodata=bytes(blob)
+        )
+
+    def test_the_dma_channel_space_is_text(self):
+        # From a device image: an encoded Rust format template, `: DMA channel ` then argument bytes `c0 1f`, then
+        # ` didn't stop`. The run's last word `20 c0 1f 20` reads as 0x201fc020, a one-character run of a jump table.
+        def image(space: bytes) -> list[str]:
+            head = (
+                b"\x00\x00\x00\x00sdhi\xc0\x0e: DMA channel"
+                + space
+                + b"\xc0\x1f didn't stop after a read\x00"
+            )
+            at = head.index(b"\xc0\x1f") - 1
+            base = 0x201FC020 - 0xC000 - at
+            base -= (base + at) % 4
+            return self.lone_targets(head, at, base)
+
+        self.assertIn(": DMA channel ", image(b" "))
+        self.assertNotEqual(diff_strings(image(b" "), image(b"8"), []), ([], []))
+
+    def test_a_change_in_a_word_that_points_at_no_string_start_is_reported(self):
+        # The last word printable throughout (`ab  `, 0x20206261), or the run ending two bytes into it (`ab` then
+        # `1e 20`, 0x201e6261): each points at a single printable byte, so the word is text and `ab`->`ac` shows.
+        def image(tail: bytes, after: bytes, base: int) -> list[str]:
+            head = b"\x00\x00\x00the value is " + tail + after
+            return self.lone_targets(head, 16, base)
+
+        full_old, full_new = (
+            image(b"ab  ", b"\x01", 0x20200000),
+            image(b"ac  ", b"\x01", 0x20200000),
+        )
+        self.assertEqual(
+            diff_strings(full_old, full_new, []),
+            (["the value is ab  "], ["the value is ac  "]),
+        )
+        mid_old, mid_new = (
+            image(b"ab", b"\x1e\x20\x01", 0x201E0000),
+            image(b"ac", b"\x1e\x20\x01", 0x201E0000),
+        )
+        self.assertEqual(
+            diff_strings(mid_old, mid_new, []),
+            (["the value is ab"], ["the value is ac"]),
+        )
+
+    def test_a_pointer_after_a_pointer_is_cut_too(self):
+        # `E2% ` (0x20253245, all printable) then `E2\x01 ` (0x20013245): both point at string starts, one in .rodata
+        # and one in .data, so the run loses both words.
+        rodata = self.section_with(
+            b"\x00\x00\x00\x00hello world!"
+            + struct.pack("<II", 0x20253245, 0x20013245)
+            + b"\x01",
+            targets={0x3245: b"\x00rodata target\x00"},
+        )
+        data = self.section_with(b"", targets={0x3245: b"\x00data target text\x00"})
+        found = self.read(
+            at={".rodata": 0x20250000, ".data": 0x20010000},
+            ranges=[(0x20000000, 0x20300000)],
+            rodata=rodata,
+            data=data,
+        )
+        self.assertIn("hello world!", found)
 
     def test_a_word_the_run_reads_on_past_is_text(self):
         # ` -  ` is 0x20202d20, inside the range, but the text goes on after it.
@@ -138,13 +237,17 @@ class Strings(unittest.TestCase):
         self.assertEqual(found, ["failed -  %d and more"])
 
     def test_a_c_string_is_never_cut(self):
-        # `rs\0\x0c` reads as 0x0c007372, an address, but the NUL ends a C string there.
+        # `rs\0\x0c` reads as 0x0c007372, the start of a string in .data, but the NUL ends a C string there.
+        data = self.section_with(
+            b"", size=0x7400, targets={0x7372: b"\x00a string in data\x00"}
+        )
         found = self.read(
-            at={".rodata": 0x20000000},
+            at={".rodata": 0x20000000, ".data": 0x0C000000},
             ranges=[(0x0C000000, 0x0C200000)],
             rodata=b"\x00src/device.rs\x00\x0c",
+            data=data,
         )
-        self.assertEqual(found, ["src/device.rs"])
+        self.assertIn("src/device.rs", found)
 
     def test_a_run_cut_short_needs_six_characters(self):
         self.assertEqual(self.pointed(b"\x00\x00\x00\x00abcd", 0x20013245), [])
