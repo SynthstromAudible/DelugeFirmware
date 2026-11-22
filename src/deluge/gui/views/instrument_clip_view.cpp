@@ -494,7 +494,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 
 				// Site 8 of `gui/ui/menu_entry.cpp`'s table, the only one that names a node rather than a root.
 				// `file0SelectorMenu`'s port is `nodes::file0_selector`
-				// (`ui/scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
+				// (`ui/scenes/menu/nodes/sound_osc.h`), reached by its stable node id. The
 				// context is a SYNTH instrument clip under a clip-minder root, i.e.
 				// `Root::Sound`, which is the root that node lives under.
 				(void)deluge::gui::ui::openMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,

@@ -118,7 +118,8 @@ Rules inside the layers:
 ### Where today's directories go
 
 The libraries that are already clean move as they are; legacy directories are rewritten into their destinations.
-The C++ rows are done; the paths in the left column are the pre-relocation ones.
+The library rows are done (every `src/` row except `src/synth`'s `Fixed` instantiations, the `src/OSLikeStuff` row and
+the `src/*.h` row); the paths in the left column are the pre-relocation ones.
 
 | today | target |
 |---|---|

@@ -34,8 +34,8 @@ library's own entry points store plain integers:
 deluge::base::notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
 deluge::base::notify::notice_text("Undo", deluge::base::notify::Notice::Kind::Console);
 deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNDO),
-                               deluge::base::notify::Notice::Kind::Text,
-                               static_cast<uint8_t>(PopupType::SWING));
+                                    deluge::base::notify::Notice::Kind::Text,
+                                    static_cast<uint8_t>(PopupType::SWING));
 ```
 
 Callers almost always want the typed layer instead — `src/deluge/util/notify.h`, which knows

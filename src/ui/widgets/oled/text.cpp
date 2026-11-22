@@ -13,7 +13,7 @@ using gfx::oled::Size;
 using gfx::oled::string_width_px;
 
 int32_t text_height_for(FontId font) {
-	// The table moved to ui/widgets/core/metrics.h (`text_height_of`, which carries the Apple7-is-9
+	// The table is in ui/widgets/core/metrics.h (`text_height_of`, which carries the Apple7-is-9
 	// rationale), because ui/widgets/core/text_wrap.cpp needs it too and ui-core cannot include ui-oled.
 	// This stays as the ui-oled spelling every widget here already calls.
 	return core::text_height_of(font);

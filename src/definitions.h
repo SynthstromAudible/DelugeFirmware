@@ -1,5 +1,5 @@
 #pragma once
-#include "base/panic.h"   // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (foundation tier)
+#include "base/panic.h"   // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (src/base)
 #include "board_config.h" // board capabilities/layout (HAL-free)
 #include <stdbool.h>      // IWYU pragma: export
 #include <stddef.h>       // IWYU pragma: export
@@ -47,7 +47,7 @@
 #endif
 
 // freezeWithError() + the FREEZE_WITH_ERROR macro now live in <base/panic.h>
-// (the foundation tier), pulled in above.
+// (src/base), pulled in above.
 
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9
 

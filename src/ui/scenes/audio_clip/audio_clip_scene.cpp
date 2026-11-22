@@ -1204,7 +1204,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again every frame until the
 		// read is whole, as `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)
 		// does. `info` came through the port, so the port is here.
-		const deluge::ui::views::waveform::Window window{.scroll = scroll_samples, .zoom = zoom_samples};
+		const views::waveform::Window window{.scroll = scroll_samples, .zoom = zoom_samples};
 		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf =
 		    deluge::ui::scenes::services::read_waveform(*shown, waveform(), window);
 		if (wf
@@ -1219,8 +1219,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 				// picks which SOURCE column an output column reads, which is why
 				// `ui::widgets::grid::waveform_full` takes no `reversed` flag (its header says so).
 				const int32_t src = reversed ? (kMainCols - 1 - x) : x;
-				if (const std::optional<deluge::ui::views::waveform::Bar> bar =
-				        wf->read.bar(src, wf->centre, wf->span)) {
+				if (const std::optional<views::waveform::Bar> bar = wf->read.bar(src, wf->centre, wf->span)) {
 					peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
 				}
 			}
