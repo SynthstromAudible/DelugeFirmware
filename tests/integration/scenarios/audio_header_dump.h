@@ -22,14 +22,15 @@
 /// The C++ entry points (`parseSampleHeader()`/`parseWaveTableHeader()`) call straight into this
 /// crate, so both sides of the differential are the same decoder: it compares two different entry
 /// points/walks through it, not this crate against an independent C++ implementation (see
-/// the module doc of `crates/deluge_rust/tests/audio_format_corpus.rs` for what that still catches).
+/// the module doc of `tests/component/differential/audio_format_corpus/tests/audio_format_corpus.rs` for what that
+/// still catches).
 ///
 /// `dumpAudioHeaderAsJson()` reads one WAV/AIFF file straight off the host filesystem (no efatfs, no
 /// card — this is deliberately independent of the SD-card abstraction the rest of the app
 /// uses, since all it needs is `AudioByteSource`'s four-call surface over an in-memory buffer), then
 /// runs `parseSampleHeader()` and `parseWaveTableHeader()` (at both `makeWaveTableWorkAtAllCosts`
 /// settings) against it, and renders every field plus the error/reject outcome of each as one JSON
-/// line. `crates/deluge_rust/tests/audio_format_corpus.rs` runs golden_vt_render's
+/// line. `tests/component/differential/audio_format_corpus/tests/audio_format_corpus.rs` runs golden_vt_render's
 /// `audio_header_dump` scenario (audio_header_dump_scenario.cpp) as a subprocess and parses this output
 /// to compare field-by-field against the new Rust parser.
 ///

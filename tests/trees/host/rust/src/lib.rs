@@ -1,6 +1,6 @@
 //! Umbrella staticlib for the C++ unit-test tree.
 //!
-//! `tests/trees/host/CMakeLists.txt` links `libdeluge_rust.a` into the specs. The crate re-exports the
+//! `tests/trees/host/CMakeLists.txt` links `libdeluge_test_rust.a` into the specs. The crate re-exports the
 //! member libraries so their `#[no_mangle]` C ABIs land in the archive:
 //!
 //! - `deluge_base_alloc` — TLSF + slab allocator (`libdeluge/alloc.h`)

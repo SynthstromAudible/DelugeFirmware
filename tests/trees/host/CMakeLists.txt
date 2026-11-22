@@ -52,28 +52,29 @@ set(RUST_RESOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/resource)
 set(RUST_SAMPLE_FILL ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/fill)
 set(RUST_SAMPLE_READER ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/reader)
 set(RUST_SAMPLE_SOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/source)
+set(RUST_TEST_RUST ${CMAKE_CURRENT_LIST_DIR}/rust)
 
 if (UNIX AND NOT APPLE)
-    # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
+    # Build the deluge_test_rust umbrella staticlib (i686) ONCE and share it across the
     # conformance specs (it re-exports both the allocator and resource-manager C
     # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
     # the same output.
     set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
     set(RUST_TARGET i686-unknown-linux-gnu)
-    set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
+    set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_test_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named, as RUST_LIB is: `dbt test` sets CARGO_TARGET_DIR for its own cargo builds, and a
         # build that followed it would leave RUST_LIB as it was, so the specs would link a stale decoder.
-        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --target-dir ${RUST_WS}/target
+        COMMAND cargo build -p deluge_test_rust --release --target ${RUST_TARGET} --target-dir ${RUST_WS}/target
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
-            ${RUST_RESOURCE}/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
-        COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"
+            ${RUST_RESOURCE}/Cargo.toml ${RUST_TEST_RUST}/Cargo.toml
+        COMMENT "Building Rust deluge_test_rust staticlib (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
     add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
@@ -83,25 +84,25 @@ if (UNIX AND NOT APPLE)
     # A second umbrella build, with `sample_abi` on, for the sample_reader spec: the sample
     # crates export their C ABI on a host build only with their `c_abi` feature, which
     # `sample_abi` turns on. Its own --target-dir keeps the two feature sets' outputs apart.
-    set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_rust.a)
+    set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_test_rust.a)
     # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
     # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs
         ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs
-        ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB_SIM}
-        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --features sample_abi
+        COMMAND cargo build -p deluge_test_rust --release --target ${RUST_TARGET} --features sample_abi
             --target-dir ${RUST_WS}/target-tests-sim
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES_SIM}
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
-            ${RUST_RESOURCE}/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_RESOURCE}/Cargo.toml ${RUST_TEST_RUST}/Cargo.toml
             ${RUST_SAMPLE_READER}/Cargo.toml ${RUST_SAMPLE_FILL}/Cargo.toml
             ${RUST_SAMPLE_SOURCE}/Cargo.toml
-        COMMENT "Building Rust deluge_rust staticlib with the sim feature (${RUST_TARGET})"
+        COMMENT "Building Rust deluge_test_rust staticlib with the sim feature (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_sim_build DEPENDS ${RUST_LIB_SIM})
     add_library(deluge_rust_rs_sim STATIC IMPORTED GLOBAL)
@@ -114,20 +115,20 @@ elseif (APPLE)
     # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
     # Linux-only; this branch defines nothing but the shared archive.
     set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
-    set(RUST_LIB ${RUST_WS}/target/release/libdeluge_rust.a)
+    set(RUST_LIB ${RUST_WS}/target/release/libdeluge_test_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named for the reason the Linux branch gives: `dbt test` sets CARGO_TARGET_DIR, and a
         # build that followed it would leave RUST_LIB stale.
-        COMMAND cargo build -p deluge_rust --release --target-dir ${RUST_WS}/target
+        COMMAND cargo build -p deluge_test_rust --release --target-dir ${RUST_WS}/target
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
-            ${RUST_RESOURCE}/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
-        COMMENT "Building Rust deluge_rust staticlib (host)"
+            ${RUST_RESOURCE}/Cargo.toml ${RUST_TEST_RUST}/Cargo.toml
+        COMMENT "Building Rust deluge_test_rust staticlib (host)"
         VERBATIM)
     add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
     add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
@@ -136,7 +137,7 @@ elseif (APPLE)
 else ()
     # The app's specs link the umbrella staticlib (audio_file_format.cpp's header parse is its Rust decoder), and only
     # the two branches above build it.
-    message(FATAL_ERROR "the host tree needs the deluge_rust staticlib (deluge_rust_rs), "
+    message(FATAL_ERROR "the host tree needs the deluge_test_rust staticlib (deluge_rust_rs), "
                         "built here for Linux and macOS only")
 endif ()
 

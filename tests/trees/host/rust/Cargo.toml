@@ -1,28 +1,29 @@
 # Umbrella staticlib linked by the C++ unit-test tree; re-exports the member crates' C ABIs.
 [package]
-name = "deluge_rust"
+name = "deluge_test_rust"
+workspace = "../../../../crates"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
 
 [lib]
-name = "deluge_rust"
+name = "deluge_test_rust"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-deluge_base_alloc = { path = "../../src/base/alloc" }
-deluge_storage_resource = { path = "../../src/storage/resource" }
+deluge_base_alloc = { path = "../../../../src/base/alloc" }
+deluge_storage_resource = { path = "../../../../src/storage/resource" }
 # Unconditional: the app's sample and wavetable header parsing calls it, with no C++ fallback.
 deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
 # Keep the rev with src/bsp/rust/Cargo.toml's deluge-sdk pin.
 # The sample crates below are optional, pulled in only by `sample_abi`.
-deluge_storage_sample_source = { path = "../../src/storage/sample/source", optional = true }
-deluge_storage_sample_fill = { path = "../../src/storage/sample/fill", optional = true }
+deluge_storage_sample_source = { path = "../../../../src/storage/sample/source", optional = true }
+deluge_storage_sample_fill = { path = "../../../../src/storage/sample/fill", optional = true }
 # std-backed implementation for `deluge_storage_sample_fill`'s context-table mutex.
 critical-section = { version = "1", optional = true }
-deluge_storage_sample_reader = { path = "../../src/storage/sample/reader", optional = true }
-deluge_storage_stream = { path = "../../src/storage/stream", optional = true }
+deluge_storage_sample_reader = { path = "../../../../src/storage/sample/reader", optional = true }
+deluge_storage_stream = { path = "../../../../src/storage/stream", optional = true }
 
 [features]
 ## Forwards the allocator's AddressSanitizer poisoning. Opt-in, for a link built with

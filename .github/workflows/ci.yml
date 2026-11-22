@@ -120,6 +120,7 @@ jobs:
           workspaces: |
             crates
             src/bsp/rust
+            tests/component/differential/audio_format_corpus
             tests/component/differential/fs_differential
             tests/component/differential/region_fill_differential
             tests/component/differential/region_read_differential

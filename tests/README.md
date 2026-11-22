@@ -34,6 +34,7 @@ builds only `golden-vt-render`.
 | upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | pr | storage | ~30s |
 | load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | pr | app | ~10s |
 | load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | nightly | app | ~1m |
+| audio-format-corpus | component | cargo | differential | gate | the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set) | pr | unit | ~20s |
 | region-fill-differential | component | cargo | differential | gate | the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference | pr | storage | ~1m |
 | region-read-differential | component | cargo | differential | gate | the sample range-reader must resolve the same frames as the chunk-payload oracle | pr | storage | ~1m |
 | region-source-differential | component | cargo | differential | gate | the region cursor must resolve a chunk's payload, not its header, over real streamed backing | pr | storage | ~1m |

@@ -206,6 +206,21 @@ job = "app"
 runtime_s = 60
 
 [[harness]]
+name = "audio-format-corpus"
+path = "tests/component/differential/audio_format_corpus"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set)"
+build = ["cargo", "build", "--tests"]
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+job = "unit"
+runtime_s = 20
+
+[[harness]]
 name = "region-fill-differential"
 path = "tests/component/differential/region_fill_differential"
 level = "component"

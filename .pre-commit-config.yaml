@@ -24,7 +24,7 @@ repos:
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^(crates/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/).*\.rs$
+        files: ^(crates/|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/).*\.rs$
         pass_filenames: false
       - id: cargo-fmt-sample-convert
         # deluge_storage_sample_convert is a production dependency of the Rust BSP, but

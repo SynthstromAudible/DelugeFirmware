@@ -1,6 +1,6 @@
 # Conformance specs for deluge_storage_resource (src/storage/resource, the Rust cached-asset manager), driven
 # through its C ABI (src/storage/resource/include/deluge_resource.h) with a mock Source and linked from the
-# deluge_rust umbrella staticlib the host tree builds. Its masking discipline calls the interrupt-masking C ABI on
+# deluge_test_rust umbrella staticlib the host tree builds. Its masking discipline calls the interrupt-masking C ABI on
 # every acquire and release, so the shared host bodies for it are linked in too.
 #
 # Linux only: the i686 umbrella staticlib these specs link is built there alone.

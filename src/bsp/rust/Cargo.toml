@@ -87,7 +87,7 @@ fs_alloc = { package = "deluge_base_alloc", path = "../../base/alloc" }
 
 # The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
 # `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep them on the
-# link line. `deluge_storage_resource` is linked directly, not via the `deluge_rust` umbrella, whose
+# link line. `deluge_storage_resource` is linked directly, not via the `deluge_test_rust` umbrella, whose
 # `#[panic_handler]` would collide with ours.
 deluge_storage_resource = { path = "../../storage/resource" }
 deluge_storage_sample_source = { path = "../../storage/sample/source", features = ["c_abi"] }

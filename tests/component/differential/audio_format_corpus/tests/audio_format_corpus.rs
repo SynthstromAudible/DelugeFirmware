@@ -16,7 +16,7 @@
 //!
 //! ```text
 //! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup,$HOME/deluge-aiff-corpus" \
-//!     cargo test -p deluge_rust --test audio_format_corpus -- --nocapture
+//!     cargo test -- --nocapture
 //! ```
 //!
 //! Once set, finding no audio files fails the test rather than passing with nothing checked.
@@ -291,9 +291,9 @@ fn cpp_dumper_binary() -> PathBuf {
     if let Ok(p) = std::env::var("GOLDEN_VT_RENDER_BIN") {
         return PathBuf::from(p);
     }
-    // CARGO_MANIFEST_DIR is crates/deluge_rust; the repo root is two levels up.
+    // CARGO_MANIFEST_DIR is tests/component/differential/audio_format_corpus; the repo root is four levels up.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bin = "../../build/cargo-harness/release/golden_vt_render";
+    let bin = "../../../../build/cargo-harness/release/golden_vt_render";
     manifest_dir
         .join(bin)
         .canonicalize()
