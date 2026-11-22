@@ -187,6 +187,15 @@ class Strings(unittest.TestCase):
             rodata=rodata,
         )
 
+    def test_a_zero_word_is_no_pointer(self):
+        # `__fini_array_start` and absolute constants (`IRQ_MODE`, stack sizes) are symbols at no loaded address: a
+        # NUL word in a named object that ends a C string stays a NUL.
+        chars = bytes(5) + b"abc" + bytes(4)
+        found = self.loaded(
+            chars, [(0x20000004, 0x2000000C)], targets={0, 0x12, 0x2000}
+        )
+        self.assertEqual(found, ["abc"])
+
     def test_text_in_a_named_char_array_is_read(self):
         # A `static const char` table: `    ` reads as 0x20202020, an address in the image, but no symbol starts there.
         chars = b"\x00\x00\x00\x00" + b"ab      cdefgh\x00"
@@ -445,9 +454,16 @@ class Section(unittest.TestCase):
 
 
 class DefaultObjcopy(unittest.TestCase):
-    def test_it_resolves_against_the_repo_root_not_the_cwd(self):
-        self.assertTrue(compare_strings.DEFAULT_OBJCOPY.is_absolute())
-        self.assertTrue(compare_strings.DEFAULT_OBJCOPY.is_file())
+    def test_the_default_is_llvm_objcopy(self):
+        with (
+            mock.patch.object(
+                compare_strings.sys, "argv", ["compare_strings.py", "a.elf", "b.elf"]
+            ),
+            mock.patch.object(compare_strings, "strings", return_value=[]) as read,
+            mock.patch("builtins.print"),
+        ):
+            compare_strings.main()
+        self.assertEqual(read.call_args.args[0], "llvm-objcopy")
 
 
 if __name__ == "__main__":

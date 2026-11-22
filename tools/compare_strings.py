@@ -11,9 +11,10 @@ Data objects are no strings, however their bytes print: an SRAM address ends in 
 object, a table of pointers or a code literal pool reads as text, with a NUL after it as a C string, and its pointers
 change whenever what they point at moves. So every 4-byte-aligned word (aligned by its load address) that lies inside a
 sized symbol other than a string (local labels such as `.str.N` and `.Lanon.…`, which hold string literals, and
-type-info names `_ZTS…` are strings) and names a symbol (its start, with or without the Thumb bit, or a place inside a
-vtable or construction vtable) is masked before the runs are read. A type-info name after its object's vtable pointer is
-then read alone, while text in a named char array that only reads as an address (`    ` is 0x20202020) is still read.
+type-info names `_ZTS…` are strings) and names a loaded symbol (its start, with or without the Thumb bit, or a place
+inside a vtable or construction vtable) is masked before the runs are read. A type-info name after its object's vtable
+pointer is then read alone, while text in a named char array that only reads as an address (` ` is 0x20202020) is still
+read.
 
 A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
 pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
@@ -34,7 +35,8 @@ contains renamed text compares equal to the same string with the new text. That 
 paths and crate names. Each string is rewritten in one pass: at every position the first matching rename wins, and
 its output is not renamed again.
 
-Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy PATH] [--readelf PATH] [--nm PATH]
+Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy llvm-objcopy]
+                                [--readelf PATH] [--nm PATH]
 """
 
 from __future__ import annotations
@@ -54,10 +56,6 @@ from pathlib import Path
 STRING_START = 8
 PRINTABLE = re.compile(rb"[\x20-\x7e]{3,}(?=\x00)|[\x20-\x7e]{6,}")
 SECTIONS = (".rodata", ".data")
-DEFAULT_OBJCOPY = (
-    Path(__file__).resolve().parent.parent
-    / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-objcopy"
-)
 
 
 def printable(byte: int) -> bool:
@@ -215,10 +213,13 @@ def strings(
     its data objects masked (unpointered())."""
     at, ranges = layout(readelf, elf)
     objects = data_objects(nm, elf)
-    targets = pointer_targets(nm, elf)
     content = sdram(objcopy, elf)
     if content and ".sdram_init" in at:
         ranges = [*ranges, (at[".sdram_init"], at[".sdram_init"] + len(content))]
+    # A symbol at no loaded address (`__fini_array_start` at 0, `IRQ_MODE`, a stack size) is no pointer's target.
+    targets = {
+        t for t in pointer_targets(nm, elf) if any(lo <= t < hi for lo, hi in ranges)
+    }
     blobs = [(section(objcopy, elf, s), at.get(s)) for s in SECTIONS] + [
         (content, at.get(".sdram_init"))
     ]
@@ -282,7 +283,7 @@ def main() -> int:
     )
     p.add_argument(
         "--objcopy",
-        default=str(DEFAULT_OBJCOPY),
+        default="llvm-objcopy",
     )
     p.add_argument("--readelf", default="llvm-readelf")
     p.add_argument("--nm", default="llvm-nm")

@@ -1890,6 +1890,7 @@ template = "unittest"
 path = "tools"
 gates = "the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change"
 run = ["python3", "-m", "unittest", "test_compare_strings"]
+requires = ["llvm-objcopy"]
 
 [[harness]]
 name = "stream-bench-parser"
