@@ -27,8 +27,10 @@ A ThinLTO image's code is not fixed by its own source alone: a change in one mod
 decisions elsewhere. A non-empty result is classified by reading each function's diff (`--diff NAME`), not taken as
 a verdict.
 
+With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images.
+
 Usage:
-    tools/compare_codegen.py BASE.elf NEW.elf [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
+    tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...] [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
                              [--cxxfilt llvm-cxxfilt] [--show N] [--diff NAME ...]
 """
 
@@ -254,9 +256,26 @@ def run(tool: list[str], stdin: str | None = None) -> str:
     ).stdout
 
 
-def demangler(cxxfilt: str, texts: list[str]):
+def namespace_renamer(pairs: list[tuple[str, str]]):
+    """Maps each renamed namespace to its new spelling wherever it stands in a demangled name, so a function that only
+    moved namespace compares with itself. Pairs are ordered: at a given place the first pair that matches wins, and a
+    name is rewritten once, so a pair's new spelling is never renamed again. A pair matches whole `::` components."""
+    if not pairs:
+        return lambda name: name
+    news = dict(pairs)
+    pattern = re.compile(
+        r"(?<![\w:])(?:" + "|".join(re.escape(old) for old, _ in pairs) + r")(?=::|\b)"
+    )
+
+    def rename(name: str) -> str:
+        return pattern.sub(lambda match: news[match.group(0)], name)
+
+    return rename
+
+
+def demangler(cxxfilt: str, texts: list[str], renames=None):
     """A rename that maps every mangled symbol in @p texts (disassembly or `llvm-nm` listings) to its canonical()
-    demangled name."""
+    demangled name, with @p renames (see namespace_renamer()) applied first."""
     names = sorted(
         {
             LTO_SUFFIX.sub("", n)
@@ -271,7 +290,10 @@ def demangler(cxxfilt: str, texts: list[str]):
         }
     )
     demangled = run([cxxfilt], "\n".join(names)).splitlines()
-    table = {mangled: canonical(plain) for mangled, plain in zip(names, demangled)}
+    table = {
+        mangled: canonical(renames(plain) if renames else plain)
+        for mangled, plain in zip(names, demangled)
+    }
     return lambda name: table.get(name, name)
 
 
@@ -334,6 +356,12 @@ def main() -> int:
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
     parser.add_argument(
+        "--rename",
+        action="append",
+        default=[],
+        help="OLD=NEW: a namespace the second image renamed",
+    )
+    parser.add_argument(
         "--show", type=int, default=20, help="list at most this many names per kind"
     )
     parser.add_argument(
@@ -350,8 +378,16 @@ def main() -> int:
             run([args.nm, "-S", "-n", "--defined-only", which]),
             run([args.readelf, "-lW", which]),
         )
+    pairs = []
+    for spec in args.rename:
+        old, sep, new = spec.partition("=")
+        if not sep or not old or not new:
+            parser.error(f"--rename wants OLD=NEW, got {spec!r}")
+        pairs.append((old, new))
     rename = demangler(
-        args.cxxfilt, [text for image in images.values() for text in image[:2]]
+        args.cxxfilt,
+        [text for image in images.values() for text in image[:2]],
+        namespace_renamer(pairs),
     )
     base, new = (
         functions(dis, rename, classifier(segments, nm, rename))

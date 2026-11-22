@@ -23,8 +23,50 @@ from compare_codegen import (
     compare,
     functions,
     mask_address_halves,
+    namespace_renamer,
     normalise,
 )
+
+
+class NamespaceRenames(unittest.TestCase):
+    def test_a_renamed_namespace_maps_anywhere_in_a_name(self):
+        rename = namespace_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(
+            rename("deluge::scenes::menu::Menu::render"),
+            "deluge::ui::scenes::menu::Menu::render",
+        )
+        self.assertEqual(
+            rename("std::vector<deluge::scenes::Node>::push_back"),
+            "std::vector<deluge::ui::scenes::Node>::push_back",
+        )
+        self.assertEqual(
+            rename("vtable for deluge::scenes::Scene"),
+            "vtable for deluge::ui::scenes::Scene",
+        )
+
+    def test_a_longer_or_nested_name_is_left(self):
+        rename = namespace_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(rename("deluge::scenes_x::f"), "deluge::scenes_x::f")
+        self.assertEqual(rename("my::deluge::scenes::f"), "my::deluge::scenes::f")
+        self.assertEqual(rename("deluge::ui::scenes::f"), "deluge::ui::scenes::f")
+
+    def test_the_first_matching_pair_wins_and_a_result_is_not_renamed_again(self):
+        rename = namespace_renamer(
+            [("deluge::ui::oled", "deluge::oled"), ("deluge::ui", "deluge::view")]
+        )
+        self.assertEqual(rename("deluge::ui::oled::draw"), "deluge::oled::draw")
+        self.assertEqual(rename("deluge::ui::Scene::f"), "deluge::view::Scene::f")
+        self.assertEqual(rename("deluge::ui<int>"), "deluge::view<int>")
+
+    def test_a_prefix_matches_only_on_a_component_boundary(self):
+        rename = namespace_renamer([("deluge::ui", "deluge::view")])
+        self.assertEqual(rename("deluge::uix::f"), "deluge::uix::f")
+        self.assertEqual(rename("deluge::ui"), "deluge::view")
+        self.assertEqual(rename("deluge::ui::f"), "deluge::view::f")
+
+    def test_no_pairs_changes_nothing(self):
+        self.assertEqual(namespace_renamer([])("deluge::ui::f"), "deluge::ui::f")
+
 
 SAMPLE = """\
 20001000 <foo>:
