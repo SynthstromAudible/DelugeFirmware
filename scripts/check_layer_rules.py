@@ -399,13 +399,6 @@ RULES = [
     ),
     (
         "no-legacy-effects-owners",
-        "src/platform/host/**",
-        "symbol",
-        r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
-        "2026-11-13-controls-layer-design.md",
-    ),
-    (
-        "no-legacy-effects-owners",
         "tests/**",
         "symbol",
         r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
@@ -430,13 +423,6 @@ RULES = [
     ),
     (
         "mod-controllable-bridge-only",
-        "src/platform/host/**",
-        "symbol",
-        r"\bvalueChangedEnoughToMatter\b",
-        "2026-11-18-instrument-events-design.md",
-    ),
-    (
-        "mod-controllable-bridge-only",
         "tests/**",
         "symbol",
         r"\bvalueChangedEnoughToMatter\b",
@@ -447,13 +433,6 @@ RULES = [
         # what they serve. One row per tree: the checker matches one glob per row.
         "no-global-effectable-table",
         "src/**",
-        "symbol",
-        r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
-        "2026-11-15-effect-param-tables-design.md",
-    ),
-    (
-        "no-global-effectable-table",
-        "src/platform/host/**",
         "symbol",
         r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
         "2026-11-15-effect-param-tables-design.md",
@@ -940,8 +919,8 @@ def audit_service_scope() -> int:
     `Service` subclass is covered by the row's scope, not whether the class is correct. A new
     service in a directory the row cannot see is exactly the failure it catches.
 
-    Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` and
-    `src/platform/host/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
+    Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` derive from
+    `Service` too and are intentionally out of the ratchet -- a spec claiming
     the OLED is how the OLED branch gets covered at all (`tests/unit/ui/shell/flush_spec.cpp`).
     """
     frm = next(f for name, f, *_ in RULES if name == SERVICE_ROW)

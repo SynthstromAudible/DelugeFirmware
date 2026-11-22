@@ -126,7 +126,7 @@ repos:
         entry: python3 scripts/check_layer_rules.py
         language: system
         pass_filenames: false
-        # Its rows cover the legacy tree, the toolkit, the shell, the scenes, and (two of them) src/platform/host/ and tests/.
+        # Its rows cover all of src/ (the legacy tree, the toolkit, the shell, the scenes, the host build) and tests/.
         files: ^(src/deluge/|src/ui/|src/platform/host/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
