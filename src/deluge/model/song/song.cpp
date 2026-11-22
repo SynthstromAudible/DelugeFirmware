@@ -47,6 +47,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
+#include "model/scale/scale_degrees.h"
 #include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
@@ -3074,22 +3075,37 @@ Scale Song::setScale(Scale newScale) {
 bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	newScaleNotes.add(0); // ensure root
 
-	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	//
-	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
-	// when transforming between scales of same size - otherwise scale transformations don't necessarily
-	// remain reversible across sizes, even if the user didn't change the notes used.
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips(&key);
-	notesWithinOctavePresent.add(0);
-
-	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
-		return false;
-	}
-
 	ScaleChange changes;
-	if (!scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes)) {
-		return false;
+
+	// Scales of up to 7 notes: every note moves by its degree letter (1st, b3rd, ...), so this never refuses, and
+	// notes whose letter the new scale lacks keep their pitch (see model/scale/scale_degrees.h).
+	if (!deluge::scale_degrees::letterChange(key, newScaleNotes, changes)) {
+		// User scales with more than 7 notes have no letters: map by index with the mapper.
+		//
+		// Always count the root note as present, to avoid changing the root note when cycling scales.
+		//
+		// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
+		// when transforming between scales of same size - otherwise scale transformations don't necessarily
+		// remain reversible across sizes, even if the user didn't change the notes used.
+		NoteSet notesWithinOctavePresent = notesInScaleModeClips(&key);
+		notesWithinOctavePresent.add(0);
+
+		// A pitch-preserving change (below) leaves more pitch classes in use than the scale has degrees, which a
+		// mapping of degrees never does. If we find that, and all of them are in the new scale, nothing needs to
+		// move: this takes such a state back to the scale it came from with every note where it was.
+		NoteSet allPitches = notesInScaleModeClips();
+		bool nothingNeedsToMove = allPitches.isSubsetOf(newScaleNotes) && allPitches.count() > key.modeNotes.count();
+
+		if (nothingNeedsToMove || notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
+			// Either nothing needs to move, or the new scale cannot fit the notes of the old one, so the mapper has
+			// no degrees to put them on. Keep every pitch and just swap the scale around the notes; those not in the
+			// new scale become accidentals, which are derived from pitch and key.
+			changes.source = key.modeNotes;
+			changes.target = newScaleNotes;
+		}
+		else if (!scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes)) {
+			return false;
+		}
 	}
 
 	replaceMusicalMode(changes, true, true);
@@ -6005,7 +6021,7 @@ doHibernatingInstruments:
 void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural, true, useSharpsForNoteNames());
 
 	buffer.append(noteName);
 	if (display->haveOLED()) {

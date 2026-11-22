@@ -105,8 +105,12 @@ public:
 	/// Learn notes from current clip + scale mode clips as USER scale.
 	/// Enters scale mode if wasn't in it already. LEARN + SCALE.
 	ActionResult commandLearnUserScale();
-	/// Cycle through preset scales. SHIFT + SCALE in scale mode.
+	/// Cycle through preset scales.
 	ActionResult commandCycleThroughScales();
+	/// Pick a scale from a popup list. SHIFT + SCALE in scale mode.
+	ActionResult commandSelectScale();
+	/// The song's scale was changed (by the scale selection menu): redraw with the new colours
+	void onScaleChanged();
 	/// Flash the current root note. Part of SCALE down.
 	ActionResult commandFlashRootNote();
 	/// Enter scale mode with selected root. AUDITION + SCALE or SCALE + AUDITION in schromatic mode.

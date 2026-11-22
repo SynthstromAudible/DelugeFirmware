@@ -7,6 +7,8 @@
 #include "model/scale/utils.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <random>
 #include <vector>
 
@@ -772,4 +774,91 @@ TEST(ScaleMapperTest, randomTest) {
 			CHECK_EQUAL(sourceNotes, reverse);
 		}
 	}
+}
+
+#include "model/scale/scale_degrees.h"
+
+TEST_GROUP(ScaleDegreesTest){};
+
+namespace {
+std::array<int8_t, 12> lettersOf(NoteSet scale) {
+	std::array<int8_t, 12> l;
+	CHECK(deluge::scale_degrees::degreeLetters(scale, l));
+	return l;
+}
+/// Monotone, injective, alterations within 2
+void checkSane(NoteSet scale, const std::array<int8_t, 12>& l) {
+	static const int major[7] = {0, 2, 4, 5, 7, 9, 11};
+	int prev = -1;
+	for (int i = 0; i < 12; i++) {
+		if (!scale.has(i)) {
+			CHECK_EQUAL(-1, l[i]);
+			continue;
+		}
+		CHECK(l[i] > prev && l[i] <= 6);
+		prev = l[i];
+		CHECK(std::abs(i - major[l[i]]) <= 2);
+	}
+}
+} // namespace
+
+TEST(ScaleDegreesTest, pentatonicMinor) {
+	auto l = lettersOf({0, 3, 5, 7, 10});
+	CHECK_EQUAL(0, l[0]);
+	CHECK_EQUAL(2, l[3]);
+	CHECK_EQUAL(3, l[5]);
+	CHECK_EQUAL(4, l[7]);
+	CHECK_EQUAL(6, l[10]);
+}
+
+TEST(ScaleDegreesTest, hirajoshi) {
+	auto l = lettersOf({0, 2, 3, 7, 8});
+	CHECK_EQUAL(0, l[0]);
+	CHECK_EQUAL(1, l[2]);
+	CHECK_EQUAL(2, l[3]);
+	CHECK_EQUAL(4, l[7]);
+	CHECK_EQUAL(5, l[8]);
+}
+
+TEST(ScaleDegreesTest, sevenNoteScalesAreIndex) {
+	for (int s = 0; s < NUM_PRESET_SCALES; s++) {
+		NoteSet scale = presetScaleNotes[s];
+		auto l = lettersOf(scale);
+		checkSane(scale, l);
+		if (scale.count() == 7) {
+			for (int i = 0; i < 7; i++) {
+				CHECK_EQUAL(i, l[scale[i]]);
+			}
+		}
+	}
+}
+
+TEST(ScaleDegreesTest, wholeToneAndBluesPinned) {
+	NoteSet whole{0, 2, 4, 6, 8, 10};
+	auto w = lettersOf(whole);
+	checkSane(whole, w);
+	// 1 2 3 b5 b6 b7: flats are cheaper than sharps
+	CHECK_EQUAL(0, w[0]);
+	CHECK_EQUAL(1, w[2]);
+	CHECK_EQUAL(2, w[4]);
+	CHECK_EQUAL(4, w[6]);
+	CHECK_EQUAL(5, w[8]);
+	CHECK_EQUAL(6, w[10]);
+
+	NoteSet blues{0, 3, 5, 6, 7, 10};
+	auto b = lettersOf(blues);
+	checkSane(blues, b);
+	// 1 #2 #3 #4 5 b7: the least total alteration, though not the usual spelling (a 6-note scale must skip a letter)
+	CHECK_EQUAL(0, b[0]);
+	CHECK_EQUAL(1, b[3]);
+	CHECK_EQUAL(2, b[5]);
+	CHECK_EQUAL(3, b[6]);
+	CHECK_EQUAL(4, b[7]);
+	CHECK_EQUAL(6, b[10]);
+}
+
+TEST(ScaleDegreesTest, moreThanSevenNotesHaveNone) {
+	std::array<int8_t, 12> l;
+	CHECK_FALSE(deluge::scale_degrees::degreeLetters({0, 1, 2, 3, 4, 5, 7, 9}, l));
+	CHECK_EQUAL(-1, l[0]);
 }

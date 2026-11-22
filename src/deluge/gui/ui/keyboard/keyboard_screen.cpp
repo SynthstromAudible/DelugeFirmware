@@ -17,6 +17,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/context_menu/select_scale.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
@@ -66,6 +67,11 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
+
+void KeyboardScreen::onScaleChanged() {
+	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
+	requestRendering();
+}
 
 KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
@@ -435,10 +441,10 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
-				// If user holding shift and we're already in scale mode, cycle through available scales
+				// If user holding shift and we're already in scale mode, pick a scale from a list
 				if (Buttons::isShiftButtonPressed() && inScaleMode) {
-					cycleThroughScales();
-					requestRendering();
+					gui::context_menu::selectScale.setupAndCheckAvailability();
+					openUI(&gui::context_menu::selectScale);
 				}
 
 				// Or, no shift button - normal behaviour

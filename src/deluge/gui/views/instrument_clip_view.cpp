@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "fatfs.hpp"
 #include "gui/colour/colour.h"
+#include "gui/context_menu/select_scale.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
@@ -197,11 +198,22 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 
 ActionResult InstrumentClipView::commandCycleThroughScales() {
 	cycleThroughScales();
+	onScaleChanged();
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandSelectScale() {
+	using namespace deluge::gui::context_menu;
+	selectScale.setupAndCheckAvailability();
+	openUI(&selectScale);
+	return ActionResult::DEALT_WITH;
+}
+
+void InstrumentClipView::onScaleChanged() {
 	recalculateColours();
 	uiNeedsRendering(this);
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-	return ActionResult::DEALT_WITH;
 }
 
 ActionResult InstrumentClipView::commandFlashRootNote() {
@@ -906,7 +918,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
 		// If we're note in scale mode, we defer to commands that
 		// will instead enter the scale mode.
-		return commandCycleThroughScales();
+		return commandSelectScale();
 	}
 	else if (on && oneNoteAuditioning()) {
 		if (inScaleMode) {

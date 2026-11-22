@@ -22,6 +22,31 @@ public:
 	 */
 	NoteSet applyTo(NoteSet notes) const;
 
+	/** True if no degree moves. With source != target this is a pitch-preserving change: every note keeps its pitch
+	 * and only the scale around them changes.
+	 */
+	bool isIdentity() const {
+		if (byLetter) {
+			return false;
+		}
+		for (int8_t offset : degreeOffset) {
+			if (offset != 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** If set, notes are mapped by degree letter (see scale_degrees.h) instead of by scale degree:
+	 * sourceLetter[interval] is the letter of each note of the source scale (-1 if not in it), targetNote[letter] the
+	 * interval of the target scale's note with that letter (-1 if it has none), and preferFlats how anchors outside the
+	 * source scale are spelled. The degree offsets are unused.
+	 */
+	bool byLetter = false;
+	bool preferFlats = false;
+	int8_t sourceLetter[12] = {0};
+	int8_t targetNote[7] = {0};
+
 private:
 	int8_t degreeOffset[kMaxScaleSize] = {0};
 };

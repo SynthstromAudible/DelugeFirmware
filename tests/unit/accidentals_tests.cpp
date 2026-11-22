@@ -4,6 +4,7 @@
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
+#include "model/scale/scale_degrees.h"
 #include "model/scale/scale_mapper.h"
 
 #include <algorithm>
@@ -26,6 +27,7 @@ struct SimSong {
 	MusicalKey key;
 	ScaleMapper mapper;
 	std::vector<SimNote> notes;
+	int numPitchPreserving = 0; // How many scale changes left every note on its pitch
 
 	SimSong(NoteSet scale, int16_t root, std::vector<int32_t> pitches) {
 		key.modeNotes = scale;
@@ -45,7 +47,8 @@ struct SimSong {
 		for (SimNote& n : notes) {
 			NoteDestination d = destination(n.pitch, n.marker, key, changes, followAnchor);
 			n.pitch = d.pitch;
-			n.marker = markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, finalKey);
+			n.marker =
+			    d.marker ? d.marker : markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, finalKey);
 		}
 		key = newKey;
 	}
@@ -88,6 +91,13 @@ struct SimSong {
 	/// Mirrors Song::setScaleNotes
 	bool setScaleNotes(NoteSet newScale) {
 		newScale.add(0);
+		ScaleChange changes;
+		if (deluge::scale_degrees::letterChange(key, newScale, changes)) {
+			regroup(changes, true);
+			key.modeNotes = newScale;
+			return true;
+		}
+		// More than 7 notes in either scale: the mapper
 		NoteSet inUse;
 		for (const SimNote& n : notes) {
 			int32_t a = lineageAnchor(n.pitch, n.marker, key);
@@ -96,11 +106,20 @@ struct SimSong {
 			}
 		}
 		inUse.add(0);
-		if (inUse.scaleSize() > newScale.scaleSize()) {
-			return false;
+		// More pitch classes present than the scale has degrees: the notes can't be where a degree mapping left them,
+		// which is what a pitch-preserving change leaves. If they are all in the new scale, nothing needs to move.
+		NoteSet allPitches;
+		for (const SimNote& n : notes) {
+			allPitches.add(key.intervalOf(n.pitch));
 		}
-		ScaleChange changes;
-		if (!mapper.computeChangeFrom(inUse, key.modeNotes, newScale, changes)) {
+		bool allFit = allPitches.isSubsetOf(newScale) && allPitches.count() > key.modeNotes.count();
+		if (allFit || inUse.scaleSize() > newScale.scaleSize()) {
+			// Pitch-preserving
+			numPitchPreserving++;
+			changes.source = key.modeNotes;
+			changes.target = newScale;
+		}
+		else if (!mapper.computeChangeFrom(inUse, key.modeNotes, newScale, changes)) {
 			return false;
 		}
 		regroup(changes, true);
@@ -143,6 +162,19 @@ void checkSame(const std::vector<SimNote>& expected, const std::vector<SimNote>&
 		CHECK_EQUAL(expected[i].pitch, actual[i].pitch);
 		CHECK_EQUAL(expected[i].marker, actual[i].marker);
 	}
+}
+
+/// A marker whose anchor isn't in the key does nothing (liveAnchor ignores it), so a pitch-preserving change which
+/// leaves one on a note that was in key gives the same notes as without it. Compares notes with such markers dropped.
+std::vector<SimNote> effective(const SimSong& song) {
+	std::vector<SimNote> s = song.sorted();
+	for (SimNote& n : s) {
+		if (n.marker != 0 && !song.key.isInKey(lineageAnchor(n.pitch, n.marker, song.key))) {
+			n.marker = 0;
+		}
+	}
+	std::sort(s.begin(), s.end());
+	return s;
 }
 
 } // namespace
@@ -198,6 +230,7 @@ TEST(AccidentalsTest, cycleAllPresetScalesAndBack) {
 	    {60, 62, 64, 65, 67, 69, 71, 72, 73, 66},
 	};
 	int numApplied = 0;
+	int numRoundTripped = 0;
 	for (int16_t root : {0, 5, 7, 66}) {
 		for (const auto& pitches : sets) {
 			SimSong song(kMajor, root, {});
@@ -206,18 +239,22 @@ TEST(AccidentalsTest, cycleAllPresetScalesAndBack) {
 			}
 			auto original = song.sorted();
 			for (int s = 0; s < NUM_PRESET_SCALES; s++) {
-				// Refused ones are skipped, like cycleThroughScales
-				if (song.setScaleNotes(presetScaleNotes[s])) {
-					numApplied++;
-				}
-				CHECK(song.anchorsInKey());
+				// None are refused: scales too small for the notes keep every pitch instead
+				CHECK(song.setScaleNotes(presetScaleNotes[s]));
+				numApplied++;
+				CHECK(song.key.modeNotes == presetScaleNotes[s]);
+				CHECK_EQUAL(original.size(), song.notes.size());
 			}
 			CHECK(song.setScaleNotes(kMajor));
+			// All presets have letters, so every step maps by degree and the whole cycle must round-trip exactly
+			CHECK_EQUAL(0, song.numPitchPreserving);
 			checkSame(original, song.sorted());
+			numRoundTripped++;
+			CHECK_EQUAL(original.size(), song.notes.size());
 		}
 	}
-	// Must not pass vacuously because every scale was refused
-	CHECK(numApplied > 12);
+	CHECK_EQUAL(4 * 3 * NUM_PRESET_SCALES, numApplied);
+	CHECK_EQUAL(numApplied / NUM_PRESET_SCALES + 0, numRoundTripped); // Must not pass vacuously
 }
 
 TEST(AccidentalsTest, inKeyTransposeChoosesMarkersAgainstFinalKey) {
@@ -255,12 +292,9 @@ TEST(AccidentalsTest, cycleOneScaleAtATimeAndBack) {
 	for (int s = 0; s < NUM_PRESET_SCALES; s++) {
 		SimSong song(kMajor, 0, {60, 62, 63, 64, 70});
 		auto original = song.sorted();
-		if (!song.setScaleNotes(presetScaleNotes[s])) {
-			continue;
-		}
-		CHECK(song.anchorsInKey());
+		CHECK(song.setScaleNotes(presetScaleNotes[s]));
 		CHECK(song.setScaleNotes(kMajor));
-		checkSame(original, song.sorted());
+		checkSame(original, effective(song));
 	}
 }
 
@@ -272,7 +306,6 @@ TEST(AccidentalsTest, pentatonicRoundTrips) {
 		SimSong song(kMajor, 0, {60, 61, 62, 63, 64, 67, 68, 69, 70});
 		auto original = song.sorted();
 		CHECK(song.setScaleNotes(target));
-		CHECK(song.anchorsInKey());
 		CHECK(song.setScaleNotes(kMajor));
 		checkSame(original, song.sorted());
 	}
@@ -324,7 +357,6 @@ TEST(AccidentalsTest, flatKeyAndFlipRoundTrip) {
 	SimSong c(kMajor, 0, {60, 61, 62, 63, 65, 66, 68, 70});
 	auto cOriginal = c.sorted();
 	CHECK(c.setScaleNotes(kMinor));
-	CHECK(c.anchorsInKey());
 	CHECK(c.setScaleNotes(kMajor));
 	checkSame(cOriginal, c.sorted());
 }
@@ -334,4 +366,145 @@ TEST(AccidentalsTest, followAnchorMovesAccidentalWithItsAnchor) {
 	SimSong song(kMajor, 0, {69, 70});
 	CHECK(song.setScaleNotes(kMinor));
 	checkSame({{68, 0}, {69, -1}}, song.sorted());
+}
+
+namespace {
+std::vector<int32_t> pitchesOf(const SimSong& song) {
+	std::vector<int32_t> p;
+	for (const SimNote& n : song.sorted()) {
+		p.push_back(n.pitch);
+	}
+	return p;
+}
+
+const NoteSet kPentMinor{0, 3, 5, 7, 10};
+const std::vector<int32_t> kAllDegrees = {60, 62, 64, 65, 67, 69, 71};
+} // namespace
+
+TEST(AccidentalsTest, tooSmallScaleMapsByDegreeAndRestores) {
+	// All 7 degrees of C major to C pentatonic minor, which has no 2nd or 6th: E and B become Eb and Bb, F and G stay,
+	// D and A keep their pitch as accidentals
+	SimSong song(kMajor, 0, kAllDegrees);
+	auto original = song.sorted();
+
+	CHECK(song.setScaleNotes(kPentMinor));
+	CHECK_EQUAL(0, song.numPitchPreserving);
+	CHECK(song.key.modeNotes == kPentMinor);
+	CHECK((std::vector<int32_t>{60, 62, 63, 65, 67, 69, 70}) == pitchesOf(song));
+
+	CHECK(song.setScaleNotes(kMajor));
+	CHECK(song.key.modeNotes == kMajor);
+	checkSame(original, song.sorted());
+}
+
+TEST(AccidentalsTest, tooSmallScaleWithAccidentalsMapsByDegreeAndRestores) {
+	// The same plus accidentals C# and A#
+	SimSong song(kMajor, 0, kAllDegrees);
+	song.notes.push_back({61, 0});
+	song.notes.push_back({70, 0});
+	auto original = song.sorted();
+
+	CHECK(song.setScaleNotes(kPentMinor));
+	// E->Eb, B->Bb, D and A stay (self-anchored, as pentatonic minor has no 2nd or 6th), C# stays hanging off C
+	// (marked -1: pentatonic minor is a flat key, which would hang it off Eb), A# stays hanging off A, which keeps
+	// its pitch and remembers it is the 6th
+	std::vector<SimNote> expected = {{60, 0}, {61, -1}, {62, selfAnchored(1)}, {63, 0},
+	                                 {65, 0}, {67, 0},  {69, selfAnchored(5)}, {70, tagged(5, -1)},
+	                                 {70, 0}};
+	checkSame(expected, song.sorted());
+
+	CHECK(song.setScaleNotes(kMajor));
+	checkSame(original, song.sorted());
+}
+
+TEST(AccidentalsTest, pentatonicMinorToMajorMapsByDegree) {
+	SimSong song(kPentMinor, 0, {60, 63, 65, 67, 70});
+	CHECK(song.setScaleNotes(kMajor));
+	// 1 b3 4 5 b7 -> 1 3 4 5 7: Eb->E, F->F, G->G, Bb->B
+	CHECK((std::vector<int32_t>{60, 64, 65, 67, 71}) == pitchesOf(song));
+	CHECK_EQUAL(0, song.numPitchPreserving);
+}
+
+TEST(AccidentalsTest, majorHirajoshiBluesAndBack) {
+	for (int16_t root : {0, 5, 66}) {
+		SimSong song(kMajor, root, {});
+		for (int32_t p : kAllDegrees) {
+			song.notes.push_back({p + root, 0});
+		}
+		song.notes.push_back({61 + root, 0});
+		song.notes.push_back({70 + root, 0});
+		auto original = song.sorted();
+		CHECK(song.setScaleNotes(presetScaleNotes[HIRAJOSHI_SCALE]));
+		CHECK(song.setScaleNotes(presetScaleNotes[BLUES_SCALE]));
+		CHECK(song.setScaleNotes(kMajor));
+		checkSame(original, song.sorted());
+		CHECK_EQUAL(0, song.numPitchPreserving);
+	}
+}
+
+TEST(AccidentalsTest, viaSmallScalesRestoresNotesAndMajorPlain) {
+	// Through several small scales and back to major, from a state with every degree
+	for (int16_t root : {0, 5, 66}) {
+		SimSong song(kMajor, root, {});
+		for (int32_t p : kAllDegrees) {
+			song.notes.push_back({p + root, 0});
+		}
+		auto original = song.sorted();
+		for (const NoteSet& scale : {kPentMinor, presetScaleNotes[HIRAJOSHI_SCALE], presetScaleNotes[BLUES_SCALE],
+		                             presetScaleNotes[WHOLE_TONE_SCALE], kPentMinor, kMajor}) {
+			CHECK(song.setScaleNotes(scale));
+			CHECK_EQUAL(kAllDegrees.size(), song.notes.size());
+		}
+		checkSame(original, song.sorted());
+	}
+}
+
+TEST(AccidentalsTest, tooSmallScaleViaSmallScalesRestoresPitches) {
+	SimSong song(kMajor, 0, kAllDegrees);
+	auto original = song.sorted();
+	for (const NoteSet& scale : {kPentMinor, presetScaleNotes[HIRAJOSHI_SCALE], presetScaleNotes[BLUES_SCALE],
+	                             presetScaleNotes[WHOLE_TONE_SCALE], kPentMinor, kMajor}) {
+		CHECK(song.setScaleNotes(scale));
+	}
+	checkSame(original, song.sorted());
+}
+
+TEST(AccidentalsTest, selfAnchoredMarker) {
+	MusicalKey minorPent;
+	minorPent.modeNotes = kPentMinor; // Flats: D (62) would derive Eb (63) as its anchor
+	CHECK_EQUAL(kSelfAnchored, markerFor(62, 62, minorPent));
+	CHECK_EQUAL(0, markerFor(63, 63, minorPent)); // in key: derivable
+	CHECK_EQUAL(62, lineageAnchor(62, kSelfAnchored, minorPent));
+	CHECK_EQUAL(62, lineageAnchor(62, selfAnchored(1), minorPent));
+	CHECK(isSelfAnchored(selfAnchored(1)));
+	CHECK(isSelfAnchored(kSelfAnchored));
+	CHECK_EQUAL(1, taggedLetter(selfAnchored(1)));
+	CHECK(!isTagged(kSelfAnchored));
+	CHECK(!isTagged(-1));
+	CHECK(!isTagged(0));
+	CHECK(!isTagged(127));
+	// Anchor one above the note, remembering letter 5
+	int8_t m = tagged(5, 1);
+	CHECK(isTagged(m));
+	CHECK(!isSelfAnchored(m));
+	CHECK_EQUAL(5, taggedLetter(m));
+	CHECK_EQUAL(1, taggedOffset(m));
+	CHECK_EQUAL(70, lineageAnchor(69, m, minorPent));
+	CHECK_EQUAL(0, tagged(0, 5)); // doesn't fit
+	for (int letter = 0; letter < 7; letter++) {
+		for (int o = -kTagMaxOffset; o <= kTagMaxOffset; o++) {
+			CHECK_EQUAL(letter, taggedLetter(tagged(letter, o)));
+			CHECK_EQUAL(o, taggedOffset(tagged(letter, o)));
+		}
+	}
+}
+
+TEST(AccidentalsTest, inKeyTransposeKeepsNoteShape) {
+	// Rotating a pentatonic scale in key moves by per-degree offsets with source == target: unchanged behaviour
+	SimSong song(kPentMinor, 0, {60, 63, 65, 67, 70});
+	song.notes.push_back({61, 0});
+	auto original = song.sorted();
+	song.transposeInKey(2);
+	song.transposeInKey(-2);
+	checkSame(original, song.sorted());
 }

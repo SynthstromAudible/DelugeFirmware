@@ -54,6 +54,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/scale/preset_scales.cpp
         ../../src/deluge/model/scale/scale_change.cpp
         ../../src/deluge/model/scale/scale_mapper.cpp
+        ../../src/deluge/model/scale/scale_degrees.cpp
         # For clip iterator tests
         ../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests

@@ -1266,8 +1266,9 @@ void InstrumentClip::regroupNotes(const ScaleChange& changes, ModelStackWithTime
 
 		// All notes with no marker share a destination, because they share an anchor
 		NoteDestination rowDestination = destination(thisNoteRow->y, 0, key, changes, accidentalsFollowAnchor);
-		int8_t rowMarker =
-		    markerFor(rowDestination.pitch + pendingTranspose, rowDestination.anchor + pendingTranspose, newKey);
+		int8_t rowMarker = rowDestination.marker ? rowDestination.marker
+		                                         : markerFor(rowDestination.pitch + pendingTranspose,
+		                                                     rowDestination.anchor + pendingTranspose, newKey);
 
 		int32_t newY = rowDestination.pitch;
 		bool anyUnmarked = false;
@@ -1287,7 +1288,8 @@ void InstrumentClip::regroupNotes(const ScaleChange& changes, ModelStackWithTime
 			int8_t marker = rowMarker;
 			if (note->anchorOffset != 0) {
 				d = destination(thisNoteRow->y, note->anchorOffset, key, changes, accidentalsFollowAnchor);
-				marker = markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, newKey);
+				marker =
+				    d.marker ? d.marker : markerFor(d.pitch + pendingTranspose, d.anchor + pendingTranspose, newKey);
 			}
 			if (d.pitch == newY) {
 				note->anchorOffset = marker;
@@ -1608,7 +1610,9 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
 			int32_t marker = thisNoteRow->notes.getElement(n)->anchorOffset;
 			if (marker != 0) {
-				vote(thisNoteRow->y + shiftForInterval[key.intervalOf(thisNoteRow->y + marker)]);
+				vote(thisNoteRow->y
+				     + shiftForInterval[key.intervalOf(
+				         deluge::accidentals::lineageAnchor(thisNoteRow->y, (int8_t)marker, key))]);
 			}
 		}
 	}
