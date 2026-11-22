@@ -206,6 +206,14 @@ class Strings(unittest.TestCase):
             [],
         )
 
+    def test_rows_of_a_char_table_keep_their_nuls(self):
+        # keyboardChars: rows of spaces, each a C string; `\0\0  ` reads as 0x20200000, inside another object.
+        rows = bytes(4) + b"abcd" + b"\x00\x00  " + b"    " + bytes(4)
+        found = self.loaded(
+            rows, [(0x20000004, 0x20000014), (0x20200000, 0x20201000)], targets=()
+        )
+        self.assertEqual(found, ["abcd", "      "])
+
     def test_a_zero_word_is_no_pointer(self):
         # `__fini_array_start` and absolute constants (`IRQ_MODE`, stack sizes) are symbols at no loaded address: a
         # NUL word in a named object that ends a C string stays a NUL.

@@ -161,8 +161,8 @@ def unpointered(
     one of @p targets (pointer_targets()) made non-text: a vtable, a type-info object, a table of pointers or a code
     literal pool is no string, however its pointers' bytes print (an SRAM address ends in `2X 20`). A word that only
     reads as an address in the image (`    ` in a `static const char` table is 0x20202020) is text. A word that points
-    into its own object (a list head) is masked too, and one into another of @p objects (`&table[i]`) unless all its
-    bytes print, when it may be such text."""
+    into its own object (a list head) is masked too, and one into another of @p objects (`&table[i]`) unless each of
+    its bytes prints or is a NUL, when it may be such text (a char table's `\0\0  ` is 0x20200000)."""
     out = bytearray(blob)
     ordered = sorted(objects)
     starts = [start for start, _ in ordered]
@@ -176,11 +176,11 @@ def unpointered(
         for at in range(lo + (-lo % 4), hi - 3, 4):
             word = blob[at - base : at - base + 4]
             value = struct.unpack("<I", word)[0]
-            into = inside_an_object(value)
+            text = all(b == 0 or printable(b) for b in word)
             if (
                 value in targets
                 or start <= value < end
-                or (into and not all(printable(b) for b in word))
+                or (inside_an_object(value) and not text)
             ):
                 out[at - base : at - base + 4] = b"\x01" * 4
     return bytes(out)
