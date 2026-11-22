@@ -20,10 +20,14 @@
 #include "io/debug/log.h"
 #include "storage/flash_storage.h"
 #include "timers_interrupts/timers_interrupts.h"
+#include "util/fixedpoint.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <optional>
 
 extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
@@ -37,6 +41,9 @@ extern "C" {
 void usb_cstd_set_buf(usb_utr_t* ptr, uint16_t pipe);
 void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe);
 void usb_cstd_clr_stall(usb_utr_t* ptr, uint16_t pipe);
+uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t* table);
+void usb_pstd_ctrl_write(uint32_t bsize, uint8_t* table);
+void usb_pstd_set_stall_pipe0(void);
 void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
@@ -148,6 +155,97 @@ uint32_t inputRingSilentFrames = 0;
 bool interruptsSetUp = false;
 
 bool active = false; // Latched from FlashStorage::usbAudioEnabled each time USB starts as a peripheral
+
+/*********************************************************************************************************************
+ * Volume and mute for the stream from the host - the feature unit in our descriptors. Hosts set these through class
+ * requests on the control pipe, which the USB task handles; the audio routine turns them into a gain
+ */
+
+// UAC1 volumes are signed 8.8 fixed point dB. 0.5 dB steps from -60 dB up to unity - macOS and iOS put their volume
+// slider over this range, and below it there's mute
+constexpr int16_t kVolumeMin = -60 * 256;
+constexpr int16_t kVolumeMax = 0;
+constexpr int16_t kVolumeRes = 128;
+constexpr int16_t kVolumeSilence = (int16_t)0x8000; // "-infinity dB", which hosts may send
+
+// audio10.pdf A.9 and A.10.2
+constexpr uint8_t kRequestSetCur = 0x01;
+constexpr uint8_t kRequestGetCur = 0x81;
+constexpr uint8_t kRequestGetMin = 0x82;
+constexpr uint8_t kRequestGetMax = 0x83;
+constexpr uint8_t kRequestGetRes = 0x84;
+constexpr uint8_t kControlMute = 0x01;
+constexpr uint8_t kControlVolume = 0x02;
+
+// What the host last set
+std::atomic<int16_t> hostVolume{kVolumeMax};
+std::atomic<bool> hostMute{false};
+
+alignas(4) uint8_t controlBuffer[4]; // Data stage of a feature unit request, either way
+
+// The audio routine's side of it: the gain those settings come to, and how far it's got in moving the audio to it. A
+// gain of ONE_Q31 means the samples are left alone
+struct {
+	int16_t volume = kVolumeMax; // What targetGain was worked out from
+	bool mute = false;
+	q31_t targetGain = ONE_Q31;
+	q31_t gain = ONE_Q31; // As applied to the last frame read from the host
+} hostGain;
+// The most the gain moves per frame, so that a change doesn't click however short the render window it lands in.
+// Unity to silence takes about 6ms
+constexpr int32_t kGainMaxStep = ONE_Q31 / 256;
+
+// Whether a request (bRequest and bmRequestType, as the driver keeps them) is a class request addressed to our feature
+// unit: recipient interface, with the unit's ID and the audio control interface's number in wIndex
+bool isFeatureUnitRequest(uint16_t type, uint16_t index) {
+	return (type & USB_BMREQUESTTYPETYPE) == USB_CLASS && (type & USB_BMREQUESTTYPERECIP) == USB_INTERFACE
+	       && (index & 0xFF) == USB_PAUDIO_INTERFACE_CONTROL && (index >> 8) == USB_PAUDIO_FEATURE_UNIT_FROM_HOST;
+}
+
+// Brings hostGain's target up to date with what the host last set. Only does the floating point when that's changed
+void updateTargetGain() {
+	int16_t volume = hostVolume.load(std::memory_order_relaxed);
+	bool mute = hostMute.load(std::memory_order_relaxed);
+	if (volume == hostGain.volume && mute == hostGain.mute) {
+		return;
+	}
+	hostGain.volume = volume;
+	hostGain.mute = mute;
+	if (mute || volume == kVolumeSilence) {
+		hostGain.targetGain = 0;
+	}
+	else if (volume >= kVolumeMax) {
+		hostGain.targetGain = ONE_Q31;
+	}
+	else {
+		hostGain.targetGain = (q31_t)(std::pow(10.0f, (float)volume / (256.0f * 20.0f)) * 2147483648.0f);
+	}
+}
+
+// Scales numFrames interleaved stereo frames by a gain that moves by step each frame, starting from gain
+void applyGainRamp(int32_t* samples, size_t numFrames, q31_t gain, int32_t step) {
+	for (size_t i = 0; i < numFrames; i++) {
+		gain += step;
+		samples[i * 2] = multiply_32x32_rshift32(samples[i * 2], gain) << 1;
+		samples[i * 2 + 1] = multiply_32x32_rshift32(samples[i * 2 + 1], gain) << 1;
+	}
+}
+
+// Applies the host's volume to frames just read from it, moving the gain towards the latest setting as it goes
+void applyHostVolume(int32_t* samples, size_t numFrames) {
+	if (hostGain.gain == ONE_Q31 && hostGain.targetGain == ONE_Q31) {
+		return; // Full volume - the samples go through untouched
+	}
+	auto frames = (int32_t)numFrames;
+	int32_t step = std::clamp((hostGain.targetGain - hostGain.gain) / frames, -kGainMaxStep, kGainMaxStep);
+	applyGainRamp(samples, numFrames, hostGain.gain, step);
+	hostGain.gain += step * frames;
+	// Anything less than a step per frame short of the target is just what the division rounded off. More than that is
+	// the rest of a change too big for this many frames, which carries on with the next ones
+	if (std::abs(hostGain.targetGain - hostGain.gain) < frames) {
+		hostGain.gain = hostGain.targetGain;
+	}
+}
 
 /*********************************************************************************************************************
  * DMA, and the interrupts driving it
@@ -613,6 +711,14 @@ extern "C" void usbAudioStopAll(void) {
 	}
 }
 
+extern "C" void usbAudioBusReset(void) {
+	usbAudioStopAll();
+	// A host only tells us the volume it wants once it's enumerated us, and some never do. So each one starts from the
+	// feature unit's defaults - full volume, not muted - rather than whatever the last host left behind
+	hostVolume.store(kVolumeMax, std::memory_order_relaxed);
+	hostMute.store(false, std::memory_order_relaxed);
+}
+
 extern "C" uint16_t usbAudioHandleBrdy(uint16_t pipeBits) {
 	uint16_t ours = pipeBits & kPipeBits;
 	if (ours) {
@@ -682,6 +788,80 @@ extern "C" void usbAudioHandleSof(void) {
 	USB200.D0FIFOSEL |= USB_DREQE;
 }
 
+extern "C" bool usbAudioClassRequest(uint16_t type, uint16_t value, uint16_t index, uint16_t length) {
+	if (!active || !isFeatureUnitRequest(type, index)) {
+		return false;
+	}
+	uint8_t request = type >> 8;
+	uint8_t control = value >> 8;
+	uint8_t channel = value & 0xFF;
+
+	if (channel == 0 && control == kControlMute) {
+		if (request == kRequestSetCur && length == 1) {
+			usb_pstd_ctrl_write(1, controlBuffer);
+			return true;
+		}
+		if (request == kRequestGetCur) {
+			controlBuffer[0] = hostMute.load(std::memory_order_relaxed);
+			usb_pstd_ctrl_read(std::min<uint32_t>(length, 1), controlBuffer);
+			return true;
+		}
+	}
+	else if (channel == 0 && control == kControlVolume) {
+		if (request == kRequestSetCur && length == 2) {
+			usb_pstd_ctrl_write(2, controlBuffer);
+			return true;
+		}
+		std::optional<int16_t> answer;
+		switch (request) {
+		case kRequestGetCur:
+			answer = hostVolume.load(std::memory_order_relaxed);
+			break;
+		case kRequestGetMin:
+			answer = kVolumeMin;
+			break;
+		case kRequestGetMax:
+			answer = kVolumeMax;
+			break;
+		case kRequestGetRes:
+			answer = kVolumeRes;
+			break;
+		default:
+			break;
+		}
+		if (answer) {
+			controlBuffer[0] = (uint8_t)*answer;
+			controlBuffer[1] = (uint8_t)((uint16_t)*answer >> 8);
+			usb_pstd_ctrl_read(std::min<uint32_t>(length, 2), controlBuffer);
+			return true;
+		}
+	}
+
+	usb_pstd_set_stall_pipe0(); // Something this feature unit doesn't have
+	return true;
+}
+
+extern "C" void usbAudioClassRequestWriteDone(uint16_t type, uint16_t value, uint16_t index) {
+	if (!active || !isFeatureUnitRequest(type, index) || (type >> 8) != kRequestSetCur || (value & 0xFF) != 0) {
+		return;
+	}
+	switch (value >> 8) {
+	case kControlMute:
+		hostMute.store(controlBuffer[0] != 0, std::memory_order_relaxed);
+		break;
+	case kControlVolume: {
+		auto volume = (int16_t)(controlBuffer[0] | (controlBuffer[1] << 8));
+		if (volume != kVolumeSilence) {
+			volume = std::clamp(volume, kVolumeMin, kVolumeMax);
+		}
+		hostVolume.store(volume, std::memory_order_relaxed);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
 /*********************************************************************************************************************
  * For the audio engine
  */
@@ -710,6 +890,7 @@ int32_t* toInputRing(int32_t const* rxPosition) {
 
 void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 	constexpr uint32_t kRingFrames = SSI_RX_BUFFER_NUM_SAMPLES;
+	updateTargetGain();
 	uint32_t startFrame = (reinterpret_cast<int32_t*>(rxPosition) - getRxBufferStart()) / NUM_MONO_INPUT_CHANNELS;
 
 	// Normally we pick up exactly where the last render left off. If the RX position has jumped (see
@@ -735,6 +916,7 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 		int32_t* output = &inputRing[inputRingWriteFrame * 2];
 		if (fromHostStreaming) {
 			readFromHost(output, numThisTime, txQueued);
+			applyHostVolume(output, numThisTime);
 			inputRingSilentFrames = 0;
 		}
 		else if (inputRingSilentFrames < kRingFrames) {

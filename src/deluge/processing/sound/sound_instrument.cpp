@@ -450,7 +450,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
+	startArpNoteOns(modelStackWithSoundFlags, instruction);
 
 	return ticksTilNextArpEvent;
 }

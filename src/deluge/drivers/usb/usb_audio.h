@@ -29,7 +29,8 @@
 // host sends us as many frames as we sent it, and they're copied straight through with no resampling. Hosts that don't
 // do implicit feedback send at their own clock's rate, which we cope with by dropping or repeating the odd frame.
 // Audio from the host is laid out in a ring buffer exactly like the SSI RX buffer, so it can be used anywhere the
-// line/mic input is.
+// line/mic input is. The host gets a volume and mute control for it (a feature unit), which we apply as it goes into
+// that ring - at full volume, the samples are untouched.
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,12 +48,20 @@ bool usbAudioActive(void);
 /// streaming before the pipe gets reconfigured). The out stream has two: 1 follows our clock through implicit
 /// feedback, 2 is adaptive, following the host's
 void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting);
-/// Bus reset, detach, or a new configuration - all streaming stops
+/// Detach, or a new configuration - all streaming stops
 void usbAudioStopAll(void);
+/// Bus reset, which is how every host starts with us. All streaming stops, and the volume and mute the last host set
+/// go back to their defaults
+void usbAudioBusReset(void);
 /// From the USB interrupt, with the pipes whose BRDY status was set. Returns the ones it dealt with
 uint16_t usbAudioHandleBrdy(uint16_t pipeBits);
 /// From the USB interrupt, once per USB frame (1ms) while streaming either way
 void usbAudioHandleSof(void);
+/// From the USB task: a class or vendor request's data stage is starting. If it's for our feature unit (volume and
+/// mute), starts the data stage or stalls, and returns true. Otherwise returns false, for the driver to deal with
+bool usbAudioClassRequest(uint16_t type, uint16_t value, uint16_t index, uint16_t length);
+/// From the USB task: a class or vendor request with a data stage from the host has finished receiving it
+void usbAudioClassRequestWriteDone(uint16_t type, uint16_t value, uint16_t index);
 
 #ifdef __cplusplus
 }

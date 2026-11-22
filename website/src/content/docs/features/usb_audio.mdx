@@ -79,6 +79,23 @@ with its volume and effects. The Deluge stops mixing it straight to the outputs 
 hear it twice. Mixing straight to the outputs comes back by itself once nothing's monitoring the USB input, for example
 when a sampler clip has finished recording.
 
+### Volume
+
+The computer's own volume and mute controls work for the Deluge: it tells the Deluge the level it wants, and the
+Deluge turns the computer's audio down itself as it arrives. At full volume the audio is passed through untouched.
+
+The volume is applied before the Deluge does anything else with the computer's audio, so it sets the level of
+**everything** that uses the USB input, not only what you hear from the outputs. An audio clip or the sampler
+recording the USB input records it at the level the computer's volume is set to, and muting the Deluge on the
+computer records silence. For recordings at full level, turn the computer's volume for the Deluge all the way up.
+
+<Aside>
+  The computer decides the volume, and remembers it for the Deluge. The first
+  time you connect the Deluge with this firmware it may not choose full volume,
+  so if the computer's audio is quieter than it was with older firmware, check
+  the computer's volume setting for the Deluge.
+</Aside>
+
 ## Recording the Deluge into your computer
 
 `SETTINGS > USB AUDIO > OUTPUT` sets what the computer receives:
@@ -97,7 +114,8 @@ USB can be chosen as the source for an audio clip, like the line input or anothe
 2. Go to `AUDIO SOURCE` and select `USB INPUT` (`USB` on 7SEG).
 
 USB is always a stereo source. Unlike the line input, it isn't normalized after recording, since the computer's audio
-already arrives at the level it was meant to be.
+already arrives at the level it was meant to be. That level includes the computer's volume setting for the Deluge, so
+turn it all the way up to record at full level (see [Volume](#volume)).
 
 Monitoring follows the audio output mode, as for any other source (see
 [Select Audio Clip Source and Monitoring](/features/community_features#317---select-audio-clip-source-and-monitoring)):

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/clip/deferred_note_ons.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -79,7 +80,10 @@ public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();
-	~Sound() override { std::erase(AudioEngine::sounds, this); }
+	~Sound() override {
+		DeferredNoteOns::forgetSound(this);
+		std::erase(AudioEngine::sounds, this);
+	}
 
 	Patcher patcher;
 
@@ -330,8 +334,8 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
-	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-	                           ArpReturnInstruction instruction);
+	/// Start (or queue, see DeferredNoteOns) the voices for the note-ons an arpeggiator returned
+	void startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction);
 
 	virtual const char* getName() { return nullptr; }
 
