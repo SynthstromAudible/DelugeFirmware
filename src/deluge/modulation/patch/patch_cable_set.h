@@ -21,6 +21,7 @@
 #include "modulation/patch/patch_cable.h"
 
 class Song;
+struct PatchCablePresetValues;
 class ModelStackWithParamCollection;
 class ModelStackWithThreeMainThings;
 class LearnedMIDI;
@@ -43,6 +44,11 @@ public:
 	PatchCableSet(ParamCollectionSummary* summary);
 	~PatchCableSet() override;
 
+	ClipParamValue* getClipValueStorage(int32_t paramId) override;
+	using ParamCollection::getValueForControl;
+	int32_t getValueForControl(int32_t paramId, ModelStackWithThreeMainThings const* modelStack) override;
+	void bindPresetValues(const PatchCablePresetValues* values);
+	void detachPresetSlot(const int32_t* slot);
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
@@ -118,6 +124,7 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	const PatchCablePresetValues* presetValues_ = nullptr;
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

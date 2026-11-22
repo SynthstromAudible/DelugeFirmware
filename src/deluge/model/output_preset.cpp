@@ -22,7 +22,11 @@
 #include "model/instrument/kit.h"
 #include "model/output_parameter_visitors.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "storage/preset_save_values.h"
+#include <span>
 
 using deluge::modulation::params::Kind;
 
@@ -78,6 +82,13 @@ PLACE_SDRAM_TEXT void shiftClipHistory(const ParamCollection* collection, int32_
 
 PLACE_SDRAM_TEXT Error Output::preparePresetParameter(Song* song, ModControllable* owner, Kind kind, int32_t id,
                                                       int32_t value) {
+	if (kind == Kind::PATCH_CABLE) {
+		// A route absent from the baseline table reads zero. The rebase finds it a slot. A zero
+		// route follows its baseline by being absent, so clips lacking it need nothing.
+		int32_t baseline = *static_cast<ModControllableAudio*>(owner)->getPresetPatchCableValues().find(id);
+		return baseline == value || value == 0 ? Error::NONE
+		                                       : materializePresetParameter(this, song, owner, kind, id, baseline);
+	}
 	auto* preset = owner->getPresetValueStorage(kind, id);
 	if (preset == nullptr) {
 		return Error::INSUFFICIENT_RAM;
@@ -116,7 +127,21 @@ PLACE_SDRAM_TEXT Error Output::announcePresetParameterChange(Song* song, ModCont
 
 Error Output::rebasePresetParameter(Song* song, ModControllable* owner, Kind kind, int32_t id, int32_t value,
                                     ParamManager* saved) {
-	auto* preset = owner->getPresetValueStorage(kind, id);
+	int32_t* preset = nullptr;
+	if (kind == Kind::PATCH_CABLE) {
+		auto* audio = static_cast<ModControllableAudio*>(owner);
+		// Without a slot, a route already has the zero baseline.
+		if (*audio->getPresetPatchCableValues().find(id) == value) {
+			return Error::NONE;
+		}
+		preset = owner->getPresetValueStorage(kind, id);
+		if (preset == nullptr) {
+			preset = audio->reuseZeroPresetPatchCable(song, id);
+		}
+	}
+	else {
+		preset = owner->getPresetValueStorage(kind, id);
+	}
 	if (preset == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -124,9 +149,11 @@ Error Output::rebasePresetParameter(Song* song, ModControllable* owner, Kind kin
 	if (previous == value) {
 		return Error::NONE;
 	}
-	Error error = materializePresetParameter(this, song, owner, kind, id, previous);
-	if (error != Error::NONE) {
-		return error;
+	if (kind != Kind::PATCH_CABLE || value != 0) {
+		Error error = materializePresetParameter(this, song, owner, kind, id, previous);
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 	// The saved manager keeps the values it saved. Every other clip, note row and backup keeps its
 	// offset and relative curve, so moves with the baseline.
@@ -153,18 +180,68 @@ Error Output::rebasePresetParameter(Song* song, ModControllable* owner, Kind kin
 }
 
 namespace {
+// Routes in the baseline table which the preset did not save get a zero baseline. Cleared before saved
+// routes are rebased, so each saved route finds a slot: the table can then hold every route of one clip.
+PLACE_SDRAM_TEXT Error clearUnsavedPatchCables(Output* output, Song* song, ModControllable* owner,
+                                               ParamManager* manager, PresetSaveValues& saved) {
+	const ParamCollection* cables = nullptr;
+	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
+		if (summary->paramCollection->getParamKind() == Kind::PATCH_CABLE) {
+			cables = summary->paramCollection;
+		}
+	}
+	if (cables == nullptr) {
+		return Error::NONE;
+	}
+	const auto& table = static_cast<ModControllableAudio*>(owner)->getPresetPatchCableValues();
+	// Clearing a route only zeroes its entry, so the table doesn't change shape.
+	for (const auto& entry : std::span(table.entries).first(table.count)) {
+		auto id = static_cast<int32_t>(entry.id);
+		if (entry.value != 0 && !saved.find(cables, id).has_value()) {
+			Error error = output->rebasePresetParameter(song, owner, Kind::PATCH_CABLE, id, 0, manager);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+	}
+	return Error::NONE;
+}
+
 // With apply false, only prepares storage, so a failure leaves every baseline unchanged.
 PLACE_SDRAM_TEXT Error captureSavedManager(Output* output, Song* song, ModControllable* owner, ParamManager* manager,
                                            PresetSaveValues& saved, bool apply) {
 	owner->bindPresetValues(manager);
+	if (apply) {
+		Error error = clearUnsavedPatchCables(output, song, owner, manager, saved);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
 	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
 		auto* collection = summary->paramCollection;
 		Kind kind = collection->getParamKind();
-		if (kind == Kind::EXPRESSION || kind == Kind::MIDI || kind == Kind::PATCH_CABLE) {
+		if (kind == Kind::EXPRESSION) {
 			continue;
 		}
-		int32_t count = static_cast<ParamSet*>(collection)->getNumParams();
-		for (int32_t id = 0; id < count; ++id) {
+		int32_t count = 0;
+		if (kind == Kind::PATCH_CABLE) {
+			count = static_cast<PatchCableSet*>(collection)->numPatchCables;
+		}
+		else if (kind == Kind::MIDI) {
+			count = static_cast<MIDIParamCollection*>(collection)->params.getNumElements();
+		}
+		else {
+			count = static_cast<ParamSet*>(collection)->getNumParams();
+		}
+		for (int32_t i = 0; i < count; ++i) {
+			int32_t id = i;
+			if (kind == Kind::PATCH_CABLE) {
+				auto& cable = static_cast<PatchCableSet*>(collection)->patchCables[i];
+				id = PatchCableSet::getParamId(cable.destinationParamDescriptor, cable.from);
+			}
+			else if (kind == Kind::MIDI) {
+				id = static_cast<int32_t>(static_cast<MIDIParamCollection*>(collection)->params.getElement(i)->cc);
+			}
 			auto value = saved.find(collection, id);
 			if (!value.has_value()) {
 				continue;

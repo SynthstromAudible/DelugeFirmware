@@ -5,10 +5,11 @@ These tests use the same CppUTest `TEST_GROUP` / `TEST` fixtures, assertions and
 
 - `../parameter_value_tests.cpp` runs in the existing `UnitTests` binary. It tests
   the production value classes, offset widths, rebinding, saturation and interpolation.
-- `auto_param_tests.cpp` runs in `ParameterTests`. These cases
-  test actual AutoParamData node operations, attribute serialization/deserialization,
+- `auto_param_tests.cpp` and `midi_param_tests.cpp` run in `ParameterTests`. They
+  test the production AutoParamData node operations, attribute serialization/deserialization,
   cloning, automation deletion/recreation, undo/redo state capture and exchange (including saturated clip adjustments) and live
-  interpolation-context preservation and undoable-trim replacement preparation.
+  interpolation-context preservation, undoable-trim replacement preparation, and MIDI
+  parameter insertion/deletion, binding, and detachment before an output is destroyed.
 - `parameter_io_tests.cpp` compiles the production JSON/XML deserializers and shared
   parameter-table reader. It checks full-width IDs, empty tables, unknown fields,
   and preservation of subsequent fields. Only the file byte transport is mocked.
@@ -41,7 +42,11 @@ build/host-tests/unit/UnitTests -g ParameterValueTests -v
 
 The existing x86 PR workflow builds and runs both binaries through CTest.
 
-`parameter_control_tests.cpp` tests the production layer-selection policies, including live expression controls. Value tests cover full-width detachment and rebinding.
+`parameter_control_tests.cpp` tests the production layer-selection and
+automation-transition policies used by the firmware callers, covering
+expression/live input, recording/region exceptions and inactive MIDI automation
+removal. Value tests exercise full-width detachment/rebinding
+and MIDI backup destruction with the real storage classes.
 
 These cases do not simulate physical encoder input, whole UI transactions or menu reset
 commands. Changing a ClipParamValue directly tests that value object's behavior,
@@ -51,15 +56,34 @@ The trim regression cases call the production replacement-vector preparation use
 by `AutoParam::trimToLength()`, then exercise real vector ownership and undo/redo
 state exchange. They do not instantiate the UI action logger or a clip-length UI.
 
-Relative-value persistence tests retain positive and negative overshoot, truncated timelines, wide scalars and clones using the production serializer and reader.
+The save/reload regression cases exercise the production supplemental relative
+serializer and reader with positive and negative overshoot, retained timeline
+limits, and saturated cloning. Preset rebasing tests preserve another clip's
+hidden overshoot and leave unrelated owners untouched. Whole-song UI save routing is
+validated separately in delugemu; these unit tests do not emulate those UIs.
 
-Preset-save tests exercise the production scoped snapshot and scalar rebasing helper, preserving hidden overshoot and relative curves. The snapshot retains actual serialized values while automation advances; song serialization does not change the baseline. Whole UI save transactions require emulator validation.
+Preset-save tests also verify that the scoped snapshot retains the actual
+serialized value while automation advances and does not alter the baseline
+itself. Bound-data tests round-trip relative data through the production cloning
+algorithm with independently bound scalars. MIDI tests exercise real entry/vector
+loading and relocation, and the control tests also check a real PatchCable.
 
 
 `parameter_control_value_tests.cpp` compiles the production control-value reader
-and scalar-edit operation. It checks scalar reads without AutoParam, preservation
-of curve storage and interpolation state, and saturation. Compile-time assertions
-verify that live setters and internal representation helpers are not public.
+and scalar-edit operation. It verifies distinct preset/clip/live reads, scalar
+reads with no AutoParam, unchanged curve storage and interpolation state after
+editing, saturation, and patch-cable behavior. MIDI tests call the production
+sparse-vector control reader, including absent CCs without materialization.
+The tests do not mock ParamCollection, the action logger, playback, or UI objects;
+full dispatcher/caller behavior is exercised separately in delugemu.
 
-Access checks and explicit-editor tests use live AutoParam through its production interface.
-Standalone data fixtures use the same production value and storage implementations.
+C++ compile-time assertions verify that the live setter and internal scalar/curve
+helpers are inaccessible to ordinary callers. These checks supplement the
+production-code value tests.
+
+AutoParam privately owns the AutoParamData implementation. Standalone data fixtures
+can prepare interpolation/undo inputs without obtaining privileged access to a
+live AutoParam. The production setup, ownership, playback and live-input interface
+constructors are inaccessible to tests and ordinary callers. Compile-time checks
+cover those constructors, private setters, mutable-base conversion and node access.
+There is no test-only friend, alternate implementation, or access-check script.

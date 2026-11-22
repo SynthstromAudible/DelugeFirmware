@@ -30,7 +30,10 @@ public:
 	Error readFromFile(Deserializer& reader, int32_t limit) {
 		return AutoParamSetup(param).readFromFile(reader, limit);
 	}
+	bool readRelativeFromFile(Deserializer& reader) { return AutoParamSetup(param).readRelativeFromFile(reader); }
 
-	uint8_t cc;
+	// The ordered array uses signed keys; retain positive values for internal CCs 128–255.
+	uint32_t cc;
+	ClipParamValue clipValue;
 	AutoParam param;
 };

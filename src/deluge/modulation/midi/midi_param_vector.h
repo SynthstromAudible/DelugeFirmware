@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "modulation/params/param_control.h"
 #include "util/container/array/ordered_resizeable_array.h"
 
 class MIDIParam;
@@ -24,8 +25,22 @@ class MIDIParam;
 class MIDIParamVector : public OrderedResizeableArray {
 public:
 	MIDIParamVector();
+	Error beenCloned();
+	void deleteAtKey(int32_t key);
+	void bindPresetValues(const int32_t* values);
+	// New entries bind to these too, so this shows what the whole vector is bound to.
+	[[nodiscard]] const int32_t* boundPresetValues() const { return presetValues_; }
 	MIDIParam* getElement(int32_t i);
 	MIDIParam* getParamFromCC(int32_t cc);
+	int32_t getValueForControl(int32_t cc, deluge::modulation::params::ControlLayer layer);
 	MIDIParam* insertParam(int32_t i);
 	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);
+
+private:
+	void rebindAfterMove();
+	// Only the CC numbers a MIDI clip uses have a baseline; any other reads zero.
+	[[nodiscard]] const int32_t* presetValueFor(uint32_t cc) const {
+		return presetValues_ != nullptr && cc < kNumCCNumbersIncludingFake ? &presetValues_[cc] : nullptr;
+	}
+	const int32_t* presetValues_ = nullptr;
 };

@@ -34,4 +34,12 @@ constexpr ControlLayer controlLayer(Kind kind, bool hasScalar, bool editScalar, 
 	return linked ? ControlLayer::PRESET : ControlLayer::CLIP;
 }
 
+struct AutomationTransition {
+	bool before;
+	bool after;
+	[[nodiscard]] constexpr bool removed() const { return before && !after; }
+	[[nodiscard]] constexpr bool sendMidi(bool outputActive, bool clipActive) const {
+		return outputActive && (!removed() || clipActive);
+	}
+};
 } // namespace deluge::modulation::params

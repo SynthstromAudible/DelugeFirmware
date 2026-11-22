@@ -53,10 +53,6 @@ int32_t ParamSet::getValueForControl(int32_t p, ModelStackWithThreeMainThings co
 	                                layer == params::ControlLayer::LIVE ? &params[p].data() : nullptr);
 }
 
-int32_t ParamSet::getValueForControl(ModelStackWithAutoParam const* modelStack) {
-	return getValueForControl(modelStack->paramId, modelStack);
-}
-
 void ParamSet::bindAutomationValues() const {
 	for (int32_t p = 0; p < numParams_; ++p) {
 		AutoParamOwnership(params[p]).bindClipValue(&clip_values_[p]);

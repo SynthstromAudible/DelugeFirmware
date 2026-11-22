@@ -19,5 +19,5 @@
 #include "modulation/automation/auto_param_access.h"
 
 MIDIParam::MIDIParam() {
-	// TODO Auto-generated constructor stub
+	AutoParamOwnership(param).rebindClipValueAfterMove(&clipValue);
 }

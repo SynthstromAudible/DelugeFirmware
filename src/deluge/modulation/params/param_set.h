@@ -68,8 +68,8 @@ private:
 
 public:
 	// The menu path needs only clip/timeline context, not an AutoParam stack.
-	int32_t getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack);
-	int32_t getValueForControl(ModelStackWithAutoParam const* modelStack) override;
+	using ParamCollection::getValueForControl;
+	int32_t getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack) override;
 	ClipParamValue* getClipValueStorage(int32_t p) override { return &clip_values_[p]; }
 	[[nodiscard]] int32_t getPresetValue(int32_t p) const { return clip_values_[p].getPresetValue(); }
 	[[nodiscard]] int32_t getClipValue(int32_t p) const { return clip_values_[p].getValue(); }

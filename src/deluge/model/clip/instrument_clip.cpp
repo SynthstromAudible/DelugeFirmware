@@ -1577,6 +1577,9 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		}
 	}
 	output = newInstrument;
+	if (newInstrument->type == OutputType::MIDI_OUT) {
+		newInstrument->toModControllable()->bindPresetValues(&paramManager);
+	}
 	affectEntire = true; // Moved here from changeInstrument, March 2021
 
 	return Error::NONE;
@@ -2142,6 +2145,8 @@ void InstrumentClip::setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne
 		// Delete the old one
 		backedUpParamManagerMIDI.destructAndForgetParamCollections();
 	}
+	// Materialize while the previous output still owns its baseline storage.
+	newOne->getMIDIParamCollection()->params.bindPresetValues(nullptr);
 	backedUpParamManagerMIDI.stealParamCollectionsFrom(newOne);
 }
 
@@ -2151,6 +2156,7 @@ void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllab
 	}
 
 	paramManager.stealParamCollectionsFrom(&backedUpParamManagerMIDI);
+	modelStack->modControllable->bindPresetValues(&paramManager);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addParamManager(&paramManager);
@@ -2984,6 +2990,9 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
 			AutoParam* param = nullptr;
+			int32_t clip_value = 0;
+			bool has_clip_value = false;
+			bool has_relative_value = false;
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
 
@@ -3031,6 +3040,17 @@ expressionParam:
 					}
 					reader.exitTag("cc");
 				}
+				else if (strcmp(tagName, "clipValue") == 0) {
+					clip_value = reader.readTagOrAttributeValueInt();
+					has_clip_value = true;
+					reader.exitTag("clipValue");
+				}
+				else if (strcmp(tagName, "relativeValue") == 0) {
+					if (param != nullptr && expressionParams == nullptr) {
+						has_relative_value = AutoParamSetup(*param).readRelativeFromFile(reader);
+					}
+					reader.exitTag("relativeValue");
+				}
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
@@ -3069,6 +3089,9 @@ expressionParam:
 				}
 			}
 
+			if (has_clip_value && !has_relative_value && (param != nullptr) && param->isAutomated()) {
+				AutoParamSetup(*param).restoreClipValueFromFile(clip_value);
+			}
 			reader.exitTag("param");
 		}
 		else {

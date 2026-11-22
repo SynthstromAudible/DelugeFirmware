@@ -36,10 +36,12 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param_access.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/parameter_value_io.h"
@@ -110,6 +112,11 @@ ModControllableAudio::PresetValues* ModControllableAudio::ensurePresets() {
 	return presets_;
 }
 
+const PatchCablePresetValues& ModControllableAudio::getPresetPatchCableValues() const {
+	static const PatchCablePresetValues none{};
+	return presets_ != nullptr ? presets_->patchCables : none;
+}
+
 namespace {
 // Binds a manager's collections to no baseline, keeping each clip value.
 PLACE_SDRAM_TEXT void detachPresetValues(ParamManager* manager) {
@@ -118,6 +125,9 @@ PLACE_SDRAM_TEXT void detachPresetValues(ParamManager* manager) {
 		if (kind == params::Kind::PATCHED || kind == params::Kind::UNPATCHED_SOUND
 		    || kind == params::Kind::UNPATCHED_GLOBAL) {
 			static_cast<ParamSet*>(summary->paramCollection)->bindPresetValues(nullptr);
+		}
+		else if (kind == params::Kind::PATCH_CABLE) {
+			static_cast<PatchCableSet*>(summary->paramCollection)->bindPresetValues(nullptr);
 		}
 	}
 }
@@ -182,6 +192,23 @@ PLACE_SDRAM_TEXT void ModControllableAudio::bindPresetValues(ParamManager* manag
 	}
 	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
 		auto kind = summary->paramCollection->getParamKind();
+		if (kind == params::Kind::PATCH_CABLE) {
+			auto* cables = static_cast<PatchCableSet*>(summary->paramCollection);
+			if (!presets->hasPatchCables) {
+				presets->patchCables.count = cables->numPatchCables;
+				for (int32_t c = 0; c < cables->numPatchCables; ++c) {
+					auto& cable = cables->patchCables[c];
+					presets->patchCables.entries[c] = {.id = static_cast<uint32_t>(PatchCableSet::getParamId(
+					                                       cable.destinationParamDescriptor, cable.from)),
+					                                   .value = cable.clipValue.getValue()};
+				}
+				presets->hasPatchCables = true;
+				// As for fixed parameters below, clips may already be bound to these baselines.
+				parameterBaselinesChanged();
+			}
+			cables->bindPresetValues(&presets->patchCables);
+			continue;
+		}
 
 		bool patched = kind == params::Kind::PATCHED;
 		if (!patched && kind != params::Kind::UNPATCHED_SOUND && kind != params::Kind::UNPATCHED_GLOBAL) {
@@ -617,6 +644,17 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 }
 
 PLACE_SDRAM_TEXT void ModControllableAudio::writeTagsToFile(Serializer& writer, bool savingSong) {
+	if (savingSong && presets_ != nullptr && presets_->hasPatchCables) {
+		writer.writeOpeningTagBeginning("presetPatchCableValues");
+		for (int32_t c = 0; c < presets_->patchCables.count; ++c) {
+			std::array<char, 16> name_storage{};
+			char* name = name_storage.data();
+			name[0] = 'p';
+			std::to_chars(name + 1, name + name_storage.size() - 1, presets_->patchCables.entries[c].id);
+			writer.writeAttribute(name, presets_->patchCables.entries[c].value);
+		}
+		writer.closeTag();
+	}
 
 	if (savingSong && presets_ != nullptr && presets_->hasPatched) {
 		writePresetValues(writer, "presetPatchedValues", presets_->patched.data(),
@@ -1023,6 +1061,22 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 
 	int32_t p;
 
+	if (strcmp(tagName, "presetPatchCableValues") == 0) {
+		PresetValues* presets = ensurePresets();
+		if (presets != nullptr) {
+			presets->patchCables.count = 0;
+		}
+		readParameterValueObject(reader, "presetPatchCableValues", [&](uint32_t id, int32_t value) {
+			if (presets != nullptr && presets->patchCables.count < kMaxNumPatchCables) {
+				presets->patchCables.entries.at(presets->patchCables.count++) = {.id = id, .value = value};
+			}
+		});
+		if (presets != nullptr) {
+			presets->hasPatchCables = true;
+		}
+		parameterBaselinesChanged();
+		return Error::NONE;
+	}
 	if (strcmp(tagName, "presetPatchedValues") == 0) {
 		PresetValues* presets = ensurePresets();
 		std::array<int32_t, params::kNumParams> discard{};
@@ -2164,5 +2218,52 @@ PLACE_SDRAM_TEXT int32_t* ModControllableAudio::getPresetValueStorage(params::Ki
 	    && id < static_cast<int32_t>(presets->unpatched.size())) {
 		return &presets->unpatched[id];
 	}
+	if (kind == params::Kind::PATCH_CABLE) {
+		for (int32_t c = 0; c < presets->patchCables.count; ++c) {
+			if (presets->patchCables.entries[c].id == static_cast<uint32_t>(id)) {
+				return &presets->patchCables.entries[c].value;
+			}
+		}
+		if (presets->patchCables.count == kMaxNumPatchCables) {
+			return nullptr;
+		}
+		auto& entry = presets->patchCables.entries[presets->patchCables.count++];
+		entry = {.id = static_cast<uint32_t>(id), .value = 0};
+		return &entry.value;
+	}
 	return nullptr;
+}
+
+PLACE_SDRAM_TEXT int32_t* ModControllableAudio::reuseZeroPresetPatchCable(Song* song, uint32_t id) {
+	// This is only needed when the stable slot table fills. Include undo-backed
+	// clips and detached kit rows: their scalar pointers must not follow a reused ID.
+	// Only bindings to the reused slot detach; other zero-baseline routes keep following the preset.
+	if (presets_ == nullptr) {
+		return nullptr;
+	}
+	const int32_t* slot = presets_->patchCables.zeroEntry();
+	if (slot == nullptr) {
+		return nullptr;
+	}
+	auto detach = [&](ParamManager& manager) {
+		for (auto* summary = manager.summaries; summary->paramCollection != nullptr; ++summary) {
+			if (summary->paramCollection->getParamKind() == params::Kind::PATCH_CABLE) {
+				static_cast<PatchCableSet*>(summary->paramCollection)->detachPresetSlot(slot);
+			}
+		}
+	};
+	for (Clip* clip : AllClips::everywhere(song)) {
+		detach(clip->paramManager);
+		if (clip->type == ClipType::INSTRUMENT) {
+			auto* instrument_clip = static_cast<InstrumentClip*>(clip);
+			for (int32_t r = 0; r < instrument_clip->noteRows.getNumElements(); ++r) {
+				detach(instrument_clip->noteRows.getElement(r)->paramManager);
+			}
+		}
+	}
+	for (int32_t i = 0; i < song->backedUpParamManagers.getNumElements(); ++i) {
+		auto* backup = static_cast<BackedUpParamManager*>(song->backedUpParamManagers.getElementAddress(i));
+		detach(backup->paramManager);
+	}
+	return presets_->patchCables.reuseZeroEntry(id);
 }

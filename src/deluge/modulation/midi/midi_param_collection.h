@@ -71,6 +71,9 @@ public:
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::MIDI; }
 
+	ClipParamValue* getClipValueStorage(int32_t cc) override;
+	using ParamCollection::getValueForControl;
+	int32_t getValueForControl(int32_t cc, ModelStackWithThreeMainThings const* modelStack) override;
 	MIDIParamVector params;
 
 private:

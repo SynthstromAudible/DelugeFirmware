@@ -2,6 +2,7 @@
 #include "mocks/attribute_io.h"
 #include "modulation/automation/auto_param_data.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/patch_cable_preset_values.h"
 #include "modulation/patch/patch_cable.h"
 #include "storage/preset_save_values.h"
 
@@ -109,6 +110,41 @@ TEST(AutoParamTests, ReadsLegacyDecimalScalarAndRemovesExistingCurve) {
 	CHECK_FALSE(param.isAutomated());
 }
 
+struct BoundParamData {
+	ClipParamValue clipValue;
+	AutoParamData param;
+	BoundParamData() { param.bindClipValue(&clipValue); }
+};
+
+TEST_GROUP(BoundParamDataTests) {
+	int32_t preset = 100;
+	BoundParamData original;
+	BoundParamData copy;
+
+	void setup() override {
+		original.clipValue.bindPreset(&preset);
+		original.clipValue.setValue(125);
+		copy.clipValue.bindPreset(&preset);
+	}
+	void teardown() override {
+		original.param.deleteAutomationBasicForSetup();
+		copy.param.deleteAutomationBasicForSetup();
+	}
+};
+
+TEST(BoundParamDataTests, AutoParamCloneOwnsIndependentCurveAndScalar) {
+	CHECK(original.param.setNodeAtPos(0, 135, false) >= 0);
+	CHECK(original.param.setNodeAtPos(16, 155, true) >= 0);
+	copy.param.cloneFrom(&original.param, true);
+	CHECK(copy.param.editNodes().getElement(0) != original.param.editNodes().getElement(0));
+	copy.clipValue.setValue(150);
+	CHECK_EQUAL(170, copy.param.getValueAtPos(8, 32));
+	CHECK_EQUAL(145, original.param.getValueAtPos(8, 32));
+	copy.param.deleteAutomationBasicForSetup();
+	CHECK_EQUAL(150, copy.param.getCurrentValue());
+	CHECK_TRUE(original.param.isAutomated());
+}
+
 TEST(AutoParamTests, InterpolatesAcrossLoopBoundary) {
 	CHECK(param.setNodeAtPos(4, 135, true) >= 0);
 	CHECK(param.setNodeAtPos(20, 155, true) >= 0);
@@ -178,6 +214,19 @@ TEST(AutoParamTests, UndoAndRedoSwapCurveOwnershipWithoutLosingScalarBinding) {
 	param.swapStateBasicForSetup(&state);
 	CHECK_FALSE(param.isAutomated());
 	CHECK_EQUAL(109, param.getCurrentValue());
+}
+
+TEST(BoundParamDataTests, ClonePreservesEvaluatedCurveAndIndependentScalar) {
+	CHECK(original.param.setNodeAtPos(0, 135, false) >= 0);
+	CHECK(original.param.setNodeAtPos(16, 155, true) >= 0);
+	original.param.grabValueFromPos(8, 32);
+	copy.param.cloneFrom(&original.param, true);
+	CHECK_EQUAL(145, copy.param.getCurrentValue());
+	copy.clipValue.setValue(160);
+	CHECK_EQUAL(180, copy.param.getCurrentValue());
+	CHECK_EQUAL(145, original.param.getCurrentValue());
+	copy.param.deleteAutomationBasicForSetup();
+	CHECK_EQUAL(160, copy.param.getCurrentValue());
 }
 
 TEST(AutoParamTests, CollectionReadFollowsBaseChangesWithoutCacheInvalidation) {
@@ -352,6 +401,54 @@ TEST(AutoParamTests, UndoPreservesScalarOvershootAfterLinkedBaselineChange) {
 	}
 }
 
+TEST(AutoParamTests, ReusingZeroPresetRouteDoesNotChangeDetachedAutomation) {
+	PatchCablePresetValues values;
+	values.count = kMaxNumPatchCables;
+	for (int i = 0; i < values.count; ++i)
+		values.entries[i] = {static_cast<uint32_t>(i), i + 1};
+	values.entries[0].value = 0;
+	clip.bindPreset(values.find(0));
+	clip.setValue(25);
+	addCurve();
+	const int32_t* surviving = values.find(1);
+	for (uint32_t id = 100; id < 200; ++id) {
+		clip.detachZeroPreset();
+		auto* slot = values.reuseZeroEntry(id);
+		CHECK(slot);
+		*slot = 200;
+		CHECK_EQUAL(25, param.getClipValue());
+		CHECK_EQUAL(135, param.getValueAtPos(0, 32));
+		CHECK_EQUAL(2, *surviving);
+		*slot = 0;
+	}
+	CHECK_EQUAL(kMaxNumPatchCables, values.count);
+}
+
+TEST(AutoParamTests, ReusingAZeroPresetSlotLeavesOtherZeroRoutesBound) {
+	PatchCablePresetValues values;
+	values.count = kMaxNumPatchCables;
+	for (int i = 0; i < values.count; ++i) {
+		values.entries[i] = {static_cast<uint32_t>(i), i + 1};
+	}
+	values.entries[0].value = 0;
+	values.entries[1].value = 0;
+	ClipParamValue reused;
+	ClipParamValue unrelated;
+	reused.bindPreset(values.find(0));
+	unrelated.bindPreset(values.find(1));
+	const int32_t* slot = values.zeroEntry();
+	CHECK(slot == values.find(0));
+	reused.detachFromPreset(slot);
+	unrelated.detachFromPreset(slot);
+	auto* storage = values.reuseZeroEntry(100);
+	CHECK(storage == slot);
+	*storage = 300;
+	CHECK_EQUAL(0, reused.getValue());
+	// The other zero route still follows its own baseline, e.g. a later Track Link edit.
+	values.entries[1].value = 40;
+	CHECK_EQUAL(40, unrelated.getValue());
+}
+
 TEST(AutoParamTests, UndoPreservesAutomatedScalarOvershootAndRelativeNodes) {
 	preset = 0;
 	clip.setValue(100);
@@ -502,6 +599,30 @@ TEST(AutoParamTests, SavingSongDoesNotCaptureOrChangePresetBaseline) {
 	param.writeToFile(writer, true);
 	CHECK_FALSE(saved.find(nullptr, 0).has_value());
 	CHECK_EQUAL(100, preset);
+}
+
+TEST(BoundParamDataTests, RelativeMetadataSurvivesCableLoadAndClone) {
+	original.clipValue.setUnclampedValue(int64_t{INT32_MAX} + 1000);
+	CHECK(original.param.setNodeAtPos(0, INT32_MAX - 30, false) >= 0);
+	MemorySerializer legacy;
+	MemorySerializer relative;
+	original.param.writeToFile(legacy, true);
+	original.param.writeRelativeToFile(relative);
+	ClipParamValue temporary_scalar;
+	AutoParamData temporary;
+	temporary.bindClipValue(&temporary_scalar);
+	MemoryDeserializer reader;
+	reader.bytes = legacy.bytes;
+	CHECK(temporary.readFromFile(reader, 32) == Error::NONE);
+	reader.bytes = relative.bytes;
+	reader.position = 0;
+	CHECK(temporary.readRelativeFromFile(reader));
+	copy.param.cloneFrom(&temporary, true);
+	temporary.deleteAutomationBasicForSetup();
+	CHECK_EQUAL(int64_t{INT32_MAX} + 1000, copy.clipValue.getUnclampedValue());
+	CHECK_EQUAL(-30, copy.param.editNodes().getElement(0)->offset);
+	preset -= 2000;
+	CHECK_EQUAL(INT32_MAX - 1030, copy.param.getValueAtPos(0, 32));
 }
 
 TEST(AutoParamTests, PresetSaveSnapshotIndexesMultipleParametersAndKeepsLastWrittenValue) {

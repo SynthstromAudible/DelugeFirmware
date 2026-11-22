@@ -37,7 +37,17 @@ struct MPEOutputMemberChannel {
 
 class MIDIInstrument final : public NonAudioInstrument {
 public:
+	void bindPresetValues(ParamManager* manager) override;
+	bool isBoundToPresetValues(ParamManager* manager) override;
+	int32_t* getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) override;
+	[[nodiscard]] int32_t getPresetMidiValue(uint8_t cc) const {
+		return presetMidiValues_ != nullptr && cc < kNumPresetMidiValues ? presetMidiValues_[cc] : 0;
+	}
+
 	MIDIInstrument();
+	~MIDIInstrument() override;
+	MIDIInstrument(const MIDIInstrument&) = delete;
+	MIDIInstrument& operator=(const MIDIInstrument&) = delete;
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
 
@@ -155,6 +165,17 @@ protected:
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 private:
+	// The real CCs, then the internal bend, aftertouch and Y-axis numbers a MIDI clip's parameters use,
+	// and CC_NUMBER_NONE.
+	static constexpr int32_t kNumPresetMidiValues = kNumCCNumbersIncludingFake;
+	// Clip values bind to these baselines, so the block never moves once allocated.
+	// It is allocated in SDRAM on first use; until then every baseline reads as zero.
+	int32_t* presetMidiValues_ = nullptr;
+	bool hasPresetMidiValues_ = false;
+	bool ensurePresetMidiValues();
+	void writePresetMidiValuesToFile(Serializer& writer, Clip* clipForSavingOutputOnly) const;
+	void readPresetMidiValuesFromFile(Deserializer& reader);
+
 	void sendMonophonicExpressionEvent(int32_t expressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
