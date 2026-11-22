@@ -25,7 +25,7 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
       `OLED::displayPopup` (`hid/display/oled.h:154-157`) takes both parameters unnamed and passes
       neither on -- `OLED::popupText` (`oled.cpp:605-644`) centres every line and, for the
       persistent popup this call site asks for, sets no blink timer at all. Found while porting
-      the count-in to `scenes::overlay::CountInScene` (E4 task 6).
+      the count-in to `ui::scenes::overlay::CountInScene` (E4 task 6).
 - [ ] After the count-in ends, the UI is out of `UI_MODE_RECORD_COUNT_IN` — auditioning still
       works and buttons respond (exercises the masked `currentUIMode` clear).
 - [ ] Hold an audition pad (or use the keyboard) through a record count-in, then play notes

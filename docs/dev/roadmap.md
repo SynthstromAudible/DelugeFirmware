@@ -19,7 +19,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;
   `ModControllable` is the `effectsOwner()` bridge only.
 - Track A step 3 (the Deluge synth's state) is done: five plans, A to E, merged. A sound's
-  record (`instrument::SoundState`) is composed of its components' states, with a typed `Recall` for a switch back;
+  record (`instruments::classic::SoundState`) is composed of its components' states, with a typed `Recall` for a switch back;
   one derived `Config` and one apply path replace the setters; `BlockValues` and `ParamView` replace `VoiceConfig`'s
   settings; an oscillator's runtime is its `SourceResources`. The codec, settings and rules work on the record per
   component; the file's flat layout is the codec's parse form alone, and the tests check the record against its
@@ -99,7 +99,7 @@ keeps the option open to put the UI behind a C ABI.
 
 **Exists.** `ui/scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a scene's
 context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`, `CardFacts`,
-`UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport`, `Waveforms` and `controls::Facts`; the write ports are
+`UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport`, `Waveforms` and `ui::controls::Facts`; the write ports are
 `ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; the call ports are `TransportActions`,
 `DeviceActions`, `MidiFeedback`, `TakeActions` and `ViewActions`, and `Indicators` is the output port; `MidiDevices`
 carries the per-device settings, and a device is a `midi::DeviceId` the host registry maps to its cable. `Waveforms`
@@ -108,7 +108,7 @@ a voice plays it. The scenes keep no peak cache; the host keeps each file's colu
 serial, and the window, navigation and paint arithmetic are `src/ui/views/waveform/`'s. The device's own settings are the
 DEVICE setting group (`project/device_settings.h`), read and written by row through the `DeviceSettings` port
 outside any song and its undo; the host stores each row where the device keeps it, and saves the batch when the settings
-root closes, never on a write. The ports speak `project::`, `plugin::`, `instrument::`, `effects::`, `controls::`,
+root closes, never on a write. The ports speak `project::`, `plugin::`, `instruments::classic::`, `effects::`, `ui::controls::`,
 `midi::` and `views::waveform::` words only. The host's implementations are in `src/deluge/gui/ui/shell_host/`; the fakes
 and the contract cases both run against are in `tests/support/scenes/`. The value tables the menu reads (sync and swing,
 note lengths, filter and mod-FX words, reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names)
@@ -165,7 +165,7 @@ PIC and parity with main.
   | `nodes/edit_name.cpp` | the rename scene's open |
   | `nodes/dx.cpp`, `nodes/output_items.cpp` | the browser scene's open |
   | `nodes/context_menu_items.cpp` | the context menu scene's open |
-  | `nodes/settings.cpp` | `scenes::menu_scene()` (the registry, which builds every scene) |
+  | `nodes/settings.cpp` | `ui::scenes::menu_scene()` (the registry, which builds every scene) |
   | `menu_scene.cpp` | the browser and recorder scenes |
   | `nodes/note.cpp` | `Iterance` (legacy `sequence/iterance.cpp`) |
 
@@ -244,8 +244,8 @@ budget.
 | 1b-i | Instrument events: note tails are `Voiced`'s; an expression lane's change reaches the clip's instrument or the row's drum by address (`model::expressionReceiverOf`); a MIDI instrument sends its own CCs; `ModControllable` is the `effectsOwner()` bridge only, held there by the `mod-controllable-bridge-only` layer rule (done on `feat/instrument-events`) | 1 |
 | 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion), C3 (one store per instance; `ParamBackup` retires; after step 3, replacing `ParamView`'s adapter), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and the `synth-boundary` rule (`scripts/layers.toml`) forbids `instruments/` | 1 for C3 to C5 |
-| 3 | The Deluge synth's state (`instrument::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
-| 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instrument::VoicePool` (`src/instruments/classic/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instrument::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2, its own spec: an engine registry in place of the note-on `OscType` dispatch, and DX7 as a sound-level engine only; a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change. Engine stacking (several engine instances per sound, as layers) is an idea for part 2, not decided | 3 |
+| 3 | The Deluge synth's state (`instruments::classic::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
+| 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instruments::classic::VoicePool` (`src/instruments/classic/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instruments::classic::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2, its own spec: an engine registry in place of the note-on `OscType` dispatch, and DX7 as a sound-level engine only; a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change. Engine stacking (several engine instances per sound, as layers) is an idea for part 2, not decided | 3 |
 | 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin` on CLAP's types; TODO.md) | can run beside 2 to 4 |
 | 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
 

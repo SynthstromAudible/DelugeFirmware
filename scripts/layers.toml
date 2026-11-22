@@ -1,6 +1,6 @@
 # The include layers: the directories under src/, what each library may include, and the include rules whose
 # counts scripts/layers_baseline.txt holds. scripts/check_layers.py checks the tree against it, and
-# docs/dev/code_layout_north_star.md is the layout it moves towards: each directory's target is its place there.
+# docs/dev/code_layout_north_star.md is the layout it moves towards: a directory with a `target` is not yet at its place in it.
 
 [tree]
 # The roots the build searches for a quoted include, in the build's order: the legacy tree comes before src/.
@@ -34,50 +34,39 @@ target = "legacy: shrinks to zero by rewrite, then is deleted"
 
 [[directory]]
 path = "project"
-target = "src/project"
 
 [[directory]]
 path = "effects"
-target = "src/effects"
 
 [[directory]]
 path = "app"
 
 [[directory]]
 path = "base"
-target = "src/base"
 
 [[directory]]
 path = "host"
-target = "src/host"
 
 [[directory]]
 path = "instruments"
-target = "src/instruments"
 
 [[directory]]
 path = "midi"
-target = "src/midi"
 
 [[directory]]
 path = "music"
-target = "src/music"
 
 [[directory]]
 path = "plugin"
-target = "src/plugin"
 
 [[directory]]
 path = "serialization"
-target = "src/serialization"
 
 [[directory]]
 path = "synth"
-target = "src/synth"
 
 [[directory]]
 path = "ui"
-target = "src/ui/widgets"
 
 # Libraries: each may include only the C++ standard library, its system headers, itself and its may_include.
 

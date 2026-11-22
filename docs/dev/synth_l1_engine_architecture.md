@@ -91,7 +91,7 @@ the voice config and per-voice block, the noise stream, and one control struct p
 ## Component states
 
 Beside each contract sits the state its component saves: plain value types the instrument's record
-(`instrument::SoundState`) composes, so what a file writes is exactly what the components hold.
+(`instruments::classic::SoundState`) composes, so what a file writes is exactly what the components hold.
 
 - `src/synth/sources/source_state.h`: `Tuning`, `Pitch` (a tuning and an optional retrigger phase), and one state per
   source kind (`VaState`, `WavetableState`, `SampleState`, `Dx7State`, `InputState`) in the `SlotState` variant.
