@@ -45,7 +45,7 @@
 #include "support/printers/sound_record_printer.h"
 #include "support/song_fixture.h"
 #include "unit/ui/gfx/support/pbm.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 

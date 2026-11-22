@@ -3,7 +3,7 @@
 #include "ui/widgets/grid/frame.h"
 #include "ui/widgets/oled/text.h"
 #include "unit/ui/gfx/support/golden.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -841,7 +841,7 @@ describe shell_notices("shell::Notices", $ {
 		using deluge::ui::gfx::oled::Size;
 
 		// "SAVED" is five monospaced Apple7 characters: 30px wide, one 9px line -- the same
-		// content size tests/unit/ui/popup_spec.cpp pins its own border assertions against.
+		// content size tests/unit/ui/widgets/popup_spec.cpp pins its own border assertions against.
 		const Size content{30, 9};
 
 		deluge::ui::test::Rig48 saved48;

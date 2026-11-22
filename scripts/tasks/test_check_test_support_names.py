@@ -36,8 +36,8 @@ class TestSupportNamesTest(unittest.TestCase):
             clashes(
                 SHARED
                 + [
-                    "tests/unit/ui/support/mock_panic.cpp",
-                    "tests/unit/ui/support/x/spec_main.h",
+                    "tests/unit/ui/widgets/support/mock_panic.cpp",
+                    "tests/unit/ui/widgets/support/x/spec_main.h",
                 ]
             ),
             [],

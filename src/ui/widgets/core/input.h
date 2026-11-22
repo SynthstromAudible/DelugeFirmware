@@ -87,7 +87,7 @@ struct InputSnapshot {
 	///       an immediate-mode widget has no per-caller identity to hang "I already reported this
 	///       press" on, and the POD state a scene passes in belongs to the widget's own job, not
 	///       to the button. Supplying edges is therefore the caller's contract, and
-	///       tests/unit/ui/list_spec.cpp pins it by asserting the un-defended behaviour: two
+	///       tests/unit/ui/widgets/list_spec.cpp pins it by asserting the un-defended behaviour: two
 	///       consecutive ticks with `select_pressed` set report `entered` twice.
 	/// @{
 	bool select_pressed, back_pressed, shift;

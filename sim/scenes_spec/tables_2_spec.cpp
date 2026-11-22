@@ -1188,7 +1188,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the three-stage routing diagram, reached the way a user reaches it, on both panels", _ {
 		// `vibrato` -> `source_selection_range` -> `patch_cable_strength_range`: the page whose
 		// diagram has three stages, because the cable it edits modulates another cable's depth.
-		// Its own widget is pinned byte-for-byte against legacy in `tests/unit/ui/routing_spec.cpp`;
+		// Its own widget is pinned byte-for-byte against legacy in `tests/unit/ui/widgets/routing_spec.cpp`;
 		// this records what the whole page composes to.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);

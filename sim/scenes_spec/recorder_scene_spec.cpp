@@ -103,7 +103,7 @@
 #include "support/printers/project_address_printer.h"
 #include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/gfx/support/pbm.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 #include "instruments/classic/state_access.h"

@@ -11,7 +11,7 @@
 /// both branches, and `Permission::MustSelectRange` reached by a button, all need a column the
 /// real table does not have. `nodes::lpf` is still what the level-2 acceptance script
 /// (`tests/ui-scripts/shell/menu_submenu_horizontal.txt`) opens; this file's local tree is the
-/// toolkit-level counterpart `unit/ui/columns_spec.cpp` already established the pattern for.
+/// toolkit-level counterpart `unit/ui/widgets/columns_spec.cpp` already established the pattern for.
 
 #include "gui/ui/menu_view_of.h"
 #include "ui/scenes/menu/bindings.h"
@@ -55,7 +55,7 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"

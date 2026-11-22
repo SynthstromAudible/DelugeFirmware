@@ -1,6 +1,8 @@
 #include "base/notify/dirty_set.h"
 #include "cppspec.hpp"
 #include "support/spec_main.h"
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <thread>
 
@@ -63,10 +65,32 @@ describe dirty_set("notify::DirtySet", $ {
 	it("does not lose a raise that races a drain", _ {
 		DirtySet s;
 		std::atomic<bool> stop{false};
-		std::thread raiser([&] { while (!stop) { s.raise(Dirty::PlaybackState); s.raise_clip(Dirty::ClipContent, 7); } });
+		std::atomic<bool> raised{false};
+		std::thread raiser([&] {
+			while (!stop) {
+				s.raise(Dirty::PlaybackState);
+				s.raise_clip(Dirty::ClipContent, 7);
+				raised = true;
+			}
+		});
+		// The drains start once the raiser has raised, and run until both raises have been seen as well as for a minimum
+		// count, so a raiser the scheduler starts late is waited for; the deadline turns one that never runs into a
+		// failure with a message.
+		constexpr int kMinDrains = 20000;
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+		bool timed_out = false;
 		int seen = 0;
 		int seen_clip_flag = 0;
-		for (int i = 0; i < 20000; i++) {
+		for (int drains = 0; drains < kMinDrains || seen == 0 || seen_clip_flag == 0;) {
+			if (std::chrono::steady_clock::now() >= deadline) {
+				timed_out = true;
+				break;
+			}
+			if (!raised) {
+				std::this_thread::yield();
+				continue;
+			}
+			drains++;
 			DirtySet got = s.drain();
 			if (got.has(Dirty::PlaybackState)) seen++;
 			// A clip word can never be observed without its coarse flag: drain() derives
@@ -80,13 +104,18 @@ describe dirty_set("notify::DirtySet", $ {
 		}
 		stop = true;
 		raiser.join();
-		DirtySet last = s.drain();
+		if (timed_out) {
+			std::printf("dirty_set_spec: no raise was drained within 30 s (raiser started: %d, PlaybackState seen: %d, "
+			            "ClipContent seen: %d)\n",
+			            raised.load() ? 1 : 0, seen, seen_clip_flag);
+		}
+		expect(timed_out).to_be_false();
 		expect(seen).to_be_greater_than(0);
 		expect(seen_clip_flag).to_be_greater_than(0);
 		// Every raise is either in some drained snapshot or still pending — never dropped.
 		// (The property we can assert cheaply: after the raiser stops, one more drain is empty.)
+		s.drain();
 		expect(s.drain().any()).to_be_false();
-		(void)last;
 	});
 });
 

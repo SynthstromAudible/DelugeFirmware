@@ -15,18 +15,49 @@ them. This compares what an address names instead of its value, so that what rem
 - the linker's trap fill between functions is dropped.
 A value outside every loaded segment is a constant and compares as is, as does every other immediate.
 
-Functions and call targets are named by their demangled name without its parameter list (or a template's return
-type), so a function whose signature changes type but whose code doesn't, and every call to it, compare alike.
-Overloads that share a name are compared as a set of bodies. ThinLTO's promoted-local suffixes (`.llvm.<hash>`) hash
-the module's source, so they are dropped too.
+Functions and call targets are named by their demangled name without the function's own parameter list, the qualifiers
+and requires clause after it, and a template's leading return type, so a function whose signature changes type but whose
+code doesn't, and every call to it, compare alike. Nothing else is cut: `(anonymous namespace)` is never a parameter
+list, a local or a lambda (`f(int) const::$_0::operator()`, `int r<int>()::x`) keeps its enclosing function's signature
+and return type, a compiler clone keeps its suffix (`.constprop.0`, a split global's `.0`) and a thunk its prefix, and
+data keeps its whole name. ThinLTO's promoted-local suffixes (`.llvm.<hash>`) hash the module's source, so they are
+dropped too.
 
-A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`)
-is read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named
-by its target's canonical name; the other wrapped names keep the whole demangled text, because cutting the parameter
-list would merge distinct locals and anonymous-namespace data. A mangled name the demangler cannot read (some lambda
-names) has the renamed namespaces applied to its mangled text, on component boundaries, and its substitution
-references (`S0_`) reduced to `S_`, because their indexes shift with the names. If two such names of one image end up
-equal that way, both keep their raw names. A reference the text rules do not recognise compares as a difference.
+A key names one symbol of an image. Where several symbols of one image reach one name (overloads; a constructor's or
+destructor's variants, whose base and deleting bodies differ; a local's discriminated twins; one function's thunks for
+several bases; a Rust generic instantiated in two crates), the demangled text cannot tell them apart, so each of them is
+named by its mangled name instead, renamed as below, together with its full renamed demangled text. That needs no
+reading of the mangling. Within an image no two symbols share a key. Across images two symbols share a key only when
+both their renamed mangled text (with substitution references reduced) and their full renamed demangled text agree, so a
+renamed namespace's entities pair with themselves and nothing that either text tells apart. A name llvm-cxxfilt cannot
+read is demangled by GNU c++filt (`--gnu-cxxfilt`, the dbt toolchain's by default) and keyed the same way; a name
+neither can read keeps its exact mangled text, renamed or not, so it pairs only with itself and a rename shows it as
+removed and added. The cost is false positives: such a symbol whose signature changes, or whose group gains or loses a
+member, shows as removed and added; and because a local keeps its enclosing signature, a signature-only change to a
+function that holds a lambda or a static local shows that lambda or local as added and removed (and the function as
+changed, as its calls name the new key).
+
+A name that wraps a mangled one (`__const._ZN…sources`, `__dtor__ZZN…`, a linker veneer `__Thumbv7ABSLongThunk__ZN…`) is
+read through its `_Z…` part, so it follows a renamed namespace and keeps its prefix and suffix. A veneer is named by its
+target's canonical name; the other wrapped names name data that belongs to what they wrap, so they keep the whole
+demangled text, as a local does. A name keyed by its mangled text has the renamed namespaces applied to that text, on
+component boundaries, and its substitution references (`S0_`) reduced to `S_`, because their indexes shift with the
+names. If two such keys of one image end up equal that way, both symbols keep their raw names. A reference the text
+rules do not recognise compares as a difference.
+
+Two symbols of one image can also share a name outright: two modules' statics or anonymous-namespace symbols, and
+promoted locals whose names differ only in `.llvm.<hash>`. Each copy is named by its place (number_twins()): the nearest
+symbol before it in its section that is no such twin, which stands for its module, by that symbol's key, and its ordinal
+among the copies behind that symbol. An `adr`, which prints no address, is placed by the address it computes, in ARM or
+Thumb as the mapping symbols (`nm --special-syms`) say. Where each copy has an anchor of its own, a reference moved from
+one copy to another is a change, whichever copies the other image adds or drops. A copy that does not have one (it sits
+behind no anchor, or behind one with another copy of its name) cannot be told from its neighbour by place, so a name
+with such a copy never pairs: it is written `#!` in the base and `#?` in the new image, so its copies show as removed
+and added and every reference to one as changed, even between identical images. Local labels (`.…`,
+`GCC_except_table…`), of which an image has hundreds, keep pairing by place, so a reference moved between two of them
+behind one anchor can compare clean. When a name's set of places differs between the images, none of its copies in the
+new image pairs with the base (`#?`), so every copy shows as removed and added and every reference to one as changed: a
+false positive at worst, but no copy is paired by a guess. The same holds when the anchor symbol itself changes its key.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -47,8 +78,8 @@ a verdict.
 With --rename OLD=NEW, a namespace the second image renamed is read under its new name in both images. Pairs are
 tried in order and the first whose OLD matches wins; an OLD that is a prefix of its own NEW
 (`deluge::ui=deluge::ui::widgets::core`) needs an identity pair for NEW first
-(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. A rename can make an unmoved
-OLD::f and a moved NEW::f one name; the move gate's old-spelling grep covers that.
+(`deluge::ui::widgets=deluge::ui::widgets`), because the renames apply to both images. An image that holds an unmoved
+OLD::f beside a moved NEW::f reads both as one name, so they keep their raw names and show as added and removed.
 
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
@@ -61,10 +92,22 @@ from __future__ import annotations
 import argparse
 import bisect
 import difflib
+import os
 import re
+import shutil
 import subprocess
 import sys
 
+# GNU c++filt from the dbt toolchain, which reads some names llvm-cxxfilt cannot.
+GNU_CXXFILT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "toolchain",
+    "current",
+    "arm-none-eabi-gcc",
+    "bin",
+    "arm-none-eabi-c++filt",
+)
 HEADER = re.compile(r"^([0-9a-f]+) <(.+)>:$")
 INSN = re.compile(r"^\s*([0-9a-f]+):\s+(.*)$")
 ANNOTATION = re.compile(r"\s*@.*$")
@@ -94,25 +137,162 @@ def low_ram(value: int) -> str | None:
     return "ADDR" if 0x20000000 <= value < 0x30000000 else None
 
 
-def canonical(demangled: str) -> str:
-    """A demangled name without its final parameter list, the qualifiers after it, or a leading return type."""
-    name = demangled.strip()
-    if "(" not in name:
-        return name  # data and special symbols ("vtable for X") keep their whole name
-    close = name.rfind(")")
-    if close > 0 and not name.endswith(">"):
-        depth = 0
-        for i in range(close, -1, -1):
-            depth += {")": 1, "(": -1}.get(name[i], 0)
-            if depth == 0:
-                name = name[:i]
-                break
+# Demangler names that wrap a type or a datum: they keep their whole text, as data does.
+WRAPS_DATA = re.compile(
+    r"^(?:vtable|VTT|construction vtable|typeinfo|typeinfo name|guard variable|reference temporary #\d+"
+    r"|TLS (?:init|wrapper) function) for "
+)
+# Demangler names that wrap a function: the function inside is keyed as usual.
+WRAPS_FUNCTION = re.compile(r"^(?:non-virtual |virtual |covariant return )thunk to ")
+# A compiler clone's suffix (`f(int) (.constprop.0)`): a separate body, so it stays in the key.
+CLONE_SUFFIX = re.compile(r"(?: \(\.[\w.]+\))+$")
+# What may follow a function's own parameter list: cv and ref qualifiers.
+OWN_QUALIFIERS = re.compile(r"(?:\s*(?:const\b|volatile\b|&&|&))*\s*")
+# An operator's symbol, longest first; one that holds a bracket must not be read as one.
+OPERATOR_SYMBOLS = sorted(
+    [
+        "()",
+        "[]",
+        "<=>",
+        "<<=",
+        ">>=",
+        "->*",
+        "<<",
+        ">>",
+        "<=",
+        ">=",
+        "->",
+        "<",
+        ">",
+        "==",
+        "!=",
+        "+=",
+        "-=",
+        "*=",
+        "/=",
+        "%=",
+        "&=",
+        "|=",
+        "^=",
+        "++",
+        "--",
+        "&&",
+        "||",
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "^",
+        "&",
+        "|",
+        "~",
+        "!",
+        "=",
+        ",",
+    ],
+    key=len,
+    reverse=True,
+)
+OPENS = {")": "(", ">": "<", "}": "{", "]": "["}
+
+
+def operator_end(name: str, at: int) -> int:
+    """Where the operator name whose `operator` keyword starts at @p at ends: past its symbol, or for a word operator
+    (`new`, `delete[]`, a conversion `operator unsigned int`) at the bracket that follows its name at its own level."""
+    after = at + len("operator")
+    for symbol in OPERATOR_SYMBOLS:
+        end = after + len(symbol)
+        if name.startswith(symbol, after) and (end == len(name) or name[end] in "<(),"):
+            return end
     depth = 0
-    for i in range(len(name) - 1, -1, -1):
-        depth += {">": 1, ")": 1, "<": -1, "(": -1}.get(name[i], 0)
-        if depth == 0 and name[i] == " " and not name[:i].endswith("operator"):
-            return name[i + 1 :]
-    return name
+    for i in range(after, len(name)):
+        c = name[i]
+        if depth == 0 and c in "(),":
+            return i
+        if c == "<":
+            depth += 1
+        elif c == ">":
+            depth -= 1
+    return len(name)
+
+
+def top_level(name: str) -> tuple[list[tuple[int, int]], list[int]]:
+    """@p name's top-level `(…)` groups as (start, end) and its top-level spaces outside operator names. Brackets pair
+    as a stack; `<` and `>` inside parentheses are comparisons, and an operator's symbol is no bracket."""
+    groups: list[tuple[int, int]] = []
+    spaces: list[int] = []
+    stack: list[tuple[str, int]] = []
+    i = 0
+    while i < len(name):
+        if (
+            name.startswith("operator", i)
+            and (i == 0 or not (name[i - 1].isalnum() or name[i - 1] in "_$"))
+            and not (
+                i + 8 < len(name) and (name[i + 8].isalnum() or name[i + 8] in "_$")
+            )
+        ):
+            i = operator_end(name, i)
+            continue
+        c = name[i]
+        inside_parens = bool(stack) and stack[-1][0] == "("
+        if c in "({[" or (c == "<" and not inside_parens):
+            stack.append((c, i))
+        elif c in ")}]" or (c == ">" and not inside_parens):
+            while stack and stack[-1][0] != OPENS[c]:
+                stack.pop()
+            if stack:
+                opened = stack.pop()[1]
+                if not stack and c == ")":
+                    groups.append((opened, i + 1))
+        elif c == " " and not stack:
+            spaces.append(i)
+        i += 1
+    return groups, spaces
+
+
+def canonical(demangled: str, local: bool = False) -> str:
+    """A demangled name without what a signature change alters: a function's own parameter list, the qualifiers after
+    it, its requires clause and its leading return type. Everything else in the text stays, so that two different
+    texts share a key only when they are overloads: `(anonymous namespace)` is never a parameter list, and a local or
+    a lambda (`f(int) const::$_0::operator()`, `int r<int>()::x`) keeps its enclosing function's signature and return
+    type as written. @p local says the symbol is a local entity (`_ZZ…`): the demangled text cannot say where a requires
+    clause ends, and in a local the first one is its enclosing function's, so none is cut."""
+    name = demangled.strip()
+    if WRAPS_DATA.match(name):
+        return name
+    thunk = WRAPS_FUNCTION.match(name)
+    if thunk:
+        return thunk.group(0) + canonical(name[thunk.end() :], local)
+    clone = CLONE_SUFFIX.search(name)
+    suffix = clone.group(0) if clone else ""
+    if clone:
+        name = name[: clone.start()]
+    groups, spaces = top_level(name)
+    # A requires clause is free text (braces, comparisons); it ends the name at the first top-level `requires`.
+    for space in spaces if not local else []:
+        if name.startswith(" requires ", space):
+            name = name[:space]
+            groups = [g for g in groups if g[1] <= space]
+            spaces = [s for s in spaces if s < space]
+            break
+    if not groups:
+        return name + suffix
+    start, end = groups[-1]
+    if name[start:end] == "(anonymous namespace)" or not OWN_QUALIFIERS.fullmatch(
+        name[end:]
+    ):
+        return name + suffix
+    name = name[:start]
+    if any(name[g0:g1] != "(anonymous namespace)" for g0, g1 in groups[:-1]):
+        return (
+            name + suffix
+        )  # a local: what leads is its enclosing function's return type
+    # A leading return type ends at the last top-level space.
+    for space in reversed([s for s in spaces if s < start]):
+        name = name[space + 1 :]
+        break
+    return name + suffix
 
 
 def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
@@ -237,20 +417,24 @@ def mask_address_halves(body: list[str], classify=low_ram) -> list[str]:
 
 def functions(
     disassembly: str, rename=keep, classify=low_ram, alias=None
-) -> dict[str, list[tuple[str, ...]]]:
+) -> dict[str, tuple[str, ...]]:
     """Each function's normalised instructions, keyed by its name passed through @p rename, or by its @p alias (see
-    aliases()) when its address has one; the bodies of the functions that share a key, sorted. Addresses go through
-    @p classify."""
-    found: dict[str, list[list[tuple[int, str]]]] = {}
+    aliases()) when its address has one. Addresses go through @p classify. A key names one body: one listed twice at
+    its address (a section disassembled twice) is read once, and two bodies under one key are an error, because
+    comparing them as one would hide a reference moved between them."""
+    found: dict[str, tuple[int, list[tuple[int, str]]]] = {}
     current: list[tuple[int, str]] | None = None
     for line in disassembly.splitlines():
         header = HEADER.match(line)
         if header:
-            current = []
-            for name in (alias or {}).get(int(header.group(1), 16)) or (
+            current, start = [], int(header.group(1), 16)
+            for name in (alias or {}).get(start) or (
                 rename(LTO_SUFFIX.sub("", header.group(2))),
             ):
-                found.setdefault(name, []).append(current)
+                if name not in found:
+                    found[name] = (start, current)
+                elif found[name][0] != start:
+                    raise ValueError(f"two bodies are named {name}")
             continue
         insn = INSN.match(line)
         if insn and current is not None:
@@ -259,22 +443,19 @@ def functions(
             current = None
     least = {address: names[0] for address, names in (alias or {}).items()}
     result = {}
-    for name, bodies in found.items():
-        normalised = []
-        for body in bodies:
-            while body and PADDING.match(body[-1][1]):
-                body.pop()
-            index = {address: i for i, (address, _) in enumerate(body)}
-            lines = [
-                normalise(text, rename, classify, index.get, least) for _, text in body
-            ]
-            normalised.append(tuple(mask_address_halves(lines, classify)))
-        result[name] = sorted(normalised)
+    for name, (_, body) in found.items():
+        while body and PADDING.match(body[-1][1]):
+            body.pop()
+        index = {address: i for i, (address, _) in enumerate(body)}
+        lines = [
+            normalise(text, rename, classify, index.get, least) for _, text in body
+        ]
+        result[name] = tuple(mask_address_halves(lines, classify))
     return result
 
 
 def compare(
-    base: dict[str, list], new: dict[str, list]
+    base: dict[str, tuple], new: dict[str, tuple]
 ) -> tuple[list[str], list[str], list[str]]:
     """The changed, added and removed function names."""
     changed = sorted(n for n in base.keys() & new.keys() if base[n] != new[n])
@@ -332,14 +513,14 @@ def namespace_renamer(pairs: list[tuple[str, str]]):
 
 
 def mangled_renamer(pairs: list[tuple[str, str]]):
-    """A rename for a name no demangler can read: the pairs applied to its mangled text, where a namespace is a run of
-    length-prefixed components (`6deluge10instrument`) that starts at a component boundary (not inside an identifier,
-    not under another namespace). Where a pair keeps its first component, the rest is also renamed behind `S_`, but only
-    in a name that starts with that component, because only there is `S_` known to stand for it. A reference through
-    another substitution (`S0_`) to the same namespace is not recognised: the name then compares as different, never as
-    the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace (either spelling)
-    each reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The reduction can make
-    two names of one image equal, which demangler() detects."""
+    """A rename for a name keyed by its mangled text (see demangler()): the pairs applied to that text, where a
+    namespace is a run of length-prefixed components (`6deluge10instrument`) that starts at a component boundary (not
+    inside an identifier, not under another namespace). Where a pair keeps its first component, the rest is also renamed
+    behind `S_`, but only in a name that starts with that component, because only there is `S_` known to stand for it. A
+    reference through another substitution (`S0_`) to the same namespace is not recognised: the name then compares as
+    different, never as the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace
+    (either spelling) each reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The
+    reduction can make two names of one image equal, which demangler() detects."""
 
     def run_of(components: list[str]) -> str:
         return "".join(f"{len(c)}{c}" for c in components)
@@ -429,42 +610,301 @@ def symbol_names(texts: list[str]) -> set[str]:
     }
 
 
-def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None, images=None):
-    """A rename that maps every mangled symbol in @p texts to its canonical() demangled name, with @p renames (see
-    namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer, a
-    static guard's destructor) is renamed through the mangled part and keeps its prefix and suffix. A veneer is named by
-    its target's canonical name; any other wrapped name keeps the whole demangled text, which tells apart what
-    canonical() would cut (`(anonymous namespace)`, a local `f()::scene`). A mangled name the demangler cannot read goes
-    through @p mangled (mangled_renamer()). @p images holds each image's own texts: if two names of one image reach the
-    same key that way, they keep their raw names instead, since renaming would merge them."""
+# A function's header in a disassembly; an address with the symbol it falls in (not an immediate's `#0x…`); an `adr`,
+# which prints its target's name but not its address.
+TWIN_HEADER = re.compile(r"^([0-9a-f]+) <([^<>]+)>:$", re.MULTILINE)
+TWIN_TARGET = re.compile(r"(?<!#)0x([0-9a-f]+)(\s+)<([^<>+]+)((?:\+0x[0-9a-f]+)?)>")
+TWIN_ADR = re.compile(
+    r"^(\s*([0-9a-f]+):\s+adr\S*\s+\w+,\s+#(-?(?:0x[0-9a-f]+|\d+))\s+)<([^<>+]+)((?:\+0x[0-9a-f]+)?)>",
+    re.MULTILINE,
+)
+# A twin's number as number_twins() writes it: `#N~anchor`; `#?N~anchor` in the new image and `#!N~anchor` in the base
+# for a copy that must not pair (not `@`, which starts a disassembly's annotation).
+TWIN = re.compile(r"#([?!]?\d+)~(.+)$")
+SECTION = re.compile(r"\]\s+(\S+)\s+\S+\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)")
+
+
+def sections_of(readelf_sections: str) -> list[tuple[int, int, str]]:
+    """The loaded sections (start, end, name) of a `readelf -SW` listing."""
+    found = []
+    for line in readelf_sections.splitlines():
+        m = SECTION.search(line)
+        if m and int(m.group(2), 16):
+            found.append(
+                (
+                    int(m.group(2), 16),
+                    int(m.group(2), 16) + int(m.group(3), 16),
+                    m.group(1),
+                )
+            )
+    return found
+
+
+def nm_symbols(nm_text: str) -> list[tuple[int, int, str]]:
+    """The (address, size, name) of each symbol in @p nm_text (`nm -n`, with or without `-S`), mapping symbols left."""
+    found = []
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if len(fields) < 3 or not re.fullmatch(r"[0-9a-f]+", fields[0]):
+            continue
+        size = int(fields[1], 16) if len(fields) == 4 else 0
+        found.append((int(fields[0], 16), size, fields[-1]))
+    return found
+
+
+def twin_places(nm_text: str, sections=()) -> dict[str, dict[int, tuple[str, int]]]:
+    """For each name that several symbols of an image share once `.llvm.<hash>` is dropped, each copy's place by its
+    address: the nearest symbol before it in its section that is no twin (its anchor, `^` when none), and its ordinal
+    among the copies behind that anchor."""
+    symbols = [
+        (a & ~1, size, LTO_SUFFIX.sub("", n))
+        for a, size, n in nm_symbols(nm_text)
+        if not n.startswith("$")
+    ]
+    starts: dict[str, set[int]] = {}
+    for address, _, name in symbols:
+        starts.setdefault(name, set()).add(address)
+    twins = {name for name, addresses in starts.items() if len(addresses) > 1}
+    if not twins:
+        return {}
+
+    def section(address: int) -> str:
+        return next(
+            (name for start, end, name in sections if start <= address < end), ""
+        )
+
+    places: dict[str, dict[int, tuple[str, int]]] = {}
+    counts: dict[tuple[str, str], int] = {}
+    anchor, anchored_in = "^", None
+    for address, _, name in sorted(symbols, key=lambda s: (s[0], s[2] in twins, s[2])):
+        if name not in twins:
+            if not name.startswith("."):
+                anchor, anchored_in = name, section(address)
+            continue
+        if address in places.get(name, {}):
+            continue
+        here = anchor if anchored_in == section(address) else "^"
+        ordinal = counts.get((name, here), 0)
+        counts[(name, here)] = ordinal + 1
+        places.setdefault(name, {})[address] = (here, ordinal)
+    return places
+
+
+def number_twins(
+    nm_text: str,
+    disassembly: str,
+    sections=(),
+    moved=frozenset(),
+    mapping: str = "",
+    side: str = "!",
+) -> tuple[str, str]:
+    """@p nm_text (an `nm` listing) and @p disassembly with each copy of a twin name (twin_places()) named
+    `name#N~anchor` by its place. A copy pairs with the other image's copy in the same place, so a reference moved from
+    one copy to another is a change, provided each copy has an anchor of its own. Two cases do not pair at all:
+    - a name in @p moved, whose places differ from the other image's, is written `#?N~anchor`;
+    - a name that is no local label (`.…`, `GCC_except_table…`) and has a copy behind no anchor (`^`) or behind an
+      anchor with another of its copies is written with @p side (`!` in the base, `?` in the new image), because its
+      place does not tell the copies apart; it shows as removed and added, and its referrers as changed.
+    A disassembly's name is placed by its address (less its `+0x…` offset); an `adr`'s by Align(pc, 4) + its
+    immediate, pc being the instruction's address + 4 in Thumb and + 8 in ARM, as the `$a`/`$t` mapping symbols in
+    @p mapping (`nm --special-syms`) or @p nm_text mark the code. An `adr` that lands in no copy of the twin it names is
+    an error."""
+    places = twin_places(nm_text, sections)
+    if not places:
+        return nm_text, disassembly
+    unpairable = {
+        name
+        for name, found in places.items()
+        if not name.startswith((".", "GCC_except_table"))
+        and any(anchor == "^" or ordinal for anchor, ordinal in found.values())
+    }
+    extents: dict[str, list[tuple[int, int]]] = {}
+    modes = sorted(
+        (a, n[1])
+        for a, _, n in nm_symbols(mapping + "\n" + nm_text)
+        if n.split(".")[0] in ("$a", "$t")
+    )
+    for address, size, name in nm_symbols(nm_text):
+        plain = LTO_SUFFIX.sub("", name)
+        if plain in places:
+            extents.setdefault(plain, []).append((address & ~1, max(size, 1)))
+
+    def numbered(name: str, address: int) -> str:
+        plain = LTO_SUFFIX.sub("", name)
+        place = places.get(plain, {}).get(address & ~1)
+        if place is None:
+            return name
+        mark = "?" if plain in moved else side if plain in unpairable else ""
+        return f"{plain}#{mark}{place[1]}~{place[0]}"
+
+    def adr(m: re.Match) -> str:
+        plain = LTO_SUFFIX.sub("", m.group(4))
+        if plain not in places:
+            return m.group(0)
+        pc = int(m.group(2), 16)
+        mode = next((kind for start, kind in reversed(modes) if start <= pc), "t")
+        target = ((pc + (8 if mode == "a" else 4)) & ~3) + int(m.group(3), 0)
+        start = next((a for a, size in extents[plain] if a <= target < a + size), None)
+        if start is None:
+            raise ValueError(
+                f"adr lands in no copy of {m.group(4)}: {m.group(0).strip()}"
+            )
+        return f"{m.group(1)}<{numbered(m.group(4), start)}{m.group(5)}>"
+
+    lines = []
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if len(fields) >= 3 and re.fullmatch(r"[0-9a-f]+", fields[0]):
+            line = line[: line.rindex(fields[-1])] + numbered(
+                fields[-1], int(fields[0], 16)
+            )
+        lines.append(line)
+    disassembly = TWIN_ADR.sub(adr, disassembly)
+    disassembly = TWIN_HEADER.sub(
+        lambda m: f"{m.group(1)} <{numbered(m.group(2), int(m.group(1), 16))}>:",
+        disassembly,
+    )
+    disassembly = TWIN_TARGET.sub(
+        lambda m: (
+            f"0x{m.group(1)}{m.group(2)}<"
+            f"{numbered(m.group(3), int(m.group(1), 16) - int(m.group(4)[3:] or '0', 16))}{m.group(4)}>"
+        ),
+        disassembly,
+    )
+    return "\n".join(lines) + ("\n" if nm_text.endswith("\n") else ""), disassembly
+
+
+def moved_twins(
+    base_nm: str, new_nm: str, base_sections=(), new_sections=(), rename=keep
+) -> frozenset[str]:
+    """The twin names of the new image whose places (twin_places(), anchors through @p rename) differ from the base
+    image's: their copies cannot be paired by place."""
+
+    def places(nm_text, sections):
+        return {
+            rename(name): sorted(
+                (rename(anchor), ordinal) for anchor, ordinal in found.values()
+            )
+            for name, found in twin_places(nm_text, sections).items()
+        }, {rename(name): name for name in twin_places(nm_text, sections)}
+
+    base, _ = places(base_nm, base_sections)
+    new, spelt = places(new_nm, new_sections)
+    return frozenset(
+        spelt[name] for name in new if name in base and base[name] != new[name]
+    )
+
+
+def demangler(
+    cxxfilt: str,
+    texts: list[str],
+    renames=None,
+    mangled=None,
+    images=None,
+    gnu_cxxfilt=None,
+):
+    """A rename that maps every mangled symbol in @p texts to its key: its canonical() demangled name, with @p renames
+    (see namespace_renamer()) applied first. A name that wraps a mangled one (`__const._ZN…sources`, a linker veneer,
+    a static guard's destructor, a split global's `.0`, a clone's `.constprop.0`) is renamed through the mangled part
+    and keeps its prefix and suffix. A veneer and a bare suffix keep the canonical name; any other wrapped name names
+    data and keeps the whole demangled text, as a local does.
+
+    A key must name one symbol. Wherever several symbols of one image (@p images holds each image's own texts) reach
+    one key, which is what overloads, constructor and destructor variants, a local's discriminated twins, thunks for
+    several bases and Rust instantiations do, each of them is keyed by its mangled name instead, through @p mangled
+    (mangled_renamer()); so is a name the demangler cannot read. If two mangled keys of one image are still equal (the
+    renamer reduces substitution references), both keep their raw names."""
     names = sorted(symbol_names(texts))
-    split = [WRAPPED.match(n) for n in names]
-    targets = [m.group(2) if m else n for m, n in zip(split, names)]
+    twins = {raw: TWIN.search(raw) for raw in names}
+    stems = {raw: raw[: t.start()] if t else raw for raw, t in twins.items()}
+    split = [WRAPPED.match(stems[n]) for n in names]
+    targets = [m.group(2) if m else stems[n] for m, n in zip(split, names)]
     demangled = run([cxxfilt], "\n".join(targets)).splitlines()
+    # What llvm-cxxfilt cannot read (some lambdas, transaction clones), GNU c++filt can.
+    unread = [
+        i
+        for i, (t, d) in enumerate(zip(targets, demangled))
+        if t == d and t.startswith("_Z")
+    ]
+    gnu_read = set()
+    if gnu_cxxfilt and unread:
+        for i, text in zip(
+            unread,
+            run([gnu_cxxfilt], "\n".join(targets[i] for i in unread)).splitlines(),
+        ):
+            if text != targets[i]:
+                demangled[i] = text
+                gnu_read.add(names[i])
+    by_mangled = {}
     table = {}
-    unreadable = set()
     for raw, m, target, plain in zip(names, split, targets, demangled):
-        if plain == target and m and mangled:
-            table[raw] = m.group(1) + mangled(target) + m.group(3)
-            unreadable.add(raw)
+        if not m:
+            by_mangled[raw] = stems[raw]
+        else:
+            by_mangled[raw] = m.group(1) + (mangled or keep)(target) + m.group(3)
+        if plain == target:
+            # Read by neither demangler: only its exact text names it, so a rename never pairs it with another.
+            by_mangled[raw] = table[raw] = stems[raw]
             continue
         if renames:
             plain = renames(plain)
-        if not m or not m.group(1):
+        if raw in gnu_read:
+            table[raw] = by_mangled[raw] = by_mangled[raw] + " | " + plain
+            continue
+        if m:
+            # The reduced mangled text alone can make two entities alike across images; their full text cannot.
+            by_mangled[raw] += " | " + plain
+        if not m:
             table[raw] = canonical(plain)
-        elif m.group(1).endswith("Thunk_"):
-            table[raw] = m.group(1) + canonical(plain) + m.group(3)
+        elif not m.group(1) or m.group(1).endswith("Thunk_"):
+            table[raw] = (
+                m.group(1) + canonical(plain, target.startswith("_ZZ")) + m.group(3)
+            )
         else:
             table[raw] = m.group(1) + plain + m.group(3)
-    for image in images if images is not None else [texts]:
-        seen: dict[str, str] = {}
-        merged = set()
-        for raw in sorted(symbol_names(image) & unreadable):
-            if seen.setdefault(table[raw], raw) != raw:
-                merged |= {raw, seen[table[raw]]}
-        for raw in merged:
-            table[raw] = raw
-    return lambda name: table.get(name, name)
+    owns = [
+        sorted(symbol_names(i)) for i in (images if images is not None else [texts])
+    ]
+    singles = [[raw for raw in own if not twins[raw]] for own in owns]
+    final = settle(table, by_mangled, singles)
+    # A twin's number names its anchor by the anchor's key, so it follows a rename as the anchor does.
+    for raw, twin in twins.items():
+        if twin:
+            number = f"#{twin.group(1)}~{final.get(twin.group(2), twin.group(2))}"
+            table[raw] += number
+            by_mangled[raw] += number
+            final[raw] = table[raw]
+    final = settle(final, by_mangled, owns)
+    return lambda name: final.get(name, name)
+
+
+def settle(
+    keys: dict[str, str], by_mangled: dict[str, str], owns: list[list[str]]
+) -> dict[str, str]:
+    """@p keys with every key that several names of one image (@p owns) hold replaced by those names' @p by_mangled
+    keys, and any still shared by the raw names, which are distinct, so every key of an image names one symbol."""
+    final = dict(keys)
+    for own in owns:
+        for group in shared(own, keys):
+            for raw in group:
+                final[raw] = by_mangled[raw]
+    settled = False
+    while not settled:
+        settled = True
+        for own in owns:
+            for group in shared(own, final):
+                for raw in group:
+                    if final[raw] != raw:
+                        final[raw], settled = raw, False
+    return final
+
+
+def shared(names: list[str], key: dict[str, str]) -> list[list[str]]:
+    """The groups of @p names that one @p key holds several of."""
+    holders: dict[str, list[str]] = {}
+    for name in names:
+        holders.setdefault(key[name], []).append(name)
+    return [group for group in holders.values() if len(group) > 1]
 
 
 # A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`.
@@ -530,6 +970,11 @@ def main() -> int:
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
     parser.add_argument(
+        "--gnu-cxxfilt",
+        default=GNU_CXXFILT,
+        help="GNU c++filt, for the names llvm-cxxfilt cannot read (default: the dbt toolchain's)",
+    )
+    parser.add_argument(
         "--rename",
         action="append",
         default=[],
@@ -545,30 +990,49 @@ def main() -> int:
         help="print these changed functions' masked diffs",
     )
     args = parser.parse_args()
-    images = {}
-    for which in (args.base, args.new):
-        nm = run([args.nm, "-S", "-n", "--defined-only", which])
-        images[which] = (
-            disassemble(args.objdump, which, nm),
-            nm,
-            run([args.readelf, "-lW", which]),
-        )
     pairs = []
     for spec in args.rename:
         old, sep, new = spec.partition("=")
         if not sep or not old or not new:
             parser.error(f"--rename wants OLD=NEW, got {spec!r}")
         pairs.append((old, new))
+    # By position, not path: one image given twice is two images.
+    read = []
+    for which in (args.base, args.new):
+        nm = run([args.nm, "-S", "-n", "--defined-only", which])
+        sections = sections_of(run([args.readelf, "-SW", which]))
+        mapping = run([args.nm, "-n", "--special-syms", "--defined-only", which])
+        mapping = "".join(
+            line for line in mapping.splitlines(keepends=True) if " $" in line
+        )
+        read.append((which, nm, sections, mapping))
+    moved = moved_twins(
+        read[0][1], read[1][1], read[0][2], read[1][2], mangled_renamer(pairs)
+    )
+    images = []
+    for (which, nm, sections, mapping), twins_moved, side in zip(
+        read, (frozenset(), moved), "!?"
+    ):
+        nm, disassembly = number_twins(
+            nm,
+            disassemble(args.objdump, which, nm),
+            sections,
+            twins_moved,
+            mapping,
+            side,
+        )
+        images.append((disassembly, nm, run([args.readelf, "-lW", which])))
     rename = demangler(
         args.cxxfilt,
-        [text for image in images.values() for text in image[:2]],
+        [text for image in images for text in image[:2]],
         namespace_renamer(pairs),
         mangled_renamer(pairs),
-        [list(image[:2]) for image in images.values()],
+        [list(image[:2]) for image in images],
+        shutil.which(args.gnu_cxxfilt),
     )
     base, new = (
         functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
-        for dis, nm, segments in images.values()
+        for dis, nm, segments in images
     )
     changed, added, removed = compare(base, new)
     for kind, names in (("changed", changed), ("added", added), ("removed", removed)):
@@ -577,8 +1041,8 @@ def main() -> int:
             print(f"  {name}")
     for name in args.diff:
         print(f"== {name}")
-        before = [line for body in base.get(name, []) for line in (*body, "--")]
-        after = [line for body in new.get(name, []) for line in (*body, "--")]
+        before = list(base.get(name, ()))
+        after = list(new.get(name, ()))
         for line in difflib.unified_diff(before, after, lineterm="", n=1):
             print(line)
     return 1 if changed or added or removed else 0

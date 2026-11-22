@@ -23,7 +23,7 @@
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
 #include "ui/scenes/rename/rename_scene.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"

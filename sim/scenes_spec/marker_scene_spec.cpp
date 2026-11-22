@@ -28,7 +28,8 @@
 /// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`, reached through the
 /// public `renderMainPads` because both are private (`SampleMarkerEditor::renderColumn` and `renderMarkerInCol` in
 /// `origin/main:src/deluge/gui/ui/sample_marker_editor.h`). A transcription of those two bodies, as the host target
-/// `tests/unit/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would drift from them.
+/// `tests/unit/ui/widgets/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would drift from
+/// them.
 ///
 /// One divergence is **measured** here rather than only written down: `renderMainPads`'
 /// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`). It is
@@ -104,7 +105,7 @@
 #include "support/printers/rgb_printer.h"
 #include "support/printers/sound_record_printer.h"
 #include "unit/ui/gfx/support/golden.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"

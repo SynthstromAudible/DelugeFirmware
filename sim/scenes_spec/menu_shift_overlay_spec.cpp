@@ -32,7 +32,7 @@
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/rgb_printer.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 

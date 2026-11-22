@@ -52,7 +52,7 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
-#include "unit/ui/support/frames.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"

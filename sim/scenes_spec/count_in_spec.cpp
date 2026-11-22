@@ -28,7 +28,7 @@
 /// live oracle there is (`OLED_MAIN_HEIGHT_PIXELS` is a compile-time 48; there is no 64-row legacy
 /// singleton to ask). The widget this scene calls, `ui::widgets::oled::popup_text`, is already proven byte
 /// for byte against a *height-parameterised* transcription of `OLED::popupText` at both 48 and 64
-/// rows in `tests/unit/ui/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
+/// rows in `tests/unit/ui/widgets/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
 /// example -- so the 64-row example here does not re-derive that; it instead confirms this scene
 /// invokes that already-proven widget consistently across geometries, by checking the box's own
 /// interior is byte-identical at its own (geometry-correct) vertical offset in each profile. Box
@@ -216,7 +216,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 	it("centres the same box content at both panel geometries, at the geometry-correct offset", _ {
 		// The widget itself (`ui::widgets::oled::popup_text`) is already proven byte for byte against a
 		// height-parameterised legacy transcription at both 48 and 64 rows
-		// (`tests/unit/ui/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
+		// (`tests/unit/ui/widgets/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
 		// not the widget's own arithmetic again.
 		Rig r48;
 		r48.open();

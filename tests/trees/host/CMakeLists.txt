@@ -134,7 +134,7 @@ else ()
 endif ()
 
 # deluge_spec: the app code the host specs exercise outside the app's own libraries, built once and linked by every
-# directory whose specs test the app or the UI (app_specs, gfx_specs, ui_specs, shell_specs, notify_specs,
+# directory whose specs test the app or the UI (app_specs, gfx_specs, ui_widgets_specs, shell_specs, notify_specs,
 # scenes_specs, midi_specs, base_specs, harness_specs, io_debug_specs).
 set(_src ${DELUGE_REPO_ROOT}/src)
 set(_tests ${DELUGE_REPO_ROOT}/tests)
