@@ -70,7 +70,7 @@ TEXT = C_FAMILY | {
     ".ld",
 }
 NEVER = frozenset({"docs/dev/code_layout_north_star.md"})
-NEVER_UNDER = ("third_party/", "toolchain/", "src/gsl/", "lib/", "website/")
+NEVER_UNDER = ("third_party/", "toolchain/", "lib/", "website/")
 INCLUDE = re.compile(r'^(\s*#\s*include\s*)([<"])([^">]+)([>"])')
 INCLUDE_ROOTS = ("src/deluge", "src")
 
