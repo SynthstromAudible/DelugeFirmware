@@ -28,7 +28,7 @@ fn main() {
     let src = repo.join("src");
     let src_deluge = src.join("deluge");
     let include = repo.join("include");
-    let sim_compat = repo.join("sim/compat");
+    let sim_compat = repo.join("src/platform/host/compat");
 
     let shim_cpp = manifest.join("cpp/harness_shim.cpp");
     println!("cargo:rerun-if-changed={}", shim_cpp.display());

@@ -154,7 +154,7 @@ target_include_directories(deluge_ui_scenes PUBLIC
 # model/modulation/playback/storage from.
 #
 # $<COMPILE_ONLY:deluge_app> (CMake >= 3.27 -- both cmake_minimum_required floors that build this
-# file were raised to 3.27 for exactly this, see CMakeLists.txt and sim/CMakeLists.txt): deluge_app
+# file were raised to 3.27 for exactly this, see CMakeLists.txt and src/platform/host/CMakeLists.txt): deluge_app
 # is an OBJECT library, and a real (non-COMPILE_ONLY) PUBLIC link of an OBJECT library into a
 # STATIC library archives its ENTIRE object closure into the consumer: a real link here makes
 # libdeluge_ui_scenes.a a full second copy of deluge_app (~70 MB device, ~146 MB sim).

@@ -214,5 +214,5 @@ endif(ENABLE_MATRIX_DEBUG)
 
 # NB: deluge_app deliberately references no executable — it is a self-contained,
 # platform-agnostic app library that the Rust BSP links, on the device (from
-# src/CMakeLists.txt's tree) and on the host (from sim/CMakeLists.txt's).
+# src/CMakeLists.txt's tree) and on the host (from src/platform/host/CMakeLists.txt's).
 

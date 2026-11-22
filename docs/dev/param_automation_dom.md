@@ -136,7 +136,7 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
   any regroup re-baseline must pass the **sorted-diff = pure relocation** check (no value change).
 - **Per-value-type round-trip test, lands with each phase.** Engine-coupled projections (which touch
   `AutoParam` / the firmware containers + the SRAM/SDRAM allocator) run as a **sim executable** against
-  the real engine — `tests/projection/`, wired in `sim/CMakeLists.txt` beside `song_roundtrip`, runnable
+  the real engine — `tests/projection/`, wired in `src/platform/host/CMakeLists.txt` beside `song_roundtrip`, runnable
   x86 (build-sim) and ARM (build-sim-arm/qemu). The bare CppSpec env cannot host them: `AutoParam` pulls
   in the whole app and the firmware containers don't build under the spec toolchain. Pure-value helpers
   with no engine/allocator coupling may still use a CppSpec in `tests/unit`. (The projection itself is

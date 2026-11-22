@@ -90,7 +90,7 @@ fn resolve_build_dir(repo_root: &Path) -> PathBuf {
 ///
 /// The orphan filter resolves every object's source against this checkout, so a tree configured
 /// from another one (a stale `DELUGE_HOSTAPP_BUILD_DIR`, another worktree) would have its whole
-/// closure dropped as orphans. The host app's CMake root is `sim/`, not the repository root.
+/// closure dropped as orphans. The host app's CMake root is `src/platform/host/`, not the repository root.
 fn assert_build_dir_matches_repo_root(build_dir: &Path, repo_root: &Path) {
     let cache_path = build_dir.join("CMakeCache.txt");
     let Ok(cache) = fs::read_to_string(&cache_path) else {
@@ -114,7 +114,7 @@ fn assert_build_dir_matches_repo_root(build_dir: &Path, repo_root: &Path) {
             cache_path.display()
         )
     });
-    let expected = repo_root.join("sim").canonicalize().unwrap();
+    let expected = repo_root.join("src/platform/host").canonicalize().unwrap();
     assert!(
         home_dir == expected,
         "{} was configured from {}, not this checkout's {}: DELUGE_HOSTAPP_BUILD_DIR names the \

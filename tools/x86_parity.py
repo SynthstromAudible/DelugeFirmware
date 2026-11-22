@@ -408,13 +408,15 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
     sys.path.insert(0, str(root / "scripts" / "tasks"))
     import test_builds
 
+    # A base from before the host build moved still has it at sim/.
+    host_root = "src/platform/host" if (root / "src/platform/host").is_dir() else "sim"
     tree = root / "build" / "host-app"
     if not (tree / "build.ninja").exists():
         subprocess.run(
             [
                 "cmake",
                 "-S",
-                "sim",
+                host_root,
                 "-B",
                 str(tree),
                 "-G",

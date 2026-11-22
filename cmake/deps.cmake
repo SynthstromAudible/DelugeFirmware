@@ -21,7 +21,7 @@ FetchContent_Declare(argon
         GIT_REPOSITORY https://github.com/stellar-aria/argon
         GIT_TAG 8ad157c1dd3ccc31490a6e9ab5474c1d73b130e4
 )
-# NEON intrinsics on non-ARM hosts: argon's <arm/neon.h> and sim/compat's <arm_neon.h> resolve into it.
+# NEON intrinsics on non-ARM hosts: argon's <arm/neon.h> and src/platform/host/compat's <arm_neon.h> resolve into it.
 FetchContent_Declare(simde
         GIT_REPOSITORY https://github.com/simd-everywhere/simde
         GIT_TAG v0.8.4-rc3

@@ -60,7 +60,7 @@ void* operator new(std::size_t n) noexcept(false) {
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// The GeneralMemoryAllocator::alloc path zeroes at its return sites; mirror that here so std-container /
 	// `new` allocations are deterministic too — `new` goes straight to the heap, bypassing alloc(). Sim/golden
-	// builds only (see sim/CMakeLists). Firmware leaves it off; the guard inlines away.
+	// builds only (see src/platform/host/CMakeLists). Firmware leaves it off; the guard inlines away.
 	memset(address, 0, n);
 #endif
 	return address;

@@ -10,7 +10,7 @@ project(DelugeTests)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
-# also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
+# also included by the device (top-level CMakeLists.txt) and host-sim (src/platform/host/CMakeLists.txt)
 # projects. The UI libraries libs.cmake adds (src/ui's and src/base/notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_common_options.cmake)
@@ -86,7 +86,7 @@ if (UNIX AND NOT APPLE)
     # `sample_abi` turns on. Its own --target-dir keeps the two feature sets' outputs apart.
     set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_test_rust.a)
     # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
-    # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
+    # already-resolved paths to re-glob), mirroring src/platform/host/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs
         ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs

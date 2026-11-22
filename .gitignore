@@ -34,8 +34,8 @@ __pycache__
 .deluge_hex_key
 **/target*/
 /deluge_host_out.wav
-/sim/build/
-/sim/deluge_host_out.wav
+/src/platform/host/build/
+/src/platform/host/deluge_host_out.wav
 
 # Local Claude Code config / skills (not shared)
 .claude/

@@ -55,10 +55,10 @@ endif()
 # VERSION mirrors the firmware top-level (project(Deluge VERSION ...)) so the
 # generated util/firmware_version.h gets non-empty PROJECT_VERSION_* components.
 project(DelugeHostSim VERSION 1.3.0 LANGUAGES C CXX)
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ccache.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/deps.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 
-set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
+set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../..)
 
 # The app's CMake invokes the codegen scripts as `${Python_EXECUTABLE} generate.py ...`
 # (l10n strings, menu generator). Without this they'd be exec'd directly and fail on the

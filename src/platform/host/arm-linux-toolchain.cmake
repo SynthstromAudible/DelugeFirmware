@@ -5,10 +5,10 @@
 # argon's native NEON backend -- giving a NEON reference to diff the x86/SIMDe host-sim against. It is NOT the
 # firmware build (that is bare-metal arm-none-eabi); it is a Linux/qemu stand-in for differential testing.
 #
-#   cmake -B build/host-app-arm -S sim -G Ninja -DCMAKE_TOOLCHAIN_FILE=sim/arm-linux-toolchain.cmake
+#   cmake -B build/host-app-arm -S src/platform/host -G Ninja -DCMAKE_TOOLCHAIN_FILE=src/platform/host/arm-linux-toolchain.cmake
 #   ninja -C build/host-app-arm <targets>
 
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/arm-linux-clang.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/arm-linux-clang.cmake)
 
-# Signal to sim/CMakeLists.txt to take the native-NEON path (no SIMDe, no -m32, real arm_neon.h).
+# Signal to src/platform/host/CMakeLists.txt to take the native-NEON path (no SIMDe, no -m32, real arm_neon.h).
 set(DELUGE_SIM_ARM ON)

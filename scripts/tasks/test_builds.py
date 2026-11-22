@@ -137,7 +137,7 @@ class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             # clang, because the firmware ships built with it: the host renders the golden masters record must take
             # the same code generation.
             steps.append(
@@ -146,7 +146,7 @@ class HostApp(Product):
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
@@ -168,14 +168,14 @@ class HostAppAsan(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ASAN_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             steps.append(
                 Step(
                     "configure",
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
@@ -198,19 +198,19 @@ class HostAppArm(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_ARM_TREE
         steps = []
-        if _needs_test_tree_configure(tree, root / "sim", "clang++"):
+        if _needs_test_tree_configure(tree, root / "src/platform/host", "clang++"):
             steps.append(
                 Step(
                     "configure",
                     [
                         "cmake",
                         "-S",
-                        "sim",
+                        "src/platform/host",
                         "-B",
                         str(tree),
                         "-G",
                         "Ninja",
-                        f"-DCMAKE_TOOLCHAIN_FILE={root / 'sim/arm-linux-toolchain.cmake'}",
+                        f"-DCMAKE_TOOLCHAIN_FILE={root / 'src/platform/host/arm-linux-toolchain.cmake'}",
                         *TEST_TREE_DEFINES,
                     ],
                     root,

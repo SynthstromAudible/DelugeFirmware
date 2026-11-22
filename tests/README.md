@@ -262,7 +262,7 @@ itself, so none can run against a stale one.
 
 | Product | Tree | What it is |
 | --- | --- | --- |
-| `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `sim/`; nothing links here |
+| `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `src/platform/host/`; nothing links here |
 | `golden-vt-render` | `build/cargo-harness` | the Embassy host harness binary every scenario gate runs; its `build.rs` archives `build/host-app`'s objects |
 
 A ctest entry's own tree (`build/test-host`, `build/test-arm`, `build/test-ubsan`) is configured and built by its

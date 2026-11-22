@@ -1,5 +1,5 @@
 # The integration scenarios: stepped scenarios the Embassy host harness runs (scenario_table.cpp), the host drivers
-# it runs as scenarios (drivers/), and the probes and oracles the host executables call. Host-only, so only the host tree adds this directory (sim/CMakeLists.txt): the
+# it runs as scenarios (drivers/), and the probes and oracles the host executables call. Host-only, so only the host tree adds this directory (src/platform/host/CMakeLists.txt): the
 # firmware image never contains them.
 #
 # An OBJECT library, like deluge_app, so its objects sit in one directory the host harnesses' build scripts archive

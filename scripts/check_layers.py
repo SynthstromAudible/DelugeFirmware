@@ -230,7 +230,7 @@ def load_config(path: Path) -> Config:
     tree = Tree(
         include_roots=tuple(t.get("include_roots", ("src/deluge", "src"))),
         legacy=t.get("legacy", "src/deluge"),
-        scan_roots=tuple(t.get("scan_roots", ("src", "sim", "tests"))),
+        scan_roots=tuple(t.get("scan_roots", ("src", "tests"))),
         directories=tuple(d["path"] for d in raw.get("directory", [])),
         root_files=tuple(t.get("root_files", ())),
     )

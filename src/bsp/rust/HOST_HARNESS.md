@@ -47,7 +47,7 @@ are not compatible with it. Compare `clang++ --version` with
 
 ```sh
 # From the repository root, into a tree of its own:
-cmake -B build-embassy-hostapp-tsan -S sim -G Ninja \
+cmake -B build-embassy-hostapp-tsan -S src/platform/host -G Ninja \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_C_FLAGS="-fsanitize=thread" -DCMAKE_CXX_FLAGS="-fsanitize=thread"
 ninja -C build-embassy-hostapp-tsan deluge_app deluge_scenarios eyalroz_printf \

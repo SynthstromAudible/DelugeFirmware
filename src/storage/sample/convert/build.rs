@@ -17,7 +17,7 @@
 //! CMake build (it needs network the first time). The device mode needs only argon.
 //!
 //! Flags, defines and include dirs mirror `tests/unit/deluge/storage/audio/stream/CMakeLists.txt`,
-//! `sim/CMakeLists.txt` and `scripts/cmake/CMakeToolchainDeluge.cmake`.
+//! `src/platform/host/CMakeLists.txt` and `scripts/cmake/CMakeToolchainDeluge.cmake`.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -53,7 +53,7 @@ fn main() {
     let src = repo.join("src");
     let src_deluge = src.join("deluge");
     let include = repo.join("include");
-    let sim_compat = repo.join("sim/compat");
+    let sim_compat = repo.join("src/platform/host/compat");
     let stream = src_deluge.join("storage/audio/stream");
 
     let convert_cpp = stream.join("convert.cpp");
@@ -157,7 +157,7 @@ fn main() {
         .include(&sim_compat) // <arm_neon.h> -> SIMDe shim
         .include(&simde_root) // compat shim's <simde/arm/neon.h>
         .include(simde_root.join("simde")) // argon's bare <arm/neon.h>
-        // Host markers, as in sim/CMakeLists.txt.
+        // Host markers, as in src/platform/host/CMakeLists.txt.
         .define("DELUGE_HOST", None)
         .define("SIMDE_NO_NATIVE", None) // portable NEON, bit-accurate to the device
         .flag_if_supported("-Wno-unused-parameter");

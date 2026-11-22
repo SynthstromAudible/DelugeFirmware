@@ -756,7 +756,7 @@ allocator friendliness; dynamic sizing is only needed for plugin modules.
 | gfx-7seg | text snapshots (4 chars + dot bits) | no |
 | grid-views / display views | state in → framebuffer snapshot out | no |
 | ui-shell | event-script integration tests: inject pads/buttons/encoders, assert on three framebuffers | no |
-| whole app | host-sim BSP (run, capture, inject); **replay**: recorded/flight-recorder logs ⇒ bit-identical audio + framebuffers; generated logs for soak/fuzz | sim exists (`sim/`, `build-sim*`); replay invariant per §4.5 |
+| whole app | host-sim BSP (run, capture, inject); **replay**: recorded/flight-recorder logs ⇒ bit-identical audio + framebuffers; generated logs for soak/fuzz | sim exists (`src/platform/host/`, `build-sim*`); replay invariant per §4.5 |
 
 The sim drops from "the only way to test anything" to the integration layer
 of a pyramid. Debug/sim builds additionally arm the runtime enforcement

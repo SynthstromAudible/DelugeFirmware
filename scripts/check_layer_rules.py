@@ -399,7 +399,7 @@ RULES = [
     ),
     (
         "no-legacy-effects-owners",
-        "sim/**",
+        "src/platform/host/**",
         "symbol",
         r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
         "2026-11-13-controls-layer-design.md",
@@ -430,7 +430,7 @@ RULES = [
     ),
     (
         "mod-controllable-bridge-only",
-        "sim/**",
+        "src/platform/host/**",
         "symbol",
         r"\bvalueChangedEnoughToMatter\b",
         "2026-11-18-instrument-events-design.md",
@@ -453,7 +453,7 @@ RULES = [
     ),
     (
         "no-global-effectable-table",
-        "sim/**",
+        "src/platform/host/**",
         "symbol",
         r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
         "2026-11-15-effect-param-tables-design.md",
@@ -861,7 +861,7 @@ def count_file(path: Path) -> dict[str, int]:
 
 # The trees the rules are counted over: the firmware, and the specs and tests that drive it (only
 # `no-legacy-effects-owners` and `mod-controllable-bridge-only` have rows outside `src/`).
-SCAN_ROOTS = ("src", "sim", "tests")
+SCAN_ROOTS = ("src", "tests")
 
 
 def current() -> dict[tuple[str, str], int]:
@@ -941,7 +941,7 @@ def audit_service_scope() -> int:
     service in a directory the row cannot see is exactly the failure it catches.
 
     Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` and
-    `sim/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
+    `src/platform/host/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
     the OLED is how the OLED branch gets covered at all (`tests/unit/ui/shell/flush_spec.cpp`).
     """
     frm = next(f for name, f, *_ in RULES if name == SERVICE_ROW)

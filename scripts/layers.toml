@@ -8,7 +8,7 @@
 include_roots = ["src/deluge", "src"]
 legacy = "src/deluge"
 # The trees the rules' globs are matched over: the firmware and the specs and tests that drive it.
-scan_roots = ["src", "sim", "tests"]
+scan_roots = ["src", "tests"]
 # The files at the src/ root. Each is dissolved into its owner.
 root_files = [
     "CMakeLists.txt",
@@ -56,6 +56,9 @@ path = "midi"
 
 [[directory]]
 path = "music"
+
+[[directory]]
+path = "platform"
 
 [[directory]]
 path = "plugin"

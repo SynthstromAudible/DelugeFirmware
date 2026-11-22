@@ -115,7 +115,7 @@ public:
 		// A recycled slot still holds the previous occupant's bytes (recycle() runs the destructor but doesn't
 		// clear), so zero it before reconstruction — the pool-reuse analogue of the allocator's zero-on-alloc, so a
 		// read-before-write in T resolves to a defined 0 regardless of what was pooled here before. Sim/golden
-		// builds only (see sim/CMakeLists DELUGE_DETERMINISTIC_ALLOC); firmware leaves it off.
+		// builds only (see src/platform/host/CMakeLists DELUGE_DETERMINISTIC_ALLOC); firmware leaves it off.
 		memset(static_cast<void*>(obj), 0, sizeof(T));
 #endif
 		return {new (obj) T(std::forward<Args>(args)...), &recycle};

@@ -87,7 +87,7 @@ nothing.
 
 ## Building and testing
 
-`src/CMakeLists.txt` and `sim/CMakeLists.txt` add this directory after `deluge_app`, because
+`src/CMakeLists.txt` and `src/platform/host/CMakeLists.txt` add this directory after `deluge_app`, because
 `deluge_ui_scenes` compiles against it. The link is `$<COMPILE_ONLY:deluge_app>` (a real link of an
 OBJECT library would archive all of `deluge_app` into this one), so **every consumer of
 `deluge_ui_scenes` must link `deluge_app` itself**. The Rust BSP's build archives both into the
