@@ -211,8 +211,8 @@ MappingIndex& mappingIndex() {
 	return index;
 }
 
-controls::TakeoverStore& takeoverStore() {
-	static controls::TakeoverStore store;
+ui::controls::TakeoverStore& takeoverStore() {
+	static ui::controls::TakeoverStore store;
 	static uint32_t generation = 0;
 	// Another song is current (the old one freed and the new built at its address, or not): its knobs' states are not
 	// the store's.

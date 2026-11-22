@@ -7,7 +7,6 @@
 /// The writes are observed from outside: the undo log lists each param written, every value is read back through the
 /// param's address, and a feedback CC leaves the sample time it was sent at in `MidiFollow::timeLastCCSent`.
 
-#include "controls/knob_math.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -36,6 +35,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "project/mapping_table.h"
 #include "scenes/menu/bind_host.h"
+#include "ui/controls/knob_math.h"
 
 #include <algorithm>
 #include <array>
@@ -492,13 +492,13 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 		for (const int32_t word : words) {
 			compared++;
 			const int32_t legacy = stack->paramCollection->paramValueToKnobPos(word, stack);
-			if (deluge::controls::knob_pos_of(address, info, word) != legacy) {
+			if (deluge::ui::controls::knob_pos_of(address, info, word) != legacy) {
 				mismatches += " [" + name + " word " + std::to_string(word) + "]";
 			}
 		}
 		for (int32_t pos = -64; pos <= 64; pos++) {
 			compared++;
-			if (deluge::controls::value_of_knob(address, info, pos)
+			if (deluge::ui::controls::value_of_knob(address, info, pos)
 			    != stack->paramCollection->knobPosToParamValue(pos, stack)) {
 				mismatches += " [" + name + " pos " + std::to_string(pos) + "]";
 			}

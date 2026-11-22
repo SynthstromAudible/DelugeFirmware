@@ -1098,7 +1098,7 @@ void testSetControls(deluge::edits::Context& ctx) {
 	controls[2 * 2 + 1].target = deluge::bridge::controlTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
 	deluge::edits::SetControls other{address, controls};
 	check(deluge::edits::apply(ctx, other) == Error::NONE, "controls: another knob's edit is applied");
-	const deluge::controls::TakeoverState* kept =
+	const deluge::ui::controls::TakeoverState* kept =
 	    std::as_const(deluge::midi::takeoverStore()).find(knobTarget, knobSource);
 	check(kept != nullptr && kept->previous == std::optional<int32_t>{77},
 	      "controls: the learned knob keeps its takeover state");

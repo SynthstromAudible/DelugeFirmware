@@ -700,13 +700,13 @@ shell's; every model-aware implementation is here, as with `Scene`.
   the same service through `gui/ui/root_knobs` (`turn`, `section_button`, `push`), shown through the legacy
   display; no engine object has a gold-knob path of its own. `root_knobs` numbers each physical control through
   `controls::map_input` and `kDelugeControls` before the service sees it, so the service speaks sections and slots.
-* **Pages are assembled in `src/controls`, not here.** The owners publish their pages (`plugin::RemoteControls`);
+* **Pages are assembled in `src/ui/controls`, not here.** The owners publish their pages (`plugin::RemoteControls`);
   `scenes/bind` supplies the publishers (`app_publishers`), the focus a view names and the host's reading of a chain's
   view, and `controls::current_page` / `section_pages` build the page the knobs are on. A CV track and a MIDI or gate
   drum focus on `NoControlsFocus`, whose page is empty.
 * **Learned MIDI and MIDI follow are not here either.** A learned CC or pitch bend is dispatched by
   `controls::dispatch_song_cc`, `dispatch_output_cc` and `dispatch_output_bend`, and a followed CC resolved by
-  `controls::resolve_follow`, both in `src/controls`; each write goes through the `Sink` the host binds
+  `controls::resolve_follow`, both in `src/ui/controls`; each write goes through the `Sink` the host binds
   as `Ports::controls_sink` over the `Facts` the host binds as `Ports::controls`. The menu's and the pads'
   learns and unlearns write the mapping table through the learn port (`Ports::learn`, `bind::LearnSink`), which names
   a device by its `midi::DeviceId`; `controls::TakeoverStore` holds the takeover states those entries key.

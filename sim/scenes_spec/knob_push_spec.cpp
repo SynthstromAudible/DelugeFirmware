@@ -317,7 +317,7 @@ std::string set_mod_fx(Side& side, std::string_view type, std::string_view view)
 	if (chain == nullptr) {
 		return "no chain";
 	}
-	deluge::controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
+	deluge::ui::controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 	if (!sink.write_effect(*chain, "modFXType", deluge::serialization::Value::makeScalar(std::string{type}))
 	    || !sink.chain_view(*chain, "modFXCurrentParam", view)) {
 		return "sink refused " + std::string{type} + "/" + std::string{view};
@@ -455,7 +455,7 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		Side side = song_side(a);
 		const auto found = push_everything(side, "song", knob_recorded::kSongPushes, [&]() -> std::string {
 			// Recorded from the engine's compressor view after the pushes: not editing, on its first param.
-			if (side.focus.comp != deluge::controls::CompView{.editing = false, .param = 0}) {
+			if (side.focus.comp != deluge::ui::controls::CompView{.editing = false, .param = 0}) {
 				return "compressor view";
 			}
 			return {};

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "controls/board.h"
 #include "plugin/types/param_kind.h"
 #include "project/param_address.h"
 #include "project/song.h"
 #include "scenes/bind/knob_focus.h"
+#include "ui/controls/board.h"
 
 #include <cstdint>
 #include <optional>
@@ -31,6 +31,6 @@ struct KnobAssignment {
 ///        controls, a chain's view, a MIDI track's CCs, and the focus's compressor view.
 /// @param board The board the knobs are on: a knob past its slots moves nothing.
 [[nodiscard]] KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob,
-                                             const controls::Board& board);
+                                             const ui::controls::Board& board);
 
 } // namespace deluge::scenes::bind

@@ -430,13 +430,13 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		const Ports p = host.ports();
 		const deluge::project::ParamAddress lpf =
 		    deluge::project::ParamAddress::of(deluge::project::OwnerId::clip(4), deluge::project::engine_target(3));
-		expect(p.controls_sink->write_param(lpf, 7, 1, 24, deluge::controls::Resolution::LEARNED)).to_be_true();
+		expect(p.controls_sink->write_param(lpf, 7, 1, 24, deluge::ui::controls::Resolution::LEARNED)).to_be_true();
 		expect(host.controls_sink.param_writes.size()).to_equal(size_t{1});
 		if (host.controls_sink.param_writes.size() == 1) {
 			const auto& write = host.controls_sink.param_writes[0];
 			expect(write.address).to_equal(lpf);
 			expect(write.value).to_equal(7);
-			expect(write.resolution).to_equal(deluge::controls::Resolution::LEARNED);
+			expect(write.resolution).to_equal(deluge::ui::controls::Resolution::LEARNED);
 		}
 		expect(p.controls_sink->delete_knob_automation(lpf)).to_be_true();
 		expect(host.controls_sink.gestures.size()).to_equal(size_t{1});

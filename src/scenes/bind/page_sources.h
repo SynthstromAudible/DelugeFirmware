@@ -3,9 +3,9 @@
 /// @file
 /// @brief What the app's gold knobs assemble their pages from: the owners' published records and the device facts.
 
-#include "controls/facts.h"
-#include "controls/pages.h"
 #include "plugin/remote_controls_publisher.h"
+#include "ui/controls/facts.h"
+#include "ui/controls/pages.h"
 
 #include <span>
 
@@ -25,20 +25,21 @@ namespace deluge::scenes::bind {
 /// @param song    The chain is the song's.
 /// @param section The mod button.
 /// @return The page the knobs are on, and each group's entry.
-[[nodiscard]] controls::ChainView chain_view(const project::FxChain* chain, const controls::CompView& comp, bool song,
-                                             uint32_t section);
+[[nodiscard]] ui::controls::ChainView chain_view(const project::FxChain* chain, const ui::controls::CompView& comp,
+                                                 bool song, uint32_t section);
 
 /// @brief The app's page sources for a turn: its publishers and its reading of a chain's view, the alternative delay
 ///        knobs off (only a press reads them).
 /// @param board The board the knobs are on.
 /// @return The sources controls::current_page reads for a turn.
-[[nodiscard]] controls::PageSources app_turn_sources(const controls::Board& board);
+[[nodiscard]] ui::controls::PageSources app_turn_sources(const ui::controls::Board& board);
 
 /// @brief The app's page sources: its publishers, its reading of a chain's view, and the device facts @p facts
 ///        answers.
 /// @param facts The host's facts, which hold the alternative delay-knob setting.
 /// @param board The board the knobs are on.
 /// @return The sources controls::current_page and controls::section_pages read.
-[[nodiscard]] controls::PageSources app_page_sources(const controls::Facts& facts, const controls::Board& board);
+[[nodiscard]] ui::controls::PageSources app_page_sources(const ui::controls::Facts& facts,
+                                                         const ui::controls::Board& board);
 
 } // namespace deluge::scenes::bind

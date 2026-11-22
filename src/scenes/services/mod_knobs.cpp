@@ -20,14 +20,14 @@
 
 #include "scenes/services/mod_knobs.h"
 
-#include "controls/board.h"
-#include "controls/follow.h"
-#include "controls/knob_math.h"
-#include "controls/pages.h"
-#include "controls/section.h"
 #include "plugin/types/display_mapping.h"
 #include "project/device_settings.h"
 #include "project/song.h"
+#include "ui/controls/board.h"
+#include "ui/controls/follow.h"
+#include "ui/controls/knob_math.h"
+#include "ui/controls/pages.h"
+#include "ui/controls/section.h"
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/knob_assignment.h"
@@ -175,7 +175,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	const bind::Transport* const transport = port_of(ports_, &Ports::transport);
 	const bool clocks = transport != nullptr && transport->clocks_active();
 	if (length != 0 && is_clip_context(*focus_) && !clocks && bound()) {
-		if (controls::Sink* const sink = port_of(ports_, &Ports::controls_sink)) {
+		if (ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink)) {
 			(void)sink->grab_region(*focus_, pos);
 		}
 	}
@@ -221,8 +221,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 		const int32_t which = static_cast<int32_t>(event.button) - static_cast<int32_t>(ButtonId::Mod0);
 		if (which >= 0 && event.button <= ButtonId::Mod7) {
 			// Claimed even when the board has no such section: the button is a mod button all the same.
-			if (const std::optional<controls::Logical> section = controls::map_input(
-			        board_, {controls::Physical::Kind::SECTION_BUTTON, static_cast<uint8_t>(which)})) {
+			if (const std::optional<ui::controls::Logical> section = ui::controls::map_input(
+			        board_, {ui::controls::Physical::Kind::SECTION_BUTTON, static_cast<uint8_t>(which)})) {
 				section_button(section->index, event.on, guest_);
 			}
 			Result r = guest_.take_result();
@@ -239,8 +239,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 			const int32_t current = mode();
 			const bool mode_held =
 			    current >= 0 && ctx.held.has(static_cast<ButtonId>(static_cast<uint8_t>(ButtonId::Mod0) + current));
-			if (const std::optional<controls::Logical> slot =
-			        controls::map_input(board_, {controls::Physical::Kind::SLOT_PRESS, physical})) {
+			if (const std::optional<ui::controls::Logical> slot =
+			        ui::controls::map_input(board_, {ui::controls::Physical::Kind::SLOT_PRESS, physical})) {
 				push(slot->index, event.on,
 				     {.shift = ctx.shift, .learn = ctx.held.has(ButtonId::Learn), .mode_held = mode_held}, guest_);
 			}
@@ -273,8 +273,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	    event.lowered ? 1.0 : lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.acceleration_clock_ms);
 	const int32_t offset = static_cast<int8_t>(static_cast<double>(event.delta) * speed);
 	// Legacy consumes a gold-knob turn unconditionally.
-	if (const std::optional<controls::Logical> slot =
-	        controls::map_input(board_, {controls::Physical::Kind::SLOT_ENCODER, physical})) {
+	if (const std::optional<ui::controls::Logical> slot =
+	        ui::controls::map_input(board_, {ui::controls::Physical::Kind::SLOT_ENCODER, physical})) {
 		turn(slot->index, offset, ctx.now_ms, guest_);
 	}
 	Result r = guest_.take_result();
@@ -289,15 +289,15 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 	}
 	turn_knob(knob, offset, now_ms, out);
 	// Every turn on a clip marks its instrument edited, whatever it wrote.
-	if (controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
+	if (ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
 	    sink != nullptr && is_clip_context(*focus_)) {
 		(void)sink->instrument_edited(*focus_);
 	}
 }
 
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
-	const controls::Facts* const facts = port_of(ports_, &Ports::controls);
-	controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
+	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
+	ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
 	const bind::KnobAssignment assignment = bind::knob_assignment(*model_, *focus_, which_encoder, board_);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
@@ -328,8 +328,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	ModTurn turn;
 	turn.kind = assignment.kind;
 	turn.param_id = legacy_id(*address, assignment.kind);
-	turn.old_knob_pos = controls::knob_pos_of(*address, info, value.value_or(0));
-	turn.new_knob_pos = controls::turn(controls::knob_kind(*address), turn.old_knob_pos, offset);
+	turn.old_knob_pos = ui::controls::knob_pos_of(*address, info, value.value_or(0));
+	turn.new_knob_pos = ui::controls::turn(ui::controls::knob_kind(*address), turn.old_knob_pos, offset);
 
 	// The popup, unless the presentation shows the value its own way.
 	if (!out.suppress_value_popup(turn)) {
@@ -345,19 +345,19 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 		       && facts->allows_note_tails(sound->slot, sound->clip);
 	};
 	const bool tails_before = allows_tails();
-	const int32_t new_value = controls::value_of_knob(*address, info, turn.new_knob_pos);
+	const int32_t new_value = ui::controls::value_of_knob(*address, info, turn.new_knob_pos);
 	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
 	if (sink == nullptr
 	    || !sink->write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length),
-	                          controls::Resolution::KNOB)) {
+	                          ui::controls::Resolution::KNOB)) {
 		return; // refused: nothing changed, so nothing is fed back
 	}
 	out.value_written();
 	turn.value_changed = true;
 	turn.note_tails_changed = sound != nullptr && sound->clip && tails_before != allows_tails();
 
-	turn.should_indicate_middle_value = controls::indicates_middle(*address, info, owner_stutter_quantized(),
-	                                                               facts != nullptr && facts->stutter_active());
+	turn.should_indicate_middle_value = ui::controls::indicates_middle(*address, info, owner_stutter_quantized(),
+	                                                                   facts != nullptr && facts->stutter_active());
 
 	send_midi_follow_feedback(TurnedParam{turn.kind, *address, turn.new_knob_pos}, false);
 	if (turn.note_tails_changed) {
@@ -395,7 +395,7 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 			}
 		}
 	}
-	const controls::Facts* const facts = port_of(ports_, &Ports::controls);
+	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 	context.stuttering = facts != nullptr && facts->stutter_active();
 	out.show_value_popup(turn, source1, source2, context, now_ms);
 }
@@ -410,7 +410,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	if (turn.kind == Kind::PATCH_CABLE) {
 		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
-		knob_pos = controls::fold_cable(knob_pos + plugin::kMaxKnobPosition / 2) - plugin::kMaxKnobPosition / 2;
+		knob_pos = ui::controls::fold_cable(knob_pos + plugin::kMaxKnobPosition / 2) - plugin::kMaxKnobPosition / 2;
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) {
@@ -438,8 +438,8 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	if (bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
-	const controls::Facts* const facts = port_of(ports_, &Ports::controls);
+	ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
+	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 
 	// A MIDI track choosing its knob's CC: a mod button's press changes nothing, and its release ends the choice.
 	if (selecting_cc_) {
@@ -457,14 +457,14 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	// The button's rules (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`,
 	// `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's end,
 	// which the popup reads, and a press the rules ignore does nothing.
-	const controls::SectionResult section = controls::resolve_section(
+	const ui::controls::SectionResult section = ui::controls::resolve_section(
 	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
 	    {.root_is_performance = view_.root_is_performance,
 	     .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
 	     .root_is_clip_minder = view_.root_is_clip_minder,
-	     .keeps_stutter = controls::section_keeps_stutter(*model_, *focus_, static_cast<uint32_t>(which_button),
-	                                                      facts != nullptr ? bind::app_page_sources(*facts, board_)
-	                                                                       : bind::app_turn_sources(board_))});
+	     .keeps_stutter = ui::controls::section_keeps_stutter(*model_, *focus_, static_cast<uint32_t>(which_button),
+	                                                          facts != nullptr ? bind::app_page_sources(*facts, board_)
+	                                                                           : bind::app_turn_sources(board_))});
 	if (on && !section.taken) {
 		return;
 	}
@@ -475,7 +475,7 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 		out.vu_sidebar_changed(); // the VU meter is offered only outside a clip minder
 	}
 	if (section.change_mode && sink != nullptr) {
-		(void)sink->knob_mode(*controls::knob_mode_owner(*focus_), static_cast<uint8_t>(which_button));
+		(void)sink->knob_mode(*ui::controls::knob_mode_owner(*focus_), static_cast<uint8_t>(which_button));
 	}
 	if (section.end_stutter && sink != nullptr) {
 		(void)sink->stutter(*focus_, false);
@@ -496,12 +496,12 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 	if (ctx.learn || bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
+	ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
 
 	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (ctx.shift && on) {
 		const std::optional<ParamAddress> address = knob_address(which_encoder);
-		const controls::Facts* const facts = port_of(ports_, &Ports::controls);
+		const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 		if (address && facts != nullptr && facts->param_value(*address).has_value() && sink != nullptr
 		    && sink->delete_knob_automation(*address)) {
 			out.popup(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED);
@@ -585,7 +585,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		knob_pos += plugin::kMaxKnobPosition / 2;
 
 		if (info.kind == Kind::PATCH_CABLE) {
-			knob_pos = controls::fold_cable(knob_pos);
+			knob_pos = ui::controls::fold_cable(knob_pos);
 		}
 		out.declared = true;
 		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the argument is made here at the
@@ -644,7 +644,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	if (model_ == nullptr) {
 		return out; // no song: nothing to read, so nothing is declared
 	}
-	const controls::Facts* const facts = port_of(ports_, &Ports::controls);
+	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 	const bind::TrackFacts* const tracks = port_of(ports_, &Ports::tracks);
 	const bind::KnobAssignment assignment = bind::knob_assignment(*model_, *focus_, which_encoder, board_);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
@@ -680,8 +680,8 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	out.has_auto_param = true;
 	out.kind = assignment.kind;
 	out.param_id = legacy_id(*address, assignment.kind);
-	out.knob_pos = controls::knob_pos_of(*address, info, value.value_or(0));
-	out.bipolar = controls::bipolar(*address, info);
+	out.knob_pos = ui::controls::knob_pos_of(*address, info, value.value_or(0));
+	out.bipolar = ui::controls::bipolar(*address, info);
 	if (info != nullptr && info->file_name == "stutterRate") {
 		out.quantized_stutter = owner_stutter_quantized();
 	}
@@ -705,7 +705,7 @@ void ModKnobs::declare_indicators(deluge::ui::widgets::core::LedFrame& frame) {
 		}
 		return;
 	}
-	const controls::Facts* const facts = port_of(ports_, &Ports::controls);
+	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 	const bool stuttering = facts != nullptr && facts->stutter_active();
 	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
@@ -769,7 +769,7 @@ void ModKnobs::send_midi_follow_feedback(const std::optional<TurnedParam>& param
 		const deluge::project::OwnerPlugin owner = feedback->global_effectable_context()
 		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
 		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
-		const std::optional<deluge::project::ParamTarget> target = deluge::controls::follow_target(
+		const std::optional<deluge::project::ParamTarget> target = deluge::ui::controls::follow_target(
 		    owner, param->kind, param->address.id, deluge::instruments::classic::has_engine_param);
 		if (const std::optional<uint8_t> cc_number = target ? feedback->cc_of(owner, *target) : std::nullopt) {
 			feedback->send(*cc_number, param->knob_pos);

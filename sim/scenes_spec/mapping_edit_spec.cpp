@@ -119,7 +119,7 @@ describe mapping_edit("LearnMapping", $ {
 		deluge::edits::learnMappingFor(cc(0, 11), pan);
 		expect(static_cast<int>(f.song->project.mappings.params_of(owner).size())).to_equal(2);
 		deluge::bridge::projectOutputMappings(*f.song, *f.instrument->id()); // projected again, nothing changed
-		const deluge::controls::TakeoverState* held = std::as_const(deluge::midi::takeoverStore()).find(volume, cc(0, 10));
+		const deluge::ui::controls::TakeoverState* held = std::as_const(deluge::midi::takeoverStore()).find(volume, cc(0, 10));
 		expect(held).not_().to_be_null("the volume knob's takeover state");
 		if (held != nullptr) {
 			expect(held->previous).to_equal(std::optional<int32_t>{1234}, "the volume knob's previous position");

@@ -15,7 +15,7 @@
 /// The knobs point at a `bind::KnobFocus`: addresses into the song's records, and the view's knob state (the mod
 /// region, the song compressor's view). What a knob moves is `bind::knob_assignment` over the records; a value is the
 /// `controls::Facts::param_value` fact, or the record's automation at a held region; the position is
-/// `controls/knob_math`'s. A turn is a `controls::Sink::write_param` request (the Edit makes what the knob turns and
+/// `ui/controls/knob_math`'s. A turn is a `controls::Sink::write_param` request (the Edit makes what the knob turns and
 /// writes a take being recorded); a push and a mod button resolve through the controls library
 /// (`controls::resolve_press`, `controls::resolve_section`) into `services/knob_push`'s requests, sent to the sink. The
 /// service holds no engine object.
@@ -62,13 +62,13 @@
 ///          points use the last `now_ms` the service was ticked with.
 
 #include "base/panic.h"
-#include "controls/board.h"
 #include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/guest_knob_presentation.h"
 #include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_target.h"
+#include "ui/controls/board.h"
 
 #include "ui/widgets/core/knob_indicator.h"
 #include "ui/widgets/core/led_frame.h"
@@ -109,7 +109,7 @@ public:
 	ModKnobs(const ModKnobs&) = delete;
 	ModKnobs& operator=(const ModKnobs&) = delete;
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
-	         deluge::ui::shell::InputLowering& lowering, const deluge::controls::Board& board)
+	         deluge::ui::shell::InputLowering& lowering, const deluge::ui::controls::Board& board)
 	    : stack_(stack), lowering_(lowering), board_(board),
 	      guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {
 		if (board.slots > KnobPresentation::kKnobCount) {
@@ -120,7 +120,7 @@ public:
 	/// @brief The board the knobs and mod buttons are on: a caller mapping a physical control for them maps it through
 	///        this one.
 	/// @return The board.
-	[[nodiscard]] const deluge::controls::Board& board() const { return board_; }
+	[[nodiscard]] const deluge::ui::controls::Board& board() const { return board_; }
 
 	/// @name What the knobs point at
 	/// @{
@@ -338,7 +338,7 @@ private:
 
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
-	const deluge::controls::Board board_;                ///< what the knobs and buttons are on
+	const deluge::ui::controls::Board board_;            ///< what the knobs and buttons are on
 	const deluge::scenes::bind::Ports* ports_ = nullptr; ///< the installed ports, or null for none
 	const deluge::project::Song* model_ = nullptr;       ///< the song's record, or null for none
 	/// The focus this service keeps when it is given no store.

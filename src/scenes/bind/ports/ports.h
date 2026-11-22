@@ -4,8 +4,6 @@
 /// @brief The scenes' whole host interface: one pointer per port. The host builds one set; a spec builds its own
 ///        from fakes and leaves null whatever its scene does not use.
 
-#include "controls/facts.h"
-#include "controls/sink.h"
 #include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/ports/card_facts.h"
 #include "scenes/bind/ports/clip_facts.h"
@@ -26,6 +24,8 @@
 #include "scenes/bind/ports/view_actions.h"
 #include "scenes/bind/ports/waveforms.h"
 #include "scenes/bind/ports/write_sink.h"
+#include "ui/controls/facts.h"
+#include "ui/controls/sink.h"
 
 namespace deluge::scenes::bind {
 
@@ -39,13 +39,13 @@ struct Ports {
 	const SoundFacts* sound{nullptr};  ///< what a sound's record does not hold: its loads, state, cables and ranges
 	const ClipFacts* clips{nullptr};   ///< what a clip's record does not hold: its play state and view state
 	const TrackFacts* tracks{nullptr}; ///< the song's tracks and what its owners play that their records do not hold
-	const controls::Facts* controls{nullptr};     ///< what the knobs read: live param values, stutter, note tails
+	const ui::controls::Facts* controls{nullptr}; ///< what the knobs read: live param values, stutter, note tails
 	ClipWrites* clip_writes{nullptr};             ///< where a scene's clip edits go
 	SoundWrites* sound_writes{nullptr};           ///< where a scene's edits of a sound's sources go
 	LearnSink* learn{nullptr};                    ///< where a scene's MIDI learns go
 	MidiDevices* midi{nullptr};                   ///< the connected MIDI devices and their own settings
 	WriteSink* writes{nullptr};                   ///< where a menu's setting, text and automation writes go
-	controls::Sink* controls_sink{nullptr};       ///< where the knobs' writes and an effect setting's exact word go
+	ui::controls::Sink* controls_sink{nullptr};   ///< where the knobs' writes and an effect setting's exact word go
 	DeviceSettings* device{nullptr};              ///< the device's own settings, by DEVICE row
 	DeviceActions* device_actions{nullptr};       ///< the device's own actions: saving its settings, forgetting undo
 	MidiFeedback* midi_feedback{nullptr};         ///< MIDI follow's feedback to a controller

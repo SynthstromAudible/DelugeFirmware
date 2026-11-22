@@ -3,11 +3,11 @@
 /// @file
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
-#include "controls/sink.h"
 #include "instruments/classic/cables.h"
 #include "plugin/types/sync.h"
 #include "project/param_address.h"
 #include "scenes/bind/target.h"
+#include "ui/controls/sink.h"
 
 #include <cstdint>
 #include <string_view>
@@ -30,7 +30,7 @@ struct WriteRequest {
 };
 
 /// @brief Whose effect settings a write names: a sound's slot, or a chain.
-using controls::EffectOwner;
+using ui::controls::EffectOwner;
 
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's fake records them.
 class WriteSink {

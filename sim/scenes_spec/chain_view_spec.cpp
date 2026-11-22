@@ -5,12 +5,12 @@
 #include "board_controls.hpp"
 #include "scenes/bind/page_sources.h"
 
-#include "controls/pages.h"
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
 #include "host/chains/pages.h"
 #include "host/chains/params.h"
 #include "project/song.h"
+#include "ui/controls/pages.h"
 
 #include "cppspec.hpp"
 #include "support/printers/param_id_printer.h"
@@ -24,7 +24,7 @@
 namespace {
 
 namespace bind = deluge::scenes::bind;
-namespace controls = deluge::controls;
+namespace controls = deluge::ui::controls;
 namespace project = deluge::project;
 namespace ge = deluge::host::chains::param;
 

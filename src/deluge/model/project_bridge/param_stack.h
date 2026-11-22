@@ -24,9 +24,9 @@
 /// that still need one (undo's pre-log, recording automation, the engine's projection of a write) take it from here,
 /// below the Edit, so nothing above an Edit builds one.
 
-#include "controls/knob_focus.h"
 #include "plugin/types/param_kind.h"
 #include "project/param_address.h"
+#include "ui/controls/knob_focus.h"
 
 #include <cstdint>
 #include <optional>
@@ -172,7 +172,7 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 /// @param focus  What the knobs point at.
 /// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
 /// @return The stack, or null for no focus (a CV track's included) or an owner @p song does not hold.
-[[nodiscard]] ::ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const controls::KnobFocus& focus,
+[[nodiscard]] ::ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const ui::controls::KnobFocus& focus,
                                                                 void* memory);
 
 /// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not read).

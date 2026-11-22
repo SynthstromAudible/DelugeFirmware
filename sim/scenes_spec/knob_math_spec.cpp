@@ -2,7 +2,7 @@
 // the engine's own param collections give, for every param of the Deluge's and the global effectable's tables, a
 // patch cable, the three expression dimensions and a MIDI CC.
 
-#include "controls/knob_math.h"
+#include "ui/controls/knob_math.h"
 
 #include "host/chains/params.h"
 #include "instruments/classic/cables.h"
@@ -40,7 +40,7 @@ using deluge::plugin::ParamInfo;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
-namespace controls = deluge::controls;
+namespace controls = deluge::ui::controls;
 
 constexpr std::array<int32_t, 7> kValues{std::numeric_limits<int32_t>::min(), -(1 << 30), -1, 0, 1, 1 << 30,
                                          std::numeric_limits<int32_t>::max()};

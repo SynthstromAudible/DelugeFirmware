@@ -249,7 +249,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		const ParamAddress lpf = synth_lpf(synth);
 		bool taken = false;
 		const std::optional<uint32_t> sent =
-		    feedback_stamp(synth, [&] { taken = menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB); });
+		    feedback_stamp(synth, [&] { taken = menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB); });
 		expect(taken).to_be_true();
 		expect(sent).to_equal(std::optional{0u});
 		const deluge::project::DocAutoParam* record = synth.song->project.resolveParam(lpf);
@@ -262,7 +262,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("deletes a param's automation by address, one undo step", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const ParamAddress lpf = synth_lpf(synth);
-		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
 		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_true();
@@ -286,7 +286,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		lpf.owner.id += 1000;
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
 		expect(menu::host_ports().writes->write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
-		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 0, deluge::controls::Resolution::KNOB)).to_be_false();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 0, deluge::ui::controls::Resolution::KNOB)).to_be_false();
 		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_false();
 	});
 
@@ -333,7 +333,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		deluge::edits::SetParamValue late{lpf, 0x70000000, 48, 24};
 		(void)deluge::edits::apply(ctx, early);
 		(void)deluge::edits::apply(ctx, late);
-		const deluge::controls::Facts& facts = *menu::host_ports().controls;
+		const deluge::ui::controls::Facts& facts = *menu::host_ports().controls;
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		std::optional<int32_t> read[2];
 		int i = 0;

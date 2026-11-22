@@ -45,7 +45,7 @@ LIBRARIES = {
     "src/instruments/classic/": "/instruments/classic/",
     "src/plugin/": "/dsp-next/",  # header-only: any library's flags see it
     "src/serialization/": "/serialization/",
-    "src/controls/": "/controls/",
+    "src/ui/controls/": "/controls/",
 }
 SOURCE_SUFFIXES = {".cpp", ".cc", ".cxx"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hh"}

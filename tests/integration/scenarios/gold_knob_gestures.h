@@ -64,7 +64,7 @@ class GoldKnobGestures {
 public:
 	/// @param song  The song the knobs act on (also the current song while they do).
 	/// @param focus The owner the knobs point at.
-	GoldKnobGestures(Song& song, const deluge::controls::KnobFocus& focus)
+	GoldKnobGestures(Song& song, const deluge::ui::controls::KnobFocus& focus)
 	    : stack_(registry_), knobs_(deluge::scenes::overlay::param_popup_scene(), stack_, lowering_, kDelugeControls) {
 		knobs_.set_ports(&deluge::scenes::menu::host_ports());
 		knobs_.set_model(&song.project);

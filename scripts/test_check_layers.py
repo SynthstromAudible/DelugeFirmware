@@ -607,15 +607,15 @@ class RealTable(unittest.TestCase):
 
     def test_controls_may_use_the_model_and_plugin_api_but_not_instruments(self):
         self.assertEqual(
-            self.library_found("controls", '#include "project/song.h"\n'), []
+            self.library_found("ui-controls", '#include "project/song.h"\n'), []
         )
         self.assertEqual(
-            self.library_found("controls", '#include "plugin/plugin.h"\n'), []
+            self.library_found("ui-controls", '#include "plugin/plugin.h"\n'), []
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "controls", '#include "instruments/classic/words.h"\n'
+                    "ui-controls", '#include "instruments/classic/words.h"\n'
                 )
             ),
             1,

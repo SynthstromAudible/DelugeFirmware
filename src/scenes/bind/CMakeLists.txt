@@ -17,5 +17,5 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_scenes_bind PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                       CXX_EXTENSIONS ON)
 endif()
-target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_controls deluge_instruments_classic deluge_host_chains deluge_sample_view)
+target_link_libraries(deluge_scenes_bind PUBLIC deluge_project deluge_ui_controls deluge_instruments_classic deluge_host_chains deluge_sample_view)
 target_compile_options(deluge_scenes_bind PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

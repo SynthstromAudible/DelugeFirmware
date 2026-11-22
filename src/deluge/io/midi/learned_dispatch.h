@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief Where an incoming CC or pitch bend reaches the current song's learned knobs (controls/learned.h), through
+/// @brief Where an incoming CC or pitch bend reaches the current song's learned knobs (ui/controls/learned.h), through
 ///        the app's facts, sink and takeover states. Defined with the scenes' host, which holds them
 ///        (gui/ui/shell_host/learned_dispatch.cpp).
 

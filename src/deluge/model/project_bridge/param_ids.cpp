@@ -17,7 +17,7 @@
 
 #include "model/project_bridge/param_ids.h"
 
-#include "controls/follow.h"
+#include "ui/controls/follow.h"
 
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
@@ -285,7 +285,7 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	if (kind == params::Kind::NONE) { // an unpatched set its owner's init has not named yet
 		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	}
-	return deluge::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
+	return deluge::ui::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {

@@ -2137,7 +2137,7 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		// The knobs' own params are the other arm of the test; with them released only the menu's can match.
-		const deluge::controls::KnobFocus savedFocus = view.knobFocus();
+		const deluge::ui::controls::KnobFocus savedFocus = view.knobFocus();
 		view.releaseActiveModControllable();
 		uiTimerManager.unsetTimer(TimerName::DISPLAY_AUTOMATION);
 		view.notifyParamAutomationOccurred(&row->paramManager);

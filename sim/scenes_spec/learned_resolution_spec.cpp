@@ -57,7 +57,7 @@
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
 namespace project = deluge::project;
-namespace controls = deluge::controls;
+namespace controls = deluge::ui::controls;
 
 using project::ControlsAddress;
 using project::OwnerId;

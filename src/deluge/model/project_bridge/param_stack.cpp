@@ -431,15 +431,15 @@ std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& a
 	return stack->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(pos), stack);
 }
 
-ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const controls::KnobFocus& focus, void* memory) {
-	if (const auto* midi = std::get_if<controls::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
+ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const ui::controls::KnobFocus& focus, void* memory) {
+	if (const auto* midi = std::get_if<ui::controls::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
 		::Output* output = outputWithId(song, midi->track.output_id);
 		return output != nullptr && output->type == OutputType::MIDI_OUT
 		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output->toModControllable(), nullptr,
 		                                                            output->getParamManager(&song))
 		           : nullptr;
 	}
-	const std::optional<project::ParamAddress> owner = controls::knob_owner(focus);
+	const std::optional<project::ParamAddress> owner = ui::controls::knob_owner(focus);
 	if (!owner) {
 		return nullptr;
 	}

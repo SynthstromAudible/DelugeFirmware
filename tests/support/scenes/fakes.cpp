@@ -369,7 +369,7 @@ void RecordingWrites::set_reverb_sidechain_sync_type(plugin::SyncType type) {
 }
 
 bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,
-                                        int32_t length, controls::Resolution resolution) {
+                                        int32_t length, ui::controls::Resolution resolution) {
 	param_writes.push_back({address, value, pos, length, resolution});
 	return accept;
 }

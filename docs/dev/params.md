@@ -314,10 +314,10 @@ the same param. It also checks each chain's init state: every cursor at its lane
 The gold knobs and the mod buttons read pages, not tables. An owner publishes its remote-controls pages
 (`plugin::RemotePage`, `plugin`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
-setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
+setting it steps. `controls::page_of` (`src/ui/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
 group enters at. Any board's knobs come from the published records alone: `controls::current_page` and
-`section_pages` (`src/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
+`section_pages` (`src/ui/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
 publishers, the device facts, the `controls::Board` and the host's reading of a chain's view. `current_page` builds the
 current page alone, with no allocation, for a turn and the knobs' indicators; `section_pages` adds the cycle for a
 press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin/remote_controls_publisher.h`),
@@ -325,7 +325,7 @@ handed the owner's state from the model song; the app collects the records in `s
 publisher's `find` may serve pages its `get` does not list: the instrument's serves the sound's filter cycle on any
 section.
 
-`controls::Board` (`src/controls/board.h`) is what a board offers: its sections (mod buttons), its slots per section
+`controls::Board` (`src/ui/controls/board.h`) is what a board offers: its sections (mod buttons), its slots per section
 (gold knobs), whether a slot presses, and its pad grid. `controls::map_input` is the board's map from a `Physical`
 control to the `Logical` section or slot the rules name; a control the board lacks drives nothing. The Deluge's profile
 is `kDelugeControls` (`src/board_controls.hpp`), built from the board's own dimensions; its sections and slots are
@@ -333,7 +333,7 @@ numbered as the hardware numbers them, so the map is the identity. A page's sect
 page's slots read the board, never a Deluge constant. `controls::section_keeps_stutter` answers whether pressing a
 section keeps a playing stutter running from the owner's published device pages, so the rule is the publisher's data.
 
-An owner with no knobs has an explicit empty layout: `NoControlsFocus` (`src/controls/knob_focus.h`) names a CV track,
+An owner with no knobs has an explicit empty layout: `NoControlsFocus` (`src/ui/controls/knob_focus.h`) names a CV track,
 a MIDI drum or a gate drum, its page is empty, its knobs turn nothing and its mod buttons choose nothing. It is not
 the same as no focus (`std::monostate`): the focus still carries the track, drum and clip the view is on, and
 `controls::has_no_knobs` is true for both.
@@ -345,16 +345,16 @@ are also `STEPPED | ENUM` and have a stepper (`effects::step_setting`); the six 
 continuous, with no stepper. Settings have no storage of their own yet: a stepped setting is written by its row's file
 name through `controls::Sink::write_effect`, as a menu writes it, and a compressor knob's turn by its path.
 
-`controls::resolve_turn` and `resolve_press` (`src/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
+`controls::resolve_turn` and `resolve_press` (`src/ui/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
 pages and a slot, they return the one `Target` the control means: a `ParamWrite`, a `StepSetting`, a `SelectPage` or a
 `HostCommand` (stutter, reverb preset, MIDI CC select). `NEXT_PAGE` moves within the pressed slot's group and takes
 along every other slot still on the page's own param, so a slot the user mapped elsewhere stays where it is; from a
 page the cycle lacks (a mod FX view its type has no param for) it moves to the group's first page after it.
-`controls::resolve_section` (`src/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
+`controls::resolve_section` (`src/ui/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
 meter toggles, the stutter ends, and the popup shows.
 
 The gold knobs (`scenes::services::ModKnobs`) resolve through these and apply each target through `controls::Sink`,
-reading values through `controls::Facts` (`src/controls/sink.h`, `facts.h`). The shell calls them while a menu is up;
+reading values through `controls::Facts` (`src/ui/controls/sink.h`, `facts.h`). The shell calls them while a menu is up;
 the root views call the same object through `deluge::gui::ui::root_knobs` (`turn`, `push`, `mod_button`), which hands it
 a `KnobPresentation` that shows each popup, indicator and blink as the view does. No other knob path remains: `View`
 keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
@@ -395,12 +395,12 @@ A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`sr
 resolves it through the owner's `ParamNaming::id_of`, then through `mod_knob_target`, which sends a knob on a volume to
 the param the runtime uses, so the codec is the one place that rule lives.
 
-MIDI follow resolves the same way: `controls::resolve_follow` (`src/controls/follow.h`) turns a CC and the followed
+MIDI follow resolves the same way: `controls::resolve_follow` (`src/ui/controls/follow.h`) turns a CC and the followed
 clip's `KnobFocus` (`midi::followFocus`, which reads `gui::knobFocusOfClip`: a kit's selected row unless the clip has
 affect-entire) into the address, from the sound table or the global one, and refuses portamento on a kit row. A
 followed CC moves its param through `controls::move_by_cc`, as a learned knob's does, after cloning the clip the
 arrangement records whether or not the CC follows anything; its position arithmetic is a gold knob's
-(`src/controls/knob_math.h`).
+(`src/ui/controls/knob_math.h`).
 
 ## Instrument-private rules
 

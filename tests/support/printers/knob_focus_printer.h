@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "controls/knob_focus.h"
 #include "support/printers/optional_printer.h"
 #include "support/printers/project_address_printer.h"
+#include "ui/controls/knob_focus.h"
 
 #include <format>
 #include <optional>
@@ -36,7 +36,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::controls {
+namespace deluge::ui::controls {
 
 /// @brief Prints the song's own focus, `{song}`.
 /// @param os The stream to print to.
@@ -137,4 +137,4 @@ inline std::ostream& operator<<(std::ostream& os, const KnobFocus& f) {
 	          << int{f.vu_meter} << "}";
 }
 
-} // namespace deluge::controls
+} // namespace deluge::ui::controls

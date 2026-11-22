@@ -5,8 +5,6 @@
 #include "scenes/bind/ports/ports.h"
 #include "scenes/services/source_names.h"
 
-#include "controls/pages.h"
-#include "controls/resolve.h"
 #include "effects/chain.h"
 #include "effects/compressor.h"
 #include "effects/reverb_presets.h"
@@ -24,6 +22,8 @@
 #include "instruments/classic/state_access.h"
 #include "music/note_length.h"
 #include "plugin/types/display_mapping.h"
+#include "ui/controls/pages.h"
+#include "ui/controls/resolve.h"
 
 #include <algorithm>
 #include <array>
@@ -45,15 +45,15 @@ constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release
 /// What a push reads beyond the song's records: the owner's effects (through the gesture's track and sound ports), the
 /// device facts (through its controls port) and the gesture's context.
 struct Reads {
-	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
-	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
-	bool button_held{false};       ///< the mode's mod button is held
-	bool clip_context{false};      ///< the knobs are on a clip, not the song
+	effects::EffectStates effects;   ///< the owner's effect settings (a new chain's for none)
+	ui::controls::PageSources pages; ///< the publishers and the device facts (the alternative delay knobs)
+	bool button_held{false};         ///< the mode's mod button is held
+	bool clip_context{false};        ///< the knobs are on a clip, not the song
 };
 
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
-	const controls::Facts* const facts = bind::port_of(gesture.ports, &bind::Ports::controls);
+	const ui::controls::Facts* const facts = bind::port_of(gesture.ports, &bind::Ports::controls);
 	Reads out{.pages = facts != nullptr ? bind::app_page_sources(*facts, gesture.board)
 	                                    : bind::app_turn_sources(gesture.board),
 	          .button_held = gesture.button_held,
@@ -308,7 +308,7 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 /// A press of knob @p pressed that moved @p focus's section from @p pages's current page to @p page: a sound's filter
 /// knob to its next filter (its knobs, rewritten), a chain's filter or mod FX view, or the song's compressor view.
 void select_page_push(KnobPush& out, const project::Song& song, const bind::KnobFocus& focus,
-                      const controls::SectionPages& pages, const controls::SelectPage& page, int32_t pressed,
+                      const ui::controls::SectionPages& pages, const ui::controls::SelectPage& page, int32_t pressed,
                       const Reads& inputs) {
 	const effects::EffectStates& fx = inputs.effects;
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
@@ -357,7 +357,7 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 	case host::chains::kCompressorSection: {
 		// The song's compressor: its group 1 pages are its settings, one each after the reverb page.
 		const auto found =
-		    std::ranges::find_if(pages.cycle, [&](const controls::Page& p) { return p.page_id == page.page_id; });
+		    std::ranges::find_if(pages.cycle, [&](const ui::controls::Page& p) { return p.page_id == page.page_id; });
 		bind::CompView comp = focus.comp;
 		comp.editing = found != pages.cycle.end() && found->group == 1;
 		if (comp.editing) {
@@ -375,8 +375,8 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 
 /// A press the host carries out: a stutter, a MIDI knob's CC select, or the next reverb preset.
 void host_command_push(KnobPush& out, const project::Song& song, const bind::KnobFocus& focus,
-                       controls::HostCommand command, const Reads& inputs) {
-	using controls::HostCommand;
+                       ui::controls::HostCommand command, const Reads& inputs) {
+	using ui::controls::HostCommand;
 	switch (command) {
 	case HostCommand::STUTTER_BEGIN:
 	case HostCommand::STUTTER_END:
@@ -430,7 +430,7 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 
 /// The name a mod button shows for knob @p knob: its param's, as the filter modes name morph.
 std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, int32_t knob,
-                      const effects::EffectStates& fx, const controls::Board& board) {
+                      const effects::EffectStates& fx, const ui::controls::Board& board) {
 	const bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob, board);
 	const auto* address = std::get_if<project::ParamAddress>(&assignment.target);
 	if (address == nullptr) {
@@ -513,10 +513,10 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
                    const PushInputs& gesture) {
 	const Reads inputs = reads_of(focus, gesture);
-	const controls::SectionPages pages = controls::section_pages(song, focus, inputs.pages);
-	const controls::Target target = controls::resolve_press(focus, pages, knob, on);
+	const ui::controls::SectionPages pages = ui::controls::section_pages(song, focus, inputs.pages);
+	const ui::controls::Target target = ui::controls::resolve_press(focus, pages, knob, on);
 	KnobPush out;
-	if (const auto* step = std::get_if<controls::StepSetting>(&target)) {
+	if (const auto* step = std::get_if<ui::controls::StepSetting>(&target)) {
 		const plugin::ParamId id = step->address.id;
 		const std::optional<effects::Stepped> stepped =
 		    effects::step_setting(id, inputs.effects, {.tick_magnitude = tick_magnitude(song)});
@@ -533,10 +533,10 @@ KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int3
 		}
 		out.edited = true;
 	}
-	else if (const auto* page = std::get_if<controls::SelectPage>(&target)) {
+	else if (const auto* page = std::get_if<ui::controls::SelectPage>(&target)) {
 		select_page_push(out, song, focus, pages, *page, knob, inputs);
 	}
-	else if (const auto* command = std::get_if<controls::HostCommand>(&target)) {
+	else if (const auto* command = std::get_if<ui::controls::HostCommand>(&target)) {
 		host_command_push(out, song, focus, *command, inputs);
 	}
 	return out;
@@ -547,7 +547,7 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	const Reads inputs = reads_of(focus, gesture);
 	const effects::EffectStates& fx = inputs.effects;
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
-		const controls::Page current = controls::current_page(song, focus, inputs.pages);
+		const ui::controls::Page current = ui::controls::current_page(song, focus, inputs.pages);
 		const auto param_at = [&current](size_t knob) -> std::optional<plugin::ParamId> {
 			const std::optional<project::ParamTarget>& target = current.slots[knob].target;
 			return target ? std::optional{target->id} : std::nullopt;
@@ -663,7 +663,8 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	return out;
 }
 
-bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::KnobFocus& focus, const KnobPush& push) {
+bool apply_push(bind::WriteSink& sink, ui::controls::Sink& controls, const bind::KnobFocus& focus,
+                const KnobPush& push) {
 	bool taken = true;
 	const std::optional<EffectOwner> owner = effect_owner(focus);
 	for (const EffectWrite& write : push.effects) {

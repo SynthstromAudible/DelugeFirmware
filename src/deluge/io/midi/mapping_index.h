@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "controls/takeover.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "project/controller_mapping.h"
 #include "project/mapping_table.h"
+#include "ui/controls/takeover.h"
 #include "util/containers.h"
 
 #include <algorithm>
@@ -268,7 +268,7 @@ MappingIndex& mappingIndex();
 /// @brief The takeover state of the current song's learned knobs, kept beside its index. App loop only: the render's
 /// table writes reach it only when the app loop applies them (bridge::applyPendingMappingOps). Emptied at the first
 /// call after another song is made current (markSongChanged), and when the current song's mappings are loaded.
-controls::TakeoverStore& takeoverStore();
+ui::controls::TakeoverStore& takeoverStore();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
 /// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies the

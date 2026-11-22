@@ -149,15 +149,16 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief A param of an owner no song holds has no value and is not automated.
-[[nodiscard]] inline bool unknown_param_has_no_value(const controls::Facts& controls,
+[[nodiscard]] inline bool unknown_param_has_no_value(const ui::controls::Facts& controls,
                                                      const project::ParamAddress& nowhere) {
 	return !controls.param_value(nowhere).has_value() && !controls.param_automated(nowhere);
 }
 
 /// @brief A knob's write to, and the making of, a param of an owner no song holds are refused. A recording fake
 ///        refuses only with `accept` false, so set that first.
-[[nodiscard]] inline bool unknown_param_write_is_refused(controls::Sink& sink, const project::ParamAddress& nowhere) {
-	return !sink.write_param(nowhere, 1, 0, 0, controls::Resolution::KNOB) && !sink.make_param(nowhere);
+[[nodiscard]] inline bool unknown_param_write_is_refused(ui::controls::Sink& sink,
+                                                         const project::ParamAddress& nowhere) {
+	return !sink.write_param(nowhere, 1, 0, 0, ui::controls::Resolution::KNOB) && !sink.make_param(nowhere);
 }
 
 /// @brief Every connected device has a name and settings, and no device names none.

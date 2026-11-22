@@ -14,7 +14,6 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 
-#include "controls/knob_focus.h"
 #include "effects/reverb_presets.h"
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
@@ -52,6 +51,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
+#include "ui/controls/knob_focus.h"
 
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
@@ -83,7 +83,7 @@ namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
 
 /// @brief View's focus owner now.
-const controls::KnobFocus& focus() {
+const ui::controls::KnobFocus& focus() {
 	return view.knobFocus();
 }
 
@@ -201,7 +201,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::scenes::spec::make_current(f.song);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		const controls::KnobFocus want{.owner = controls::SoundFocus{
+		const ui::controls::KnobFocus want{.owner = ui::controls::SoundFocus{
 		    .slot = {project::SlotAddress::Kind::OUTPUT, *f.instrument->id()}, .clip = project::ClipAddress{f.clip->id()}}};
 		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
@@ -216,7 +216,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		kit->selectedDrum = drum;
 		f.clip->affectEntire = false;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		const controls::KnobFocus row{.owner = controls::SoundFocus{
+		const ui::controls::KnobFocus row{.owner = ui::controls::SoundFocus{
 		    .slot = {project::SlotAddress::Kind::DRUM, *drum->id()},
 		    .clip = project::ClipAddress{f.clip->id()},
 		    .row = project::NoteRowAddress{f.clip->id(), true, static_cast<int32_t>(*drum->id())},
@@ -225,9 +225,9 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 
 		f.clip->affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		const controls::KnobFocus chain{.owner = controls::ChainFocus{
+		const ui::controls::KnobFocus chain{.owner = ui::controls::ChainFocus{
 		    .chain = {project::ChainAddress::Kind::OUTPUT, *kit->id()},
-		    .owner = controls::ChainOwner::KIT,
+		    .owner = ui::controls::ChainOwner::KIT,
 		    .clip = project::ClipAddress{f.clip->id()}}};
 		expect(focus().owner).to_equal(chain.owner);
 		view.releaseActiveModControllable();
@@ -238,9 +238,9 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		deluge::scenes::spec::make_current(f.song);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		const controls::KnobFocus want{.owner = controls::ChainFocus{
+		const ui::controls::KnobFocus want{.owner = ui::controls::ChainFocus{
 		    .chain = {project::ChainAddress::Kind::OUTPUT, *f.output->id()},
-		    .owner = controls::ChainOwner::AUDIO_TRACK,
+		    .owner = ui::controls::ChainOwner::AUDIO_TRACK,
 		    .clip = project::ClipAddress{f.clip->id()}}};
 		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
@@ -252,28 +252,28 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::scenes::spec::make_current(song.song);
 		song.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(song.song, false);
-		expect(std::holds_alternative<controls::SongFocus>(focus().owner)).to_be_true();
+		expect(std::holds_alternative<ui::controls::SongFocus>(focus().owner)).to_be_true();
 		view.releaseActiveModControllable();
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
 
 		spec::SongFixture midi = spec::make_midi_song();
 		deluge::scenes::spec::make_current(midi.song);
 		view.setActiveModControllableTimelineCounter(midi.clip, false);
-		const controls::KnobFocus want{.owner = controls::MidiFocus{
+		const ui::controls::KnobFocus want{.owner = ui::controls::MidiFocus{
 		    .track = project::TrackAddress{*midi.instrument->id()}, .clip = project::ClipAddress{midi.clip->id()}}};
 		expect(focus().owner).to_equal(want.owner);
 
 		spec::SongFixture cv = spec::make_cv_song();
 		deluge::scenes::spec::make_current(cv.song);
 		view.setActiveModControllableTimelineCounter(cv.clip, false);
-		const controls::KnobFocus empty{.owner = controls::NoControlsFocus{
-		    .kind = controls::NoControlsFocus::Kind::CV_TRACK,
+		const ui::controls::KnobFocus empty{.owner = ui::controls::NoControlsFocus{
+		    .kind = ui::controls::NoControlsFocus::Kind::CV_TRACK,
 		    .track = project::TrackAddress{*cv.instrument->id()},
 		    .clip_id = cv.clip->id()}};
 		expect(focus().owner).to_equal(empty.owner);
-		expect(controls::has_no_knobs(focus())).to_be_true();
-		expect(controls::knob_owner(focus()).has_value()).to_be_false();
-		expect(controls::knob_mode_owner(focus()).has_value()).to_be_false();
+		expect(ui::controls::has_no_knobs(focus())).to_be_true();
+		expect(ui::controls::knob_owner(focus()).has_value()).to_be_false();
+		expect(ui::controls::knob_mode_owner(focus()).has_value()).to_be_false();
 		view.releaseActiveModControllable();
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
 		deluge::scenes::spec::make_current(nullptr);
@@ -292,23 +292,23 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			    ->addOtherTwoThingsButNoNoteRow(drum.toModControllable(), nullptr);
 			return deluge::gui::knobFocusFromStack(*f.song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 		};
-		const controls::KnobFocus midi_in_clip = focus_on(*midi, true);
-		const controls::KnobFocus want_midi{.owner = controls::NoControlsFocus{
-		    .kind = controls::NoControlsFocus::Kind::MIDI_DRUM,
+		const ui::controls::KnobFocus midi_in_clip = focus_on(*midi, true);
+		const ui::controls::KnobFocus want_midi{.owner = ui::controls::NoControlsFocus{
+		    .kind = ui::controls::NoControlsFocus::Kind::MIDI_DRUM,
 		    .track = project::TrackAddress{kit},
 		    .drum = project::KitRowAddress{kit, *midi->id()},
 		    .clip_id = f.clip->id()}};
 		expect(midi_in_clip.owner).to_equal(want_midi.owner);
-		const controls::KnobFocus want_gate{.owner = controls::NoControlsFocus{
-		    .kind = controls::NoControlsFocus::Kind::GATE_DRUM,
+		const ui::controls::KnobFocus want_gate{.owner = ui::controls::NoControlsFocus{
+		    .kind = ui::controls::NoControlsFocus::Kind::GATE_DRUM,
 		    .track = project::TrackAddress{kit},
 		    .drum = project::KitRowAddress{kit, *gate->id()}}};
-		const controls::KnobFocus gate_no_clip = focus_on(*gate, false);
+		const ui::controls::KnobFocus gate_no_clip = focus_on(*gate, false);
 		expect(gate_no_clip.owner).to_equal(want_gate.owner);
-		for (const controls::KnobFocus& found : {midi_in_clip, gate_no_clip}) {
-			expect(controls::has_no_knobs(found)).to_be_true();
-			expect(controls::knob_owner(found).has_value()).to_be_false();
-			expect(controls::knob_mode_owner(found).has_value()).to_be_false();
+		for (const ui::controls::KnobFocus& found : {midi_in_clip, gate_no_clip}) {
+			expect(ui::controls::has_no_knobs(found)).to_be_true();
+			expect(ui::controls::knob_owner(found).has_value()).to_be_false();
+			expect(ui::controls::knob_mode_owner(found).has_value()).to_be_false();
 		}
 	});
 
@@ -321,7 +321,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
 		f.song->addOutput(row);
 		view.setActiveModControllableWithoutTimelineCounter(row, f.song->live.param_backup.getPreferablyWithClip(*row, nullptr));
-		const controls::KnobFocus want{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
+		const ui::controls::KnobFocus want{.owner = ui::controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
 		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
 		deluge::scenes::spec::make_current(nullptr);
@@ -332,12 +332,12 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::scenes::spec::make_current(f.song);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, 0);
-		view.knobFocus().comp = controls::CompView{.editing = true, .param = 2};
+		view.knobFocus().comp = ui::controls::CompView{.editing = true, .param = 2};
 		view.knobFocus().vu_meter = true;
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
-		expect(focus().region).to_equal(controls::ModRegion{.pos = 96, .length = 48});
-		expect(focus().comp).to_equal(controls::CompView{.editing = true, .param = 2});
+		expect(focus().region).to_equal(ui::controls::ModRegion{.pos = 96, .length = 48});
+		expect(focus().comp).to_equal(ui::controls::CompView{.editing = true, .param = 2});
 		expect(focus().vu_meter).to_be_true();
 		view.knobFocus().comp = {};
 		view.knobFocus().vu_meter = false;
@@ -424,7 +424,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::scenes::spec::make_current(f.song);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.releaseKnobsIfOn(*b.clip);
-		expect(std::holds_alternative<controls::SoundFocus>(focus().owner)).to_be_true();
+		expect(std::holds_alternative<ui::controls::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseKnobsIfOn(*f.clip);
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
 		alignas(ModelStackWithAutoParam) char owner_memory[MODEL_STACK_MAX_SIZE];
@@ -434,7 +434,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture elsewhere = spec::make_synth_song();
 		deluge::scenes::spec::make_current(f.song);
 		view.releaseKnobsIfOnSong(*elsewhere.song);
-		expect(std::holds_alternative<controls::SoundFocus>(focus().owner)).to_be_true();
+		expect(std::holds_alternative<ui::controls::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseKnobsIfOnSong(*f.song);
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
 		deluge::scenes::spec::make_current(nullptr);
@@ -560,7 +560,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::scenes::spec::make_current(f.song);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		const project::ParamAddress owner = *controls::knob_owner(view.knobFocus());
+		const project::ParamAddress owner = *ui::controls::knob_owner(view.knobFocus());
 
 		enterUIMode(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
 		(void)deluge::bridge::stutterAt(*f.song, owner, true);
@@ -592,7 +592,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		Output* const saved = arrangerView.outputsOnScreen[2];
 		arrangerView.outputsOnScreen[2] = row;
 		arrangerView.refresh_held_row_mod_target();
-		const controls::KnobFocus want{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
+		const ui::controls::KnobFocus want{.owner = ui::controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
 		expect(view.knobFocus().owner).to_equal(want.owner);
 		alignas(ModelStackWithAutoParam) char owner_memory[MODEL_STACK_MAX_SIZE];
 		const ModelStackWithThreeMainThings* owner = view_knob_stack(owner_memory);
@@ -626,7 +626,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setActiveModControllableTimelineCounter(f.song, false);
-		expect(view.knobFocus().comp).to_equal(controls::CompView{.editing = true, .param = 2});
+		expect(view.knobFocus().comp).to_equal(ui::controls::CompView{.editing = true, .param = 2});
 		expect(view.knobMode()).to_equal(4);
 		expect(view.knobFocus().comp.editing).to_be_true(); // the gain-reduction meter's ask
 
@@ -634,7 +634,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::scenes::spec::make_current(next.song);
 		next.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(next.song, false);
-		expect(view.knobFocus().comp).to_equal(controls::CompView{});
+		expect(view.knobFocus().comp).to_equal(ui::controls::CompView{});
 		view.releaseActiveModControllable();
 		deluge::scenes::spec::make_current(nullptr);
 	});
@@ -795,7 +795,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		auto* kit = static_cast<Kit*>(f.instrument);
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
-		view.knobFocus().comp = controls::CompView{.editing = true, .param = 1};
+		view.knobFocus().comp = ui::controls::CompView{.editing = true, .param = 1};
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*kit->id()}, 4);
 		f.clip->affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -826,7 +826,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::scenes::spec::make_current(elsewhere.song); // a clip of another song retires, with the same id
 		view.releaseKnobsIfOn(*elsewhere.clip);
 		deluge::scenes::spec::make_current(f.song);
-		expect(std::holds_alternative<controls::SoundFocus>(focus().owner)).to_be_true();
+		expect(std::holds_alternative<ui::controls::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseActiveModControllable();
 		deluge::scenes::spec::make_current(nullptr);
 	});

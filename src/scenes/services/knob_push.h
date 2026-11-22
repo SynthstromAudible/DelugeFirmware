@@ -4,8 +4,6 @@
 /// @brief What a gold knob's push and a mod button's press do, as functions of the song's records: the settings they
 ///        write, the knob views they change, and the popup text they show.
 
-#include "controls/board.h"
-#include "controls/sink.h"
 #include "effects/state.h"
 #include "project/controller_mapping.h"
 #include "project/fx_chain.h"
@@ -18,6 +16,8 @@
 #include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
+#include "ui/controls/board.h"
+#include "ui/controls/sink.h"
 
 #include <cstdint>
 #include <optional>
@@ -32,9 +32,9 @@ namespace deluge::scenes::services {
 /// @brief The gesture's context: what a push reads that the song's records do not hold, and the ports it reads the rest
 ///        through.
 struct PushInputs {
-	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
-	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
-	controls::Board board;    ///< the board the knobs are on
+	bool button_held{false};   ///< the mode's mod button is held, so the push re-shows its button's popup
+	bool clip_context{false};  ///< the knobs are on a clip, not the song (the stutter button's names)
+	ui::controls::Board board; ///< the board the knobs are on
 	/// the ports a push reads the owner's effects and the device facts through; none reads the defaults
 	const bind::Ports* ports{nullptr};
 };
@@ -118,7 +118,8 @@ struct CompTurn {
 /// @brief Send @p push's requests: its song settings to @p sink, and its effect settings, chain view, knobs and stutter
 /// to @p controls.
 /// @return Whether the sinks took every one.
-bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::KnobFocus& focus, const KnobPush& push);
+bool apply_push(bind::WriteSink& sink, ui::controls::Sink& controls, const bind::KnobFocus& focus,
+                const KnobPush& push);
 
 /// @brief A note length's name, as the song's tick magnitude names it (`Song::getNoteLengthName`).
 /// @param note_length    The length, in ticks of the song's input.

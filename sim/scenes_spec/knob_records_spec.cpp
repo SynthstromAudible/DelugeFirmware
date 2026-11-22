@@ -8,7 +8,6 @@
 #include "model/fx/chain_params.h"
 
 #include "board_controls.hpp"
-#include "controls/knob_focus.h"
 #include "instruments/classic/pages.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -25,6 +24,7 @@
 #include "processing/sound/sound.h"
 #include "project/structure_codec.h"
 #include "storage/storage_manager.h"
+#include "ui/controls/knob_focus.h"
 
 #include "integration/scenarios/drivers/driver.h"
 #include "integration/scenarios/drivers/tree_load.h"
@@ -91,8 +91,8 @@ std::string saved(Song& song) {
 }
 
 /// @brief The song's own knobs, as the knob focus names them.
-deluge::controls::KnobFocus songFocus() {
-	return deluge::controls::KnobFocus{.owner = deluge::controls::SongFocus{}};
+deluge::ui::controls::KnobFocus songFocus() {
+	return deluge::ui::controls::KnobFocus{.owner = deluge::ui::controls::SongFocus{}};
 }
 
 } // namespace
@@ -113,7 +113,7 @@ describe knob_records("the knob records, by Edit", ${
 		expect(four).not_().to_be_null();
 		if (four != nullptr) {
 			expect(four->project.mod_knob_mode).to_equal(4);
-			expect(deluge::controls::knob_mode(four->project, songFocus(), kDelugeControls)).to_equal(4);
+			expect(deluge::ui::controls::knob_mode(four->project, songFocus(), kDelugeControls)).to_equal(4);
 		}
 		currentSong = before;
 	});
@@ -124,7 +124,7 @@ describe knob_records("the knob records, by Edit", ${
 		expect(nine).not_().to_be_null();
 		if (nine != nullptr) {
 			expect(nine->project.mod_knob_mode).to_equal(9);
-			expect(deluge::controls::knob_mode(nine->project, songFocus(), kDelugeControls)).to_equal(kNumModButtons - 1);
+			expect(deluge::ui::controls::knob_mode(nine->project, songFocus(), kDelugeControls)).to_equal(kNumModButtons - 1);
 		}
 		currentSong = before;
 	});
@@ -136,7 +136,7 @@ describe knob_records("the knob records, by Edit", ${
 		actionLogger.deleteAllLogs();
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, 5)).to_be_true();
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{5});
-		expect(deluge::controls::knob_mode(f.song->project, songFocus(), kDelugeControls)).to_equal(uint8_t{5});
+		expect(deluge::ui::controls::knob_mode(f.song->project, songFocus(), kDelugeControls)).to_equal(uint8_t{5});
 		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, kNumModButtons))
 		    .to_be_false();

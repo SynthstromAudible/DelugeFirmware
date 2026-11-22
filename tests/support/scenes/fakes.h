@@ -3,7 +3,6 @@
 /// @file
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
-#include "controls/sink.h"
 #include "project/device_settings.h"
 #include "project/midi_command.h"
 #include "project/owner_plugin.h"
@@ -14,6 +13,7 @@
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
+#include "ui/controls/sink.h"
 
 #include <array>
 #include <bitset>
@@ -138,7 +138,7 @@ struct FakeTrackFacts final : TrackFacts {
 };
 
 /// @brief The knobs' reads, as a spec sets them: each note-tail answer and the params' values, by their addresses.
-class FakeControlFacts final : public controls::Facts {
+class FakeControlFacts final : public ui::controls::Facts {
 public:
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	/// The value each param plays, by its address; a param absent here the song does not hold.
@@ -149,9 +149,9 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool alt_delay() const override { return alternative_delay; }
-	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
-	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
-	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+	[[nodiscard]] std::span<const ui::controls::PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const ui::controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
+	[[nodiscard]] ui::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
 		return {.cable_relative = cable_relative};
 	}
 	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
@@ -477,14 +477,14 @@ struct RecordingWrites final : WriteSink {
 
 /// @brief controls::Sink that records every request, in order, and answers each with @ref accept; take_for answers
 ///        @ref take_answer.
-struct RecordingControlsSink final : controls::Sink {
+struct RecordingControlsSink final : ui::controls::Sink {
 	/// @brief A param write by address, as recorded.
 	struct ParamWrite {
-		project::ParamAddress address;                               ///< the param written
-		int32_t value{0};                                            ///< its value
-		int32_t pos{0};                                              ///< the position written at
-		int32_t length{0};                                           ///< the length of the region written
-		controls::Resolution resolution{controls::Resolution::KNOB}; ///< how its address resolves
+		project::ParamAddress address;                                       ///< the param written
+		int32_t value{0};                                                    ///< its value
+		int32_t pos{0};                                                      ///< the position written at
+		int32_t length{0};                                                   ///< the length of the region written
+		ui::controls::Resolution resolution{ui::controls::Resolution::KNOB}; ///< how its address resolves
 	};
 	/// @brief One of the knobs' other requests, as recorded.
 	struct Gesture {
@@ -524,7 +524,7 @@ struct RecordingControlsSink final : controls::Sink {
 	std::optional<uint32_t> take_answer; ///< what take_for answers
 	bool accept{true};                   ///< what each request that answers a bool answers
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
-	                 controls::Resolution resolution) override;
+	                 ui::controls::Resolution resolution) override;
 	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
 	std::optional<uint32_t> take_for(uint32_t output_id) override;
 	bool make_param(const project::ParamAddress& address) override;

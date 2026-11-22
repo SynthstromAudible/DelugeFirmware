@@ -29,10 +29,6 @@ path = "bsp"
 target = "src/platform/device"
 
 [[directory]]
-path = "controls"
-target = "src/ui/controls"
-
-[[directory]]
 path = "deluge"
 target = "legacy: shrinks to zero by rewrite, then is deleted"
 
@@ -209,9 +205,9 @@ may_include = [
 ]
 
 [[library]]
-name = "controls"
-root = "src/controls"
-prefix = "controls/"
+name = "ui-controls"
+root = "src/ui/controls"
+prefix = "ui/controls/"
 may_include = [
     "project/",
     "plugin/",
@@ -225,7 +221,7 @@ root = "src/scenes/bind"
 prefix = "scenes/bind/"
 may_include = [
     "project/",
-    "controls/",
+    "ui/controls/",
     "plugin/",
     "instruments/classic/",
     "effects/",
@@ -306,7 +302,7 @@ reason = "the notification channel includes only itself and the standard library
 [[rule]]
 name = "ui-includes-outside"
 files = ["src/ui/**"]
-exclude = ["src/ui/shell/**"]
+exclude = ["src/ui/shell/**", "src/ui/controls/**"]
 pattern = '^(?!ui/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
@@ -331,7 +327,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|ui/shell/|ui/|ui/gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|ui/shell/|ui/|ui/gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|ui/controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

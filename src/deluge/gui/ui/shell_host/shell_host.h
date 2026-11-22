@@ -42,7 +42,7 @@ namespace deluge::gui::shell_host {
 [[nodiscard]] const scenes::bind::TrackFacts& track_facts();
 
 /// @brief The host's controls::Facts: the knobs' reads.
-[[nodiscard]] const controls::Facts& control_facts();
+[[nodiscard]] const deluge::ui::controls::Facts& control_facts();
 
 /// @brief The host's ClipWrites: the clip edits, applied to the current song.
 [[nodiscard]] scenes::bind::ClipWrites& clip_writes();
@@ -105,7 +105,7 @@ void install_scene_ports();
 /// kit's, an audio track's, the master's) SetEffectSetting on the chain, its partner second. A request whose slot or
 /// chain does not resolve, or a sound with no slot, is refused: logged and counted, never applied through the
 /// runtime's setter alone.
-class HostEditSink final : public scenes::bind::WriteSink, public controls::Sink {
+class HostEditSink final : public scenes::bind::WriteSink, public deluge::ui::controls::Sink {
 public:
 	bool write(const scenes::bind::WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
@@ -116,7 +116,7 @@ public:
 	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
-	                 controls::Resolution resolution) override;
+	                 deluge::ui::controls::Resolution resolution) override;
 	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
 	std::optional<uint32_t> take_for(uint32_t output_id) override;
 	bool make_param(const project::ParamAddress& address) override;
@@ -124,13 +124,13 @@ public:
 	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
 	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;
 	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;
-	bool stutter(const controls::KnobFocus& focus, bool begin) override;
-	bool grab_region(const controls::KnobFocus& focus, uint32_t pos) override;
+	bool stutter(const deluge::ui::controls::KnobFocus& focus, bool begin) override;
+	bool grab_region(const deluge::ui::controls::KnobFocus& focus, uint32_t pos) override;
 	bool write_effect(const scenes::bind::EffectOwner& owner, std::string_view path,
 	                  const serialization::Value& value) override;
-	bool midi_cc_select(const controls::KnobFocus& focus, int32_t knob, bool on) override;
+	bool midi_cc_select(const deluge::ui::controls::KnobFocus& focus, int32_t knob, bool on) override;
 	bool delete_knob_automation(const project::ParamAddress& address) override;
-	bool instrument_edited(const controls::KnobFocus& focus) override;
+	bool instrument_edited(const deluge::ui::controls::KnobFocus& focus) override;
 
 	/// @brief How many writes this sink has refused since start-up.
 	/// @return The count: a request whose slot does not resolve, a sound with no slot, or a value its Edit refused.

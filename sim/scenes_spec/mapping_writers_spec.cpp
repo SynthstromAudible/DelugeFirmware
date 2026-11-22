@@ -57,11 +57,11 @@ using deluge::project::Mapping;
 using deluge::project::MappingTarget;
 using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
-using deluge::controls::TakeoverState;
 using deluge::project::OwnerParamTarget;
 using deluge::project::TrackInputTarget;
 using deluge::scenes::spec::indexedKnobs;
 using deluge::scenes::spec::indexPlays;
+using deluge::ui::controls::TakeoverState;
 
 namespace {
 

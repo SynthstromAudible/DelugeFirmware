@@ -18,7 +18,7 @@
 #include "gui/ui/root_knobs.h"
 
 #include "board_controls.hpp"
-#include "controls/board.h"
+#include "ui/controls/board.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
@@ -126,8 +126,8 @@ void turn(int32_t knob, int32_t offset) {
 	if (knob < 0 || knob > UINT8_MAX) {
 		return;
 	}
-	const std::optional<controls::Logical> slot = controls::map_input(
-	    sharedModKnobs().board(), {controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
+	const std::optional<deluge::ui::controls::Logical> slot = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
 	if (!slot) {
 		return;
 	}
@@ -137,8 +137,8 @@ void turn(int32_t knob, int32_t offset) {
 }
 
 void push(uint8_t knob, bool on) {
-	const std::optional<controls::Logical> slot =
-	    controls::map_input(sharedModKnobs().board(), {controls::Physical::Kind::SLOT_PRESS, knob});
+	const std::optional<deluge::ui::controls::Logical> slot = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SLOT_PRESS, knob});
 	if (!slot) {
 		return;
 	}
@@ -157,8 +157,8 @@ void push(uint8_t knob, bool on) {
 }
 
 void mod_button(uint8_t button, bool on) {
-	const std::optional<controls::Logical> section =
-	    controls::map_input(sharedModKnobs().board(), {controls::Physical::Kind::SECTION_BUTTON, button});
+	const std::optional<deluge::ui::controls::Logical> section = deluge::ui::controls::map_input(
+	    sharedModKnobs().board(), {deluge::ui::controls::Physical::Kind::SECTION_BUTTON, button});
 	if (!section) {
 		return;
 	}

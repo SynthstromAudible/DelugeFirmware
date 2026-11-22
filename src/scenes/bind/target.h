@@ -4,7 +4,6 @@
 /// @brief What a menu node edits and where: a target named by the engines' descriptors, and the addresses it
 /// resolves against, never an engine object.
 
-#include "controls/knob_focus.h"
 #include "plugin/types/param.h"
 #include "plugin/types/setting.h"
 #include "project/clip_address.h"
@@ -13,6 +12,7 @@
 #include "project/note_address.h"
 #include "project/param_address.h"
 #include "project/setting_group.h"
+#include "ui/controls/knob_focus.h"
 
 #include <cstdint>
 #include <optional>
@@ -111,7 +111,7 @@ struct Target {
 	}
 };
 
-using controls::ChainOwner;
+using ui::controls::ChainOwner;
 
 /// @brief Where the menu edits: addresses into the model.
 struct Addresses {

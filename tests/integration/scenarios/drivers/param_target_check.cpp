@@ -26,7 +26,6 @@
 //     by target gives cell by cell the runtime param its recorded characterisation holds
 
 #include "board_controls.hpp"
-#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
@@ -49,6 +48,7 @@
 #include "scenarios/drivers/param_target_tables_reference.h"
 #include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
+#include "ui/controls/knob_focus.h"
 
 #include <array>
 #include <cstdio>
@@ -392,7 +392,7 @@ void checkChainKnobs(Checker& check) {
 		bind::KnobFocus focus;
 		if (clip) {
 			focus.owner = bind::ChainFocus{.chain = {.kind = project::ChainAddress::Kind::OUTPUT, .id = kKit},
-			                               .owner = deluge::controls::ChainOwner::KIT,
+			                               .owner = deluge::ui::controls::ChainOwner::KIT,
 			                               .clip = project::ClipAddress{.clip_id = kClip}};
 		}
 		else {
