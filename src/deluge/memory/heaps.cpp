@@ -351,7 +351,7 @@ std::size_t shrink(void* ptr, std::size_t new_size) {
 	return deluge_usable_size(h, ptr);
 }
 std::size_t shrink_left(void* /*ptr*/, std::size_t /*amount_to_shorten*/, std::size_t /*num_bytes_to_move_right*/) {
-	return 0; // unsupported on the deluge_alloc heaps (no payload move-left)
+	return 0; // unsupported on the allocator's heaps (no payload move-left)
 }
 
 } // namespace deluge::memory

@@ -59,7 +59,7 @@ std::size_t sdram_size();
 
 // Allocation helpers — the clean surface app code allocates from, so it needs
 // neither GeneralMemoryAllocator::get() nor libdeluge/alloc.h. They allocate from
-// the deluge_alloc heaps above; `align` is honored (default 16, the SIMD floor).
+// the allocator's heaps above; `align` is honored (default 16, the SIMD floor).
 // Return nullptr on OOM. Under DELUGE_DETERMINISTIC_ALLOC (sim/golden only) the
 // block is zeroed before return, matching the old GMA alloc path.
 
@@ -142,7 +142,7 @@ void dealloc(void* ptr);
 /// Shrink a block in place, preserving the leading bytes; returns the new usable
 /// size (== the old GeneralMemoryAllocator::shortenRight).
 std::size_t shrink(void* ptr, std::size_t new_size);
-/// Left-shrink is unsupported on the deluge_alloc heaps (realloc can't move the
+/// Left-shrink is unsupported on the allocator's heaps (realloc can't move the
 /// payload left), so this is a no-op returning 0 — the amount actually shortened
 /// (== the old GeneralMemoryAllocator::shortenLeft on the Rust heap). Kept so call
 /// sites needn't special-case it.

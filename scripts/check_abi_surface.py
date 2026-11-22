@@ -162,11 +162,18 @@ def workspace_members() -> dict[Path, str]:
     return found
 
 
+def workspace_excluded() -> list[Path]:
+    """The directories the crates workspace excludes, resolved. They are scanned for callers like the members, but
+    no pin reaches them."""
+    workspace = tomllib.loads((CRATES / "Cargo.toml").read_text())["workspace"]
+    return [(CRATES / e).resolve() for e in workspace.get("exclude", [])]
+
+
 MEMBERS = workspace_members()
 RUST = source_files(
     "src/bsp/rust/src",
     "src/bsp/rust/harness",
-    *(d.relative_to(ROOT).as_posix() for d in MEMBERS),
+    *(d.relative_to(ROOT).as_posix() for d in (*MEMBERS, *workspace_excluded())),
     suffixes=(".rs",),
 )
 CXX_APP = source_files(
