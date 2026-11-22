@@ -20,7 +20,7 @@
 /// Also the streaming-asset lookups: the resource manager a sample's chunks are leased from, a
 /// stream's asset id, and where a streamed chunk's payload sits in its slot.
 ///
-/// A fixed-capacity table of open efatfs streaming handles (`deluge_sample_stream` Rust crate),
+/// A fixed-capacity table of open efatfs streaming handles (`deluge_storage_stream` Rust crate),
 /// each pairing an efatfs read handle with the resource-manager asset id + geometry a caller
 /// supplies once known, registering the asset's `DelugeStreamingFillContext`
 /// (`streaming_fill.h`) with the resource manager itself the moment both are present. Handles are

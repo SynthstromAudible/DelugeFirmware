@@ -444,7 +444,7 @@ Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {
 		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
 	}
 	try {
-		// SampleStream::open_read_stream owns the deluge_sample_stream registry handle (a DIFFERENT
+		// SampleStream::open_read_stream owns the deluge_storage_stream registry handle (a DIFFERENT
 		// handle space from whatever efatfs handle the loader used to read/parse the header) and its
 		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
 		return live->sample->stream().open_read_stream(path);

@@ -34,7 +34,7 @@ namespace deluge::audio::stream {
 ///        chunks.
 ///
 /// Every `Sample` owns exactly one `SampleStream` (as a member). It is a thin forwarding facade
-/// over the `deluge_sample_stream` Rust registry (`include/libdeluge/sample_stream.h`), which
+/// over the `deluge_storage_stream` Rust registry (`include/libdeluge/sample_stream.h`), which
 /// holds this sample's streaming state behind one opaque `stream_handle_` once a real efatfs file
 /// is open:
 ///   - residency itself, which lives entirely in the resource manager -- there is nothing left on
@@ -175,7 +175,7 @@ private:
 	/// `sample.h`.
 	uint32_t resource_asset_id_ = 0xFFFFFFFFu;
 
-	/// This stream's `deluge_sample_stream` registry slot handle. Defaults to DELUGE_HANDLE_NONE so a
+	/// This stream's `deluge_storage_stream` registry slot handle. Defaults to DELUGE_HANDLE_NONE so a
 	/// still-recording Sample (no handle opened until recording finishes) is unaffected;
 	/// open_read_stream() sets it via deluge_sample_stream_open() and release_asset() clears it.
 	DelugeHandle stream_handle_ = DELUGE_HANDLE_NONE;

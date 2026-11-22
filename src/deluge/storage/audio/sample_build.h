@@ -168,7 +168,7 @@ bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept;
 /// `begin` and before `finish`.
 ///
 /// This opens a DIFFERENT handle space from whatever efatfs handle the async loader used to read the
-/// header: it goes through the `deluge_sample_stream` registry, a scarce resource a browser preview
+/// header: it goes through the `deluge_storage_stream` registry, a scarce resource a browser preview
 /// can exhaust (`Error::TOO_MANY_OPEN_STREAMS`) -- on that failure this already retries once after
 /// reclaiming unleased streams (`AudioFileManager::releaseUnleasedAudioFiles()`), the same recovery
 /// the synchronous path relies on. Do not reimplement that reclaim; call this instead.

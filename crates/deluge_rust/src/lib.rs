@@ -28,4 +28,4 @@ extern crate deluge_storage_sample_fill;
 extern crate deluge_storage_sample_reader;
 
 #[cfg(feature = "sample_abi")]
-extern crate deluge_sample_stream;
+extern crate deluge_storage_stream;

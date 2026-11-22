@@ -6,7 +6,7 @@
 #     (deluge-sdk runs the parser's own tests), the sample fill/reader/source/stream crates
 [workspace]
 resolver = "2"
-members = ["../src/base/alloc", "../src/storage/resource", "deluge_rust", "../src/storage/sample/source", "../src/storage/sample/fill", "../src/storage/sample/reader", "deluge_sample_stream"]
+members = ["../src/base/alloc", "../src/storage/resource", "deluge_rust", "../src/storage/sample/source", "../src/storage/sample/fill", "../src/storage/sample/reader", "../src/storage/stream"]
 # The fuzz crate is a nightly cargo-fuzz package with its own profile. `deluge_storage_sample_convert`'s
 # build script compiles app C++ and needs a std test harness, which this workspace's
 # `panic = "abort"` release profile would break.

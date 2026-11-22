@@ -73,7 +73,7 @@ pub fn context_at(location: &FileLocation, mount_generation: u32) -> Option<File
 /// Each resident sample holds one handle for its lifetime (`SampleStream::open_read_stream`), so
 /// this bounds how many samples can be resident at once, which while one song plays and the next
 /// loads is both songs' samples. A full table sends every load through a reclaim. A slot costs about
-/// 80 bytes; the sample stream registry (`deluge_sample_stream`) has the same capacity.
+/// 80 bytes; the sample stream registry (`deluge_storage_stream`) has the same capacity.
 pub const MAX_HANDLES: usize = 256;
 
 /// Capacity of the sample recorder's persistent stream-write table (`STREAM_WRITE_CTX`): one
