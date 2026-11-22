@@ -267,59 +267,96 @@ STRUCTOR = re.compile(r"CI?[1-5]|D[0-5]")
 DISCRIMINATOR = re.compile(r"__\d+_|_\d")
 
 
+# A thunk's call offsets: `h` with one, `v` with two, each a number (`n` for minus) ended by `_`.
+CALL_OFFSETS = re.compile(r"_ZT(?:c?(?:hn?\d+_|vn?\d+_n?\d+_))+")
+# What introduces a number rather than a source name's length: an array dimension, an unnamed type's number, a vector
+# size, a function parameter's index, an extended type's width.
+NUMBER_AFTER = ("A", "Ut", "Dv", "fp", "fL", "DF", "DB", "DU")
+
+
 def mangled_marks(mangled: str) -> str:
     """What an Itanium mangled name tells apart but its demangled text does not, as ` [mark]`s for its key: each
-    constructor or destructor variant (`C1`/`C2`, `D0`/`D1`/`D2`), and each local entity's discriminator (`_0` in
-    `…E7options_0`). The scan skips source names by their length, reads a digit run followed by `_` or `E` as a number
-    (substitution, template parameter, literal value), and skips a lambda's number (`UlvE0_`)."""
+    constructor or destructor variant (`C1`/`C2`, `D0`/`D1`/`D2`), each local entity's discriminator (`_0` in
+    `…E7options_0`), and a thunk's call offsets (`hn16` in `_ZThn16_…`). A digit run is a source name's length unless an introducer makes it a number (NUMBER_AFTER, a
+    substitution or template parameter `S0_`/`T0_`, a literal `Li5E`, a thunk's offsets, a lambda's `UlvE0_`, a
+    discriminator), so a name that starts with `E` or `_` (`6EnvLfo`, `7__cxx11`) is skipped whole."""
     if not mangled.startswith("_Z"):
         return ""
-    marks = []
-    after_name = local = lambdas = False
-    i = 2
+    offsets = CALL_OFFSETS.match(mangled)
+    i = offsets.end() if offsets else 2
+    # A thunk's offsets tell apart the thunks of one function for its several bases.
+    marks = [offsets.group(0)[3:].rstrip("_")] if offsets else []
+    after_name = local = False
+    last = ""  # the token before the cursor, when it is one that can introduce a number
+    openers: list[
+        str
+    ] = []  # the `E`-ended groups the cursor is in: N, I, Z, Ul, X, J, F, decltype, braced, `sr`
     while i < len(mangled):
         c = mangled[i]
-        if c == "Z":
-            local = True
-        if c == "U" and mangled.startswith("Ul", i):
-            lambdas = True
-        if c == "E" and lambdas:
-            # A lambda's signature ends at the first `E` followed by its number (`E_`, `E0_`).
-            number = re.match(r"E(\d*)_", mangled[i:])
-            if number and not mangled.startswith(
-                "_GLOBAL__N", i + 1 + len(number.group(1))
-            ):
-                i, after_name, lambdas = i + len(number.group(0)), False, False
-                continue
         if c.isdigit():
             digits = re.match(r"\d+", mangled[i:]).group(0)
-            j = i + len(digits)
-            if (
-                j < len(mangled)
-                and mangled[j] in "_E"
-                and not mangled.startswith("_GLOBAL__N", j)
+            if last in NUMBER_AFTER or (
+                last == "fL" and mangled.startswith("p", i + len(digits))
             ):
-                i, after_name = j, False  # a number
+                i, after_name, last = i + len(digits), False, ""  # a number
             else:
-                i, after_name = j + int(digits), True  # a source name
+                i, after_name, last = (
+                    i + len(digits) + int(digits),
+                    True,
+                    "",
+                )  # a source name
+            continue
+        two = mangled[i : i + 2]
+        if two in NUMBER_AFTER:
+            i, after_name, last = i + 2, False, two
+            continue
+        if c == "A":
+            i, after_name, last = i + 1, False, "A"
             continue
         if c in "ST":
             reference = re.match(r"[ST][0-9A-Z]*_", mangled[i:])
             if reference:
-                i, after_name = i + len(reference.group(0)), False
+                i, after_name, last = i + len(reference.group(0)), False, ""
                 continue
-        if c == "L" and i + 1 < len(mangled) and mangled[i + 1].islower():
-            end = mangled.find("E", i)
-            i, after_name = (
-                (end + 1 if end > 0 else len(mangled)),
-                False,
-            )  # a literal: `Li5E`
+            if c == "S" and two[1:].islower():
+                i, after_name, last = i + 2, False, ""  # `St`, `Sa`, `Ss`, …
+                continue
+        if c == "L" and two != "L_" and ("I" in openers or two[1:].islower()):
+            # A literal, `Li5E` or `L4Kind1E`: its type, then its value up to `E`.
+            j = i + 1
+            if j < len(mangled) and mangled[j].isdigit():
+                digits = re.match(r"\d+", mangled[j:]).group(0)
+                j += len(digits) + int(digits)
+            end = mangled.find("E", j)
+            i, after_name, last = (end + 1 if end > 0 else len(mangled)), False, ""
             continue
+        if c == "E":
+            if openers and openers[-1] == "Ul":
+                # A lambda's signature ends at the `E` its number follows (`E_`, `E0_`).
+                number = re.match(r"E\d*_", mangled[i:])
+                if number:
+                    openers.pop()
+                    i, after_name, last = i + len(number.group(0)), False, ""
+                    continue
+            elif openers:
+                openers.pop()
+            i, after_name, last = i + 1, False, ""
+            continue
+        if c == "Z":
+            local = True
+        if two in ("Ul", "DT", "Dt", "tl", "il") or (
+            two == "sr" and mangled[i + 2 : i + 3].isdigit()
+        ):
+            openers.append(two)
+            i, after_name, last = i + 2, False, ""
+            continue
+        if c in "NIZXJF":
+            openers.append(c)
         if c == "_" and local and (after_name or mangled[i - 1] == "E"):
             discriminator = DISCRIMINATOR.match(mangled, i)
             if discriminator:
                 marks.append(discriminator.group(0))
-                i, after_name = discriminator.end(), False
+                i, after_name, last = discriminator.end(), False, ""
                 continue
         structor = STRUCTOR.match(mangled, i)
         if structor and (
@@ -327,9 +364,9 @@ def mangled_marks(mangled: str) -> str:
             or mangled[structor.end() : structor.end() + 1] in ("E", "I", "B")
         ):
             marks.append(structor.group(0))
-            i, after_name = structor.end(), False
+            i, after_name, last = structor.end(), False, ""
             continue
-        i, after_name = i + 1, False
+        i, after_name, last = i + 1, False, ""
     return "".join(f" [{m}]" for m in marks)
 
 

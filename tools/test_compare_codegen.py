@@ -504,7 +504,9 @@ class CanonicalTest(unittest.TestCase):
 
     def test_only_overloads_share_a_key_in_the_live_image(self):
         if not (os.path.exists(REAL_IMAGE) and shutil.which("llvm-nm")):
-            return  # the fixture test holds the same property for a checked-in image
+            self.skipTest(
+                "no build/RelWithDebInfo/deluge.elf or llvm-nm; the fixture test holds the property for a checked-in image"
+            )
         listing = subprocess.run(
             ["llvm-nm", "--defined-only", REAL_IMAGE],
             capture_output=True,
@@ -520,6 +522,34 @@ class CanonicalTest(unittest.TestCase):
                 }
             )
         )
+
+    def test_every_text_shared_by_several_symbols_gets_distinct_marks(self):
+        # What an image happens to emit is only part of a class's variants: every group of fixture symbols with one
+        # demangled text must be told apart by its marks, whichever of them a later image holds.
+        cxxfilt = shutil.which("llvm-cxxfilt")
+        self.assertIsNotNone(cxxfilt, "the property test needs llvm-cxxfilt on PATH")
+        with open(NAMES_FIXTURE) as f:
+            raws = sorted(
+                {
+                    compare_codegen.LTO_SUFFIX.sub("", n)
+                    for n in f.read().split()
+                    if n.startswith("_Z")
+                }
+            )
+        split = [compare_codegen.WRAPPED.match(n) for n in raws]
+        targets = [m.group(2) for m in split]
+        texts = compare_codegen.run([cxxfilt], "\n".join(targets)).splitlines()
+        groups: dict[str, list[str]] = {}
+        for m, target, text in zip(split, targets, texts):
+            if text != target:
+                groups.setdefault(m.group(1) + text + m.group(3), []).append(target)
+        alike = {
+            text: targets
+            for text, targets in groups.items()
+            if len(targets) > 1
+            and len({compare_codegen.mangled_marks(t) for t in targets}) < len(targets)
+        }
+        self.assertEqual(alike, {})
 
     def test_the_oracle_rejects_what_must_not_share_a_key(self):
         self.assertFalse(
@@ -1033,11 +1063,8 @@ class WrappedNameKeys(unittest.TestCase):
         }
         self.assertEqual(len(set(self.keys(table))), 7)
 
-    def test_a_call_retargeted_from_the_base_to_the_deleting_destructor_is_a_change(
-        self,
-    ):
-        d2, d0 = "_ZN10FileReaderD2Ev", "_ZN10FileReaderD0Ev"
-        table = {d2: "FileReader::~FileReader()", d0: "FileReader::~FileReader()"}
+    def assert_retarget_is_a_change(self, d2, d0, text):
+        table = {d2: text, d0: text}
         listing = f"10 <{d2}>:\n10:\tbx\tlr\n\n14 <{d0}>:\n14:\tbx\tlr\n"
         caller = "20 <caller>:\n20:      \tbl\t0x{} <{}> @ imm = #0x0\n"
         rename = self.names(
@@ -1046,6 +1073,45 @@ class WrappedNameKeys(unittest.TestCase):
         base = functions(listing + "\n" + caller.format(10, d2), rename)
         new = functions(listing + "\n" + caller.format(14, d0), rename)
         self.assertEqual(compare(base, new), (["caller"], [], []))
+
+    def test_a_call_retargeted_from_the_base_to_the_deleting_destructor_is_a_change(
+        self,
+    ):
+        self.assert_retarget_is_a_change(
+            "_ZN10FileReaderD2Ev", "_ZN10FileReaderD0Ev", "FileReader::~FileReader()"
+        )
+
+    def test_a_class_whose_name_starts_with_E_keeps_its_variants(self):
+        self.assert_retarget_is_a_change(
+            "_ZN6deluge6EnvLfoD2Ev",
+            "_ZN6deluge6EnvLfoD0Ev",
+            "deluge::EnvLfo::~EnvLfo()",
+        )
+        self.assert_retarget_is_a_change(
+            "_ZN6deluge2ui9EditLabelD2Ev",
+            "_ZN6deluge2ui9EditLabelD0Ev",
+            "deluge::ui::EditLabel::~EditLabel()",
+        )
+
+    def test_a_namespace_whose_name_starts_with_an_underscore_keeps_its_variants(self):
+        text = "std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char>>::~basic_stringbuf()"
+        self.assert_retarget_is_a_change(
+            "_ZNSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEED2Ev",
+            "_ZNSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEED0Ev",
+            text,
+        )
+
+    def test_numbers_follow_their_introducers(self):
+        marks = compare_codegen.mangled_marks
+        self.assertEqual(marks("_ZN4llvm15ScalarEvolution9ExitLimitC2Ev"), " [C2]")
+        self.assertEqual(marks("_ZN1WIL4Kind1EED2Ev"), " [D2]")
+        self.assertEqual(marks("_ZN1XC2EA10_i"), " [C2]")
+        self.assertEqual(marks("_ZN1XC2EDv4_f"), " [C2]")
+        self.assertEqual(marks("_ZThn8_N1XD0Ev"), " [hn8] [D0]")
+        self.assertEqual(marks("_ZThn16_N1XD0Ev"), " [hn16] [D0]")
+        self.assertEqual(marks("_ZTv0_n12_N1XD1Ev"), " [v0_n12] [D1]")
+        self.assertEqual(marks("_ZZ1fvENKUt_3getEv"), "")
+        self.assertEqual(marks("_ZZ1fvE1x_0"), " [_0]")
 
     def test_discriminated_locals_stay_apart(self):
         table = {
