@@ -301,9 +301,8 @@ reason = "the notification channel includes only itself and the standard library
 
 [[rule]]
 name = "ui-includes-outside"
-files = ["src/ui/**"]
-exclude = ["src/ui/shell/**", "src/ui/controls/**"]
-pattern = '^(?!ui/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+files = ["src/ui/widgets/**"]
+pattern = '^(?!ui/widgets/|ui/gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
 [[rule]]
@@ -321,7 +320,7 @@ reason = "the OLED widgets and the pad components never include each other"
 [[rule]]
 name = "shell-includes-outside"
 files = ["src/ui/shell/**"]
-pattern = '^(?!ui/shell/|ui/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+pattern = '^(?!ui/shell/|ui/widgets/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi ids and libdeluge"
 
 [[rule]]
