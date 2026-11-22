@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import struct
 import subprocess
 import unittest
 from typing import ClassVar
@@ -677,9 +678,10 @@ class MainHarness:
     }
 
     def run_main(
-        self, images: dict[str, tuple[str, str]], *args: str
+        self, images: dict[str, tuple[str, str]], *args: str, blobs=None
     ) -> tuple[int, list]:
-        """main() over fake images: path -> (disassembly, `nm -S -n` listing); @p args go on the command line."""
+        """main() over fake images: path -> (disassembly, `nm -S -n` listing); @p args go on the command line;
+        @p blobs: path -> the loaded data, as (address, bytes) pairs (none by default)."""
 
         def fake(tool, stdin=None):
             if tool[0] == "cxxfilt":
@@ -705,6 +707,12 @@ class MainHarness:
         with (
             mock.patch.object(compare_codegen, "run", fake),
             mock.patch.object(compare_codegen.sys, "argv", argv),
+            mock.patch.object(
+                compare_codegen,
+                "loaded_data",
+                lambda objcopy, elf, sections: (blobs or {}).get(elf, []),
+                create=True,
+            ),
             mock.patch("builtins.print") as printed,
         ):
             return compare_codegen.main(), printed.call_args_list
@@ -910,6 +918,137 @@ class SameNamedSymbols(MainHarness, unittest.TestCase):
             number_twins(nm, listing)
 
 
+class DataObjects(MainHarness, unittest.TestCase):
+    """Sized data objects compare word by word, a word that holds an address read as the symbol it names."""
+
+    DEMANGLED: ClassVar[dict[str, str]] = {
+        "_ZTV1X": "vtable for X",
+        "_ZTI1X": "typeinfo for X",
+        "_ZN1X1fEv": "X::f()",
+        "_ZN1X1gEv": "X::g()",
+        "_ZL6kTable": "kTable",
+    }
+
+    def image(
+        self, slot: str, entry: str, shift: int = 0
+    ) -> tuple[tuple[str, str], list]:
+        """Code: X::f, X::g. Data: X's vtable, whose third slot points at @p slot; a table of two string pointers, its
+        first at @p entry; X's typeinfo; two strings. All @p shift bytes later."""
+        at = {
+            "_ZN1X1fEv": 0x20001000,
+            "_ZN1X1gEv": 0x20001010,
+            "_ZTV1X": 0x20200000,
+            "_ZTI1X": 0x20200010,
+            "_ZL6kTable": 0x20200020,
+            ".str.1": 0x20200030,
+            ".str.2": 0x20200038,
+        }
+        at = {k: v + shift for k, v in at.items()}
+        listing = "".join(
+            f"{at[f]:08x} <{f}>:\n{at[f]:08x}:\tbx\tlr\n\n"
+            for f in ("_ZN1X1fEv", "_ZN1X1gEv")
+        )
+        sizes = {
+            "_ZN1X1fEv": 2,
+            "_ZN1X1gEv": 2,
+            "_ZTV1X": 16,
+            "_ZTI1X": 8,
+            "_ZL6kTable": 8,
+            ".str.1": 6,
+            ".str.2": 5,
+        }
+        kinds = {"_ZN1X1fEv": "T", "_ZN1X1gEv": "T"}
+        nm = "".join(
+            f"{at[n]:08x} {sizes[n]:08x} {kinds.get(n, 'r')} {n}\n"
+            for n in sorted(at, key=at.get)
+        )
+        rodata = bytearray(0x40)
+        struct.pack_into(
+            "<4I", rodata, 0x00, 0, at["_ZTI1X"], at[slot] | 1, at["_ZN1X1gEv"] | 1
+        )
+        struct.pack_into("<2I", rodata, 0x10, 0x20000000, 0)
+        struct.pack_into("<2I", rodata, 0x20, at[entry], at[".str.2"])
+        rodata[0x30:0x36] = b"alpha\x00"
+        rodata[0x38:0x3D] = b"beta\x00"
+        rodata = bytes(rodata)
+        return (listing, nm), [(at["_ZTV1X"], rodata)]
+
+    def compare(self, a, b) -> tuple[int, list]:
+        (ia, da), (ib, db) = a, b
+        return self.run_main(
+            {"a.elf": ia, "b.elf": ib}, blobs={"a.elf": da, "b.elf": db}
+        )
+
+    def test_a_vtable_slot_retargeted_is_a_change(self):
+        status, printed = self.compare(
+            self.image("_ZN1X1fEv", ".str.1"), self.image("_ZN1X1gEv", ".str.1")
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("data changed: 1"), printed)
+        self.assertIn(mock.call("  vtable for X"), printed)
+
+    def test_a_table_entry_moved_to_another_string_is_a_change(self):
+        status, printed = self.compare(
+            self.image("_ZN1X1fEv", ".str.1"), self.image("_ZN1X1fEv", ".str.2")
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  kTable"), printed)
+
+    def test_the_same_tables_at_other_addresses_compare_identical(self):
+        status, printed = self.compare(
+            self.image("_ZN1X1fEv", ".str.1"),
+            self.image("_ZN1X1fEv", ".str.1", shift=0x100),
+        )
+        self.assertEqual(status, 0)
+        self.assertIn(mock.call("data changed: 0"), printed)
+
+
+class DataWords(unittest.TestCase):
+    """What a word of a data object reads as, and when two match."""
+
+    NM = (
+        "20200000 00000010 r _ZL5table\n20200010 00000008 r _ZL7samples\n20200018 00000006 r .str.1\n"
+        "20200020 00000008 r _ZL4strs\n20200028 00000009 r .Lanon.1\n"
+    )
+    SEGMENTS = "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n"
+
+    def objects(self, words: list[int], samples: list[int], strs: list[int]) -> dict:
+        blob = bytearray(0x40)
+        struct.pack_into("<4I", blob, 0x00, *words)
+        struct.pack_into("<2I", blob, 0x10, *samples)
+        blob[0x18:0x1E] = b"hello\x00"
+        struct.pack_into("<2I", blob, 0x20, *strs)
+        blob[0x28:0x31] = b"onetwomor"
+        return compare_codegen.data_objects(
+            self.NM, [(0x20200000, bytes(blob))], self.SEGMENTS
+        )
+
+    def test_words_read_as_what_they_point_at(self):
+        found = self.objects(
+            [0x20200010, 0x20200014, 0x20200018, 7], [1, 2], [0x2020002B, 3]
+        )
+        self.assertEqual(
+            [w[1] for w in found["_ZL5table"]],
+            ["<_ZL7samples>+0", "<_ZL7samples>+4", "<'hello'>", "00000007"],
+        )
+        # A `&str` into a block packed without NULs reads as its text, as long as its length says.
+        self.assertEqual([w[1] for w in found["_ZL4strs"]], ["<'two'>", "00000003"])
+
+    def test_a_value_that_reads_as_an_address_matches_by_its_value(self):
+        # A sample that happens to fall inside `samples`: the object it would point at moves, the value does not.
+        base = self.objects([0, 0, 0, 0], [0x20200014, 0], [0, 0])
+        new = {
+            name: tuple((raw, sym + "'") for raw, sym in words)
+            for name, words in base.items()
+        }
+        self.assertEqual(compare_codegen.compare_data(base, new), ([], [], []))
+
+    def test_a_word_whose_value_and_target_both_change_is_a_change(self):
+        base = self.objects([0x20200018, 0, 0, 0], [0, 0], [0, 0])
+        new = self.objects([0x20200028, 0, 0, 0], [0, 0], [0, 0])
+        self.assertEqual(compare_codegen.compare_data(base, new)[0], ["_ZL5table"])
+
+
 class LiteralLoads(MainHarness, unittest.TestCase):
     """A pc-relative load names the literal it reads by its index in the function, as a branch names its target."""
 
@@ -917,7 +1056,8 @@ class LiteralLoads(MainHarness, unittest.TestCase):
         offset = literal - 0x20001004
         listing = (
             "20001000 <foo>:\n"
-            f"20001000:      \tldr\tr0, [pc, #0x{offset:x}]           @ 0x{literal:x} <foo+0x{literal - 0x20001000:x}>\n"
+            f"20001000:      \tldr\tr0, [pc, #0x{offset:x}]           "
+            f"@ 0x{literal:x} <foo+0x{literal - 0x20001000:x}>\n"
             f"20001002:      \tadr\tr1, #{adr - 0x20001004} <foo+0x{adr - 0x20001000:x}>\n"
             "20001004:      \tbx\tlr\n"
             "20001006:      \tnop\n"

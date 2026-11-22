@@ -72,6 +72,17 @@ identifier bytes that look like one; that can only make a key differ between ima
 at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may share a
 key: a reference to either is the same, so an alias set that regroups between the images still pairs.
 
+Data objects are compared too: every sized symbol whose bytes a loaded, non-executable section holds (.rodata, .data,
+the SDRAM content inflated from .sdram_init_pack; not unwind tables), other than functions and local labels (`.str.N`,
+`.Lanon.…`, whose names do not last), keyed like functions (renames, aliases, twins). Each 4-byte-aligned word that
+holds an address reads as what it points at: a symbol's start (`<f>+1` for a Thumb function), a vtable's first slot, a
+place inside a named object (`<table>+offset`), the C string that starts there, or a Rust `&str`'s text (as long as the
+word after it says); any other word compares raw. Two words match when their raw values or what they read as match,
+because a value that only looks like an address (a sample, a character table) keeps its value while what it would point
+at moves. A pointer retargeted to another object that sits where the old one did keeps its value and so compares clean.
+Data objects that differ, appear or go are reported as `data changed`, `data added` and `data removed`, and count toward
+the exit status, so vtables, dispatch tables and pointer tables are gated.
+
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
 moves to another group is a change; a call to it names it by the least of its names.
@@ -97,7 +108,7 @@ OLD::f beside a moved NEW::f reads both as one name, so they keep their raw name
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
                              [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
-                             [--cxxfilt llvm-cxxfilt] [--show N] [--diff NAME ...]
+                             [--cxxfilt llvm-cxxfilt] [--objcopy PATH] [--show N] [--diff NAME ...]
 """
 
 from __future__ import annotations
@@ -108,6 +119,7 @@ import difflib
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -1086,6 +1098,205 @@ def classifier(segments_text: str, nm_sized: str, rename=keep):
     return classify
 
 
+# Sections that hold no objects to compare: the packed SDRAM image (its content is read inflated) and unwind tables,
+# whose entries are offsets that follow the layout.
+UNREAD_SECTIONS = re.compile(r"^\.(?:sdram_init_pack|ARM\.ex(?:idx|tab)|sdram_exidx)")
+SECTION_HEADER = re.compile(
+    r"\]\s+(\S+)\s+(\S+)\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)\s+[0-9a-f]+\s+([A-Z]*)"
+)
+
+
+def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, bytes]]:
+    """The loaded, non-executable content of @p elf (`readelf -SW` in @p sections_text) as (address, bytes): each
+    PROGBITS section with the A flag and without X, and the SDRAM content inflated from `.sdram_init_pack` at
+    `.sdram_init`'s address."""
+    import compare_strings
+
+    found = []
+    sdram_at = None
+    for line in sections_text.splitlines():
+        m = SECTION_HEADER.search(line)
+        if not m:
+            continue
+        name, kind, address, flags = (
+            m.group(1),
+            m.group(2),
+            int(m.group(3), 16),
+            m.group(5),
+        )
+        if name == ".sdram_init":
+            sdram_at = address
+        if (
+            kind == "PROGBITS"
+            and "A" in flags
+            and "X" not in flags
+            and address
+            and not UNREAD_SECTIONS.match(name)
+        ):
+            if name == ".sdram_init":
+                continue
+            found.append((address, compare_strings.section(objcopy, elf, name)))
+    if sdram_at is not None:
+        content = compare_strings.sdram(objcopy, elf)
+        if content:
+            found.append((sdram_at, content))
+    return found
+
+
+def data_objects(
+    nm_text: str, blobs: list[tuple[int, bytes]], segments_text: str, rename=keep
+) -> dict[str, tuple]:
+    """Each sized data object of @p nm_text whose bytes @p blobs hold, keyed by its name through @p rename, as its
+    words, each as (its raw value, what it reads as; see compare_data()). A 4-byte-aligned word that holds an address
+    inside a LOAD segment reads as what it points at: `<symbol>+0`
+    at a symbol's start, `<function>+1` at a Thumb function, `<vtable>+8` at a vtable's first slot, and the text of the
+    C string that starts there (merged string literals have no name that lasts). Any other word, a value or an
+    address inside an object (`&table[i]`), compares raw, as do the bytes around the aligned words. Code symbols
+    (`t`/`T`/`w`/`W`, and `?` inside the SDRAM code range) are functions, compared as such."""
+    loads = []
+    for line in segments_text.splitlines():
+        fields = line.split()
+        if fields[:1] == ["LOAD"] and int(fields[5], 16):
+            loads.append((int(fields[2], 16), int(fields[2], 16) + int(fields[5], 16)))
+    symbols = []
+    text_range = {}
+    for line in nm_text.splitlines():
+        fields = line.split()
+        if len(fields) == 4 and re.fullmatch(r"[0-9a-f]+", fields[0]):
+            symbols.append(
+                (int(fields[0], 16) & ~1, int(fields[1], 16), fields[2], fields[3])
+            )
+        if fields and fields[-1] in ("__sdram_text_start", "__sdram_text_end"):
+            text_range[fields[-1]] = int(fields[0], 16)
+    sdram_text = (
+        text_range.get("__sdram_text_start", 0),
+        text_range.get("__sdram_text_end", 0),
+    )
+    starting: dict[int, list[str]] = {}
+    for address, _, _, name in symbols:
+        if not name.startswith("$"):
+            starting.setdefault(address, []).append(name)
+    vtables = {
+        address + 8
+        for address, size, _, name in symbols
+        if name.startswith("_ZTV") and size >= 12
+    }
+
+    def content(address: int, size: int) -> bytes | None:
+        for base, blob in blobs:
+            if base <= address and address + size <= base + len(blob):
+                return blob[address - base : address - base + size]
+        return None
+
+    def text(address: int) -> str | None:
+        """The C string at @p address if one starts there (a NUL or nothing loaded before it)."""
+        for base, blob in blobs:
+            if base <= address < base + len(blob):
+                offset = address - base
+                if offset and blob[offset - 1] != 0:
+                    return None
+                end = blob.find(b"\x00", offset)
+                run = blob[offset : end if end >= 0 else len(blob)]
+                return (
+                    run.decode("ascii") if all(0x20 <= b <= 0x7E for b in run) else None
+                )
+        return None
+
+    def named(address: int) -> str | None:
+        names = [n for n in starting.get(address, []) if not n.startswith(".")]
+        return min(rename(LTO_SUFFIX.sub("", n)) for n in names) if names else None
+
+    sized = sorted(
+        (a, a + size, name)
+        for a, size, _, name in symbols
+        if size and not name.startswith("$")
+    )
+    starts = [a for a, _, _ in sized]
+
+    def holder(value: int) -> tuple[int, int, str] | None:
+        """The sized symbol that holds @p value, the nearest that starts at or before it."""
+        i = bisect.bisect_right(starts, value) - 1
+        held = [
+            entry
+            for entry in sized[max(0, i - 7) : i + 1]
+            if entry[0] <= value < entry[1]
+        ]
+        return max(held) if held else None
+
+    def loaded(value: int) -> bool:
+        return any(lo <= value < hi for lo, hi in loads)
+
+    def token(value: int, after: int | None = None) -> str:
+        """@p value read as what it points at; @p after is the word after it, a `&str`'s length if it is one."""
+        if not loaded(value):
+            return f"{value:08x}"
+        for target, offset in ((value, 0), (value - 1, 1)):
+            name = named(target)
+            if name is not None:
+                return f"<{name}>+{offset}"
+        if value in vtables:
+            return f"<{named(value - 8)}>+8"
+        held = holder(value)
+        if held is not None and not held[2].startswith("."):
+            return f"<{named(held[0])}>+{value - held[0]}"
+        string = text(value)
+        if string is not None:
+            return f"<{string!r}>"
+        # A Rust `&str` into a block of string literals packed without NULs: its text, as long as its length says.
+        if after is not None and 0 < after <= 4096:
+            body = content(value, after)
+            if body is not None and all(0x20 <= b <= 0x7E for b in body):
+                return f"<{body.decode('ascii')!r}>"
+        return f"{value:08x}"
+
+    objects: dict[str, tuple] = {}
+    for address, size, kind, name in symbols:
+        if not size or kind in "tTwW" or name.startswith((".", "$")):
+            continue
+        if kind == "?" and sdram_text[0] <= address < sdram_text[1]:
+            continue
+        body = content(address, size)
+        if body is None:
+            continue
+        values = [
+            struct.unpack_from("<I", body, at)[0]
+            for at in range(-address % 4, size - 3, 4)
+        ]
+        words = []
+        head = -address % 4
+        if head:
+            words.append((body[:head].hex(),) * 2)
+        at = head
+        for i, value in enumerate(values):
+            words.append(
+                (
+                    f"{value:08x}",
+                    token(value, values[i + 1] if i + 1 < len(values) else None),
+                )
+            )
+            at += 4
+        if at < size:
+            words.append((body[at:].hex(),) * 2)
+        objects.setdefault(rename(LTO_SUFFIX.sub("", name)), tuple(words))
+    return objects
+
+
+def compare_data(
+    base: dict[str, tuple], new: dict[str, tuple]
+) -> tuple[list[str], list[str], list[str]]:
+    """The changed, added and removed data objects (data_objects()). Two words match when their raw values or what they
+    point at match: a value that only looks like an address (a sample, a character table) keeps its value while what
+    it would point at moves, and a pointer keeps its target while its value moves."""
+
+    def alike(a: tuple, b: tuple) -> bool:
+        return len(a) == len(b) and all(
+            x[0] == y[0] or x[1] == y[1] for x, y in zip(a, b)
+        )
+
+    changed = sorted(n for n in base.keys() & new.keys() if not alike(base[n], new[n]))
+    return changed, sorted(new.keys() - base.keys()), sorted(base.keys() - new.keys())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -1096,6 +1307,11 @@ def main() -> int:
     parser.add_argument("--nm", default="llvm-nm")
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
+    parser.add_argument(
+        "--objcopy",
+        default=None,
+        help="the objcopy that reads loaded data (default: compare_strings' default, the dbt toolchain's)",
+    )
     parser.add_argument(
         "--gnu-cxxfilt",
         default=GNU_CXXFILT,
@@ -1127,12 +1343,13 @@ def main() -> int:
     read = []
     for which in (args.base, args.new):
         nm = run([args.nm, "-S", "-n", "--defined-only", which])
-        sections = sections_of(run([args.readelf, "-SW", which]))
+        sections_text = run([args.readelf, "-SW", which])
+        sections = sections_of(sections_text)
         mapping = run([args.nm, "-n", "--special-syms", "--defined-only", which])
         mapping = "".join(
             line for line in mapping.splitlines(keepends=True) if " $" in line
         )
-        read.append((which, nm, sections, mapping))
+        read.append((which, nm, sections, mapping, sections_text))
     places = place_names(
         args.cxxfilt,
         [read[0][1], read[1][1]],
@@ -1142,9 +1359,15 @@ def main() -> int:
     )
     moved = moved_twins(read[0][1], read[1][1], read[0][2], read[1][2], places)
     images = []
-    for (which, nm, sections, mapping), twins_moved, side in zip(
+    datas = []
+    for (which, nm, sections, mapping, sections_text), twins_moved, side in zip(
         read, (frozenset(), moved), "!?"
     ):
+        if args.objcopy is None:
+            import compare_strings
+
+            args.objcopy = str(compare_strings.DEFAULT_OBJCOPY)
+        datas.append(loaded_data(args.objcopy, which, sections_text))
         nm, disassembly = number_twins(
             nm,
             disassemble(args.objdump, which, nm),
@@ -1166,18 +1389,34 @@ def main() -> int:
         functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
         for dis, nm, segments in images
     )
+    base_data, new_data = (
+        data_objects(nm, blobs, segments, rename)
+        for (_, nm, segments), blobs in zip(images, datas)
+    )
     changed, added, removed = compare(base, new)
-    for kind, names in (("changed", changed), ("added", added), ("removed", removed)):
+    data_changed, data_added, data_removed = compare_data(base_data, new_data)
+    for kind, names in (
+        ("changed", changed),
+        ("added", added),
+        ("removed", removed),
+        ("data changed", data_changed),
+        ("data added", data_added),
+        ("data removed", data_removed),
+    ):
         print(f"{kind}: {len(names)}")
         for name in names[: args.show]:
             print(f"  {name}")
     for name in args.diff:
         print(f"== {name}")
-        before = list(base.get(name, ()))
-        after = list(new.get(name, ()))
+        before = list(base.get(name, [w[1] for w in base_data.get(name, ())]))
+        after = list(new.get(name, [w[1] for w in new_data.get(name, ())]))
         for line in difflib.unified_diff(before, after, lineterm="", n=1):
             print(line)
-    return 1 if changed or added or removed else 0
+    return (
+        1
+        if changed or added or removed or data_changed or data_added or data_removed
+        else 0
+    )
 
 
 if __name__ == "__main__":
