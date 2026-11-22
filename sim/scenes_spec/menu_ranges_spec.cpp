@@ -8,17 +8,17 @@
 /// next.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -52,10 +52,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -65,7 +65,7 @@ using deluge::ui::widgets::oled::RangeEdge;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;

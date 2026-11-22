@@ -38,18 +38,18 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/fx/chain_params.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/bind/target.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
 #include "support/global_guest_menu.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 #include "util/menu_entry.h"
 
 #include "ui/shell/leds.h"
@@ -120,17 +120,17 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::recorder::kRecorderSceneKind;
-using deluge::scenes::recorder::recorder_scene;
-using deluge::scenes::recorder::RecorderScene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::recorder::kRecorderSceneKind;
+using deluge::ui::scenes::recorder::recorder_scene;
+using deluge::ui::scenes::recorder::RecorderScene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace rf = deluge::scenes::spec::recorder_fx;
+namespace rf = deluge::ui::scenes::spec::recorder_fx;
 using rf::AudioClockAt;
 using rf::Guards;
 using rf::RecorderDisplay;
@@ -458,8 +458,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		rec->numSamplesCaptured = 1;
 		// Two quiet ticks, one poll period apart. No pad, no button, no encoder.
-		r.tick(deluge::scenes::recorder::kRecorderPollMs);
-		r.tick(2 * deluge::scenes::recorder::kRecorderPollMs);
+		r.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
+		r.tick(2 * deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect(waiting).not_().to_equal(r.oled());
 		expect(r.oled()).to_equal(main_panel("captured"));
 
@@ -473,7 +473,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		expect(recorder_scene().next_timer().has_value()).to_be_true();
 		expect(static_cast<int32_t>(recorder_scene().next_timer().value_or(0)))
-		    .to_equal(static_cast<int32_t>(deluge::scenes::recorder::kRecorderPollMs));
+		    .to_equal(static_cast<int32_t>(deluge::ui::scenes::recorder::kRecorderPollMs));
 
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		rec->numSamplesCaptured = 4096;
@@ -718,8 +718,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `file0SelectorMenu`, whose `FileSelector::beginSession` opens the sample browser. A take already running
 		// (here an output recording) is the refusal `RecorderScene::can` makes.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -743,8 +743,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("leaves the root view's animation stopped under the recorder, as main's base UI does", _ {
 		// `UI::canSeeViewUnderneath` is false and `AudioRecorder` does not override it; the menu under it says true.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -760,8 +760,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("passes a SYNC_SCALING release to the root view under the recorder while fill mode is on", _ {
 		// `AudioRecorder::buttonAction`: "allow turning off fill mode if it was active while entering audio recorder".
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		const uint32_t saved_action = runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
@@ -786,8 +786,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -811,8 +811,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// A song load or a clear takes every UI down (`nullifyUIs`) with the recorder on top, and nothing ticks a closed
 		// guest: the teardown itself ends the screen's take, as main's recorder does once its UI is gone.
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -825,7 +825,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 		// Still published until its file is closed, then freed by the foreground recording, attached to nothing.
 		expect(deluge::recording::inputTakeInProgress()).to_be_true();
-		deluge::scenes::spec::settle_torn_down_take();
+		deluge::ui::scenes::spec::settle_torn_down_take();
 		expect(AudioEngine::foregroundRecorder()).to_be_null();
 		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
@@ -837,8 +837,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		RecorderDisplay shown;
 		DisplayAs as{shown};
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -860,8 +860,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		RecorderDisplay shown;
 		DisplayAs as{shown};
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		setRootUILowLevel(&instrumentClipView);
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -881,7 +881,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		drain_notifications();
 		expect(shown.loading).to_be_true();
 
-		deluge::scenes::spec::settle_torn_down_take();
+		deluge::ui::scenes::spec::settle_torn_down_take();
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
 		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
 			(void)shellHostUI.timerCallback();
@@ -895,8 +895,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
 		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
 		setRootUILowLevel(&instrumentClipView);
@@ -1133,7 +1133,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("refuses a take with a Loading popup while a load may replace its sound, and keeps the undo log", _ {
 		Guards g;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		Rig r;
 		setRootUILowLevel(&instrumentClipView); // `getNewAction` logs only with a view on top
 		actionLogger.deleteAllLogs();
@@ -1141,7 +1141,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 
 		MenuContext c = r.ctx();
-		deluge::scenes::spec::HeldPorts loading{c};
+		deluge::ui::scenes::spec::HeldPorts loading{c};
 		loading.card.replacing = true;
 		r.open_on(c); // `on_enter` runs as the scene is pushed
 		expect(drained_notice(deluge::base::notify::Notice::Kind::Text, "Loading")).to_be_true();
@@ -1443,7 +1443,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 1;
-		r.tick(deluge::scenes::recorder::kRecorderPollMs);
+		r.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "ui/scenes/recorder_recording_48.pbm", r.fake.pbm(0));
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 0;
 	});
@@ -1454,7 +1454,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r64.open();
 		r64.tick(0);
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 1;
-		r64.tick(deluge::scenes::recorder::kRecorderPollMs);
+		r64.tick(deluge::ui::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 0;
 	});
@@ -1694,13 +1694,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 namespace recorder_fakes {
 
-using deluge::scenes::bind::AuditionEnd;
-using deluge::scenes::bind::ForegroundRecording;
-using deluge::scenes::bind::InputTake;
-using deluge::scenes::bind::TakeChannels;
-using deluge::scenes::bind::test::FakeHost;
-using deluge::scenes::bind::test::RecordingSoundWrites;
-using deluge::scenes::bind::test::RecordingTakeActions;
+using deluge::ui::scenes::bind::AuditionEnd;
+using deluge::ui::scenes::bind::ForegroundRecording;
+using deluge::ui::scenes::bind::InputTake;
+using deluge::ui::scenes::bind::TakeChannels;
+using deluge::ui::scenes::bind::test::FakeHost;
+using deluge::ui::scenes::bind::test::RecordingSoundWrites;
+using deluge::ui::scenes::bind::test::RecordingTakeActions;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;

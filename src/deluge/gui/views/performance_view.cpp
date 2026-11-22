@@ -855,7 +855,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 				// `PerformanceView`, which is exactly `setup()`'s
 				// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
 				// (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
-				// `context_for`'s `performance_view` (`scenes/menu/context.cpp`).
+				// `context_for`'s `performance_view` (`ui/scenes/menu/context.cpp`).
 				(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
 				                                /*performanceView=*/true,
 				                                /*sessionOrArrangerRoot=*/false,

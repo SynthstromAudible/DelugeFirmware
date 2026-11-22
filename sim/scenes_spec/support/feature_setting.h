@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Set one runtime feature setting for an example, and put it back.
 struct FeatureSetting {
@@ -21,4 +21,4 @@ struct FeatureSetting {
 	FeatureSetting& operator=(const FeatureSetting&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

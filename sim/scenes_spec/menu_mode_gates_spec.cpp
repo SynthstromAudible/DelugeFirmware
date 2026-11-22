@@ -21,13 +21,13 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "processing/sound/sound.h"
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/scene.h"
 
 #include "storage/flash_storage.h"
@@ -47,10 +47,10 @@
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
-using deluge::scenes::menu_scene;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
+using deluge::ui::scenes::menu_scene;
 
 /// @brief The isomorphic keyboard on @p clip, scrolled to 60 with rows a fourth apart: a turn of 1 makes it 61.
 void seat_isomorphic(InstrumentClip* clip) {

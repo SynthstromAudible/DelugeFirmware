@@ -1,0 +1,300 @@
+#pragma once
+
+/// @brief `ContextMenuScene` -- the one scene that replaces legacy's `gui::ContextMenu` hierarchy.
+///
+/// Legacy has a `ContextMenu` base (`gui/context_menu/context_menu.{h,cpp}`) and about a dozen
+/// subclasses, every one of which differs only in three virtuals -- `getTitle()`, `getOptions()`
+/// and `acceptCurrentOption()` -- plus, for a handful, `isCurrentOptionAvailable()` and
+/// `getAcceptButton()`. Those three virtuals are the whole of `Descriptor` below, and
+/// `SceneId::arg` selects one, so the subclass hierarchy becomes a table exactly as
+/// `rename::Target` turned `gui/ui/rename/`'s into one.
+///
+/// **Ports.** `ContextMenu::renderOLED` (the pixels, already in `ui::widgets::oled::option_window`),
+/// `selectEncoderAction`, `buttonAction`, `padAction`, `focusRegained`,
+/// `getGreyoutColsAndRows` and `setupAndCheckAvailability`.
+///
+/// **What this scene may not do.** Like `MenuScene` and `RenameScene`, it never calls an
+/// `OledFrame` drawing primitive: the window, its heading, its rule and its rows all come from
+/// `ui::widgets::oled::option_window`, so the layout rules stay in one place. It never allocates and never
+/// reads a wall clock other than the frame's own `now_ms()`.
+
+#include "ui/scenes/menu/context.h"
+#include "ui/shell/scene.h"
+#include "ui/widgets/core/state.h"
+#include "ui/widgets/grid/effects.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <string_view>
+
+namespace deluge::ui::scenes::context_menu {
+
+/// @brief Which context menu `SceneId::arg` names.
+///
+/// Every context menu the scenes open: the five `reset_settings::Reset` items
+/// (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`, `nodes::reset_flash` .. `nodes::reset_all`),
+/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two long-press menus
+/// (`origin/main:src/deluge/gui/context_menu/sample_browser/kit.cpp`,
+/// `origin/main:src/deluge/gui/context_menu/sample_browser/synth.cpp`), which `BrowserScene` opens. The others are
+/// opened from the legacy views and browsers in `src/deluge` -- `clearSong` from `gui/views/view.cpp`, `clipSettings` /
+/// `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
+/// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the views -- and
+/// `midiLearnMode` and `configureSongMacros` go through the action seam (`ui/scenes/menu/action.h`) to the legacy
+/// objects.
+///
+/// @note `padAction` and `getGreyoutColsAndRows` are not descriptor business for `AudioSource`:
+///       `AudioInputSelector`'s read the session view (`audio_input_selector.cpp`),
+///       which no scene reads, so this scene greys as the base class does and a pad press closes the menu.
+enum class DescriptorId : uint16_t {
+	ResetFlash = 0,
+	ResetCommunityFeatures,
+	ResetMidiFollow,
+	ResetMidiDevices,
+	ResetAll,
+	/// `context_menu::audioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`), opened by
+	/// `audio_clip::AudioSourceSelector::selectButtonPress`
+	/// (`origin/main:src/deluge/gui/menu_item/audio_clip/audio_source_selector.h`); it uses `initial_option`, `on_move`
+	/// and `footer`.
+	AudioSource,
+	/// `context_menu::sample_browser::kit`: SAMPLES, {LOAD ALL, SLICE}; SLICE, on a file only, opens the slicer.
+	SampleBrowserKit,
+	/// `context_menu::sample_browser::synth`: LOAD FILES, {MULTISAMPLES, BASIC, SINGLE-CYCLE, WAVETABLE}.
+	SampleBrowserSynth,
+	/// `context_menu::deleteFile` (`gui/context_menu/delete_file.{h,cpp}`), opened by the sample browser's
+	/// Shift+SAVE: "DELETE?", {OK}.
+	DeleteFile,
+	Count,
+};
+
+/// @brief The cursor and the scroll window, as one value: legacy's `currentOption` / `scrollPos`
+///        pair (`context_menu.h`).
+struct Selection {
+	uint8_t option = 0;
+	uint8_t scroll = 0;
+	bool operator==(const Selection&) const = default;
+};
+
+/// @brief What one context menu shows and does -- one legacy `ContextMenu` subclass, as data.
+struct Descriptor {
+	/// @brief l10n string id for the window heading (`ContextMenu::getTitle`).
+	uint16_t title;
+
+	/// @brief l10n string ids for the options, in legacy's `getOptions()` order.
+	///
+	/// @note Dynamic availability (`isCurrentOptionAvailable()`) is `options_now`: the scene works on the list
+	///       with the unavailable entries removed, which is what legacy's render and turn loops amount to.
+	std::span<const uint16_t> options;
+
+	/// @brief `ContextMenu::acceptCurrentOption()`. **False closes the menu**, which is legacy's
+	///        own convention ("If returns false, will cause UI to exit", `context_menu.h`) and
+	///        is what every `ResetSettings` action returns after doing its work.
+	///
+	/// @note The factory resets ignore both parameters (global calls, one option each); the sample
+	///       browser's synth menu switches on the option. They are what `acceptCurrentOption()`
+	///       reads off `this` (`soundEditor`'s resolved context, and `currentOption`), and every
+	///       remaining legacy subclass needs both: `ClipSettingsMenu`
+	///       and `NewClipType` switch on the option, and all of them address a model object the
+	///       `MenuContext` carries.
+	bool (*accept)(const menu::MenuContext&, uint8_t option);
+
+	/// @brief Which option the menu opens on, or null for legacy's own "the first available one".
+	///
+	/// `ContextMenu::setupAndCheckAvailability` walks to the first available option and seeds
+	/// `scrollPos` from it; with availability expressed by compaction that is option 0, which is what
+	/// a null hook means. `AudioInputSelector::setupAndCheckAvailability`
+	/// (`gui/context_menu/audio_input_selector.cpp`) replaces the walk outright: it maps
+	/// `audioOutput->inputChannel` onto its own `Value` enum and puts both `currentOption` and
+	/// `scrollPos` there.
+	///
+	/// @return The option to open on. Clamped into the list by the scene, so a hook cannot open the
+	///         menu on a row that is not there.
+	uint8_t (*initial_option)(const menu::MenuContext&) = nullptr;
+
+	/// @brief Commit-on-turn, or null for a menu that commits only when the accept button is pressed.
+	///
+	/// `AudioInputSelector::selectEncoderAction` (`gui/context_menu/audio_input_selector.cpp`) calls the base and then
+	/// *writes the model* -- `audioOutput->inputChannel`, the recording source, and the
+	/// `defaultAudioOutputInputChannel` global -- so the audio input follows the cursor and backing out with BACK
+	/// leaves the last row you passed through selected. That is legacy's behaviour, not an accident, and it is the
+	/// reason this is a hook rather than something the accept path could cover.
+	///
+	/// Takes the `Selection` by reference because legacy's override writes `scrollPos` as well
+	/// ("Keep Track on the first visible row so the selected track name has room below
+	/// it").
+	void (*on_move)(const menu::MenuContext&, Selection& selection) = nullptr;
+
+	/// @brief An extra line under the option rows, or null for none.
+	///
+	/// `AudioInputSelector::renderOLED` draws the base window and then a line naming the
+	/// track it is recording from -- only while the channel is `SPECIFIC_OUTPUT`, which is why this
+	/// returns a view rather than being a plain string id: the text is a model object's name, and
+	/// whether there is any at all is a runtime question.
+	///
+	/// @param scratch Storage the returned view may point into; it outlives the render call. May be
+	///                ignored by a hook returning a static or model-owned string.
+	/// @return The footer text, or an empty view for none.
+	std::string_view (*footer)(const menu::MenuContext&, std::span<char> scratch) = nullptr;
+
+	/// @brief `isCurrentOptionAvailable()`, or null for a menu whose every option always is.
+	///
+	/// Asked again before every render, turn and accept, since what it reads -- the sample browser's
+	/// item -- can change under the open menu.
+	/// @param out Receives the available options' indexes into `options`, in order.
+	/// @return How many were written; zero refuses to open.
+	size_t (*options_now)(const menu::MenuContext&, std::span<uint8_t> out) = nullptr;
+
+	/// @brief `padAction`, or null for the base class's: a press closes the menu.
+	deluge::ui::shell::Result (*pad)(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&) = nullptr;
+
+	/// @brief While true, BACK, Select and pads are refused: the menu has started work that closes it once it ends.
+	bool (*busy)(const menu::MenuContext&) = nullptr;
+
+	/// @brief `ContextMenuForSaving`: SAVE blinks and LOAD is off while the menu is up.
+	bool for_saving = false;
+};
+
+/// @brief The scratch a `Descriptor::footer` hook is handed.
+///
+/// Legacy's own footer is `Output::name.c_str()` or the literal "No track" (`AudioInputSelector::renderOLED` in
+/// `audio_input_selector.cpp`), neither of which needs scratch at all; the buffer is here so a later descriptor can
+/// format one without this layer allocating. 48 is `notify::Notice`'s own text slot, the widest single line anything in
+/// this stack carries.
+inline constexpr size_t kFooterScratch = 48;
+
+/// @brief `sample_browser::Synth::isCurrentOptionAvailable`
+///        (`origin/main:src/deluge/gui/context_menu/sample_browser/synth.cpp`): which of the synth menu's options the
+///        sound and the browser's item allow.
+///
+/// MULTISAMPLES and BASIC need a synth that is not in ring-mod; a folder offers MULTISAMPLES alone.
+/// @param ctx       The sound the browser loads into: its synth mode is read through `ctx.ports.sound`.
+/// @param is_folder Whether the browser's selected item is a folder.
+/// @param out       Receives the available options' indexes into the descriptor's `options`, in order.
+/// @return How many were written.
+size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out);
+
+/// @brief The table. Indexed by `DescriptorId`; `DescriptorId::Count` or past it returns entry 0.
+/// @param id Which context menu.
+/// @return Its heading, options and accept action.
+const Descriptor& descriptor(DescriptorId id);
+
+/// @brief The most options one descriptor may carry.
+///
+/// Nine, which is `AudioInputSelector`'s option count -- the widest legacy context menu there is
+/// -- so the fixed arrays `render_oled` resolves the l10n ids into never truncate a descriptor a
+/// later task adds. Nothing here allocates, so the ceiling has to be a number.
+inline constexpr size_t kMaxOptions = 9;
+
+/// @brief `ContextMenu::selectEncoderAction` (`context_menu.cpp`), as a pure function.
+///
+/// Split out of the scene so the window rule can be exercised at any option count -- every shipped
+/// descriptor has exactly one option and therefore never scrolls.
+///
+/// Legacy's rule, verbatim, and it is **not** `list_window_start`'s: the cursor is left where it
+/// lands and `scrollPos` only follows once the cursor has already left it, so walking down a long
+/// list keeps the cursor on the *bottom* of the two visible rows rather than the top. An offset
+/// that would leave the list is refused outright (the cursor does not clamp to the end).
+///
+/// @note The `do { ... } while (!isCurrentOptionAvailable())` loop runs exactly once here, because
+///       an unavailable option is expressed by not being in the list at all (see
+///       `Descriptor::options`).
+///
+/// @param s      The current cursor/scroll pair.
+/// @param offset Signed detents, as `selectEncoderAction`'s parameter.
+/// @param count  How many options there are.
+/// @return The new pair, or @p s unchanged when the turn would leave the list.
+Selection step(Selection s, int32_t offset, uint8_t count);
+
+/// @brief The `SceneKind` this scene is registered under: `FirstApp + 2` (`registry.h`).
+inline constexpr deluge::ui::shell::SceneKind kContextMenuSceneKind =
+    static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 2);
+
+/// @brief The centred option window. One instance for the whole application (`registry.h`'s
+///        `scene_registry()`).
+class ContextMenuScene final : public deluge::ui::shell::Scene {
+public:
+	/// @brief Point the scene at what @p ctx resolved.
+	///
+	/// The entry point for whoever opens the menu, split from `on_enter` for the reason
+	/// `RenameScene::open` and `MenuScene::open` are: a `SceneId` carries one `uint16_t`, and a
+	/// context is not one.
+	/// @param ctx What the accept hook acts on.
+	void open(const menu::MenuContext& ctx);
+
+	deluge::ui::shell::SceneKind kind() const override { return kContextMenuSceneKind; }
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
+	void leds(deluge::ui::widgets::core::LedFrame& frame) override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ctx) override;
+	bool on_enter(const deluge::ui::shell::SceneId& id) override;
+	void on_exit() override;
+	std::optional<uint32_t> next_timer() const override;
+
+	/// @brief True: the window is drawn over whatever grid is beneath, which keeps painting.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief False: `ContextMenu` paints no pads at all, so the view underneath is what shows.
+	bool occludes_grid() const override { return false; }
+	/// @brief True: `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true`
+	///        (`context_menu.h`), and `renderOLED` then clears only its own window.
+	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
+	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`, `*rows` left at the
+	///        caller's zero (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`) -- every column, no rows.
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
+	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.
+	bool passes_pads_beneath() const override { return descriptor(id_).pad != nullptr; }
+	/// @brief `Kit::padAction` / `Synth::padAction` hand pads to the browser beneath, whose audition column is the clip
+	///        view's; every other menu takes every pad.
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return descriptor(id_).pad != nullptr ? deluge::ui::shell::GridPadClaim::AllButAudition
+		                                      : deluge::ui::shell::GridPadClaim::All;
+	}
+	/// @brief `ContextMenu::focusRegained`: the BACK blink restarts when the menu is the input top again.
+	void on_resume() override { blink_restart_ = true; }
+
+	/// @brief Which descriptor the last `on_enter` selected.
+	DescriptorId descriptor_id() const { return id_; }
+	/// @brief The cursor and scroll window (`currentOption` / `scrollPos`), over the available options.
+	Selection selection() const { return sel_; }
+	/// @brief The available options, as indexes into the descriptor's `options`, in order.
+	std::span<const uint8_t> available() const { return {available_.data(), available_count_}; }
+	/// @brief `currentOption`: the selected option's index into the descriptor's `options`.
+	uint8_t selected_option() const { return sel_.option < available_count_ ? available_[sel_.option] : 0; }
+
+private:
+	/// @brief `ContextMenu::close()`, as an `Action`.
+	static deluge::ui::shell::Result close();
+	/// @brief Re-read the available options, keeping the cursor on the list.
+	void refresh_available();
+	/// @brief `buttonAction`'s `probablyAcceptCurrentOption` arm.
+	deluge::ui::shell::Result accept_current_option();
+
+	menu::MenuContext ctx_{};
+	DescriptorId id_ = DescriptorId::ResetAll;
+	Selection sel_{};
+	std::array<uint8_t, kMaxOptions> available_{};
+	uint8_t available_count_ = 0;
+
+	/// Side-scroller state for the focused row (`OLED::setupSideScroller`).
+	deluge::ui::widgets::core::ScrollText scroll_{};
+	/// Side-scroller state for the footer (`AudioInputSelector`'s scroller 1).
+	deluge::ui::widgets::core::ScrollText footer_scroll_{};
+	/// The clock the render pass last saw, so `next_timer()` can answer without one of its own --
+	/// the same idiom `RenameScene::last_render_ms_` uses.
+	uint32_t last_render_ms_ = 0;
+	/// Whether the next `leds()` restarts the shared normal blink: `focusRegained`'s `blinkLed(BACK)` as the menu
+	/// opens.
+	bool blink_restart_ = true;
+};
+
+/// @brief The application's one context menu.
+///
+/// A function-local static, for the reason `menu_scene()` and `rename_scene()` are: it must
+/// outlive every `Shell` that borrows it and must not participate in static-initialisation order
+/// across translation units.
+/// @return The singleton.
+ContextMenuScene& context_menu_scene();
+
+} // namespace deluge::ui::scenes::context_menu

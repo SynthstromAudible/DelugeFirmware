@@ -15,8 +15,8 @@
 
 namespace deluge::gui {
 
-scenes::services::MenuView menuViewOf(::Clip* clip) {
-	scenes::services::MenuView view;
+deluge::ui::scenes::services::MenuView menuViewOf(::Clip* clip) {
+	deluge::ui::scenes::services::MenuView view;
 	if (clip == nullptr || clip->output == nullptr || !clip->output->id()) {
 		return view;
 	}
@@ -39,8 +39,8 @@ scenes::services::MenuView menuViewOf(::Clip* clip) {
 	return view;
 }
 
-scenes::menu::MenuContext::RootGreyout menuRootGreyout() {
-	using RootGreyout = scenes::menu::MenuContext::RootGreyout;
+deluge::ui::scenes::menu::MenuContext::RootGreyout menuRootGreyout() {
+	using RootGreyout = deluge::ui::scenes::menu::MenuContext::RootGreyout;
 	RootUI* root = getRootUI();
 	if (root == nullptr) {
 		return RootGreyout::Menu;

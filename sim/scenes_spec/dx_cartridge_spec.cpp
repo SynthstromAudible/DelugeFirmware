@@ -5,12 +5,12 @@
 // The spec may include `gui/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/sound_facts.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/bind/ports/sound_facts.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
 
 #include "ui/shell/notices.h"
 
@@ -50,12 +50,12 @@
 #include <string_view>
 #include <vector>
 
-using namespace deluge::scenes;
-using namespace deluge::scenes::spec::dx_rig;
+using namespace deluge::ui::scenes;
+using namespace deluge::ui::scenes::spec::dx_rig;
 using deluge::gui::ui::DxCartridgeRead;
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserId;
-namespace nodes = deluge::scenes::menu::nodes;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserId;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 
@@ -117,11 +117,11 @@ struct DxSong {
 	Sound* sound = nullptr;
 
 	DxSong() {
-		deluge::scenes::spec::make_current(song.song);
+		deluge::ui::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
-	~DxSong() { deluge::scenes::spec::make_current(saved); }
+	~DxSong() { deluge::ui::scenes::spec::make_current(saved); }
 	DxSong(const DxSong&) = delete;
 	DxSong& operator=(const DxSong&) = delete;
 
@@ -229,9 +229,9 @@ std::string popup_text(MenuRig& r) {
 
 /// @brief Whether the delete-file menu is on the stack.
 bool delete_menu_up(MenuRig& r) {
-	const auto* menu = static_cast<const deluge::scenes::context_menu::ContextMenuScene*>(
-	    on_stack(r, deluge::scenes::context_menu::kContextMenuSceneKind));
-	return menu != nullptr && menu->descriptor_id() == deluge::scenes::context_menu::DescriptorId::DeleteFile;
+	const auto* menu = static_cast<const deluge::ui::scenes::context_menu::ContextMenuScene*>(
+	    on_stack(r, deluge::ui::scenes::context_menu::kContextMenuSceneKind));
+	return menu != nullptr && menu->descriptor_id() == deluge::ui::scenes::context_menu::DescriptorId::DeleteFile;
 }
 
 /// @brief Shift held, SAVE pressed and released, Shift let go.
@@ -555,8 +555,8 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxCard card;
 		select_language();
 		MenuRig r;
-		const deluge::scenes::spec::UseBrowserHost use{deluge::scenes::spec::fake_browser_host()};
-		deluge::scenes::spec::fake_browser_host().clear();
+		const deluge::ui::scenes::spec::UseBrowserHost use{deluge::ui::scenes::spec::fake_browser_host()};
+		deluge::ui::scenes::spec::fake_browser_host().clear();
 		r.open(nodes::dx_menu);
 		r.select();
 		settle(r);
@@ -564,8 +564,8 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		select_file(r, "BROKEN");
 		r.select();
-		const std::vector<deluge::scenes::browser::BrowserChoice>& asked =
-		    deluge::scenes::spec::fake_browser_host().performed();
+		const std::vector<deluge::ui::scenes::browser::BrowserChoice>& asked =
+		    deluge::ui::scenes::spec::fake_browser_host().performed();
 		expect(asked.size()).to_equal(size_t(1));
 		expect(asked.empty() ? std::string{} : asked[0].path).to_equal(std::string{"DX7/BANK1.SYX"});
 		browser_scene().deferred_load_done(false);

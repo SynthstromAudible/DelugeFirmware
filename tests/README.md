@@ -183,7 +183,7 @@ builds only `golden-vt-render`.
 | edit-undo-redo | integration | corpus | property | gate | every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo | nightly | model | ~10s |
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
-| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
+| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
 | test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | pr | tooling | ~1s |
@@ -329,7 +329,7 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 ### A unit spec
 
 `tests/unit/<path>/` holds the specs for `src/<path>/`: a top-level library's specs are in its directory
-(`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/scenes/bind/`), and the
+(`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/ui/scenes/bind/`), and the
 app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
 path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
 `tests/unit/integration/scenarios/support/` for the scenarios' shared support. A spec whose stand-ins cannot share a

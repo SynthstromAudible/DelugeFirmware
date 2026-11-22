@@ -84,7 +84,7 @@ To add a new runtime feature setting:
    - `src/deluge/gui/l10n/strings.h`: Add `STRING_FOR_COMMUNITY_FEATURE_...` to `enum class String`.
    - `src/deluge/gui/l10n/english.json`: Add the string entry with the display name for OLED.
 3. **Name its row**: In `src/deluge/gui/l10n/setting_names.cpp`, add the names of the DEVICE row `features/<XML name>` and its entry in `kEntries`, which stays sorted. `RuntimeFeatureSettings::init()` takes the default from `kFeatures`.
-4. **Add to the settings menu**: In `src/scenes/menu/nodes/settings.h`, declare the node with `feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_...), project::Feature::<NAME>)` beside the others and add `&feature_<name>` to `kRuntimeFeatureChildren`. Then run `./dbt test --update ui-menu-dump` and, in `website/`, `pnpm run generate:menu-hierarchy`, and commit `website/src/data/generated/menu-tree.json` and `menu-hierarchies.json`: the website's menu reference is built from the menu dump.
+4. **Add to the settings menu**: In `src/ui/scenes/menu/nodes/settings.h`, declare the node with `feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_...), project::Feature::<NAME>)` beside the others and add `&feature_<name>` to `kRuntimeFeatureChildren`. Then run `./dbt test --update ui-menu-dump` and, in `website/`, `pnpm run generate:menu-hierarchy`, and commit `website/src/data/generated/menu-tree.json` and `menu-hierarchies.json`: the website's menu reference is built from the menu dump.
 5. **Guard the feature logic**: In your code, check `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::...)` or `runtimeFeatureSettings.get(...)`.
 
 </details>

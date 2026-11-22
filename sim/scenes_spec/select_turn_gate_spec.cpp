@@ -12,11 +12,11 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/scene.h"
 
 #include "support/global_guest_menu.h"
@@ -28,10 +28,10 @@
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
-using deluge::scenes::menu_scene;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
+using deluge::ui::scenes::menu_scene;
 
 /// @brief Put `currentUIMode` back however an example ends.
 struct UiModeGuard {

@@ -11,14 +11,15 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The clip facts, answered from the running app: each clip is found by its id in the current song.
-class HostClipFacts final : public scenes::bind::ClipFacts {
+class HostClipFacts final : public deluge::ui::scenes::bind::ClipFacts {
 public:
-	[[nodiscard]] std::optional<scenes::bind::AudioClipFact> audio_clip(project::ClipAddress clip) const override {
+	[[nodiscard]] std::optional<deluge::ui::scenes::bind::AudioClipFact>
+	audio_clip(project::ClipAddress clip) const override {
 		::AudioClip* audio = audio_clip_at(clip);
 		if (audio == nullptr || audio->output == nullptr || !audio->output->id()) {
 			return std::nullopt;
 		}
-		return scenes::bind::AudioClipFact{
+		return deluge::ui::scenes::bind::AudioClipFact{
 		    .track_id = *audio->output->id(),
 		    .max_zoom = audio->getMaxZoom(),
 		    .unarmed = audio->armState == ArmState::OFF,
@@ -54,24 +55,25 @@ public:
 		audio->getScrollAndZoomInSamples(scroll, zoom, &scroll_samples, &zoom_samples);
 		return {scroll_samples, zoom_samples};
 	}
-	[[nodiscard]] std::optional<scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
+	[[nodiscard]] std::optional<deluge::ui::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (getRootUI() != &keyboardScreen || clip == nullptr
 		    || clip->keyboardState.currentLayout != KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
 			return std::nullopt;
 		}
-		return scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
-		                                        .row_interval = clip->keyboardState.isomorphic.rowInterval};
+		return deluge::ui::scenes::bind::IsomorphicKeyboard{.scroll_offset =
+		                                                        clip->keyboardState.isomorphic.scrollOffset,
+		                                                    .row_interval = clip->keyboardState.isomorphic.rowInterval};
 	}
-	[[nodiscard]] std::optional<scenes::bind::ClipNavigation> clip_navigation() const override {
+	[[nodiscard]] std::optional<deluge::ui::scenes::bind::ClipNavigation> clip_navigation() const override {
 		if (currentSong == nullptr) {
 			return std::nullopt;
 		}
 		const PersistentViewState& view = currentSong->persistentView;
-		return scenes::bind::ClipNavigation{.x_scroll = view.xScroll[NAVIGATION_CLIP],
-		                                    .x_zoom = view.xZoom[NAVIGATION_CLIP],
-		                                    .triplets_on = view.tripletsOn,
-		                                    .triplets_level = view.tripletsLevel};
+		return deluge::ui::scenes::bind::ClipNavigation{.x_scroll = view.xScroll[NAVIGATION_CLIP],
+		                                                .x_zoom = view.xZoom[NAVIGATION_CLIP],
+		                                                .triplets_on = view.tripletsOn,
+		                                                .triplets_level = view.tripletsLevel};
 	}
 };
 
@@ -82,7 +84,7 @@ public:
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
 }
 
-const scenes::bind::ClipFacts& clip_facts() {
+const deluge::ui::scenes::bind::ClipFacts& clip_facts() {
 	static const HostClipFacts facts;
 	return facts;
 }

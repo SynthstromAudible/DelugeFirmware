@@ -12,8 +12,8 @@
 #include "project/transport.h"
 #include "sample-view/divide.h"
 #include "sample-view/peaks.h"
-#include "scenes/bind/device_reader.h"
-#include "scenes/bind/ports/ports.h"
+#include "ui/scenes/bind/device_reader.h"
+#include "ui/scenes/bind/ports/ports.h"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::scenes::bind::contract {
+namespace deluge::ui::scenes::bind::contract {
 
 /// @brief A port answers the same thing twice when nothing changed between the calls.
 [[nodiscard]] inline bool ui_facts_are_stable(const UiFacts& ui) {
@@ -560,4 +560,4 @@ namespace deluge::scenes::bind::contract {
 
 /// @}
 
-} // namespace deluge::scenes::bind::contract
+} // namespace deluge::ui::scenes::bind::contract

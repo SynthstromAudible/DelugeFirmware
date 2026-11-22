@@ -36,7 +36,7 @@
 
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;

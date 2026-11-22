@@ -4,15 +4,15 @@
 /// @brief `FakeMenuShell`: a real `Shell` and `MenuScene` over fake surfaces, with the menu's contexts over
 ///        `FakeHostRig`'s fakes, and the walk's read-backs a fake-only menu spec asserts on.
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
@@ -30,7 +30,7 @@
 #include <optional>
 #include <string>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A `Shell` over fake surfaces with the app's scene registry, and the menu's contexts over a `FakeHostRig`.
 ///        Each one starts the menu as a boot leaves it and pops every scene when it goes, so examples do not see
@@ -236,4 +236,4 @@ inline const menu::Node* listed_at(const menu::Node& page, size_t row, const men
 	return row < count ? rows[row] : nullptr;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

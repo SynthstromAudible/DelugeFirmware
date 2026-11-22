@@ -19,8 +19,8 @@
 
 /// base/panic.h — the panic / fatal-error primitive.
 ///
-/// Part of the foundation tier, which sits *below* the application, the BSP and
-/// the HAL: every layer may panic. Foundation headers live under src/ so they
+/// Part of base, which sits *below* the application, the BSP and
+/// the HAL: every layer may panic. Its headers live under src/ so they
 /// resolve through the universal `-I src` include path every target already has
 /// (this is also why definitions.h — included by vendored libs that lack the
 /// libdeluge boundary path — can pull it in).

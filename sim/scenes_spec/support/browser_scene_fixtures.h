@@ -6,10 +6,10 @@
 ///        that parks the listing op, and one side's answer (the navigation numbers, the text and the panel).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -39,13 +39,13 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec::browser_fx {
+namespace deluge::ui::scenes::spec::browser_fx {
 
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserId;
-using deluge::scenes::browser::kBrowserSceneKind;
-using deluge::scenes::menu::MenuContext;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserId;
+using deluge::ui::scenes::browser::kBrowserSceneKind;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -125,7 +125,7 @@ struct CleanBrowser {
 	QuietAudio quiet;
 	deluge::hid::Display* saved_display;
 	/// The host installed before the example, which `reset` replaces with the recording one.
-	deluge::scenes::browser::BrowserHost* saved_host;
+	deluge::ui::scenes::browser::BrowserHost* saved_host;
 	BrowserDisplay display_impl;
 
 	CleanBrowser() : saved_display(display), saved_host(browser_scene().installed_host()) {
@@ -392,4 +392,4 @@ inline bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }
 
-} // namespace deluge::scenes::spec::browser_fx
+} // namespace deluge::ui::scenes::spec::browser_fx

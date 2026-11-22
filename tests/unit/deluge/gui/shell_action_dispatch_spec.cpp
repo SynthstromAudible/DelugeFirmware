@@ -4,7 +4,7 @@
 ///
 /// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()` is stubbed
 /// here, in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices` already
-/// is: the real one reads `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`,
+/// is: the real one reads `deluge::ui::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`,
 /// `stemExport` and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
 /// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or even that the outbox
 /// is what gets read** -- that half is `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions`
@@ -15,7 +15,7 @@
 /// overwrite, not an exactly-once queue" and announces nothing --
 /// "`after_render` returns no `Action` announcing that one is waiting, so nothing enforces the
 /// polling: **poll after every tick, or requests are dropped or stale**"
-/// (`MenuScene::take_action`, `scenes/menu/menu_scene.h`). Nothing in the shell, and nothing in the scene, can fail
+/// (`MenuScene::take_action`, `ui/scenes/menu/menu_scene.h`). Nothing in the shell, and nothing in the scene, can fail
 /// when a tick skips the poll. Only these examples can.
 
 #include "support/fake_legacy_hid.h"

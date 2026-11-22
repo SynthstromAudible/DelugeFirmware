@@ -1,7 +1,7 @@
-#include "scenes/profile.h"
+#include "ui/scenes/profile.h"
 
 #include "gui/l10n/l10n.h"
-#include "scenes/l10n_bridge.h"
+#include "ui/scenes/l10n_bridge.h"
 #include "ui/shell/profiles/deluge.h"
 
 #include "cppspec.hpp"
@@ -30,18 +30,18 @@ bool same_span(std::span<T> a, std::span<T> b) {
 
 // clang-format off
 describe scenes_profile("scenes::deluge_profile", $ {
-	// See l10n_bridge_spec.cpp's before_all: text_or_digits below resolves through scenes::text_lookup,
+	// See l10n_bridge_spec.cpp's before_all: text_or_digits below resolves through ui::scenes::text_lookup,
 	// which needs `l10n::chosenLanguage` set (normally done by the app's Display construction at boot).
 	before_all([] { l10n::chosenLanguage = &l10n::built_in::english; });
 
 	it("wires the l10n bridge the shell's own profile deliberately leaves null", _ {
-		const ui::shell::BoardProfile& p = scenes::deluge_profile();
-		expect(address_of(p.text)).to_equal(address_of(&scenes::text_lookup));
-		expect(address_of(p.error_text)).to_equal(address_of(&scenes::error_lookup));
+		const ui::shell::BoardProfile& p = ui::scenes::deluge_profile();
+		expect(address_of(p.text)).to_equal(address_of(&ui::scenes::text_lookup));
+		expect(address_of(p.error_text)).to_equal(address_of(&ui::scenes::error_lookup));
 	});
 
 	it("copies every other field from ui::shell::deluge_profile(), unchanged", _ {
-		const ui::shell::BoardProfile& p = scenes::deluge_profile();
+		const ui::shell::BoardProfile& p = ui::scenes::deluge_profile();
 		const ui::shell::BoardProfile& shell_p = ui::shell::deluge_profile();
 
 		expect(same_span(p.button_by_matrix, shell_p.button_by_matrix)).to_be_true();
@@ -56,10 +56,10 @@ describe scenes_profile("scenes::deluge_profile", $ {
 	});
 
 	it("text_or_digits resolves through the wired hook, not the digit fallback", _ {
-		const ui::shell::BoardProfile& p = scenes::deluge_profile();
+		const ui::shell::BoardProfile& p = ui::scenes::deluge_profile();
 		ui::shell::TextScratch s{};
 		const auto string_id = static_cast<uint16_t>(l10n::String::STRING_FOR_LPF);
-		expect(std::string(p.text_or_digits(string_id, s))).to_equal(std::string(scenes::text_lookup(string_id)));
+		expect(std::string(p.text_or_digits(string_id, s))).to_equal(std::string(ui::scenes::text_lookup(string_id)));
 	});
 });
 // clang-format on

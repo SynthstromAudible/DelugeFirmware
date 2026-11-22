@@ -8,13 +8,13 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "model/edits/setting_edit.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -45,11 +45,11 @@
 #include <span>
 #include <string>
 
-namespace deluge::scenes::spec::recorder_fx {
+namespace deluge::ui::scenes::spec::recorder_fx {
 
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::recorder::kRecorderSceneKind;
-using deluge::scenes::recorder::recorder_scene;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::recorder::kRecorderSceneKind;
+using deluge::ui::scenes::recorder::recorder_scene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
@@ -273,7 +273,7 @@ struct DrainedNotices {
 
 /// @brief Select the built-in English strings for the scope, and put the pointer back.
 ///
-/// `Action::Kind::Popup` resolves through `scenes::text_lookup` -> `l10n::getView`, which
+/// `Action::Kind::Popup` resolves through `ui::scenes::text_lookup` -> `l10n::getView`, which
 /// dereferences `chosenLanguage` unguarded; a spec process leaves it null.
 struct EnglishL10n {
 	const deluge::l10n::Language* saved = deluge::l10n::chosenLanguage;
@@ -296,8 +296,8 @@ struct Guards {
 	Guards(const Guards&) = delete;
 	Guards& operator=(const Guards&) = delete;
 
-	deluge::scenes::spec::QuietAudio quiet;
-	deluge::scenes::spec::NoSdRoot no_card;
+	deluge::ui::scenes::spec::QuietAudio quiet;
+	deluge::ui::scenes::spec::NoSdRoot no_card;
 	DrainedNotices notices;
 	EnglishL10n l10n;
 	NoForegroundRecording publication;
@@ -314,4 +314,4 @@ struct AudioClockAt {
 	AudioClockAt& operator=(const AudioClockAt&) = delete;
 };
 
-} // namespace deluge::scenes::spec::recorder_fx
+} // namespace deluge::ui::scenes::spec::recorder_fx

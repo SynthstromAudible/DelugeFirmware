@@ -22,10 +22,10 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The track facts, answered from the running app: each owner is found by its id in the current song.
-class HostTrackFacts final : public scenes::bind::TrackFacts {
+class HostTrackFacts final : public deluge::ui::scenes::bind::TrackFacts {
 public:
-	[[nodiscard]] std::vector<scenes::bind::TrackFact> tracks() const override {
-		std::vector<scenes::bind::TrackFact> list;
+	[[nodiscard]] std::vector<deluge::ui::scenes::bind::TrackFact> tracks() const override {
+		std::vector<deluge::ui::scenes::bind::TrackFact> list;
 		if (currentSong == nullptr) {
 			return list;
 		}
@@ -33,7 +33,7 @@ public:
 			if (!output->id()) {
 				continue; // a track the song has not given an id cannot be named
 			}
-			scenes::bind::TrackFact fact{.output_id = *output->id()};
+			deluge::ui::scenes::bind::TrackFact fact{.output_id = *output->id()};
 			fact.kind = trackKindOf(output->type).value_or(project::TrackKind::SYNTH);
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
@@ -81,7 +81,7 @@ public:
 
 } // namespace
 
-const scenes::bind::TrackFacts& track_facts() {
+const deluge::ui::scenes::bind::TrackFacts& track_facts() {
 	static const HostTrackFacts facts;
 	return facts;
 }

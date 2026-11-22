@@ -84,17 +84,17 @@
 #include "processing/sound/source_resources.h" // the DX7 oscillator the stage gives the clip
 #include "runtime/app_loop.h"                  // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"             // the guest's tick, input and what it has on top
-#include "scenes/menu/menu_scene.h"            // the cartridge page the read lands on
-#include "scenes/menu/nodes/nodes.h"           // nodes::dx_cartridge
-#include "scenes/registry.h"                   // menu_scene()
 #include "storage/DX7Cartridge.h"              // the bank's layout and checksum
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"  // getInstrumentFolder, to pin kAcqDir against drift
-#include "util/menu_entry.h" // openMenu, the DX stage's door to the menu
+#include "ui/scenes/menu/menu_scene.h"  // the cartridge page the read lands on
+#include "ui/scenes/menu/nodes/nodes.h" // nodes::dx_cartridge
+#include "ui/scenes/registry.h"         // menu_scene()
+#include "util/functions.h"             // getInstrumentFolder, to pin kAcqDir against drift
+#include "util/menu_entry.h"            // openMenu, the DX stage's door to the menu
 #include "util/string.h"
 
 #include <algorithm>
@@ -3393,8 +3393,8 @@ Clip* makeDxClip() {
 
 /// Whether the menu has landed on the cartridge page, with the browser closed.
 bool dxLanded() {
-	return deluge::harness::guestTop(deluge::scenes::menu::kMenuSceneKind)
-	       && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::dx_cartridge;
+	return deluge::harness::guestTop(deluge::ui::scenes::menu::kMenuSceneKind)
+	       && deluge::ui::scenes::menu_scene().focused() == &deluge::ui::scenes::menu::nodes::dx_cartridge;
 }
 
 void runDxTick() {
@@ -3433,7 +3433,7 @@ void runDxTick() {
 	case DxStep::ListingWait:
 		// Nothing ticks the guest in this harness unless the scenario does.
 		guestTick();
-		switch (g_dxListingWait.poll(!deluge::scenes::browser::browser_scene().listing_in_flight())) {
+		switch (g_dxListingWait.poll(!deluge::ui::scenes::browser::browser_scene().listing_in_flight())) {
 		case WaitState::Pending:
 			return;
 		case WaitState::Expired:

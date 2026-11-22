@@ -7,14 +7,14 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "project/device_settings.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/chains.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/sound_arp.h"
-#include "scenes/menu/nodes/sound_randomizer.h"
-#include "scenes/menu/shortcut_overlay.h"
-#include "scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/chains.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/sound_arp.h"
+#include "ui/scenes/menu/nodes/sound_randomizer.h"
+#include "ui/scenes/menu/shortcut_overlay.h"
+#include "ui/scenes/menu/shortcuts.h"
 
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
@@ -41,8 +41,8 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-namespace menu = deluge::scenes::menu;
-namespace spec = deluge::scenes::spec;
+namespace menu = deluge::ui::scenes::menu;
+namespace spec = deluge::ui::scenes::spec;
 using menu::MenuContext;
 
 namespace {

@@ -4,16 +4,16 @@
 // descriptor's, and a voice priority or pitch/speed menu edits an audio clip's own row there.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/sound_bend.h"
-#include "scenes/menu/nodes/sound_fx.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/menu/nodes/sound_voice.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/sound_bend.h"
+#include "ui/scenes/menu/nodes/sound_fx.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/menu/nodes/sound_voice.h"
 
 #include "base/notify/dirty_set.h"
 #include "model/clip/audio_clip.h"
@@ -37,11 +37,11 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 namespace {
 

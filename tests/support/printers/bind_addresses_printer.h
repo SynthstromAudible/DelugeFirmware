@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "scenes/bind/target.h"
 #include "support/printers/optional_printer.h"
 #include "support/printers/project_address_printer.h"
+#include "ui/scenes/bind/target.h"
 
 #include <optional>
 #include <ostream>
@@ -32,7 +32,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::bind {
+namespace deluge::ui::scenes::bind {
 
 /// @brief Prints the addresses field by field, an empty one as `none` and an enum as its number, e.g.
 ///        `{slot {kind 0, id 2}, chain none, chain_owner 2, kit_output none, affect_entire 0, clip {clip 7}, …}`.
@@ -52,4 +52,4 @@ inline std::ostream& operator<<(std::ostream& os, const Addresses& a) {
 	return os << "}";
 }
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::ui::scenes::bind

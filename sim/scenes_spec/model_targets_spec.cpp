@@ -3,11 +3,11 @@
 // addresses and the instrument the target resolves against. The host's facts answer as the engine does.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
@@ -34,13 +34,13 @@
 
 #include <string>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::plugin::SettingContext;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
 using deluge::serialization::Value;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 

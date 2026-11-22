@@ -95,7 +95,7 @@
 #     after it** -- measured at 50 ms granularity: byte-identical at 100/250/300/350/400 ms past the turn, different at
 #     500 ms and beyond. So the press and its snapshot both happen inside that window. This is a real divergence and it
 #     is recorded rather than dodged: it is the same `setupSideScroller`-has-no-port gap
-#     `scenes/menu/nodes/output_items.h` already lists, seen here on a menu row instead of an output name.
+#     `ui/scenes/menu/nodes/output_items.h` already lists, seen here on a menu row instead of an output name.
 1700   button Session down
 1720   button Session up
 2900   snapshot song-view
@@ -129,7 +129,7 @@
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
 # performs the verb: `MenuScene`'s `ActionItem` files `MenuAction::SetClipLengthToSampleLength`
-# (`scenes/menu/nodes/actions.h`) and `dispatchShellActions` calls
+# (`ui/scenes/menu/nodes/actions.h`) and `dispatchShellActions` calls
 # `audioClipView.setClipLengthEqualToSampleLength()`, the method `main`'s `selectButtonPress` calls.
 6000   encoder Select +1
 6100   snapshot set-clip-length
@@ -202,7 +202,7 @@
 # Site 8, in two presses. `auditioning` is the held audition pad; `file-selector` is the panel this acceptance test
 # exists to compare -- main's `SampleBrowser` (title "Audio files",
 # `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) against `browser::BrowserScene` on the `Sample`
-# descriptor (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one
+# descriptor (the same title, `ui/scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one
 # file.
 #
 # **`file-selector.state`'s pads**: the sample browser opens with no keyboard and no preview, so the root view shows

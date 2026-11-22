@@ -5,14 +5,14 @@
 ///        host's ports, as the menu itself reads it.
 
 #include "project/device_settings.h"
-#include "scenes/bind/ports/device_settings.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/shortcuts.h"
+#include "ui/scenes/bind/ports/device_settings.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/shortcuts.h"
 
 #include <utility>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A context that binds only the host's ports: what the menu reads the device's own settings through.
 inline menu::MenuContext host_ports_context() {
@@ -42,4 +42,4 @@ struct ShortcutLayout {
 	ShortcutLayout& operator=(const ShortcutLayout&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

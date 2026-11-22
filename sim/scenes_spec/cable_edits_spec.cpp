@@ -32,7 +32,7 @@
 
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 namespace params = deluge::modulation::params;

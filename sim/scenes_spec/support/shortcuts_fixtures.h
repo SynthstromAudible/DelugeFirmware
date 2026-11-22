@@ -9,10 +9,10 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/patch_cables.h"
-#include "scenes/profile.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/patch_cables.h"
+#include "ui/scenes/profile.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec::shortcuts {
+namespace deluge::ui::scenes::spec::shortcuts {
 
 /// @brief The reverb at its original model for the scope, put back after. The reverb's width and room-size items name
 ///        themselves by the active model (Diffusion and Time under MUTABLE and DIGITAL); the port's nodes carry the
@@ -113,7 +113,7 @@ inline std::string paths_in_root(const std::vector<std::string>& paths, std::str
 
 /// @brief Write a cable through the app's sink, as the strength page writes one.
 inline bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
-	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	const std::optional<deluge::ui::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
 	return request.has_value() && ctx.ports.writes->write(*request);
 }
@@ -142,4 +142,4 @@ inline bool seed_blink_cables(const menu::MenuContext& ctx) {
 	return ok;
 }
 
-} // namespace deluge::scenes::spec::shortcuts
+} // namespace deluge::ui::scenes::spec::shortcuts

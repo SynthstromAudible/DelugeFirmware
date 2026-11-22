@@ -15,9 +15,9 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/marker/marker_scene.h"
 #include "storage/flash_storage.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/widgets/core/style.h"
 
@@ -247,9 +247,9 @@ struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
 	/// Registered under the context menu's kind, which the long-press exit leaves alone.
-	PatternScene menu{deluge::scenes::context_menu::kContextMenuSceneKind};
+	PatternScene menu{deluge::ui::scenes::context_menu::kContextMenuSceneKind};
 	/// Registered under the marker editor's kind, which the guest's sidebar answer keys on.
-	PatternScene marker{deluge::scenes::marker::kMarkerSceneKind};
+	PatternScene marker{deluge::ui::scenes::marker::kMarkerSceneKind};
 	std::array<Scene*, kMaxSceneKinds> table{};
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	ShellHostUI guest;
@@ -275,8 +275,8 @@ struct Rig {
 	const SceneRegistry& fill() {
 		table[static_cast<size_t>(kBase)] = &base;
 		table[static_cast<size_t>(kOver)] = &over;
-		table[static_cast<size_t>(deluge::scenes::context_menu::kContextMenuSceneKind)] = &menu;
-		table[static_cast<size_t>(deluge::scenes::marker::kMarkerSceneKind)] = &marker;
+		table[static_cast<size_t>(deluge::ui::scenes::context_menu::kContextMenuSceneKind)] = &menu;
+		table[static_cast<size_t>(deluge::ui::scenes::marker::kMarkerSceneKind)] = &marker;
 		return reg;
 	}
 
@@ -390,7 +390,7 @@ inline const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Ki
 ///
 /// `Shell::flush` calls `SurfaceSet::set_indicator` only for an indicator declared this tick
 /// and the only declarer in the shipped tree is
-/// `scenes::services::ModKnobs` -- a *service*, which this guest's `Services` does not carry in
+/// `ui::scenes::services::ModKnobs` -- a *service*, which this guest's `Services` does not carry in
 /// this example. This is the smallest thing that stands where `ModKnobs`
 /// will stand, so "the guest writes no indicator" can be shown to be about the declaration rather
 /// than about the guest.

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/browser/browser_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
 
 #include <format>
 #include <ostream>
@@ -31,7 +31,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::browser {
+namespace deluge::ui::scenes::browser {
 
 /// @brief Prints a preview request as its browser's number, its path and its direction, e.g.
 ///        `{id 0, path "SAMPLES/A.WAV", direction 1}`.
@@ -52,4 +52,4 @@ inline std::ostream& operator<<(std::ostream& os, const ScrollRequest& r) {
 	                         r.into_nothing);
 }
 
-} // namespace deluge::scenes::browser
+} // namespace deluge::ui::scenes::browser

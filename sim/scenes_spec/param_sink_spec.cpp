@@ -3,10 +3,10 @@
 // drum with a row; it sends MIDI-follow feedback as legacy's param items do; and the fact gives the value the param
 // plays where automation moves it.
 
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/bind/target.h"
-#include "scenes/menu/bind_host.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
@@ -46,7 +46,7 @@
 #include <optional>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using bind::Addresses;
 using bind::ChainOwner;
 using bind::Target;
@@ -99,9 +99,9 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
 	midiEngine.midiFollowChannelType[0].channelOrZone = 0;
 	Song* const saved_song = currentSong;
-	deluge::scenes::spec::make_current(synth.song);
+	deluge::ui::scenes::spec::make_current(synth.song);
 	view.setActiveModControllableTimelineCounter(synth.clip, false);
-	deluge::scenes::spec::make_current(saved_song);
+	deluge::ui::scenes::spec::make_current(saved_song);
 	const std::optional<deluge::project::ParamTarget> target =
 	    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, deluge::modulation::params::Kind::PATCHED,
 	                             deluge::modulation::params::LOCAL_LPF_FREQ);
@@ -294,7 +294,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		spec::SongFixture a = spec::make_synth_song();
 		spec::SongFixture b = spec::make_synth_song();
 		Song* const saved = currentSong;
-		deluge::scenes::spec::make_current(a.song);
+		deluge::ui::scenes::spec::make_current(a.song);
 		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::ENVELOPE_1,
 		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
 		                                     .where = on_synth(a),
@@ -305,14 +305,14 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		for (const bind::CableFact& cable : first) {
 			held.push_back(cable.depth);
 		}
-		deluge::scenes::spec::make_current(b.song);
+		deluge::ui::scenes::spec::make_current(b.song);
 		deluge::synth::CableTarget other = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::RANDOM,
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),
 		                                     .param_value = 0x01000000});
 		(void)sound.cables(synth_lpf(b));
-		deluge::scenes::spec::make_current(saved);
+		deluge::ui::scenes::spec::make_current(saved);
 		expect(held.empty()).to_be_false();
 		expect(first.size()).to_equal(held.size());
 		bool same = first.size() == held.size();

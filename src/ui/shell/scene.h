@@ -228,7 +228,7 @@ struct UiContext {
 ///          which deliberately has no `Action` behind it. A scene that merely wants to ignore
 ///          input for a while should just ignore it: `SceneStack::input_top()` routes every event
 ///          to the topmost non-input-transparent scene's own `handle()`, which is free to swallow
-///          them (`scenes/browser/browser_scene.cpp`'s `after_render` note records that choice and
+///          them (`ui/scenes/browser/browser_scene.cpp`'s `after_render` note records that choice and
 ///          why). A browser that took this lock while a directory listing was in flight would
 ///          leak it on exactly the external-removal path above.
 ///
@@ -668,7 +668,7 @@ public:
 	/// content really does change every tick.
 	///
 	/// The case it exists for is `AudioClipView::graphicsRoutine`'s play cursor, ported by
-	/// `scenes::audio_clip::AudioClipScene` -- a *frame* animation rather than a
+	/// `ui::scenes::audio_clip::AudioClipScene` -- a *frame* animation rather than a
 	/// scheduled event, which is what "every tick" spells.
 	///
 	/// @warning **Legacy's `graphicsRoutine` is NOT driven from the main loop, and it is not

@@ -70,7 +70,7 @@ public:
 	///             `if (surfaces.oled)` block fails it), the other is "a service claiming
 	///             `{.grid = true}` arms no OLED gate", written in the dangerous spelling itself.
 	///          3. **`check_layer_rules.py`'s `services-no-oled-timer-claim` row**, zero-baseline
-	///             over `src/ui/shell/**` *and* `src/scenes/services/**`. `audit_service_scope()`
+	///             over `src/ui/shell/**` *and* `src/ui/scenes/services/**`. `audit_service_scope()`
 	///             fails the checker if a `Service` is ever declared where the row cannot see it.
 	///
 	///          It is a ratchet and not a ban: if your service really does need the OLED armed,

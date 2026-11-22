@@ -43,7 +43,7 @@ if(DELUGE_TEST_TREE STREQUAL "host")
   # deluge_ui_widgets_grid, deluge_ui_shell and deluge_base_notify), which include from SHARED_INCLUDE; and the level-3 UI script runner (tests/harness/level3).
   add_subdirectory(${_deluge_src}/lib ${_deluge_libs}/printf EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/midi ${_deluge_libs}/midi EXCLUDE_FROM_ALL)
-  add_subdirectory(${_deluge_src}/scenes/bind ${_deluge_libs}/scenes-bind EXCLUDE_FROM_ALL)
+  add_subdirectory(${_deluge_src}/ui/scenes/bind ${_deluge_libs}/ui-scenes-bind EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui ${_deluge_libs}/ui EXCLUDE_FROM_ALL)
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/harness/level3 ${_deluge_libs}/level3 EXCLUDE_FROM_ALL)
 endif()

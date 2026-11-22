@@ -3,20 +3,20 @@
 // write through the app's sound port.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/action.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/dx.h"
-#include "scenes/menu/nodes/dx_tables.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcut_blink.h"
-#include "scenes/menu/shortcut_overlay.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/action.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/dx.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcut_blink.h"
+#include "ui/scenes/menu/shortcut_overlay.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -57,22 +57,22 @@
 #include <string_view>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuAction;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuAction;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace dx = deluge::scenes::menu::dx;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace dx = deluge::ui::scenes::menu::dx;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 
-using namespace deluge::scenes::spec::dx_rig;
-using namespace deluge::scenes::spec::dxpages;
+using namespace deluge::ui::scenes::spec::dx_rig;
+using namespace deluge::ui::scenes::spec::dxpages;
 
 spec::OracleTable& table() {
 	return spec::OracleTable::named("dx_pages");

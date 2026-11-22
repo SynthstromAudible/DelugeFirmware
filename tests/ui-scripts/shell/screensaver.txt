@@ -4,7 +4,7 @@
 # **How the scene gets on the stack: nothing in this script pushes it either.** The script simply
 # stops touching anything. `shell::Screensaver::tick` arms an idle deadline on its first tick and
 # pushes `SceneKind::Screensaver` when the deadline passes (`ui/shell/screensaver.cpp`), and
-# `scenes::scene_registry()` is what registers a real scene at that kind -- the shell registers none
+# `ui::scenes::scene_registry()` is what registers a real scene at that kind -- the shell registers none
 # (`ui/shell/shell.cpp`). The spec sets `ShellConfig::screensaver_idle_ms = 200`;
 # `RunOptions` is what sets it for a level-2 script (`ui/shell/screensaver.h`: "`idle_ms == 0` disables the service outright").
 #

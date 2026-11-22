@@ -3,11 +3,11 @@
 // kit row), and an oscillator's pulse width only for a type that has one.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/sound_arp.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/menu/nodes/sound_randomizer.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/sound_arp.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/menu/nodes/sound_randomizer.h"
 
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
@@ -21,8 +21,8 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 

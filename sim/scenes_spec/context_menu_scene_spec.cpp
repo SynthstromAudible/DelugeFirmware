@@ -20,11 +20,11 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/screensaver.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -66,14 +66,14 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::context_menu::context_menu_scene;
-using deluge::scenes::context_menu::ContextMenuScene;
-using deluge::scenes::context_menu::Descriptor;
-using deluge::scenes::context_menu::DescriptorId;
-using deluge::scenes::context_menu::Selection;
-using deluge::scenes::menu::MenuContext;
+using deluge::ui::scenes::context_menu::context_menu_scene;
+using deluge::ui::scenes::context_menu::ContextMenuScene;
+using deluge::ui::scenes::context_menu::Descriptor;
+using deluge::ui::scenes::context_menu::DescriptorId;
+using deluge::ui::scenes::context_menu::Selection;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;

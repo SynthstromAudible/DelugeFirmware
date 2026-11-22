@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <string>
 
-namespace deluge::scenes::spec::scales {
+namespace deluge::ui::scenes::spec::scales {
 
 /// @brief Saves and restores both bitsets, so no example leaks into the next.
 struct ScalesGuard {
@@ -62,4 +62,4 @@ inline std::string bits_hex(const std::bitset<NUM_PRESET_SCALES>& bits) {
 	return out;
 }
 
-} // namespace deluge::scenes::spec::scales
+} // namespace deluge::ui::scenes::spec::scales

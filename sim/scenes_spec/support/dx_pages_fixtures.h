@@ -9,7 +9,7 @@
 #include "gui/ui/root_ui.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
 
 #include "model/song/song.h"
 #include "processing/dx7/dx_patch.h"
@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <string>
 
-namespace deluge::scenes::spec::dxpages {
+namespace deluge::ui::scenes::spec::dxpages {
 
-namespace dx = deluge::scenes::menu::dx;
+namespace dx = deluge::ui::scenes::menu::dx;
 
 /// @brief A runtime feature set for one example, put back as it was after.
 struct Feature {
@@ -111,4 +111,4 @@ inline constexpr int32_t kBreakpointEnd = 100;
 /// @brief A scaling param no pad picks: where a pad press is asked from.
 inline constexpr int16_t kUntouched = 2 * 21 + 8;
 
-} // namespace deluge::scenes::spec::dxpages
+} // namespace deluge::ui::scenes::spec::dxpages

@@ -3,7 +3,7 @@
 The shell is the UI's runtime. It owns the scene stack, lowers raw board input into `UiEvent`s,
 routes them through the scenes and services, ticks, renders every surface that needs a frame,
 derives the LEDs and flushes it all through one hardware seam. It knows nothing about the model or
-legacy UIs: scenes (`src/scenes`) supply the behaviour, and a host -- on the firmware, the legacy
+legacy UIs: scenes (`src/ui/scenes`) supply the behaviour, and a host -- on the firmware, the legacy
 `ShellHostUI` -- calls `Shell::tick`. Namespace `deluge::ui::shell`; no allocation on the tick
 path, no mutable globals, `snake_case` members, `PascalCase` types, `k` constants.
 
@@ -29,7 +29,7 @@ kinds (indexed by `ui::EncoderRole`), OLED roles and per-surface `Style` (indexe
 `sidebar_cols`, and the l10n bridge `text`/`error_text`. **Read the bridge only through
 `text_or_digits`/`error_text_or_digits`**: a null hook renders the id as digits, never an empty
 string. `shell::deluge_profile()` leaves both hooks null because the string table is outside this
-layer; the application's `scenes::deluge_profile()` copies it and fills them in.
+layer; the application's `ui::scenes::deluge_profile()` copies it and fills them in.
 
 The Deluge profile numbers `LedId` the same as `ButtonId`, so the Play LED is
 `static_cast<LedId>(ButtonId::Play)` and one table serves both. That is the profile's choice, not a
@@ -140,7 +140,7 @@ A `Service` is scene-shaped but never pushed and has no surface: `handle`, `leds
 `Notices` and `Screensaver` are ticked and asked for LEDs and timers but not routed to. A service in
 two slots is ticked once but routed to once per slot.
 
-The real services (`src/scenes/services/`) are built over the shell's own `stack()` and
+The real services (`src/ui/scenes/services/`) are built over the shell's own `stack()` and
 `lowering()`, so the application builds the `Shell` with `Services{}`, constructs them, then calls
 `Shell::set_services`; re-installing is safe.
 
@@ -283,7 +283,7 @@ It reaches the host one of three ways:
    the device port's store (`Ports::device`), made at the write, and the recorder's opening clear of
    the slow flash's tick squares is `Indicators::clear_tick_squares` (`Ports::indicators`).
 2. **A service**, when the work ends later: the browser hands its claims, imports, slices, deletes,
-   loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
+   loads and previews to its `BrowserHost` (`ui/scenes/browser/browser_scene.h`), which
    `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced
    while its request is still being performed is held and delivered by `pollShellBrowserHost`
    after the tick, so a refusal cannot re-enter a scene from inside the hook that asked; any

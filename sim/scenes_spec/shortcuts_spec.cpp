@@ -14,7 +14,7 @@
 ///   * `shortcut_pos` round-trips every cell of every layer;
 ///   * `validate_tree` over `nodes::kAllRoots` with the shortcut sweep **on** -- the `ShortcutToNothing` rule's real
 ///     run, which is what says every cell points at a node some root actually reaches;
-///   * a `Shell` built with `scenes::deluge_profile()` still runs with no `BoardProfile::shortcuts` field;
+///   * a `Shell` built with `ui::scenes::deluge_profile()` still runs with no `BoardProfile::shortcuts` field;
 ///   * the blink plans, the overlay colours and the landing pages, against rows.
 ///
 /// A cell's node identity is its tree path: the key the reference tables give every node under the ten roots
@@ -24,17 +24,17 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcut_blink.h"
-#include "scenes/menu/shortcut_overlay.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcut_blink.h"
+#include "ui/scenes/menu/shortcut_overlay.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -76,23 +76,23 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::ShortcutsVersion;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::MenuState;
-using deluge::scenes::menu::Node;
-using deluge::scenes::menu::ShortcutPos;
-using deluge::scenes::spec::UiStackGuard;
-using deluge::scenes::spec::shortcuts::FreeverbModel;
-using deluge::scenes::spec::shortcuts::install_sound_context;
-using deluge::scenes::spec::shortcuts::seed_blink_cables;
-using deluge::scenes::spec::shortcuts::select_language;
-using deluge::scenes::spec::shortcuts::sound_fixture;
-using deluge::scenes::spec::shortcuts::text_of;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuState;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::menu::ShortcutPos;
+using deluge::ui::scenes::spec::UiStackGuard;
+using deluge::ui::scenes::spec::shortcuts::FreeverbModel;
+using deluge::ui::scenes::spec::shortcuts::install_sound_context;
+using deluge::ui::scenes::spec::shortcuts::seed_blink_cables;
+using deluge::ui::scenes::spec::shortcuts::select_language;
+using deluge::ui::scenes::spec::shortcuts::sound_fixture;
+using deluge::ui::scenes::spec::shortcuts::text_of;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 using Root = MenuContext::Root;
 
@@ -106,8 +106,8 @@ spec::OracleTable& table() {
 std::string node_paths(const Node* node, std::string_view root = {}) {
 	static const std::map<const Node*, std::vector<std::string>> paths = [] {
 		std::map<const Node*, std::vector<std::string>> out;
-		for (const auto& root : deluge::scenes::spec::tables3::roots()) {
-			for (const auto& e : deluge::scenes::spec::tree_entries(root.name, *root.node)) {
+		for (const auto& root : deluge::ui::scenes::spec::tables3::roots()) {
+			for (const auto& e : deluge::ui::scenes::spec::tree_entries(root.name, *root.node)) {
 				out[e.node].push_back(e.path);
 			}
 		}
@@ -120,8 +120,8 @@ std::string node_paths(const Node* node, std::string_view root = {}) {
 	if (found == paths.end()) {
 		return "name:" + text_of(node->name);
 	}
-	return root.empty() ? deluge::scenes::spec::shortcuts::join_paths(found->second)
-	                    : deluge::scenes::spec::shortcuts::paths_in_root(found->second, root);
+	return root.empty() ? deluge::ui::scenes::spec::shortcuts::join_paths(found->second)
+	                    : deluge::ui::scenes::spec::shortcuts::paths_in_root(found->second, root);
 }
 
 /// @brief The key of a cell's rows: `cell/<table>/<version>/<x>,<y>`.
@@ -631,7 +631,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// `validate_tree`'s `TooManyCustom` rule counts custom *nodes*, not distinct `CustomItem`
 		// instances (a shared item would collapse the count and the rule could never fire). This
 		// pins the real number, which `validate.h`'s
-		// `kMaxCustomNodes` is sized just above and `src/scenes/README.md` quotes.
+		// `kMaxCustomNodes` is sized just above and `src/ui/scenes/README.md` quotes.
 		//
 		// The whole tree is enumerated through the id registry rather than re-walked here:
 		// `assign_node_ids` numbers exactly the statically reachable set, 1..assigned.
@@ -756,14 +756,14 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 
 	it("numbers the tree when the application's registry is built, not only when a spec asks", _ {
 		// `MenuScene::save_state`, `restore_state` and the shortcut-pad jump silently no-op unless
-		// `assign_node_ids` has run, so `scenes::assigned_node_ids()` is called from both
+		// `assign_node_ids` has run, so `ui::scenes::assigned_node_ids()` is called from both
 		// `menu_scene()` and `scene_registry()` and an application that built only its registry
 		// still has numbered nodes.
 		//
 		// Written so it does not depend on which spec ran before it: the registry's own count is
 		// compared against a fresh numbering of the very set it numbers, and the roots are then
 		// checked against *that*.
-		const uint16_t at_registry = deluge::scenes::assigned_node_ids();
+		const uint16_t at_registry = deluge::ui::scenes::assigned_node_ids();
 		expect(at_registry).to_be_greater_than(uint16_t(0));
 		expect(menu::assign_node_ids(menu::nodes::kAllRoots)).to_equal(at_registry);
 		for (const Node* root : menu::MenuScene::roots()) {
@@ -1004,7 +1004,7 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 namespace {
 
 std::string colour_name(deluge::ui::widgets::grid::FlashColour c) {
-	return deluge::scenes::spec::shortcuts::colour_name(static_cast<uint8_t>(c));
+	return deluge::ui::scenes::spec::shortcuts::colour_name(static_cast<uint8_t>(c));
 }
 
 /// @brief The port's blink plan, spelled as the rows spell main's.

@@ -17,7 +17,7 @@
 /// @par The one-detent ceiling, measured
 ///
 /// Legacy's scroll and zoom each end in a `PadLEDs` transition the port does not carry
-/// (`src/scenes/timeline/timeline.h`). `TimelineView::initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
+/// (`src/ui/scenes/timeline/timeline.h`). `TimelineView::initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
 /// and `TimelineView::initiateXZoom` sets `UI_MODE_HORIZONTAL_ZOOM`, and
 /// nothing in a spec process runs either animation to the frame that clears them -- so the *next*
 /// detent hits `TimelineView::horizontalEncoderAction`'s own `isNoUIModeActive()` or
@@ -50,8 +50,8 @@
 /// @note The spec may include `gui/` and `hid/` (it drives the legacy views); the library may not.
 ///       Same rule `marker_scene_spec.cpp` runs under.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/timeline/timeline.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/timeline/timeline.h"
 
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
@@ -79,10 +79,10 @@
 
 #include "support/spec_main.h"
 
-using deluge::scenes::timeline::BarsBeats;
-using deluge::scenes::timeline::TimelineState;
-using deluge::scenes::timeline::ZoomOutcome;
-namespace spec_fixture = deluge::scenes::spec;
+using deluge::ui::scenes::timeline::BarsBeats;
+using deluge::ui::scenes::timeline::TimelineState;
+using deluge::ui::scenes::timeline::ZoomOutcome;
+namespace spec_fixture = deluge::ui::scenes::spec;
 
 /// @brief `PlaybackHandler`'s own "the swung-tick answer is zero" latch
 ///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at
@@ -190,7 +190,7 @@ struct Rig {
 	///        `supportsTriplets() == false` (`audio_clip_view.h`).
 	[[nodiscard]] TimelineState port() const {
 		TimelineState s;
-		s.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
+		s.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = false;
 		return s;
 	}
@@ -199,7 +199,7 @@ struct Rig {
 	///        (`RootUI::supportsTriplets`, `gui/ui/root_ui.h`).
 	[[nodiscard]] TimelineState port_with_triplets() const {
 		TimelineState s;
-		s.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
+		s.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = true;
 		return s;
 	}
@@ -963,7 +963,7 @@ describe timeline_spec_body(
 		        r.f.song->persistentView.tripletsLevel = 8;
 
 		        TimelineState port;
-		        port.adopt(*deluge::scenes::menu::host_ports().clips->clip_navigation());
+		        port.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation());
 		        expect(port.x_scroll).to_equal(96);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(6);
 		        expect(port.triplets_on).to_be_true();

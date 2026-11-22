@@ -18,7 +18,7 @@
 /// the specs share a process and cannot rely on the boot wiring having run.
 ///
 /// The one gap: `drain_notifications` (`notify_drain.cpp`)'s masked `UI_MODE_RECORD_COUNT_IN` clear has no port to
-/// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/scenes` may never
+/// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/ui/scenes` may never
 /// include (Global Constraint 3; see `count_in_scene.h`'s class doc). Counted here as uncovered,
 /// not silently assumed.
 ///
@@ -47,9 +47,9 @@
 /// between a sentinel change and the render it expects to see, exactly as
 /// `recorder_scene_spec.cpp`'s own quiet-tick examples advance by `kRecorderPollMs`.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/overlay/count_in_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/overlay/count_in_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -71,10 +71,10 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::overlay::count_in_scene;
-using deluge::scenes::overlay::kCountInPollMs;
-using deluge::scenes::overlay::kCountInSceneKind;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::overlay::count_in_scene;
+using deluge::ui::scenes::overlay::kCountInPollMs;
+using deluge::ui::scenes::overlay::kCountInSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::SceneId;

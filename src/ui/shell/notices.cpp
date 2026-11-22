@@ -338,7 +338,7 @@ void Notices::drain(base::notify::NoticeQueue& queue, uint32_t now_ms) {
 			// the other's animation down and leaves it working with no indicator. Two raisers
 			// exist today: `PlaybackHandler::doSongSwap` (via
 			// `notice_working`, `util/notify.h`) and the scenes layer's async listing seam
-			// (`scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
+			// (`ui/scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
 			// Closing it means a refcount, or an owner token on the arm/clear pair, so a clear from
 			// a subsystem that did not arm the current animation is ignored. That would change the meaning of
 			// every existing raise.

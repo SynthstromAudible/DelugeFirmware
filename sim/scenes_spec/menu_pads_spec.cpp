@@ -2,12 +2,12 @@
 /// @brief The menu's shortcut blinks under a scene that covers it, and the exclusive blink a pushed scene plays.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_state.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/pads.h"
-#include "scenes/menu/shortcut_blink.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_state.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/pads.h"
+#include "ui/scenes/menu/shortcut_blink.h"
 
 #include "gui/l10n/l10n.h"
 
@@ -23,14 +23,14 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::widgets::grid::FlashColour;
 using deluge::ui::widgets::grid::PadFlash;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// Every flash `MenuPads::render_grid` makes at @p now, its frame covered or not.
 std::vector<PadFlash> frame_at(menu::MenuPads& pads, menu::MenuCore core, uint32_t now, bool covered) {

@@ -29,7 +29,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ClipMuteTarget;

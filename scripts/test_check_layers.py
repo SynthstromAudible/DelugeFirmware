@@ -193,13 +193,13 @@ class TableLoading(unittest.TestCase):
 RULES = textwrap.dedent(
     """
     [[directory]]
-    path = "scenes"
+    path = "ui"
     target = "src/ui/scenes"
 
     [[rule]]
     name = "scenes-reads-outside-bind"
-    files = ["src/scenes/**"]
-    exclude = ["src/scenes/bind/**"]
+    files = ["src/ui/scenes/**"]
+    exclude = ["src/ui/scenes/bind/**"]
     pattern = '^(model|modulation|io|processing|storage|playback)/'
     shrink_only = true
     reason = "scenes read the model through bind"
@@ -232,22 +232,24 @@ class CountedRules(unittest.TestCase):
 
     def test_each_matching_include_counts_in_either_spelling(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp",
+            "src/ui/scenes/menu/planted.cpp",
             '#include "model/song/song.h"\n#include <storage/flash_storage.h>\n#include "modulation/sync.h"\n',
         )
         self.assertEqual(
             self.counts(),
-            {("src/scenes/menu/planted.cpp", "scenes-reads-outside-bind"): 3},
+            {("src/ui/scenes/menu/planted.cpp", "scenes-reads-outside-bind"): 3},
         )
 
     def test_an_excluded_glob_is_not_counted(self):
-        self.repo.plant("src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n')
+        self.repo.plant(
+            "src/ui/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
+        )
         self.assertEqual(self.counts(), {})
 
     def test_other_families_are_not_counted(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp",
-            '#include "scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/widgets/oled/columns.h"\n',
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "ui/scenes/bind/settings.h"\n#include "gui/l10n/strings.h"\n#include "ui/widgets/oled/columns.h"\n',
         )
         self.assertEqual(self.counts(), {})
 
@@ -272,7 +274,7 @@ class CountedRules(unittest.TestCase):
 
     def test_a_commented_out_include_is_not_counted(self):
         self.repo.plant(
-            "src/scenes/menu/planted.cpp", '// #include "model/song/song.h"\n'
+            "src/ui/scenes/menu/planted.cpp", '// #include "model/song/song.h"\n'
         )
         self.assertEqual(self.counts(), {})
 
@@ -297,10 +299,11 @@ class CommandLine(unittest.TestCase):
 
     def plant(self, includes: int, baseline: int) -> None:
         self.repo.plant(
-            "src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n' * includes
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "model/song/song.h"\n' * includes,
         )
         self.baseline.write_text(
-            f"# header\nsrc/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
+            f"# header\nsrc/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t{baseline}\n"
         )
 
     def test_a_count_at_the_baseline_passes(self):
@@ -331,7 +334,7 @@ class CommandLine(unittest.TestCase):
         self.plant(includes=1, baseline=2)
         self.assertEqual(self.run_main("--update"), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
             self.baseline.read_text(),
         )
 
@@ -349,10 +352,12 @@ class CommandLine(unittest.TestCase):
         )
 
     def test_update_writes_a_first_baseline_whatever_the_counts(self):
-        self.repo.plant("src/scenes/menu/planted.cpp", '#include "model/song/song.h"\n')
+        self.repo.plant(
+            "src/ui/scenes/menu/planted.cpp", '#include "model/song/song.h"\n'
+        )
         self.assertEqual(self.run_main("--update"), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t1\n",
             self.baseline.read_text(),
         )
 
@@ -365,7 +370,7 @@ class CommandLine(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             self.assertEqual(cl.main(["--repo", str(self.repo.root), "--list"]), 0)
         self.assertIn(
-            "src/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t2\n",
+            "src/ui/scenes/menu/planted.cpp\tscenes-reads-outside-bind\t2\n",
             out.getvalue(),
         )
 
@@ -665,7 +670,10 @@ class RealTable(unittest.TestCase):
         )
 
     def test_a_scene_including_an_edit_is_counted(self):
-        for rel in ("src/scenes/menu/nodes/planted.cpp", "src/scenes/menu/context.cpp"):
+        for rel in (
+            "src/ui/scenes/menu/nodes/planted.cpp",
+            "src/ui/scenes/menu/context.cpp",
+        ):
             with self.subTest(rel=rel):
                 self.assertEqual(
                     self.counts(rel, '#include "model/edits/setting_edit.h"\n').get(
@@ -681,14 +689,14 @@ class RealTable(unittest.TestCase):
             "scenes-no-edits": '#include "model/edits/param_address_for.h"\n',
         }
         for rel in (
-            "src/scenes/menu/context.cpp",
-            "src/scenes/menu/context.h",
-            "src/scenes/menu/bindings.cpp",
-            "src/scenes/overlay/param_popup_scene.h",
-            "src/scenes/overlay/param_popup_scene.cpp",
-            "src/scenes/services/mod_knobs.cpp",
-            "src/scenes/services/mod_knobs.h",
-            "src/scenes/services/mod_target.h",
+            "src/ui/scenes/menu/context.cpp",
+            "src/ui/scenes/menu/context.h",
+            "src/ui/scenes/menu/bindings.cpp",
+            "src/ui/scenes/overlay/param_popup_scene.h",
+            "src/ui/scenes/overlay/param_popup_scene.cpp",
+            "src/ui/scenes/services/mod_knobs.cpp",
+            "src/ui/scenes/services/mod_knobs.h",
+            "src/ui/scenes/services/mod_target.h",
         ):
             for rule, text in plants.items():
                 with self.subTest(rel=rel, rule=rule):
@@ -705,14 +713,16 @@ class RealTable(unittest.TestCase):
         ):
             for spelling in (f'#include "{header}"\n', f"#include <{header}>\n"):
                 with self.subTest(spelling=spelling):
-                    counts = self.counts("src/scenes/menu/nodes/planted.cpp", spelling)
+                    counts = self.counts(
+                        "src/ui/scenes/menu/nodes/planted.cpp", spelling
+                    )
                     self.assertEqual(counts.get("scenes-reads-outside-bind"), 1)
 
     def test_bind_reads_are_not_counted(self):
         self.assertNotIn(
             "scenes-reads-outside-bind",
             self.counts(
-                "src/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
+                "src/ui/scenes/bind/planted.cpp", '#include "model/song/song.h"\n'
             ),
         )
 

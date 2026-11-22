@@ -27,21 +27,21 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/dynamic.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/dynamic.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -115,18 +115,18 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-namespace t3 = deluge::scenes::spec::tables3;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace t3 = deluge::ui::scenes::spec::tables3;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using t3::CableFixture;
 using t3::CommandSlots;
@@ -274,7 +274,7 @@ void shift_learn() {
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
 	const deluge::ui::widgets::core::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::scenes::deluge_profile()};
+	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::ui::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
 }
@@ -341,8 +341,8 @@ deluge::midi::DeviceId spec_device() {
 /// @brief The focused item's own learn hooks, for an example that reads whether the item learned (which
 ///        `offer_while_learning`'s "used" answer does not say) or that must not open learn mode around the learn.
 /// @return The item, or null when nothing is focused or the focused node has no item.
-const deluge::scenes::menu::CustomItem* focused_item() {
-	const deluge::scenes::menu::Node* at = menu_scene().focused();
+const deluge::ui::scenes::menu::CustomItem* focused_item() {
+	const deluge::ui::scenes::menu::Node* at = menu_scene().focused();
 	return at == nullptr ? nullptr : at->custom;
 }
 
@@ -352,7 +352,7 @@ bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel
 	using deluge::ui::shell::UiEvent;
 	const deluge::ui::shell::ButtonSet held{};
 	const deluge::ui::widgets::core::PadMask pads{};
-	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
+	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::ui::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
 	const bool used = menu_scene()
 	                      .handle(UiEvent{.kind = kind,
@@ -966,7 +966,7 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 		// the ratchet, and it holds node identities rather than a count: a fifteenth exclusion with
 		// no arm here fails this example, and so does a second `insert` of a node already driven.
 		//
-		// The six `hid/`-side settings nodes are covered here in the only half `src/scenes` owns:
+		// The six `hid/`-side settings nodes are covered here in the only half `src/ui/scenes` owns:
 		// the `FlashStorage` / `runtimeFeatureSettings` write. Their `hid/` halves are legacy's, as
 		// `nodes/settings.h` records.
 		std::set<const Node*> covered;
@@ -1074,14 +1074,14 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 
 		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::ui::scenes::spec::menu_engine(sound.ctx, *sound.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);
 		}
 
@@ -1525,7 +1525,7 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 	// `nodes::reset_flash` .. `nodes::reset_all`. This is the missing half -- the mapping from menu
 	// node to descriptor -- and it is the one thing a swapped pair of `ResetItem` ids would break
 	// silently if it were untested.
-	namespace context_menu = deluge::scenes::context_menu;
+	namespace context_menu = deluge::ui::scenes::context_menu;
 
 	it("opens the reset context menu on the matching descriptor, rather than resetting on the spot", _ {
 		// Real descent from `reset_settings` (the "Reset Settings" submenu, `nodes/settings.h`'s
@@ -1734,7 +1734,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   focus_command_row(pc_rig, settings.ctx, i);
 			   const std::string want = table().value("learn_own/" + std::to_string(i) + "/pgm", "slot");
 			   const bool is_fill = want == "refused";
-			   const deluge::scenes::menu::CustomItem* item = focused_item();
+			   const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 			   expect(item).not_().to_be_null();
 			   if (item != nullptr) {
 				   expect(item->learn_program_change(settings.ctx, spec_device(), 2, static_cast<int32_t>(7 + i)))
@@ -1790,7 +1790,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 0)).to_be_false();
@@ -2643,7 +2643,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		focus_command_row(r, settings.ctx, 0);
 		// Channel 3 + `IS_A_CC`, CC 42: the readout is the cable's display name, "CHANNEL 4"
 		// (1-based, with the CC band subtracted back off) and "CC 42".
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
@@ -2663,7 +2663,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_note_on(settings.ctx, spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
@@ -2679,7 +2679,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r{board_64(), profile_64()};
 		focus_command_row(r, settings.ctx, 0);
-		const deluge::scenes::menu::CustomItem* item = focused_item();
+		const deluge::ui::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
 			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();

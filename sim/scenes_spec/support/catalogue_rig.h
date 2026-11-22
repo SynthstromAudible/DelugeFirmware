@@ -16,10 +16,10 @@
 
 #include <cstdint>
 
-namespace deluge::scenes::spec::catalogue {
+namespace deluge::ui::scenes::spec::catalogue {
 
-using deluge::scenes::spec::QuietAudio;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::spec::QuietAudio;
 
 /// @brief Leaves the catalogue empty, its window counters zeroed and the name comparator's flags
 ///        back at their defaults, on both sides of an example.
@@ -75,4 +75,4 @@ struct SpecBrowser {
 	FileItem* getNewFileItem() const { return FileCatalogue::getNewFileItem(note_names); }
 };
 
-} // namespace deluge::scenes::spec::catalogue
+} // namespace deluge::ui::scenes::spec::catalogue

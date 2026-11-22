@@ -30,7 +30,7 @@ MAIN_VIEW_TEXT = "void View::setModLedStates() {\n}\n"
 MAIN_VIEW_HEADER = "src/deluge/gui/views/view.h"
 
 
-def kinds(text: str, path: str = "src/scenes/x.cpp") -> list[str]:
+def kinds(text: str, path: str = "src/ui/scenes/x.cpp") -> list[str]:
     return [f.kind for f in findings_in(path, text)]
 
 
@@ -158,7 +158,7 @@ class ScriptCommentTest(unittest.TestCase):
         for text, path in (
             ("# added by Task 7\n", "scripts/cmake/x.cmake"),
             ("# added by Task 7\n", "tools/x/Cargo.toml"),
-            ("// added by Task 7\n", "src/scenes/x.inc"),
+            ("// added by Task 7\n", "src/ui/scenes/x.inc"),
         ):
             with self.subTest(path=path):
                 self.assertEqual(kinds(text, path), ["history"])
@@ -252,7 +252,8 @@ class DanglingPathTest(unittest.TestCase):
 
     def test_flags_a_main_path_that_main_does_not_hold(self):
         self.assertEqual(
-            kinds("// `origin/main:src/scenes/menu/menu_scene.cpp`"), ["dangling-path"]
+            kinds("// `origin/main:src/ui/scenes/menu/menu_scene.cpp`"),
+            ["dangling-path"],
         )
         self.assertEqual(
             kinds("// `origin/main:gui/views/view.cpp`, a path main has only in full"),

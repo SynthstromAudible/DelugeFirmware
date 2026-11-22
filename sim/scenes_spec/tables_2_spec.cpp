@@ -22,18 +22,18 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "support/sound_fixtures.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -86,19 +86,19 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
-namespace t2 = deluge::scenes::spec::tables2;
+namespace t2 = deluge::ui::scenes::spec::tables2;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using t2::chain_name;
 using t2::chain_targets_contain;
@@ -458,7 +458,7 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 				if (want == nullptr) {
 					// The synth clip is asked of every enum but the lane-only ones; the kit row, of those it shows.
 					const bool lane_only =
-					    e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+					    e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 					const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, fx.ctx))
 					                        && menu::bindings::relevant(*e.node, fx.ctx);
 					const bool required = std::string{fx.name} == "synth" ? !lane_only : shown_here;
@@ -1310,7 +1310,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 			// A setting target's `ParamRef` is learn-only: its value is its setting's, which descriptor_coherence_spec and
 			// sound_settings_spec drive. A param target's value is its param's.
 			const bool setting_target = p.node->bind.target.valid()
-			                            && p.node->bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM;
+			                            && p.node->bind.target.kind != deluge::ui::scenes::bind::Target::Kind::PARAM;
 			if (!p.node->bind.param.valid() || setting_target || p.node->bind.set != nullptr
 			    || p.node->kind == menu::Kind::Custom) {
 				continue;
@@ -1444,7 +1444,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
 		// `sequence::Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`) writes
 		// the *resolved* note row when there is one and the clip when there is not; `bindings::direction_target` and
-		// `direction_where` (`scenes/menu/bindings.cpp`) resolve the kit row's.
+		// `direction_where` (`ui/scenes/menu/bindings.cpp`) resolve the kit row's.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		const auto want_clip = static_cast<int32_t>(SequenceDirection::REVERSE);
@@ -1495,14 +1495,14 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;
 		}
 

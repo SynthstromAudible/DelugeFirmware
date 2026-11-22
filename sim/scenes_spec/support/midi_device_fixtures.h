@@ -6,10 +6,10 @@
 ///        freezer share them.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/midi_device.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/midi_device.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
@@ -26,11 +26,11 @@
 #include <string>
 #include <vector>
 
-namespace deluge::scenes::spec::mididev {
+namespace deluge::ui::scenes::spec::mididev {
 
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 /// @brief A cable the fixture owns outright.
 ///
@@ -151,4 +151,4 @@ inline std::string chain_name(const Node* n) {
 	return "UNMAPPED";
 }
 
-} // namespace deluge::scenes::spec::mididev
+} // namespace deluge::ui::scenes::spec::mididev

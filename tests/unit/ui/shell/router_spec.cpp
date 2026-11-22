@@ -247,7 +247,7 @@ describe shell_router("shell::Router", $ {
 
 	it("midi_learn is the LAST step, after global_controls, and only for events nothing else took", _ {
 		// The routing claim, and the three legacy facts behind it are on
-		// `scenes/services/midi_learn.h`:
+		// `ui/scenes/services/midi_learn.h`:
 		//
 		//   1. `View` is the fallback AFTER the current UI in every MIDI learn offer -- `UI`'s base
 		//      answers are `View`'s learn, and `SoundEditor` answers before falling back to them.

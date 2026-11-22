@@ -21,7 +21,7 @@
 #include <new>
 #include <string>
 
-namespace deluge::scenes::spec::sampleitems {
+namespace deluge::ui::scenes::spec::sampleitems {
 
 inline constexpr size_t kClusterSize = 32768;
 inline constexpr int32_t kBytesPerFrame = 2;
@@ -94,4 +94,4 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	deluge::bridge::recordLoadedSound(sound, song);
 }
 
-} // namespace deluge::scenes::spec::sampleitems
+} // namespace deluge::ui::scenes::spec::sampleitems

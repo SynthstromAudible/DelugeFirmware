@@ -1,9 +1,9 @@
-// The Deluge's reading of a chain's view (scenes::bind::chain_view), through the pages the controls assemble from it:
-// the filter button on the chain's filter type (EQ past it), the mod FX button on its mod FX view, and the song's
+// The Deluge's reading of a chain's view (ui::scenes::bind::chain_view), through the pages the controls assemble from
+// it: the filter button on the chain's filter type (EQ past it), the mod FX button on its mod FX view, and the song's
 // reverb button on the compressor setting the knobs' compressor view edits, each a page the chain publishes.
 
 #include "board_controls.hpp"
-#include "scenes/bind/page_sources.h"
+#include "ui/scenes/bind/page_sources.h"
 
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
@@ -23,7 +23,7 @@
 
 namespace {
 
-namespace bind = deluge::scenes::bind;
+namespace bind = deluge::ui::scenes::bind;
 namespace controls = deluge::ui::controls;
 namespace project = deluge::project;
 namespace ge = deluge::host::chains::param;

@@ -23,8 +23,8 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/menu/context.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/notices.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -97,7 +97,7 @@ struct AppSink {
 /// @brief A `Shell` over the fake surfaces with the application's registry, as the other scenes
 ///        specs build it.
 struct ShellRig {
-	deluge::ui::shell::SceneRegistry reg = deluge::scenes::scene_registry();
+	deluge::ui::shell::SceneRegistry reg = deluge::ui::scenes::scene_registry();
 	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge::ui::shell::deluge_profile()};
 	deluge::ui::shell::Shell shell{fake, deluge::ui::shell::deluge_profile(), reg, deluge::ui::shell::Services{},
 	                               deluge::ui::shell::ShellConfig{}};
@@ -226,10 +226,10 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// One consumer, as main has: while the guest is the current UI the shell shows notices, so legacy's drain must
 		// not pop them first.
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
 
@@ -247,14 +247,14 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// release's cancel reaches the guest's shell. Main has one display, so that cancel takes the popup down.
 		LegacyDisplay legacy;
 		AppSink sink;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		deluge::base::notify::notice_text("PORTAMENTO");
 		drain_notifications();
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
 
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
 
@@ -266,7 +266,7 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 	it("with the guest not current, legacy's drain shows a Text notice itself", _ {
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		expect(getCurrentUI()).not_().to_equal(&shellHostUI);
 		deluge::base::notify::notice_text("SAVED");
 		drain_notifications();
@@ -279,10 +279,10 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// editor the same way, and its error popup outlives both, because legacy has one display. So the guest's
 		// popup goes to legacy's display as the guest closes, as its knob popup does.
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		const uint32_t saved_timer = AudioEngine::audioSampleTimer;
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
@@ -293,7 +293,7 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 		// 300 ms on, the menu leaves and nothing that takes input is left, so the guest's next tick closes it.
 		AudioEngine::audioSampleTimer += 300 * 44;
-		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		expect(shellHostUI.shell().stack().remove(deluge::ui::scenes::menu_scene().kind())).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
@@ -310,10 +310,10 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		// The teardown resets the stack, which a tick is walking: it runs only between ticks.
 		FreezeRecordingDisplay frozen;
 		TeardownSink sink;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
 		deluge::base::notify::notice_notification("TITLE", "VALUE");
 		(void)shellHostUI.timerCallback();
@@ -326,12 +326,12 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 	it("a guest that closes with no popup up leaves legacy's display clear", _ {
 		LegacyDisplay legacy;
-		deluge::scenes::spec::UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
+		expect(deluge::ui::scenes::spec::open_note_mode_over_clip_view(fx, deluge::ui::scenes::menu::MenuContext::Root::Song))
 		    .to_be_true();
-		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		expect(shellHostUI.shell().stack().remove(deluge::ui::scenes::menu_scene().kind())).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(display->hasPopup()).to_be_false();

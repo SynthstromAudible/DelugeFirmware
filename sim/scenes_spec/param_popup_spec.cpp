@@ -34,8 +34,8 @@
 /// `knobsOnClipContext()` false and every `EffectsOwner`-taking call fall back -- so nothing
 /// here reads `currentSong`.
 
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -47,7 +47,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/services/knob_push.h"
+#include "ui/scenes/services/knob_push.h"
 
 #include "processing/engines/audio_engine.h"
 #include "support/song_fixture.h"
@@ -66,10 +66,10 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::overlay::kParamPopupSceneKind;
-using deluge::scenes::overlay::param_popup_scene;
-using deluge::scenes::overlay::ParamPopupScene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::overlay::kParamPopupSceneKind;
+using deluge::ui::scenes::overlay::param_popup_scene;
+using deluge::ui::scenes::overlay::ParamPopupScene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::Result;
@@ -374,7 +374,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			of_midi.cc_label.clear(); // CC 75 has no name
 			expect(shown(Kind::MIDI, 75, of_midi).first).to_equal(std::string{"CC 75"});
 		}
-		deluge::scenes::spec::make_current(before);
+		deluge::ui::scenes::spec::make_current(before);
 	});
 
 	it("ports the patch-cable name form, source1->source2->name, against the real getPatchedParamShortName", _ {

@@ -213,8 +213,8 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("ui/widgets", "libdeluge_ui_widgets_grid.a"),
         ("ui/shell", "libdeluge_ui_shell.a"),
         ("base/notify", "libdeluge_base_notify.a"),
-        ("scenes", "libdeluge_scenes.a"),
-        ("scenes/bind", "libdeluge_scenes_bind.a"),
+        ("ui/scenes", "libdeluge_ui_scenes.a"),
+        ("ui/scenes/bind", "libdeluge_ui_scenes_bind.a"),
         ("level3", "libdeluge_ui_level3.a"),
         ("scenes_spec", "libdeluge_scenes_spec.a"),
         // sim/scenes_spec adds the fakes (guarded) first, so their binary dir is under scenes_spec.

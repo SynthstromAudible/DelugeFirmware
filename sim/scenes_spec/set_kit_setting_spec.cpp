@@ -13,7 +13,7 @@
 #include "model/song/song.h"
 #include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/nodes/fan_out_rules.h"
+#include "ui/scenes/menu/nodes/fan_out_rules.h"
 
 #include "support/song_fixture.h"
 
@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::serialization::Value;
 
 namespace {

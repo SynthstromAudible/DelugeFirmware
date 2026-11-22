@@ -13,10 +13,10 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "support/host_flash.h"
 
@@ -30,16 +30,16 @@ extern int32_t dimmerInterval;
 } // namespace PadLEDs
 
 namespace {
-namespace spec = deluge::scenes::spec;
-using deluge::scenes::menu_scene;
-using deluge::scenes::context_menu::DescriptorId;
+namespace spec = deluge::ui::scenes::spec;
+using deluge::ui::scenes::menu_scene;
+using deluge::ui::scenes::context_menu::DescriptorId;
 } // namespace
 
 // clang-format off
 describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 	it("re-applies every live setting main reads, and leaves rounded corners as main does", _ {
 		spec::ErasedFlash flash; // the reset programs the settings sector -- see `support/host_flash.h`
-		const deluge::scenes::menu::MenuContext ctx{};
+		const deluge::ui::scenes::menu::MenuContext ctx{};
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
 		FlashStorage::screensaverMode = ScreensaverMode::OFF;
@@ -53,7 +53,7 @@ describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 		constexpr int32_t kDimmed = 5;
 		PadLEDs::setDimmerInterval(kDimmed);
 
-		(void)deluge::scenes::context_menu::descriptor(DescriptorId::ResetAll).accept(ctx, 0);
+		(void)deluge::ui::scenes::context_menu::descriptor(DescriptorId::ResetAll).accept(ctx, 0);
 
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
 		    .to_equal(deluge::ui::widgets::core::Highlighting::PartialInversion);

@@ -35,7 +35,7 @@
 
 using namespace deluge;
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 using deluge::model::EffectsOwner;
 using deluge::serialization::Value;

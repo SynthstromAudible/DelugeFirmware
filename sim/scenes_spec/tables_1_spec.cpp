@@ -3,7 +3,7 @@
 ///        (`tests/golden/ui/menu_oracle/tables_1.tsv`).
 ///
 /// The six subtrees are `constexpr Node` literals
-/// (`src/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
+/// (`src/ui/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
 /// transcription is checked against the original rather than against a second hand-written list:
 ///
 ///   * the children of each of the seventeen roots are the same items, in the same order, with the same names and
@@ -21,19 +21,19 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/view_state.h"
 #include "support/fake_ports.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/view_state.h"
 #include "unit/ui/support/frames.h"
 
 #include "ui/shell/profiles/deluge.h"
@@ -74,19 +74,19 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
-namespace t1 = deluge::scenes::spec::tables1;
+namespace t1 = deluge::ui::scenes::spec::tables1;
 
 namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 using deluge::synth::SourceRange;
 using t1::Fixture;
@@ -368,7 +368,7 @@ describe tables_1_values("scenes::menu sound-subtree tables: values", $ {
 			const std::vector<std::string>* want = table().find(e.path, "options");
 			if (want == nullptr) {
 				// Every enum but the lane-only ones has a row, shown on this fixture or not.
-				const bool lane_only = e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+				const bool lane_only = e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 				expect(e.path + (lane_only ? " has options" : " has none")).to_equal(e.path + " has options");
 				continue;
 			}

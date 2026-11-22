@@ -1,5 +1,5 @@
 /// @file
-/// @brief The **action seam** (`scenes/menu/action.h`) and the five items that use it, driven
+/// @brief The **action seam** (`ui/scenes/menu/action.h`) and the five items that use it, driven
 ///        through a real `Shell` over the real menu tables.
 ///
 /// What is covered here, and what is not, matters more than usual for this spec, because the seam
@@ -39,19 +39,19 @@
 /// assertion can say on its own.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/action.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/actions.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/walk.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/action.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/actions.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/walk.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -115,12 +115,12 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuAction;
-using deluge::scenes::menu::MenuActionRequest;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuAction;
+using deluge::ui::scenes::menu::MenuActionRequest;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -142,7 +142,7 @@ extern uint32_t whichMainRowsNeedRendering; // `gui/ui/ui.cpp`: the main rows a 
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 spec::OracleTable& table() {
 	return spec::OracleTable::named("menu_actions");
@@ -162,7 +162,7 @@ constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`), which lowers to
 /// `InputSnapshot::edit[0]` (`InputLowering::end_tick`). It does not move a `Kind::Int` leaf:
 /// `int_value` claims the select turn instead (`ui/widgets/oled/values.cpp`'s `select_delta`),
-/// as `render_leaf_int` records (`MenuView::render_leaf_int`, `scenes/menu/view.cpp`).
+/// as `render_leaf_int` records (`MenuView::render_leaf_int`, `ui/scenes/menu/view.cpp`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -930,7 +930,7 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 	(void)scene().take_action(); // opening the page files nothing; the group asserts that separately
 
 	// `kScreensaverChildren` is `{&screensaver_mode, &screensaver_timeout}`
-	// (`scenes/menu/nodes/settings.h`), but the row is resolved rather than assumed -- a
+	// (`ui/scenes/menu/nodes/settings.h`), but the row is resolved rather than assumed -- a
 	// `relevant` hook added to either would move it, and that must be seen and not walked past.
 	const int32_t row = visible_index_of(nodes::screensaver, child, ctx);
 	if (row < 0) {
@@ -1234,7 +1234,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	// real `menu_scene()`, the real `dispatchShellActions` AND the real
 	// `ShellHostUI::timerCallback` (`nm -C` on the driver shows all three as `T`). The host suite's
 	// `tests/unit/deluge/gui/shell_action_dispatch_spec.cpp` links only the last of those -- it stubs the
-	// dispatcher, because the real one belongs to the `deluge_scenes` closure that suite never
+	// dispatcher, because the real one belongs to the `deluge_ui_scenes` closure that suite never
 	// builds -- so what it pins is the CALL SITE in isolation.
 	//
 	// Two isolated halves are not the composition, and the third example below is the one that says
@@ -1297,7 +1297,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// in it files its action on the way out, and the menu that would have acted is going.
 		select_language();
 		UiStackGuard ui_guard;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
 		                                     /*session_or_arranger_root=*/false, /*session_view_root=*/false,
@@ -1678,7 +1678,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 });
 
 describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
-	// The second arm with a body, and the one `scenes/menu/action.h` keeps as a single enumerator, because "the choice
+	// The second arm with a body, and the one `ui/scenes/menu/action.h` keeps as a single enumerator, because "the choice
 	// is made from the root UI, which this layer cannot read". So the fan-out over `getRootUI()`
 	// (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the whole of what
 	// this side of the seam adds, and it is what this group pins.
@@ -1846,7 +1846,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// under the guest what is open is `ShellHostUI` rather than `soundEditor`. The dispatcher's answer is
 		// `SceneStack::remove(SceneKind::FirstApp)` on the guest's own stack -- the same statement `MenuScene::handle`
 		// already uses for the short-Back exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`; the Back arm of
+		// (`MenuScene::handle_event`'s Back arm, `ui/scenes/menu/menu_scene.cpp`; the Back arm of
 		// `SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, the call to
 		// `exitCompletely`). The full argument, including why neither `closeUI` nor `closeGuest()` can be called from
 		// there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
@@ -1889,7 +1889,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		shellHostUI.shell().tick(20);
 		// Still up after the tick that filed the request: the scene does not pop itself
-		// (`scenes/menu/nodes/actions.h`), which is why this close is the dispatcher's.
+		// (`ui/scenes/menu/nodes/actions.h`), which is why this close is the dispatcher's.
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
 
 		deluge::gui::ui::dispatchShellActions();
@@ -2150,7 +2150,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		spec::SongFixture song = spec::make_synth_song();
 		setRootUILowLevel(&sessionView);
 		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the view's mode
-		// (`scenes/menu/nodes/actions.cpp`), and DISABLED is the arm that files nothing.
+		// (`ui/scenes/menu/nodes/actions.cpp`), and DISABLED is the arm that files nothing.
 		set_view_mode(PerformanceEditingMode::VALUE);
 		expect(open_global_guest_on_ui_stack(nodes::perform_editor, song)).to_be_true();
 
@@ -2455,20 +2455,20 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 	it("closing the guest on the settings menu saves the settings, as SoundEditor::exitCompletely does", _ {
 		// `SoundEditor::exitCompletely`'s settings arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`):
 		// `FlashStorage::writeSettings` and the three settings files, on leaving the settings menu and only then.
-		deluge::scenes::spec::ErasedFlash flash;
-		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::ui::scenes::spec::ErasedFlash flash;
+		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		const MenuHighlighting was = FlashStorage::accessibilityMenuHighlighting;
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 
-		expect(deluge::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Song)).to_be_true();
+		expect(deluge::ui::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Song)).to_be_true();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::saveSettingsBeforeClose();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
 		FlashStorage::readSettings(); // erased flash: the defaults, not what was set
 		expect(FlashStorage::accessibilityMenuHighlighting).not_().to_equal(MenuHighlighting::NO_INVERSION);
 
-		deluge::scenes::spec::GlobalGuestGuard::empty_guest_stack();
-		expect(deluge::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Settings)).to_be_true();
+		deluge::ui::scenes::spec::GlobalGuestGuard::empty_guest_stack();
+		expect(deluge::ui::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Settings)).to_be_true();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::saveSettingsBeforeClose();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;

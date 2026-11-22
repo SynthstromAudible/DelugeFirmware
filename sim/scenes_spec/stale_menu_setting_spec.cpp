@@ -83,9 +83,9 @@ describe stale_menu_setting("a card that still says legacyMenu=1", $ {
 	it("opens the menu from the clip view's SELECT all the same", _ {
 		SettingsGuard guard;
 		RootUIGuard root_guard;
-		deluge::scenes::spec::UiModeGuard mode;
+		deluge::ui::scenes::spec::UiModeGuard mode;
 		parse(R"(<setting name="legacyMenu" value="1" />)" "\n");
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);

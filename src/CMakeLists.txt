@@ -15,10 +15,6 @@ add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulat
 add_subdirectory(ui)         # deluge_ui_widgets_core / _oled / _grid: the immediate-mode toolkit
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
-# deluge_scenes (with deluge_scenes_bind): the first UI layer allowed to include the model. It
-# compiles against deluge_app, so it comes after deluge_app exists. Archived into the firmware by
-# the Rust BSP's build script beside deluge_app.
-add_subdirectory(scenes)
 add_subdirectory(lib)
 
 # ---------------------------------------------------------------------------

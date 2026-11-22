@@ -26,17 +26,17 @@
 #include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/menu_state.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/output_items.h"
-#include "scenes/registry.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/menu_state.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/output_items.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/scene.h"
 
 #include "support/feature_setting.h"
@@ -56,10 +56,10 @@
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
-using deluge::scenes::menu_scene;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
+using deluge::ui::scenes::menu_scene;
 
 /// @brief The clip plays @p f's instrument, as a song's load leaves it: `beenEdited` copies the clip's arp from it.
 void activate(spec::SongFixture& f) {
@@ -155,8 +155,8 @@ menu::MenuState on(const menu::Node& node, int16_t at = 0) {
 }
 
 /// @brief How many times @p sink was asked to mark an instrument edited.
-std::ptrdiff_t edited_marks(const deluge::scenes::bind::test::RecordingControlsSink& sink) {
-	using Gesture = deluge::scenes::bind::test::RecordingControlsSink::Gesture;
+std::ptrdiff_t edited_marks(const deluge::ui::scenes::bind::test::RecordingControlsSink& sink) {
+	using Gesture = deluge::ui::scenes::bind::test::RecordingControlsSink::Gesture;
 	return std::ranges::count_if(sink.gestures,
 	                             [](const Gesture& g) { return g.kind == Gesture::Kind::INSTRUMENT_EDITED; });
 }
@@ -182,15 +182,15 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		deluge::scenes::bind::test::RecordingWrites writes;
-		deluge::scenes::bind::test::RecordingControlsSink recording;
+		deluge::ui::scenes::bind::test::RecordingWrites writes;
+		deluge::ui::scenes::bind::test::RecordingControlsSink recording;
 		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
 		ctx.ports.writes = &writes;
 		ctx.ports.controls_sink = &recording;
 		expect(open_on_guest(nodes::synth_mode, ctx)).to_be_true();
 		select_turn();
 		expect(static_cast<int>(edited_marks(recording))).to_equal(1);
-		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&recording.gestures.back().focus.owner);
+		const auto* sound = std::get_if<deluge::ui::scenes::bind::SoundFocus>(&recording.gestures.back().focus.owner);
 		expect(sound).not_().to_be_null("the edit's sound focus");
 		if (sound != nullptr) {
 			expect(sound->slot).to_equal(*ctx.addresses.slot, "the edit's sound slot");
@@ -202,7 +202,7 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		deluge::scenes::bind::test::RecordingWrites writes;
+		deluge::ui::scenes::bind::test::RecordingWrites writes;
 		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
 		ctx.ports.writes = &writes;
 		ctx.ports.controls_sink = nullptr;
@@ -421,7 +421,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;
-		expect(deluge::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::ui::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
 	});
 

@@ -108,11 +108,11 @@ repos:
         files: ^(src|sim|tests)/.*\.(h|hpp|cpp|c)$
       - id: setting-menus
         name: no gesture sets a sound's instrument state or a song setting without its Edit
-        description: no gesture under src/deluge/gui or src/scenes calls a setter, a record reseed or writes a field a setting Edit owns
+        description: no gesture under src/deluge/gui or src/ui/scenes calls a setter, a record reseed or writes a field a setting Edit owns
         entry: python3 scripts/check_setting_menus.py
         language: system
         pass_filenames: false
-        files: ^(src/deluge/gui/|src/scenes/|scripts/check_setting_menus\.py)
+        files: ^(src/deluge/gui/|src/ui/scenes/|scripts/check_setting_menus\.py)
       - id: test-support-names
         name: no per-directory support/ file shadows tests/support/
         description: a file under a support/ folder in tests/ or sim/ never has a path tests/support/ also has
@@ -127,7 +127,7 @@ repos:
         language: system
         pass_filenames: false
         # Its rows cover the legacy tree, the toolkit, the shell, the scenes, and (two of them) sim/ and tests/.
-        files: ^(src/deluge/|src/ui/|src/scenes/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        files: ^(src/deluge/|src/ui/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
         description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it

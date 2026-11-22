@@ -7,7 +7,7 @@
 ///
 /// @warning **Include this BEFORE `<cppspec.hpp>`** (see `card_access.h`).
 
-#include "scenes/browser/listing.h"
+#include "ui/scenes/browser/listing.h"
 
 #include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
@@ -21,15 +21,15 @@
 #include <string>
 #include <utility>
 
-namespace deluge::scenes::spec::listing {
+namespace deluge::ui::scenes::spec::listing {
 
-using deluge::scenes::browser::Listing;
-using deluge::scenes::browser::ListingAction;
-using deluge::scenes::browser::ListingRequest;
-using deluge::scenes::browser::ListingResult;
-using deluge::scenes::browser::RequestOutcome;
-using deluge::scenes::spec::QuietAudio;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::Listing;
+using deluge::ui::scenes::browser::ListingAction;
+using deluge::ui::scenes::browser::ListingRequest;
+using deluge::ui::scenes::browser::ListingResult;
+using deluge::ui::scenes::browser::RequestOutcome;
+using deluge::ui::scenes::spec::QuietAudio;
 
 inline const std::string kFixtureCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card";
 
@@ -169,4 +169,4 @@ inline ListingRequest open_request(std::string path = {}) {
 	return req;
 }
 
-} // namespace deluge::scenes::spec::listing
+} // namespace deluge::ui::scenes::spec::listing

@@ -34,7 +34,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 
 using deluge::project::ClipMuteTarget;
@@ -49,8 +49,8 @@ using Command = deluge::project::MidiCommand;
 using deluge::project::OwnerParamTarget;
 using deluge::project::SectionLaunchTarget;
 using deluge::project::TrackInputTarget;
-using deluge::scenes::spec::indexedKnobs;
-using deluge::scenes::spec::indexPlays;
+using deluge::ui::scenes::spec::indexedKnobs;
+using deluge::ui::scenes::spec::indexPlays;
 
 namespace {
 

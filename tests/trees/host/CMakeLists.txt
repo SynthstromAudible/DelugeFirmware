@@ -135,7 +135,7 @@ endif ()
 
 # deluge_spec: the app code the host specs exercise outside the app's own libraries, built once and linked by every
 # directory whose specs test the app or the UI (app_specs, gfx_specs, ui_specs, shell_specs, notify_specs,
-# scenes_specs, midi_specs, foundation_specs, harness_specs, io_debug_specs).
+# scenes_specs, midi_specs, base_specs, harness_specs, io_debug_specs).
 set(_src ${DELUGE_REPO_ROOT}/src)
 set(_tests ${DELUGE_REPO_ROOT}/tests)
 add_library(deluge_spec STATIC
@@ -169,10 +169,10 @@ add_library(deluge_spec STATIC
   ${_tests}/unit/deluge/gui/support/fake_device_registry.cpp
   ${_tests}/unit/deluge/gui/support/fake_legacy_ui.cpp
   ${_src}/deluge/hid/button.cpp
-  ${_src}/scenes/menu/node_id.cpp
-  ${_src}/scenes/menu/validate.cpp
-  ${_tests}/unit/scenes/menu/support/fake_shortcuts.cpp
-  ${_tests}/unit/scenes/menu/support/fake_bindings_relevant.cpp
+  ${_src}/ui/scenes/menu/node_id.cpp
+  ${_src}/ui/scenes/menu/validate.cpp
+  ${_tests}/unit/ui/scenes/menu/support/fake_shortcuts.cpp
+  ${_tests}/unit/ui/scenes/menu/support/fake_bindings_relevant.cpp
   ${_tests}/harness/ui_script.cpp
   ${_tests}/harness/snapshot.cpp
   ${_tests}/harness/level3/host_script_tables.c

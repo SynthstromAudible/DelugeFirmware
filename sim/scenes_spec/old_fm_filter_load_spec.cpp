@@ -14,7 +14,7 @@
 #include <string>
 #include <string_view>
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 using deluge::effects::FilterMode;
 
 namespace {

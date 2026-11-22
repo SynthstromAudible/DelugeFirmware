@@ -59,17 +59,17 @@
 #include "memory/heaps.h"
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "processing/engines/audio_engine.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
-#include "scenes/rename/rename_scene.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/rename/rename_scene.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 #include "ui/shell/scene.h" // SceneKind
 
 #include "support/global_guest_menu.h"
@@ -87,20 +87,20 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::gui::ui::PadForwardTarget;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
-using deluge::scenes::spec::GlobalGuestGuard;
-using deluge::scenes::spec::open_menu_on_global_guest_at;
-using deluge::scenes::spec::open_shortcut_over;
-using deluge::scenes::spec::open_shortcut_over_automation;
-using deluge::scenes::spec::ShiftHeld;
-using deluge::scenes::spec::UiStackGuard;
+using deluge::ui::scenes::spec::GlobalGuestGuard;
+using deluge::ui::scenes::spec::open_menu_on_global_guest_at;
+using deluge::ui::scenes::spec::open_shortcut_over;
+using deluge::ui::scenes::spec::open_shortcut_over_automation;
+using deluge::ui::scenes::spec::ShiftHeld;
+using deluge::ui::scenes::spec::UiStackGuard;
 
 namespace indicator_leds {
 /// Legacy's LED shadow array (`hid/led/indicator_leds.cpp`), which `setLedState` writes; `indicator_leds.h` does not
@@ -363,7 +363,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(popped(15)).to_equal(std::to_string(deluge::memory::sram_size()));
 		expect(popped(14)).to_equal(std::to_string(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
 		expect(popped(13)).to_equal(std::to_string(picFirmwareVersion));
-		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::firmware_version);
+		expect(deluge::ui::scenes::menu_scene().focused()).to_equal(&nodes::firmware_version);
 	});
 
 	it("does exit on the same three pads when a different node is focused", _ {
@@ -963,8 +963,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("freezes the selection under exactly the scenes that stand in for main's three UIs", _ {
 		// `setSelectedDrum`'s `currentUI != &sampleBrowser && != &sampleMarkerEditor && != &renameDrumUI`.
-		namespace browser = deluge::scenes::browser;
-		namespace rename = deluge::scenes::rename;
+		namespace browser = deluge::ui::scenes::browser;
+		namespace rename = deluge::ui::scenes::rename;
 		const auto id = [](auto e) { return static_cast<uint16_t>(e); };
 		const auto drumSelectionFrozenBy = [](SceneKind kind, uint16_t which) {
 			return deluge::gui::ui::drumSelectionFrozenBy(static_cast<uint8_t>(kind), which);
@@ -973,12 +973,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(drumSelectionFrozenBy(browser::kBrowserSceneKind, id(browser::BrowserId::DxSyx))).to_be_false();
 		expect(drumSelectionFrozenBy(browser::kBrowserSceneKind, id(browser::BrowserId::MidiDeviceDefinition)))
 		    .to_be_false();
-		expect(drumSelectionFrozenBy(deluge::scenes::marker::kMarkerSceneKind, 0)).to_be_true();
+		expect(drumSelectionFrozenBy(deluge::ui::scenes::marker::kMarkerSceneKind, 0)).to_be_true();
 		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Drum))).to_be_true();
 		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Clip))).to_be_false();
 		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Output))).to_be_false();
-		expect(drumSelectionFrozenBy(deluge::scenes::slicing::kSlicerSceneKind, 0)).to_be_false();
-		expect(drumSelectionFrozenBy(deluge::scenes::recorder::kRecorderSceneKind, 0)).to_be_false();
+		expect(drumSelectionFrozenBy(deluge::ui::scenes::slicing::kSlicerSceneKind, 0)).to_be_false();
+		expect(drumSelectionFrozenBy(deluge::ui::scenes::recorder::kRecorderSceneKind, 0)).to_be_false();
 		expect(drumSelectionFrozenBy(deluge::ui::shell::SceneKind::FirstApp, 0)).to_be_false();
 	});
 
@@ -992,7 +992,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		fx.clip->affectEntire = false;
 		kit->selectedDrum = a;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
-		namespace rename = deluge::scenes::rename;
+		namespace rename = deluge::ui::scenes::rename;
 		rename::rename_scene().open(menu_scene().menu_context());
 		expect(shellHostUI.shell().stack().push(
 		           SceneId{rename::kRenameSceneKind, static_cast<uint16_t>(rename::TargetId::Drum)}))
@@ -1104,7 +1104,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(whichSideRowsNeedRendering).to_equal(0u);
 		{
 			// The same range, on the oscillator's page, which is not range-dependent: the highlight goes.
-			const deluge::scenes::menu::MenuContext ctx = menu_scene().menu_context();
+			const deluge::ui::scenes::menu::MenuContext ctx = menu_scene().menu_context();
 			menu_scene().open(nodes::source0, ctx);
 			shellHostUI.shell().tick(1);
 			expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false();

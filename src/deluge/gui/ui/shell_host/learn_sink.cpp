@@ -19,7 +19,7 @@
 namespace deluge::gui::shell_host {
 namespace {
 
-using scenes::bind::LearnedBinding;
+using deluge::ui::scenes::bind::LearnedBinding;
 
 /// @brief Make @p binding what @p learned holds, or clear it for nullopt, as the menu's learn items wrote the engine's
 ///        slot: the cable the device names, the channel or zone, and the number. A binding naming a device with no
@@ -42,10 +42,10 @@ void store(::LearnedMIDI& learned, const std::optional<LearnedBinding>& binding)
 }
 
 /// The learns, applied to the current song.
-class HostLearnSink final : public scenes::bind::LearnSink {
+class HostLearnSink final : public deluge::ui::scenes::bind::LearnSink {
 public:
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
-	           std::optional<scenes::bind::LearnInput> input) override {
+	           std::optional<deluge::ui::scenes::bind::LearnInput> input) override {
 		if (currentSong == nullptr) {
 			return false;
 		}
@@ -116,7 +116,7 @@ public:
 
 } // namespace
 
-scenes::bind::LearnSink& learn_sink() {
+deluge::ui::scenes::bind::LearnSink& learn_sink() {
 	static HostLearnSink sink;
 	return sink;
 }

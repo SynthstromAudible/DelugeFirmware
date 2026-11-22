@@ -33,20 +33,20 @@
 #include "board_controls.hpp"
 #include "gui/ui/menu_view_of.h"
 #include "modulation/automation/record_events.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/registry.h"
-#include "scenes/services/mod_knobs.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/mod_knobs.h"
 
 #include "project/device_settings.h"
 #include "ui/controls/knob_math.h"
 
 #include "gui/views/knob_focus_from_stack.h"
-#include "scenes/bind/knob_assignment.h"
+#include "ui/scenes/bind/knob_assignment.h"
 
 #include "ui/shell/input_lowering.h"
 #include "ui/shell/profiles/deluge.h"
@@ -117,9 +117,9 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::modulation::params::Kind;
-using deluge::scenes::services::ModKnobs;
+using deluge::ui::scenes::services::ModKnobs;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::deluge_profile;
@@ -449,20 +449,20 @@ struct RouteRig {
 // horizontal-page forwarding: the menu's own focused *column*, not the page node, is what the same-param guard has to
 // compare against.
 namespace mod_knobs_spec_nodes {
-inline constexpr deluge::scenes::menu::Node res_col = deluge::scenes::menu::param(
+inline constexpr deluge::ui::scenes::menu::Node res_col = deluge::ui::scenes::menu::param(
     static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
     {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE});
-inline constexpr const deluge::scenes::menu::Node* kResPageChildren[] = {&res_col};
-inline constexpr deluge::scenes::menu::Node res_page =
-    deluge::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,
-                                  deluge::scenes::menu::Layout::Horizontal);
-inline constexpr const deluge::scenes::menu::Node* kRoots[] = {&res_page};
+inline constexpr const deluge::ui::scenes::menu::Node* kResPageChildren[] = {&res_col};
+inline constexpr deluge::ui::scenes::menu::Node res_page =
+    deluge::ui::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,
+                                      deluge::ui::scenes::menu::Layout::Horizontal);
+inline constexpr const deluge::ui::scenes::menu::Node* kRoots[] = {&res_page};
 } // namespace mod_knobs_spec_nodes
 
 /// @brief A live `ModKnobs` over a real (empty) scene stack and a real `InputLowering`.
 /// @brief The knobs' focus on @p counter's active mod controllable, resolved as legacy's
 ///        `View::setActiveModControllableTimelineCounter` resolves it (`views/view.cpp`), over a stack of its own.
-deluge::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
+deluge::ui::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (counter != nullptr) {
 		counter = counter->getTimelineCounterToRecordTo();
@@ -485,7 +485,7 @@ ModelStackWithThreeMainThings* view_knob_stack(void* memory) {
 }
 
 /// @brief The knobs' focus on a bare mod controllable, as `View::setActiveModControllableWithoutTimelineCounter`.
-deluge::scenes::bind::KnobFocus focus_without(Song& song, ModControllable* controllable, ParamManager* params) {
+deluge::ui::scenes::bind::KnobFocus focus_without(Song& song, ModControllable* controllable, ParamManager* params) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	(void)setupModelStackWithSong(memory, &song)
 	    ->addTimelineCounter(nullptr)
@@ -503,7 +503,7 @@ struct KnobRig {
 	/// Point the knobs at @p s's record, over the app's ports.
 	void set_song(Song* s) {
 		song = s;
-		knobs.set_ports(&deluge::scenes::menu::host_ports());
+		knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
 		knobs.set_model(s != nullptr ? &s->project : nullptr);
 	}
 	/// Point the knobs where legacy's view would point them at @p counter.
@@ -530,12 +530,12 @@ struct KnobRig {
 };
 
 /// @brief A presentation that counts everything a gesture shows.
-class CountingPresentation final : public deluge::scenes::services::KnobPresentation {
+class CountingPresentation final : public deluge::ui::scenes::services::KnobPresentation {
 public:
 	int shown = 0;
-	bool suppress_value_popup(const deluge::scenes::services::ModTurn&) override { return false; }
-	void show_value_popup(const deluge::scenes::services::ModTurn&, PatchSource, PatchSource,
-	                      const deluge::scenes::overlay::PopupContext&, uint32_t) override {
+	bool suppress_value_popup(const deluge::ui::scenes::services::ModTurn&) override { return false; }
+	void show_value_popup(const deluge::ui::scenes::services::ModTurn&, PatchSource, PatchSource,
+	                      const deluge::ui::scenes::overlay::PopupContext&, uint32_t) override {
 		shown++;
 	}
 	void value_written() override { shown++; }
@@ -1146,7 +1146,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.clip->activeIfNoSolo = true;
 		other->activeIfNoSolo = false;
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()};
-		const auto& facts = *deluge::scenes::menu::host_ports().controls;
+		const auto& facts = *deluge::ui::scenes::menu::host_ports().controls;
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{f.clip->id()})).to_be_true();
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{other->id()})).to_be_false();
 		expect(facts.allows_note_tails(slot, std::nullopt)).to_be_true();
@@ -1156,7 +1156,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("leaves a MIDI CC select running when a mod button is pressed, and ends it on the release", _ {
 		StubDisplay stub;
 		display = &stub;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView); // the select starts only from a clip minder
 		spec::SongFixture f = spec::make_midi_song();
 		currentSong = f.song;
@@ -1191,7 +1191,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("selects the CC its track's record names for the knob and mode, and ends on a release", _ {
 		StubDisplay stub;
 		display = &stub;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		spec::SongFixture f = spec::make_midi_song();
 		currentSong = f.song;
@@ -1207,8 +1207,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				    .to_equal(static_cast<int32_t>(MIDIInstrument::engineCcOf(record->mod_knob_ccs[at])));
 			}
 		}
-		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
-		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
+		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
 		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
 		expect(InstrumentClipMinder::editingMIDICCForWhichModKnob).to_equal(1);
@@ -1229,7 +1229,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("draws the CC a knob sends and whether its lane is automated, for a CC, bend, aftertouch and the Y axis", _ {
 		StubDisplay stub;
 		display = &stub;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		using Cc = deluge::project::ModKnobCc;
 		struct Lane {
@@ -1243,7 +1243,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}},
 		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}},
 		};
-		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
+		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
 		// One song per lane, with only that lane automated: a lane read in place of another reads no automation.
 		for (size_t automated = 0; automated < std::size(lanes); automated++) {
 			spec::SongFixture f = spec::make_midi_song();
@@ -1268,7 +1268,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			for (size_t pressed = 0; pressed < std::size(lanes); pressed++) {
 				const Lane& lane = lanes[pressed];
 				(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*instrument->id()}, lane.mode);
-				const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+				const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
 				etl::string<30> name;
 				instrument->appendCCName(name, MIDIInstrument::engineCcOf(lane.cc));
 				std::string expected = name.c_str();
@@ -1289,7 +1289,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("draws a CC whose lane is not made, and a knob that sends nothing, unautomated, and makes no lane", _ {
 		StubDisplay stub;
 		display = &stub;
-		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		using Cc = deluge::project::ModKnobCc;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1305,8 +1305,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		if (ccs != nullptr) {
 			expect(ccs->params.getParamFromCC(75)).to_be_null("CC 75's param");
 		}
-		auto& sink = *deluge::scenes::menu::host_ports().controls_sink;
-		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
 		for (const auto& [knob, cc] : {std::pair{0, Cc{.kind = Cc::Kind::NUMBER, .number = 75}}, std::pair{1, Cc{}}}) {
 			etl::string<30> name;
 			instrument->appendCCName(name, MIDIInstrument::engineCcOf(cc));
@@ -1320,8 +1320,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 
 		// A clip the song does not hold starts nothing.
-		deluge::scenes::bind::KnobFocus elsewhere = focus;
-		std::get<deluge::scenes::bind::MidiFocus>(elsewhere.owner).clip = deluge::project::ClipAddress{f.clip->id() + 1000};
+		deluge::ui::scenes::bind::KnobFocus elsewhere = focus;
+		std::get<deluge::ui::scenes::bind::MidiFocus>(elsewhere.owner).clip = deluge::project::ClipAddress{f.clip->id() + 1000};
 		expect(sink.midi_cc_select(elsewhere, 0, true)).to_be_false();
 		expect(currentUIMode).to_equal(UI_MODE_NONE);
 		currentUIMode = UI_MODE_NONE;
@@ -1574,7 +1574,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		playbackHandler.playbackState = state;
 
 		// The knobs keep the session clip; the write lands in the take.
-		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
+		const auto* sound = std::get_if<deluge::ui::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
 			expect(sound->clip.has_value()).to_be_true();
@@ -1625,7 +1625,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// The owner legacy's view names, as addresses: the synth, on its clip.
 		expect(rig.knobs.focus().owner).to_equal(view.knobFocus().owner);
-		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
+		const auto* sound = std::get_if<deluge::ui::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
 			expect(sound->slot.id).to_equal(*f.instrument->id());
@@ -1659,7 +1659,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		expect(view.knobsClipId().has_value()).to_be_false(); // a bare controllable has no timeline counter
 		expect(rig.knobs.focus().owner).to_equal(view.knobFocus().owner);
-		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
+		const auto* sound = std::get_if<deluge::ui::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
 			expect(sound->clip.has_value()).to_be_false(); // no clip: an arranger row's backed params
@@ -2043,19 +2043,19 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// 1. No counter, no controllable.
 		view.setActiveModControllableTimelineCounter(nullptr, false);
 		rig.set_target_with_timeline(nullptr, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
 		expect(view.knobsOnClipContext()).to_be_false();
 
 		// 2. No counter, a controllable.
 		view.setActiveModControllableWithoutTimelineCounter(sound, &f.clip->paramManager);
 		rig.set_target_without_timeline(sound, &f.clip->paramManager);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
 		expect(view.knobsOnClipContext()).to_be_false();
 
 		// 3. A clip counter and a controllable -- the only true case.
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		rig.set_target_with_timeline(f.clip, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
 		expect(view.knobsOnClipContext()).to_be_true();
 
 		// 4. A clip counter and NO controllable: legacy's stack dropped into that shape, and its focus is none. View
@@ -2065,8 +2065,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(knobs).not_().to_be_null("the focus's owner stack");
 		if (knobs != nullptr) {
 			knobs->modControllable = nullptr;
-			const deluge::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusFromStack(*f.song, *knobs);
-			expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
+			const deluge::ui::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusFromStack(*f.song, *knobs);
+			expect(deluge::ui::scenes::services::is_clip_context(no_controllable)).to_be_false();
 		}
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
@@ -2075,10 +2075,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
 		rig.set_target_with_timeline(f.song, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
 		expect(view.knobsOnClipContext()).to_be_false();
 		// ...and it really is pointed at something, so shape 5 is not shape 1 in disguise.
-		expect(std::holds_alternative<deluge::scenes::bind::SongFocus>(rig.knobs.focus().owner)).to_be_true();
+		expect(std::holds_alternative<deluge::ui::scenes::bind::SongFocus>(rig.knobs.focus().owner)).to_be_true();
 
 		// 6. A CV track in its clip: its knobs have an empty layout, yet it is a clip context, as it is for View.
 		spec::SongFixture cv = spec::make_cv_song();
@@ -2086,8 +2086,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(cv.song);
 		view.setActiveModControllableTimelineCounter(cv.clip, false);
 		rig.set_target_with_timeline(cv.clip, false);
-		expect(std::holds_alternative<deluge::scenes::bind::NoControlsFocus>(rig.knobs.focus().owner)).to_be_true();
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(std::holds_alternative<deluge::ui::scenes::bind::NoControlsFocus>(rig.knobs.focus().owner)).to_be_true();
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
 		expect(view.knobsOnClipContext()).to_be_true();
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
@@ -2148,7 +2148,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		it("has no mode in the service", _ {
 			CvRig r;
-			expect(std::holds_alternative<deluge::scenes::bind::NoControlsFocus>(r.rig.knobs.focus().owner)).to_be_true();
+			expect(std::holds_alternative<deluge::ui::scenes::bind::NoControlsFocus>(r.rig.knobs.focus().owner)).to_be_true();
 			expect(r.rig.knobs.mode()).to_equal(-1);
 		});
 
@@ -2366,7 +2366,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// The stack must be non-empty for `declare_indicators` (legacy's `if (!getRootUI()) return`);
 		// the LED half below does not depend on it, but leaving it empty would silently skip the
 		// indicator declarations the next example checks.
-		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 
 		for (int32_t mode = 0; mode < 8; mode++) {
 			rig.knobs.mod_button_action(mode, true);
@@ -2455,7 +2455,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// blink arm's first clause fails and the LED is merely on.
 		currentSong = pf.song;
 		rig.set_target_with_timeline(pf.clip, false);
-		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_be_true();
+		expect(deluge::ui::scenes::services::is_clip_context(rig.knobs.focus())).to_be_true();
 		// The clip's `SoundInstrument` carries its own mod-knob mode, which is not the song's, so
 		// select button 0 on it. It was not already selected, so this is a plain selection and the
 		// meter flag -- the thing under test -- is untouched.
@@ -2492,7 +2492,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		KnobRig rig;
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(f.clip, false);
-		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(rig.knobs.mode()).to_equal(3);
@@ -2550,7 +2550,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		KnobRig rig;
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(f.clip, false);
-		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 
 		const auto found = indicator_disagreements(rig, f.song, "synth", knob_recorded::kSynth);
 		report_indicators(found);
@@ -2570,7 +2570,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			static_cast<Kit*>(kit.instrument)->selectedDrum = drum;
 			kit.clip->affectEntire = false;
 			KnobRig rig;
-			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 			rig.set_song(kit.song);
 			rig.set_target_with_timeline(kit.clip, false);
 			auto more = indicator_disagreements(rig, kit.song, "kit row", knob_recorded::kKitRow);
@@ -2581,7 +2581,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			kit.clip->affectEntire = true;
 			currentSong = kit.song;
 			KnobRig rig;
-			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 			rig.set_song(kit.song);
 			rig.set_target_with_timeline(kit.clip, false);
 			auto more = indicator_disagreements(rig, kit.song, "kit chain", knob_recorded::kKitChain);
@@ -2591,7 +2591,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			spec::AudioSongFixture audio = spec::make_audio_clip_song();
 			currentSong = audio.song;
 			KnobRig rig;
-			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 			rig.set_song(audio.song);
 			rig.set_target_with_timeline(audio.clip, false);
 			auto more = indicator_disagreements(rig, audio.song, "audio", knob_recorded::kAudio);
@@ -2610,7 +2610,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		song.song->persistentView.affectEntire = true;
 		currentSong = song.song;
 		KnobRig rig;
-		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 		rig.set_song(song.song);
 		rig.set_target_with_timeline(song.song, false);
 		const auto found = indicator_disagreements(rig, song.song, "song", knob_recorded::kSong, [&](DirectCtx& c) {
@@ -2650,7 +2650,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				(void)deluge::edits::modKnobCCFor(track, 3, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber});
 			}
 			KnobRig rig;
-			expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+			expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 			rig.set_song(midi.song);
 			rig.set_target_with_timeline(midi.clip, false);
 			auto more = indicator_disagreements(rig, midi.song, assigned ? "midi assigned" : "midi unassigned",
@@ -2668,7 +2668,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// (`hid/led/indicator_leds.cpp`) is `setKnobIndicatorLevel(i, 0)` for both, so the
 		// legacy side is driven through exactly that and read back from the same shadow.
 		KnobRig rig;
-		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.stack.push({deluge::ui::scenes::overlay::kParamPopupSceneKind})).to_be_true();
 		expect(std::holds_alternative<std::monostate>(rig.knobs.focus().owner)).to_be_true();
 
 		indicator_leds::clearKnobIndicatorLevels();
@@ -2786,7 +2786,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.next_timer().has_value()).to_be_false();
 
 		// The one they are pointed at arms both, 25ms out (`View::notifyParamAutomationOccurred` in `views/view.cpp`).
-		const deluge::project::ParamAddress ours = *deluge::scenes::bind::knob_owner(rig.knobs.focus());
+		const deluge::project::ParamAddress ours = *deluge::ui::scenes::bind::knob_owner(rig.knobs.focus());
 		rig.knobs.notify_param_automation_occurred(ours, false);
 		expect(rig.knobs.automation_display_pending()).to_be_true();
 		expect(rig.knobs.automation_updates_mod_levels()).to_be_false();

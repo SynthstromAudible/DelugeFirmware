@@ -3,16 +3,16 @@
 ///        what the menu shows, as `SoundEditor::potentialShortcutPadAction`'s source arm does in `main`.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/patch_cables.h"
-#include "scenes/menu/pads.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/patch_cables.h"
+#include "ui/scenes/menu/pads.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -35,10 +35,10 @@
 #include <algorithm>
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::MenuScene;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::MenuScene;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -47,7 +47,7 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 
 constexpr uint8_t kShiftX = 8, kShiftY = 0;

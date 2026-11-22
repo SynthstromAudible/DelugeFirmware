@@ -17,14 +17,14 @@ extern uint16_t batteryMV;
 namespace deluge::gui::shell_host {
 namespace {
 
-using scenes::bind::PerformanceEditing;
+using deluge::ui::scenes::bind::PerformanceEditing;
 
 // The port converts these by value.
 static_assert(std::to_underlying(PerformanceEditing::Disabled) == std::to_underlying(PerformanceEditingMode::DISABLED));
 static_assert(std::to_underlying(PerformanceEditing::Value) == std::to_underlying(PerformanceEditingMode::VALUE));
 static_assert(std::to_underlying(PerformanceEditing::Param) == std::to_underlying(PerformanceEditingMode::PARAM));
 
-class HostUiFacts final : public scenes::bind::UiFacts {
+class HostUiFacts final : public deluge::ui::scenes::bind::UiFacts {
 public:
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] bool popup_showing() const override {
@@ -50,7 +50,7 @@ public:
 
 } // namespace
 
-const scenes::bind::UiFacts& ui_facts() {
+const deluge::ui::scenes::bind::UiFacts& ui_facts() {
 	static const HostUiFacts facts;
 	return facts;
 }

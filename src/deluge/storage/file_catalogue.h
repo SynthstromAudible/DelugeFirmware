@@ -46,7 +46,7 @@ namespace deluge::storage {
 /// Every member here was a member of `Browser` (`gui/ui/browser/browser.h`) and moved out verbatim,
 /// keeping its name, so a reader maps the two one-to-one. None of it draws, takes input or knows
 /// what a UI is; what it needs is the SD card, `FileItem`, and the name comparator. It lives in
-/// `storage/` because the scenes layer (`src/scenes/`) may include `storage/` and may not include
+/// `storage/` because the scenes layer (`src/ui/scenes/`) may include `storage/` and may not include
 /// `gui/`, and the file browser, the sample marker editor and the audio recorder all need a
 /// listing.
 ///
@@ -102,7 +102,7 @@ public:
 	///          different comparator and can return an index for an entry that does not match. Every
 	///          legacy caller re-pins them by hand first (`Browser::predictExtendedText`,
 	///          `browser.cpp:785-786`; `Browser::selectEncoderAction`, `:560-561`); a caller that
-	///          cannot name `util/name_compare.h` -- `src/scenes` may not include `util/**` --
+	///          cannot name `util/name_compare.h` -- `src/ui/scenes` may not include `util/**` --
 	///          calls `repinComparator()` below instead. This is deliberately **not** asserted here:
 	///          sorting through this class is not a precondition of searching (`fileItems` is public
 	///          and may be ordered by hand), so the pairing is a caller's obligation rather than an
@@ -114,7 +114,7 @@ public:
 	/// The mechanism behind `searchFileItems`' warning, for the callers that cannot spell
 	/// `shouldInterpretNoteNames = ...; octaveStartsFromA = false;` themselves because
 	/// `util/name_compare.h` is outside their include allowance (`scripts/check_layer_rules.py`,
-	/// `scenes-includes-outside`). `deluge::scenes::browser::BrowserScene` is the caller this exists
+	/// `scenes-includes-outside`). `deluge::ui::scenes::browser::BrowserScene` is the caller this exists
 	/// for: it searches the catalogue on every keystroke and on every encoder detent, one or more
 	/// ticks after the listing that sorted it.
 	///
@@ -156,7 +156,7 @@ public:
 	///
 	/// - `Browser::beginListing` (`gui/ui/browser/browser.cpp:97`), which previously guarded with
 	///   its own static `listingInProgress_` (`browser.h:170`), and
-	/// - `deluge::scenes::browser::Listing::request` (`src/scenes/browser/listing.cpp`), the
+	/// - `deluge::ui::scenes::browser::Listing::request` (`src/ui/scenes/browser/listing.cpp`), the
 	///   tick-driven seam the scenes layer uses.
 	///
 	/// Before this, the two were mutually invisible: a legacy browser listing and a scenes listing

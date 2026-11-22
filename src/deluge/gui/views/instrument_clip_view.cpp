@@ -494,7 +494,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 
 				// Site 8 of `gui/ui/menu_entry.cpp`'s table, the only one that names a node rather than a root.
 				// `file0SelectorMenu`'s port is `nodes::file0_selector`
-				// (`scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
+				// (`ui/scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
 				// context is a SYNTH instrument clip under a clip-minder root, i.e.
 				// `Root::Sound`, which is the root that node lives under.
 				(void)deluge::gui::ui::openMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
@@ -3543,7 +3543,7 @@ bool InstrumentClipView::enterNoteEditor() {
 		dontDeleteNotesOnDepress();
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		// Site 12 of `gui/ui/menu_entry.cpp`'s table. The open names the note editor as `NoteMode::NoteEditor`
-		// (the root `setup()` picks under `UI_MODE_NOTES_PRESSED`, a UI mode `src/scenes` may not read), and
+		// (the root `setup()` picks under `UI_MODE_NOTES_PRESSED`, a UI mode `src/ui/scenes` may not read), and
 		// `openMenu` does the kit `affectEntire` clear itself. What follows is what follows legacy's open.
 		if (deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
 		                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
@@ -5443,7 +5443,7 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 	if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
 		// See `gui/ui/shell_note_mode.h`. `soundEditor.selectedNoteRow` needs no port here: its
 		// one caller passes only a non-kit clip, and under the note-row editor on a non-kit clip the latch
-		// is always true (`scenes/menu/bindings.cpp`'s note on `note_row_bridge_direction`); the note
+		// is always true (`ui/scenes/menu/bindings.cpp`'s note on `note_row_bridge_direction`); the note
 		// editor's tree has no Play Direction item, so the test below is false there.
 		if (deluge::gui::ui::noteModeCurrentMenuItemIs(deluge::gui::ui::NoteModeMenuItem::SequenceDirection)) {
 			deluge::gui::ui::noteModeReadValueAgain();

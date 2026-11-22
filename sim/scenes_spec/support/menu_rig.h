@@ -4,12 +4,12 @@
 /// @brief Shared guards for the menu's specs: the singleton reset every example needs, and the claim comparison the
 ///        contract specs make.
 
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/shell.h"
 #include "ui/widgets/core/frame_context.h"
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Leave `MenuScene` as a boot does: every scene popped (each one's `on_exit` runs), then the menu's
 ///        process-lifetime state reset.
@@ -31,4 +31,4 @@ inline bool owns_matches_claims(const deluge::ui::widgets::core::InputClaims& ow
 	       && owned.select == claimed.select && owned.back == claimed.back;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

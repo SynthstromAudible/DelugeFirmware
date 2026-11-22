@@ -32,8 +32,8 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
-namespace midi_out = deluge::scenes::spec::midi_out;
+namespace spec = deluge::ui::scenes::spec;
+namespace midi_out = deluge::ui::scenes::spec::midi_out;
 namespace params = deluge::modulation::params;
 
 namespace {

@@ -6,8 +6,8 @@
 #include "io/midi/midi_device.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "scenes/menu/bind_host.h"
 #include "ui/controls/learned.h"
+#include "ui/scenes/menu/bind_host.h"
 #include "util/containers.h"
 
 #include <cstddef>
@@ -85,8 +85,9 @@ void learnedCcToSong(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t valu
 		return;
 	}
 	ui::controls::dispatch_song_cc(
-	    knob_hits(cable, channel, cc), gui::shell_host::control_facts(), *scenes::menu::host_ports().controls_sink,
-	    takeoverStore(), {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
+	    knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
+	    *deluge::ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
 void learnedCcToOutput(const Output& output, MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) {
@@ -95,7 +96,7 @@ void learnedCcToOutput(const Output& output, MIDICable& cable, uint8_t channel, 
 	}
 	ui::controls::dispatch_output_cc(
 	    *output.id(), knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
-	    *scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    *ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
 	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
@@ -105,7 +106,7 @@ bool learnedPitchBendToOutput(const Output& output, MIDICable& cable, uint8_t ch
 	}
 	return ui::controls::dispatch_output_bend(
 	    *output.id(), knob_hits(cable, channel, kPitchBend), gui::shell_host::control_facts(),
-	    *scenes::menu::host_ports().controls_sink,
+	    *ui::scenes::menu::host_ports().controls_sink,
 	    {.channel = channel, .number = kPitchBend, .value = value14, .cable_relative = cable.is_relative});
 }
 
@@ -118,7 +119,7 @@ ui::controls::KnobFocus followFocus(Clip& clip) {
 }
 
 ui::controls::Sink& followSink() {
-	return *scenes::menu::host_ports().controls_sink;
+	return *deluge::ui::scenes::menu::host_ports().controls_sink;
 }
 
 } // namespace deluge::midi

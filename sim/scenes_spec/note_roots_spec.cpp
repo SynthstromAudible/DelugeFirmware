@@ -9,14 +9,14 @@
 #include "gui/l10n/setting_names.h"
 #include "gui/ui/menu_view_of.h"
 #include "project/device_settings.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sound_actions.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/registry.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sound_actions.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/registry.h"
 
 #include "gui/ui/ui.h"
 #include "util/menu_entry.h"
@@ -42,11 +42,11 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
 namespace entry = deluge::gui::ui;
 
 namespace {
@@ -248,7 +248,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		}
 		expect(names->choices.size()).to_equal(size_t{4});
 		const auto expected = [&](size_t i) {
-			return std::string(deluge::scenes::text_lookup(static_cast<uint16_t>(names->choices[i])));
+			return std::string(deluge::ui::scenes::text_lookup(static_cast<uint16_t>(names->choices[i])));
 		};
 
 		spec::SongFixture fx = spec::make_synth_song();
@@ -278,8 +278,8 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteEditor))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_editor_root);
-		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
+		expect(deluge::ui::scenes::menu_scene().focused()).to_equal(&nodes::note_editor_root);
+		expect(deluge::ui::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
 		closeGuest();
 	});
 
@@ -289,8 +289,8 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
-		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
+		expect(deluge::ui::scenes::menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
+		expect(deluge::ui::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
 		closeGuest();
 	});
 
@@ -305,7 +305,7 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 		// own member -- `sequence::Direction::getIndividualNoteRow` reads `clip->affectEntire` LIVE
 		// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after main's identical clear, so a stale
 		// `true` left in the installed context would make `bindings::direction_target`
-		// (`scenes/menu/bindings.cpp`) keep reading/writing the kit's own mode instead of the selected
+		// (`ui/scenes/menu/bindings.cpp`) keep reading/writing the kit's own mode instead of the selected
 		// drum's row -- see the dedicated example below.
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
@@ -315,8 +315,8 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 		                            entry::MenuNode::ContextRoot, entry::NoteMode::NoteEditor))
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
+		expect(deluge::ui::scenes::menu_scene().menu_context().affect_entire).to_be_false();
+		expect(deluge::ui::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
 		closeGuest();
 	});
 
@@ -330,8 +330,8 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 		                            entry::MenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
+		expect(deluge::ui::scenes::menu_scene().menu_context().affect_entire).to_be_false();
+		expect(deluge::ui::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
 		closeGuest();
 	});
 
@@ -362,7 +362,7 @@ describe note_roots_open_menu("openMenu's NoteMode", $ {
 
 		bool from_note_row = false;
 		const int32_t read =
-		    menu::bindings::read_sequence_direction(deluge::scenes::menu_scene().menu_context(), &from_note_row);
+		    menu::bindings::read_sequence_direction(deluge::ui::scenes::menu_scene().menu_context(), &from_note_row);
 		expect(from_note_row).to_be_true();
 		expect(read).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 		closeGuest();

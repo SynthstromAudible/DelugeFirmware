@@ -47,10 +47,10 @@ bool clipPlaysSlot(const ::Clip& clip, project::SlotAddress slot) {
 	return currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 }
 
-static_assert(kMaxNumPatchCables <= scenes::bind::kMaxCables);
+static_assert(kMaxNumPatchCables <= deluge::ui::scenes::bind::kMaxCables);
 
 /// The sound facts, answered from the running app: each sound is found by its slot in the current song.
-class HostSoundFacts final : public scenes::bind::SoundFacts {
+class HostSoundFacts final : public deluge::ui::scenes::bind::SoundFacts {
 public:
 	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override {
 		::Sound* sound = sound_at(slot);
@@ -105,7 +105,8 @@ public:
 		return sound->sourceResources[source].ranges.getElement(range)->identity();
 	}
 
-	[[nodiscard]] std::optional<uint16_t> take_range(const scenes::bind::TakeTarget& target) const override {
+	[[nodiscard]] std::optional<uint16_t>
+	take_range(const deluge::ui::scenes::bind::TakeTarget& target) const override {
 		// By identity: the clip and what it plays, then the range wherever it now sits.
 		// Range identities are run-unique and never saved, so a range in another song cannot match.
 		if (currentSong == nullptr || !target.clip || !target.range || target.source >= kNumSources) {
@@ -128,12 +129,12 @@ public:
 		return std::nullopt;
 	}
 
-	[[nodiscard]] std::optional<scenes::bind::DxCartridgeNames> dx_cartridge() const override {
+	[[nodiscard]] std::optional<deluge::ui::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
 		DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
 		if (bank == nullptr) {
 			return std::nullopt;
 		}
-		scenes::bind::DxCartridgeNames out;
+		deluge::ui::scenes::bind::DxCartridgeNames out;
 		char names[32][11];
 		bank->getProgramNames(names);
 		out.count = bank->numPatches();
@@ -143,8 +144,8 @@ public:
 		return out;
 	}
 
-	[[nodiscard]] scenes::bind::CableList cables(const project::ParamAddress& owner) const override {
-		scenes::bind::CableList list;
+	[[nodiscard]] deluge::ui::scenes::bind::CableList cables(const project::ParamAddress& owner) const override {
+		deluge::ui::scenes::bind::CableList list;
 		if (currentSong == nullptr) {
 			return list;
 		}
@@ -165,7 +166,7 @@ public:
 
 } // namespace
 
-const scenes::bind::SoundFacts& sound_facts() {
+const deluge::ui::scenes::bind::SoundFacts& sound_facts() {
 	static const HostSoundFacts facts;
 	return facts;
 }

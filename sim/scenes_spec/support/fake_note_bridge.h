@@ -1,6 +1,6 @@
 #pragma once
 
-/// @brief A recording fake for `deluge::scenes::menu::NoteBridge` -- the note leaves are tested
+/// @brief A recording fake for `deluge::ui::scenes::menu::NoteBridge` -- the note leaves are tested
 ///        against this, not the real `instrumentClipView`. Every entry records that it was called
 ///        (a count) and, where legacy's statement takes one, its argument, and returns a settable
 ///        value.
@@ -10,7 +10,7 @@
 /// clears the bridge in its destructor -- so a failing example cannot leak the fake into a later
 /// one.
 
-#include "scenes/menu/note_bridge.h"
+#include "ui/scenes/menu/note_bridge.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -18,7 +18,7 @@
 #include <span>
 #include <string>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief The recorded calls and settable answers. Reset by `FakeNoteBridgeGuard`'s constructor.
 struct FakeNoteBridge {
@@ -278,4 +278,4 @@ struct NoNoteBridge {
 	NoNoteBridge& operator=(const NoNoteBridge&) = delete;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

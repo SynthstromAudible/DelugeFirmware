@@ -68,7 +68,7 @@ using deluge::ui::shell::ShellConfig;
 ///     `shell::Screensaver` would be **off in every level-2 script** (`ui/shell/screensaver.h`:
 ///     "`idle_ms == 0` disables the service outright"). Nothing a script can type turns it on.
 ///   * `after_construct` -- run once, after the `Shell` exists and before `init()`/`boot()`.
-///     `scenes::services::ModKnobs`, `GlobalControls` and `MidiLearn` are each constructed from
+///     `ui::scenes::services::ModKnobs`, `GlobalControls` and `MidiLearn` are each constructed from
 ///     `SceneStack&` and `InputLowering&`, and the only instances of those two are the ones the
 ///     `Shell` **owns** (`ui/shell/shell.h`'s `stack_`, `lowering_`) -- so a real service cannot be
 ///     built until the shell it serves already exists. This hook is where a caller closes that
@@ -77,7 +77,7 @@ using deluge::ui::shell::ShellConfig;
 ///     `sim/scenes_spec/support/real_services.h`'s `RealServices` for the shape.
 ///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The stand-in for a model
 ///     that moves on its own: `overlay::CountInScene` is a **poll** of `playbackHandler.count_in_visual()`
-///     (`scenes/overlay/count_in_scene.h`), and the only thing that moves that number is
+///     (`ui/scenes/overlay/count_in_scene.h`), and the only thing that moves that number is
 ///     `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine` a spec process does
 ///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same reason; this is that, at
 ///     level 2.

@@ -23,7 +23,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 
 namespace {
 

@@ -376,7 +376,7 @@ void midiGateOutputTimerFired();
 /// clip view, the sample browser and the ported recorder scene all test one of them.
 ///
 /// These functions are that pair's one write seam and its read side. The ported recorder,
-/// `deluge::scenes::recorder::RecorderScene`, publishes through them like every other writer.
+/// `deluge::ui::scenes::recorder::RecorderScene`, publishes through them like every other writer.
 /// @{
 /// @brief Publish (or clear) the foreground recording.
 ///

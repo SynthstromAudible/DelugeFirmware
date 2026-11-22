@@ -33,7 +33,7 @@
 #error "GOLDEN_ROOT must be defined by CMake (deluge_golden_root, tests/support/cmake/golden.cmake)"
 #endif
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief One row of a reference table.
 struct OracleRow {
@@ -221,4 +221,4 @@ private:
 	std::vector<std::string> problems_;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

@@ -26,7 +26,7 @@
 #include <string>
 #include <utility>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Every file on a tree, as (path lowercased, size): FAT folds case, so names compare without it.
 using CardFiles = std::set<std::pair<std::string, uint32_t>>;
@@ -141,4 +141,4 @@ struct QuietAudio {
 	AudioEngine::AudioTickHold hold;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

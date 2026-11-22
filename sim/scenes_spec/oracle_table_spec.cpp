@@ -9,7 +9,7 @@
 
 #include "support/spec_main.h"
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 
 // clang-format off
 describe oracle_table("scenes spec reference tables: the reader", $ {

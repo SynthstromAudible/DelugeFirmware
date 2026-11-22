@@ -29,18 +29,18 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/midi_device.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/midi_device.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -85,10 +85,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -99,8 +99,8 @@ namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 using spec::mididev::baseline;
 using spec::mididev::CableState;
 using spec::mididev::chain_name;

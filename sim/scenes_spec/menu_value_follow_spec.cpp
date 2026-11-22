@@ -20,12 +20,12 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/scene.h"
 
 #include "support/feature_setting.h"
@@ -38,14 +38,14 @@
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace spec = deluge::scenes::spec;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace spec = deluge::ui::scenes::spec;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
-using deluge::scenes::menu_scene;
-using deluge::scenes::spec::FeatureSetting;
+using deluge::ui::scenes::menu_scene;
+using deluge::ui::scenes::spec::FeatureSetting;
 
 /// @brief The synth's LPF frequency on the fixture's clip, by address (`knob_writes_spec.cpp`'s shape).
 ParamAddress lpf_on(spec::SongFixture& fx) {

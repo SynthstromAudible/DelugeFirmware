@@ -30,7 +30,7 @@
 
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 namespace params = deluge::modulation::params;
 
 namespace {

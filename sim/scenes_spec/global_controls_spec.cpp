@@ -65,12 +65,12 @@
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/song.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/registry.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/learn_mode.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/learn_mode.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "ui/shell/input_lowering.h"
 #include "ui/shell/leds.h"
@@ -106,9 +106,9 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::services::GlobalControls;
-using deluge::scenes::services::LearnMode;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::services::GlobalControls;
+using deluge::ui::scenes::services::LearnMode;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -1013,7 +1013,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
 		// The clip that minder has open, as the app tells the view state.
-		deluge::scenes::services::view_state().set_current_view(
+		deluge::ui::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(legacy_fixture.song->getCurrentClip()));
 		rig.press(ButtonId::SyncScaling, true, 18'000);
 		expect(legacy_fixture.song->getSyncScalingClip()).to_equal(legacy_fixture.song->getCurrentClip());

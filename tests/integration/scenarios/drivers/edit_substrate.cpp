@@ -1139,7 +1139,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 	deluge::scenarios::GoldKnobGestures knobs{
 	    ctx.song,
 	    {.owner =
-	         deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()}}}};
+	         deluge::ui::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()}}}};
 	for (size_t press = 0; press < kRecorded.size(); press++) {
 		knobs.push(1, true);
 		const deluge::project::DocOutput* record = ctx.song.project.output_structure.find(*synth->id());

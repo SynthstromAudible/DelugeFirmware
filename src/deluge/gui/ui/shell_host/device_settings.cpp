@@ -39,13 +39,13 @@
 namespace deluge::gui::shell_host {
 namespace {
 
+using deluge::ui::scenes::bind::DeviceWrite;
 using plugin::SettingInfo;
 using project::device_path;
 using project::Feature;
 using project::FeatureInfo;
 using project::FlashCursor;
 using project::ShortcutsVersion;
-using scenes::bind::DeviceWrite;
 using serialization::Value;
 
 // A CHOICE row's index is the legacy value for these.
@@ -777,7 +777,7 @@ constexpr std::array kGroupStores{&store_homed,  &store_defaults, &store_pads_an
 /// community features, the audio engine's, USB audio's and the clocks' settings, MIDI's and MIDI follow's, the CV and
 /// gate outputs', and the stem export's options. A store writes the value as the menu's own item does, with that item's
 /// side effects; none saves (the settings menu saves on its close).
-class HostDeviceSettings final : public scenes::bind::DeviceSettings {
+class HostDeviceSettings final : public deluge::ui::scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		for (const auto load_group : kGroupLoads) {
 			if (std::optional<Value> value = load_group(row)) {
@@ -805,7 +805,7 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 
 } // namespace
 
-scenes::bind::DeviceSettings& device_settings() {
+deluge::ui::scenes::bind::DeviceSettings& device_settings() {
 	static HostDeviceSettings settings;
 	return settings;
 }

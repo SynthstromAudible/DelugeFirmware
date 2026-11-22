@@ -19,7 +19,7 @@
 
 /// base/string_format.h — pure number→string formatting.
 ///
-/// Foundation tier: no dependencies beyond libc, so the app, BSP and HAL may all
+/// Base: no dependencies beyond libc, so the app, BSP and HAL may all
 /// use it (the HAL's UART debug output formats numbers with intToString). Split
 /// out of the old deluge/util/cfunctions.h, whose timer/delay helpers are board-
 /// or clock-coupled and live elsewhere.

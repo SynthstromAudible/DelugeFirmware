@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <optional>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 
 namespace {
 

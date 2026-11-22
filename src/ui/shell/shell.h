@@ -165,7 +165,7 @@ public:
 	/// -- and the first two also from an `InputLowering&` -- and the only instances of either in an application are the
 	/// ones this shell **owns** (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three
 	/// really uses what it is handed: `ModKnobs`' `GuestKnobPresentation` pushes the param popup onto that stack
-	/// (`GuestKnobPresentation::show_value_popup`, `src/scenes/services/guest_knob_presentation.h`), and
+	/// (`GuestKnobPresentation::show_value_popup`, `src/ui/scenes/services/guest_knob_presentation.h`), and
 	/// `GuestKnobPresentation::suppress_value_popup` and `ModKnobs::push` both read `stack_.input_top()`;
 	/// `GlobalControls::handle` gates its `View::buttonAction` group on `stack_.input_top().is_root()`;
 	/// `MidiLearn::handle` reads the same. So a real service cannot be constructed before the shell it serves, and this
@@ -225,7 +225,7 @@ public:
 	/// **This is why the field is not construction-only.** A host that is a static-init global
 	/// cannot read flash when it builds its `Shell`, so without this the value stays at its
 	/// `ShellConfig` default of 0 and the screensaver can never activate however the two settings
-	/// are set. `scenes/registry.h`'s boot-wiring note is the in-tree record; the firmware's host calls
+	/// are set. `ui/scenes/registry.h`'s boot-wiring note is the in-tree record; the firmware's host calls
 	/// it.
 	/// @param idle_ms The new idle period in milliseconds; 0 is off.
 	void set_screensaver_idle_ms(uint32_t idle_ms) {
@@ -387,7 +387,7 @@ public:
 	/// @warning **A returned `now_ms` does not distinguish "wake once, immediately" from "keep
 	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
-	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
+	///          account), and `ui::scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
 	///          whole of playback (`AudioClipScene::next_timer`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
@@ -631,7 +631,7 @@ private:
 	LoadingScene loading_;
 	/// Pushes/pops `SceneKind::Screensaver` after idle. Deliberately does *not* own a scene
 	/// instance the way `popup_`/`console_`/`working_`/`loading_` do: the real animation
-	/// is `ScreensaverScene` in `src/scenes`, registered by the application (or a spec's stand-in) like any other
+	/// is `ScreensaverScene` in `src/ui/scenes`, registered by the application (or a spec's stand-in) like any other
 	/// scene, so `table_[Screensaver]` is left exactly as `registry.find()` reported it.
 	Screensaver screensaver_;
 	Notices notices_;

@@ -28,7 +28,7 @@
 #include <cstring>
 
 namespace params = deluge::modulation::params;
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace colours = deluge::gui::colours;
 using deluge::synth::CableTarget;
 

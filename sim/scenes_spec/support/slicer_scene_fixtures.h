@@ -11,10 +11,10 @@
 /// marked investigated, draws the waveform the fixture asked for with no reader opened. Halving `kSampleLength` turns
 /// the whole waveform black -- the scan only takes its cache arm at `numClustersSpan >= 2`.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -40,10 +40,10 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::scenes::spec::slicer_fx {
+namespace deluge::ui::scenes::spec::slicer_fx {
 
-using deluge::scenes::slicing::kSlicerSceneKind;
-using deluge::scenes::slicing::slicer_scene;
+using deluge::ui::scenes::slicing::kSlicerSceneKind;
+using deluge::ui::scenes::slicing::slicer_scene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -147,7 +147,7 @@ struct Rig {
 		// The app's boot wires the host's ops; an example starts unwired and installs its own.
 		slicer_scene().set_ops(nullptr);
 		// The app's ports, as its boot installs them; an example that needs a fake copies them and replaces one.
-		slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
+		slicer_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 	}
 
 	/// @brief Put the fixture's sample in the preview drum and open the slicer's host on it, as the browser's SLICE
@@ -259,7 +259,7 @@ struct Rig {
 
 // --- the audio/model/card boundary, faked ------------------------------------------------------
 
-using deluge::scenes::slicing::test::FakeOps;
+using deluge::ui::scenes::slicing::test::FakeOps;
 
 // --- the shared slice table ---------------------------------------------------------------------
 
@@ -278,4 +278,4 @@ inline void seed_port(const std::vector<int32_t>& positions) {
 	}
 }
 
-} // namespace deluge::scenes::spec::slicer_fx
+} // namespace deluge::ui::scenes::spec::slicer_fx

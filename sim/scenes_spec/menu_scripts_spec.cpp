@@ -1,7 +1,7 @@
 /// @file
 /// @brief Level-2 acceptance scripts, driven through the real `Shell` over
 ///        `uitest::FakeSurfaceSet` (`tests/unit/ui/shell/support/script_runner.h`) against the REAL
-///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
+///        declarative tables (`src/ui/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
 /// Three groups of script live here.
 ///
@@ -111,23 +111,23 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/action.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/patch_cables.h"
-#include "scenes/menu/nodes/scales.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
-#include "scenes/rename/rename_scene.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/action.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/patch_cables.h"
+#include "ui/scenes/menu/nodes/scales.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/rename/rename_scene.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
@@ -169,7 +169,7 @@
 
 // Before `unit/ui/shell/support/script_runner.h`, which is what actually drags `<cppspec.hpp>` in -- so "before
 // cppspec" is not enough here, it has to be before this line. `real_services.h` reaches
-// `scenes/overlay/param_popup_scene.h`, whose `push` takes a parameter named `context`, and CppSpec `#define`s
+// `ui/scenes/overlay/param_popup_scene.h`, whose `push` takes a parameter named `context`, and CppSpec `#define`s
 // `context` to `self.context`. The same placement rule as `card_access.h` above, for the same kind of collision on a
 // different keyword.
 #include "support/real_services.h"
@@ -190,18 +190,18 @@
 
 using namespace deluge;
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuAction;
-using deluge::scenes::menu::MenuActionRequest;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-namespace bindings = deluge::scenes::menu::bindings;
-namespace nodes = deluge::scenes::menu::nodes;
-namespace context_menu = deluge::scenes::context_menu;
-namespace browser = deluge::scenes::browser;
-namespace marker = deluge::scenes::marker;
-namespace recorder = deluge::scenes::recorder;
+using deluge::ui::scenes::menu::MenuAction;
+using deluge::ui::scenes::menu::MenuActionRequest;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace bindings = deluge::ui::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace context_menu = deluge::ui::scenes::context_menu;
+namespace browser = deluge::ui::scenes::browser;
+namespace marker = deluge::ui::scenes::marker;
+namespace recorder = deluge::ui::scenes::recorder;
 
 namespace {
 
@@ -228,7 +228,8 @@ void reset_globals() {
 ///        `lpf_mode` (an ordinary Enum, so `Select +1` off the default cursor lands on row 1) and
 ///        `source0_transpose` (the real range-dependent Decimal `permission_for` gates).
 constexpr const Node* kRangePermChildren[] = {&nodes::lpf_mode, &nodes::source0_transpose};
-constexpr Node range_perm_root = deluge::scenes::menu::submenu(sid(String::STRING_FOR_TRANSPOSE), kRangePermChildren);
+constexpr Node range_perm_root =
+    deluge::ui::scenes::menu::submenu(sid(String::STRING_FOR_TRANSPOSE), kRangePermChildren);
 constexpr const Node* kRangePermRoots[] = {&range_perm_root};
 
 /// @brief `menu_scene().state().list[0].cursor` -- the same accessor `menu_scene_spec.cpp` uses.
@@ -241,8 +242,8 @@ int cursor0() {
 /// `cursor0()` is right only while the target sits at depth 0. Several scripts open nodes
 /// levels down and some of them descend further, so the depth has to be read rather than assumed.
 int cursor_now() {
-	const deluge::scenes::menu::MenuState& st = menu_scene().state();
-	return st.depth < deluge::scenes::menu::kMenuDepth ? st.list[st.depth].cursor : -1;
+	const deluge::ui::scenes::menu::MenuState& st = menu_scene().state();
+	return st.depth < deluge::ui::scenes::menu::kMenuDepth ? st.list[st.depth].cursor : -1;
 }
 
 /// @brief The `RunOptions` every block here shares, pointed at @p node.
@@ -256,7 +257,7 @@ uitest::RunOptions opts_for(const Node& node) {
 	return uitest::RunOptions{
 	    .tick_ms = 10,
 	    .board = &deluge::ui::shell::kDelugeBoard,
-	    .profile = &deluge::scenes::deluge_profile(),
+	    .profile = &deluge::ui::scenes::deluge_profile(),
 	    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)},
 	};
 }
@@ -500,7 +501,7 @@ struct SavedCables {
 /// Writes @p menu_value to the cable @p learn names through the app's sink, as the strength page writes it; a new
 /// cable takes its source's default polarity.
 bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
-	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	const std::optional<deluge::ui::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
 	return request.has_value() && ctx.ports.writes->write(*request);
 }
@@ -521,7 +522,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::saturation)},
 		};
@@ -531,7 +532,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "menu_int", ui::scenes::scene_registry(), svc.slots(), opts);
 		// `idle`, `after_select_edit` and `after_back`.
 		expect(result.snapshots).to_equal(uint32_t{3});
 
@@ -564,7 +565,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::source0_transpose)},
 		};
@@ -574,7 +575,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_decimal", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_decimal", ui::scenes::scene_registry(), svc.slots(), opts);
 		// Five, not six: the script's first GoldUpper turn lands on a page that reads no edit
 		// encoder, so its snapshot was byte-identical to `after_select_press` and is not recorded -- the
 		// *step* stays, because the "unchanged" assertion below is about it.
@@ -611,7 +612,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::lpf_mode)},
 		};
@@ -621,7 +622,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_enum", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "menu_enum", ui::scenes::scene_registry(), svc.slots(), opts);
 		// Three, not five: the Select-press and GoldUpper-turn snapshots are not recorded -- both
 		// would be byte-identical to `after_select_turn`, for the two reasons the script file's own
 		// comments name. The steps stay; the final assertion below (`before + 1`, not `+2`) is their
@@ -648,7 +649,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::osc_sync)},
 		};
@@ -658,7 +659,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_toggle", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_toggle", ui::scenes::scene_registry(), svc.slots(), opts);
 		// Three, not five: the Select-press and GoldUpper-turn snapshots are not recorded, for the
 		// same two reasons as `menu_enum` above. The steps stay; the final assertion below (flipped
 		// exactly once, not twice) is their proof.
@@ -692,7 +693,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(nodes::lpf)},
 		};
 		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
@@ -701,7 +702,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_submenu_horizontal", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_submenu_horizontal", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The select press on FREQ followed its patch-chain into the source-selection page, so the
@@ -732,7 +733,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::sound_root)},
 		};
@@ -742,7 +743,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_shortcut", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_shortcut", ui::scenes::scene_registry(), svc.slots(), opts);
 		// Five: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
 		// after the Back -- and the first one's snapshot would be empty, same as `menu_decimal` above. The
 		// `after_select_turn` snapshot is not recorded either (byte-identical to `after_shortcut`, for
@@ -786,7 +787,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
 		    .board = &deluge::ui::shell::kDelugeBoard,
-		    .profile = &deluge::scenes::deluge_profile(),
+		    .profile = &deluge::ui::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(range_perm_root)},
 		};
@@ -796,7 +797,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_range_permission", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_range_permission", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{4});
 
 		// The script ends with a Back, so the wrapper is on screen again -- but `after_select_press`
@@ -831,7 +832,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `SyncLevel::drawPixelsForOled`), which is what `idle` records.
 		bindings::write(nodes::delay_sync, ctx, 0);
 
-		const deluge::scenes::menu::IntRange sync_range = bindings::range(nodes::delay_sync, ctx);
+		const deluge::ui::scenes::menu::IntRange sync_range = bindings::range(nodes::delay_sync, ctx);
 
 		uitest::RunOptions opts = opts_for(nodes::delay_sync);
 		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
@@ -840,7 +841,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_sync_level", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_sync_level", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// `SyncLevel` (`origin/main:src/deluge/gui/menu_item/sync_level.h`) derives from `Enumeration`, not `Integer`,
@@ -867,8 +868,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const int32_t count_before = bindings::read(nodes::unison_count, ctx);
 		const int32_t spread_before = bindings::read(nodes::unison_spread, ctx);
-		const deluge::scenes::menu::IntRange count_range = bindings::range(nodes::unison_count, ctx);
-		const deluge::scenes::menu::IntRange spread_range = bindings::range(nodes::unison_spread, ctx);
+		const deluge::ui::scenes::menu::IntRange count_range = bindings::range(nodes::unison_count, ctx);
+		const deluge::ui::scenes::menu::IntRange spread_range = bindings::range(nodes::unison_spread, ctx);
 
 		uitest::RunOptions opts = opts_for(nodes::unison_count);
 		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
@@ -877,7 +878,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_chain", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_chain", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{6});
 
 		// `CountToStereoSpread::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/unison/count.h`) navigates
@@ -918,7 +919,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_range", scenes::scene_registry(), svc.slots(), opts);
+		    self, "menu_range", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// `range_value` edits the selected edge on the select encoder, not the gold knobs
@@ -946,7 +947,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(nodes::kSongActiveScalesItem.is_disabled(ctx, 2)).to_be_false();
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_scales", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::root_song));
+		    self, "menu_scales", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::root_song));
 		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// Two presses on row 2: disabled, then enabled again. The *pair* is what makes the goldens
@@ -970,7 +971,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::reset_settings, ctx);
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_reset", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::reset_settings));
+		    self, "menu_reset", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::reset_settings));
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// Row 0 of `kResetSettingsChildren` is `reset_flash`, so that is the descriptor the push
@@ -996,12 +997,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::root_audio_clip, ctx);
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "context_menu", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "context_menu", ui::scenes::scene_registry(),
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::root_audio_clip));
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(context_menu::context_menu_scene().descriptor_id()).to_equal(context_menu::DescriptorId::AudioSource);
-		// `initial_audio_source` (`scenes/context_menu/context_menu_scene.cpp`, as
+		// `initial_audio_source` (`ui/scenes/context_menu/context_menu_scene.cpp`, as
 		// `AudioInputSelector::setupAndCheckAvailability` in `gui/context_menu/audio_input_selector.cpp` does) opened
 		// it on the output's own `inputChannel`, and the two Select detents walked from there -- `step()`'s clamp is at
 		// 7, which this does not reach.
@@ -1020,7 +1021,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		song.clip->name = "";
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "rename", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::edit_name));
+		    self, "rename", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::edit_name));
 		expect(result.snapshots).to_equal(uint32_t{12});
 
 		// Typed "ABAD", then a held backspace: the press itself deletes one
@@ -1053,7 +1054,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::midi_command_play, ctx);
 		// Channel 3 + `IS_A_CC`, CC 42 -- the same binding `tables_3_spec`'s learned-readout golden
 		// uses, so the three-line shape in `entered` is the one that file already pins at unit level.
-		const deluge::scenes::menu::Node* play = menu_scene().focused();
+		const deluge::ui::scenes::menu::Node* play = menu_scene().focused();
 		expect(play).not_().to_be_null();
 		expect(play == nullptr ? nullptr : play->custom).not_().to_be_null();
 		if (play != nullptr && play->custom != nullptr) {
@@ -1062,7 +1063,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::midi_commands, ctx);
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_midi_learn", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "menu_midi_learn", ui::scenes::scene_registry(),
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::midi_commands));
 		expect(result.snapshots).to_equal(uint32_t{4});
 
@@ -1086,7 +1087,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::cv_selection, ctx);
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_cv_selection", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "menu_cv_selection", ui::scenes::scene_registry(),
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::cv_selection));
 		expect(result.snapshots).to_equal(uint32_t{4});
 
@@ -1129,7 +1130,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_patch_cables", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "menu_patch_cables", ui::scenes::scene_registry(),
 		                                  svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
@@ -1161,7 +1162,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu_scene().take_action(); // drain anything an earlier block left in the one-slot outbox
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_action", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::stem_export));
+		    self, "menu_action", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::stem_export));
 		expect(result.snapshots).to_equal(uint32_t{2});
 
 		// The press has no golden -- the frame after it repeats `idle` exactly, which is the whole point of
@@ -1195,7 +1196,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu_scene().take_action();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_perform_editor", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "menu_perform_editor", ui::scenes::scene_registry(),
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::root_performance));
 		expect(result.snapshots).to_equal(uint32_t{5});
 
@@ -1248,7 +1249,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		svc.song = song.song;
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_midi_device", scenes::scene_registry(),
+		    uitest::expect_script_goldens(self, "menu_midi_device", ui::scenes::scene_registry(),
 		                                  svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{10});
 
@@ -1290,7 +1291,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::sound_root, ctx);
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "browser", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		    self, "browser", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
 		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// The script descended into KICKS, typed one character there, and came back out -- so the
@@ -1317,7 +1318,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::sound_root, ctx);
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "marker", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		    self, "marker", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
 		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// The pad press moved the START marker to column 6's first sample. At the opening zoom
@@ -1367,7 +1368,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 			}
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "recorder", ui::scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
 		expect(result.snapshots).to_equal(uint32_t{8});
 
 		// Armed for real TWICE -- once through SOUND -> ACTIONS -> RECORD TO SAMPLE, once through the

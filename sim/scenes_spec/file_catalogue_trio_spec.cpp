@@ -21,8 +21,8 @@
 
 namespace {
 
-using namespace deluge::scenes::spec::catalogue;
-using deluge::scenes::spec::SdRoot;
+using namespace deluge::ui::scenes::spec::catalogue;
+using deluge::ui::scenes::spec::SdRoot;
 
 /// @brief Three note names whose two orders are exact reverses of one another.
 ///

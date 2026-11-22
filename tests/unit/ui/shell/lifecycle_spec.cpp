@@ -56,8 +56,8 @@ public:
 	uint16_t last_arg = 0;
 };
 
-/// @brief The test registry's stand-in for the real `ScreensaverScene` in `src/scenes`: records entry/exit so the idle
-/// specs can see it pushed and popped,
+/// @brief The test registry's stand-in for the real `ScreensaverScene` in `src/ui/scenes`: records entry/exit so the
+/// idle specs can see it pushed and popped,
 ///        without drawing anything of its own.
 class ScreensaverStub final : public Scene {
 public:

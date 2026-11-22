@@ -2,7 +2,7 @@
 #include "board_controls.hpp"
 #include "definitions_cxx.hpp"
 #include "host/chains/pages.h"
-#include "scenes/profile.h"
+#include "ui/scenes/profile.h"
 #include "ui/shell/profile.h"
 #include <cppspec.hpp>
 
@@ -13,7 +13,7 @@ using deluge::ui::shell::ButtonId;
 using deluge::ui::widgets::core::EncoderRole;
 
 describe board_consistency("the Deluge's controls board and the shell's profile", ${
-	const deluge::ui::shell::BoardProfile& profile = deluge::scenes::deluge_profile();
+	const deluge::ui::shell::BoardProfile& profile = deluge::ui::scenes::deluge_profile();
 
 	// The profile the spec reads. The neuter test swaps its gold roles in a copy.
 	const auto role_index = [](std::span<const EncoderRole> roles, EncoderRole role) {

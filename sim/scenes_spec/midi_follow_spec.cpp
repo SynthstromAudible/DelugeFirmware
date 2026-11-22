@@ -34,8 +34,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "project/mapping_table.h"
-#include "scenes/menu/bind_host.h"
 #include "ui/controls/knob_math.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include <algorithm>
 #include <array>
@@ -53,13 +53,13 @@
 
 using namespace deluge;
 
-namespace spec = deluge::scenes::spec;
+namespace spec = deluge::ui::scenes::spec;
 namespace params = deluge::modulation::params;
 namespace project = deluge::project;
 
 using project::OwnerId;
 using project::ParamAddress;
-using namespace deluge::scenes::spec::learned;
+using namespace deluge::ui::scenes::spec::learned;
 
 namespace {
 
@@ -483,7 +483,7 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 			mismatches += " [no lane: " + name + "]";
 			return;
 		}
-		const plugin::ParamInfo* info = deluge::scenes::menu::host_ports().controls->param_info(plugin, address.target());
+		const plugin::ParamInfo* info = deluge::ui::scenes::menu::host_ports().controls->param_info(plugin, address.target());
 		std::vector<int32_t> words{INT32_MIN, INT32_MIN + 1, -0x40000000, -1, 0, 1, 0x40000000, INT32_MAX - 1, INT32_MAX,
 		                           0x12345678, -0x12345678};
 		for (int32_t pos = -64; pos <= 64; pos++) {

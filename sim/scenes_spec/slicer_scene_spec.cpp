@@ -35,7 +35,7 @@
 ///     (below); only the source of the number is uncovered.
 ///   * **The slice body, `SliceCore::do_slice` (`gui/ui/slice_core.cpp`).** It reads the sound it
 ///     slices, recolours the clip view and ends the slice in the sample browser -- `gui/` globals
-///     `src/scenes/**` may never name, and a card read. So the commit's *body* is behind
+///     `src/ui/scenes/**` may never name, and a card read. So the commit's *body* is behind
 ///     `SliceOps::commit` and the spec drives a fake; what IS compared, and mutation-proved, is
 ///     everything around it: the snapshot, the gate, the dispatch and the release.
 ///
@@ -52,12 +52,12 @@
 
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -101,17 +101,17 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::slicing::kSlicerSceneKind;
-using deluge::scenes::slicing::Mode;
-using deluge::scenes::slicing::slicer_scene;
-using deluge::scenes::slicing::SlicerScene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::slicing::kSlicerSceneKind;
+using deluge::ui::scenes::slicing::Mode;
+using deluge::ui::scenes::slicing::slicer_scene;
+using deluge::ui::scenes::slicing::SlicerScene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace sf = deluge::scenes::spec::slicer_fx;
+namespace sf = deluge::ui::scenes::spec::slicer_fx;
 using sf::FakeOps;
 using sf::kNumClusters;
 using sf::kSampleLength;
@@ -212,7 +212,7 @@ void expect_tables_match(Self& self, std::string_view path) {
 	expect(int64_t{slicer_scene().current_slice()}).to_equal(frozen_number(path, "current"));
 	std::vector<std::string> starts;
 	std::vector<std::string> transposes;
-	for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
+	for (int32_t i = 0; i < deluge::ui::scenes::slicing::kMaxManualSlices; i++) {
 		starts.push_back(std::to_string(slicer_scene().slice(i).start_pos));
 		transposes.push_back(std::to_string(slicer_scene().slice(i).transpose));
 	}
@@ -347,7 +347,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	it("lets a fast turn drive the REGION count negative, exactly as main does", _ {
 		// The floor wrap tests for equality with 1, so a turn that STEPS OVER 1 misses it: 16 - 20
-		// is -4, and -4 is what both sides keep. Recorded in `src/scenes/README.md`'s "Defects this
+		// is -4, and -4 is what both sides keep. Recorded in `src/ui/scenes/README.md`'s "Defects this
 		// port found in shipping firmware" as a legacy defect the port reproduces rather than fixes -- a one-sided fix would be a
 		// silent divergence, which is what every other example here exists to catch.
 		Rig r;
@@ -530,11 +530,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// are already read, so the slicer draws the preview's peaks. The browser hands the slicer its view, and the
 		// waveforms port keeps a file's columns, so the slicer's first frame is the browser's last; a fresh read would
 		// take the overview cache's peaks, which change under it here.
-		namespace bfx = deluge::scenes::spec::browser_fx;
+		namespace bfx = deluge::ui::scenes::spec::browser_fx;
 		bfx::CleanBrowser clean;
 		spec::SongFixture f = spec::make_synth_song();
 		Sample* const sample = sf::make_sample();
-		deluge::scenes::spec::SliceHeld held{sample, sf::kSlicePath};
+		deluge::ui::scenes::spec::SliceHeld held{sample, sf::kSlicePath};
 		slicer_scene().set_ports(&menu::host_ports());
 		bfx::Rig r;
 		menu::MenuContext ctx = bfx::context_of(f);
@@ -577,7 +577,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		Rig r;
 		slicer_scene().open(std::nullopt);
 		r.open();
-		const std::optional<deluge::scenes::slicing::SliceFile>& file = slicer_scene().file();
+		const std::optional<deluge::ui::scenes::slicing::SliceFile>& file = slicer_scene().file();
 		expect(file.has_value()).to_be_true();
 		if (file) {
 			expect(file->path).to_equal(r.sample->filePath);
@@ -677,9 +677,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		for (int32_t i = 0; i < 63; i++) {
 			expect(slicer_scene().add_slice_at(1000 + i)).to_be_true();
 		}
-		expect(slicer_scene().num_manual_slices()).to_equal(deluge::scenes::slicing::kMaxManualSlices);
+		expect(slicer_scene().num_manual_slices()).to_equal(deluge::ui::scenes::slicing::kMaxManualSlices);
 		expect(slicer_scene().add_slice_at(99999)).to_be_false();
-		expect(slicer_scene().num_manual_slices()).to_equal(deluge::scenes::slicing::kMaxManualSlices);
+		expect(slicer_scene().num_manual_slices()).to_equal(deluge::ui::scenes::slicing::kMaxManualSlices);
 	});
 
 	// --- the pads, against main's padAction ---------------------------------------------------
@@ -705,9 +705,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			taps.push_back(1000 * (i + 1));
 		}
 		seed_port(taps);
-		expect(slicer_scene().num_manual_slices()).to_equal(deluge::scenes::slicing::kMaxManualSlices);
+		expect(slicer_scene().num_manual_slices()).to_equal(deluge::ui::scenes::slicing::kMaxManualSlices);
 
-		for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
+		for (int32_t i = 0; i < deluge::ui::scenes::slicing::kMaxManualSlices; i++) {
 			const std::vector<std::string> slot = frozen("slots", "slot/" + std::to_string(i));
 			expect(slot.size()).to_equal(size_t{2});
 			if (slot.size() != 2) {
@@ -857,8 +857,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		seed_port({100000, 200000, 300000});
 		expect(slicer_scene().num_manual_slices()).to_equal(4);
 
-		const SceneId menu{deluge::scenes::context_menu::kContextMenuSceneKind,
-		                   static_cast<uint16_t>(deluge::scenes::context_menu::DescriptorId::ResetFlash)};
+		const SceneId menu{deluge::ui::scenes::context_menu::kContextMenuSceneKind,
+		                   static_cast<uint16_t>(deluge::ui::scenes::context_menu::DescriptorId::ResetFlash)};
 		expect(r.shell.stack().push(menu)).to_be_true();
 		expect(&r.shell.stack().input_top()).not_().to_equal(&slicer_scene());
 		r.shell.stack().pop();
@@ -925,8 +925,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 				return a.kind == deluge::ui::shell::Action::Kind::Remove && a.pop_to == kind;
 			});
 		};
-		expect(removes(deluge::scenes::slicing::kSlicerSceneKind)).to_be_true();
-		expect(removes(deluge::scenes::browser::kBrowserSceneKind)).to_be_true();
+		expect(removes(deluge::ui::scenes::slicing::kSlicerSceneKind)).to_be_true();
+		expect(removes(deluge::ui::scenes::browser::kBrowserSceneKind)).to_be_true();
 		expect(ops.stop_previewing_calls).to_equal(1);
 		// Through the shell: the slicer leaves.
 		r.pad(kDisplayWidth, 3, 64, 10);
@@ -938,7 +938,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
-		deluge::scenes::spec::HeldPorts auditioning;
+		deluge::ui::scenes::spec::HeldPorts auditioning;
 		auditioning.ui.auditioning_now = true;
 		const bind::Ports held = auditioning.ports();
 		slicer_scene().set_ports(&held);

@@ -31,10 +31,10 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The sound edits, applied to the current song.
-class HostSoundWrites final : public scenes::bind::SoundWrites {
+class HostSoundWrites final : public deluge::ui::scenes::bind::SoundWrites {
 public:
 	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const synth::SourceRange> ranges,
-	                  scenes::bind::RangesCause cause) override {
+	                  deluge::ui::scenes::bind::RangesCause cause) override {
 		if (currentSong == nullptr) {
 			return false;
 		}
@@ -42,7 +42,7 @@ public:
 		if (!applied(edit)) {
 			return false;
 		}
-		if (cause.kind == scenes::bind::RangesCause::Kind::MARKER) {
+		if (cause.kind == deluge::ui::scenes::bind::RangesCause::Kind::MARKER) {
 			// A marker moved: the sounding voices follow the zone, and the instrument counts as edited.
 			::Sound* sound = bridge::soundAt(*currentSong, slot);
 			bridge::zoneMoved(*sound, source, static_cast<MarkerType>(cause.marker), *currentSong);
@@ -142,8 +142,8 @@ public:
 		return true;
 	}
 
-	bool write_source_transpose(const scenes::bind::Addresses& where, uint8_t source, std::optional<uint16_t> range,
-	                            int32_t menu_value) override {
+	bool write_source_transpose(const deluge::ui::scenes::bind::Addresses& where, uint8_t source,
+	                            std::optional<uint16_t> range, int32_t menu_value) override {
 		if (currentSong == nullptr || source >= kNumSources) {
 			return false;
 		}
@@ -212,7 +212,7 @@ private:
 
 } // namespace
 
-scenes::bind::SoundWrites& sound_writes() {
+deluge::ui::scenes::bind::SoundWrites& sound_writes() {
 	static HostSoundWrites writes;
 	return writes;
 }

@@ -20,11 +20,11 @@
 /// base/timer_count.h — conversions between the board's hardware timer
 /// counts and real time.
 ///
-/// Foundation tier: pure math over the board crystal frequency (board_config.h's
+/// Base: pure math over the board crystal frequency (board_config.h's
 /// XTAL_SPEED_MHZ), no other dependencies — so the HAL (OLED/USB timing) and the
 /// app can both use them. Split out of the old deluge/util/cfunctions.h. (The
 /// busy-wait delayMS/delayUS wrappers, which go through the libdeluge clock
-/// boundary, stay above the foundation in util/cfunctions.h.)
+/// boundary, stay above base in util/cfunctions.h.)
 
 #include <stdint.h>
 

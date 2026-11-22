@@ -1,0 +1,78 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file
+/// @brief The actions page, the play direction and the output-MIDI page: `get`/`set` hooks and the
+///        exported root span. The `Node` literals are in `sound_actions.h`.
+
+#include "ui/scenes/menu/nodes/sound_actions.h"
+
+#include "gui/l10n/setting_names.h"
+#include "project/setting_group.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+
+#include "serialization/value.h"
+
+namespace deluge::ui::scenes::menu::nodes {
+
+using deluge::l10n::String;
+
+// ---------------------------------------------------------------------------------------------
+// Play direction
+
+size_t sequence_direction_names(const MenuContext& ctx, std::span<std::string_view> out) {
+	// The names are the note-row play-direction row's own: its first three are the clip's, and its fourth, NONE
+	// (obey-parent), shows only when an individual note row was resolved.
+	const deluge::l10n::SettingNames* names =
+	    deluge::l10n::setting_names(deluge::project::SettingGroupId::NOTE_ROW, "sequenceDirection");
+	// The row is in the table (`note_roots_spec` asserts it, four choices), so a null answer is a missing row and
+	// the item lists nothing.
+	if (names == nullptr) {
+		return 0;
+	}
+	constexpr size_t kClipChoices = 3;
+	size_t n = 0;
+	for (size_t i = 0; i < kClipChoices && n < out.size(); ++i) {
+		out[n++] = deluge::ui::scenes::text_lookup(sid(names->choices[i]));
+	}
+	bool from_note_row = false;
+	(void)bindings::read_sequence_direction(ctx, &from_note_row);
+	if (from_note_row && n < out.size()) {
+		out[n++] = deluge::ui::scenes::text_lookup(sid(names->choices[kClipChoices]));
+	}
+	return n;
+}
+
+int32_t get_sequence_direction(const MenuContext& ctx) {
+	return bindings::read_sequence_direction(ctx);
+}
+void set_sequence_direction(const MenuContext& ctx, int32_t value) {
+	bindings::write_sequence_direction(ctx, value);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Output MIDI
+
+namespace {
+constexpr const Node* kRoots[] = {&sound_actions, &sequence_direction, &output_midi};
+} // namespace
+
+const std::span<const Node* const> kSoundActionsChildren{kRoots};
+
+} // namespace deluge::ui::scenes::menu::nodes

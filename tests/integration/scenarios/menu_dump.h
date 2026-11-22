@@ -18,7 +18,7 @@
 
 #include <string>
 
-namespace deluge::scenes::menu {
+namespace deluge::ui::scenes::menu {
 
 /// @brief The whole declarative menu tree, every root of `nodes::kAllRoots`, as JSON: the shape the website's
 ///        menu documentation reads (`website/src/data/generated/menu-tree.json`).
@@ -29,4 +29,4 @@ namespace deluge::scenes::menu {
 /// @return false, with a message on stderr, when the node ids could not be assigned.
 bool dump_menu_tree(std::string& out);
 
-} // namespace deluge::scenes::menu
+} // namespace deluge::ui::scenes::menu

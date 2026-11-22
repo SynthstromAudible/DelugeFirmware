@@ -61,7 +61,7 @@ Downward arrows (gui → model) are healthy. The defining problems are the
   reclaim them.
 - **The GUI was 86k lines / 501 files at the baseline, 327 of them `menu_item`**:
   every menu item a class conflating tree structure, behavior, and rendering. The
-  menu is now node tables interpreted by one scene (`src/scenes/menu`).
+  menu is now node tables interpreted by one scene (`src/ui/scenes/menu`).
 - **Concurrency safety is ad-hoc discipline.** The UI mutates the model while
   the audio path reads it; safety rests on single-core cooperative scheduling
   plus hand-placed guards at call sites that query `deluge_storage_fs_busy()`
@@ -595,8 +595,8 @@ indicator LEDs, popups and timers (`ui_timer_manager`), and the menu
 *interpreter*.
 
 **The menu system is data + interpreter.** Menu trees are declarative
-structure (`src/scenes/menu/nodes/`), a small item-kind taxonomy plus tables;
-items bind to a setting, param or cable by address through `scenes/bind`, or
+structure (`src/ui/scenes/menu/nodes/`), a small item-kind taxonomy plus tables;
+items bind to a setting, param or cable by address through `ui/scenes/bind`, or
 name an action for the host; rendering is toolkit code (`src/ui`) that
 `MenuScene` draws with. The model keeps its own reverb enum
 (`deluge::effects::ReverbModel`), and the menu reflects it.
@@ -708,7 +708,7 @@ param model*; real dynamic CLAP hosting applies to desktop/host builds.
 (Open question §10.)
 
 **Registry-driven UI.** The menu's param items are table rows
-(`src/scenes/menu/nodes/`); with `ParamInfo` available, those rows, mod-matrix
+(`src/ui/scenes/menu/nodes/`); with `ParamInfo` available, those rows, mod-matrix
 shortcuts, gold-knob assignment, and automation-lane naming become generic
 code over it. This is where §6.4's menu tables and §7 meet.
 

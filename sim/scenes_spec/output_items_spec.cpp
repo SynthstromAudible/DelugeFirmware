@@ -1,5 +1,5 @@
 /// @file
-/// @brief The last two bespoke menu items (`scenes/menu/nodes/output_items.h`): which node carries
+/// @brief The last two bespoke menu items (`ui/scenes/menu/nodes/output_items.h`): which node carries
 ///        which item, what each one does when the menu focuses it -- and, at the end of it, that the
 ///        tree has **no `Kind::Custom` placeholders left at all**.
 ///
@@ -23,21 +23,21 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/output_items.h"
-#include "scenes/menu/nodes/sound_osc.h" // kPending -- the mechanism that must outlive its users
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/output_items.h"
+#include "ui/scenes/menu/nodes/sound_osc.h" // kPending -- the mechanism that must outlive its users
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -79,10 +79,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using namespace deluge::scenes::spec::outputitems;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using namespace deluge::ui::scenes::spec::outputitems;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -91,7 +91,7 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// Board encoder index (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select.
 constexpr uint8_t kSelectEncoder = 3;
@@ -512,7 +512,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		// `Linked::renderSubmenuItemTypeForOled`
 		// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) is one of the three overrides of
 		// legacy's base blit, so this row is a checkbox in both states -- never the submenu arrow
-		// `CustomItem::row_icon` defaults to (`scenes/menu/node.h`). Both icons are named, so a port that returned one
+		// `CustomItem::row_icon` defaults to (`ui/scenes/menu/node.h`). Both icons are named, so a port that returned one
 		// constant could not pass, and the arrow is named too, so a port that fell back to the default could not
 		// either.
 		MidiRig rig;
@@ -531,9 +531,9 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Disabled then Enabled.
 		expect(nodes::midi_device_linked.bind.names.data()).to_equal(std::data(nodes::kToggleWords));
 		expect(nodes::midi_device_linked.bind.names.size()).to_equal(std::size(nodes::kToggleWords));
-		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
+		expect(std::string{deluge::ui::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
 		    .to_equal(std::string{"Disabled"});
-		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[1])})
+		expect(std::string{deluge::ui::scenes::text_lookup(nodes::midi_device_linked.bind.names[1])})
 		    .to_equal(std::string{"Enabled"});
 	});
 
@@ -735,13 +735,13 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		ClipRig rig;
 		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 		MenuContext ctx = rig.ctx();
-		deluge::scenes::bind::test::RecordingWrites recording;
+		deluge::ui::scenes::bind::test::RecordingWrites recording;
 		ctx.ports.writes = &recording;
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);
 		r.turn(1);
 		r.step();
-		const auto wrote = std::ranges::find_if(recording.requests, [&](const deluge::scenes::bind::WriteRequest& w) {
+		const auto wrote = std::ranges::find_if(recording.requests, [&](const deluge::ui::scenes::bind::WriteRequest& w) {
 			return w.target.group == deluge::project::SettingGroupId::AUDIO_INPUT
 			       && w.target.path == "outputRecordingFrom"
 			       && w.menu_value == static_cast<int32_t>(*rig.synth_b->id());
@@ -919,12 +919,12 @@ describe midi_instrument_records("scenes::menu MIDI instrument writes reach the 
 		MidiRig rig;
 		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
 		MenuContext ctx = rig.ctx();
-		deluge::scenes::bind::test::RecordingWrites recording;
+		deluge::ui::scenes::bind::test::RecordingWrites recording;
 		ctx.ports.writes = &recording;
 		menu::MenuState state{};
 		nodes::kMidiDeviceLinked.on_focus(ctx, state);
 		const bool unlinked = recording.gestures.size() == 1
-		                      && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
+		                      && recording.gestures[0].kind == deluge::ui::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
 		                      && recording.gestures[0].target.path == "deviceDefinitionFileName"
 		                      && recording.gestures[0].text.empty();
 		expect(unlinked).to_be_true();

@@ -12,7 +12,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/recording/foreground_recording.h"
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Settle and free the published input take, if there is one. A take some other path still owns stays
 ///        published: `slowRoutine` frees only one `orphanInputTake` handed over.
@@ -25,4 +25,4 @@ inline void settle_torn_down_take() {
 	deluge::recording::slowRoutine();
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

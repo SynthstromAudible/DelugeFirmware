@@ -101,7 +101,7 @@
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/shell_notification_sink.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "scenes/registry.h"
+#include "ui/scenes/registry.h"
 
 namespace encoders = deluge::hid::encoders;
 
@@ -671,7 +671,7 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-	// ---- Boot wiring for the UI (`src/scenes/registry.h`'s boot-wiring note) --------------------
+	// ---- Boot wiring for the UI (`src/ui/scenes/registry.h`'s boot-wiring note) --------------------
 	//
 	// Settings the scenes and the guest's `Shell` cannot read for themselves. Each is pushed beside its writer, since
 	// a boot call alone goes stale the moment the user changes the setting; where the writer is the flash read itself,
@@ -688,13 +688,13 @@ static void deluge_boot(const DelugeBoard* board) {
 	//     the device port's `pads/playCursor` row where they draw it.
 
 	// Number the menu tree. Idempotent (a function-local static), and normally already done by
-	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is
+	// `shellHostUI`'s construction through `ui::scenes::scene_registry()`; called anyway because that is
 	// static-initialisation order rather than a guarantee, and `MenuScene::save_state`,
 	// `restore_state` and the shortcut-pad jump silently do nothing on an unnumbered tree.
-	(void)deluge::scenes::assigned_node_ids();
+	(void)deluge::ui::scenes::assigned_node_ids();
 
 	// Install the note bridge: function pointers onto `instrumentClipView`'s note and note-row
-	// state, so `src/scenes` reaches it without an include. It holds no `Song`, so it has no
+	// state, so `src/ui/scenes` reaches it without an include. It holds no `Song`, so it has no
 	// ordering constraint of its own (see `shell_note_bridge.h`).
 	deluge::gui::ui::wireShellNoteBridge();
 

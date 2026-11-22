@@ -8,7 +8,7 @@
 #include <string>
 #include <tuple>
 
-namespace deluge::scenes::bind::test {
+namespace deluge::ui::scenes::bind::test {
 
 uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
 	asked.push_back(slot);
@@ -522,4 +522,4 @@ void RecordingTakeActions::orphan() {
 	}
 }
 
-} // namespace deluge::scenes::bind::test
+} // namespace deluge::ui::scenes::bind::test

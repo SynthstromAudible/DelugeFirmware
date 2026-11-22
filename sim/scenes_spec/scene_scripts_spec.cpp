@@ -109,23 +109,23 @@
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/audio_clip/audio_clip_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/overlay/count_in_scene.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/overlay/screensaver_scene.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/midi_learn.h"
-#include "scenes/services/mod_knobs.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/overlay/count_in_scene.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/overlay/screensaver_scene.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/midi_learn.h"
+#include "ui/scenes/services/mod_knobs.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
@@ -169,20 +169,20 @@
 
 using namespace deluge;
 
-using namespace deluge::scenes;
-using deluge::scenes::audio_clip::audio_clip_scene;
-using deluge::scenes::audio_clip::kAudioClipSceneKind;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::slicing::kSlicerSceneKind;
-using deluge::scenes::slicing::Mode;
-using deluge::scenes::slicing::slicer_scene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::audio_clip::audio_clip_scene;
+using deluge::ui::scenes::audio_clip::kAudioClipSceneKind;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::slicing::kSlicerSceneKind;
+using deluge::ui::scenes::slicing::Mode;
+using deluge::ui::scenes::slicing::slicer_scene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace bindings = deluge::scenes::menu::bindings;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace bindings = deluge::ui::scenes::menu::bindings;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief `PlaybackHandler`'s "we are inside a swung tick" latch, declared rather than included
 ///        exactly as `audio_clip_scene_spec.cpp` and `timeline_spec.cpp` declare it.
@@ -303,7 +303,7 @@ void reset_globals() {
 
 /// The fixture that installs the real three. It lives in `support/real_services.h` so
 /// `menu_scripts_spec.cpp` can install the same three -- see that header for what it is and why.
-using deluge::scenes::spec::RealServices;
+using deluge::ui::scenes::spec::RealServices;
 
 /// @brief Everything a script run needs put back afterwards, in one guard.
 ///
@@ -349,12 +349,12 @@ struct SceneReset {
 /// slicer is its pixels, and the boundary's *calls* are that spec's subject. It is still needed:
 /// `SlicerScene::preview` and the mode toggle both reach `ops_`, and leaving it null would make a
 /// pad tap a different code path from the one a device takes.
-struct ScriptOps final : deluge::scenes::slicing::SliceOps {
+struct ScriptOps final : deluge::ui::scenes::slicing::SliceOps {
 	void stop_previewing() override {}
 	void kill_voices() override {}
 	void restore_full_range() override {}
-	void audition(const deluge::scenes::slicing::PreviewRequest&) override {}
-	bool begin_commit(const deluge::scenes::slicing::SliceCommit&) override { return false; }
+	void audition(const deluge::ui::scenes::slicing::PreviewRequest&) override {}
+	bool begin_commit(const deluge::ui::scenes::slicing::SliceCommit&) override { return false; }
 	std::optional<int32_t> play_position() override { return std::nullopt; }
 };
 
@@ -365,7 +365,7 @@ struct SavedScreensaverMode {
 	::ScreensaverMode saved = FlashStorage::screensaverMode;
 	explicit SavedScreensaverMode(::ScreensaverMode mode) {
 		FlashStorage::screensaverMode = mode;
-		overlay::screensaver_scene().set_device(deluge::scenes::menu::host_ports().device);
+		overlay::screensaver_scene().set_device(deluge::ui::scenes::menu::host_ports().device);
 	}
 	~SavedScreensaverMode() { FlashStorage::screensaverMode = saved; }
 	SavedScreensaverMode(const SavedScreensaverMode&) = delete;
@@ -387,8 +387,8 @@ constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 ///        waveforms port's SLICE address then resolves through.
 /// @param held The sample in the preview drum; it must outlive the run.
 /// @param ops  The slice boundary; borrowed, and unwired again by `SceneReset`.
-void open_slicer(const deluge::scenes::spec::SliceHeld& held, deluge::scenes::slicing::SliceOps& ops) {
-	slicer_scene().set_ports(&deluge::scenes::menu::host_ports());
+void open_slicer(const deluge::ui::scenes::spec::SliceHeld& held, deluge::ui::scenes::slicing::SliceOps& ops) {
+	slicer_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 	held.open();
 	slicer_scene().set_ops(&ops);
 }
@@ -435,7 +435,7 @@ std::function<void(uint32_t)> slicer_seed() {
 struct CountInHooks {
 	Shell* shell = nullptr;
 
-	CountInHooks() { overlay::count_in_scene().set_transport(deluge::scenes::menu::host_ports().transport); }
+	CountInHooks() { overlay::count_in_scene().set_transport(deluge::ui::scenes::menu::host_ports().transport); }
 	CountInHooks(const CountInHooks&) = delete;
 	CountInHooks& operator=(const CountInHooks&) = delete;
 
@@ -531,7 +531,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -541,7 +541,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "audio_clip", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "audio_clip", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{7});
 		// **The transport really ran**, which is what makes `after_record`/`after_play`'s LED lines
 		// evidence rather than decoration: `services::GlobalControls` called
@@ -558,7 +558,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -568,7 +568,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "audio_clip_64", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "audio_clip_64", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
 	});
 
@@ -581,7 +581,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		ScriptOps ops;
-		const deluge::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
 		open_slicer(held, ops);
 		// A song for the services to be told about. The slicer is not a root scene and is not
 		// showing this clip -- but on the device `View`'s mod target is whatever clip the slicer was
@@ -595,7 +595,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.before_tick = slicer_seed();
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "slicer", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "slicer", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 		// The gestures really landed, not merely drew: REGION's four detents, the mode toggle, the
 		// slot press and the thirty-detent start move, each read back from the scene's own state.
@@ -611,7 +611,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SceneReset reset;
 		spec::QuietAudio quiet;
 		ScriptOps ops;
-		const deluge::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{make_sample(), "SAMPLES/SLICE.WAV"};
 		open_slicer(held, ops);
 		spec::SongFixture song = spec::make_synth_song();
 		RealServices svc;
@@ -622,7 +622,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.before_tick = slicer_seed();
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "slicer_64", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "slicer_64", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
 	});
 
@@ -636,7 +636,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -646,7 +646,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "param_popup", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "param_popup", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{4});
 
 		// The popup is a process singleton, and the run's last frame is the one AFTER its deadline
@@ -680,7 +680,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -690,7 +690,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "param_popup_64", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "param_popup_64", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
 	});
 
@@ -745,7 +745,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_gold_turn", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "menu_gold_turn", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// **`nodes::saturation` itself never moves.** `int_value` claims only the select turn now,
@@ -783,7 +783,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// The order is observable only where a scene and `mod_knobs` could both claim the same
 		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:
 		// `AudioClipScene` declines it explicitly (`AudioClipScene::handle`), `MenuScene` has
-		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/scenes/` finds nothing
+		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/ui/scenes/` finds nothing
 		// outside `ModKnobs` itself. So the order stays pinned by `unit/ui/shell/router_spec.cpp`'s "a scene that
 		// claims a gold-knob turn gets it, and mod_knobs never sees it", which uses a spec-local
 		// scene that does -- and a recorded frame for it cannot exist until a scene has such
@@ -808,7 +808,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -820,7 +820,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.config.seed = 0x7777; // the seed the per-kind unit goldens were recorded from
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "screensaver", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "screensaver", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{4});
 		// The end marker went up, which is the whole claim of the last frame: the waking press was
 		// not swallowed by the wake.
@@ -835,7 +835,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		SavedScreensaverMode mode{::ScreensaverMode::DELUGE};
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 
 		RealServices svc;
@@ -847,7 +847,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.config.seed = 0x7777; // the seed the per-kind unit goldens were recorded from
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "screensaver_64", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "screensaver_64", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
 	});
 
@@ -861,7 +861,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
@@ -877,7 +877,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.before_tick = hooks.before_tick();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "count_in", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "count_in", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{4});
 		expect(overlay::count_in_scene().showing()).to_be_false();
 	});
@@ -889,7 +889,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		attach_audio_sample(f, make_sample());
-		audio_clip_scene().set_ports(&deluge::scenes::menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
 		audio_clip_scene().open(deluge::project::ClipAddress{f.clip->id()}, &f.song->project);
 		playbackHandler.currentVisualCountForCountIn = 0;
 
@@ -905,7 +905,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		opts.before_tick = hooks.before_tick();
 
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "count_in_64", scenes::scene_registry(), svc.slots(), opts);
+		    uitest::expect_script_goldens(self, "count_in_64", ui::scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
 	});
 });

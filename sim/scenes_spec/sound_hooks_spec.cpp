@@ -4,13 +4,13 @@
 // else the clip). Each is a request to the menu's sink; with the app's sink, the record holds the result.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/sound_actions.h"
-#include "scenes/menu/nodes/sound_fx.h"
-#include "scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/sound_actions.h"
+#include "ui/scenes/menu/nodes/sound_fx.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
@@ -36,9 +36,9 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-namespace nodes = deluge::scenes::menu::nodes;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 using deluge::serialization::Value;
 
 namespace {

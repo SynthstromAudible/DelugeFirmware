@@ -6,14 +6,14 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
 #include "ui/widgets/core/led_frame.h"
@@ -27,13 +27,13 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 

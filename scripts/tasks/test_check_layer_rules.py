@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 """Unit tests for check_layer_rules.py's scenes rows: the scenes name no Edit, no ModelStack and no engine object,
-and read the model and the runtime only through `scenes/bind`.
+and read the model and the runtime only through `ui/scenes/bind`.
 
 Run directly with:
     python3 scripts/tasks/test_check_layer_rules.py
@@ -41,13 +41,14 @@ class ScenesRows(unittest.TestCase):
         ):
             with self.subTest(line=line):
                 counts = self.counts(
-                    "src/scenes/menu/nodes/planted.cpp", f"void f() {{\n\t{line}\n}}\n"
+                    "src/ui/scenes/menu/nodes/planted.cpp",
+                    f"void f() {{\n\t{line}\n}}\n",
                 )
                 self.assertEqual(counts.get("scenes-no-engine-pointers"), 1, line)
 
     def test_a_comment_is_not(self):
         comment = self.counts(
-            "src/scenes/menu/nodes/planted.cpp",
+            "src/ui/scenes/menu/nodes/planted.cpp",
             "/// Legacy's `Sound*` is not held here.\n",
         )
         self.assertNotIn("scenes-no-engine-pointers", comment)
@@ -57,14 +58,14 @@ class ScenesRows(unittest.TestCase):
             "scenes-no-engine-pointers": "void f() {\n\tSound* sound = nullptr;\n}\n",
         }
         for rel in (
-            "src/scenes/menu/context.cpp",
-            "src/scenes/menu/context.h",
-            "src/scenes/menu/bindings.cpp",
-            "src/scenes/overlay/param_popup_scene.h",
-            "src/scenes/overlay/param_popup_scene.cpp",
-            "src/scenes/services/mod_knobs.cpp",
-            "src/scenes/services/mod_knobs.h",
-            "src/scenes/services/mod_target.h",
+            "src/ui/scenes/menu/context.cpp",
+            "src/ui/scenes/menu/context.h",
+            "src/ui/scenes/menu/bindings.cpp",
+            "src/ui/scenes/overlay/param_popup_scene.h",
+            "src/ui/scenes/overlay/param_popup_scene.cpp",
+            "src/ui/scenes/services/mod_knobs.cpp",
+            "src/ui/scenes/services/mod_knobs.h",
+            "src/ui/scenes/services/mod_target.h",
         ):
             for rule, text in plants.items():
                 with self.subTest(rel=rel, rule=rule):

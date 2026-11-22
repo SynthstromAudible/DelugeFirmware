@@ -23,16 +23,16 @@
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "project/setting_group.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/context_menu_items.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/context_menu_items.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -69,13 +69,13 @@
 /// (`AudioInputSelector::selectEncoderAction`), so an example that drives either half has to put it back.
 extern AudioInputChannel defaultAudioOutputInputChannel;
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::context_menu::Descriptor;
-using deluge::scenes::context_menu::DescriptorId;
-using deluge::scenes::context_menu::Selection;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::context_menu::Descriptor;
+using deluge::ui::scenes::context_menu::DescriptorId;
+using deluge::ui::scenes::context_menu::Selection;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
@@ -84,8 +84,8 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
-namespace cm = deluge::scenes::context_menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+namespace cm = deluge::ui::scenes::context_menu;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -473,7 +473,7 @@ describe audio_source_sink("scenes::context_menu the audio-source descriptor: th
 		SourceGuard guard{r.song.output};
 		seed(r.song.output, AudioInputChannel::LEFT, nullptr);
 		MenuContext ctx = r.menu_context();
-		deluge::scenes::bind::test::RecordingWrites recording;
+		deluge::ui::scenes::bind::test::RecordingWrites recording;
 		ctx.ports.writes = &recording;
 		r.open_selector(ctx);
 		r.shell.tick(5);
@@ -486,7 +486,7 @@ describe audio_source_sink("scenes::context_menu the audio-source descriptor: th
 		expect(channel).to_be_true();
 		const bool default_channel =
 		    recording.gestures.size() == 1
-		    && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::DEFAULT_INPUT_CHANNEL;
+		    && recording.gestures[0].kind == deluge::ui::scenes::bind::test::RecordingWrites::Gesture::Kind::DEFAULT_INPUT_CHANNEL;
 		expect(default_channel).to_be_true();
 	});
 

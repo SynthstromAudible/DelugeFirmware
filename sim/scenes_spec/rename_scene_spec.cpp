@@ -15,14 +15,14 @@
 #include "gui/ui/menu_view_of.h"
 #include "project/device_settings.h"
 #include "project/setting_group.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/rename/rename_scene.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/rename/rename_scene.h"
 #include "unit/ui/support/frames.h"
 
 #include "base/notify/notice_queue.h"
@@ -59,12 +59,12 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::rename::rename_scene;
-using deluge::scenes::rename::RenameScene;
-using deluge::scenes::rename::TargetId;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::rename::rename_scene;
+using deluge::ui::scenes::rename::RenameScene;
+using deluge::ui::scenes::rename::TargetId;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -79,7 +79,7 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// `Action` unqualified is the model's own undo `Action` (`model/action/action.h`, pulled in
 /// through `menu_scene.h`'s model closure); the shell's is a different type with the same name.
@@ -279,8 +279,8 @@ MenuContext context_of(spec::SongFixture& f) {
 
 /// The name the @p group record holds for the owner @p ctx names, or empty.
 std::string recorded_name(const MenuContext& ctx, deluge::project::SettingGroupId group) {
-	const std::optional<deluge::project::SettingAddress> address = deluge::scenes::bind::setting_address(
-	    {.kind = deluge::scenes::bind::Target::Kind::MODEL, .path = "name", .group = group}, ctx.addresses);
+	const std::optional<deluge::project::SettingAddress> address = deluge::ui::scenes::bind::setting_address(
+	    {.kind = deluge::ui::scenes::bind::Target::Kind::MODEL, .path = "name", .group = group}, ctx.addresses);
 	const std::optional<deluge::serialization::Value> value =
 	    address ? deluge::project::read_setting(*ctx.model, *address, "name") : std::nullopt;
 	return value ? value->str() : std::string{};
@@ -632,7 +632,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		MenuContext ctx = context_of(f);
-		deluge::scenes::bind::test::RecordingWrites recording;
+		deluge::ui::scenes::bind::test::RecordingWrites recording;
 		ctx.ports.writes = &recording;
 		r.open_rename(ctx, TargetId::Output);
 		r.tick(0);
@@ -641,7 +641,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		(void)commit(rename_scene());
 		expect(recording.gestures.size()).to_equal(size_t(1));
 		const bool named = !recording.gestures.empty()
-		                   && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
+		                   && recording.gestures[0].kind == deluge::ui::scenes::bind::test::RecordingWrites::Gesture::Kind::TEXT
 		                   && recording.gestures[0].text == "Pad"
 		                   && recording.gestures[0].target.group == deluge::project::SettingGroupId::TRACK;
 		expect(named).to_be_true();

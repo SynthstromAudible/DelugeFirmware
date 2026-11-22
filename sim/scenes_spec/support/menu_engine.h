@@ -5,8 +5,8 @@
 // items, or setting a fixture up through an engine object, resolves them here.
 
 #include "model/project_bridge/controls_bridge.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/drum/non_audio_drum.h"
@@ -23,7 +23,7 @@
 #include <cstdlib>
 #include <optional>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief What a menu context edits, as engine objects.
 struct MenuEngine {
@@ -42,7 +42,7 @@ struct MenuEngine {
 /// @param song The legacy song whose record @p ctx names (`MenuContext::model`).
 /// @return The engine objects; none when @p ctx names no record. A context over another song's record is a spec's
 ///         mispairing, which aborts with its reason on stderr rather than resolve to nothing.
-inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx, Song& song) {
+inline MenuEngine menu_engine(const deluge::ui::scenes::menu::MenuContext& ctx, Song& song) {
 	MenuEngine e{};
 	if (ctx.model == nullptr) {
 		return e;
@@ -97,14 +97,14 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx, Song
 /// @brief Whether the port's learn target @p port is legacy's learning thing @p legacy, on @p ctx's owner: the same
 ///        param by its engine id, or neither.
 inline bool learns_as(const std::optional<deluge::project::OwnerParamTarget>& port,
-                      const deluge::modulation::KnobTarget& legacy, const deluge::scenes::menu::MenuContext& ctx) {
+                      const deluge::modulation::KnobTarget& legacy, const deluge::ui::scenes::menu::MenuContext& ctx) {
 	if (!legacy) {
 		return !port.has_value();
 	}
 	const auto unpatched = ctx.addresses.slot ? deluge::modulation::params::Kind::UNPATCHED_SOUND
 	                                          : deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	return port && port->owner == deluge::scenes::menu::bindings::controls_owner(ctx)
+	return port && port->owner == deluge::ui::scenes::menu::bindings::controls_owner(ctx)
 	       && port->param.id == deluge::bridge::controlTargetOf(legacy, unpatched);
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

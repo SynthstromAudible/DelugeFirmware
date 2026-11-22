@@ -22,7 +22,7 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::scenes::spec::clip_overview {
+namespace deluge::ui::scenes::spec::clip_overview {
 
 /// @brief One kind of clip or kit row.
 enum class Case : uint8_t {
@@ -173,4 +173,4 @@ inline std::string rgb_text(const RGB& c) {
 	return std::to_string(c.r) + "," + std::to_string(c.g) + "," + std::to_string(c.b);
 }
 
-} // namespace deluge::scenes::spec::clip_overview
+} // namespace deluge::ui::scenes::spec::clip_overview

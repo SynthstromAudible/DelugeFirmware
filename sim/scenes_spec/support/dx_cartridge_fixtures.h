@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <string>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A 32-voice bulk dump whose program @c i is named "PROG <i>" and whose voice bytes differ per program, its
 /// checksum right.
@@ -36,4 +36,4 @@ inline std::array<std::byte, kSysexSize> make_bank() {
 	return bank;
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

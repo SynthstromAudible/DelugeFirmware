@@ -8,12 +8,12 @@
 #include "project/owner_plugin.h"
 #include "project/param_address.h"
 #include "sample-view/peaks.h"
-#include "scenes/bind/knob_focus.h"
-#include "scenes/bind/ports/param_info.h"
-#include "scenes/bind/ports/ports.h"
-#include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
 #include "ui/controls/sink.h"
+#include "ui/scenes/bind/knob_focus.h"
+#include "ui/scenes/bind/ports/param_info.h"
+#include "ui/scenes/bind/ports/ports.h"
+#include "ui/scenes/bind/ports/write_sink.h"
 
 #include <array>
 #include <bitset>
@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::scenes::bind::test {
+namespace deluge::ui::scenes::bind::test {
 
 /// @brief AudioFacts a spec sets directly.
 struct FakeAudioFacts final : AudioFacts {
@@ -688,4 +688,4 @@ struct FakeHost {
 	}
 };
 
-} // namespace deluge::scenes::bind::test
+} // namespace deluge::ui::scenes::bind::test

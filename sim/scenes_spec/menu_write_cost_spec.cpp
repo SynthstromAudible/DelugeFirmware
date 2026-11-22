@@ -4,10 +4,10 @@
 // running it).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
@@ -39,9 +39,9 @@
 #include <optional>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 
@@ -230,22 +230,22 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 	it("measures a marker detent on a synth's sample source", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		deluge::scenes::spec::make_current(f.song);
+		deluge::ui::scenes::spec::make_current(f.song);
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
 		std::vector<deluge::synth::SourceRange> ranges =
-		    deluge::scenes::spec::first_ranges(slot);
+		    deluge::ui::scenes::spec::first_ranges(slot);
 		ranges[0].zone.end = 100000;
 		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
 			       ranges[0].zone.start = (i % 2) != 0 ? 1000 : 2000;
 			       (void)menu::host_ports().sound_writes->write_ranges(slot, 0, ranges, marker);
 		       }));
-		expect(deluge::scenes::spec::first_ranges(slot)[0].zone.end).to_equal(uint64_t{100000});
-		deluge::scenes::spec::make_current(saved);
+		expect(deluge::ui::scenes::spec::first_ranges(slot)[0].zone.end).to_equal(uint64_t{100000});
+		deluge::ui::scenes::spec::make_current(saved);
 	});
 
 	it("measures a compressor knob detent on the master's chain and on a full kit's", _ {

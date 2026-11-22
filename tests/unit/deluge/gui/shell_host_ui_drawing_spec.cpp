@@ -239,7 +239,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
-		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+		expect(r.open(deluge::ui::scenes::marker::kMarkerSceneKind)).to_be_true();
 
 		fakelegacyui::marker_sidebar_answer = true;
 		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_true();
@@ -478,7 +478,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
-		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::marker::kMarkerSceneKind, 0})).to_be_true();
+		expect(r.guest.shell().stack().push(SceneId{deluge::ui::scenes::marker::kMarkerSceneKind, 0})).to_be_true();
 		size_t requests = fakelegacyui::render_requests.size();
 		set_clock_ms(10);
 		(void)r.guest.timerCallback();
@@ -488,7 +488,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
 
 		// Gone: its main pads and the sidebar it answered for are both the root's again.
-		r.guest.shell().stack().pop(deluge::scenes::marker::kMarkerSceneKind);
+		r.guest.shell().stack().pop(deluge::ui::scenes::marker::kMarkerSceneKind);
 		requests = fakelegacyui::render_requests.size();
 		set_clock_ms(20);
 		(void)r.guest.timerCallback();
@@ -502,7 +502,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		r.marker.overlay = true;
 		r.marker.regions = PadRegions::Main;
 		r.marker.remove_self_on_event = true;
-		expect(r.open(deluge::scenes::marker::kMarkerSceneKind)).to_be_true();
+		expect(r.open(deluge::ui::scenes::marker::kMarkerSceneKind)).to_be_true();
 		r.guest.shell().tick(0);
 		fakelegacyui::reset();
 
@@ -522,7 +522,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
+		// `MenuScene::occludes_grid()` is false (`ui/scenes/menu/menu_scene.h`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`origin/main:src/deluge/gui/ui/sound_editor.h`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp`).
@@ -547,7 +547,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask (`menu::greyout_mask`,
-		// `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me" (`UI::getGreyoutColsAndRows` in
+		// `ui/scenes/menu/pads.cpp`), and legacy's false means "obey UI under me" (`UI::getGreyoutColsAndRows` in
 		// `gui/ui/ui.h`). The two out-parameters are accumulators the caller zeroed and the next UI down is about to be
 		// asked with (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`), so a false answer must leave them alone.
 		r.base.greyout = {};

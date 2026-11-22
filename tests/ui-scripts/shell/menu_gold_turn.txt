@@ -9,11 +9,11 @@
 #
 # **What it pins.** With `int_value` claiming only the select turn, this script's two `GoldUpper` steps are unclaimed by
 # `MenuScene` and reach the real `ModKnobs`, exactly as they would over any other view. `nodes::saturation` itself never
-# moves -- it is built with `int_item()` (`scenes/menu/nodes/sound_fx.h`), which never gives it a `bind.param` for
+# moves -- it is built with `int_item()` (`ui/scenes/menu/nodes/sound_fx.h`), which never gives it a `bind.param` for
 # `ModKnobs` to write through, so it cannot be the thing a gold turn here edits. What the turn DOES move is whatever
 # real modulation param GoldUpper is currently pointed at: `idle`'s `indicator upper` reads `16` and `after_gold_turn`'s
 # reads `36`. And because `GuestKnobPresentation::suppress_value_popup`
-# (`src/scenes/services/guest_knob_presentation.h`) -- main's "let's see if we're editing the same param in the menu, if
+# (`src/ui/scenes/services/guest_knob_presentation.h`) -- main's "let's see if we're editing the same param in the menu, if
 # so, don't show pop-up" in `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`) --
 # compares the turn's param against `menu_scene().focused_value()->bind.param`, and `nodes::saturation` has none to
 # compare, the guard cannot suppress the popup here: a `ParamPopupScene` goes up over the menu. `idle` carries one

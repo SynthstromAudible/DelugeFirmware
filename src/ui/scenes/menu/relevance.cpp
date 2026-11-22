@@ -1,0 +1,356 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file
+/// @brief The relevance predicates. See `relevance.h` for the interface and for why the
+///        per-source ones come in twos.
+///
+/// Every function here is a transcription of the legacy `isRelevant` override cited on its
+/// declaration -- `src/ui/scenes` may not include `gui/menu_item/`, so the tests cross-check the two
+/// (`sim/scenes_spec/tables_1_spec.cpp` calls the legacy overrides, which are public
+/// (`MenuItem::isRelevant` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), against these).
+///
+/// **A null `sound` is never relevant.** Legacy's overrides all begin by
+/// `static_cast<Sound*>(modControllable)` and dereference it: they are only ever reached from a
+/// root whose `currentModControllable` IS a `Sound`. A `MenuContext` can carry a null `sound` (a
+/// MIDI clip, the settings root), so each predicate below tests it first and answers false --
+/// "this item does not apply here", which is exactly what relevance means.
+
+#include "ui/scenes/menu/relevance.h"
+
+#include "ui/scenes/menu/context.h"
+
+#include "instruments/classic/state_access.h"
+#include "project/audio_input.h"
+#include "project/device_settings.h"
+#include "project/features.h"
+#include "project/setting_group.h"
+#include "project/song.h"
+#include "ui/scenes/bind/device_reader.h"
+#include "ui/scenes/bind/ports/waveforms.h"
+
+#include <array>
+
+namespace deluge::ui::scenes::menu::relevance {
+
+namespace {
+
+using deluge::instruments::classic::OscType;
+using deluge::instruments::classic::source_type;
+using deluge::instruments::classic::SourceId;
+using deluge::instruments::classic::synth_mode;
+using deluge::instruments::classic::SynthMode;
+
+/// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
+const deluge::instruments::classic::SoundState* sound_state(const MenuContext& ctx) {
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
+}
+
+/// @brief Does source @p index hold a loaded audio file? `SourceResources::hasAtLeastOneAudioFileLoaded`: a fact of the
+/// card.
+bool loaded(const MenuContext& ctx, uint8_t index) {
+	return ctx.ports.sound != nullptr && ctx.addresses.slot
+	       && ((ctx.ports.sound->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
+}
+
+/// @brief `isSampleModeSample` (`origin/main:src/deluge/gui/menu_item/sample/utils.cpp`).
+bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE
+	       && source_type(*state, static_cast<SourceId>(index)) == OscType::SAMPLE && loaded(ctx, index);
+}
+
+/// @brief `FileSelector::isRelevant` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`): browsing can load a
+///        sample even when the oscillator uses a synth waveform, so any subtractive sound qualifies, and ring-mod with
+///        a wavetable.
+bool file_selector(const MenuContext& ctx, uint8_t index) {
+	if (ctx.is_audio_clip) {
+		return true; // `getCurrentClip()->type == ClipType::AUDIO`
+	}
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	if (state == nullptr) {
+		return false;
+	}
+	return synth_mode(*state) == SynthMode::SUBTRACTIVE
+	       || (synth_mode(*state) == SynthMode::RINGMOD
+	           && source_type(*state, static_cast<SourceId>(index)) == OscType::WAVETABLE);
+}
+
+/// @brief `sample::Transpose::isRelevant` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
+bool transpose(const MenuContext& ctx, uint8_t index) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	if (state == nullptr) {
+		return false;
+	}
+	const OscType type = source_type(*state, static_cast<SourceId>(index));
+	if (type == OscType::SAMPLE || type == OscType::WAVETABLE) {
+		return loaded(ctx, index);
+	}
+	return true;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------------------------
+// Sound-wide
+
+bool is_fm(const MenuContext& ctx) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	return state != nullptr && synth_mode(*state) == SynthMode::FM;
+}
+bool is_subtractive(const MenuContext& ctx) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE;
+}
+// ---------------------------------------------------------------------------------------------
+// Per-source
+
+bool osc0_file_selector(const MenuContext& ctx) {
+	return file_selector(ctx, 0);
+}
+bool osc1_file_selector(const MenuContext& ctx) {
+	return file_selector(ctx, 1);
+}
+bool osc0_transpose(const MenuContext& ctx) {
+	return transpose(ctx, 0);
+}
+bool osc1_transpose(const MenuContext& ctx) {
+	return transpose(ctx, 1);
+}
+bool osc0_is_sample(const MenuContext& ctx) {
+	return is_sample_mode_sample(ctx, 0);
+}
+bool osc1_is_sample(const MenuContext& ctx) {
+	return is_sample_mode_sample(ctx, 1);
+}
+// ---------------------------------------------------------------------------------------------
+// The rest of the sound-editor root
+
+bool is_kit_row(const MenuContext& ctx) {
+	return ctx.is_kit && !ctx.is_kit_global_fx;
+}
+bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
+	// `!editingGateDrumRow() && !editingKitAffectEntire()`: the kit's selected drum, whatever the menu edits.
+	return !ctx.gate_drum_row && !(ctx.is_kit && ctx.is_kit_global_fx);
+}
+bool not_non_audio_drum_row(const MenuContext& ctx) {
+	return !ctx.non_audio_drum_row;
+}
+bool not_gate_drum_row(const MenuContext& ctx) {
+	return !ctx.gate_drum_row;
+}
+bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx) {
+	return !ctx.non_audio_drum_row && !(ctx.is_kit && ctx.is_kit_global_fx);
+}
+
+bool reverb_sidechain_on(const MenuContext& ctx) {
+	return ctx.model != nullptr
+	       && ctx.model->reverb.sidechain_volume
+	              >= 0; // `Shape::isRelevant` (`origin/main:src/deluge/gui/menu_item/reverb/sidechain/shape.h`)
+}
+
+bool stutter_quantize_allowed(const MenuContext& ctx) {
+	// The song's own stutter always offers quantize; anything else's does unless it plays the song's.
+	if (ctx.ports.tracks == nullptr) {
+		return false;
+	}
+	if (const deluge::instruments::classic::SoundState* state = sound_state(ctx); state != nullptr) {
+		return !deluge::instruments::classic::sound_effects(*state).stutter.use_song_stutter;
+	}
+	if (!ctx.addresses.chain) {
+		return false;
+	}
+	if (ctx.addresses.chain_owner == bind::ChainOwner::SONG) {
+		return true;
+	}
+	const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);
+	return effects != nullptr && !effects->stutter.use_song_stutter;
+}
+
+bool bend_submenu(const MenuContext& ctx) {
+	using Instrument = deluge::plugin::SettingContext::Instrument;
+	const Instrument type = ctx.addresses.instrument;
+	return type == Instrument::SYNTH || type == Instrument::CV || type == Instrument::MIDI;
+}
+
+// --- Settings root and the other roots -------------------------------------------------------------------------
+
+bool is_midi_out(const MenuContext& ctx) {
+	return ctx.addresses.instrument == deluge::plugin::SettingContext::Instrument::MIDI;
+}
+
+bool audio_source_is_specific(const MenuContext& ctx) {
+	// An audio clip's track recording a specific track: its AUDIO_INPUT record's channel.
+	if (!ctx.is_audio_clip || !ctx.addresses.track || ctx.model == nullptr) {
+		return false;
+	}
+	const std::optional<deluge::serialization::Value> channel = deluge::project::read_setting(
+	    *ctx.model,
+	    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_INPUT,
+	                                    .owner = *ctx.addresses.track},
+	    "inputChannel");
+	return channel
+	       && channel->str() == deluge::project::kInputChannelWords[deluge::project::kInputChannelSpecificTrack];
+}
+
+bool audio_clip_has_sample(const MenuContext& ctx) {
+	// A fact of the card: the clip's file is loaded. A take still being recorded is no file yet.
+	if (!ctx.is_audio_clip || !ctx.addresses.clip || ctx.ports.clips == nullptr) {
+		return false;
+	}
+	const bind::Waveforms* w = ctx.ports.waveforms;
+	const std::optional<bind::WaveformInfo> info =
+	    w != nullptr ? w->info({.kind = bind::WaveformAddress::Kind::AUDIO_CLIP, .clip = *ctx.addresses.clip})
+	                 : std::nullopt;
+	return info && !info->recording;
+}
+
+bool battery_shown(const MenuContext& ctx) {
+	// `battery::Level::isRelevant` (`origin/main:src/deluge/gui/menu_item/battery/level.h`): the device's
+	// show-battery-level feature; its row's default, shown, where the context binds no device port.
+	return bind::read_device_flag(ctx.ports.device,
+	                              project::device_path::feature(project::Feature::SHOW_BATTERY_LEVEL));
+}
+
+bool is_session_view(const MenuContext& ctx) {
+	// `song::MidiLearn::isRelevant` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) and
+	// `song::ConfigureMacros::isRelevant` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`), both
+	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
+	// `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
+	// stays true in the arranger and the song automation view, the two places this test is what hides both items.
+	return ctx.is_session_view;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The registry
+//
+// **Adding a predicate to `relevance.h` means adding a row here.** Nothing can check that
+// mechanically -- C++ has no way to enumerate a header's declarations -- so the guards are: the
+// `static_assert` on the row count below, which forces a deliberate edit; `name_of` answering "?"
+// for an unregistered predicate; and `tables_1_spec`, which asserts every predicate the tables
+// actually use resolves to a real name and that the count is what this file says.
+//
+// **The sixteen `nodes::relevant_*_iterance_step_*` rows below are the one exception to "declared
+// in `relevance.h`".** They are `ui/scenes/menu/nodes/note.h`'s, not this
+// header's, but `name_of` is the only mechanism that turns a `RelevantFn` into a printable name:
+// the menu dump's "available_when" field calls it on every node's `relevant`, note family
+// included, and an unregistered predicate there prints `"?"`, not silence. The committed dump
+// (`website/src/data/generated/menu-tree.json`) is where such an entry shows, because
+// every spec that asserts "no `?`" walks a lockstep pairing against the ten `MenuContext::Root`
+// fixtures (`tables_1_spec.cpp`'s `all_pairs()`, `tables_2_spec.cpp`/`tables_3_spec.cpp`'s
+// `tree().pairs`), and the note family has no `Root` of its own to be paired through. Forward
+// declared here rather than pulled in through `nodes/note.h`, to avoid dragging that header's own
+// (unrelated) dependency closure into this one just for sixteen function addresses.
+
+} // namespace deluge::ui::scenes::menu::relevance
+
+namespace deluge::ui::scenes::menu::nodes {
+bool relevant_note_iterance_step_1(const MenuContext&);
+bool relevant_note_iterance_step_2(const MenuContext&);
+bool relevant_note_iterance_step_3(const MenuContext&);
+bool relevant_note_iterance_step_4(const MenuContext&);
+bool relevant_note_iterance_step_5(const MenuContext&);
+bool relevant_note_iterance_step_6(const MenuContext&);
+bool relevant_note_iterance_step_7(const MenuContext&);
+bool relevant_note_iterance_step_8(const MenuContext&);
+bool relevant_note_row_iterance_step_1(const MenuContext&);
+bool relevant_note_row_iterance_step_2(const MenuContext&);
+bool relevant_note_row_iterance_step_3(const MenuContext&);
+bool relevant_note_row_iterance_step_4(const MenuContext&);
+bool relevant_note_row_iterance_step_5(const MenuContext&);
+bool relevant_note_row_iterance_step_6(const MenuContext&);
+bool relevant_note_row_iterance_step_7(const MenuContext&);
+bool relevant_note_row_iterance_step_8(const MenuContext&);
+} // namespace deluge::ui::scenes::menu::nodes
+
+namespace deluge::ui::scenes::menu::relevance {
+
+namespace {
+
+#define DELUGE_RELEVANCE_ROW(fn)                                                                                       \
+	NamedPredicate {                                                                                                   \
+		&fn, #fn                                                                                                       \
+	}
+
+constexpr std::array<NamedPredicate, 37> kRegistry{
+    DELUGE_RELEVANCE_ROW(is_fm),
+    DELUGE_RELEVANCE_ROW(is_subtractive),
+    DELUGE_RELEVANCE_ROW(osc0_file_selector),
+    DELUGE_RELEVANCE_ROW(osc1_file_selector),
+    DELUGE_RELEVANCE_ROW(osc0_transpose),
+    DELUGE_RELEVANCE_ROW(osc1_transpose),
+    DELUGE_RELEVANCE_ROW(osc0_is_sample),
+    DELUGE_RELEVANCE_ROW(osc1_is_sample),
+    DELUGE_RELEVANCE_ROW(is_kit_row),
+    DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(not_non_audio_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(not_non_audio_drum_row),
+    DELUGE_RELEVANCE_ROW(not_gate_drum_row),
+    DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
+    DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
+    DELUGE_RELEVANCE_ROW(bend_submenu),
+    DELUGE_RELEVANCE_ROW(is_midi_out),
+    DELUGE_RELEVANCE_ROW(battery_shown),
+    DELUGE_RELEVANCE_ROW(audio_source_is_specific),
+    DELUGE_RELEVANCE_ROW(audio_clip_has_sample),
+    DELUGE_RELEVANCE_ROW(is_session_view),
+    // The note family's predicates -- see this section's own note above.
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_1),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_2),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_3),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_4),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_5),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_6),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_7),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_8),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_1),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_2),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_3),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_4),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_5),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_6),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_7),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_8),
+};
+
+#undef DELUGE_RELEVANCE_ROW
+
+// One row per predicate declared in `relevance.h` (21), plus the sixteen
+// `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
+// registered here for the reason this section's own note gives. 21 + 16 = 37.
+static_assert(kRegistry.size() == 37);
+
+} // namespace
+
+std::span<const NamedPredicate> registry() {
+	return kRegistry;
+}
+
+std::string_view name_of(RelevantFn fn) {
+	if (fn == nullptr) {
+		return "always";
+	}
+	for (const NamedPredicate& row : kRegistry) {
+		if (row.fn == fn) {
+			return row.name;
+		}
+	}
+	return "?";
+}
+
+} // namespace deluge::ui::scenes::menu::relevance

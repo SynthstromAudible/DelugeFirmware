@@ -3,22 +3,22 @@
 ///        song behind the menu: what a page shows is the fake's value, and what a turn writes reaches the fake's
 ///        store.
 
-#include "scenes/bind/device_reader.h"
-#include "scenes/bind/ports/device_settings.h"
-#include "scenes/bind/ports/midi_devices.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/midi_command.h"
-#include "scenes/menu/nodes/multi_range.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/menu/present.h"
-#include "scenes/menu/walk.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/bind/device_reader.h"
+#include "ui/scenes/bind/ports/device_settings.h"
+#include "ui/scenes/bind/ports/midi_devices.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/midi_command.h"
+#include "ui/scenes/menu/nodes/multi_range.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/menu/walk.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
@@ -57,17 +57,17 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::LearnedBinding;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
-using deluge::scenes::spec::FakeMenuShell;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::bind::LearnedBinding;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using device_path = deluge::project::device_path;
 using deluge::project::Feature;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 using spec::row_of;
 

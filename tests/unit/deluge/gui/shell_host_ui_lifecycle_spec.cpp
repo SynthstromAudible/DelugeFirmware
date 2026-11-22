@@ -129,12 +129,12 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		// No context menu overrides `exitUI` in main, so the long-press timer's call does nothing there.
 		Rig r;
 		expect(r.open()).to_be_true();
-		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, 0}))
+		expect(r.guest.shell().stack().push(SceneId{deluge::ui::scenes::context_menu::kContextMenuSceneKind, 0}))
 		    .to_be_true();
 		const ActionResult result = r.guest.exitUI();
 		expect(result).to_equal(ActionResult::DEALT_WITH);
 		expect(r.guest.shell().stack().input_top().kind())
-		    .to_equal(deluge::scenes::context_menu::kContextMenuSceneKind);
+		    .to_equal(deluge::ui::scenes::context_menu::kContextMenuSceneKind);
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(2));
 		expect(fakelegacyui::closed.empty()).to_be_true();
 	});
@@ -273,7 +273,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 	// ---- the close paths: what runs before close(), and the services each open installs ---------
 
 	it("installs the three services on every open, not only the first", _ {
-		// `wireShellGuestServices()` is what `Shell::set_services` is called from. This suite never builds the `deluge_scenes` closure,
+		// `wireShellGuestServices()` is what `Shell::set_services` is called from. This suite never builds the `deluge_ui_scenes` closure,
 		// so what it can assert is that `opened()` calls it -- **again on every open**, because the
 		// song and `View`'s mod target can both have moved since the last one, and an unseeded
 		// `ModKnobs` blanks the mod LEDs and both knob indicator rings rather than doing nothing.
@@ -333,7 +333,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		// `knobIndicatorLevels[]` shadow, so `actuallySetKnobIndicatorLevel`'s early-out
 		// (`hid/led/indicator_leds.cpp`) would otherwise suppress the write that puts the
 		// rings right when the guest goes away. It matters because of `ModKnobs` -- the one
-		// `frame.indicator(...)` declarer in `src/scenes` -- being installed in the guest.
+		// `frame.indicator(...)` declarer in `src/ui/scenes` -- being installed in the guest.
 		Rig r;
 		expect(r.open(kBase)).to_be_true();
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();

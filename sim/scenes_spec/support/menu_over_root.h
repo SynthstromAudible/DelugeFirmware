@@ -11,8 +11,8 @@
 #include "gui/ui/ui.h" // setRootUILowLevel
 #include "gui/views/automation_view.h"
 #include "model/clip/instrument_clip.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 #include "util/menu_entry.h" // openMenuAtShortcut
 
 #include <cstdint>
@@ -26,7 +26,7 @@ extern bool shiftCurrentlyStuck;
 } // namespace Buttons
 /// @}
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief Hold Shift on legacy's side for an example, and let go however it ends.
 struct ShiftHeld {
@@ -55,4 +55,4 @@ inline bool open_shortcut_over_automation(InstrumentClip* clip, int32_t x, int32
 	return open_shortcut_over(&automationView, clip, x, y);
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

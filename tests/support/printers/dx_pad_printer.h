@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/menu/nodes/dx_tables.h"
+#include "ui/scenes/menu/nodes/dx_tables.h"
 
 #include <format>
 #include <ostream>
@@ -29,7 +29,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::menu::dx {
+namespace deluge::ui::scenes::menu::dx {
 
 /// @brief Prints a pad as its column and row, e.g. `{x 9, y 1}`.
 /// @param os The stream to print to.
@@ -39,4 +39,4 @@ inline std::ostream& operator<<(std::ostream& os, const Pad& p) {
 	return os << std::format("{{x {}, y {}}}", p.x, p.y);
 }
 
-} // namespace deluge::scenes::menu::dx
+} // namespace deluge::ui::scenes::menu::dx

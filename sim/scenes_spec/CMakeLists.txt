@@ -27,7 +27,7 @@ if(NOT TARGET deluge_scenes_fakes)
 endif()
 
 add_library(deluge_scenes_spec STATIC ${_spec_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
-target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_scenes deluge_scenes_fakes c++spec)
+target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_ui_scenes deluge_scenes_fakes c++spec)
 target_include_directories(deluge_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests)
 target_compile_definitions(deluge_scenes_spec PRIVATE

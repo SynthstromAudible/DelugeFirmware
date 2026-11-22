@@ -72,7 +72,7 @@ public:
 	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
-	/// (`src/scenes/recorder/recorder_scene.h`), which takes `Scene::timer_repaints()`'s
+	/// (`src/ui/scenes/recorder/recorder_scene.h`), which takes `Scene::timer_repaints()`'s
 	/// `{.oled = true, .grid = true}` default because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
@@ -93,7 +93,7 @@ public:
 	///
 	/// **The bound here is the diff, not a cadence** -- a shipped scene already exceeds any fixed
 	/// ceiling. `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
-	/// (`src/scenes/audio_clip/audio_clip_scene.cpp`) with `{.oled = false, .grid = true}`
+	/// (`src/ui/scenes/audio_clip/audio_clip_scene.cpp`) with `{.oled = false, .grid = true}`
 	/// (`AudioClipScene::timer_repaints`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
 	/// against `last_sent` before calling `send_columns` at all (`Shell::flush`): a tick

@@ -7,7 +7,7 @@
 namespace deluge::gui::shell_host {
 namespace {
 
-class HostCardFacts final : public scenes::bind::CardFacts {
+class HostCardFacts final : public deluge::ui::scenes::bind::CardFacts {
 public:
 	[[nodiscard]] bool sample_load_in_flight() const override {
 		return sampleClaim.explicitInFlight() || folderImport.inFlight() || ui::shellSlicerBusy();
@@ -17,7 +17,7 @@ public:
 
 } // namespace
 
-const scenes::bind::CardFacts& card_facts() {
+const deluge::ui::scenes::bind::CardFacts& card_facts() {
 	static const HostCardFacts facts;
 	return facts;
 }

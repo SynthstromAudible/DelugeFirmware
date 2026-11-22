@@ -18,20 +18,20 @@
 #pragma once
 
 /// @file
-/// @brief Installs `deluge::scenes::menu::NoteBridge` -- `instrumentClipView`'s note
-///        and note-row state, reached from `src/scenes` without an include.
+/// @brief Installs `deluge::ui::scenes::menu::NoteBridge` -- `instrumentClipView`'s note
+///        and note-row state, reached from `src/ui/scenes` without an include.
 ///
-/// This header names no `scenes/` type, only the one no-arguments function that installs the
+/// This header names no `ui/scenes/` type, only the one no-arguments function that installs the
 /// bridge -- the same one-symbol-wide seam `browser_host.h` and `shell_pad_forward.h` draw
 /// around their own consumers (`scripts/check_layer_rules.py`'s `LEGACY_PORT_SEAMS` comment on
 /// each), not `shell_guest_services.h`, which declares three functions and is not one symbol wide.
-/// `shell_note_bridge.cpp` is where every bridge entry lives, and where the `scenes/menu/` include
+/// `shell_note_bridge.cpp` is where every bridge entry lives, and where the `ui/scenes/menu/` include
 /// actually happens; see that file for the transcription and its citations.
 
 namespace deluge::gui::ui {
 
 /// @brief Install the note bridge, once. A static `NoteBridge` of function pointers onto
-///        `instrumentClipView` and legacy statics, installed via `deluge::scenes::menu::set_note_bridge`.
+///        `instrumentClipView` and legacy statics, installed via `deluge::ui::scenes::menu::set_note_bridge`.
 ///
 /// Unlike `wireShellGuestServices()`, this holds no `Song` and mirrors no view state -- every entry
 /// reads or writes live legacy globals synchronously when called, the way legacy's own

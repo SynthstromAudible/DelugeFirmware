@@ -104,12 +104,12 @@ using deluge::project::ModKnobCc;
 describe knob_records("the knob records, by Edit", ${
 	it("a song read without activeModFunction holds mode 1, and one read with 4 holds 4", _ {
 		Song* const before = currentSong;
-		Song* plain = deluge::scenes::spec::load_song(song_xml(""));
+		Song* plain = deluge::ui::scenes::spec::load_song(song_xml(""));
 		expect(plain).not_().to_be_null();
 		if (plain != nullptr) {
 			expect(plain->project.mod_knob_mode).to_equal(1);
 		}
-		Song* four = deluge::scenes::spec::load_song(song_xml(R"(activeModFunction="4")"));
+		Song* four = deluge::ui::scenes::spec::load_song(song_xml(R"(activeModFunction="4")"));
 		expect(four).not_().to_be_null();
 		if (four != nullptr) {
 			expect(four->project.mod_knob_mode).to_equal(4);
@@ -120,7 +120,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a song that says a mode past the last button keeps it in its record, and the knobs use the last", _ {
 		Song* const before = currentSong;
-		Song* nine = deluge::scenes::spec::load_song(song_xml(R"(activeModFunction="9")"));
+		Song* nine = deluge::ui::scenes::spec::load_song(song_xml(R"(activeModFunction="9")"));
 		expect(nine).not_().to_be_null();
 		if (nine != nullptr) {
 			expect(nine->project.mod_knob_mode).to_equal(9);
@@ -130,7 +130,7 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("SetModKnobMode on the song writes the record the knobs read, and takes no undo step", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		actionLogger.deleteAllLogs();
@@ -144,7 +144,7 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("a mode change through any output's knob-mode slot, current or not, reaches its record", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		// A second track in the song that is not the current clip's: an arranger row's held audition targets it.
@@ -171,7 +171,7 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("SetModKnobMode on a track writes its record and its output's field", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		const deluge::project::TrackAddress track{*f.instrument->id()};
@@ -187,7 +187,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a song saved after its mode changes to 6 says activeModFunction 6", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(song_xml(""));
+		Song* song = deluge::ui::scenes::spec::load_song(song_xml(""));
 		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
@@ -205,7 +205,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track's modKnobs load into its record, each word as the file says it", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(
 		    R"(<modKnobs><modKnob cc="none" /><modKnob cc="bend" /><modKnob cc="aftertouch" /><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
@@ -227,7 +227,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a knob on CC 1 is the Y axis, read the same by the engine and the model", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="1" /></modKnobs>)"));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="1" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		const ModKnobCc y_axis{.kind = ModKnobCc::Kind::NUMBER, .number = CC_NUMBER_Y_AXIS};
 		expect(midi).not_().to_be_null();
@@ -260,7 +260,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("an unedited MIDI track saves no modKnobs", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(""));
 		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
@@ -271,7 +271,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track edited through a setting records its knobs as it then saves them", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -292,7 +292,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("SetModKnobCC writes the record and the engine, marks the track edited, and takes no undo step", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -317,7 +317,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("the gold knob's CC change goes through the record", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="74" /></modKnobs>)"));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -335,7 +335,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track's assignments copied into a new MIDI instrument are its record once the song adopts it", _ {
 		Song* const before = currentSong;
-		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="none" /><modKnob cc="12" /></modKnobs>)"));
+		Song* song = deluge::ui::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="none" /><modKnob cc="12" /></modKnobs>)"));
 		MIDIInstrument* old = song != nullptr ? midi_of(*song) : nullptr;
 		expect(old).not_().to_be_null();
 		if (old != nullptr) {
@@ -360,7 +360,7 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("moving a knob that sends nothing leaves it so, and reports it, as legacy's move does", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
@@ -372,11 +372,11 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("moving a knob's CC leaves a clip that never had the old CC as it is", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
-		InstrumentClip* second = deluge::scenes::spec::detail::make_session_clip(f.song);
+		InstrumentClip* second = deluge::ui::scenes::spec::detail::make_session_clip(f.song);
 		{
 			ParamManagerForTimeline params;
 			params.setupMIDI();
@@ -410,11 +410,11 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("moving a knob's CC carries its automation in every clip, the arrangement's own too, takes no undo step, and the record names the new CC", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
-		InstrumentClip* second = deluge::scenes::spec::detail::make_session_clip(f.song);
+		InstrumentClip* second = deluge::ui::scenes::spec::detail::make_session_clip(f.song);
 		{
 			ParamManagerForTimeline params;
 			params.setupMIDI();
@@ -425,7 +425,7 @@ describe knob_records("the knob records, by Edit", ${
 		    .to_be_true();
 		// Automation on CC 74 in each clip: a held-pad region over the whole clip.
 		// And an arrangement-only clip, which the arrangement alone plays.
-		InstrumentClip* arranged = deluge::scenes::spec::detail::place<InstrumentClip>(*f.song);
+		InstrumentClip* arranged = deluge::ui::scenes::spec::detail::place<InstrumentClip>(*f.song);
 		arranged->setLoopLength(f.clip->loopLength());
 		(void)f.song->live.clips.arrangement_only_clips.insertClipAt(arranged, 0);
 		{
@@ -480,7 +480,7 @@ describe knob_records("the knob records, by Edit", ${
 	});
 
 	it("a freshly made synth's knobs are the instrument's default pages", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		std::vector<deluge::project::ControllerMapping> expected;
 		for (const deluge::plugin::RemotePage& page : deluge::instruments::classic::kDevicePages) {
 			for (uint8_t knob = 0; knob < 2; knob++) {

@@ -597,7 +597,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// `Kind::Blink` would freeze at whatever phase the last tick left it in on an
 		// otherwise idle system. Live rather than theoretical: `MenuScene::leds` declares BACK and
 		// LEARN as `Blink(kFlashTime)` unconditionally (`MenuScene::leds`, `MenuLearn::leds`)
-		// while `MenuScene::next_timer` (`pad_next_timer`, `scenes/menu/pads.cpp`) answers `nullopt` for
+		// while `MenuScene::next_timer` (`pad_next_timer`, `ui/scenes/menu/pads.cpp`) answers `nullopt` for
 		// any focused node with neither source pads nor a shortcut position.
 		//
 		// `FlushScene` has no `next_timer()` of its own and this rig arms no gate past the first

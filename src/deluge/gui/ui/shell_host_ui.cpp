@@ -39,13 +39,13 @@
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
 #include "storage/flash_storage.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/profiles/deluge.h"
 
 #include <algorithm>
@@ -132,7 +132,7 @@ bool ShellHostUI::opened() {
 	// while the shell reads a `LoweringConfig` field that defaults to false
 	// (`ui/shell/input_lowering.h`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`) -- so shortcut pads would silently stop working under the
+	// (`MenuPads::handle_pad`, `ui/scenes/menu/pads.cpp`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -263,8 +263,8 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//  - Legacy's OLED transparency is a *data member*, `UI::oledShowsUIUnderneath`
 	//    (`gui/ui/ui.h`), set false by `UI::UI` and read by
 	//    `doAnyPendingOLEDRendering` to decide how far down the stack to start drawing. `SoundEditor` leaves it false
-	//    and `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h`) -- those two already agree, and
-	//    neither is this hook.
+	//    and `MenuScene::oled_transparent` returns false (`ui/scenes/menu/menu_scene.h`) -- those two already agree,
+	//    and neither is this hook.
 	//  - `Slicer` sets `oledShowsUIUnderneath = true` and returns **false** here
 	//    (`origin/main:src/deluge/gui/ui/slicer.h`), on the same object. One legacy UI holding both values at once is
 	//    proof the two questions are independent.
@@ -279,12 +279,12 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//
 	// It lands where legacy lands for the first tenant: `SoundEditor::canSeeViewUnderneath` is true
 	// (`origin/main:src/deluge/gui/ui/sound_editor.h`) and `MenuScene::occludes_grid` is false
-	// (`scenes/menu/menu_scene.h`). Mapping it to `oled_transparent(Main)` would have made
+	// (`ui/scenes/menu/menu_scene.h`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
 	// The recorder is a plain `UI` in main, whose `canSeeViewUnderneath` is false: the root's animation stops for the
 	// take.
 	if (shell_.stack().has_input_scene()
-	    && shell_.stack().input_top().kind() == deluge::scenes::recorder::kRecorderSceneKind) {
+	    && shell_.stack().input_top().kind() == deluge::ui::scenes::recorder::kRecorderSceneKind) {
 		return false;
 	}
 	return !shell_.stack().top().occludes_grid();
@@ -296,7 +296,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`menu::greyout_mask`, `scenes/menu/pads.cpp`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`menu::greyout_mask`, `ui/scenes/menu/pads.cpp`,
 	// against `origin/main:src/deluge/gui/ui/sound_editor.cpp`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols`, so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -328,7 +328,7 @@ deluge::ui::shell::PadRegions ShellHostUI::answeredRegions() {
 	using deluge::ui::shell::PadRegions;
 	const PadRegions owned = surfaces_.owned_regions();
 	if (!deluge::ui::shell::holds(owned, PadRegions::Sidebar)
-	    && shell_.stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind) {
+	    && shell_.stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
 		return owned | PadRegions::Sidebar;
 	}
 	return owned;
@@ -483,7 +483,7 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 	// `SampleMarkerEditor::renderSidebar` answers for the sidebar it does not draw only over the
 	// keyboard screen (`SampleMarkerEditor::renderSidebar`); the marker scene cannot read the
 	// root UI, so the guest asks on its behalf.
-	if (shell_.stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind) {
+	if (shell_.stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
 		return renderClipViewSidebarUnderMarker(whichRows, image, occupancyMask);
 	}
 	return false;
@@ -509,7 +509,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
-	// (`MenuScene::take_action`, `scenes/menu/menu_scene.h`), and it announces nothing: "`after_render` returns no
+	// (`MenuScene::take_action`, `ui/scenes/menu/menu_scene.h`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
 	// tick, or requests are dropped or stale**" (the same warning). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
@@ -565,7 +565,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// down (`hid/buttons.cpp`) and the manager calls `exitUI` from that arm (`UITimerManager::routine`). A short Back
 	// never reaches it -- it is fed into the shell like any other button (`buttonAction` below) and routed inside
 	// `Shell::tick`, where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
-	// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`), the port of
+	// (`MenuScene::handle_event`'s Back arm, `ui/scenes/menu/menu_scene.cpp`), the port of
 	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s BACK case -> `goUpOneLevel()` -> `SoundEditor::goUpOneLevel`,
 	// whose depth-0 arm is `exitCompletely()`. That removes the scene and empties the stack, and **nothing in legacy
 	// closes this UI when it happens**: `close()` lived only on `exitUI`'s path.
@@ -1151,7 +1151,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
 	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
-	if (top.kind() == deluge::scenes::menu::kMenuSceneKind
+	if (top.kind() == deluge::ui::scenes::menu::kMenuSceneKind
 	    && (!isUIModeWithinRange(selectEncoderUIModes) || menuLearnMode())) {
 		return;
 	}
@@ -1305,7 +1305,7 @@ ActionResult ShellHostUI::exitUI() {
 	flushPendingInput();
 	// No context menu overrides `exitUI` in main: `UI::exitUI` does nothing, so a long BACK leaves the menu up.
 	if (shell_.stack().has_input_scene()
-	    && shell_.stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind) {
+	    && shell_.stack().input_top().kind() == deluge::ui::scenes::context_menu::kContextMenuSceneKind) {
 		return ActionResult::DEALT_WITH;
 	}
 	if (shell_.stack().has_input_scene()) {
@@ -1336,7 +1336,7 @@ void ShellHostUI::closeGuest() {
 	// segment levels. So after the guest has driven a ring, legacy's shadow describes a frame the hardware is no longer
 	// showing, and `actuallySetKnobIndicatorLevel`'s early-out (`hid/led/indicator_leds.cpp`) then
 	// **suppresses** the write that would put it right. `ModKnobs` is the one declarer of
-	// `frame.indicator(...)` in `src/scenes` (`services/mod_knobs.cpp`), so it is the one that drives
+	// `frame.indicator(...)` in `src/ui/scenes` (`services/mod_knobs.cpp`), so it is the one that drives
 	// the rings.
 	//
 	// `clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h`) is `setKnobIndicatorLevel(i, 0)`
@@ -1473,4 +1473,4 @@ bool ShellHostUI::pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channe
 // SDRAM: the guest and its scene stack are menu-time state, never read by the audio tier or an interrupt. The scenes'
 // profile, not the shell's: it carries the l10n bridge, so a popup a scene raises by string id shows its text.
 PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{
-    deluge::scenes::scene_registry(), deluge::ui::shell::kDelugeBoard, deluge::scenes::deluge_profile()};
+    deluge::ui::scenes::scene_registry(), deluge::ui::shell::kDelugeBoard, deluge::ui::scenes::deluge_profile()};

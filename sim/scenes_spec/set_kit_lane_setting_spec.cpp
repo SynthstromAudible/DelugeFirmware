@@ -15,9 +15,9 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"
 #include "project/setting_group.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
 #include "support/song_fixture.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "cppspec.hpp"
 
@@ -28,10 +28,10 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::SettingGroupId;
-using deluge::scenes::menu::MenuContext;
 using deluge::serialization::Value;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 

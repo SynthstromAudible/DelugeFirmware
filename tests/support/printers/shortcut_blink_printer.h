@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/menu/shortcut_blink.h"
+#include "ui/scenes/menu/shortcut_blink.h"
 
 #include <cstddef>
 #include <format>
@@ -31,7 +31,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::scenes::menu {
+namespace deluge::ui::scenes::menu {
 
 /// @brief Prints a param pad's blink as its pad, whether it blinks, its frequency mask and its colour's number, e.g.
 ///        `{x 9, y 1, valid 1, freq_mask 1, colour 0}`.
@@ -69,4 +69,4 @@ inline std::ostream& operator<<(std::ostream& os, const BlinkPlan& p) {
 	return os << "]}";
 }
 
-} // namespace deluge::scenes::menu
+} // namespace deluge::ui::scenes::menu

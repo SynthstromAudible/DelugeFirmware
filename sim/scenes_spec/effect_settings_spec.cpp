@@ -3,12 +3,12 @@
 // on the owner the root names.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "effects/settings.h"
 #include "model/instrument/kit.h"
@@ -31,10 +31,10 @@
 #include <string>
 #include <vector>
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 
 namespace {
 

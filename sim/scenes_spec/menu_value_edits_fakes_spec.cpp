@@ -3,12 +3,12 @@
 ///        the menu: an int, a choice, a range, a toggle and a cable leaf each reach the recorder their port names, with
 ///        the target and value the menu meant, and a refused write leaves the shown value as it was.
 
-#include "scenes/bind/target.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
+#include "ui/scenes/bind/target.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
 
 #include "base/notify/dirty_set.h"
 #include "project/device_settings.h"
@@ -23,18 +23,18 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::bind::test::RecordingControlsSink;
-using deluge::scenes::bind::test::RecordingSoundWrites;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::spec::FakeHostRig;
-using deluge::scenes::spec::FakeMenuShell;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::bind::test::RecordingControlsSink;
+using deluge::ui::scenes::bind::test::RecordingSoundWrites;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::spec::FakeHostRig;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using device_path = deluge::project::device_path;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// MASTER's columns are SYNTH MODE, VOLUME, PAN, TRANSPOSE and VIBRATO.
 constexpr int8_t kVibratoColumn = 4;

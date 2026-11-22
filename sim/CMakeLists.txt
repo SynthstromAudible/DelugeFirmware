@@ -6,9 +6,9 @@
 # product, built into build/host-app). Nothing links here: the harnesses' build
 # scripts archive these objects.
 
-# 3.27: src/scenes/CMakeLists.txt (add_subdirectory'd below) links deluge_app via
+# 3.27: src/ui/scenes/CMakeLists.txt (added through src/ui) links deluge_app via
 # $<COMPILE_ONLY:...> to take its usage requirements without archiving its objects into
-# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+# libdeluge_ui_scenes.a -- that generator expression needs CMake >= 3.27.
 cmake_minimum_required(VERSION 3.27)
 
 # ---------------------------------------------------------------------------
@@ -244,8 +244,6 @@ add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # d
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
-# deluge_scenes: the first UI layer allowed to include the model. Links deluge_app, so it comes after it.
-add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 add_subdirectory(${REPO_ROOT}/sim/scenes_spec ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_scenes_spec: the scenes' specs
 
 # The UI's level-3 scripts, the menu dump and the scenes' specs run as golden_vt_render scenarios (the ui-scripts,

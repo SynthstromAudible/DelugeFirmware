@@ -3,14 +3,14 @@
 /// @file
 /// @brief `FakeOps`: a `SliceOps` that records rather than acts, for the slicer's specs over the app and over fakes.
 
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
 
-namespace deluge::scenes::slicing::test {
+namespace deluge::ui::scenes::slicing::test {
 
 /// @brief A `SliceOps` that records rather than acts.
 ///
@@ -60,4 +60,4 @@ struct FakeOps final : SliceOps {
 	/// @}
 };
 
-} // namespace deluge::scenes::slicing::test
+} // namespace deluge::ui::scenes::slicing::test

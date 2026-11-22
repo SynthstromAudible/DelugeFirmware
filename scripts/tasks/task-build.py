@@ -56,8 +56,8 @@ CPP_TARGETS = [
     "deluge_ui_widgets_grid",
     "deluge_ui_shell",
     "deluge_base_notify",
-    "deluge_scenes",
-    "deluge_scenes_bind",
+    "deluge_ui_scenes",
+    "deluge_ui_scenes_bind",
 ]
 
 RUST_BSP_DIR = Path("src/bsp/rust")

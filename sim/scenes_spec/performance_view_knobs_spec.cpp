@@ -79,7 +79,7 @@ std::vector<uint8_t> column_display(char const* name, char const* value) {
 
 /// @brief A song with the performance view over it, its knobs on the song, as its focusRegained leaves them.
 struct PerformanceRig {
-	deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+	deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 	Song* const saved_song = currentSong;
 	PerformanceRig() {
 		currentSong = f.song;
@@ -182,7 +182,7 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 	});
 
 	it("leaves the LOAD LED alone when its defaults arrive after it was left", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = f.song;
 		nullifyUIs();

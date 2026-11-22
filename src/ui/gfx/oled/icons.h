@@ -60,7 +60,7 @@ extern const Icon arrowRight;
 /// @}
 
 /// @{
-/// @name File-browser row icons (`scenes/browser/browser_scene.h`)
+/// @name File-browser row icons (`ui/scenes/browser/browser_scene.h`)
 ///
 /// 8 columns wide -- exactly the `iconWidth` `Browser::renderOLED` blits them at
 /// (`gui/ui/browser/browser.cpp`) -- except `browserMidiEdge`, which is the MIDI plug's ninth
@@ -76,7 +76,7 @@ extern const Icon browserMidiEdge;
 /// @}
 
 /// @{
-/// @name Sample-marker editor (`scenes/marker/marker_scene.h`)
+/// @name Sample-marker editor (`ui/scenes/marker/marker_scene.h`)
 /// @note Legacy icon `OLED::lockIcon` (`hid/display/oled_icons.cpp`), 7 columns wide. **It is
 ///       nine pixels tall and a byte is eight**, so legacy's own comment says "remember to draw a
 ///       rectangle under it so it looks correct" -- `SampleMarkerEditor::renderOLED` does that with

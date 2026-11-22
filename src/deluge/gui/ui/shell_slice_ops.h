@@ -25,7 +25,7 @@
 /// @file
 /// @brief The slicer's host: `SlicerScene`'s `SliceOps`, performed with `SliceCore`.
 ///
-/// This header names no `scenes/` type; `shell_slice_ops.cpp` is where the scene is reached.
+/// This header names no `ui/scenes/` type; `shell_slice_ops.cpp` is where the scene is reached.
 
 class Sample;
 

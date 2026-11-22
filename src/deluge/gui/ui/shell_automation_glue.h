@@ -22,11 +22,11 @@
 ///        from under the menu.
 ///
 /// `MenuScene` files one record per tick of a change of its value node and its cause (`MenuScene::take_transition`,
-/// `scenes/menu/transition.h`); this drains it after the tick, as `dispatchShellActions` drains the action outbox, and
-/// runs what legacy's sound editor runs for the same change against `automationView`
+/// `ui/scenes/menu/transition.h`); this drains it after the tick, as `dispatchShellActions` drains the action outbox,
+/// and runs what legacy's sound editor runs for the same change against `automationView`
 /// (`SoundEditor::handlePotentialParamMenuChange` and `Automation::buttonAction`): select the menu's param in the view,
 /// return the view to its overview, or leave its "menu view". CLIP, X_ENC and KEYBOARD reach the view the same way,
-/// forwarded ahead of the menu. `src/scenes` may not name the view; this file may.
+/// forwarded ahead of the menu. `src/ui/scenes` may not name the view; this file may.
 
 #include "definitions_cxx.hpp" // ActionResult
 #include "hid/button.h"

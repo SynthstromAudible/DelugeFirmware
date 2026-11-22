@@ -4,18 +4,18 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/multi_range.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sound_actions.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/value_session.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/multi_range.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sound_actions.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/value_session.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
@@ -36,9 +36,9 @@
 
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-namespace nodes = deluge::scenes::menu::nodes;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 using deluge::serialization::Value;
 
 namespace {
@@ -206,7 +206,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		spec::SongFixture midi = spec::make_midi_song();
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the song the app plays: none of the above
-		deluge::scenes::spec::make_current(playing.song);
+		deluge::ui::scenes::spec::make_current(playing.song);
 
 		struct Case {
 			Song* song;
@@ -243,7 +243,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 			expect(c.song->project.groove.swing_interval).to_equal(swing);
 		}
 		expect(written).to_be_greater_than(size_t{100});
-		deluge::scenes::spec::make_current(playing.song);
+		deluge::ui::scenes::spec::make_current(playing.song);
 	});
 });
 

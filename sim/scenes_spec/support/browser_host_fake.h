@@ -1,6 +1,6 @@
 #pragma once
 
-#include "scenes/browser/browser_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
 
 #include <optional>
 #include <utility>
@@ -9,36 +9,38 @@
 /// @file
 /// @brief A browser host that performs nothing and records what the browser asks for, for the scenes' own specs.
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A `BrowserHost` that records each request and performs none: an example reads what the browser asked for
 ///        and answers it by hand through `BrowserScene`'s answer methods, as the application's host would.
-class FakeBrowserHost final : public deluge::scenes::browser::BrowserHost {
+class FakeBrowserHost final : public deluge::ui::scenes::browser::BrowserHost {
 public:
-	void perform(const deluge::scenes::browser::BrowserChoice& choice) override { performed_.push_back(choice); }
-	void preview(const deluge::scenes::browser::PreviewRequest& request) override { previews_.push_back(request); }
+	void perform(const deluge::ui::scenes::browser::BrowserChoice& choice) override { performed_.push_back(choice); }
+	void preview(const deluge::ui::scenes::browser::PreviewRequest& request) override { previews_.push_back(request); }
 
 	/// @brief The last preview asked for since the last take or clear, once; nothing when none was.
-	std::optional<deluge::scenes::browser::PreviewRequest> take_preview() {
+	std::optional<deluge::ui::scenes::browser::PreviewRequest> take_preview() {
 		if (previews_.empty()) {
 			return std::nullopt;
 		}
-		std::optional<deluge::scenes::browser::PreviewRequest> last{std::move(previews_.back())};
+		std::optional<deluge::ui::scenes::browser::PreviewRequest> last{std::move(previews_.back())};
 		previews_.clear();
 		return last;
 	}
 
 	/// @brief The last choice performed since the last take or clear, once; nothing when none was.
-	std::optional<deluge::scenes::browser::BrowserChoice> take_choice() {
+	std::optional<deluge::ui::scenes::browser::BrowserChoice> take_choice() {
 		if (performed_.empty()) {
 			return std::nullopt;
 		}
-		std::optional<deluge::scenes::browser::BrowserChoice> last{std::move(performed_.back())};
+		std::optional<deluge::ui::scenes::browser::BrowserChoice> last{std::move(performed_.back())};
 		performed_.clear();
 		return last;
 	}
 	/// @brief Every choice performed since the last take or clear, in order.
-	[[nodiscard]] const std::vector<deluge::scenes::browser::BrowserChoice>& performed() const { return performed_; }
+	[[nodiscard]] const std::vector<deluge::ui::scenes::browser::BrowserChoice>& performed() const {
+		return performed_;
+	}
 	/// @brief Forget every request.
 	void clear() {
 		performed_.clear();
@@ -46,8 +48,8 @@ public:
 	}
 
 private:
-	std::vector<deluge::scenes::browser::BrowserChoice> performed_{};
-	std::vector<deluge::scenes::browser::PreviewRequest> previews_{};
+	std::vector<deluge::ui::scenes::browser::BrowserChoice> performed_{};
+	std::vector<deluge::ui::scenes::browser::PreviewRequest> previews_{};
 };
 
 /// @brief The process's one fake host. A scenes spec runs one file per process, so one instance serves its examples.
@@ -59,16 +61,16 @@ inline FakeBrowserHost& fake_browser_host() {
 /// @brief Hand the browser's requests to a host for this object's lifetime, putting back what was installed before.
 class UseBrowserHost {
 public:
-	explicit UseBrowserHost(deluge::scenes::browser::BrowserHost& host)
-	    : saved_(deluge::scenes::browser::browser_scene().installed_host()) {
-		deluge::scenes::browser::browser_scene().set_host(&host);
+	explicit UseBrowserHost(deluge::ui::scenes::browser::BrowserHost& host)
+	    : saved_(deluge::ui::scenes::browser::browser_scene().installed_host()) {
+		deluge::ui::scenes::browser::browser_scene().set_host(&host);
 	}
-	~UseBrowserHost() { deluge::scenes::browser::browser_scene().set_host(saved_); }
+	~UseBrowserHost() { deluge::ui::scenes::browser::browser_scene().set_host(saved_); }
 	UseBrowserHost(const UseBrowserHost&) = delete;
 	UseBrowserHost& operator=(const UseBrowserHost&) = delete;
 
 private:
-	deluge::scenes::browser::BrowserHost* saved_;
+	deluge::ui::scenes::browser::BrowserHost* saved_;
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

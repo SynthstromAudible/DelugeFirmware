@@ -38,18 +38,18 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_core.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/peak_retry.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_core.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -127,18 +127,18 @@ namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
 } // namespace Buttons
 
-using namespace deluge::scenes;
-using deluge::scenes::marker::kMarkerSceneKind;
-using deluge::scenes::marker::marker_scene;
-using deluge::scenes::marker::MarkerScene;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::marker::kMarkerSceneKind;
+using deluge::ui::scenes::marker::marker_scene;
+using deluge::ui::scenes::marker::MarkerScene;
+using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 
-namespace mf = deluge::scenes::spec::marker_fx;
+namespace mf = deluge::ui::scenes::spec::marker_fx;
 using mf::AudioRig;
 using mf::kBytesPerFrame;
 using mf::kSampleLength;
@@ -745,7 +745,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = deluge::scenes::spec::first_ranges(slot).empty();
+		const bool had_none = deluge::ui::scenes::spec::first_ranges(slot).empty();
 
 		MenuContext recorded = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingSoundWrites recording;
@@ -765,14 +765,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
+		expect(deluge::ui::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
 		const std::vector<deluge::synth::SourceRange> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
 		const std::vector<deluge::synth::SourceRange> first =
-		    deluge::scenes::spec::first_ranges(slot);
+		    deluge::ui::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -800,7 +800,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(deluge::scenes::spec::first_ranges(r.slot())[0].file_path)
+		expect(deluge::ui::scenes::spec::first_ranges(r.slot())[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);
@@ -892,8 +892,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		deluge::edits::recordRanges(*r.sound, 0);
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		// The edited range's remembered view and lock, in the store under its identity.
-		deluge::scenes::services::view_state().forget_unless(r.song.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
+		deluge::ui::scenes::services::view_state().forget_unless(r.song.song->project.identity());
+		deluge::ui::scenes::services::view_state().set_sample_view(
 		    r.key(), {.scroll = 0, .zoom = kZoomMax / 2, .loop_locked = true});
 		const uint64_t identity = r.range->identity();
 
@@ -914,11 +914,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("gives a cloned audio clip the original's scroll and zoom, as beenClonedFrom gives the clone's holder", _ {
-		using deluge::scenes::services::ViewKey;
+		using deluge::ui::scenes::services::ViewKey;
 		AudioRig r;
 		deluge::gui::ui::wireShellClipCloneViews(); // what boot installs
-		deluge::scenes::services::view_state().forget_unless(r.f.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
+		deluge::ui::scenes::services::view_state().forget_unless(r.f.song->project.identity());
+		deluge::ui::scenes::services::view_state().set_sample_view(
 		    ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = r.f.clip->id()}, {.scroll = 3 * kZoomMax, .zoom = kZoomMax / 4});
 		r.f.clip->sampleHolder.audioFile = nullptr; // the clone takes no sample: this example is about the view
 
@@ -927,8 +927,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(r.f.clip->clone(stack)).to_equal(Error::NONE);
 		const auto* clone = static_cast<const AudioClip*>(stack->getTimelineCounter());
 		expect(clone).not_().to_equal(r.f.clip);
-		const std::optional<deluge::scenes::services::SampleView> view =
-		    deluge::scenes::services::view_state().sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = clone->id()});
+		const std::optional<deluge::ui::scenes::services::SampleView> view =
+		    deluge::ui::scenes::services::view_state().sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = clone->id()});
 		expect(view.has_value()).to_be_true();
 		if (view.has_value()) {
 			expect(view->scroll).to_equal(3 * kZoomMax);

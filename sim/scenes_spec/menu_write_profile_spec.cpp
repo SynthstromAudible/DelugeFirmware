@@ -3,11 +3,11 @@
 // MENU-WRITE-PROFILE lines, each phase's total per kit write; the batch Edit's shape is judged from them.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
 
 #include "instruments/classic/codec.h"
 #include "instruments/classic/settings.h"
@@ -33,10 +33,10 @@
 #include <map>
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::MenuContext;
+using namespace deluge::ui::scenes;
 using deluge::serialization::Value;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::MenuContext;
 
 namespace {
 

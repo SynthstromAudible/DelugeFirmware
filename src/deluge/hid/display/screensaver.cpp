@@ -202,7 +202,7 @@ void Screensaver::settingsChanged() {
 	// `deluge::ui::shell::Screensaver` is the policy half of this class, as a `Service`
 	// (`ui/shell/screensaver.h`), and `src/ui/shell` may not read `storage/` -- so it holds one number
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
-	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
+	// push a change in. That is what `ui/scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a
 	// change to either setting funnels through, from all of its writers -- `deluge_boot` (`deluge.cpp`, after
 	// `FlashStorage::readSettings()`), the menu's two items (below) and a settings reset

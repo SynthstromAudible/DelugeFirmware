@@ -9,15 +9,15 @@
 #include "project/instrument_slot.h"
 #include "project/setting_group.h"
 #include "project/song.h"
-#include "scenes/bind/ports/ports.h"
-#include "scenes/menu/context.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/ports.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "fakes.h"
 
 #include <cstdint>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief A fake of every port (`bind::test::FakeHost`) and a model song, and the contexts a menu reads them through.
 ///        The ports are the fakes', never the host's (`menu::host_ports()`).
@@ -88,4 +88,4 @@ struct FakeHostRig {
 	}
 };
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

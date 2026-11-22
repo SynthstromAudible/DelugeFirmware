@@ -13,19 +13,19 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "project/device_settings.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/l10n_bridge.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
-#include "scenes/services/view_state.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/l10n_bridge.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/view_state.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/profiles/deluge.h"
@@ -70,10 +70,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -94,7 +94,7 @@ extern uint16_t batteryMV;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief Per-example reset of the two process-global things a menu touches.
 ///
@@ -457,7 +457,7 @@ struct Rig {
 /// @brief Did Select's release act on `nodes::lpf_freq` opened at depth 0: follow its chain, or leave the menu?
 template <typename R>
 bool acted(R& r) {
-	return r.shell.stack().depth() == 0 || menu_scene().focused() != &deluge::scenes::menu::nodes::lpf_freq;
+	return r.shell.stack().depth() == 0 || menu_scene().focused() != &deluge::ui::scenes::menu::nodes::lpf_freq;
 }
 
 int depth_of() {
@@ -2203,7 +2203,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Without the range, the file selector's browser refuses to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` would be null -- while
+		// (`sample_can` in `ui/scenes/browser/browser_scene.cpp`) and `ctx.range` would be null -- while
 		// main opens it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
@@ -2867,7 +2867,7 @@ describe menu_scene_node_text("scenes::menu::node_text", $ {
 	// `FormattedTitle` (`origin/main:src/deluge/gui/menu_item/formatted_title.h`) with `asterixToInt`
 	// (`util/functions.h`): one `*` becomes the single digit, `**` the number in two digits with the text ending there.
 	const auto expected = [](String id, std::string_view digits, bool ends) {
-		std::string text{deluge::scenes::text_lookup(sid(id))};
+		std::string text{deluge::ui::scenes::text_lookup(sid(id))};
 		const size_t star = text.find('*');
 		if (star == std::string::npos) {
 			return text;
@@ -2892,7 +2892,7 @@ describe menu_scene_node_text("scenes::menu::node_text", $ {
 		    .to_equal(expected(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "2", false));
 		// A name with no placeholder is the plain lookup.
 		expect(std::string{menu::node_text(nodes::lfo3_type.name, nodes::lfo3_type, ctx, scratch)})
-		    .to_equal(std::string{deluge::scenes::text_lookup(nodes::lfo3_type.name)});
+		    .to_equal(std::string{deluge::ui::scenes::text_lookup(nodes::lfo3_type.name)});
 	});
 
 	it("writes a double placeholder as two digits and ends the text there", _ {
@@ -3385,7 +3385,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused()).to_equal(&sync_leaf);
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `scenes/menu/walk.cpp`;
+			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `ui/scenes/menu/walk.cpp`;
 			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

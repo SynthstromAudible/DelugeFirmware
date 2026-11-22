@@ -21,13 +21,13 @@
 #include "model/instrument/kit.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
 #include "synth/modulation/cable.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
 #include "util/sound_menu_open.h"
@@ -44,12 +44,12 @@
 #include "support/spec_main.h"
 
 namespace params = deluge::modulation::params;
-namespace spec = deluge::scenes::spec;
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
-using deluge::scenes::menu_scene;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+namespace spec = deluge::ui::scenes::spec;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
+using deluge::ui::scenes::menu_scene;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
@@ -96,9 +96,9 @@ constexpr uint8_t kSelectEncoder = 3;
 struct Rig {
 	UiStackGuard ui_guard;
 	spec::SongFixture song = spec::make_synth_song();
-	deluge::ui::shell::SceneRegistry reg = deluge::scenes::scene_registry();
-	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge::scenes::deluge_profile()};
-	Shell shell{fake, deluge::scenes::deluge_profile(), reg, deluge::ui::shell::Services{},
+	deluge::ui::shell::SceneRegistry reg = deluge::ui::scenes::scene_registry();
+	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge::ui::scenes::deluge_profile()};
+	Shell shell{fake, deluge::ui::scenes::deluge_profile(), reg, deluge::ui::shell::Services{},
 	            deluge::ui::shell::ShellConfig{}};
 	uint32_t now = 0;
 

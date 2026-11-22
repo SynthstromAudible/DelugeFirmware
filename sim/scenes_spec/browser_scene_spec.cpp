@@ -9,7 +9,7 @@
 ///
 /// @par Why every example installs a deferring dispatcher
 ///
-/// **The shipped dispatcher, `deluge::scenes::run_inline` (`scenes/run_inline.h`), runs the op on the
+/// **The shipped dispatcher, `deluge::ui::scenes::run_inline` (`ui/scenes/run_inline.h`), runs the op on the
 /// caller's stack**, so with it a listing has already finished by the time `request()` returns, and the in-flight
 /// state -- which is most of this scene -- can never be observed at all. `BrowserScene::set_dispatch`
 /// exists for that and nothing else; `Deferred` below stores the op and runs it when an example says
@@ -31,13 +31,13 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/menu/context.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/notices.h"
@@ -103,23 +103,23 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::browser::AcceptOutcome;
-using deluge::scenes::browser::browser_scene;
-using deluge::scenes::browser::BrowserId;
-using deluge::scenes::browser::BrowserPads;
-using deluge::scenes::browser::BrowserScene;
-using deluge::scenes::browser::kBrowserSceneKind;
-using deluge::scenes::browser::kListingPollMs;
-using deluge::scenes::browser::PreviewRequest;
-using deluge::scenes::browser::ScrollRequest;
-using deluge::scenes::context_menu::context_menu_scene;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::spec::fake_browser_host;
-using deluge::scenes::spec::QuietAudio;
-using deluge::scenes::spec::SdRoot;
 using deluge::storage::FileCatalogue;
+using deluge::ui::scenes::browser::AcceptOutcome;
+using deluge::ui::scenes::browser::browser_scene;
+using deluge::ui::scenes::browser::BrowserId;
+using deluge::ui::scenes::browser::BrowserPads;
+using deluge::ui::scenes::browser::BrowserScene;
+using deluge::ui::scenes::browser::kBrowserSceneKind;
+using deluge::ui::scenes::browser::kListingPollMs;
+using deluge::ui::scenes::browser::PreviewRequest;
+using deluge::ui::scenes::browser::ScrollRequest;
+using deluge::ui::scenes::context_menu::context_menu_scene;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::spec::fake_browser_host;
+using deluge::ui::scenes::spec::QuietAudio;
+using deluge::ui::scenes::spec::SdRoot;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -138,7 +138,7 @@ namespace {
 /// the model closure); the shell's is a different type with the same name.
 using ShellAction = deluge::ui::shell::Action;
 
-namespace bf = deluge::scenes::spec::browser_fx;
+namespace bf = deluge::ui::scenes::spec::browser_fx;
 using bf::blank_start_path;
 using bf::BrowserState;
 using bf::CleanBrowser;
@@ -365,18 +365,18 @@ void select_folder(Rig& r, bool folder) {
 }
 
 /// @brief A favourites bank in memory, recording what the browser asks of it.
-struct FakeFavourites final : deluge::scenes::services::Favourites {
+struct FakeFavourites final : deluge::ui::scenes::services::Favourites {
 	std::array<std::optional<uint8_t>, 16> slots{};
 	std::array<std::string, 16> paths{};
 	std::optional<uint8_t> current{};
 	uint8_t bank = 0;
-	deluge::scenes::services::FavouritesBank state = deluge::scenes::services::FavouritesBank::Loaded;
+	deluge::ui::scenes::services::FavouritesBank state = deluge::ui::scenes::services::FavouritesBank::Loaded;
 	std::string category;
 	int closes = 0;
 
 	void set_category(std::string_view c) override { category = c; }
 	void close() override { closes++; }
-	[[nodiscard]] deluge::scenes::services::FavouritesBank bank_state() const override { return state; }
+	[[nodiscard]] deluge::ui::scenes::services::FavouritesBank bank_state() const override { return state; }
 	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
 	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
 	[[nodiscard]] uint8_t current_bank() const override { return bank; }
@@ -860,7 +860,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	});
 
 	it("keeps a dropped dispatch and retries it on a later tick", _ {
-		// A dispatcher answering false is a drop, not a failure: `Listing::request` (`scenes/browser/listing.cpp`) puts
+		// A dispatcher answering false is a drop, not a failure: `Listing::request` (`ui/scenes/browser/listing.cpp`) puts
 		// the seam back to idle, so the request can be filed again. Here the request is kept and re-filed from
 		// `after_render`, which is what makes the retry happen with no input at all.
 		CleanBrowser clean;
@@ -1107,7 +1107,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		}
 		// The columns the preview read are the waveforms port's, kept by file.
 		const deluge::sample_view::PeakRead read = menu::host_ports().waveforms->peaks(
-		    {.kind = deluge::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
+		    {.kind = deluge::ui::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
 		expect(read.column(0).state()).to_equal(deluge::sample_view::ColumnState::PEAK);
 		Sample* other = make_overview_sample();
 		expect(browser_scene().shown_waveform(waveform_identity(*other)).has_value()).to_be_false();
@@ -2751,12 +2751,12 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		// The spec's sample has no lease, so a stop's unbind would freeze on it (E220): the open must not unbind.
 		Sample* const sample = make_overview_sample();
-		const deluge::scenes::spec::SliceHeld held{sample, "SAMPLES/HELD.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{sample, "SAMPLES/HELD.WAV"};
 		held.open();
 		const auto* range = static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		expect(range->sampleHolder.audioFile).to_equal(sample);
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
-		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::ui::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 	});
 
 	it("drops an open still loading when the slicer opens on the file the preview holds", _ {
@@ -2765,10 +2765,10 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		// An open of another file, its load not yet run: the slicer waits on it.
 		deluge::gui::ui::openShellSlice("SAMPLES/OTHER.WAV");
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_true();
-		const deluge::scenes::spec::SliceHeld held{make_overview_sample(), "SAMPLES/HELD.WAV"};
+		const deluge::ui::scenes::spec::SliceHeld held{make_overview_sample(), "SAMPLES/HELD.WAV"};
 		held.open();
 		// The slicer is open on the held file, and nothing is left to land over it.
-		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::ui::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 	});
 
@@ -3752,7 +3752,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		FakeFavourites fake;
 		fake.slots[3] = 1;
 		fake.paths[3] = "SAMPLES/TOM.WAV";
-		fake.state = deluge::scenes::services::FavouritesBank::Loading;
+		fake.state = deluge::ui::scenes::services::FavouritesBank::Loading;
 		UseFavourites use(fake);
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
@@ -3760,7 +3760,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 9, 7);
 		tap(r, 3, 7);
 		expect(fake.current.has_value()).to_be_false();
-		fake.state = deluge::scenes::services::FavouritesBank::Unavailable;
+		fake.state = deluge::ui::scenes::services::FavouritesBank::Unavailable;
 		tap(r, 3, 7);
 		r.step();
 		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_SD_CARD_ERROR)});

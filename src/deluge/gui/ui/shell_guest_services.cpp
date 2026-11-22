@@ -47,22 +47,22 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/context_menu/context_menu_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/midi_device.h"
-#include "scenes/menu/nodes/multi_range.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
-#include "scenes/rename/rename_scene.h"
-#include "scenes/services/global_controls.h"
-#include "scenes/services/midi_learn.h"
-#include "scenes/services/mod_knobs.h"
-#include "scenes/services/view_state.h"
-#include "scenes/slicing/slicer_scene.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/midi_device.h"
+#include "ui/scenes/menu/nodes/multi_range.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/rename/rename_scene.h"
+#include "ui/scenes/services/global_controls.h"
+#include "ui/scenes/services/midi_learn.h"
+#include "ui/scenes/services/mod_knobs.h"
+#include "ui/scenes/services/view_state.h"
+#include "ui/scenes/slicing/slicer_scene.h"
 #include "util/menu_entry.h"
 #include "util/sample_preview_open.h"
 #include "util/sound_menu_open.h"
@@ -80,13 +80,13 @@ namespace {
 /// `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices`, which is the level-2 demonstration of
 /// this wiring.
 struct GuestServices {
-	deluge::scenes::services::MidiLearn learn;
-	deluge::scenes::services::ModKnobs knobs;
-	deluge::scenes::services::GlobalControls controls;
+	deluge::ui::scenes::services::MidiLearn learn;
+	deluge::ui::scenes::services::ModKnobs knobs;
+	deluge::ui::scenes::services::GlobalControls controls;
 
 	explicit GuestServices(deluge::ui::shell::Shell& shell)
 	    : learn(shell.stack()),
-	      knobs(deluge::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls),
+	      knobs(deluge::ui::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls),
 	      controls(shell.stack(), shell.lowering(), learn) {
 		// One focus for the gold knobs: the legacy views set it, and the guest's knobs read and move it.
 		knobs.use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });
@@ -96,7 +96,7 @@ struct GuestServices {
 /// @brief The one set, built on first use over `shellHostUI`'s own `Shell`.
 ///
 /// A function-local static rather than a namespace-scope object, for the reason
-/// `scenes::menu_scene()` gives: it must not participate in static-initialisation order across
+/// `ui::scenes::menu_scene()` gives: it must not participate in static-initialisation order across
 /// translation units, and `shellHostUI` -- whose `SceneStack` and `InputLowering` these three hold
 /// references to -- is a global in another one. The first call happens at boot, long after every
 /// global is constructed.
@@ -107,9 +107,9 @@ GuestServices& guestServices() {
 
 /// @brief Give the knobs their `ViewState` block, read from the legacy views now.
 void setKnobViewState(GuestServices& services) {
-	// The questions about *which legacy view is on screen* that a service in `src/scenes` has no way to ask. Each
+	// The questions about *which legacy view is on screen* that a service in `src/ui/scenes` has no way to ask. Each
 	// field is its own doc comment's legacy expression, evaluated here.
-	deluge::scenes::services::ModKnobs::ViewState knobView;
+	deluge::ui::scenes::services::ModKnobs::ViewState knobView;
 	knobView.in_automation_editor = getRootUI() == &automationView && automationView.inAutomationEditor();
 	knobView.automation_on_arranger = automationView.onArrangerView;
 	knobView.root_is_performance = getRootUI() == &performanceView;
@@ -123,7 +123,7 @@ void setKnobViewState(GuestServices& services) {
 void setViewStates(GuestServices& services) {
 	setKnobViewState(services);
 
-	deluge::scenes::services::GlobalControls::ViewState controlView;
+	deluge::ui::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
 	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp`: it is
 	// the same question with a null guard on it. While nothing is open (a song swap, or a spec that opens no UI)
@@ -154,9 +154,9 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	clearMenuKitGlobalFx();
 	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
 	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.
-	(void)deluge::scenes::menu_scene().take_transition();
-	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
-	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
+	(void)deluge::ui::scenes::menu_scene().take_transition();
+	if (const std::optional<deluge::ui::scenes::overlay::ShownPopup> shown =
+	        deluge::ui::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
 		display->displayNotification(shown->name, shown->value);
 		uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(shown->remaining_ms));
 		view.adoptModEncoderValuePopup(shown->kind, shown->param_id, shown->display_value, shown->source1,
@@ -164,30 +164,32 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	}
 }
 
-deluge::scenes::services::ModKnobs& sharedModKnobs() {
+deluge::ui::scenes::services::ModKnobs& sharedModKnobs() {
 	return guestServices().knobs;
 }
 
 void refreshKnobsForRoot() {
 	GuestServices& services = guestServices();
-	services.knobs.set_ports(&deluge::scenes::menu::host_ports());
+	services.knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	setKnobViewState(services);
 }
 
 void refreshShellRootFacts() {
 	setViewStates(guestServices());
-	deluge::scenes::menu_scene().set_root_facts(deluge::gui::menuRootGreyout(), getRootUI() == &keyboardScreen,
-	                                            getRootUI() == &automationView);
+	deluge::ui::scenes::menu_scene().set_root_facts(deluge::gui::menuRootGreyout(), getRootUI() == &keyboardScreen,
+	                                                getRootUI() == &automationView);
 }
 
 bool menuCurrent() {
-	return getCurrentUI() == &shellHostUI && &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
+	return getCurrentUI() == &shellHostUI
+	       && &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
 }
 
 bool soundMenuOpen() {
 	return menuCurrent()
-	       && deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
+	       && deluge::ui::scenes::menu_scene().menu_context().root
+	              != deluge::ui::scenes::menu::MenuContext::Root::Settings;
 }
 
 namespace {
@@ -197,18 +199,19 @@ std::atomic<bool> guestPreviewSounds{false};
 } // namespace
 
 bool rangePickerOpen() {
-	return soundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
+	return soundMenuOpen()
+	       && deluge::ui::scenes::menu_scene().focused() == &deluge::ui::scenes::menu::nodes::multi_range;
 }
 
 bool drumSelectionFrozenBy(uint8_t raw_kind, uint16_t which) {
 	const auto kind = static_cast<deluge::ui::shell::SceneKind>(raw_kind);
-	if (kind == deluge::scenes::browser::kBrowserSceneKind) {
-		return which == static_cast<uint16_t>(deluge::scenes::browser::BrowserId::Sample);
+	if (kind == deluge::ui::scenes::browser::kBrowserSceneKind) {
+		return which == static_cast<uint16_t>(deluge::ui::scenes::browser::BrowserId::Sample);
 	}
-	if (kind == deluge::scenes::rename::kRenameSceneKind) {
-		return which == static_cast<uint16_t>(deluge::scenes::rename::TargetId::Drum);
+	if (kind == deluge::ui::scenes::rename::kRenameSceneKind) {
+		return which == static_cast<uint16_t>(deluge::ui::scenes::rename::TargetId::Drum);
 	}
-	return kind == deluge::scenes::marker::kMarkerSceneKind;
+	return kind == deluge::ui::scenes::marker::kMarkerSceneKind;
 }
 
 bool drumSelectionFrozen() {
@@ -217,11 +220,11 @@ bool drumSelectionFrozen() {
 	}
 	const deluge::ui::shell::Scene& top = shellHostUI.shell().stack().input_top();
 	uint16_t which = 0;
-	if (&top == &deluge::scenes::browser::browser_scene()) {
-		which = static_cast<uint16_t>(deluge::scenes::browser::browser_scene().browser_id());
+	if (&top == &deluge::ui::scenes::browser::browser_scene()) {
+		which = static_cast<uint16_t>(deluge::ui::scenes::browser::browser_scene().browser_id());
 	}
-	else if (&top == &deluge::scenes::rename::rename_scene()) {
-		which = static_cast<uint16_t>(deluge::scenes::rename::rename_scene().target_id());
+	else if (&top == &deluge::ui::scenes::rename::rename_scene()) {
+		which = static_cast<uint16_t>(deluge::ui::scenes::rename::rename_scene().target_id());
 	}
 	return drumSelectionFrozenBy(static_cast<uint8_t>(top.kind()), which);
 }
@@ -231,16 +234,16 @@ bool rangeDependentMenuOpen() {
 		return false;
 	}
 	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
-	const auto& browser = deluge::scenes::browser::browser_scene();
-	if ((top == &browser && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample)
-	    || top == &deluge::scenes::recorder::recorder_scene()) {
+	const auto& browser = deluge::ui::scenes::browser::browser_scene();
+	if ((top == &browser && browser.browser_id() == deluge::ui::scenes::browser::BrowserId::Sample)
+	    || top == &deluge::ui::scenes::recorder::recorder_scene()) {
 		return true;
 	}
 	if (!soundMenuOpen()) {
 		return false;
 	}
-	const deluge::scenes::menu::Node* node = deluge::scenes::menu_scene().focused();
-	return node != nullptr && (node->range_dependent || node == &deluge::scenes::menu::nodes::multi_range);
+	const deluge::ui::scenes::menu::Node* node = deluge::ui::scenes::menu_scene().focused();
+	return node != nullptr && (node->range_dependent || node == &deluge::ui::scenes::menu::nodes::multi_range);
 }
 
 bool noteWithinCurrentRange(int32_t untransposed) {
@@ -249,7 +252,7 @@ bool noteWithinCurrentRange(int32_t untransposed) {
 	}
 	// `SoundEditor::isUntransposedNoteWithinRange` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), on the guest's
 	// source and range.
-	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+	const deluge::ui::scenes::menu::MenuContext& ctx = deluge::ui::scenes::menu_scene().menu_context();
 	if (currentSong == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources
 	    || ctx.range_index < 0) {
 		return false;
@@ -267,7 +270,7 @@ bool noteWithinCurrentRange(int32_t untransposed) {
 
 void changeRangeForNote(int32_t note) {
 	if (rangePickerOpen()) {
-		(void)deluge::scenes::menu_scene().select_range_for_note(note);
+		(void)deluge::ui::scenes::menu_scene().select_range_for_note(note);
 	}
 }
 
@@ -286,31 +289,31 @@ int32_t lastRangeBottom = -1;
 int32_t lastRangeTop = -1;
 /// The menu's screen at the last guest tick: `SoundEditor::beginScreen` re-renders the root's range display on every
 /// screen change (`possibleChangeToCurrentRangeDisplay`), which redraws a kit's selected-drum pad for affect-entire.
-const deluge::scenes::menu::Node* lastScreen = nullptr;
+const deluge::ui::scenes::menu::Node* lastScreen = nullptr;
 } // namespace
 
 void refreshMenuModeGates() {
 	const bool selectAndBack =
 	    currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || currentUIMode == UI_MODE_NOTES_PRESSED
 	    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR || currentUIMode == UI_MODE_STUTTERING;
-	deluge::scenes::menu_scene().set_host_mode_gates(
+	deluge::ui::scenes::menu_scene().set_host_mode_gates(
 	    {.learn = currentUIMode == UI_MODE_NONE, .select_and_back = selectAndBack});
 }
 
 bool menuLearnMode() {
-	return deluge::scenes::menu_scene().learn_mode();
+	return deluge::ui::scenes::menu_scene().learn_mode();
 }
 
 void refreshShellRangeDisplay() {
-	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+	const deluge::ui::scenes::menu::MenuContext& ctx = deluge::ui::scenes::menu_scene().menu_context();
 	const bool open = soundMenuOpen();
 	const int32_t range = open ? ctx.range_index : -1;
 	const int32_t source = open ? ctx.source_index : -1;
 	const bool highlighting = rangeDependentMenuOpen();
-	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
-	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
-	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
-	const deluge::scenes::menu::Node* screen = open ? deluge::scenes::menu_scene().focused() : nullptr;
+	const int32_t count = open ? deluge::ui::scenes::menu::range_count(ctx) : -1;
+	const int32_t bottom = range > 0 ? deluge::ui::scenes::menu::range_top_note(ctx, range - 1) : -1;
+	const int32_t top = range >= 0 ? deluge::ui::scenes::menu::range_top_note(ctx, range) : -1;
+	const deluge::ui::scenes::menu::Node* screen = open ? deluge::ui::scenes::menu_scene().focused() : nullptr;
 	const bool edges_only = range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
 	                        && count == lastRangeCount && screen == lastScreen;
 	if (edges_only && bottom == lastRangeBottom && top == lastRangeTop) {
@@ -345,7 +348,7 @@ std::optional<int32_t> dxColumnFlashRow() {
 	if (!soundMenuOpen()) {
 		return std::nullopt;
 	}
-	return deluge::scenes::menu_scene().dx_column_flash(shellHostUI.nowMs());
+	return deluge::ui::scenes::menu_scene().dx_column_flash(shellHostUI.nowMs());
 }
 
 void refreshShellDxColumn() {
@@ -363,23 +366,23 @@ void refreshShellDxColumn() {
 
 void refreshShellSamplePreviewSounds() {
 	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
-	const auto& browser = deluge::scenes::browser::browser_scene();
-	const auto& menu = deluge::scenes::context_menu::context_menu_scene();
-	using deluge::scenes::context_menu::DescriptorId;
-	const bool sounds = (top == &browser && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample)
+	const auto& browser = deluge::ui::scenes::browser::browser_scene();
+	const auto& menu = deluge::ui::scenes::context_menu::context_menu_scene();
+	using deluge::ui::scenes::context_menu::DescriptorId;
+	const bool sounds = (top == &browser && browser.browser_id() == deluge::ui::scenes::browser::BrowserId::Sample)
 	                    || (top == &menu
 	                        && (menu.descriptor_id() == DescriptorId::SampleBrowserKit
 	                            || menu.descriptor_id() == DescriptorId::SampleBrowserSynth))
-	                    || top == &deluge::scenes::slicing::slicer_scene();
+	                    || top == &deluge::ui::scenes::slicing::slicer_scene();
 	guestPreviewSounds.store(sounds, std::memory_order_relaxed);
 }
 
 void forgetMenuContext() {
-	deluge::scenes::menu_scene().forget_context();
+	deluge::ui::scenes::menu_scene().forget_context();
 }
 
 void endShellRecorderTakeForTeardown() {
-	deluge::scenes::recorder::recorder_scene().taken_down();
+	deluge::ui::scenes::recorder::recorder_scene().taken_down();
 }
 
 bool samplePreviewUIOpen() {
@@ -395,7 +398,7 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on
 	const bool instrument_clip_view = clip != nullptr && clip->type == ClipType::INSTRUMENT;
 	if (on && currentUIMode == UI_MODE_NONE && instrument_clip_view) {
 		if (Buttons::isShiftButtonPressed()) {
-			deluge::scenes::menu_scene().delete_range_press();
+			deluge::ui::scenes::menu_scene().delete_range_press();
 		}
 		else {
 			openUI(&saveInstrumentPresetUI);
@@ -412,7 +415,7 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 	if (clip == nullptr || clip->type != ClipType::INSTRUMENT || activeNoteMode() != NoteModeKind::None) {
 		return std::nullopt;
 	}
-	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	deluge::ui::scenes::menu::MenuScene& menu = deluge::ui::scenes::menu_scene();
 	if (menu.takes_affect_entire()) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {
@@ -435,14 +438,15 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 
 void readSoundMenuValueAgain() {
 	if (menuCurrent()) {
-		deluge::scenes::menu_scene().read_value_again();
+		deluge::ui::scenes::menu_scene().read_value_again();
 	}
 }
 
 void mpeZonesPotentiallyUpdated() {
 	if (menuCurrent()
-	    && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::mpe_zone_num_member_channels) {
-		deluge::scenes::menu_scene().read_value_again();
+	    && deluge::ui::scenes::menu_scene().focused()
+	           == &deluge::ui::scenes::menu::nodes::mpe_zone_num_member_channels) {
+		deluge::ui::scenes::menu_scene().read_value_again();
 	}
 }
 
@@ -460,16 +464,16 @@ void wireShellGuestServices() {
 
 	// The app's ports and the record of the song it plays, which the learn, the global controls and the knobs act
 	// through and read.
-	services.learn.set_ports(&deluge::scenes::menu::host_ports());
+	services.learn.set_ports(&deluge::ui::scenes::menu::host_ports());
 	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
-	services.controls.set_ports(&deluge::scenes::menu::host_ports());
+	services.controls.set_ports(&deluge::ui::scenes::menu::host_ports());
 	services.controls.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
-	services.knobs.set_ports(&deluge::scenes::menu::host_ports());
+	services.knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
-	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
-	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
-	                                                            : deluge::scenes::services::MenuView{});
+	deluge::ui::scenes::services::view_state().set_current_view(
+	    currentSong != nullptr ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
+	                           : deluge::ui::scenes::services::MenuView{});
 
 	setViewStates(services);
 
@@ -488,9 +492,9 @@ void wireShellGuestServices() {
 
 void wireShellClipCloneViews() {
 	deluge::model::setAudioClipCloneFollower([](uint32_t from, uint32_t to) {
-		using deluge::scenes::services::ViewKey;
-		deluge::scenes::services::view_state().copy_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = from},
-		                                                 ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = to});
+		using deluge::ui::scenes::services::ViewKey;
+		deluge::ui::scenes::services::view_state().copy_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = from},
+		                                                     ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = to});
 	});
 }
 

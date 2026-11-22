@@ -4,10 +4,10 @@
 ///        driven through a real `MenuScene` and `Shell` over the ports' fakes, with a model song of the spec's own and
 ///        no legacy song behind the menu.
 
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "gui/l10n/strings.h"
 #include "ui/shell/scene.h"
@@ -22,21 +22,21 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::spec::cursor_row;
-using deluge::scenes::spec::FakeMenuShell;
-using deluge::scenes::spec::listed_at;
-using deluge::scenes::spec::page_title;
-using deluge::scenes::spec::row_of;
-using deluge::scenes::spec::text_of;
-using deluge::scenes::spec::walk_depth;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::spec::cursor_row;
+using deluge::ui::scenes::spec::FakeMenuShell;
+using deluge::ui::scenes::spec::listed_at;
+using deluge::ui::scenes::spec::page_title;
+using deluge::ui::scenes::spec::row_of;
+using deluge::ui::scenes::spec::text_of;
+using deluge::ui::scenes::spec::walk_depth;
 using deluge::ui::shell::SceneKind;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// MASTER's columns are SYNTH MODE, VOLUME, PAN, TRANSPOSE and VIBRATO.
 constexpr int8_t kVibratoColumn = 4;

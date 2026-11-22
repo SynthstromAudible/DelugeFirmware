@@ -81,7 +81,7 @@ std::string disagreement(::Song& song, const ParamAddress& address, const ParamI
 // clang-format off
 describe knob_math("the gold knob's position, from the param's descriptor", ${
 	it("agrees with the engine for every Deluge param, a patch cable, expression 0-2 and a MIDI CC", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		const OwnerId synth = OwnerId::instrument(*f.instrument->id());
@@ -122,7 +122,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 	});
 
 	it("agrees with the engine for every global-effectable param", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		std::vector<std::string> found;
@@ -140,7 +140,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 	});
 
 	it("agrees with the engine for a MIDI CC", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_midi_song();
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_midi_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);

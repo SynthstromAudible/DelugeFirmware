@@ -46,9 +46,9 @@
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
-#include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
 #include "ui/controls/knob_focus.h"
+#include "ui/scenes/bind/knob_assignment.h"
 
 #include <array>
 #include <cstdio>
@@ -378,7 +378,7 @@ void checkPerformanceTables(Checker& check) {
 /// a setting have no param in the layout: they must be the pages' compressor arms instead, and no other cell may be
 /// one.
 void checkChainKnobs(Checker& check) {
-	namespace bind = deluge::scenes::bind;
+	namespace bind = deluge::ui::scenes::bind;
 	namespace project = deluge::project;
 	constexpr uint32_t kKit = 1;
 	constexpr uint32_t kClip = 1;

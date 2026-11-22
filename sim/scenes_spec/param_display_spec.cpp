@@ -5,7 +5,7 @@
 /// row says the same through `ParamInfo::display`. A node whose param has no row in a table, or nodes that disagree
 /// about one param, are named below with their reasons.
 ///
-/// @note The SPEC may include `scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
+/// @note The SPEC may include `ui/scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
@@ -13,8 +13,8 @@
 
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
 
 #include "cppspec.hpp"
 
@@ -27,7 +27,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes::menu;
+using namespace deluge::ui::scenes::menu;
 namespace params = deluge::modulation::params;
 using deluge::plugin::MappingKind;
 using deluge::plugin::ParamId;

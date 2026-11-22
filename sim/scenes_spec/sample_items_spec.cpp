@@ -1,5 +1,5 @@
 /// @file
-/// @brief The ten menu items that open a card-backed scene (`scenes/menu/nodes/sample.h`): which
+/// @brief The ten menu items that open a card-backed scene (`ui/scenes/menu/nodes/sample.h`): which
 ///        node carries which item, and what each one actually opens when the menu focuses it.
 ///
 /// Two groups, and they are deliberately different kinds of claim:
@@ -22,21 +22,21 @@
 /// `MenuContext` built from the model state the rows were taken in.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/browser/browser_scene.h"
-#include "scenes/marker/marker_scene.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/sample.h"
-#include "scenes/menu/relevance.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/menu/validate.h"
-#include "scenes/profile.h"
-#include "scenes/recorder/recorder_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/sample.h"
+#include "ui/scenes/menu/relevance.h"
+#include "ui/scenes/menu/shortcuts.h"
+#include "ui/scenes/menu/validate.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/recorder/recorder_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -84,16 +84,16 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using namespace deluge::scenes::spec::sampleitems;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
+using namespace deluge::ui::scenes::spec::sampleitems;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 

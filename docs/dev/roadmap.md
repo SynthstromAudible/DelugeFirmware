@@ -36,7 +36,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 
 | Layer | Contents |
 | --- | --- |
-| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow. The UI's whole contract with the app is `UiEvent` in, reads by address through `scenes/bind`, and writes out as requests through the write ports |
+| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow. The UI's whole contract with the app is `UiEvent` in, reads by address through `ui/scenes/bind`, and writes out as requests through the write ports |
 | Project model, engines, effects | Model owns persistent structure, writes are commands, engines play snapshots. Engines are CLAP-shaped (Deluge instrument, clip player); the synth stays C++. Effects are host chains |
 | libdeluge | The stable C ABI every component crosses |
 | Rust platform | Embassy scheduler, audio/storage/interaction tiers, HAL + BSP in deluge-sdk, async SD stack |
@@ -74,7 +74,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done; 1c done (MCA/GE deleted); 1d done (per-effect param tables) |
 | P4 | Clip player (live input is one mode) | Not started |
 | P5 | Topology + reconciler: track = chain, kit = a `Kit` of `KitRow`s, clip-scoped values, one mapping table | Step 1 records done |
-| P6 | Interface | Read half begun: `scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
+| P6 | Interface | Read half begun: `ui/scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
 
 ### P3d-1c execution tree
 
@@ -97,7 +97,7 @@ so once reads go the same way, the UI's contract with the app has three parts. T
 fakes with no `Song` and keeps the UI unaffected by changes to the model's storage (P5, ModelStack). It also
 keeps the option open to put the UI behind a C ABI.
 
-**Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a scene's
+**Exists.** `ui/scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a scene's
 context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`, `CardFacts`,
 `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport`, `Waveforms` and `controls::Facts`; the write ports are
 `ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; the call ports are `TransportActions`,
@@ -133,7 +133,7 @@ counts. The 13 includes, by what they read (each header with the number of count
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` include rule (`scripts/layers.toml`), whose per-file baseline in `scripts/layers_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the sample-view library (R2c-2). Left: R2c-3, the browser's, the context menu's and the rename scene's reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the sample-view library (R2c-2). Left: R2c-3, the browser's, the context menu's and the rename scene's reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_ui_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
@@ -145,7 +145,7 @@ PIC and parity with main.
 
 **R2c-3 carries these:**
 
-- **The `menu::host_*` hooks** left in `scenes/menu/bind_host.h`, each retired with its callers:
+- **The `menu::host_*` hooks** left in `ui/scenes/menu/bind_host.h`, each retired with its callers:
   - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
   - `host_end_audition`, for the browser alone (it forwards to `ViewActions::end_audition`);
   - `host_waveforms`, for the browser alone: the browser's waveform reads move onto `ports.waveforms`, which retires
@@ -155,7 +155,7 @@ PIC and parity with main.
 - **`DeviceActions`' reset and export items**, with the context menu's reset items.
 - **`ForegroundRecording`** (`AudioFacts::foreground_recording`) is ready for the browser's comparison: its
   `!= NONE` becomes the four-value test.
-- **The menu files the host-tree fakes driver (`tests/unit/scenes/menu_fakes/`) cannot link** without the app.
+- **The menu files the host-tree fakes driver (`tests/unit/ui/scenes/menu_fakes/`) cannot link** without the app.
   `context.cpp` links without it. Eight roots name an app symbol themselves; every other menu file outside the driver
   depends on one of them (`relevance.cpp` on `nodes/note.cpp`, through its iterance relevance rows):
 
@@ -205,7 +205,7 @@ sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definiti
 `util/etl_string.h`.
 
 Stage placement is **(proposed)**. Exit for R2: the scene specs run against fake ports, and no file in
-`src/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.
+`src/ui/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.
 
 ### Root-view program
 
@@ -297,7 +297,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
    rules, VCA and wave-scale unification) go to the float instrument.
 4. **Lanes own disjoint directories** so worktrees merge cleanly. Golden baselines, the test registry and CMake
    lists are touched by one lane at a time.
-5. **Scenes read through `bind`.** New scene code reads by address through `scenes/bind`; code a plan already
+5. **Scenes read through `bind`.** New scene code reads by address through `ui/scenes/bind`; code a plan already
    touches moves its reads there as it goes. The R1 ratchet (`scenes-reads-outside-bind`) enforces this.
 
 ### When the big replacements land
@@ -320,7 +320,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 
 | Lane | Worktrees | Directories owned | Collision risk |
 | --- | --- | --- | --- |
-| UI shell | Off `next`; R2, then the root-view program | `src/scenes`, `src/ui/shell`, `gui/ui` | Scene binding tables |
+| UI shell | Off `next`; R2, then the root-view program | `src/ui/scenes`, `src/ui/shell`, `gui/ui` | Scene binding tables |
 | Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
 | Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |

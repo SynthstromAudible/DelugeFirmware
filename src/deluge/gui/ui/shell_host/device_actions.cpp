@@ -6,7 +6,7 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The device's own actions, each the legacy call it names.
-class HostDeviceActions final : public scenes::bind::DeviceActions {
+class HostDeviceActions final : public deluge::ui::scenes::bind::DeviceActions {
 public:
 	void save_settings() override {
 		// `View::endMIDILearn` (`origin/main:src/deluge/gui/views/view.cpp`) writes the settings file alone.
@@ -17,7 +17,7 @@ public:
 
 } // namespace
 
-scenes::bind::DeviceActions& device_actions() {
+deluge::ui::scenes::bind::DeviceActions& device_actions() {
 	static HostDeviceActions actions;
 	return actions;
 }

@@ -3,12 +3,12 @@
 ///        the menu: what learn mode does with a note-on, a CC, a pitch bend and a gold knob on a param, a note-on on a
 ///        global command, and SHIFT + LEARN's unlearn, each as the learn fake records it.
 
-#include "scenes/bind/ports/learn_sink.h"
-#include "scenes/bind/ports/midi_devices.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
+#include "ui/scenes/bind/ports/learn_sink.h"
+#include "ui/scenes/bind/ports/midi_devices.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
 
 #include "midi/device_id.h"
 #include "project/controller_mapping.h"
@@ -30,19 +30,19 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::GlobalCommand;
 using deluge::project::MappingTarget;
 using deluge::project::OwnerParamTarget;
-using deluge::scenes::bind::LearnedBinding;
-using deluge::scenes::spec::FakeHostRig;
-using deluge::scenes::spec::FakeMenuShell;
+using deluge::ui::scenes::bind::LearnedBinding;
+using deluge::ui::scenes::spec::FakeHostRig;
+using deluge::ui::scenes::spec::FakeMenuShell;
 using deluge::ui::shell::UiEvent;
-using Call = deluge::scenes::bind::test::RecordingLearnSink::Call;
+using Call = deluge::ui::scenes::bind::test::RecordingLearnSink::Call;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// A hosted device, which the MIDI devices fake learns of through `FakeMidiDevices::connect`.
 constexpr deluge::midi::DeviceId kHosted = deluge::midi::kFirstHosted;

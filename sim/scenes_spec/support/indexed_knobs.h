@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief The knobs of @p owner the index, rebuilt from @p song's table, plays for CC @p cc on @p channel (as the
 ///        table spells it) from any device: each with the cable it listens to and its relative flag, in table order.
@@ -46,4 +46,4 @@ inline bool indexPlays(::Song& song, const project::OwnerParamTarget& target, in
 	return hits.size() == 1 && hits[0].target == project::MappingTarget{target};
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

@@ -8,12 +8,12 @@
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/overlay/param_popup_scene.h"
-#include "scenes/registry.h"
-#include "scenes/services/knob_presentation.h"
-#include "scenes/services/mod_knobs.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/overlay/param_popup_scene.h"
+#include "ui/scenes/registry.h"
+#include "ui/scenes/services/knob_presentation.h"
+#include "ui/scenes/services/mod_knobs.h"
 
 #include "gui/views/knob_focus_from_stack.h"
 
@@ -50,11 +50,11 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::modulation::params::Kind;
-using deluge::scenes::services::KnobPresentation;
-using deluge::scenes::services::ModKnobs;
-using deluge::scenes::services::ModTurn;
+using deluge::ui::scenes::services::KnobPresentation;
+using deluge::ui::scenes::services::ModKnobs;
+using deluge::ui::scenes::services::ModTurn;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::InputLowering;
 using deluge::ui::shell::SceneKind;
@@ -144,7 +144,7 @@ struct Rig {
 	Rig() {
 		display = &stub;
 		currentSong = f.song;
-		knobs.set_ports(&deluge::scenes::menu::host_ports());
+		knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
 		knobs.set_model(&f.song->project);
 		knobs.set_focus(focus_of(*f.song, f.clip), false);
 		knobs.set_mod_region();
@@ -316,7 +316,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		rig.knobs.push(1, true, {}, rig.out); // the upper knob's push edits the compressor: the knobs leave their params
 		rig.knobs.push(1, false, {}, rig.out);
 		(void)rig.out.take();
-		const deluge::scenes::services::ModIndicatorInfo before = rig.knobs.indicator_info(1);
+		const deluge::ui::scenes::services::ModIndicatorInfo before = rig.knobs.indicator_info(1);
 		expect(before.non_existent_param).to_be_true();
 
 		rig.knobs.turn(1, 3, 1000, rig.out); // the threshold
@@ -329,7 +329,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		Rig rig;
 		rig.set_mode(0);
 		rig.knobs.set_model(nullptr);
-		const deluge::scenes::services::ModIndicatorInfo info = rig.knobs.indicator_info(0);
+		const deluge::ui::scenes::services::ModIndicatorInfo info = rig.knobs.indicator_info(0);
 		expect(info.has_auto_param).to_be_false("the indicator's auto param");
 		expect(info.non_existent_param).to_be_false("the indicator's non-existent param");
 		expect(info.patch_cable_default).to_be_false("the indicator's patch cable default");

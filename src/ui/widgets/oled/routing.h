@@ -7,7 +7,7 @@
 /// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), which is the only screen in the firmware that
 /// draws a signal path rather than a value. It is worth a widget rather than a one-off because the
 /// thing it does -- carrying "A modulates B" pre-verbally, so the eye reads the routing before the
-/// user parses a string -- is the whole job of that page, and because `src/scenes` may not call an
+/// user parses a string -- is the whole job of that page, and because `src/ui/scenes` may not call an
 /// `OledFrame` drawing primitive at all (`scripts/check_layer_rules.py`'s
 /// `scenes-no-frame-primitives`), so a scene that wants a diagram has to get one from here.
 ///
@@ -16,7 +16,8 @@
 ///       offset from the left edge, and a frame's origin already carries `visible_top` -- so the
 ///       `n`s are what survive and both widgets are geometry-independent. There is no 48/64
 ///       constant pair here and there must not be one: a caller wanting legacy's absolute canvas
-///       row passes a rect derived from `ui/widgets/core/metrics.h`, as `src/scenes/menu/nodes/midi_command.cpp` does.
+///       row passes a rect derived from `ui/widgets/core/metrics.h`, as `src/ui/scenes/menu/nodes/midi_command.cpp`
+///       does.
 
 #include "ui/gfx/oled/geometry.h"
 #include "ui/widgets/core/response.h"

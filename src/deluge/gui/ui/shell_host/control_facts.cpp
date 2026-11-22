@@ -16,9 +16,9 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/ports/param_info.h"
 #include "ui/controls/facts.h"
+#include "ui/scenes/bind/knob_assignment.h"
+#include "ui/scenes/bind/ports/param_info.h"
 
 #include <optional>
 #include <span>
@@ -52,7 +52,7 @@ public:
 	[[nodiscard]] std::span<const deluge::ui::controls::KitRow> sound_rows(uint32_t clip_id) const override;
 	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId plugin,
 	                                                  const project::ParamTarget& target) const override {
-		return scenes::bind::deluge_param_info(plugin, target);
+		return deluge::ui::scenes::bind::deluge_param_info(plugin, target);
 	}
 	[[nodiscard]] deluge::ui::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
 		return {.mode = static_cast<deluge::ui::controls::TakeoverMode>(midiEngine.midiTakeover),
@@ -99,7 +99,8 @@ bool HostControlFacts::allows_note_tails(deluge::project::SlotAddress slot,
 		}
 		clip = deluge::project::ClipAddress{active->id()};
 	}
-	const deluge::scenes::bind::KnobFocus focus{.owner = deluge::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
+	const deluge::ui::scenes::bind::KnobFocus focus{
+	    .owner = deluge::ui::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
 	ModelStackWithThreeMainThings* owner = deluge::bridge::knobOwnerStackAt(*currentSong, focus, memory);
 	return owner == nullptr || sound->allowNoteTails(owner->addSoundFlags());
 }

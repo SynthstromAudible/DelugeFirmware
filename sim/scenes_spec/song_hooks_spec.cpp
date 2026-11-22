@@ -3,13 +3,13 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/roots.h"
-#include "scenes/menu/nodes/scales.h"
-#include "scenes/menu/nodes/sound_fx.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/roots.h"
+#include "ui/scenes/menu/nodes/scales.h"
+#include "ui/scenes/menu/nodes/sound_fx.h"
 
 #include "model/song/song.h"
 #include "project/setting_group.h"
@@ -23,9 +23,9 @@
 
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::menu::MenuContext;
-namespace nodes = deluge::scenes::menu::nodes;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::menu::MenuContext;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 namespace {
 

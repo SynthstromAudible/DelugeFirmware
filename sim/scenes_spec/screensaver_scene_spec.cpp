@@ -43,9 +43,9 @@
 /// (`Screensaver::consumeFrameDirty` in `hid/display/screensaver.h`, `OLED::sendMainImage` in `hid/display/oled.cpp`,
 /// whose port is the shell's `RepaintGate`). Counted as uncovered.
 
-#include "scenes/menu/bind_host.h"
-#include "scenes/overlay/screensaver_scene.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/overlay/screensaver_scene.h"
+#include "ui/scenes/registry.h"
 
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -68,10 +68,10 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
-using deluge::scenes::overlay::kFrameIntervalMs;
-using deluge::scenes::overlay::kScreensaverSceneKind;
-using deluge::scenes::overlay::screensaver_scene;
+using namespace deluge::ui::scenes;
+using deluge::ui::scenes::overlay::kFrameIntervalMs;
+using deluge::ui::scenes::overlay::kScreensaverSceneKind;
+using deluge::ui::scenes::overlay::screensaver_scene;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::SceneId;
@@ -119,7 +119,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `on_exit` always runs (every scene in `src/scenes` is a process
+	/// @brief Tear the stack down, so `on_exit` always runs (every scene in `src/ui/scenes` is a process
 	///        singleton, so a stale stack leaks into the next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -257,7 +257,7 @@ void set_mode(::ScreensaverMode mode) {
 	LegacyScreensaver::noteActivity(); // `Screensaver::noteActivity` (`hid/display/screensaver.cpp`): deactivate if
 	                                   // showing.
 	FlashStorage::screensaverMode = mode;
-	screensaver_scene().set_device(deluge::scenes::menu::host_ports().device);
+	screensaver_scene().set_device(deluge::ui::scenes::menu::host_ports().device);
 }
 
 } // namespace

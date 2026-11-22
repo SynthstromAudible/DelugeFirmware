@@ -3,7 +3,7 @@ website/src/data/generated/menu-tree.json. `./dbt test --update ui-menu-dump` re
 menu-hierarchies.json from it afterwards (website/src/data/generated/README.md).
 
 Gate ui-menu-dump:
-    the declarative menu tree (every root of src/scenes/menu's node tables, with each node's type, l10n name and title,
+    the declarative menu tree (every root of src/ui/scenes/menu's node tables, with each node's type, l10n name and title,
     availability and the values it offers) is dumped as JSON by the app itself and must equal
     website/src/data/generated/menu-tree.json, so a menu change shows up as a diff of that file. ./dbt test --update
     ui-menu-dump regenerates it.

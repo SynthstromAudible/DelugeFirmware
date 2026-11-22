@@ -4,7 +4,7 @@
 ///        value column follows its chain or ascends -- all driven through a real `Shell` over
 ///        `uitest::FakeSurfaceSet`, the same rig `menu_scene_spec.cpp` uses.
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`, for the
+/// The tree under test is declared here rather than taken from `src/ui/scenes/menu/nodes/`, for the
 /// same reason `menu_scene_spec.cpp`'s is: this file's subject is the interpreter, not the data,
 /// and the shipped `nodes::lpf` (four value columns, no submenu column, no range-dependent one) is
 /// not shaped to exercise every arm this file has to -- `is_submenu`'s no-op, `select_chain`'s
@@ -14,16 +14,16 @@
 /// toolkit-level counterpart `unit/ui/columns_spec.cpp` already established the pattern for.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/detail.h" // with_slots
-#include "scenes/menu/nodes/nodes.h"  // the real `nodes::randomizer`/`randomizer_lock`
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/detail.h" // with_slots
+#include "ui/scenes/menu/nodes/nodes.h"  // the real `nodes::randomizer`/`randomizer_lock`
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
 #include "ui/shell/notices.h"
@@ -72,10 +72,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::ButtonSet;
@@ -91,10 +91,10 @@ namespace {
 
 using deluge::test::matchers::address_of;
 
-using deluge::scenes::spec::NoNotificationSink;
+using deluge::ui::scenes::spec::NoNotificationSink;
 
-namespace menu = deluge::scenes::menu;
-namespace nodes = deluge::scenes::menu::nodes;
+namespace menu = deluge::ui::scenes::menu;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;

@@ -2,11 +2,11 @@
 /// @brief The menu's relevance over the ports' fakes, with a model song of the spec's own and no legacy song behind
 ///        the menu: a node whose relevance reads a port appears and disappears as that port's fake changes.
 
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/nodes/settings.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/nodes/settings.h"
 
 #include "instruments/classic/sound_state.h"
 #include "project/device_settings.h"
@@ -24,15 +24,15 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::project::Feature;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using device_path = deluge::project::device_path;
 
 namespace {
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief Is @p node listed on @p page in @p ctx?
 bool listed(const Node& page, const Node& node, const MenuContext& ctx) {

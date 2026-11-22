@@ -33,12 +33,12 @@ namespace {
 
 const std::string kCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/browser_scene";
 
-Sound* sound_of(const deluge::scenes::spec::SongFixture& f) {
+Sound* sound_of(const deluge::ui::scenes::spec::SongFixture& f) {
 	return f.instrument->toModControllable()->effectsOwner()->sound;
 }
 
 /// The song's volume stage at the fixture song's volume, as the preview folds it in.
-int32_t song_stage(const deluge::scenes::spec::SongFixture& f) {
+int32_t song_stage(const deluge::ui::scenes::spec::SongFixture& f) {
 	const int32_t volume =
 	    f.song->paramManager.getUnpatchedParamSet()->getValue(deluge::modulation::params::UNPATCHED_VOLUME);
 	return multiplyGainPos(volumeParamToGainPos(volume), songOutputStageGainPos());
@@ -49,7 +49,7 @@ int32_t song_stage(const deluge::scenes::spec::SongFixture& f) {
 // clang-format off
 describe sample_preview_spec_body("gui/ui/browser SamplePreviewer", ${
 	it("records only the file whose load starts, so a later request replaces an earlier one", _ {
-		deluge::scenes::spec::SdRoot card(kCard);
+		deluge::ui::scenes::spec::SdRoot card(kCard);
 		std::string last;
 		SamplePreviewer previewer(&last);
 		previewer.request("SAMPLES/SNARE.WAV", 1);
@@ -77,7 +77,7 @@ describe sample_preview_spec_body("gui/ui/browser SamplePreviewer", ${
 	});
 
 	it("matches the target sound's volume with the song's volume stage folded in", _ {
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = sound_of(fx);
 		ParamManagerForTimeline* manager = &fx.clip->paramManager;
 		manager->getPatchedParamSet()->params[deluge::modulation::params::GLOBAL_VOLUME_POST_FX].setPlayed(123456789);
@@ -91,7 +91,7 @@ describe sample_preview_spec_body("gui/ui/browser SamplePreviewer", ${
 	});
 
 	it("follows the song's volume knob", _ {
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = sound_of(fx);
 		ParamManagerForTimeline* manager = &fx.clip->paramManager;
 		const int32_t neutral =
@@ -104,8 +104,8 @@ describe sample_preview_spec_body("gui/ui/browser SamplePreviewer", ${
 	});
 
 	it("folds a kit's output stage in after the song's", _ {
-		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
-		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(fx);
+		deluge::ui::scenes::spec::SongFixture fx = deluge::ui::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::ui::scenes::spec::add_drum<SoundDrum>(fx);
 		ParamManagerForTimeline* manager = &fx.clip->getNoteRowForDrum(drum)->paramManager;
 		const int32_t local = manager->getPatchedParamSet()->getValue(deluge::modulation::params::LOCAL_VOLUME);
 		const int32_t kitVolume =

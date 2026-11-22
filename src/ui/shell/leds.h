@@ -44,7 +44,7 @@ bool led_is_on(const widgets::core::LedState& s, uint32_t now_ms,
 /// phase the last tick left it in. That is a live case:
 /// `MenuScene::leds` declares `Back` and `Learn` as `Blink(kFlashTime)` unconditionally
 /// (`MenuScene::leds`, `MenuLearn::leds`) while `MenuScene::next_timer`
-/// (`pad_next_timer`, `scenes/menu/pads.cpp`) returns `std::nullopt` for any focused node with
+/// (`pad_next_timer`, `ui/scenes/menu/pads.cpp`) returns `std::nullopt` for any focused node with
 /// neither source pads nor a shortcut position -- which is most of the tree. `Shell::tick`'s
 /// wake loop asks this for every entry in the composed frame, so the phase moves on its own.
 ///

@@ -179,7 +179,7 @@ namespace deluge::gui::ui {
 ///    `knobIndicatorLevels[]` goes stale, and that function's early-out then suppresses a later
 ///    legacy write of the level the shadow still holds (`hid/led/indicator_leds.cpp`).
 ///    **This is live.** The one declarer is `services::ModKnobs` (`grep -rn "frame.indicator("
-///    src/scenes`), `Shell::flush` calls `set_indicator` only for an indicator declared this tick,
+///    src/ui/scenes`), `Shell::flush` calls `set_indicator` only for an indicator declared this tick,
 ///    and the guest has a `ModKnobs` in its `Services`. The fix is in: `closeGuest()`, the body BOTH
 ///    of the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one),
 ///    calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h`)
@@ -506,7 +506,7 @@ private:
 	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
 	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
 	/// at the menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
-	/// `MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`). Neither the ring hand-back nor the close
+	/// `MenuScene::handle_event`'s Back arm, `ui/scenes/menu/menu_scene.cpp`). Neither the ring hand-back nor the close
 	/// may be skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
@@ -593,6 +593,6 @@ private:
 
 /// @brief The one guest, named the way legacy names its UIs (`extern SessionView sessionView;`).
 ///
-/// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
+/// Constructed over `deluge::ui::scenes::scene_registry()`. The menu entry points push it with
 /// `openUI(&shellHostUI)`.
 extern deluge::gui::ui::ShellHostUI shellHostUI;

@@ -6,11 +6,11 @@
 #include "instruments/classic/sound_state.h"
 #include "instruments/classic/state_access.h"
 #include "project/instrument_slot.h"
-#include "scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include <vector>
 
-namespace deluge::scenes::spec {
+namespace deluge::ui::scenes::spec {
 
 /// @brief The first oscillator's ranges the record holds at @p slot, read through the scenes' sound port, or none
 /// where there is no record.
@@ -22,4 +22,4 @@ inline std::vector<synth::SourceRange> first_ranges(project::SlotAddress slot) {
 	                        : std::vector<synth::SourceRange>{};
 }
 
-} // namespace deluge::scenes::spec
+} // namespace deluge::ui::scenes::spec

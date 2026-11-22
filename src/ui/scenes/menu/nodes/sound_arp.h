@@ -1,0 +1,343 @@
+#pragma once
+
+/// @brief The arpeggiator subtree as data: `arp` and its five children, two of which are pages.
+///
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `arpMenu`, `arpBasicMenu`, `arpPatternMenu`
+/// and `arpMpeMenu`:
+///
+// clang-format off
+/// | node | legacy global | legacy class | kind |
+/// |---|---|---|---|
+/// | `arp_mode` | `arpModeMenu` | `arpeggiator::Mode` | Enum (toggle) |
+/// | `arp_preset` | `arpPresetModeMenu` | `arpeggiator::PresetMode` | Enum |
+/// | `arp_gate` | `arpGateMenu` | `arpeggiator::ArpUnpatchedParam`, `UNPATCHED_ARP_GATE` | Int (param) |
+/// | `arp_sync` | `arpSyncMenu` | `arpeggiator::Sync` | SyncLevel |
+/// | `arp_rate` | `arpRateMenu` | `arpeggiator::Rate` (`origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`), `GLOBAL_ARP_RATE` | Int (param) |
+/// | `arp_basic` | `arpBasicMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `arp_octaves` | `arpOctavesMenu` | `arpeggiator::Octaves` | Int |
+/// | `arp_step_repeat` | `arpStepRepeatMenu` | `arpeggiator::StepRepeat` | Int |
+/// | `arp_octave_mode` | `arpOctaveModeMenu` | `arpeggiator::OctaveMode` | Enum |
+/// | `arp_note_mode` | `arpNoteModeMenu` | `arpeggiator::NoteMode` | Enum |
+/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` | `arpeggiator::NoteModeForDrums` | Enum |
+/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` | `arpeggiator::ChordType` | Enum |
+/// | `arp_rhythm` | `arpRhythmMenu` | `arpeggiator::Rhythm`, `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
+/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` | `arpeggiator::midi_cv::Rhythm` | Int, 2 slots |
+/// | `arp_sequence_length` | `arpSequenceLengthMenu` | `arpeggiator::SequenceLength` | Int (param) |
+/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` | `midi_cv::SequenceLength` | Int |
+/// | `arp_pattern` | `arpPatternMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` | `arpeggiator::ArpMpeVelocity` | Enum |
+/// | `arp_mpe` | `arpMpeMenu` | `submenu::ArpMpeSubmenu` (`origin/main:src/deluge/gui/menu_item/submenu/arp_mpe_submenu.h`) | Submenu (Vertical) |
+/// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` | `arpeggiator::IncludeInKitArp` | Enum (toggle) |
+/// | `arp` | `arpMenu` | `Submenu` | Submenu (Vertical) |
+// clang-format on
+///
+/// Everything here reads and writes an arpeggiator's settings by address: the kit lane's for a drum, the clip's for
+/// a kit with affect-entire, a synth, MIDI or CV clip -- the owners `SoundEditor::setup` chose.
+///
+/// @note **`isToggle()` is not a `Kind`.** `arpeggiator::Mode` and `IncludeInKitArp` are
+///       `Selection`s with two options that legacy draws as a checkbox (their `isToggle()` overrides) and refuses to
+///       open as a submenu (their `shouldEnterSubmenu()` overrides). `Kind::Enum` keeps the option list -- which is
+///       what the spec compares against `Selection::getOptions` -- and the checkbox rendering is a `Hint`-level fact
+///       this generation's interpreter does not draw. `sample::PitchSpeed` is treated the same way.
+///
+/// @note **Three legacy `selectButtonPress()` jumps live here, and four pages exist only because of them.**
+///       `PresetMode` opens the custom octave-mode page when the preset is CUSTOM (`PresetMode::selectButtonPress`),
+///       and `OctaveModeToNoteMode` / `OctaveModeToNoteModeForDrums` chain on to the note mode (their
+///       `selectButtonPress` overrides). `arpPatternMenu` names the *plain* `arpOctaveModeMenu` and `arpNoteModeMenu`,
+///       not those chaining subclasses, so all four of the subclasses' globals (`arpOctaveModeToNoteModeMenu` and its
+///       three siblings in `origin/main:src/deluge/gui/ui/menus.cpp`) are unreachable from any submenu literal -- which
+///       is why the port declares them below, next to the hooks that name them, rather than in a children span. Every
+///       `selectButtonPress` override in `gui/menu_item/` was swept for this.
+///
+/// @note **Bespoke renderers with no `Hint`.** `PresetMode` draws an icon per preset
+///       (`PresetMode::renderInHorizontalMenu`) and both rhythm items draw the pattern as characters
+///       (`arpeggiator::Rhythm::drawInteger` / `renderInHorizontalMenu`, and the same two in `midi_cv::Rhythm`);
+///       `SequenceLength` draws "OFF" at zero (its `renderInHorizontalMenu`). All four take `Hint::None`, which is the
+///       honest answer for art the toolkit has no meter for.
+
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/column_hooks.h"
+#include "ui/scenes/menu/nodes/detail.h"
+#include "ui/scenes/menu/nodes/param_shows.h"
+#include "ui/scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
+#include "ui/scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
+#include "ui/scenes/menu/relevance.h"
+
+#include "gui/l10n/l10n.h"
+#include "plugin/types/arp.h"
+#include "ui/gfx/oled/icons.h"
+
+#include <optional>
+#include <span>
+
+namespace deluge::ui::scenes::menu {
+struct MenuContext;
+} // namespace deluge::ui::scenes::menu
+
+namespace deluge::ui::scenes::menu::nodes {
+
+/// @name The preset's hooks: it reads the engine's preset (Custom is the engine's alone). Bodies in the `.cpp`.
+/// @{
+int32_t get_arp_preset(const MenuContext& ctx);
+void set_arp_preset(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// `arpeggiator::PresetMode::getOptions`.
+inline constexpr uint16_t kArpPresetNames[] = {
+    sid(deluge::l10n::String::STRING_FOR_OFF),    sid(deluge::l10n::String::STRING_FOR_UP),
+    sid(deluge::l10n::String::STRING_FOR_DOWN),   sid(deluge::l10n::String::STRING_FOR_BOTH),
+    sid(deluge::l10n::String::STRING_FOR_RANDOM), sid(deluge::l10n::String::STRING_FOR_WALK),
+    sid(deluge::l10n::String::STRING_FOR_CUSTOM),
+};
+
+/// @brief The arp row at @p path of the arp the menu's root names: a clip's (a synth's, MIDI or CV track's, the whole
+///        kit's) or, on a kit row, its lane's. With affect-entire held on a kit row, a @p whole_kit row goes to every
+///        lane that takes it, as legacy's affect-entire loops write it. @p shown_on is for a page legacy keeps a twin
+///        of for kit rows: each twin shows on its own kind of root.
+constexpr deluge::ui::scenes::bind::Target
+arp_row(std::string_view path, bool whole_kit = true,
+        deluge::ui::scenes::bind::Target::FanOutFact fact = deluge::ui::scenes::bind::Target::FanOutFact::NONE,
+        deluge::ui::scenes::bind::Target::ShownOn shown_on = deluge::ui::scenes::bind::Target::ShownOn::ANY) {
+	return {.kind = deluge::ui::scenes::bind::Target::Kind::MODEL,
+	        .path = path,
+	        .whole_kit = whole_kit,
+	        .group = deluge::project::SettingGroupId::CLIP_ARP,
+	        .fan_out_fact = fact,
+	        .shown_on = shown_on};
+}
+using Target = deluge::ui::scenes::bind::Target;
+using ShownOn = Target::ShownOn;
+
+// --- the mode toggle -------------------------------------------------------------------------
+
+inline constexpr Node arp_mode = with_affect_entire(with_flips_in_list(with_selection_is_toggle(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ENABLED), Kind::Enum, arp_row("arpeggiator/arpMode")),
+               sid(deluge::l10n::String::STRING_FOR_ARP_MODE_MENU_TITLE)))));
+
+// --- the four chain-only pages ---------------------------------------------------------------
+//
+// `arpOctaveModeToNoteModeMenu`, `arpOctaveModeToNoteModeMenuForDrums`,
+// `arpNoteModeFromOctaveModeMenu` and `arpNoteModeFromOctaveModeMenuForDrums`
+// (`origin/main:src/deluge/gui/ui/menus.cpp`) appear in **no** submenu literal: `arpPatternMenu` names the plain
+// `arpOctaveModeMenu` / `arpNoteModeMenu` instead, and legacy reaches these four only through
+// `selectButtonPress()`. They are declared here, ahead of `arp_preset`, because that is what a
+// chain hook needs an address of; `Node::chain_targets` is what puts them in the reachability walk
+// so they get node ids like any other page.
+//
+// Each is behaviourally its base class -- `OctaveModeToNoteMode` and its drum twin derive from `OctaveMode` and
+// override nothing but `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/arpeggiator/octave_mode.h`),
+// `NoteModeFromOctaveMode` derives from `NoteMode` (`origin/main:src/deluge/gui/menu_item/arpeggiator/note_mode.h`) and
+// `NoteModeFromOctaveModeForDrums` from `NoteModeForDrums`
+// (`origin/main:src/deluge/gui/menu_item/arpeggiator/note_mode_for_drums.h`) -- so each shares its base's name, title,
+// options, hooks and relevance exactly.
+
+inline constexpr Node arp_note_mode_from_octave_mode = with_short_options(with_short_column_label(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::OFF_LANE)),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE))));
+inline constexpr Node arp_note_mode_from_octave_mode_drums = with_affect_entire(with_short_column_label(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::ON_LANE)),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE))));
+
+/// @brief `OctaveModeToNoteMode::selectButtonPress()` and its drum twin's: both chain on unconditionally, differing
+/// only in which note-mode page they name.
+/// @{
+inline constexpr const Node* kArpOctaveModeToNoteModeChain[] = {&arp_note_mode_from_octave_mode};
+inline constexpr const Node* kArpOctaveModeToNoteModeDrumsChain[] = {&arp_note_mode_from_octave_mode_drums};
+inline const Node* arp_octave_mode_to_note_mode_chain(const MenuContext&, const MenuState&) {
+	return &arp_note_mode_from_octave_mode;
+}
+inline const Node* arp_octave_mode_to_note_mode_drums_chain(const MenuContext&, const MenuState&) {
+	return &arp_note_mode_from_octave_mode_drums;
+}
+/// @}
+
+inline constexpr Node arp_octave_mode_to_note_mode = with_affect_entire(with_short_options(with_short_column_label(
+    with_select_chain(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum,
+                                              arp_row("arpeggiator/octaveMode")),
+                                 sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+                      arp_octave_mode_to_note_mode_chain, kArpOctaveModeToNoteModeChain))));
+inline constexpr Node arp_octave_mode_to_note_mode_drums = with_affect_entire(with_short_column_label(
+    with_select_chain(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum,
+                                              arp_row("arpeggiator/octaveMode")),
+                                 sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+                      arp_octave_mode_to_note_mode_drums_chain, kArpOctaveModeToNoteModeDrumsChain)));
+
+// --- the basic page --------------------------------------------------------------------------
+
+/// @brief `PresetMode::selectButtonPress()`: only the CUSTOM preset opens
+///        anything, and which page it opens depends on whether a kit row is being edited
+///        (`soundEditor.editingKitRow()`, which `relevance::is_kit_row` ports). Every other preset
+///        returns null, i.e. ascends.
+inline constexpr const Node* kArpPresetChain[] = {&arp_octave_mode_to_note_mode, &arp_octave_mode_to_note_mode_drums};
+inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
+	if (get_arp_preset(ctx) != int32_t{plugin::kArpPresetCustom}) {
+		return nullptr;
+	}
+	return relevance::is_kit_row(ctx) ? &arp_octave_mode_to_note_mode_drums : &arp_octave_mode_to_note_mode;
+}
+
+/// @brief `PresetMode::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/arpeggiator/preset_mode.h`): OFF
+///        in the title face, else the preset's icon, DOWN being UP's mirrored.
+inline std::optional<deluge::ui::widgets::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
+	namespace icons = deluge::ui::gfx::oled::icons;
+	switch (value) {
+	case int32_t{plugin::kArpPresetOff}:
+		return deluge::ui::widgets::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
+		                                            .face = deluge::ui::widgets::oled::ArtColumn::Face::Title,
+		                                            .dy = 5};
+	case int32_t{plugin::kArpPresetDown}:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
+	case int32_t{plugin::kArpPresetBoth}:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
+	case int32_t{plugin::kArpPresetRandom}:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
+	case int32_t{plugin::kArpPresetWalk}:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
+	case int32_t{plugin::kArpPresetCustom}:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
+	default:
+		return deluge::ui::widgets::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};
+	}
+}
+
+/// `PresetMode::showColumnLabel()` is false (`origin/main:src/deluge/gui/menu_item/arpeggiator/preset_mode.h`).
+inline constexpr Node arp_preset = with_affect_entire(with_column_art(
+    without_column_label(with_select_chain(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PRESET),
+                                                                  kArpPresetNames, get_arp_preset, set_arp_preset),
+                                                      sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE)),
+                                           arp_preset_chain, kArpPresetChain)),
+    arp_preset_art));
+/// Not on a MIDI or gate drum row (`arpeggiator::ArpUnpatchedParam::isRelevant`), which the kit's own effects keep
+/// selected.
+inline constexpr Node arp_gate =
+    with_relevant(param(sid(deluge::l10n::String::STRING_FOR_GATE),
+                        {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                         deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kArpGate)},
+                        Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
+                  relevance::not_non_audio_drum_row);
+inline constexpr Node arp_sync = with_affect_entire(with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
+/// Not on a MIDI or gate drum row or a kit's own effects (`arpeggiator::Rate::isRelevant`), which the kit's own
+/// shortcut table names it on.
+inline constexpr Node arp_rate = with_relevant(
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                           {deluge::plugin::ParamKind::PATCHED,
+                            deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kArpRate)},
+                           Hint::Knob, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
+    relevance::not_non_audio_drum_or_kit_fx);
+
+inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
+inline constexpr Node arp_basic =
+    submenu(sid(deluge::l10n::String::STRING_FOR_BASIC), kArpBasicChildren, Layout::Horizontal, nullptr,
+            sid(deluge::l10n::String::STRING_FOR_ARP_BASIC_MENU_TITLE));
+
+// --- the pattern page ------------------------------------------------------------------------
+
+// `Octaves::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/arpeggiator/octaves.h`) and
+// `StepRepeat`'s; both render a plain NUMBER (`getRenderingStyle`), hence `Hint::None`.
+/// Relevant by `arpeggiator::Octaves::isRelevant` alone, which asks only the latch and the selected row: on the kit's
+/// own shortcut table it shows while the latch is clear, though the kit's own chain holds no octaves.
+inline constexpr Node arp_octaves =
+    with_own_relevance(with_affect_entire(with_short_column_label(
+                           with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), Kind::Int,
+                                                   arp_row("arpeggiator/numOctaves")),
+                                      sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE)))),
+                       relevance::not_gate_drum_or_kit_fx);
+inline constexpr Node arp_step_repeat = with_relevant(
+    with_affect_entire(with_short_column_label(with_title(
+        setting_item(sid(deluge::l10n::String::STRING_FOR_STEP_REPEAT), Kind::Int, arp_row("arpeggiator/stepRepeat")),
+        sid(deluge::l10n::String::STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE)))),
+    relevance::not_gate_drum_row);
+inline constexpr Node arp_octave_mode = with_affect_entire(with_short_options(with_short_column_label(with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), Kind::Enum, arp_row("arpeggiator/octaveMode")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)))));
+inline constexpr Node arp_note_mode = with_short_options(with_short_column_label(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::OFF_LANE)),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE))));
+inline constexpr Node arp_note_mode_drums = with_affect_entire(with_short_column_label(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), Kind::Enum,
+                            arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::ON_LANE)),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE))));
+inline constexpr Node arp_chord_simulator = with_affect_entire(with_short_column_label(with_title(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), Kind::Enum, arp_row("arpeggiator/chordType")),
+    sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE))));
+// `Rhythm::getOccupiedSlots()` (`origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`) is 2, as is its MIDI/CV
+// twin's; the range is `{0, kMaxMenuValue}` (`Rhythm::getMinValue`/`getMaxValue`), and
+// `plugin::kArpRhythms` (`plugin/types/arp_rhythm.h`) holds one entry per menu step, which is the param default --
+// so no `with_range` is needed on either.
+/// `arpeggiator::Rhythm::isRelevant`: not with a MIDI or gate drum selected.
+inline constexpr Node arp_rhythm = with_relevant(
+    with_value_style(
+        with_leaf_text(with_column_art(with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+                                                        {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                                                         deluge::instruments::classic::runtime_index(
+                                                             deluge::instruments::classic::param::kRhythm)},
+                                                        Hint::None, ParamShows{},
+                                                        sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                                                  2),
+                                       arp_rhythm_art),
+                       arp_rhythm_screen_text),
+        deluge::ui::widgets::oled::ValueStyle{.label_in_digits = true}),
+    relevance::not_non_audio_drum_row);
+/// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
+inline constexpr Node arp_rhythm_midi =
+    with_leaf_text(with_column_art(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+                                                                      Kind::Int, arp_row("arpeggiator/rhythm", false)),
+                                                         sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                                              2),
+                                   arp_rhythm_midi_art),
+                   arp_rhythm_name_text);
+/// `arpeggiator::ArpUnpatchedParam::isRelevant`: not with a MIDI or gate drum selected.
+inline constexpr Node arp_sequence_length = with_relevant(
+    with_value_text(
+        with_short_column_label(
+            param(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
+                  {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                   deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kSequenceLength)},
+                  Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+        off_at_zero_text),
+    relevance::not_non_audio_drum_row);
+inline constexpr Node arp_sequence_length_midi = with_value_text(
+    with_short_column_label(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
+                                                    arp_row("arpeggiator/sequenceLength", false)),
+                                       sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+    off_at_zero_text);
+
+inline constexpr const Node* kArpPatternChildren[] = {
+    &arp_octaves,         &arp_step_repeat, &arp_octave_mode, &arp_note_mode,       &arp_note_mode_drums,
+    &arp_chord_simulator, &arp_rhythm,      &arp_rhythm_midi, &arp_sequence_length, &arp_sequence_length_midi};
+inline constexpr Node arp_pattern =
+    submenu(sid(deluge::l10n::String::STRING_FOR_PATTERN), kArpPatternChildren, Layout::Horizontal, nullptr,
+            sid(deluge::l10n::String::STRING_FOR_ARP_PATTERN_MENU_TITLE));
+
+// --- the MPE page ----------------------------------------------------------------------------
+
+inline constexpr Node arp_mpe_velocity = with_affect_entire(
+    setting_item(sid(deluge::l10n::String::STRING_FOR_VELOCITY), Kind::Enum, arp_row("arpeggiator/mpeVelocity")));
+inline constexpr const Node* kArpMpeChildren[] = {&arp_mpe_velocity};
+inline constexpr Node arp_mpe = submenu(sid(deluge::l10n::String::STRING_FOR_MPE), kArpMpeChildren, Layout::Vertical,
+                                        relevance::not_gate_drum_or_kit_fx);
+
+// --- the page itself -------------------------------------------------------------------------
+
+/// A kit row whose sound cannot hold note tails shows it off, and a kit-wide write skips such a row
+/// (`IncludeInKitArp::readCurrentValue` and `IncludeInKitArp::writeCurrentValue` in
+/// `origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`).
+inline constexpr Node arp_include_in_kit_arp = with_affect_entire(with_short_column_label(with_flips_in_list(
+    with_selection_is_toggle(setting_item(sid(deluge::l10n::String::STRING_FOR_INCLUDE_IN_KIT_ARP), Kind::Enum,
+                                          arp_row("arpeggiator/kitArp", true, Target::FanOutFact::NOTE_TAILS))))));
+
+inline constexpr const Node* kArpChildren[] = {&arp_mode, &arp_basic, &arp_pattern, &arp_mpe, &arp_include_in_kit_arp};
+inline constexpr Node arp = submenu(sid(deluge::l10n::String::STRING_FOR_ARPEGGIATOR), kArpChildren);
+
+/// @brief This file's contribution to the sound-editor root: `arpMenu`.
+///
+/// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
+extern const std::span<const Node* const> kSoundArpChildren;
+
+} // namespace deluge::ui::scenes::menu::nodes

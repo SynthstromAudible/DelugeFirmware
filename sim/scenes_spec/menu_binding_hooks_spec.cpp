@@ -8,7 +8,7 @@
 ///        `after_render` are all public overrides, and this rig's `input` is a plain field a spec
 ///        sets directly -- `unit/ui/support/frames.h`'s own doc on `OledRig`).
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: the
+/// The tree under test is declared here rather than taken from `src/ui/scenes/menu/nodes/`: the
 /// shipped nodes that set these hooks (`nodes/note.cpp`) sit behind the note bridge, so
 /// this file declares small trees that exercise each hook on its own.
 ///
@@ -18,13 +18,13 @@
 /// `menu_horizontal_controls_spec.cpp` already covers.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 #include "ui/widgets/oled/columns.h"
 
 #include "base/notify/notice_queue.h"
@@ -51,7 +51,7 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::Result;
@@ -63,7 +63,7 @@ using deluge::ui::shell::SurfaceRole;
 
 namespace {
 
-namespace menu = deluge::scenes::menu;
+namespace menu = deluge::ui::scenes::menu;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -257,7 +257,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   _ {
 		// Regression guard: driven without the `Shell` at all, since
 		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
-		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
+		// (`MenuScene`, `ui/scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
 		// directly (`unit/ui/support/frames.h`'s own doc on `OledRig`).
 		//
 		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset apart from `on_resume`'s
@@ -412,7 +412,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		const deluge::base::notify::Notice notice = last_raised_notice();
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
-		    deluge::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
+		    deluge::ui::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
 		expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
 		expect(std::string(notice.notification_title())).to_equal(expected_name);
 		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));

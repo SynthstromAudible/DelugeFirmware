@@ -20,15 +20,15 @@
 ///        of main's value rules, pinned against `main`'s own numbers.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/node_id.h"
-#include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/present.h"
-#include "scenes/profile.h"
-#include "scenes/registry.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/menu_scene.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/node_id.h"
+#include "ui/scenes/menu/nodes/nodes.h"
+#include "ui/scenes/menu/present.h"
+#include "ui/scenes/profile.h"
+#include "ui/scenes/registry.h"
 #include "ui/widgets/oled/list.h"
 #include "ui/widgets/oled/values.h"
 
@@ -65,10 +65,10 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 using deluge::l10n::String;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
@@ -79,7 +79,7 @@ namespace {
 
 using deluge::test::matchers::address_of;
 
-namespace nodes = deluge::scenes::menu::nodes;
+namespace nodes = deluge::ui::scenes::menu::nodes;
 
 /// @brief The application's shell with every root numbered, and a context on the fixture's synth clip.
 ///
@@ -391,14 +391,14 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 	it("turns the patch cable list five rows a click while shift is held", _ {
 		// Main's patch cable list clamps `currentValue + offset` on the scaled offset.
 		Rig r;
-		deluge::scenes::bind::CableList cables;
+		deluge::ui::scenes::bind::CableList cables;
 		for (const PatchSource source :
 		     {PatchSource::LFO_GLOBAL_1, PatchSource::LFO_LOCAL_1, PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1,
 		      PatchSource::VELOCITY, PatchSource::NOTE, PatchSource::RANDOM}) {
 			cables.items[cables.count++].depth =
 			    deluge::bridge::cable_depth(source, deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ));
 		}
-		const deluge::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
+		const deluge::ui::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
 		r.ctx.ports.sound = &sound;
 		r.open(nodes::patch_cables);
 		deluge::ui::test::Rig48 rig;

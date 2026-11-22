@@ -1,9 +1,9 @@
 #include "port_contracts.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/nodes/settings.h"
-#include "scenes/services/waveform_paint.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/nodes/settings.h"
+#include "ui/scenes/services/waveform_paint.h"
 
 #include "sample-view/view.h"
 
@@ -71,7 +71,7 @@
 
 #include "support/spec_main.h"
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 
 // The main loop's battery voltage (src/deluge/deluge.cpp), declared at global scope as the host does.
 extern uint16_t batteryMV;

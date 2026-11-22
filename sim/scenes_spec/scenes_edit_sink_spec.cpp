@@ -4,17 +4,17 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/dispatch.h"
-#include "scenes/bind/knob_focus.h"
-#include "scenes/bind/ports/write_sink.h"
-#include "scenes/menu/bind_host.h"
-#include "scenes/menu/bindings.h"
-#include "scenes/menu/context.h"
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/fan_out_rules.h"
-#include "scenes/menu/nodes/sound_master.h"
-#include "scenes/menu/nodes/sound_osc.h"
-#include "scenes/menu/nodes/sound_voice.h"
+#include "ui/scenes/bind/dispatch.h"
+#include "ui/scenes/bind/knob_focus.h"
+#include "ui/scenes/bind/ports/write_sink.h"
+#include "ui/scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bindings.h"
+#include "ui/scenes/menu/context.h"
+#include "ui/scenes/menu/node.h"
+#include "ui/scenes/menu/nodes/fan_out_rules.h"
+#include "ui/scenes/menu/nodes/sound_master.h"
+#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/menu/nodes/sound_voice.h"
 
 #include "effects/settings.h"
 #include "gui/ui/shell_host/shell_host.h"
@@ -49,13 +49,13 @@
 
 #include <string>
 
-using namespace deluge::scenes;
-using deluge::scenes::bind::Target;
-using deluge::scenes::menu::Kind;
-using deluge::scenes::menu::MenuContext;
-using deluge::scenes::menu::Node;
+using namespace deluge::ui::scenes;
 using deluge::serialization::Value;
-namespace bindings = deluge::scenes::menu::bindings;
+using deluge::ui::scenes::bind::Target;
+using deluge::ui::scenes::menu::Kind;
+using deluge::ui::scenes::menu::MenuContext;
+using deluge::ui::scenes::menu::Node;
+namespace bindings = deluge::ui::scenes::menu::bindings;
 
 namespace {
 

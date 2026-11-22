@@ -18,8 +18,8 @@
 
 #include "support/spec_main.h"
 
-using deluge::scenes::spec::SdRoot;
-using namespace deluge::scenes::spec::listing;
+using deluge::ui::scenes::spec::SdRoot;
+using namespace deluge::ui::scenes::spec::listing;
 
 namespace {
 

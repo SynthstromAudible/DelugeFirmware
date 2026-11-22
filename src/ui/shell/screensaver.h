@@ -11,7 +11,7 @@ namespace deluge::ui::shell {
 ///
 /// Ports the *policy* half of legacy's `hid::display::Screensaver`
 /// (`hid/display/screensaver.h`): when to show and hide the screensaver, not what it
-/// draws. The real animation is `deluge::scenes::overlay::ScreensaverScene`, which the
+/// draws. The real animation is `deluge::ui::scenes::overlay::ScreensaverScene`, which the
 /// application registers under `SceneKind::Screensaver` exactly like any other scene; this service
 /// only knows the kind and pushes/pops it by name, so it neither owns nor constructs one -- a spec
 /// short of the real scene supplies its own stand-in at that slot.
@@ -27,7 +27,7 @@ namespace deluge::ui::shell {
 ///       reports `std::nullopt` (so `Shell::next_wake()` is not pinned to now), no further push is
 ///       attempted, and `push_refused()` counts the refusal for diagnostics.
 ///
-///       **The shipped application never hits this.** `scenes::scene_registry()` registers
+///       **The shipped application never hits this.** `ui::scenes::scene_registry()` registers
 ///       `overlay::screensaver_scene()` at that kind, so the push succeeds and the latch never
 ///       fires -- `sim/scenes_spec/screensaver_scene_spec.cpp` asserts `push_refused() == 0` end to
 ///       end through a real `Shell`. The latch is still the correct answer for a **profile or spec
@@ -69,7 +69,7 @@ public:
 	/// and every tick, so a settings change takes effect by itself; this service is handed one
 	/// number at construction instead (the layer may not read `storage/`), so the change has to be
 	/// pushed in. `Shell::set_screensaver_idle_ms` is the shell-level entry point and
-	/// `scenes/registry.h`'s boot-wiring note carries the formula the host computes.
+	/// `ui/scenes/registry.h`'s boot-wiring note carries the formula the host computes.
 	///
 	/// Legacy's three steps, in legacy's order: wake if showing, then either disable (its
 	/// `unsetTimer`) or re-arm from now (its `arm()`). Waking is unconditional and comes first, for

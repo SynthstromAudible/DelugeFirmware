@@ -4,7 +4,7 @@
 // refusing the cable or not.
 
 #include "instruments/classic/cable_acceptance.h"
-#include "scenes/menu/bind_host.h"
+#include "ui/scenes/menu/bind_host.h"
 
 #include "instruments/classic/settings.h"
 #include "instruments/classic/words.h"
@@ -32,7 +32,7 @@
 #include <string_view>
 #include <utility>
 
-using namespace deluge::scenes;
+using namespace deluge::ui::scenes;
 namespace params = deluge::modulation::params;
 
 namespace {
