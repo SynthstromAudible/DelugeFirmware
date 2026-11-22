@@ -230,7 +230,7 @@ builds only `golden-vt-render`.
 
 Placement follows coupling to the BSP source tree, not language or purpose.
 
-- **`tests/component/differential/`** — harnesses whose subject is a `crates/` library or
+- **`tests/component/differential/`** — harnesses whose subject is a Rust library crate under `src/` or
   `cc`-compiled application C++, rather than the BSP itself.
 
   One of these, `fs_differential`, also uses the BSP: its `tests/efatfs_core.rs` drives the BSP
