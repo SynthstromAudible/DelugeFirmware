@@ -2,7 +2,8 @@
 # per-asset fill-context table, and, behind `native_fill`, the manager-reaching fill.
 # A plain `no_std` rlib; the final artifact supplies the panic handler.
 [package]
-name = "deluge_sample_fill"
+name = "deluge_storage_sample_fill"
+workspace = "../../../../crates"
 version = "0.1.0"
 # 2024: the fill core uses `unsafe extern "C"` blocks and `#[unsafe(no_mangle)]`.
 edition = "2024"
@@ -10,11 +11,11 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [lib]
-name = "deluge_sample_fill"
+name = "deluge_storage_sample_fill"
 crate-type = ["rlib"]
 
 [dependencies]
-deluge_storage_sample_convert = { path = "../../src/storage/sample/convert" }
+deluge_storage_sample_convert = { path = "../convert" }
 # Blocking `Mutex` for the fill-context table only; no executor.
 embassy-sync = "0.8.0"
 

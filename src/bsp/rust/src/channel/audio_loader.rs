@@ -45,7 +45,7 @@ use crate::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
     DelugeChannelStatus,
 };
-pub use deluge_sample_fill::FileLocation;
+pub use deluge_storage_sample_fill::FileLocation;
 use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;

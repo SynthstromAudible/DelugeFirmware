@@ -3,7 +3,7 @@
 //!
 //! A streamed chunk's payload sits at a non-zero offset from its manager backing, behind the
 //! `StreamedChunk` header. Payloads are seeded with `make_ramp` through
-//! `deluge_sample_fill::chunk::payload`, so a cursor that reads from the backing pointer instead
+//! `deluge_storage_sample_fill::chunk::payload`, so a cursor that reads from the backing pointer instead
 //! (as `ManagerPin::payload()` once did) sees header bytes and fails the ramp comparison. A fake
 //! backing with `payload == backing` cannot catch that.
 //!
@@ -95,7 +95,7 @@ extern "C" fn deluge_sample_stream_asset_id(
     0
 }
 
-/// Construct callback forwarding to `deluge_sample_fill::chunk::deluge_streaming_chunk_construct`,
+/// Construct callback forwarding to `deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct`,
 /// the one production uses for streamed sample chunks.
 ///
 /// Needed only because `ConstructFn` takes `dest: *mut u8` and the target takes `*mut c_void`;
@@ -109,7 +109,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
     // upholds for this callback.
     unsafe {
-        deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+        deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
             ctx,
             owner,
             index,
@@ -160,7 +160,7 @@ impl ChunkHarness {
             deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         let payload_offset =
-            deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
+            deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
         let backing_size = payload_offset + CLUSTER_SIZE as usize + 7; // + kTrailingSlackBytes
 
         ChunkHarness {
@@ -189,7 +189,7 @@ impl ChunkHarness {
         };
         // SAFETY: `ptr` is a resident `StreamedChunk` backing; the accessor returns its
         // `CLUSTER_SIZE`-byte payload.
-        let payload = unsafe { deluge_sample_fill::chunk::payload(ptr as *mut c_void) };
+        let payload = unsafe { deluge_storage_sample_fill::chunk::payload(ptr as *mut c_void) };
         let ramp = region_source_differential::make_ramp(index, CLUSTER_SIZE as usize);
         // SAFETY: `payload` is valid for `CLUSTER_SIZE` writable bytes; `ramp` is that long.
         unsafe { ptr::copy_nonoverlapping(ramp.as_ptr(), payload, CLUSTER_SIZE as usize) };

@@ -83,7 +83,7 @@ mod host_critical_section_stubs {
 // Host stand-ins for the streaming externs (card read, fill signal and request, manager lookup),
 // shared by every test module: a `#[no_mangle]` symbol may be defined only once per binary.
 //
-// The `deluge_sample_fill::chunk` accessors are plain `pub fn`s, so there is nothing to stub: tests
+// The `deluge_storage_sample_fill::chunk` accessors are plain `pub fn`s, so there is nothing to stub: tests
 // construct real `StreamedChunk` backings (see `reader::tests::window_tests::real_chunk_construct`)
 // and read them through the real accessors. A mock could not match `StreamedChunk`'s non-`repr(C)`
 // layout, and reborrowing an unconstructed backing as `&StreamedChunk` is UB.
@@ -101,7 +101,7 @@ pub(crate) mod host_streaming_stubs {
 
     /// Serializes tests that register fill-contexts.
     ///
-    /// `deluge_sample_fill`'s `FILL_CONTEXTS` table is process-wide and keyed by bare asset id,
+    /// `deluge_storage_sample_fill`'s `FILL_CONTEXTS` table is process-wide and keyed by bare asset id,
     /// while every test's fresh manager hands out ids from 0, so concurrent tests would overwrite
     /// each other's contexts. Every test that calls `deluge_streaming_set_fill_context` or
     /// `Reader::open` must hold this lock throughout.
@@ -140,7 +140,7 @@ pub(crate) mod host_streaming_stubs {
     /// `Reader::acquire_and_fill` finds the chunk ready on the same call.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_streaming_request_chunk(
-        chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
+        chunk_backing: *mut deluge_storage_sample_fill::chunk::DelugeChunkBacking,
     ) {
         // SAFETY: the reader requests fills only for chunks it holds a lease on.
         let _ = unsafe { crate::reservation::fill_now(chunk_backing.cast()) };
@@ -153,14 +153,14 @@ pub(crate) mod host_streaming_stubs {
     /// even to a zero-length read.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_read_at(
-        _handle: deluge_sample_fill::DelugeHandle,
+        _handle: deluge_storage_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> deluge_sample_fill::DelugeStatus {
+    ) -> deluge_storage_sample_fill::DelugeStatus {
         // `DELUGE_ERR_IO`: what the real read answers for a failed card read.
-        const DELUGE_ERR_IO: deluge_sample_fill::DelugeStatus = -5;
+        const DELUGE_ERR_IO: deluge_storage_sample_fill::DelugeStatus = -5;
         if FORCE_READ_FAILURE.with(|f| f.get()) {
             return DELUGE_ERR_IO;
         }
@@ -176,6 +176,6 @@ pub(crate) mod host_streaming_stubs {
             }
             *out_read = count;
         }
-        deluge_sample_fill::DELUGE_OK
+        deluge_storage_sample_fill::DELUGE_OK
     }
 }

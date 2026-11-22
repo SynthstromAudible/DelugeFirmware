@@ -37,7 +37,7 @@ pub struct DelugeSampleStreamGeometry {
 
 /// `DelugeStreamingFillContext` (`libdeluge/streaming_fill.h`), as passed by value to
 /// `deluge_streaming_set_fill_context`.
-pub(crate) use deluge_sample_fill::FillContext as DelugeStreamingFillContext;
+pub(crate) use deluge_storage_sample_fill::FillContext as DelugeStreamingFillContext;
 
 // Externs this crate consumes: efatfs from the BSP (`storage::efatfs`), the rest from the
 // resource manager's C ABI. Mocked under `cfg(test)` by `mock_backing`.
@@ -45,26 +45,26 @@ unsafe extern "C" {
     /// Opens a sample file for streaming reads (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_open(
         path: *const c_char,
-        out_handle: *mut deluge_sample_fill::DelugeHandle,
+        out_handle: *mut deluge_storage_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
-    ) -> deluge_sample_fill::DelugeStatus;
+    ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Opens a sample file for streaming reads from where a load found it (`libdeluge/file_io.h`).
     /// `location` is a `DelugeFileLocation`.
     pub fn deluge_efatfs_open_at(
-        location: *const deluge_sample_fill::FileLocation,
-        out_handle: *mut deluge_sample_fill::DelugeHandle,
+        location: *const deluge_storage_sample_fill::FileLocation,
+        out_handle: *mut deluge_storage_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
-    ) -> deluge_sample_fill::DelugeStatus;
+    ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Closes a streaming file handle (`libdeluge/file_io.h`).
-    pub fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle);
+    pub fn deluge_efatfs_close(handle: deluge_storage_sample_fill::DelugeHandle);
     /// Reads synchronously from the card at an absolute byte offset (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_read_at(
-        handle: deluge_sample_fill::DelugeHandle,
+        handle: deluge_storage_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> deluge_sample_fill::DelugeStatus;
+    ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Registers or replaces an asset's fill-context (`libdeluge/streaming_fill.h`).
@@ -78,7 +78,7 @@ unsafe extern "C" {
     fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 
-// `deluge_sample_fill` exports the real `deluge_streaming_set_fill_context`, and a test binary
+// `deluge_storage_sample_fill` exports the real `deluge_streaming_set_fill_context`, and a test binary
 // built as one codegen unit (`CARGO_INCREMENTAL=0`, as in CI) links it, so its fake cannot share
 // the symbol name.
 #[cfg(test)]
@@ -193,10 +193,10 @@ pub(crate) mod mock_backing {
     /// Answers as `deluge_efatfs_open` does, from the same `set_open_result`, recording `location`.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_open_at(
-        location: *const deluge_sample_fill::FileLocation,
+        location: *const deluge_storage_sample_fill::FileLocation,
         out_handle: *mut u32,
         out_table_full: *mut bool,
-    ) -> deluge_sample_fill::DelugeStatus {
+    ) -> deluge_storage_sample_fill::DelugeStatus {
         LAST_OPENED_AT.with(|c| *c.borrow_mut() = Some(location as usize));
         let (handle, ok, table_full) = OPEN_RESULT.with(|c| *c.borrow());
         if ok {
@@ -208,9 +208,9 @@ pub(crate) mod mock_backing {
             unsafe { *out_table_full = table_full };
         }
         if ok {
-            deluge_sample_fill::DELUGE_OK
+            deluge_storage_sample_fill::DELUGE_OK
         } else {
-            deluge_sample_fill::DELUGE_ERR_PARAM
+            deluge_storage_sample_fill::DELUGE_ERR_PARAM
         }
     }
 
@@ -219,7 +219,7 @@ pub(crate) mod mock_backing {
         path: *const c_char,
         out_handle: *mut u32,
         out_table_full: *mut bool,
-    ) -> deluge_sample_fill::DelugeStatus {
+    ) -> deluge_storage_sample_fill::DelugeStatus {
         // SAFETY: every caller in this crate's tests passes a `c"..."` literal.
         let s = unsafe { CStr::from_ptr(path) }
             .to_string_lossy()
@@ -235,27 +235,27 @@ pub(crate) mod mock_backing {
             unsafe { *out_table_full = table_full };
         }
         // `DELUGE_ERR_NOT_FOUND`: what a real open of a missing file answers.
-        const DELUGE_ERR_NOT_FOUND: deluge_sample_fill::DelugeStatus = -8;
+        const DELUGE_ERR_NOT_FOUND: deluge_storage_sample_fill::DelugeStatus = -8;
         if ok {
-            deluge_sample_fill::DELUGE_OK
+            deluge_storage_sample_fill::DELUGE_OK
         } else {
             DELUGE_ERR_NOT_FOUND
         }
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle) {
+    extern "C" fn deluge_efatfs_close(handle: deluge_storage_sample_fill::DelugeHandle) {
         CLOSED_HANDLES.with(|c| c.borrow_mut().push(handle));
     }
 
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_read_at(
-        handle: deluge_sample_fill::DelugeHandle,
+        handle: deluge_storage_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> deluge_sample_fill::DelugeStatus {
+    ) -> deluge_storage_sample_fill::DelugeStatus {
         LAST_READ_CALL.with(|c| *c.borrow_mut() = Some((handle, byte_offset, count)));
         let bytes = READ_RESULT_BYTES.with(|c| *c.borrow()).min(count);
         // SAFETY: `registry::read_at`, the sole caller, passes `dst` valid for `count` bytes, and
@@ -267,7 +267,7 @@ pub(crate) mod mock_backing {
             }
             *out_read = bytes;
         }
-        deluge_sample_fill::DELUGE_OK
+        deluge_storage_sample_fill::DELUGE_OK
     }
 
     #[unsafe(no_mangle)]

@@ -1,4 +1,4 @@
-//! Drives `deluge_sample_fill::native_finish` over real streamed chunks in a real `deluge_storage_resource`
+//! Drives `deluge_storage_sample_fill::native_finish` over real streamed chunks in a real `deluge_storage_resource`
 //! manager: its `try_acquire` → payload accessor → convert-state accessor → stitch → write-back
 //! chain, checked against the C++ reference.
 //!
@@ -14,7 +14,7 @@
 //!
 //! `native_begin`/`native_finish` (feature `native_fill`) and the chunk storage are called
 //! directly. The resource-manager symbols come from `deluge_storage_resource`, the chunk accessors from
-//! `deluge_sample_fill`. Only `deluge_streaming_resource_manager` is provided here, from an
+//! `deluge_storage_sample_fill`. Only `deluge_streaming_resource_manager` is provided here, from an
 //! `AtomicPtr` set by [`ChunkHarness::new`]. Chunks are built by the production construct callback,
 //! `deluge_streaming_chunk_construct`.
 //!
@@ -38,12 +38,12 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use deluge_sample_fill::FillContext;
-use deluge_sample_fill::chunk::StreamedChunk;
 use deluge_storage_resource::{
     BACKING_HEAP, DelugeResource, deluge_resource_create, deluge_resource_define_asset,
     deluge_resource_request, deluge_resource_set_construct,
 };
+use deluge_storage_sample_fill::FillContext;
+use deluge_storage_sample_fill::chunk::StreamedChunk;
 
 // Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls. Each test is single-threaded with
 // no audio ISR, so no-ops are correct.
@@ -73,7 +73,7 @@ extern "C" fn deluge_streaming_resource_manager() -> *mut c_void {
     ACTIVE_MANAGER.load(Ordering::Relaxed)
 }
 
-/// Construct callback forwarding to `deluge_sample_fill::chunk::deluge_streaming_chunk_construct`,
+/// Construct callback forwarding to `deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct`,
 /// the one production uses for streamed sample chunks.
 ///
 /// Needed only because `ConstructFn` takes `dest: *mut u8` and the target takes `*mut c_void`;
@@ -87,7 +87,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
     // upholds for this callback.
     unsafe {
-        deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+        deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
             ctx,
             owner,
             index,
@@ -168,14 +168,18 @@ impl ChunkHarness {
             deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         let payload_offset =
-            deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
+            deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
         let header_size = core::mem::size_of::<StreamedChunk>();
         let backing_size = payload_offset + CLUSTER_SIZE as usize + 7;
         // Must be set before any `native_begin`/`native_finish` call.
         ACTIVE_MANAGER.store(handle as *mut c_void, Ordering::Relaxed);
 
         // `native_finish` resolves the asset's fill context and fails closed without one.
-        deluge_sample_fill::deluge_streaming_set_fill_context(ptr::null_mut(), asset, geo());
+        deluge_storage_sample_fill::deluge_streaming_set_fill_context(
+            ptr::null_mut(),
+            asset,
+            geo(),
+        );
 
         ChunkHarness {
             handle,
@@ -266,11 +270,17 @@ fn cross_path_finish_matches_cpp_reference_over_real_streamed_chunks() {
 
     // prev and next first, each with no ready neighbour, then self with both ready.
     // SAFETY: `prev` is a resident chunk the harness holds.
-    assert!(unsafe { deluge_sample_fill::native_finish(prev.backing as *mut c_void, true) });
+    assert!(unsafe {
+        deluge_storage_sample_fill::native_finish(prev.backing as *mut c_void, true)
+    });
     // SAFETY: `next` is a resident chunk the harness holds.
-    assert!(unsafe { deluge_sample_fill::native_finish(next.backing as *mut c_void, true) });
+    assert!(unsafe {
+        deluge_storage_sample_fill::native_finish(next.backing as *mut c_void, true)
+    });
     // SAFETY: `self_c` is a resident chunk the harness holds.
-    assert!(unsafe { deluge_sample_fill::native_finish(self_c.backing as *mut c_void, true) });
+    assert!(unsafe {
+        deluge_storage_sample_fill::native_finish(self_c.backing as *mut c_void, true)
+    });
 
     // SAFETY: all three backings are still resident.
     let self_payload_after = unsafe { h.payload_of(self_c.backing) }.to_vec();
@@ -358,7 +368,9 @@ fn cross_path_finish_matches_cpp_reference_over_real_streamed_chunks() {
             CLUSTER_SIZE as usize + 7,
         ));
         // SAFETY: `prev` is a resident chunk the harness holds.
-        assert!(unsafe { deluge_sample_fill::native_finish(prev.backing as *mut c_void, true) });
+        assert!(unsafe {
+            deluge_storage_sample_fill::native_finish(prev.backing as *mut c_void, true)
+        });
         // SAFETY: `prev.backing` is still resident.
         let prev_reloaded_after = unsafe { h.payload_of(prev.backing) }.to_vec();
 
@@ -411,10 +423,10 @@ fn neighbour_convert_state_is_read_back_through_the_shared_store(
 ) {
     // SAFETY: both backings are still resident, constructed `StreamedChunk`s.
     let prev_state_now =
-        unsafe { deluge_sample_fill::chunk::convert_state(prev.backing as *mut c_void) };
+        unsafe { deluge_storage_sample_fill::chunk::convert_state(prev.backing as *mut c_void) };
     // SAFETY: same as above.
     let next_state_now =
-        unsafe { deluge_sample_fill::chunk::convert_state(next.backing as *mut c_void) };
+        unsafe { deluge_storage_sample_fill::chunk::convert_state(next.backing as *mut c_void) };
 
     // Self converted both edges, so it must have set these shared flags.
     assert!(
@@ -437,7 +449,8 @@ fn neighbour_convert_state_is_read_back_through_the_shared_store(
 #[test]
 fn geometry_and_layout_invariants_hold() {
     let header_size = core::mem::size_of::<StreamedChunk>();
-    let payload_offset = deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
+    let payload_offset =
+        deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
     let wrong_span_len = CLUSTER_SIZE as usize + 7;
     assert!(
         wrong_span_len > header_size,

@@ -305,8 +305,9 @@ mod tests {
 
     /// Per-slot slab size: the `StreamedChunk` header plus a `CLUSTER_SIZE` payload, 16-aligned,
     /// as production's slab slots are sized.
-    const BACKING_SIZE: usize =
-        (deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET + CLUSTER_SIZE).next_multiple_of(16);
+    const BACKING_SIZE: usize = (deluge_storage_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET
+        + CLUSTER_SIZE)
+        .next_multiple_of(16);
 
     /// The production streamed-chunk construct callback, adapted to `ConstructFn`'s `*mut u8`
     /// `dest`.
@@ -322,7 +323,7 @@ mod tests {
     ) {
         // SAFETY: forwarding the caller's contract (above) to the real construct.
         unsafe {
-            deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+            deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
                 ctx,
                 owner,
                 index,
@@ -404,7 +405,7 @@ mod tests {
         };
         // SAFETY: `ptr` is a live chunk backing `real_chunk_construct` already placement-wrote a
         // `StreamedChunk` into (via `request`/`try_acquire` above).
-        let payload = unsafe { deluge_sample_fill::chunk::payload(ptr as *mut c_void) };
+        let payload = unsafe { deluge_storage_sample_fill::chunk::payload(ptr as *mut c_void) };
         for b in 0..CLUSTER_SIZE {
             // SAFETY: `payload` is the chunk's own `CLUSTER_SIZE`-byte payload region.
             unsafe {

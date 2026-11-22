@@ -193,10 +193,10 @@ mod tests {
     use super::*;
     use crate::host_streaming_stubs::{set_active_manager, TEST_LOCK};
     use crate::reader::UNKNOWN_LENGTH_SENTINEL;
-    use deluge_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     use deluge_storage_resource::facade::Resource;
     use deluge_storage_resource::value::COST_IO;
     use deluge_storage_resource::DelugeResource;
+    use deluge_storage_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     extern crate std;
     use core::ffi::c_void;
     use std::vec::Vec;
@@ -214,7 +214,7 @@ mod tests {
     ///
     /// # Safety
     ///
-    /// `dest` must be writable for at least `deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`
+    /// `dest` must be writable for at least `deluge_storage_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`
     /// bytes; this harness's chunks are `CHUNK_SIZE` bytes.
     unsafe extern "C" fn real_chunk_construct(
         ctx: *mut c_void,
@@ -224,7 +224,7 @@ mod tests {
     ) {
         // SAFETY: the caller's contract is the real construct's.
         unsafe {
-            deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+            deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
                 ctx,
                 owner,
                 index,
@@ -405,10 +405,10 @@ mod tests {
 
         // SAFETY: both chunks were constructed by `real_chunk_construct` and are leased.
         unsafe {
-            assert!(!deluge_sample_fill::chunk::unloadable(
+            assert!(!deluge_storage_sample_fill::chunk::unloadable(
                 l0.chunk().as_ptr() as *mut c_void
             ));
-            assert!(!deluge_sample_fill::chunk::unloadable(
+            assert!(!deluge_storage_sample_fill::chunk::unloadable(
                 l1.chunk().as_ptr() as *mut c_void
             ));
         }
@@ -418,11 +418,11 @@ mod tests {
         // SAFETY: both chunks are still leased.
         unsafe {
             assert!(
-                deluge_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void),
+                deluge_storage_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void),
                 "cluster 0 flagged unloadable"
             );
             assert!(
-                deluge_sample_fill::chunk::unloadable(l1.chunk().as_ptr() as *mut c_void),
+                deluge_storage_sample_fill::chunk::unloadable(l1.chunk().as_ptr() as *mut c_void),
                 "cluster 1 flagged unloadable"
             );
         }
@@ -458,7 +458,7 @@ mod tests {
             // SAFETY: the chunk was constructed by `real_chunk_construct` and is leased.
             assert!(
                 !unsafe {
-                    deluge_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void)
+                    deluge_storage_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void)
                 },
                 "length {length:#x} must invalidate nothing -- no finite bound available"
             );

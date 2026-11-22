@@ -18,8 +18,8 @@ deluge_audio_format = { package = "deluge-audio-format", git = "https://github.c
 # Keep the rev with src/bsp/rust/Cargo.toml's deluge-sdk pin.
 # The sample crates below are optional, pulled in only by `sample_abi`.
 deluge_sample_source = { path = "../deluge_sample_source", optional = true }
-deluge_sample_fill = { path = "../deluge_sample_fill", optional = true }
-# std-backed implementation for `deluge_sample_fill`'s context-table mutex.
+deluge_storage_sample_fill = { path = "../../src/storage/sample/fill", optional = true }
+# std-backed implementation for `deluge_storage_sample_fill`'s context-table mutex.
 critical-section = { version = "1", optional = true }
 deluge_sample_reader = { path = "../deluge_sample_reader", optional = true }
 deluge_sample_stream = { path = "../deluge_sample_stream", optional = true }
@@ -34,9 +34,9 @@ asan = ["deluge_base_alloc/asan"]
 sample_abi = [
     "dep:deluge_sample_source",
     "deluge_sample_source/c_abi",
-    "dep:deluge_sample_fill",
-    "deluge_sample_fill/native_fill",
-    "deluge_sample_fill/app_convert",
+    "dep:deluge_storage_sample_fill",
+    "deluge_storage_sample_fill/native_fill",
+    "deluge_storage_sample_fill/app_convert",
     "dep:critical-section",
     "critical-section/std",
     "dep:deluge_sample_reader",

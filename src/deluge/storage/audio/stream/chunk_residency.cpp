@@ -66,7 +66,7 @@ uint32_t deluge_streaming_define_asset(Sample* sample) {
 }
 
 // The chunk-construct callback (`deluge_streaming_chunk_construct`, registered above) and every
-// chunk field accessor live in Rust (`deluge_sample_fill::chunk`) — the streamed chunk's storage
+// chunk field accessor live in Rust (`deluge_storage_sample_fill::chunk`) — the streamed chunk's storage
 // lives there, so this TU only *registers* the Rust construct symbol; it does not define it or
 // touch the chunk's byte layout.
 

@@ -1,4 +1,4 @@
-//! Differential gate for `deluge_sample_fill::fill_logic::finish_convert_stitch`.
+//! Differential gate for `deluge_storage_sample_fill::fill_logic::finish_convert_stitch`.
 //!
 //! Checks the Rust fill's convert+stitch orchestration (which bytes are converted, which neighbour
 //! edges are built from where, in what order) is byte-identical to an independent C++ reference

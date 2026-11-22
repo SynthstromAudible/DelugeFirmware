@@ -68,7 +68,7 @@ static_assert(offsetof(DelugeStreamingFillContext, num_channels) == 30);
 static_assert(sizeof(DelugeStreamingFillContext) == 32);
 
 // The DelugeChunkConvertState FFI layout guard lives Rust-side only (the crate that owns the
-// convert-state accessors, `deluge_sample_fill`, guards its own mirror in `lib.rs`): those accessor
+// convert-state accessors, `deluge_storage_sample_fill`, guards its own mirror in `lib.rs`): those accessor
 // bodies live in Rust, so this TU no longer touches the struct.
 
 extern "C" {

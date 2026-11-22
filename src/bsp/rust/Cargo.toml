@@ -43,7 +43,7 @@ miniz_oxide = { version = "0.8.9", default-features = false }
 # The header decoder the audio loader walks headers through, and whose C ABI the app calls.
 # deluge-sdk's `deluge-audio-format`, at the pin below; `c-abi` exports what the app calls.
 deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
-deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
+deluge_storage_sample_fill = { path = "../../storage/sample/fill", features = ["native_fill"] }
 
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
 # (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
@@ -195,7 +195,7 @@ codegen-units = 1
 debug = true
 panic = "abort"
 
-[profile.release.package.deluge_sample_fill]
+[profile.release.package.deluge_storage_sample_fill]
 opt-level = "s"
 [profile.release.package.deluge_sample_reader]
 opt-level = "s"

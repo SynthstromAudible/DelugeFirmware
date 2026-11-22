@@ -64,10 +64,10 @@ pub struct DelugeBootInfo {
     pub factory_reset_requested: bool,
 }
 
-/// `libdeluge/types.h`'s `DelugeChunkBacking`, which `deluge_sample_fill` defines (as the bindgen
+/// `libdeluge/types.h`'s `DelugeChunkBacking`, which `deluge_storage_sample_fill` defines (as the bindgen
 /// `sys` re-exports it; see `build/crate_types.rs`).
 #[allow(unused_imports)]
-pub use deluge_sample_fill::chunk::DelugeChunkBacking;
+pub use deluge_storage_sample_fill::chunk::DelugeChunkBacking;
 
 unsafe extern "C" {
     /// `libdeluge/sample_stream.h`: returns the resource-manager singleton (`DelugeResource` is

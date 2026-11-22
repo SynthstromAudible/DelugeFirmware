@@ -67,7 +67,7 @@ uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) DELU
 
 /// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
 ///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
-///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill). [task]
+///        + Cluster::size + trailing guard. Rust-owned (deluge_storage_sample_fill). [task]
 uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
 
 /// @brief The geometry a stream slot needs to register its asset's fill-context.

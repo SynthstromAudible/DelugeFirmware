@@ -17,7 +17,7 @@ use deluge_storage_resource::{
     deluge_resource_set_construct, deluge_resource_try_acquire,
 };
 
-use deluge_sample_fill::fill_logic;
+use deluge_storage_sample_fill::fill_logic;
 use fill_logic::{FillGeometry, NeighbourView, begin, finish_convert_stitch};
 
 // Host stand-ins for the C-ABI symbols `deluge_storage_resource` calls. Each test is single-threaded with

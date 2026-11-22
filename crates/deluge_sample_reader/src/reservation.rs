@@ -36,12 +36,12 @@ unsafe extern "C" {
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Reads synchronously from the card (`libdeluge/file_io.h`); see `fill_now`.
     pub fn deluge_efatfs_read_at(
-        handle: deluge_sample_fill::DelugeHandle,
+        handle: deluge_storage_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> deluge_sample_fill::DelugeStatus;
+    ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Wakes the async loader after a `Resource::loader_enqueue` (`libdeluge/streaming_fill.h`).
     pub fn deluge_streaming_signal_fill();
 }
@@ -57,7 +57,7 @@ unsafe extern "C" {
 /// `chunk_backing` must be a resident chunk the caller holds a lease on.
 pub(crate) unsafe fn fill_now(chunk_backing: *mut c_void) -> bool {
     // SAFETY: the caller's contract.
-    let d = unsafe { deluge_sample_fill::native_begin(chunk_backing) };
+    let d = unsafe { deluge_storage_sample_fill::native_begin(chunk_backing) };
     if !d.ok {
         return false;
     }
@@ -73,9 +73,9 @@ pub(crate) unsafe fn fill_now(chunk_backing: *mut c_void) -> bool {
             count,
             &mut out_read,
         )
-    } == deluge_sample_fill::DELUGE_OK;
+    } == deluge_storage_sample_fill::DELUGE_OK;
     // SAFETY: the caller's contract.
-    unsafe { deluge_sample_fill::native_finish(chunk_backing, read_ok) }
+    unsafe { deluge_storage_sample_fill::native_finish(chunk_backing, read_ok) }
 }
 
 /// A lookahead reservation over one sample's residency: the state behind `DelugeSampleReservation`.
@@ -221,7 +221,7 @@ fn resolve_geometry(manager: *mut c_void, asset: u32, marker_frame: u64) -> Opti
     if manager.is_null() {
         return None;
     }
-    let ctx = deluge_sample_fill::fill_context_for(asset)?; // No registered geometry.
+    let ctx = deluge_storage_sample_fill::fill_context_for(asset)?; // No registered geometry.
     let frame_stride = ctx.byte_depth as u64 * ctx.num_channels as u64;
     if frame_stride == 0 || ctx.cluster_size_magnitude >= 64 {
         return None; // Malformed geometry; same guard as `reader::locate`.
@@ -399,9 +399,9 @@ mod tests {
     use crate::host_streaming_stubs::{
         set_active_manager, set_fail_at_byte_offset, set_force_read_failure, TEST_LOCK,
     };
-    use deluge_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     use deluge_storage_resource::manager::BACKING_SLAB;
     use deluge_storage_resource::value::COST_IO;
+    use deluge_storage_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     extern crate std;
     use std::ops::Range;
     use std::vec::Vec;
@@ -412,9 +412,10 @@ mod tests {
     /// Real per-chunk backing: the `StreamedChunk` header, the payload, and the 7 bytes of trailing
     /// slack `native_finish` touches. The `LoadMode::Now` test runs a real fill, which would
     /// overrun a bare `CLUSTER_SIZE_BYTES` allocation.
-    const BACKING_SIZE: usize =
-        (deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET + CLUSTER_SIZE_BYTES as usize + 7)
-            .next_multiple_of(16);
+    const BACKING_SIZE: usize = (deluge_storage_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET
+        + CLUSTER_SIZE_BYTES as usize
+        + 7)
+    .next_multiple_of(16);
 
     /// Placement-constructs a real `StreamedChunk` at `dest`.
     ///
@@ -432,7 +433,7 @@ mod tests {
     ) {
         // SAFETY: the caller's contract is the real construct's.
         unsafe {
-            deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+            deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
                 ctx,
                 owner,
                 index,

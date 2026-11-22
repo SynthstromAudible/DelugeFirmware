@@ -82,7 +82,7 @@ typedef struct DelugeResource DelugeResource;
 /// over. Opaque; only the C++ side dereferences it.
 typedef struct DelugeStreamBacking DelugeStreamBacking;
 
-/// A resident streamed chunk the fill queue fills: the Rust `deluge_sample_fill` crate's
+/// A resident streamed chunk the fill queue fills: the Rust `deluge_storage_sample_fill` crate's
 /// `StreamedChunk`. Opaque; only the Rust side dereferences it.
 typedef struct DelugeChunkBacking DelugeChunkBacking;
 

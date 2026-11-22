@@ -8,7 +8,7 @@ deluge_storage_resource = { path = "../../src/storage/resource" }
 # Only `chunk` is used (`ManagerPin::payload` reads a chunk's payload base directly). Default
 # features on purpose: `native_fill` is the manager-reaching fill core, which `deluge_sample_reader`
 # enables for every real build anyway.
-deluge_sample_fill = { path = "../deluge_sample_fill" }
+deluge_storage_sample_fill = { path = "../../src/storage/sample/fill" }
 
 [dev-dependencies]
 deluge_base_alloc = { path = "../../src/base/alloc" }

@@ -22,8 +22,8 @@ abi_pin!(in deluge_audio_format::abi: deluge_audio_header_parser_init, deluge_au
     deluge_audio_header_parser_container, deluge_audio_header_parser_finish_here,
     deluge_audio_header_accept_as_wavetable);
 
-abi_pin!(in deluge_sample_fill: deluge_streaming_set_fill_context);
-abi_pin!(in deluge_sample_fill::chunk: deluge_streamed_chunk_payload_offset);
+abi_pin!(in deluge_storage_sample_fill: deluge_streaming_set_fill_context);
+abi_pin!(in deluge_storage_sample_fill::chunk: deluge_streamed_chunk_payload_offset);
 
 abi_pin!(in deluge_sample_reader::abi: deluge_sample_reader_open, deluge_sample_reader_seek,
     deluge_sample_reader_close, deluge_sample_reader_window, deluge_sample_reader_advance, deluge_sample_reader_ok,
@@ -43,7 +43,7 @@ abi_pin!(in deluge_sample_stream::abi: deluge_sample_stream_open, deluge_sample_
 
 abi_pin!(in deluge_storage_resource::manager: deluge_debug_now_frames);
 abi_pin!(in deluge_storage_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
-abi_pin!(in deluge_sample_fill::native: deluge_streaming_resource_manager);
+abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager);
 abi_pin!(in deluge_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
 abi_pin!(in deluge_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
     deluge_streaming_signal_fill);
@@ -55,8 +55,8 @@ abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_open_at, del
 // --- The copies of header typedefs ---
 
 abi_layout!(type crate::abi::handle::DelugeHandle => sys DelugeHandle);
-abi_layout!(type deluge_sample_fill::DelugeHandle => sys DelugeHandle);
-abi_layout!(type deluge_sample_fill::DelugeStatus => sys DelugeStatus);
+abi_layout!(type deluge_storage_sample_fill::DelugeHandle => sys DelugeHandle);
+abi_layout!(type deluge_storage_sample_fill::DelugeStatus => sys DelugeStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeStatus => sys DelugeStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeAudioParseStatus => sys DelugeAudioParseStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeWavetableAccept => sys DelugeWavetableAccept);
@@ -73,11 +73,11 @@ abi_layout!(deluge_audio_format::abi::DelugeAudioWindow => DelugeAudioWindow { s
 // The header declares only sized, aligned storage for the parser.
 abi_layout!(deluge_audio_format::abi::DelugeAudioHeaderParser => DelugeAudioHeaderParser opaque);
 
-abi_layout!(deluge_sample_fill::FillContext => DelugeStreamingFillContext { efatfs_handle, audio_data_start_pos_bytes,
+abi_layout!(deluge_storage_sample_fill::FillContext => DelugeStreamingFillContext { efatfs_handle, audio_data_start_pos_bytes,
     audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size, cluster_size_magnitude,
     raw_data_format, byte_depth, num_channels });
-abi_layout!(deluge_sample_fill::FileLocation => DelugeFileLocation { context, mount_generation, valid });
-abi_layout!(deluge_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor { dest, num_sectors, ok, handle,
+abi_layout!(deluge_storage_sample_fill::FileLocation => DelugeFileLocation { context, mount_generation, valid });
+abi_layout!(deluge_storage_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor { dest, num_sectors, ok, handle,
     byte_offset });
 
 abi_layout!(deluge_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
@@ -103,8 +103,8 @@ abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStre
 // --- Header values copied by hand ---
 
 abi_const!(
-    deluge_sample_fill::DELUGE_OK => DelugeStatus_DELUGE_OK,
-    deluge_sample_fill::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
+    deluge_storage_sample_fill::DELUGE_OK => DelugeStatus_DELUGE_OK,
+    deluge_storage_sample_fill::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
     deluge_audio_format::abi::DELUGE_OK => DelugeStatus_DELUGE_OK,
     deluge_audio_format::abi::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
 );

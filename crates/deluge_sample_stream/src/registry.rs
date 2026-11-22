@@ -15,7 +15,7 @@ use core::ffi::{c_char, c_void};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
 
-use deluge_sample_fill::{DelugeStatus, DELUGE_ERR_PARAM, DELUGE_OK};
+use deluge_storage_sample_fill::{DelugeStatus, DELUGE_ERR_PARAM, DELUGE_OK};
 
 use crate::{DelugeSampleStreamGeometry, DelugeStreamingFillContext, DELUGE_RESOURCE_NO_ASSET};
 
@@ -28,7 +28,7 @@ pub const CAP: usize = 256;
 /// `efatfs_handle` is always a live handle: a slot exists only after a successful
 /// `deluge_efatfs_open`. `asset_id` is [`DELUGE_RESOURCE_NO_ASSET`] until [`set_asset_id`].
 struct Slot {
-    efatfs_handle: deluge_sample_fill::DelugeHandle,
+    efatfs_handle: deluge_storage_sample_fill::DelugeHandle,
     asset_id: u32,
     geometry: Option<DelugeSampleStreamGeometry>,
 }
@@ -89,7 +89,7 @@ pub unsafe fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
 /// `location` must be null or point to a valid `DelugeFileLocation`. `out_table_full`, if
 /// non-null, must be valid for one write.
 pub unsafe fn open_at(
-    location: *const deluge_sample_fill::FileLocation,
+    location: *const deluge_storage_sample_fill::FileLocation,
     out_table_full: *mut bool,
 ) -> u32 {
     // SAFETY: `location` is passed through untouched under the caller's contract.
@@ -108,7 +108,7 @@ pub unsafe fn open_at(
 /// `out_table_full`, if non-null, must be valid for one write.
 unsafe fn claim(
     out_table_full: *mut bool,
-    open_efatfs: impl FnOnce(&mut u32, &mut bool) -> deluge_sample_fill::DelugeStatus,
+    open_efatfs: impl FnOnce(&mut u32, &mut bool) -> deluge_storage_sample_fill::DelugeStatus,
 ) -> u32 {
     let mut handle: u32 = 0;
     let mut efatfs_table_full = false;
@@ -334,7 +334,7 @@ mod tests {
         let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(43, true, false);
-        let location = deluge_sample_fill::FileLocation::NONE;
+        let location = deluge_storage_sample_fill::FileLocation::NONE;
         let mut tf = true;
         // SAFETY: a local buffer and a local.
         let h = unsafe { open_at(&location, &mut tf) };

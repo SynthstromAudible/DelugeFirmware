@@ -119,7 +119,7 @@ pub extern "C" fn deluge_streaming_queue_drained() -> bool {
 }
 
 // Re-exported because it appears in `FillOps`'s signatures.
-pub use deluge_sample_fill::StreamingFillDescriptor;
+pub use deluge_storage_sample_fill::StreamingFillDescriptor;
 
 /// `kLowestLoaderPriority`: the re-enqueue priority for a chunk whose read failed while still
 /// wanted, so it sinks behind everything else rather than being popped again at once.
@@ -263,7 +263,7 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
 mod prod {
     use super::{FillOps, LOWEST_PRIORITY};
     use core::ffi::c_void;
-    use deluge_sample_fill::StreamingFillDescriptor;
+    use deluge_storage_sample_fill::StreamingFillDescriptor;
 
     unsafe extern "C" {
         fn deluge_resource_loader_next(mgr: *mut c_void) -> *mut c_void;
@@ -306,13 +306,13 @@ mod prod {
 
         unsafe fn is_unloadable(&self, chunk: *mut c_void) -> bool {
             // SAFETY: `chunk` was just returned by `next()`.
-            unsafe { deluge_sample_fill::chunk::unloadable(chunk) }
+            unsafe { deluge_storage_sample_fill::chunk::unloadable(chunk) }
         }
 
         unsafe fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
             let start = embassy_time::Instant::now();
             // SAFETY: `chunk` was just returned by `next()`: queued, resident and still leased.
-            let d = unsafe { deluge_sample_fill::native_begin(chunk) };
+            let d = unsafe { deluge_storage_sample_fill::native_begin(chunk) };
             crate::storage::fill_trace::begin(start, embassy_time::Instant::now());
             d
         }
@@ -334,7 +334,7 @@ mod prod {
         unsafe fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
             let start = embassy_time::Instant::now();
             // SAFETY: the same leased chunk `begin` was given.
-            let done = unsafe { deluge_sample_fill::native_finish(chunk, read_ok) };
+            let done = unsafe { deluge_storage_sample_fill::native_finish(chunk, read_ok) };
             crate::storage::fill_trace::finish(start, embassy_time::Instant::now());
             done
         }

@@ -6,9 +6,9 @@
 
 use core::ffi::c_void;
 
-use deluge_sample_fill::chunk::DelugeChunkBacking;
 use deluge_storage_resource::facade::Lease;
 use deluge_storage_resource::{DelugeResource, Resource};
+use deluge_storage_sample_fill::chunk::DelugeChunkBacking;
 
 /// Mirrors `DelugeReadHint` (`libdeluge/sample_reader.h`). `repr(u8)` matches the header's
 /// `: uint8_t`, as it crosses the FFI by value.
@@ -63,9 +63,9 @@ fn resident_bytes_for(index: u32, geo: &Geometry) -> u32 {
     }
 }
 
-/// Maps a registered [`deluge_sample_fill::FillContext`] onto [`Geometry`]. Shared by
+/// Maps a registered [`deluge_storage_sample_fill::FillContext`] onto [`Geometry`]. Shared by
 /// [`Reader::open`] and [`peek`] so both resolve geometry identically.
-fn geometry_from_context(ctx: deluge_sample_fill::FillContext) -> Geometry {
+fn geometry_from_context(ctx: deluge_storage_sample_fill::FillContext) -> Geometry {
     Geometry {
         audio_data_start_bytes: ctx.audio_data_start_pos_bytes,
         audio_data_length_bytes: ctx.audio_data_length_bytes,
@@ -132,12 +132,12 @@ impl Reader {
     /// `start_frame`, reading in `direction` (+1 forward, -1 reverse).
     ///
     /// Geometry comes from the asset's registered fill-context
-    /// ([`deluge_sample_fill::fill_context_for`]), not the caller. Without one, geometry stays
+    /// ([`deluge_storage_sample_fill::fill_context_for`]), not the caller. Without one, geometry stays
     /// zeroed and the reader is not ok. No I/O and no lease.
     pub fn open(asset: u32, start_frame: u64, direction: i8, hint: ReadHint) -> Self {
         // SAFETY: no preconditions; returns the process-wide manager or null.
         let manager = unsafe { deluge_streaming_resource_manager() };
-        let (geometry, ok) = match deluge_sample_fill::fill_context_for(asset) {
+        let (geometry, ok) = match deluge_storage_sample_fill::fill_context_for(asset) {
             Some(ctx) => (geometry_from_context(ctx), true),
             None => (Geometry::default(), false),
         };
@@ -354,8 +354,8 @@ impl Reader {
 
         // SAFETY: `held_lease` is `Some` and pins a resident, constructed chunk.
         let payload_base = unsafe {
-            deluge_sample_fill::chunk::payload(
-                self.held_lease.as_ref().unwrap().chunk().as_ptr() as *mut c_void
+            deluge_storage_sample_fill::chunk::payload(
+                self.held_lease.as_ref().unwrap().chunk().as_ptr() as *mut c_void,
             )
         };
         // SAFETY: only the frame nearest the boundary can pass `resident`, and only when the
@@ -477,7 +477,7 @@ pub fn peek(source_id: u32, start_frame: u64, direction: i8) -> (*const u8, u32)
     if manager.is_null() {
         return (core::ptr::null(), 0);
     }
-    let Some(ctx) = deluge_sample_fill::fill_context_for(source_id) else {
+    let Some(ctx) = deluge_storage_sample_fill::fill_context_for(source_id) else {
         return (core::ptr::null(), 0); // No registered geometry.
     };
     let geometry = geometry_from_context(ctx);
@@ -510,7 +510,8 @@ pub fn peek(source_id: u32, start_frame: u64, direction: i8) -> (*const u8, u32)
 
     // SAFETY: `chunk` is resident and ready, and stays so for this call, which never blocks,
     // yields or evicts.
-    let payload_base = unsafe { deluge_sample_fill::chunk::payload(chunk.as_ptr() as *mut c_void) };
+    let payload_base =
+        unsafe { deluge_storage_sample_fill::chunk::payload(chunk.as_ptr() as *mut c_void) };
     // SAFETY: `byte_offset < resident <= cluster_size_bytes`, and a forward run ends at or before
     // `resident`, so every exposed byte is inside the cluster payload.
     let frames = unsafe { payload_base.add(byte_offset as usize) };
@@ -528,7 +529,7 @@ pub fn invalidate(source_id: u32) {
     if manager.is_null() {
         return;
     }
-    let Some(ctx) = deluge_sample_fill::fill_context_for(source_id) else {
+    let Some(ctx) = deluge_storage_sample_fill::fill_context_for(source_id) else {
         return; // No registered geometry.
     };
     if ctx.cluster_size == 0 || ctx.cluster_size_magnitude >= 64 {
@@ -553,7 +554,9 @@ pub fn invalidate(source_id: u32) {
         if let Some(chunk) = resource.peek(source_id, index) {
             // SAFETY: `chunk` is a live resident backing; the setter writes only its `unloadable`
             // byte.
-            unsafe { deluge_sample_fill::chunk::set_unloadable(chunk.as_ptr() as *mut c_void) };
+            unsafe {
+                deluge_storage_sample_fill::chunk::set_unloadable(chunk.as_ptr() as *mut c_void)
+            };
             resource.loader_remove(resource.slot_of(chunk));
         }
     }
@@ -564,10 +567,10 @@ mod tests {
     use super::*;
     use crate::host_streaming_stubs::{set_active_manager, TEST_LOCK};
     use alloc::boxed::Box;
-    use deluge_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     use deluge_storage_resource::facade::Resource;
     use deluge_storage_resource::value::COST_IO;
     use deluge_storage_resource::DelugeResource;
+    use deluge_storage_sample_fill::{deluge_streaming_set_fill_context, FillContext};
     extern crate std;
     use core::ffi::c_void;
     use std::vec::Vec;
@@ -773,9 +776,10 @@ mod tests {
         /// Real per-chunk backing: the `StreamedChunk` header, the payload, and the 7 bytes of
         /// trailing slack `native_finish` touches, rounded up to the slab's 16-byte slots. Derived
         /// from the real offset so it tracks `StreamedChunk`'s layout.
-        const BACKING_SIZE: usize =
-            (deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET + CLUSTER_SIZE as usize + 7)
-                .next_multiple_of(16);
+        const BACKING_SIZE: usize = (deluge_storage_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET
+            + CLUSTER_SIZE as usize
+            + 7)
+        .next_multiple_of(16);
 
         /// Placement-constructs a real `StreamedChunk` at `dest` with the production construct
         /// callback. The wrapper only adapts `ConstructFn`'s `*mut u8` to its `*mut c_void`.
@@ -791,7 +795,7 @@ mod tests {
         ) {
             // SAFETY: the caller's contract is the real construct's.
             unsafe {
-                deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+                deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
                     ctx,
                     owner,
                     index,

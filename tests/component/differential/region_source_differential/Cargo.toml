@@ -18,9 +18,9 @@ deluge_sample_source = { path = "../../../../crates/deluge_sample_source" }
 # The real manager and asset `ManagerResidency` sits on, and the test heap.
 deluge_storage_resource = { path = "../../../../src/storage/resource" }
 fs_alloc = { package = "deluge_base_alloc", path = "../../../../src/base/alloc" }
-# `deluge_sample_fill::chunk`: streamed-chunk construction and payload resolution. No
+# `deluge_storage_sample_fill::chunk`: streamed-chunk construction and payload resolution. No
 # `native_fill`; this gate never runs the fill.
-deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill" }
+deluge_storage_sample_fill = { path = "../../../../src/storage/sample/fill" }
 # Backs `tests/real_chunk_gate.rs`'s host stand-ins for the C-ABI critical-section primitives
 # `deluge_storage_resource::sync::Masked` calls.
 critical-section = { version = "1", features = ["std"] }

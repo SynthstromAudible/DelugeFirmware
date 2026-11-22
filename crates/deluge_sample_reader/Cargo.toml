@@ -2,8 +2,8 @@
 # for non-voice consumers (pitch detect, waveform, wavetable build). The non-voice twin of
 # `deluge_sample_source`.
 #
-# Kept separate from `deluge_sample_fill` because it depends on `deluge_storage_resource` directly (for the
-# typed `Lease`), which `deluge_sample_fill` deliberately avoids.
+# Kept separate from `deluge_storage_sample_fill` because it depends on `deluge_storage_resource` directly (for the
+# typed `Lease`), which `deluge_storage_sample_fill` deliberately avoids.
 #
 # A plain `no_std` rlib with no `#[panic_handler]`: the final artifact provides one.
 [package]
@@ -21,7 +21,7 @@ crate-type = ["rlib"]
 deluge_storage_resource = { path = "../../src/storage/resource" }
 # `native_fill` supplies the fill primitives this crate's synchronous fill composes; production
 # code needs it, not only tests.
-deluge_sample_fill = { path = "../deluge_sample_fill", features = ["native_fill"] }
+deluge_storage_sample_fill = { path = "../../src/storage/sample/fill", features = ["native_fill"] }
 
 [dev-dependencies]
 deluge_base_alloc = { path = "../../src/base/alloc" }

@@ -81,7 +81,7 @@ impl RegionPin for ManagerPin {
         // SAFETY: the lease keeps the chunk resident for this pin's life, so its backing is a live
         // `StreamedChunk` built by the streamed-chunk asset's construct callback.
         unsafe {
-            deluge_sample_fill::chunk::payload(self.lease.chunk().as_ptr() as *mut c_void)
+            deluge_storage_sample_fill::chunk::payload(self.lease.chunk().as_ptr() as *mut c_void)
                 as *const u8
         }
     }

@@ -15,14 +15,14 @@ pub use deluge_storage_resource::*;
 
 // The sample crates' exports have no C++ fallback, and nothing in this crate's Rust code
 // references them, so `extern crate` is what keeps their objects in the archive.
-// `critical_section` supplies the std implementation behind `deluge_sample_fill`'s context table.
+// `critical_section` supplies the std implementation behind `deluge_storage_sample_fill`'s context table.
 #[cfg(feature = "sample_abi")]
 extern crate deluge_sample_source;
 
 #[cfg(feature = "sample_abi")]
 extern crate critical_section;
 #[cfg(feature = "sample_abi")]
-extern crate deluge_sample_fill;
+extern crate deluge_storage_sample_fill;
 
 #[cfg(feature = "sample_abi")]
 extern crate deluge_sample_reader;

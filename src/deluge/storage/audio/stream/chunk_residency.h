@@ -27,7 +27,7 @@ class Sample;
 /// `owner` is always the `Sample*` registered by `deluge_streaming_define_asset()`; each callback
 /// reaches that sample's `SampleStream` via `sample->stream()` -- residency itself is manager-owned,
 /// so this callback only constructs a chunk's bytes (`loaded` stays false; the async streaming-fill
-/// task then reads the card bytes into it — `streaming_loader.rs`, over `deluge_sample_fill`'s
+/// task then reads the card bytes into it — `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
 /// `native_begin`/`native_finish`).
 /// See sample_stream.h's "Cluster residency" section for the broader contract this implements.
 
@@ -46,7 +46,7 @@ uint32_t deluge_streaming_define_asset(Sample* sample);
 ///        (`loaded` stays false), so the audio thread never blocks — the background loader fills it
 ///        later.
 ///
-/// Defined in Rust (`deluge_sample_fill::chunk`) — the chunk's storage lives there; this decl
+/// Defined in Rust (`deluge_storage_sample_fill::chunk`) — the chunk's storage lives there; this decl
 /// only lets `deluge_streaming_define_asset()` register the symbol as the asset's construct callback.
 /// @param ctx    Manager-supplied Source context (unused here).
 /// @param owner  The owning `Sample*`, as registered by deluge_streaming_define_asset().

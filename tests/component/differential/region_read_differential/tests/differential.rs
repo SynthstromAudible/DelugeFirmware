@@ -10,7 +10,7 @@
 //!
 //! Each case builds a [`ChunkHarness`]: a real slab-backed `deluge_storage_resource` manager with real
 //! streamed chunks. Each cluster's payload is seeded with [`ramp`], then every cluster is passed
-//! through `deluge_sample_fill::native_finish` in index order, so the real stitch publishes each
+//! through `deluge_storage_sample_fill::native_finish` in index order, so the real stitch publishes each
 //! cluster's head into its predecessor's 7-byte trailing slack, which frames straddling a cluster
 //! boundary read. The format is `Native`, so conversion leaves the ramp unchanged, and
 //! `audio_data_start_bytes` is 0, so [`mapping::Geometry::total_frames`] is the exact end of audio.
@@ -21,7 +21,6 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use deluge_sample_fill::{FillContext, deluge_streaming_set_fill_context};
 use deluge_sample_reader::abi::{
     DelugeFrameWindow, deluge_sample_read, deluge_sample_reader_advance,
     deluge_sample_reader_close, deluge_sample_reader_ok, deluge_sample_reader_open,
@@ -32,6 +31,7 @@ use deluge_storage_resource::{
     BACKING_SLAB, deluge_resource_create, deluge_resource_define_asset, deluge_resource_request,
     deluge_resource_set_construct, deluge_resource_set_slab,
 };
+use deluge_storage_sample_fill::{FillContext, deluge_streaming_set_fill_context};
 
 use region_read_differential::mapping::{self, Geometry as MapGeo};
 use region_read_differential::ramp;
@@ -65,7 +65,7 @@ extern "C" fn deluge_efatfs_read_at(
     _dst: *mut c_void,
     _count: u32,
     _out_read: *mut u32,
-) -> deluge_sample_fill::DelugeStatus {
+) -> deluge_storage_sample_fill::DelugeStatus {
     // `DELUGE_ERR_IO`: a failed card read.
     -5
 }
@@ -74,7 +74,7 @@ extern "C" fn deluge_efatfs_read_at(
 /// not prefill never becomes ready.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_streaming_request_chunk(
-    _chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
+    _chunk_backing: *mut deluge_storage_sample_fill::chunk::DelugeChunkBacking,
 ) {
 }
 
@@ -86,7 +86,7 @@ extern "C" fn deluge_streaming_resource_manager() -> *mut c_void {
     ACTIVE_MANAGER.load(Ordering::Relaxed)
 }
 
-/// Construct callback forwarding to `deluge_sample_fill::chunk::deluge_streaming_chunk_construct`,
+/// Construct callback forwarding to `deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct`,
 /// the one production uses for streamed sample chunks.
 ///
 /// Needed only because `ConstructFn` takes `dest: *mut u8` and the target takes `*mut c_void`;
@@ -100,7 +100,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
     // upholds for this callback.
     unsafe {
-        deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
+        deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
             ctx,
             owner,
             index,
@@ -109,7 +109,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     }
 }
 
-/// Serializes every test: `deluge_sample_fill`'s fill-context table is a global keyed by asset id
+/// Serializes every test: `deluge_storage_sample_fill`'s fill-context table is a global keyed by asset id
 /// (every fresh manager starts at 0), and [`ACTIVE_MANAGER`] is global too.
 static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -173,7 +173,7 @@ impl ChunkHarness {
         assert!(!heap.is_null());
 
         let payload_offset =
-            deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
+            deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
         let backing_size = payload_offset + CLUSTER_SIZE as usize + 7; // + kTrailingSlackBytes
 
         // SAFETY: `heap` is the live handle just created above; capacity comfortably exceeds every
@@ -215,7 +215,8 @@ impl ChunkHarness {
             assert!(!backing.is_null(), "request failed for cluster {index}");
             // SAFETY: `backing` was just constructed; its payload holds `CLUSTER_SIZE` bytes and is
             // reached through the accessor, never assumed equal to the backing.
-            let payload = unsafe { deluge_sample_fill::chunk::payload(backing as *mut c_void) };
+            let payload =
+                unsafe { deluge_storage_sample_fill::chunk::payload(backing as *mut c_void) };
             let seed = ramp(index, CLUSTER_SIZE as usize);
             // SAFETY: `payload` is `CLUSTER_SIZE` bytes, exclusively held until `native_finish`;
             // `seed` is the same length.
@@ -227,7 +228,7 @@ impl ChunkHarness {
         for (index, &backing) in backings.iter().enumerate() {
             // SAFETY: `backing` is a resident chunk the harness holds.
             assert!(
-                unsafe { deluge_sample_fill::native_finish(backing as *mut c_void, true) },
+                unsafe { deluge_storage_sample_fill::native_finish(backing as *mut c_void, true) },
                 "native_finish failed for cluster {index}"
             );
         }
@@ -257,7 +258,7 @@ fn oracle_frame(
 ) -> Vec<u8> {
     let backing = h.backing(cluster_index);
     // SAFETY: `backing` is a resident, `native_finish`ed chunk (`ChunkHarness::new`).
-    let payload = unsafe { deluge_sample_fill::chunk::payload(backing as *mut c_void) };
+    let payload = unsafe { deluge_storage_sample_fill::chunk::payload(backing as *mut c_void) };
     let mut out = vec![0u8; frame_bytes as usize];
     // SAFETY: the payload is backed by `cluster_size + 7` bytes, and every case keeps
     // `byte_offset < cluster_size` and `frame_bytes <= 4`.

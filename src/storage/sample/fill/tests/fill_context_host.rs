@@ -3,7 +3,9 @@
 
 use core::ptr;
 
-use deluge_sample_fill::{FillContext, deluge_streaming_set_fill_context, fill_context_for};
+use deluge_storage_sample_fill::{
+    FillContext, deluge_streaming_set_fill_context, fill_context_for,
+};
 
 fn sample_ctx() -> FillContext {
     FillContext {

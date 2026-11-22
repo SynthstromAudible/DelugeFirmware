@@ -45,10 +45,10 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
 };
 
-pub use deluge_sample_fill::FileLocation;
+pub use deluge_storage_sample_fill::FileLocation;
 
 const _: () =
-    assert!(deluge_sample_fill::FILE_LOCATION_BYTES == embedded_fatfs::FILE_CONTEXT_BYTES);
+    assert!(deluge_storage_sample_fill::FILE_LOCATION_BYTES == embedded_fatfs::FILE_CONTEXT_BYTES);
 
 /// The location of the open file `ctx`, found on mount `mount_generation`, for the backends'
 /// `open_at` to open again with no directory walk.

@@ -14,9 +14,9 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeAudioHeader", "deluge_audio_format::abi::DelugeAudioHeader"),
     ("DelugeAudioWindow", "deluge_audio_format::abi::DelugeAudioWindow"),
     ("DelugeAudioHeaderParser", "deluge_audio_format::abi::DelugeAudioHeaderParser"),
-    ("DelugeStreamingFillContext", "deluge_sample_fill::FillContext"),
-    ("DelugeFileLocation", "deluge_sample_fill::FileLocation"),
-    ("StreamingFillDescriptor", "deluge_sample_fill::StreamingFillDescriptor"),
+    ("DelugeStreamingFillContext", "deluge_storage_sample_fill::FillContext"),
+    ("DelugeFileLocation", "deluge_storage_sample_fill::FileLocation"),
+    ("StreamingFillDescriptor", "deluge_storage_sample_fill::StreamingFillDescriptor"),
     ("DelugeFrameWindow", "deluge_sample_reader::abi::DelugeFrameWindow"),
     ("DelugeSampleGeometry", "deluge_sample_source::geometry::Geometry"),
     ("DelugeSampleRegion", "deluge_sample_source::abi::DelugeSampleRegion"),
@@ -41,7 +41,7 @@ const OPAQUE: &[(&str, &str)] = &[
     ("DelugeSampleReservation", "deluge_sample_reader::reservation::DelugeSampleReservation"),
     ("DelugeSampleSource", "deluge_sample_source::abi::DelugeSampleSource"),
     ("DelugeStreamBacking", "deluge_sample_source::abi::DelugeStreamBacking"),
-    ("DelugeChunkBacking", "deluge_sample_fill::chunk::DelugeChunkBacking"),
+    ("DelugeChunkBacking", "deluge_storage_sample_fill::chunk::DelugeChunkBacking"),
 ];
 
 /// Opaque handles from the crate only the device build depends on (as `fs_alloc`).

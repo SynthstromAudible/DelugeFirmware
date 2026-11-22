@@ -35,7 +35,7 @@ constexpr uint32_t kFramesPerCluster = kClusterSize / kStride; // 32
 // seeded `payload == backing` stand-in would leave peek reading its pointer out of payload bytes.
 // Mirrors the Rust reader crate's own `real_chunk_construct`/`BACKING_SIZE` harness (reader.rs).
 //
-// `+ 7` is the trailing slack `deluge_sample_fill::native_finish` always touches; rounded up to a
+// `+ 7` is the trailing slack `deluge_storage_sample_fill::native_finish` always touches; rounded up to a
 // 16-byte multiple to match the slab's slot alignment. Derived from the real offset rather than a
 // hand-rounded literal, so this never drifts out of sync with `StreamedChunk`'s own layout.
 inline uint32_t backing_size() {

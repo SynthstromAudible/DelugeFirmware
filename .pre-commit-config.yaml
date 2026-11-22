@@ -24,7 +24,7 @@ repos:
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^(crates/|src/base/alloc/|src/storage/resource/).*\.rs$
+        files: ^(crates/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/).*\.rs$
         pass_filenames: false
       - id: cargo-fmt-sample-convert
         # deluge_storage_sample_convert is a production dependency of the Rust BSP, but
@@ -32,7 +32,7 @@ repos:
         # cc-compiles app C++ and it has a std test harness, so it can't share
         # the workspace's no_std/panic=abort profiles). `cargo fmt --all` above
         # happens to still reach it today, incidentally, because a workspace
-        # member (deluge_sample_fill) path-deps on it -- but that's not
+        # member (deluge_storage_sample_fill) path-deps on it -- but that's not
         # deliberate coverage: drop that dependency and it silently stops being
         # checked. Give it its own hook against its own manifest instead, same
         # as the BSP/harness split below.
@@ -61,7 +61,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/resource/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

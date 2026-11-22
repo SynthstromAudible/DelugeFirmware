@@ -152,7 +152,7 @@ void stitch_next(std::span<std::byte> self_data, StitchNextEdge& next, RawDataFo
 // Fixes up the raw bytes straddling a cluster boundary (byte-swap for ENDIANNESS_WRONG_24, or the
 // general word convert otherwise) using the neighboring cluster's overhang, then keeps both clusters'
 // overhang copies in sync. Invoked by the streaming fill's convert/stitch tail: the Rust
-// `deluge_sample_fill` fill (`fill_logic`) routes here through the `deluge_storage_sample_convert` shim on
+// `deluge_storage_sample_fill` fill (`fill_logic`) routes here through the `deluge_storage_sample_convert` shim on
 // the device app-convert build. See stitch.h for the edge-struct index bases.
 void stitch_boundaries(std::span<std::byte> self_data, int32_t cluster_index, RawDataFormat format,
                        uint32_t audio_data_start_pos_bytes, size_t cluster_size, bool& self_start_boundary_converted,

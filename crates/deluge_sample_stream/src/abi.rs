@@ -3,7 +3,7 @@
 
 use core::ffi::c_char;
 
-use deluge_sample_fill::{DelugeHandle, DelugeStatus, DELUGE_OK};
+use deluge_storage_sample_fill::{DelugeHandle, DelugeStatus, DELUGE_OK};
 
 use crate::registry;
 use crate::DelugeSampleStreamGeometry;
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
 /// must be valid for one write.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_stream_open_at(
-    location: *const deluge_sample_fill::FileLocation,
+    location: *const deluge_storage_sample_fill::FileLocation,
     out_table_full: *mut bool,
 ) -> DelugeHandle {
     // SAFETY: this function's own contract is `registry::open_at`'s.
@@ -155,7 +155,7 @@ mod tests {
         let status = unsafe {
             deluge_sample_stream_read_at(h, 0, buf.as_mut_ptr(), buf.len() as u32, &mut got)
         };
-        assert_eq!(status, deluge_sample_fill::DELUGE_OK);
+        assert_eq!(status, deluge_storage_sample_fill::DELUGE_OK);
         assert_eq!(got, 4);
 
         deluge_sample_stream_close(h);
