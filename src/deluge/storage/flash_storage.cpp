@@ -398,7 +398,6 @@ void resetSettings() {
 
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
-
 	usbAudioMode = usb_audio::Mode::STEREO;
 	usb_audio::directMonitoring = true;
 	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
