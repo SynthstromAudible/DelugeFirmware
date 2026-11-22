@@ -563,8 +563,8 @@ class WrappedNameKeys(unittest.TestCase):
 
     def test_collapsing_is_judged_per_image(self):
         # The same pair of spellings in two images, one name each, is a rename, not a collision.
-        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
-        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        a = "_ZZZN6deluge3gfx1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN6deluge2ui3gfx1fEENK3$_0clIS4_EEDaT_"
         rename = self.names(
             {}, [f"10 <{a}>:\n", f"10 <{b}>:\n"], [[f"10 <{a}>:\n"], [f"10 <{b}>:\n"]]
         )
@@ -593,6 +593,25 @@ class MangledRenames(unittest.TestCase):
         rename = mangled_renamer([("deluge::gfx", "deluge::ui::gfx")])
         self.assertEqual(
             rename("_ZN6deluge3gfxplERKS0_"), rename("_ZN6deluge2ui3gfxplERKS0_")
+        )
+
+    def test_a_name_without_a_renamed_namespace_keeps_its_back_references(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        a = "_ZZZN3foo1fEENK3$_0clIS3_EEDaT_"
+        b = "_ZZZN3foo1fEENK3$_0clIS4_EEDaT_"
+        self.assertNotEqual(rename(a), rename(b))
+
+    def test_a_name_with_a_renamed_namespace_in_either_spelling_collapses(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        a = "_ZN6deluge6scenes1fENS_6scenes1XES3_"
+        b = "_ZN6deluge2ui6scenes1fENS_2ui6scenes1XES4_"
+        self.assertEqual(rename(a), rename(b))
+
+    def test_a_ref_qualified_member_is_renamed_behind_its_substitution(self):
+        rename = mangled_renamer([("deluge::scenes", "deluge::ui::scenes")])
+        self.assertEqual(
+            rename("_ZNKR6deluge3barENS_6scenes1XE"),
+            rename("_ZNKR6deluge3barENS_2ui6scenes1XE"),
         )
 
     def test_a_substitution_is_renamed_only_where_it_stands_for_the_namespaces_head(

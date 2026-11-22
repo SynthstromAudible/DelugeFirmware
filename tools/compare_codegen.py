@@ -330,8 +330,9 @@ def mangled_renamer(pairs: list[tuple[str, str]]):
     not under another namespace). Where a pair keeps its first component, the rest is also renamed behind `S_`, but only
     in a name that starts with that component, because only there is `S_` known to stand for it. A reference through
     another substitution (`S0_`) to the same namespace is not recognised: the name then compares as different, never as
-    the same. Substitution indexes shift with the names, so each reference is reduced to `S_`; that can make two names
-    of one image equal, which demangler() detects."""
+    the same. Substitution indexes shift with the names, so in a name that holds a renamed namespace (either spelling) each
+    reference is reduced to `S_`; any other name keeps its text, since nothing in it moves. The reduction can make two
+    names of one image equal, which demangler() detects."""
 
     def run_of(components: list[str]) -> str:
         return "".join(f"{len(c)}{c}" for c in components)
@@ -345,6 +346,17 @@ def mangled_renamer(pairs: list[tuple[str, str]]):
             behind_head.setdefault(run_of(a[:1]), {}).setdefault(
                 run_of(a[1:]), run_of(b[1:])
             )
+    # Both spellings of every renamed namespace, also as the tail behind `S_`: a name without one has nothing to rename.
+    spellings = {
+        text
+        for old, new in pairs
+        for spelling in (old, new)
+        for text in (
+            run_of(spelling.split("::")),
+            "S_" + run_of(spelling.split("::")[1:]),
+        )
+        if text != "S_"
+    }
     patterns: dict[tuple[str, ...], tuple[re.Pattern | None, dict[str, str]]] = {}
 
     def pattern_for(heads: tuple[str, ...]):
@@ -365,15 +377,18 @@ def mangled_renamer(pairs: list[tuple[str, str]]):
         return patterns[heads]
 
     def rename(name: str) -> str:
+        collapses = any(spelling in name for spelling in spellings)
         heads = tuple(
             sorted(
-                h for h in behind_head if re.match(r"_Z+N[rVK]*" + re.escape(h), name)
+                h
+                for h in behind_head
+                if re.match(r"_Z+N[rVK]*[RO]?" + re.escape(h), name)
             )
         )
         pattern, table = pattern_for(heads)
         if pattern is not None:
             name = pattern.sub(lambda m: table[m.group(0)], name)
-        return SUBSTITUTION.sub("S_", name)
+        return SUBSTITUTION.sub("S_", name) if collapses else name
 
     return rename
 
