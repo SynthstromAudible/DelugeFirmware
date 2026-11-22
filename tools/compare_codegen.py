@@ -97,9 +97,10 @@ def canonical(demangled: str) -> str:
     return name
 
 
-def normalise(line: str, rename=keep, classify=low_ram, local=None) -> str:
+def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
     """One disassembled instruction with its raw bytes, annotations and pc-relative offsets removed. A target in the
-    function goes through @p local (address -> its instruction index), any other through @p rename; a literal word
+    function goes through @p local (address -> its instruction index), any other through @p alias (address -> the name of
+    a body several symbols share) or @p rename; a literal word
     that @p classify names an address becomes that name."""
     text = RAW_BYTES.sub("", ANNOTATION.sub("", line.strip()))
 
@@ -108,6 +109,9 @@ def normalise(line: str, rename=keep, classify=low_ram, local=None) -> str:
             index = local(int(m.group(1), 16))
             if index is not None:
                 return f"<.{index}>"
+        shared = (alias or {}).get(int(m.group(1), 16))
+        if shared is not None:
+            return f"<{shared}>"
         return f"<{rename(LTO_SUFFIX.sub('', m.group(2)))}>"
 
     text = TARGET.sub(target, text)
@@ -214,19 +218,21 @@ def mask_address_halves(body: list[str], classify=low_ram) -> list[str]:
 
 
 def functions(
-    disassembly: str, rename=keep, classify=low_ram
+    disassembly: str, rename=keep, classify=low_ram, alias=None
 ) -> dict[str, list[tuple[str, ...]]]:
-    """Each function's normalised instructions, keyed by its name passed through @p rename; the bodies of the
-    functions that share a key, sorted. Addresses go through @p classify."""
+    """Each function's normalised instructions, keyed by its name passed through @p rename, or by its @p alias (see
+    aliases()) when its address has one; the bodies of the functions that share a key, sorted. Addresses go through
+    @p classify."""
     found: dict[str, list[list[tuple[int, str]]]] = {}
     current: list[tuple[int, str]] | None = None
     for line in disassembly.splitlines():
         header = HEADER.match(line)
         if header:
             current = []
-            found.setdefault(rename(LTO_SUFFIX.sub("", header.group(2))), []).append(
-                current
-            )
+            name = (alias or {}).get(int(header.group(1), 16))
+            if name is None:
+                name = rename(LTO_SUFFIX.sub("", header.group(2)))
+            found.setdefault(name, []).append(current)
             continue
         insn = INSN.match(line)
         if insn and current is not None:
@@ -240,7 +246,9 @@ def functions(
             while body and PADDING.match(body[-1][1]):
                 body.pop()
             index = {address: i for i, (address, _) in enumerate(body)}
-            lines = [normalise(text, rename, classify, index.get) for _, text in body]
+            lines = [
+                normalise(text, rename, classify, index.get, alias) for _, text in body
+            ]
             normalised.append(tuple(mask_address_halves(lines, classify)))
         result[name] = sorted(normalised)
     return result
@@ -302,9 +310,68 @@ def namespace_renamer(pairs: list[tuple[str, str]]):
     return rename
 
 
-def demangler(cxxfilt: str, texts: list[str], renames=None):
+def mangled_renamer(pairs: list[tuple[str, str]]):
+    """A rename for a name no demangler can read: the pairs applied to its mangled text, where a namespace is a run of
+    length-prefixed components (`6deluge10instrument`) starting at a component boundary. A namespace that shares its
+    first component with its new spelling is also renamed where a substitution stands for that component
+    (`NS_6scenes`). Substitution indexes shift with the names, so each reference is reduced to `S_`; every name
+    goes through this, so both images agree."""
+
+    def run_of(components: list[str]) -> str:
+        return "".join(f"{len(c)}{c}" for c in components)
+
+    news: dict[str, str] = {}
+    for old, new in pairs:
+        a, b = old.split("::"), new.split("::")
+        news.setdefault(run_of(a), run_of(b))
+        if a[0] == b[0] and len(a) > 1:
+            news.setdefault("S_" + run_of(a[1:]), "S_" + run_of(b[1:]))
+    boundary = r"(?<![0-9a-z])" if news else ""
+    pattern = (
+        re.compile(
+            "(?:"
+            + "|".join(
+                (
+                    r"(?<=S_)" + re.escape(o[2:])
+                    if o.startswith("S_")
+                    else boundary + re.escape(o)
+                )
+                for o in news
+            )
+            + ")(?![a-z_])"
+        )
+        if news
+        else None
+    )
+    by_text = {(o.removeprefix("S_")): (n.removeprefix("S_")) for o, n in news.items()}
+
+    def rename(name: str) -> str:
+        if pattern is not None:
+            name = pattern.sub(lambda m: by_text[m.group(0)], name)
+        return SUBSTITUTION.sub("S_", name)
+
+    return rename
+
+
+def aliases(nm_text: str, rename=keep) -> dict[int, str]:
+    """For each address several symbols share (functions the linker folded into one body), the least of their @p rename
+    names: the one name that body goes by in every image."""
+    at: dict[int, set[str]] = {}
+    for line in nm_text.splitlines():
+        if not NM_LINE.match(line):
+            continue
+        address, size, kind, name = line.split()
+        if kind in "aA" or int(size, 16) == 0 or name[0] in ".$":
+            continue
+        at.setdefault(int(address, 16), set()).add(rename(LTO_SUFFIX.sub("", name)))
+    return {a: min(names) for a, names in at.items() if len(names) > 1}
+
+
+def demangler(cxxfilt: str, texts: list[str], renames=None, mangled=None):
     """A rename that maps every mangled symbol in @p texts (disassembly or `llvm-nm` listings) to its canonical()
-    demangled name, with @p renames (see namespace_renamer()) applied first."""
+    demangled name, with @p renames (see namespace_renamer()) applied first. A name that wraps a mangled one
+    (`__const._ZN…sources`, a linker veneer, a static guard's destructor) is renamed through the mangled part and keeps
+    its prefix and suffix. A mangled name the demangler cannot read goes through @p mangled (mangled_renamer())."""
     names = sorted(
         {
             LTO_SUFFIX.sub("", n)
@@ -318,21 +385,26 @@ def demangler(cxxfilt: str, texts: list[str], renames=None):
             if NM_LINE.match(line)
         }
     )
-    # A linker veneer is named for the function it reaches, so it follows that function's rename.
-    split = [VENEER.match(n) for n in names]
+    split = [WRAPPED.match(n) for n in names]
     targets = [m.group(2) if m else n for m, n in zip(split, names)]
     demangled = run([cxxfilt], "\n".join(targets)).splitlines()
-    table = {
-        mangled: (m.group(1) if m else "")
-        + canonical(renames(plain) if renames else plain)
-        for mangled, m, plain in zip(names, split, demangled)
-    }
+    table = {}
+    for mangled_name, m, target, plain in zip(names, split, targets, demangled):
+        if plain == target and m and mangled:
+            plain = mangled(target)
+        elif renames:
+            plain = renames(plain)
+        table[mangled_name] = (
+            (m.group(1) + canonical(plain) + m.group(3)) if m else canonical(plain)
+        )
     return lambda name: table.get(name, name)
 
 
-# `__Thumbv7ABSLongThunk__ZN…`: the veneer kind, then the mangled name of its target.
-VENEER = re.compile(r"^__(\w*Thunk)_(_Z.*)$")
-NM_LINE = re.compile(r"^[0-9a-f]{8} [0-9a-f]{8} [a-zA-Z] \S+$")
+# A mangled name inside a wrapper: a prefix (`__const.`, `__Thumbv7ABSLongThunk_`, `__dtor_`), `_Z…`, a `.suffix`.
+WRAPPED = re.compile(r"^(.*?)(_Z[\w$]+)((?:\.\w[\w.]*)?)$")
+# A substitution reference in a mangled name: `S_`, `S0_`, `SK_`.
+SUBSTITUTION = re.compile(r"S[0-9A-Z]*_")
+NM_LINE = re.compile(r"^[0-9a-f]{8} [0-9a-f]{8} [a-zA-Z?] \S+$")
 
 
 def classifier(segments_text: str, nm_sized: str, rename=keep):
@@ -424,9 +496,10 @@ def main() -> int:
         args.cxxfilt,
         [text for image in images.values() for text in image[:2]],
         namespace_renamer(pairs),
+        mangled_renamer(pairs),
     )
     base, new = (
-        functions(dis, rename, classifier(segments, nm, rename))
+        functions(dis, rename, classifier(segments, nm, rename), aliases(nm, rename))
         for dis, nm, segments in images.values()
     )
     changed, added, removed = compare(base, new)
