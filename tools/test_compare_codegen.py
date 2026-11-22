@@ -1617,6 +1617,66 @@ class WrappedNameKeys(unittest.TestCase):
         self.assertEqual([rename(n) for n in old], [rename(n) for n in new])
         self.assertNotEqual(rename(old[0]), rename(old[1]))
 
+    INDEX_MUT = "_RNvXs2_NtNtCskEwzLGIm5x3_4core5slice5indexINtNtNtB9_3ops5range5RangejEINtB5_10SliceIndexShE9index_mut"
+    INDEX_TEXT = "<core::ops::range::Range<usize> as core::slice::index::SliceIndex<[u8]>>::index_mut"
+
+    def test_a_generic_instantiated_by_another_crate_pairs(self):
+        # LTO folded two crates' copies of one generic instance into one body; the new image keeps another pair.
+        # The instantiating crate is no part of the code, and names at one address are one symbol.
+        old = [
+            self.INDEX_MUT + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
+            self.INDEX_MUT + "Csj1bDsIbZyCz_14embedded_fatfs",
+        ]
+        new = [
+            self.INDEX_MUT + "CsdRgdbluJfa3_11embassy_usb",
+            self.INDEX_MUT + "CsgRZEcTCdbfK_14embedded_fatfs",
+        ]
+        listings = [
+            "".join(f"00000010 0000001e t {n}\n" for n in names) for names in (old, new)
+        ]
+        with mock.patch.object(
+            compare_codegen,
+            "run",
+            fake_cxxfilt(dict.fromkeys(old + new, self.INDEX_TEXT)),
+        ):
+            rename = demangler(
+                "cxxfilt", listings, images=[[listings[0]], [listings[1]]]
+            )
+        self.assertEqual(len({rename(n) for n in old + new}), 1)
+
+    def test_two_crates_instances_of_one_generic_in_one_image_stay_apart(self):
+        names = [
+            self.INDEX_MUT + "Cs6NFbV2PXKjr_15deluge_bsp_rust",
+            self.INDEX_MUT + "Csj1bDsIbZyCz_14embedded_fatfs",
+        ]
+        listing = "".join(
+            f"{a:08x} 0000001e t {n}\n" for a, n in zip((0x10, 0x30), names)
+        )
+        with mock.patch.object(
+            compare_codegen, "run", fake_cxxfilt(dict.fromkeys(names, self.INDEX_TEXT))
+        ):
+            rename = demangler("cxxfilt", [listing])
+        self.assertEqual(len({rename(n) for n in names}), 2)
+        self.assertTrue(
+            all("Cs_" in rename(n) and "Cs6N" not in rename(n) for n in names)
+        )
+
+    def test_the_instantiating_crate_is_read_by_the_grammar(self):
+        code = self.INDEX_MUT
+        self.assertEqual(
+            compare_codegen.rust_code_name(code + "CsdRgdbluJfa3_11embassy_usb"), code
+        )
+        self.assertEqual(compare_codegen.rust_code_name(code + "B9_"), code)
+        self.assertEqual(compare_codegen.rust_code_name(code), code)
+        # `4fooC3bar` is `fooC::bar`, not `foo` instantiated by a crate `bar`.
+        self.assertEqual(
+            compare_codegen.rust_code_name("_RNvNvCs1a_3crt4fooC3bar"),
+            "_RNvNvCs1a_3crt4fooC3bar",
+        )
+        self.assertEqual(
+            compare_codegen.rust_code_name("_RNvCs1a_3crt"), "_RNvCs1a_3crt"
+        )
+
     def test_a_name_only_gnu_cxxfilt_reads_is_keyed_by_both_texts(self):
         name = "_ZGTtNKSt13bad_exception4whatEv"
         text = "transaction clone for std::bad_exception::what() const"
