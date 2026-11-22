@@ -217,7 +217,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/ui/widgets", "libdeluge_ui_widgets_core.a"),
         ("src/ui/widgets", "libdeluge_ui_widgets_oled.a"),
         ("src/ui/widgets", "libdeluge_ui_widgets_grid.a"),
-        ("src/shell", "libdeluge_ui_shell.a"),
+        ("src/ui/shell", "libdeluge_ui_shell.a"),
         ("src/base/notify", "libdeluge_base_notify.a"),
         ("src/scenes", "libdeluge_scenes.a"),
         ("src/scenes/bind", "libdeluge_scenes_bind.a"),

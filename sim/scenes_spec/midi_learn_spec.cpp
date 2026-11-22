@@ -49,7 +49,7 @@
 ///   * **The grid repaint** `View::midiLearnFlash` asks for
 ///     (`getRootUI()->midiLearnFlash()`). This layer has no `Shell`; what is asserted here is
 ///     `MidiLearn::timer_repaints()`'s claim, and the shell honouring a service's claim is
-///     `tests/unit/shell/flush_spec.cpp`'s.
+///     `tests/unit/ui/shell/flush_spec.cpp`'s.
 ///
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
@@ -71,11 +71,11 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
-#include "shell/input_lowering.h"
-#include "shell/leds.h"
-#include "shell/profiles/deluge.h"
-#include "shell/router.h"
-#include "shell/scene_stack.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/leds.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/router.h"
+#include "ui/shell/scene_stack.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"

@@ -7,7 +7,7 @@
 #include "scenes/menu/menu_core.h"
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/walk.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/led_frame.h"
 
 #include <cstdint>

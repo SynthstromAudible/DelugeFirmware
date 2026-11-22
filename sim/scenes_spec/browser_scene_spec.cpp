@@ -40,9 +40,9 @@
 #include "scenes/slicing/slicer_scene.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/notices.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/notices.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
 #include "ui/widgets/grid/keyboard.h"

@@ -17,9 +17,9 @@
 
 #include "gui/views/knob_focus_from_stack.h"
 
-#include "shell/input_lowering.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene_stack.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene_stack.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"

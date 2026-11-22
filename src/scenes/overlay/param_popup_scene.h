@@ -59,17 +59,17 @@
 ///     wakes the OLED surface exactly once more, at expiry; `render_oled` then draws nothing and `after_render()` files
 ///     `Action::Kind::Remove` (never `Pop`, which would also take down whatever a caller has
 ///     legitimately stacked above a passive, `input_transparent`-shaped overlay like this one --
-///     see the warning on `Action` in `shell/scene.h`).
+///     see the warning on `Action` in `ui/shell/scene.h`).
 ///   * `pending_flush_remaining_ms_` -- armed only while a deferred update is queued; when it
 ///     reaches zero inside `tick()`, the cached arguments are replayed through the arbitration
 ///     core using the deadline's own target time as "now" (exact by construction: that is the
 ///     instant the flush was scheduled to fire).
 ///
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
-///          `Action` in `shell/scene.h`. This scene has no gate that would ever want it: `handle()`
+///          `Action` in `ui/shell/scene.h`. This scene has no gate that would ever want it: `handle()`
 ///          is unreachable (`input_transparent()` is true) and nothing here blocks on the card.
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "plugin/types/param_kind.h"
 

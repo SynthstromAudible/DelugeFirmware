@@ -1,5 +1,5 @@
 # deluge_scenes -- the first UI layer allowed to include the model.
-# May include scenes/**, shell/**, ui/**, ui/gfx/**, base/**, libdeluge/**, midi/** (the MIDI
+# May include scenes/**, ui/shell/**, ui/**, ui/gfx/**, base/**, libdeluge/**, midi/** (the MIDI
 # protocol library), the standard library, and -- being the first model-aware layer --
 # model/**, modulation/**, playback/**, processing/**, storage/**, io/**, gui/l10n/**, and the
 # model's words and values: engines/**, plugin/**, serialization/**, sequence/**,
@@ -114,7 +114,7 @@ add_library(deluge_scenes STATIC
     # name. The two animations it draws moved out of `hid/display/` to `ui/widgets/oled/` in the same task.
     overlay/screensaver_scene.cpp
     # the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
-    # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
+    # (not in `src/ui/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
     services/mod_knobs.cpp
     # The menu shell's `KnobPresentation`: how the gold knobs show through its scene stack and frame. See
     # `services/guest_knob_presentation.h`.
@@ -152,7 +152,7 @@ target_include_directories(deluge_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../deluge
 )
 # deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/
-# deluge_base_notify PUBLIC (the `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/shell/CMakeLists.txt);
+# deluge_base_notify PUBLIC (the `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/ui/shell/CMakeLists.txt);
 # deluge_app is the portable application (an OBJECT library) this layer is allowed to read
 # model/modulation/playback/storage from.
 #

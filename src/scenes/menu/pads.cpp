@@ -49,7 +49,7 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::widgets::grid::GridFrame& 
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// Reads no input at all. That is what keeps "a scene reads any one input in at most one render pass per tick"
-	// (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns turn/select/back/edit, and this
+	// (`ui/shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns turn/select/back/edit, and this
 	// pass owns nothing. It paints no pixel either: the shortcut blinks are pad flashes, as legacy's `blinkShortcut`
 	// plays them (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). Under a scene that takes the input -- the browser,
 	// the slicer, a context menu -- the shortcut blinks are that scene's, or nobody's (`main`'s browser plays its own

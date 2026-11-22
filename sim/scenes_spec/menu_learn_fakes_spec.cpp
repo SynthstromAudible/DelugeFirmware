@@ -15,8 +15,8 @@
 #include "project/mapping_table.h"
 #include "project/midi_command.h"
 #include "project/param_address.h"
-#include "shell/profile.h"
-#include "shell/scene.h"
+#include "ui/shell/profile.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/input.h"
 
 #include "support/fake_menu_shell.h"

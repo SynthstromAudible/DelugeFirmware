@@ -30,7 +30,7 @@
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
 
-#include "shell/profile.h"
+#include "ui/shell/profile.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/oled/scroll_text.h"
 #include "ui/widgets/oled/text.h"

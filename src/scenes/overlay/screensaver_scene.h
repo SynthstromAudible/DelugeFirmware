@@ -6,7 +6,7 @@
 ///
 /// Ports the **drawing** half of legacy's `hid::display::Screensaver`
 /// (`hid/display/screensaver.h`). The *policy* half -- when to show it and when to wake --
-/// already shipped as `shell::Screensaver` (`shell/screensaver.h`), which pushes this scene by
+/// already shipped as `shell::Screensaver` (`ui/shell/screensaver.h`), which pushes this scene by
 /// kind; this scene is what that service finds.
 ///
 /// The two animations live in `ui/widgets/oled/rainfall.h` and `ui/widgets/oled/starfield.h`, because `src/scenes/**`
@@ -57,11 +57,11 @@
 /// registry slot for it (`Shell::Shell`), precisely so an application can register this.
 ///
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
-///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
+///          `Action` in `ui/shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
 
 #include "project/device_settings.h"
 #include "scenes/bind/device_reader.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "ui/widgets/oled/rainfall.h"
 #include "ui/widgets/oled/starfield.h"
@@ -142,7 +142,7 @@ public:
 	/// `main` alone (`hid/display/oled.cpp`) -- no other panel is touched. Opaque on `Main`
 	/// is therefore what "replaces the panel" means, and it is also what makes waking cheap: the
 	/// scene beneath was never overwritten, so popping this scene is the whole of the wake
-	/// (`shell/screensaver.cpp`, `hid/display/screensaver.h`).
+	/// (`ui/shell/screensaver.cpp`, `hid/display/screensaver.h`).
 	bool oled_transparent(deluge::ui::shell::SurfaceRole role) const override {
 		return role != deluge::ui::shell::SurfaceRole::Main;
 	}

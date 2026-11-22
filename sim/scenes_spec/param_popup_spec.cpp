@@ -38,8 +38,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -510,7 +510,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 
 		// The deadline itself: `remaining_ms()` reaches zero and `after_render()` fires exactly
 		// once, with `Remove` -- never `Pop`, which would also take down anything legitimately
-		// stacked above a passive overlay like this one (`shell/scene.h`'s warning on `Action`).
+		// stacked above a passive overlay like this one (`ui/shell/scene.h`'s warning on `Action`).
 		scene.tick(1000);
 		expect(scene.remaining_ms()).to_equal(0u);
 		Result r = scene.after_render();

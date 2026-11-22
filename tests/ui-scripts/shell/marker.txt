@@ -23,7 +23,7 @@
 # blink held still the only thing that can move between them is the marker itself.
 #
 # **`after_select_turn` is the frame that found a bug.** `MarkerScene::handle` files
-# `Action::Kind::RepaintAll` for the turn, which `shell/scene.h` documents as "invalidate every
+# `Action::Kind::RepaintAll` for the turn, which `ui/shell/scene.h` documents as "invalidate every
 # surface" -- but `Shell::tick`'s grid step consulted only the grid's own gate, so this frame first
 # recorded the marker one column further along on the OLED and still in column 0 on the pads, and
 # stayed that way until the blink timer fired up to 200 ms later. `Router::grid_repaint_requested()`

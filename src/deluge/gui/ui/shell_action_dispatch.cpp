@@ -46,8 +46,8 @@
 #include "scenes/menu/action.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
-#include "shell/scene.h" // SceneKind
 #include "storage/flash_storage.h"
+#include "ui/shell/scene.h" // SceneKind
 
 #include <optional>
 

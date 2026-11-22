@@ -54,8 +54,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 // `card_access.h` before CppSpec, for the reason its own `@warning` gives.
 #include "support/card_access.h"
@@ -157,14 +157,14 @@ void select_language() {
 	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
-/// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select.
+/// Board encoder index (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select.
 constexpr uint8_t kSelectEncoder = 3;
-/// The same table's 4 = `EncoderRole::GoldUpper` (`kDelugeEncoders`, `shell/profiles/deluge.cpp`), which lowers to
+/// The same table's 4 = `EncoderRole::GoldUpper` (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`), which lowers to
 /// `InputSnapshot::edit[0]` (`InputLowering::end_tick`). It does not move a `Kind::Int` leaf:
 /// `int_value` claims the select turn instead (`ui/widgets/oled/values.cpp`'s `select_delta`),
 /// as `render_leaf_int` records (`MenuView::render_leaf_int`, `scenes/menu/view.cpp`).
 constexpr uint8_t kGoldUpperEncoder = 4;
-/// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
+/// Matrix coordinates of the select-encoder button (`kMatrix`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 /// @brief The real roots this spec navigates, so `assign_node_ids` numbers everything it touches.
@@ -187,7 +187,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next

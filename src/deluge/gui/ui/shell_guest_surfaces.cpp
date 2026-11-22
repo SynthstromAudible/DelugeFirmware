@@ -85,7 +85,7 @@ bool GuestSurfaceSet::oled_busy(uint8_t index) {
 	// pad-output-space `if`, whose body covers the grid render as well. This forwards to the second
 	// of those, negated, and to nothing else.
 	//
-	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`shell/board_surfaces.cpp`):
+	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`ui/shell/board_surfaces.cpp`):
 	// no file under `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all
 	// (grepped repo-wide; the only callers are the BSPs that define them and `board_surfaces.cpp`).
 	// A guest that consulted it would be inventing a policy legacy does not have. There is no
@@ -157,7 +157,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	if (x1 >= kDisplayWidth + kSideBarWidth) {
 		return; // A pair past legacy's 18 columns has no cells in `image` to write.
 	}
-	// Unpacked exactly the way `read_column_pair` packed it (`read_column_pair` in `shell/shell.cpp`): `rows`
+	// Unpacked exactly the way `read_column_pair` packed it (`read_column_pair` in `ui/shell/shell.cpp`): `rows`
 	// colours from column x0, then `rows` from x1, where `rows` is the grid's row count clamped to
 	// half a pair. Mirroring that expression rather than hardcoding 8 is what stops a board with
 	// fewer rows silently reading the second column from the wrong offset.
@@ -229,7 +229,7 @@ void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
 	//
 	// `board_led` passes straight through: the board profile's `led_by_button` values ARE
 	// `indicator_leds::LED`'s underlying values, `x + y * NUM_LED_COLS`
-	// (`shell/profiles/deluge.cpp`, each entry citing its own line of `indicator_leds.h`).
+	// (`ui/shell/profiles/deluge.cpp`, each entry citing its own line of `indicator_leds.h`).
 	if (board_led < kLegacyLeds && !held_[board_led]) {
 		held_[board_led] = true;
 		legacyState_[board_led] = indicator_leds::ledStates[board_led];

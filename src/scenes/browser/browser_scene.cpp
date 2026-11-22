@@ -520,7 +520,7 @@ void BrowserScene::on_exit() {
 	// gated by `after_render`'s own early returns -- so the only way in is an external `Pop` or
 	// `Remove`. (This scene deliberately does not raise the shell's input lock: that lock *drops*
 	// events where legacy's SD-busy gate defers them, and it cannot be released from `on_exit`
-	// anyway. See the warning on `Action` in `shell/scene.h`.) The seam then lands, sits `Ready`,
+	// anyway. See the warning on `Action` in `ui/shell/scene.h`.) The seam then lands, sits `Ready`,
 	// and the next `on_enter`'s
 	// `request_open` is refused as `ResultPending` until `after_render` drains it -- a visible jam
 	// rather than a corrupted vector, which is the trade `listing.h` documents.
@@ -1321,7 +1321,7 @@ Result BrowserScene::back() {
 Result BrowserScene::close() {
 	// `Remove` naming this scene's own kind, not `Pop`: a notice overlay -- and this scene raises
 	// one on every listing -- can legitimately be pushed above it between the tick that decided to
-	// close and the router applying it, and `Pop` would take that down too (`shell/scene.h`'s note
+	// close and the router applying it, and `Pop` would take that down too (`ui/shell/scene.h`'s note
 	// on `Action::Kind::Pop`).
 	// A folder menu over this browser goes with it: in `main` the closing browser takes the UIs above it.
 	Result r;
@@ -1856,7 +1856,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// the event either, and the listing is about to redraw everything underneath the press.
 	//
 	// This scene deliberately does **not** take `Action::Kind::LockInput` -- see the warning on
-	// `Action` (`shell/scene.h`). Three reasons, in order of severity: a scene cannot release that
+	// `Action` (`ui/shell/scene.h`). Three reasons, in order of severity: a scene cannot release that
 	// lock from `on_exit()` (which returns `void`), so an external `Pop` mid-listing would deafen
 	// the whole device; the lock *drops* events rather than deferring them, which is the
 	// stem-export/song-load bracket rather than legacy's `waitingForSDRoutineToEnd` (that one is
@@ -2006,7 +2006,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
-	// The MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// The MIDI kinds (the transport in `ui/shell/scene.h`) are declined here for the reason
 	// every scene declines them: claiming one means answering `learnable_at(pad)`,
 	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.

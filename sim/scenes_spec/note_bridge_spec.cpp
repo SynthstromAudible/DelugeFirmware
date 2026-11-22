@@ -67,7 +67,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"

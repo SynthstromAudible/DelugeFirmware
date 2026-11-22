@@ -20,9 +20,9 @@
 #include "gui/ui/shell_clock.h"
 #include "gui/ui/shell_guest_surfaces.h"
 #include "gui/ui/ui.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/input.h"
 
 #include <cstdint>
@@ -394,7 +394,7 @@ public:
 	/// It is legacy's UI clock: `AudioEngine::audioSampleTimer` at 44 samples a millisecond, the count
 	/// `UITimerManager::setTimer` arms legacy's timers in and the guest's own wake (`UI_SPECIFIC`) with
 	/// them. On one base, a blink the shell times and one legacy times keep their phase, and both stop
-	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/shell/**` and
+	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/ui/shell/**` and
 	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
 	///
 	/// @return Milliseconds since start, wrapping every ~49.7 days, carried on across the counter's own

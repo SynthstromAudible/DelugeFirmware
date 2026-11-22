@@ -1,6 +1,6 @@
 /// @file
 /// @brief Level-2 acceptance scripts, driven through the real `Shell` over
-///        `uitest::FakeSurfaceSet` (`tests/unit/shell/support/script_runner.h`) against the REAL
+///        `uitest::FakeSurfaceSet` (`tests/unit/ui/shell/support/script_runner.h`) against the REAL
 ///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
 /// Three groups of script live here.
@@ -131,8 +131,8 @@
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -167,13 +167,14 @@
 // rule `browser_scene_spec.cpp`, `marker_scene_spec.cpp` and `recorder_scene_spec.cpp` run under.
 #include "support/card_access.h"
 
-// Before `unit/shell/support/script_runner.h`, which is what actually drags `<cppspec.hpp>` in -- so "before cppspec"
-// is not enough here, it has to be before this line. `real_services.h` reaches `scenes/overlay/param_popup_scene.h`,
-// whose `push` takes a parameter named `context`, and CppSpec `#define`s `context` to `self.context`. The same
-// placement rule as `card_access.h` above, for the same kind of collision on a different keyword.
+// Before `unit/ui/shell/support/script_runner.h`, which is what actually drags `<cppspec.hpp>` in -- so "before
+// cppspec" is not enough here, it has to be before this line. `real_services.h` reaches
+// `scenes/overlay/param_popup_scene.h`, whose `push` takes a parameter named `context`, and CppSpec `#define`s
+// `context` to `self.context`. The same placement rule as `card_access.h` above, for the same kind of collision on a
+// different keyword.
 #include "support/real_services.h"
 
-#include "unit/shell/support/script_runner.h"
+#include "unit/ui/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
 #include "support/record_state.h"
@@ -1380,7 +1381,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// not merely that nothing is left over.
 		expect(recorder::recorder_scene().recording()).to_be_false();
 		expect(recorder::recorder_scene().stopping()).to_be_false();
-		// **This is the assertion that exposes `unit/shell/support/script_runner.h`'s carried gap.**
+		// **This is the assertion that exposes `unit/ui/shell/support/script_runner.h`'s carried gap.**
 		// `RecorderScene::on_enter` refuses on its own leaked `recorder_`
 		// and `setup_recording` publishes a live foreground recording nine other subsystems read, so
 		// a run that ended with the scene still on the stack would leave both behind for every later

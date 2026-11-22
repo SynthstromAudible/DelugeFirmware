@@ -19,7 +19,7 @@
 #include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/view.h"
 #include "model/song/song.h"
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include <functional>
 #include <optional>

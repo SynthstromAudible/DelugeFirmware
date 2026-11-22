@@ -23,9 +23,9 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
 
-#include "shell/router.h"
-#include "shell/service.h"
-#include "shell/shell.h"
+#include "ui/shell/router.h"
+#include "ui/shell/service.h"
+#include "ui/shell/shell.h"
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"

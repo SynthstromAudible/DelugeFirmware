@@ -109,7 +109,7 @@
 ///
 /// @par The completion poll runs under this scene's own popup
 ///
-/// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
+/// `PopupScene` is not `oled_transparent` (`ui/shell/notices.h`), so `Shell::render_oled`'s
 /// transparency walk stops at it: while a popup is up **this scene is
 /// not drawn on the OLED**. That is why the `render_oled` gate arm
 /// above cannot be the poll's only lifeline -- a recording that finished while this scene's own
@@ -130,7 +130,7 @@
 /// completion while its own clipping popup is up, through the grid pass".
 ///
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
-///          on `Action` in `shell/scene.h`. Legacy's own gate here is
+///          on `Action` in `ui/shell/scene.h`. Legacy's own gate here is
 ///          `buttonAction`'s `inCardRoutine` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`
 ///          (`AudioRecorder::buttonAction`), which **defers and retries**; its port is
 ///          `InputLowering::set_sd_busy`, which is deliberately not an `Action` and is not this
@@ -141,7 +141,7 @@
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/ports/take_actions.h"
 #include "scenes/menu/context.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/grid/effects.h"
 #include "ui/widgets/oled/threshold_meter.h"
 

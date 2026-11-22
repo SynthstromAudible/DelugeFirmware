@@ -47,8 +47,8 @@
 #include "scenes/menu/view.h"
 #include "scenes/menu/voice_usage.h"
 #include "scenes/menu/walk.h"
-#include "shell/scene.h"
 #include "ui/gfx/oled/icon.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/encoder_acceleration.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
@@ -403,7 +403,7 @@ public:
 	///          dropped or stale.** One route fills it, a `CustomItem` writing `pending_action` from
 	///          `on_focus` or `render`; each runs at most once per `after_render`, and no shipped item
 	///          files from both, so no shipped item can lose a request. A queue would need an overflow
-	///          policy of its own, or an `Action` kind that carries a root-UI call into `shell/scene.h`;
+	///          policy of its own, or an `Action` kind that carries a root-UI call into `ui/shell/scene.h`;
 	///          the mailbox and this warning are the smaller answer.
 	///
 	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading

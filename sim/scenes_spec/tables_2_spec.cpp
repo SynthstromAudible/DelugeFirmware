@@ -35,8 +35,8 @@
 #include "scenes/registry.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -163,7 +163,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -187,7 +187,7 @@ struct Rig {
 	}
 
 	/// @brief One select-encoder press edge, at its own matrix position (`kMatrix`,
-	///        `shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
+	///        `ui/shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
 	///
 	/// The patch-cable strength and source-selection pages are
 	/// reached only through a select press, so a golden of either has to press one.

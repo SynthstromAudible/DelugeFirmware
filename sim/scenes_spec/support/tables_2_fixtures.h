@@ -12,7 +12,7 @@
 #include "scenes/menu/present.h"
 #include "scenes/profile.h"
 
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"

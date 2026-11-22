@@ -1,7 +1,7 @@
 #include "modulation/params/param.h"
 #include "scenes/menu/node.h"
-#include "shell/scene.h" // for the CustomItem concrete override in this file only -- node.h never
-                         // includes this itself, see its file-level note.
+#include "ui/shell/scene.h" // for the CustomItem concrete override in this file only -- node.h never
+                            // includes this itself, see its file-level note.
 #include "ui/widgets/oled/meters.h"
 #include "ui/widgets/oled/values.h"
 

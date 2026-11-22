@@ -6,9 +6,9 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/knob_presentation.h"
 
-#include "shell/scene.h"
-#include "shell/scene_stack.h"
 #include "synth/modulation/patch_source.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/scene_stack.h"
 
 #include <array>
 #include <cstdint>

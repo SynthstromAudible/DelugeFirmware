@@ -15,8 +15,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "modulation/params/param.h"
@@ -56,7 +56,7 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kMidiX = 5, kMidiY = 2;
 constexpr uint8_t kCvX = 5, kCvY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
-/// The MIDI and CV buttons' board LEDs on the Deluge profile (`shell/profiles/deluge.cpp`).
+/// The MIDI and CV buttons' board LEDs on the Deluge profile (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kMidiLed = 23, kCvLed = 32;
 
 void select_language() {

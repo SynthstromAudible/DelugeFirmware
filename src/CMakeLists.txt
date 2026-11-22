@@ -14,7 +14,6 @@ add_subdirectory(project) # deluge_project: the project model (deluge::project::
 add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
 add_subdirectory(ui)         # deluge_ui_widgets_core / _oled / _grid: the immediate-mode toolkit
-add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 # deluge_scenes (with deluge_scenes_bind): the first UI layer allowed to include the model. It

@@ -1,7 +1,7 @@
 #include "scenes/profile.h"
 
 #include "scenes/l10n_bridge.h"
-#include "shell/profiles/deluge.h"
+#include "ui/shell/profiles/deluge.h"
 
 namespace deluge::scenes {
 

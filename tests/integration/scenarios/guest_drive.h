@@ -37,8 +37,8 @@
 #include "processing/engines/audio_engine.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
-#include "shell/shell.h"
 #include "storage/file_catalogue.h"
+#include "ui/shell/shell.h"
 
 #include <algorithm>
 #include <cstdint>

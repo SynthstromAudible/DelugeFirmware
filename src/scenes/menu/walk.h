@@ -6,7 +6,7 @@
 #include "scenes/menu/menu_core.h"
 #include "scenes/menu/present.h"
 #include "scenes/menu/value_session.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/oled/columns.h"
 
 #include <cstddef>

@@ -19,9 +19,9 @@
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
 #include "ui/gfx/grid/palette.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "modulation/params/param.h"

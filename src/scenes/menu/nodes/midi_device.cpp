@@ -27,7 +27,7 @@
 #include "scenes/profile.h"
 
 #include "plugin/types/display_mapping.h"
-#include "shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
+#include "ui/shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/widgets/oled/frame.h"
 #include "ui/widgets/oled/list.h"
 #include "ui/widgets/oled/text.h"

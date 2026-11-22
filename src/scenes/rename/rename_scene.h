@@ -21,7 +21,7 @@
 /// allocates: the edited name lives in a fixed buffer on the scene.
 
 #include "scenes/menu/context.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/effects.h"
@@ -186,7 +186,7 @@ private:
 	///
 	/// **The shell calls `after_render()` for every scene that drew on ANY surface**
 	/// (`Shell::render_oled` and `Shell::render_grid` both `append_rendered`, and step 7 walks that
-	/// one list -- `shell/shell.cpp`), so an OLED-only tick reaches `after_render` with `resp_`
+	/// one list -- `ui/shell/shell.cpp`), so an OLED-only tick reaches `after_render` with `resp_`
 	/// default-constructed. The repeat and the key it drops are acted on only on a tick whose grid pass
 	/// read the pads.
 	bool grid_pass_ = false;

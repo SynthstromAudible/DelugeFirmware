@@ -29,9 +29,9 @@
 /// installed the knobs are unbound: a turn, a push and a mod button do nothing, and nothing is sent. With a set that
 /// lacks a port, each read of it answers its default and each write or send through it is skipped.
 ///
-/// @par Why a service in `src/scenes/` and not in `src/shell/`
+/// @par Why a service in `src/scenes/` and not in `src/ui/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
+/// `shell::Service` is a shell interface, but `src/ui/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule). The knobs read the song's record (`project::Song`)
 /// and act through the scenes' ports (`scenes/bind/`). So the shell's interface is implemented from inside the scenes
 /// library, which may see both, as `GlobalControls` and `MidiLearn` do.
@@ -39,7 +39,7 @@
 /// @par Who sends gestures here
 ///
 /// With a menu up, the router: a mod button, a gold-knob turn and a gold-knob push, each only after the top scene has
-/// declined it (`shell/router.h`'s `route()`), shown through the shell's `GuestKnobPresentation`. With no menu, the
+/// declined it (`ui/shell/router.h`'s `route()`), shown through the shell's `GuestKnobPresentation`. With no menu, the
 /// root views: `UI`'s base-class hooks (`UI::modEncoderAction`, `UI::modButtonAction`, `UI::modEncoderButtonAction`)
 /// call `turn`, `section_button` and `push` through `gui/ui/root_knobs`, shown through the legacy display.
 ///
@@ -74,8 +74,8 @@
 #include "ui/widgets/core/led_frame.h"
 #include "ui/widgets/core/metrics.h"
 
-#include "shell/scene_stack.h"
-#include "shell/service.h"
+#include "ui/shell/scene_stack.h"
+#include "ui/shell/service.h"
 
 #include <cstdint>
 #include <functional>

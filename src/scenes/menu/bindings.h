@@ -18,7 +18,7 @@
 #include "project/controller_mapping.h"
 #include "project/mapping_table.h"
 #include "scenes/menu/node.h"
-#include "shell/profile.h" // ui::shell::TextScratch
+#include "ui/shell/profile.h" // ui::shell::TextScratch
 
 #include <cstddef>
 #include <cstdint>

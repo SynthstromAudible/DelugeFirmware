@@ -52,8 +52,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/display/oled.h"
 #include "playback/playback_handler.h"

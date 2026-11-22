@@ -17,8 +17,8 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
-#include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
+#include "ui/shell/profiles/deluge.h"
 #include "ui/widgets/core/style.h"
 
 #include <array>

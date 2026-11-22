@@ -200,7 +200,7 @@ void Screensaver::timerEvent() {
 void Screensaver::settingsChanged() {
 	// **Re-supply the shell screensaver's copy of the same two settings.**
 	// `deluge::ui::shell::Screensaver` is the policy half of this class, as a `Service`
-	// (`shell/screensaver.h`), and `src/shell` may not read `storage/` -- so it holds one number
+	// (`ui/shell/screensaver.h`), and `src/ui/shell` may not read `storage/` -- so it holds one number
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
 	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a

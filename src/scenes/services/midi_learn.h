@@ -9,9 +9,9 @@
 /// and `View::midiLearnFlash`, together with the four `View::buttonAction` arms whose
 /// whole body is learn work (the TAP_TEMPO learn branch, LEARN, and PLAY and RECORD under learn).
 ///
-/// @par Why a service in `src/scenes/` and not in `src/shell/`
+/// @par Why a service in `src/scenes/` and not in `src/ui/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
+/// `shell::Service` is a shell interface, but `src/ui/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule), and learning writes through the scenes' ports and
 /// reads the song's record: the song's mapping table binds a section's launch, a clip's or kit row's mute, and a kit
 /// row's or track's input, and the device keeps the PLAY, RECORD and TAP TEMPO commands. Both are written through the
@@ -22,7 +22,7 @@
 /// @par Where this sits in the chain, and the legacy evidence for it
 ///
 /// `Router::run_chain` is **top scene -> `mod_knobs` -> `global_controls` -> `midi_learn`**
-/// (`shell/router.cpp`), and this service is deliberately last. Three separate legacy facts say
+/// (`ui/shell/router.cpp`), and this service is deliberately last. Three separate legacy facts say
 /// so, and none of them is "it was the empty slot":
 ///
 ///   1. **`View` is the fallback after the current UI in every learn offer.** `UI`'s base learn answers are `View`'s
@@ -96,11 +96,11 @@
 /// blit at 60 ms forever (see `Scene::timer_repaints`).
 ///
 /// @note The three flashing LEDs are declared from `flash_on()` rather than as `LedState::Kind::Blink`, deliberately.
-///       `led_is_on` derives a blink's phase from `now_ms` (`shell/leds.h`), which would let the LEDs and the pads fall
-///       out of step; legacy drives both from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`) and so does this.
-///       The LEARN LED is the exception and *is* a `Blink`, because legacy drives that one from a separate blinker with
-///       its own phase -- `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in
-///       `gui/views/view.cpp`), whose `blinkingType` 1 period is `kFastFlashTime` (`hid/led/indicator_leds.cpp`).
+///       `led_is_on` derives a blink's phase from `now_ms` (`ui/shell/leds.h`), which would let the LEDs and the pads
+///       fall out of step; legacy drives both from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`) and so does
+///       this. The LEARN LED is the exception and *is* a `Blink`, because legacy drives that one from a separate
+///       blinker with its own phase -- `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn`
+///       in `gui/views/view.cpp`), whose `blinkingType` 1 period is `kFastFlashTime` (`hid/led/indicator_leds.cpp`).
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives
 ///          (`shell-no-clock`), so the flash is a countdown against `dt_ms` rather than a deadline
@@ -141,9 +141,9 @@
 
 #include "ui/widgets/core/led_frame.h"
 
-#include "shell/scene.h"
-#include "shell/scene_stack.h"
-#include "shell/service.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/scene_stack.h"
+#include "ui/shell/service.h"
 
 #include <cstdint>
 #include <optional>

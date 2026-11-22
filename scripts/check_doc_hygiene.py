@@ -47,10 +47,10 @@ REPO = Path(__file__).resolve().parent.parent
 
 TREES = (
     "src/scenes",
-    "src/shell",
+    "src/ui/shell",
     "src/ui",
     "sim/scenes_spec",
-    "tests/unit/shell",
+    "tests/unit/ui/shell",
     "tests/unit/ui",
     "tests/unit/deluge/gui",
     "tests/unit/scenes",

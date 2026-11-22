@@ -43,8 +43,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -115,7 +115,7 @@ void select_language() {
 	deluge::base::notify::dirty().drain();
 }
 
-/// Board encoder index and the select-encoder button's matrix position (`shell/profiles/deluge.cpp`).
+/// Board encoder index and the select-encoder button's matrix position (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
@@ -167,7 +167,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next

@@ -481,7 +481,7 @@ void wireShellGuestServices() {
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a
-	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
+	// second call neither double-ticks nor strands a slot (`ui/shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
 }

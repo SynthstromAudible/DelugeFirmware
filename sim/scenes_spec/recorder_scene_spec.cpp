@@ -52,9 +52,9 @@
 #include "support/global_guest_menu.h"
 #include "util/menu_entry.h"
 
-#include "shell/leds.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/leds.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/led_frame.h"
 #include "ui/widgets/core/metrics.h"
 

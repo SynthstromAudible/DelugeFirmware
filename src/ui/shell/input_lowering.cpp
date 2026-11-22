@@ -1,0 +1,654 @@
+#include "ui/shell/input_lowering.h"
+
+#include <algorithm>
+#include <bit>
+#include <span>
+
+namespace deluge::ui::shell {
+
+namespace {
+
+/// @brief Is this encoder's turn one the toolkit's widgets own?
+///
+/// Everything except the tempo encoder, which no widget reads and which the shell therefore
+/// routes like any other event.
+bool is_widget_encoder(widgets::core::EncoderRole role) {
+	switch (role) {
+	case widgets::core::EncoderRole::Select:
+	case widgets::core::EncoderRole::GoldUpper:
+	case widgets::core::EncoderRole::GoldLower:
+	case widgets::core::EncoderRole::Horizontal:
+	case widgets::core::EncoderRole::Vertical:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// @brief Is this button's edge one the toolkit's widgets own?
+///
+/// The select encoder's push (`f.select_pressed()`) and back (`f.back_pressed()`); every other
+/// button, the other five encoder pushes included, is routed.
+bool is_widget_button(ButtonId b) {
+	return b == ButtonId::SelectEnc || b == ButtonId::Back;
+}
+
+/// @brief Add \p delta to \p acc without wrapping past `int8_t`'s range.
+int8_t saturating_add(int8_t acc, int delta) {
+	return static_cast<int8_t>(std::clamp(static_cast<int>(acc) + delta, -128, 127));
+}
+
+} // namespace
+
+bool is_encoder_button(ButtonId b) {
+	switch (b) {
+	case ButtonId::SelectEnc:
+	case ButtonId::TempoEnc:
+	case ButtonId::XEnc:
+	case ButtonId::YEnc:
+	case ButtonId::ModEnc0:
+	case ButtonId::ModEnc1:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool is_widget_owned_shape(const UiEvent& e) {
+	return (e.kind == UiEvent::Kind::Encoder && is_widget_encoder(e.encoder))
+	       || ((e.kind == UiEvent::Kind::Button || e.kind == UiEvent::Kind::EncoderButton)
+	           && is_widget_button(e.button));
+}
+
+namespace {
+
+/// @brief The claim flag \p e's shape maps to, or null for a shape no widget can own.
+bool ui::widgets::core::InputClaims::* claim_bit(const UiEvent& e) {
+	switch (e.kind) {
+	case UiEvent::Kind::Encoder:
+		switch (e.encoder) {
+		case widgets::core::EncoderRole::Select:
+			return &ui::widgets::core::InputClaims::turn;
+		case widgets::core::EncoderRole::GoldUpper:
+			return &ui::widgets::core::InputClaims::edit0;
+		case widgets::core::EncoderRole::GoldLower:
+			return &ui::widgets::core::InputClaims::edit1;
+		case widgets::core::EncoderRole::Horizontal:
+			return &ui::widgets::core::InputClaims::horizontal;
+		case widgets::core::EncoderRole::Vertical:
+			return &ui::widgets::core::InputClaims::vertical;
+		default:
+			return nullptr;
+		}
+	case UiEvent::Kind::EncoderButton:
+		return e.button == ButtonId::SelectEnc ? &ui::widgets::core::InputClaims::select : nullptr;
+	case UiEvent::Kind::Button:
+		return e.button == ButtonId::Back ? &ui::widgets::core::InputClaims::back : nullptr;
+	default:
+		return nullptr;
+	}
+}
+
+} // namespace
+
+bool claim_covers(const ui::widgets::core::InputClaims& claims, const UiEvent& e) {
+	bool ui::widgets::core::InputClaims::* const bit = claim_bit(e);
+	return bit != nullptr && claims.*bit;
+}
+
+void add_claim(ui::widgets::core::InputClaims& claims, const UiEvent& e) {
+	if (bool ui::widgets::core::InputClaims::* const bit = claim_bit(e)) {
+		claims.*bit = true;
+	}
+}
+
+InputLowering::InputLowering(const BoardProfile& profile, LoweringConfig config) : profile_(profile), cfg_(config) {
+}
+
+// -- The tick ---------------------------------------------------------------------------------
+
+void InputLowering::begin_tick(uint32_t now_ms) {
+	now_ms_ = now_ms;
+	had_input_ = false;
+	select_edge_ = false;
+	select_release_edge_ = false;
+	back_edge_ = false;
+	for (int8_t& d : tick_delta_) {
+		d = 0;
+	}
+	pad_events_.clear();
+	turns_.clear();
+	turns_first_ = 0;
+	ctx_.begin_tick(now_ms);
+	// What the last tick deferred belongs to this one: back into the sums and edges this tick's
+	// snapshot is assembled from.
+	for (uint8_t i = 0; i < carried_ && i < queue_count_; i++) {
+		const UiEvent& e = queue_[(queue_head_ + i) % kQueueCapacity];
+		had_input_ = true;
+		switch (e.kind) {
+		case UiEvent::Kind::Encoder: {
+			const size_t r = static_cast<size_t>(e.encoder);
+			if (r < kEncoderCount) {
+				tick_delta_[r] = saturating_add(tick_delta_[r], e.delta);
+			}
+			if (e.encoder == widgets::core::EncoderRole::Select) {
+				add_turn(e.delta, e.time_us);
+			}
+			break;
+		}
+		case UiEvent::Kind::Button:
+		case UiEvent::Kind::EncoderButton:
+			if (e.button == ButtonId::SelectEnc) {
+				(e.on ? select_edge_ : select_release_edge_) = e.on || !used_up_.has(ButtonId::SelectEnc);
+			}
+			else if (e.button == ButtonId::Back && e.on) {
+				back_edge_ = true;
+			}
+			break;
+		case UiEvent::Kind::Pad:
+			(void)pad_events_.push_back(ui::widgets::core::PadEvent{e.x, e.y, e.velocity, e.on});
+			break;
+		default:
+			break;
+		}
+	}
+	carried_ = 0;
+}
+
+void InputLowering::discard_pending() {
+	queue_head_ = 0;
+	queue_count_ = 0;
+	in_snapshot_ = 0;
+	carried_ = 0;
+	last_in_snapshot_ = false;
+	had_input_ = false;
+	select_edge_ = false;
+	select_release_edge_ = false;
+	back_edge_ = false;
+	for (int8_t& d : tick_delta_) {
+		d = 0;
+	}
+	pad_events_.clear();
+	turns_.clear();
+	turns_first_ = 0;
+}
+
+void InputLowering::end_tick(uint32_t now_ms) {
+	// The tick's clock, not the clock of whichever feed happened to open the window.
+	now_ms_ = now_ms;
+	ctx_.tick_ms = now_ms;
+	snap_.turn = tick_delta_[static_cast<size_t>(widgets::core::EncoderRole::Select)];
+	snap_.edit[0] = tick_delta_[static_cast<size_t>(widgets::core::EncoderRole::GoldUpper)];
+	snap_.edit[1] = tick_delta_[static_cast<size_t>(widgets::core::EncoderRole::GoldLower)];
+	snap_.horizontal = tick_delta_[static_cast<size_t>(widgets::core::EncoderRole::Horizontal)];
+	snap_.vertical = tick_delta_[static_cast<size_t>(widgets::core::EncoderRole::Vertical)];
+	snap_.select_pressed = select_edge_;
+	snap_.back_pressed = back_edge_;
+	snap_.shift = shift();
+	snap_.select_held = held_.has(ButtonId::SelectEnc);
+	snap_.pads = std::span<const ui::widgets::core::PadEvent>(pad_events_.begin(), pad_events_.size());
+	sync_snapshot_turns();
+	snap_.held_pads = held_pads_;
+	snap_.now_ms = now_ms_;
+	snap_.acceleration_clock_ms = acceleration_clock_ms_;
+	in_snapshot_ = queue_count_;
+}
+
+// -- Feeding ----------------------------------------------------------------------------------
+
+void InputLowering::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {
+	if (sd_busy_) {
+		defer(ev, now_ms);
+		return;
+	}
+	// The lock stops the UI acting on input, but never on the release path: an all-released report
+	// dropped here strands whatever the shell still believes is held.
+	if (input_locked_ && ev.kind != DELUGE_EVENT_NO_PRESSES) {
+		return;
+	}
+	dispatch(ev, now_ms);
+}
+
+void InputLowering::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms) {
+	const DelugeInputEvent ev{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)};
+	if (sd_busy_) {
+		defer(ev, now_ms, shortcut_without_shift);
+		return;
+	}
+	if (input_locked_) {
+		return;
+	}
+	dispatch(ev, now_ms, shortcut_without_shift);
+}
+
+void InputLowering::dispatch(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift) {
+	switch (ev.kind) {
+	case DELUGE_EVENT_PAD:
+		on_pad(ev.x, ev.y, static_cast<uint8_t>(ev.value), shortcut_without_shift);
+		break;
+	case DELUGE_EVENT_BUTTON:
+		on_matrix(ev.x, ev.y, ev.value != 0, now_ms);
+		break;
+	case DELUGE_EVENT_ENCODER:
+		apply_encoder_edges(ev.x, static_cast<int8_t>(ev.value), now_ms);
+		break;
+	case DELUGE_EVENT_NO_PRESSES:
+		clear_all_held(now_ms);
+		break;
+	}
+}
+
+void InputLowering::defer(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift) {
+	if (deferred_count_ == kDeferredCapacity) {
+		deferred_head_ = static_cast<uint8_t>((deferred_head_ + 1) % kDeferredCapacity);
+		deferred_count_--;
+		deferred_dropped_++;
+	}
+	deferred_[(deferred_head_ + deferred_count_) % kDeferredCapacity] =
+	    DeferredEvent{ev, now_ms, shortcut_without_shift};
+	deferred_count_++;
+}
+
+void InputLowering::set_sd_busy(bool busy) {
+	if (busy == sd_busy_) {
+		return;
+	}
+	sd_busy_ = busy;
+	if (busy) {
+		return;
+	}
+	// Replay in arrival order, each with the clock it arrived at rather than the clock the routine
+	// happened to end at, so a press's `held_since` still says when the user pressed it. The queue
+	// is emptied first: nothing below can re-enter the deferral path now that the lock is clear.
+	const uint8_t head = deferred_head_;
+	const uint8_t count = deferred_count_;
+	deferred_head_ = 0;
+	deferred_count_ = 0;
+	for (uint8_t i = 0; i < count; i++) {
+		const DeferredEvent& d = deferred_[(head + i) % kDeferredCapacity];
+		if (input_locked_ && d.ev.kind != DELUGE_EVENT_NO_PRESSES) {
+			continue;
+		}
+		dispatch(d.ev, d.now_ms, d.shortcut_without_shift);
+	}
+}
+
+void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
+	if (input_locked_) {
+		return;
+	}
+	apply_encoder_edges(index, edges, now_ms, time_us);
+}
+
+void InputLowering::add_turn(int8_t detents, uint64_t time_us) {
+	if (turns_.size() < kTurnCapacity) {
+		(void)turns_.push_back(ui::widgets::core::TimedTurn{.detents = detents, .time_us = time_us});
+		return;
+	}
+	ui::widgets::core::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, detents);
+	last.time_us = time_us;
+}
+
+void InputLowering::withdraw_first_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	// A folded turn holds several events' detents: it leaves once all of them have.
+	ui::widgets::core::TimedTurn& first = turns_[turns_first_];
+	first.detents = saturating_add(first.detents, -delta);
+	if (first.detents == 0) {
+		turns_first_++;
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::withdraw_last_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	ui::widgets::core::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, -delta);
+	if (last.detents == 0) {
+		turns_.pop_back();
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::sync_snapshot_turns() {
+	const size_t first = std::min<size_t>(turns_first_, turns_.size());
+	snap_.turns = std::span<const ui::widgets::core::TimedTurn>(turns_.begin() + first, turns_.size() - first);
+}
+
+void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
+	if (index >= profile_.encoder_by_index.size()) {
+		return;
+	}
+	const widgets::core::EncoderRole role = profile_.encoder_by_index[index];
+	const size_t r = static_cast<size_t>(role);
+	if (r >= kEncoderCount) {
+		return;
+	}
+	had_input_ = true;
+
+	const EncoderKind kind = r < profile_.encoder_kind.size() ? profile_.encoder_kind[r] : EncoderKind::Detented;
+	int8_t delta = 0;
+	if (kind == EncoderKind::Detented) {
+		// `DetentedEncoder::applyEdges`: accumulate edges, hand over whole detents, keep the
+		// remainder for next time.
+		const int per = cfg_.edges_per_detent > 0 ? cfg_.edges_per_detent : 1;
+		edge_accumulator_[r] += edges;
+		const int detents = edge_accumulator_[r] / per;
+		edge_accumulator_[r] -= detents * per;
+		delta = static_cast<int8_t>(std::clamp(detents, -128, 127));
+	}
+	else {
+		// `ContinuousEncoder::applyEdges`: the raw edge count is the magnitude; acceleration is
+		// applied by whoever consumes it, through `calc_next_knob_speed`. Every turn is acted on.
+		delta = edges;
+	}
+	if (delta == 0) {
+		return;
+	}
+	tick_delta_[r] = saturating_add(tick_delta_[r], delta);
+	if (role == widgets::core::EncoderRole::Select) {
+		add_turn(delta, time_us);
+	}
+
+	UiEvent e{UiEvent::Kind::Encoder};
+	e.encoder = role;
+	e.delta = delta;
+	e.time_us = time_us;
+	emit(e);
+}
+
+void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift) {
+	if (x >= widgets::core::PadMask::kCols || y >= widgets::core::PadMask::kRows) {
+		return;
+	}
+	had_input_ = true;
+	if (velocity != 0) {
+		// `dispatchInputEvent` (`src/deluge/deluge.cpp`) calls `Buttons::ignoreCurrentShiftForSticky()` on every pad
+		// press, so shift held over a pad press does not latch when shift is then tapped off.
+		consider_shift_release_for_sticky_ = false;
+	}
+	const bool down = velocity != 0;
+	held_pads_.set(x, y, down);
+	pad_events_.push_back(ui::widgets::core::PadEvent{x, y, velocity, down});
+
+	UiEvent e{UiEvent::Kind::Pad};
+	e.x = x;
+	e.y = y;
+	e.velocity = velocity;
+	e.on = down;
+	e.shortcut_without_shift = shortcut_without_shift && down;
+	emit(e);
+}
+
+void InputLowering::on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms) {
+	if (x >= profile_.button_cols || y >= profile_.button_rows) {
+		return;
+	}
+	const size_t i = static_cast<size_t>(y) * profile_.button_cols + x;
+	if (i >= profile_.button_by_matrix.size()) {
+		return;
+	}
+	const ButtonId b = profile_.button_by_matrix[i];
+	if (b == ButtonId::None) {
+		return;
+	}
+	on_button(b, on, now_ms);
+}
+
+void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
+	const size_t i = static_cast<size_t>(b);
+	if (i >= kButtonCount) {
+		return;
+	}
+	had_input_ = true;
+	if (on) {
+		// `buttonAction` (`buttons.cpp`): any press disarms the pending sticky-shift toggle; the shift press
+		// itself re-arms it in `toggle_shift` immediately below.
+		consider_shift_release_for_sticky_ = false;
+		held_.set(b, true);
+		press_time_[i] = now_ms;
+		ever_pressed_.set(b, true);
+		used_up_.set(b, false);
+	}
+	else {
+		held_.set(b, false);
+	}
+	if (b == ButtonId::Shift) {
+		toggle_shift(on, now_ms);
+	}
+	if (on && b == ButtonId::SelectEnc) {
+		select_edge_ = true;
+	}
+	if (!on && b == ButtonId::SelectEnc && !used_up_.has(b)) {
+		select_release_edge_ = true;
+	}
+	if (on && b == ButtonId::Back) {
+		back_edge_ = true;
+	}
+
+	UiEvent e{is_encoder_button(b) ? UiEvent::Kind::EncoderButton : UiEvent::Kind::Button};
+	e.button = b;
+	e.on = on;
+	emit(e);
+}
+
+void InputLowering::toggle_shift(bool on, uint32_t now_ms) {
+	// `Buttons::commandToggleShift`.
+	if (on) {
+		shift_pressed_at_ = now_ms;
+		shift_pressed_ = true;
+		consider_shift_release_for_sticky_ = true;
+		return;
+	}
+	if (cfg_.shift_is_sticky) {
+		// The legacy version un-wraps an overflowed audio-sample timer by hand; unsigned
+		// subtraction already gives the same answer for any interval short of a full wrap.
+		const uint32_t delta = now_ms - shift_pressed_at_;
+		if (delta < cfg_.hold_time_ms) {
+			// A tap latches shift, or -- if it was already latched -- releases it.
+			shift_stuck_ = consider_shift_release_for_sticky_ && !shift_stuck_;
+		}
+	}
+	if (!shift_stuck_) {
+		shift_pressed_ = false;
+	}
+}
+
+void InputLowering::clear_shift_sticky() {
+	// `Buttons::clearShiftSticky`.
+	shift_stuck_ = false;
+	shift_pressed_ = false;
+}
+
+void InputLowering::seed_shift(bool pressed, bool stuck, uint32_t now_ms) {
+	shift_pressed_at_ = now_ms;
+	shift_pressed_ = pressed || stuck;
+	shift_stuck_ = stuck;
+	held_.set(ButtonId::Shift, pressed && !stuck);
+	consider_shift_release_for_sticky_ = false;
+}
+
+void InputLowering::set_shift_is_sticky(bool sticky) {
+	cfg_.shift_is_sticky = sticky;
+	if (!sticky) {
+		// `ShiftIsSticky::writeCurrentValue`: turning the feature off
+		// must also release a shift that is latched under it.
+		clear_shift_sticky();
+	}
+}
+
+void InputLowering::clear_all_held(uint32_t now_ms) {
+	had_input_ = true;
+	for (size_t i = 1; i < kButtonCount; i++) {
+		const ButtonId b = static_cast<ButtonId>(i);
+		if (held_.has(b)) {
+			on_button(b, false, now_ms);
+		}
+	}
+	for (uint8_t x = 0; x < widgets::core::PadMask::kCols; x++) {
+		// Copied out first: `on_pad` clears the bit it is standing on.
+		uint32_t column = held_pads_.cols[x];
+		while (column != 0) {
+			const uint8_t y = static_cast<uint8_t>(std::countr_zero(column));
+			column &= column - 1;
+			on_pad(x, y, 0);
+		}
+	}
+	push_out(UiEvent{UiEvent::Kind::AllReleased});
+}
+
+// -- Queues -----------------------------------------------------------------------------------
+
+void InputLowering::emit(const UiEvent& e) {
+	push_out(e);
+}
+
+void InputLowering::defer_rest(const UiEvent& e) {
+	// Back to the front of the queue, as though `next()` had not taken it.
+	queue_head_ = static_cast<uint8_t>((queue_head_ + kQueueCapacity - 1) % kQueueCapacity);
+	queue_[queue_head_] = e;
+	queue_count_++;
+	if (last_in_snapshot_) {
+		in_snapshot_++;
+	}
+	size_t pads = 0;
+	for (uint8_t i = 0; i < in_snapshot_; i++) {
+		const UiEvent& q = queue_[(queue_head_ + i) % kQueueCapacity];
+		withdraw_sums(q);
+		pads += q.kind == UiEvent::Kind::Pad ? 1 : 0;
+	}
+	// The deferred turns are the last ones this window took, newest last: trimmed from the end, as the pads are.
+	for (uint8_t i = in_snapshot_; i > 0; i--) {
+		const UiEvent& q = queue_[(queue_head_ + i - 1) % kQueueCapacity];
+		if (q.kind == UiEvent::Kind::Encoder && q.encoder == widgets::core::EncoderRole::Select) {
+			withdraw_last_turn(q.delta);
+		}
+	}
+	// The deferred pads are the last ones this window took, so the snapshot keeps the ones before.
+	snap_.pads = snap_.pads.first(snap_.pads.size() - std::min(pads, snap_.pads.size()));
+	carried_ = queue_count_;
+	in_snapshot_ = 0;
+}
+
+void InputLowering::withdraw(const UiEvent& e) {
+	withdraw_sums(e);
+	if (e.kind == UiEvent::Kind::Encoder && e.encoder == widgets::core::EncoderRole::Select) {
+		withdraw_first_turn(e.delta);
+	}
+}
+
+void InputLowering::withdraw_sums(const UiEvent& e) {
+	switch (e.kind) {
+	case UiEvent::Kind::Encoder:
+		switch (e.encoder) {
+		case widgets::core::EncoderRole::Select:
+			snap_.turn = saturating_add(snap_.turn, -e.delta);
+			break;
+		case widgets::core::EncoderRole::GoldUpper:
+			snap_.edit[0] = saturating_add(snap_.edit[0], -e.delta);
+			break;
+		case widgets::core::EncoderRole::GoldLower:
+			snap_.edit[1] = saturating_add(snap_.edit[1], -e.delta);
+			break;
+		case widgets::core::EncoderRole::Horizontal:
+			snap_.horizontal = saturating_add(snap_.horizontal, -e.delta);
+			break;
+		case widgets::core::EncoderRole::Vertical:
+			snap_.vertical = saturating_add(snap_.vertical, -e.delta);
+			break;
+		default:
+			break;
+		}
+		break;
+	case UiEvent::Kind::EncoderButton:
+		// The edges themselves, not just the snapshot: `select_on_release` picks one of them again
+		// after the queue is drained.
+		if (e.button == ButtonId::SelectEnc) {
+			(e.on ? select_edge_ : select_release_edge_) = false;
+			snap_.select_pressed = false;
+		}
+		break;
+	case UiEvent::Kind::Button:
+		if (e.button == ButtonId::Back && e.on) {
+			back_edge_ = false;
+			snap_.back_pressed = false;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void InputLowering::push_out(const UiEvent& e) {
+	if (queue_count_ == kQueueCapacity) {
+		// Nothing drained the FIFO in time. Drop the oldest rather than the newest, so what
+		// survives is the most recent gesture instead of a stale prefix of it.
+		queue_head_ = static_cast<uint8_t>((queue_head_ + 1) % kQueueCapacity);
+		queue_count_--;
+		queue_dropped_++;
+	}
+	queue_[(queue_head_ + queue_count_) % kQueueCapacity] = e;
+	queue_count_++;
+}
+
+bool InputLowering::next(UiEvent& out) {
+	if (queue_count_ == 0) {
+		return false;
+	}
+	out = queue_[queue_head_];
+	queue_head_ = static_cast<uint8_t>((queue_head_ + 1) % kQueueCapacity);
+	queue_count_--;
+	last_in_snapshot_ = in_snapshot_ > 0;
+	if (in_snapshot_ > 0) {
+		in_snapshot_--;
+	}
+	return true;
+}
+
+// -- Queries ----------------------------------------------------------------------------------
+
+uint32_t InputLowering::held_since(ButtonId b) const {
+	const size_t i = static_cast<size_t>(b);
+	return (i < kButtonCount && held_.has(b)) ? press_time_[i] : 0;
+}
+
+bool InputLowering::was_short_press(ButtonId b, uint32_t now_ms) const {
+	const size_t i = static_cast<size_t>(b);
+	return i < kButtonCount && ever_pressed_.has(b) && (now_ms - press_time_[i]) < cfg_.short_press_ms;
+}
+
+std::optional<uint32_t> InputLowering::last_press_ms(ButtonId b) const {
+	const size_t i = static_cast<size_t>(b);
+	if (i >= kButtonCount || !ever_pressed_.has(b)) {
+		return std::nullopt;
+	}
+	return press_time_[i];
+}
+
+double InputLowering::calc_next_knob_speed(widgets::core::EncoderRole role, int8_t delta, uint32_t now_ms) {
+	// `ContinuousEncoder::calcNextKnobSpeed` (`origin/main:src/deluge/hid/encoders.cpp`): main's curve, one per role,
+	// on this clock.
+	const size_t r = static_cast<size_t>(role);
+	if (r >= kEncoderCount) {
+		return ui::widgets::core::kGoldEncoderAcceleration.min_multiplier;
+	}
+	return knob_acceleration_[r].advance(delta, static_cast<double>(now_ms) / 1000.0,
+	                                     ui::widgets::core::kGoldEncoderAcceleration);
+}
+
+// -- UiContext's lowering-backed queries (declared in scene.h) --------------------------------
+
+bool UiContext::press_used_up(ButtonId b) const {
+	return lowering != nullptr && lowering->press_used_up(b);
+}
+
+uint32_t UiContext::held_since(ButtonId b) const {
+	return lowering != nullptr ? lowering->held_since(b) : 0;
+}
+
+} // namespace deluge::ui::shell

@@ -14,8 +14,8 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/led_frame.h"
 
 #include "support/song_fixture.h"

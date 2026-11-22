@@ -60,7 +60,7 @@
 ///      lock from `on_exit()` (which returns `void`) and the lock is one bare global bool with no
 ///      owner, so an external `Pop` mid-listing left the entire device deaf. It is also the wrong
 ///      lock: it *drops* events where legacy's `waitingForSDRoutineToEnd` defers and retries. See
-///      the warning on `Action` in `shell/scene.h`.
+///      the warning on `Action` in `ui/shell/scene.h`.
 ///   3. **A refused dispatch is retried, not lost.** `Listing::request` can answer `Dropped` (the
 ///      owner's queue was full) or `Busy` (something else holds the catalogue -- another seam, or a
 ///      legacy `Browser` mid-listing, since the claim lives on `FileCatalogue`). The scene keeps
@@ -78,7 +78,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/services/favourites.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/effects.h"

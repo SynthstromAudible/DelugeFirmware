@@ -19,8 +19,8 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/song_fixture.h"
 

@@ -30,7 +30,7 @@
 #include "scenes/recorder/recorder_scene.h" // AudioRecorderItem::on_focus opens this
 
 #include "definitions_cxx.hpp" // MarkerType
-#include "shell/profile.h"
+#include "ui/shell/profile.h"
 #include "ui/widgets/oled/text.h"
 
 namespace deluge::scenes::menu::nodes {

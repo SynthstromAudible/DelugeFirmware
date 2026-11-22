@@ -494,7 +494,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
-	// The MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// The MIDI kinds (the transport in `ui/shell/scene.h`) are declined here for the reason
 	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
 	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
@@ -573,7 +573,7 @@ Result RenameScene::enter_key_press() {
 	// (`display->displayPopup(...)` in all three subclasses) and then returns false, which leaves
 	// `enterKeyPress` doing nothing at all -- the editor stays open with the name still typed. The
 	// popup is raised here rather than in `write` because `Action::Kind::Popup` is how a scene
-	// spells a popup (`shell/scene.h`) and a plain `bool (*)(...)` cannot return one; all three
+	// spells a popup (`ui/shell/scene.h`) and a plain `bool (*)(...)` cannot return one; all three
 	// targets raise the same string, so nothing is lost by hoisting it.
 	//
 	// (A `notify::Severity::Warn` notice is not an option. There is no such path: the
@@ -588,7 +588,7 @@ Result RenameScene::enter_key_press() {
 Result RenameScene::close() {
 	// `RenameUI::exitUI` -> `close()`. `Remove` naming this scene's own kind, not `Pop`: a notice
 	// overlay can legitimately be pushed above this scene between the tick that decided to close
-	// and the router applying it, and `Pop` would take that down too (`shell/scene.h`'s note on
+	// and the router applying it, and `Pop` would take that down too (`ui/shell/scene.h`'s note on
 	// `Action::Kind::Pop`, and `MenuScene::handle`'s root-`Back` case).
 	Result r;
 	r.handled = true;

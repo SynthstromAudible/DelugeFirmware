@@ -29,7 +29,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 
-#include "shell/input_lowering.h"
+#include "ui/shell/input_lowering.h"
 
 #include "gui/l10n/strings.h"
 #include "project/device_settings.h"
@@ -81,7 +81,7 @@ constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::Led
 /// @brief `IndicatorLED`'s value for @p b, as the toolkit's opaque `LedId`.
 ///
 /// `LedId` values are `ButtonId` values by the board profile's own contract
-/// (`shell/profiles/deluge.h`'s `kDelugeLedByButton`), so this is the whole of the mapping.
+/// (`ui/shell/profiles/deluge.h`'s `kDelugeLedByButton`), so this is the whole of the mapping.
 /// @param b The button whose LED to name.
 /// @return The LED id.
 constexpr deluge::ui::widgets::core::LedId led(ButtonId b) {
@@ -483,7 +483,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 
 	case ButtonId::Shift:
 		// `commandToggleShift(on)` is already `InputLowering::toggle_shift`
-		// (`shell/input_lowering.cpp`), which `on_button` calls *before* this event was
+		// (`ui/shell/input_lowering.cpp`), which `on_button` calls *before* this event was
 		// ever emitted. Reported handled because legacy's tail deals with it; nothing to do.
 		r.handled = true;
 		return r;
@@ -562,7 +562,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 	case ButtonId::ModEnc0:
 	case ButtonId::ModEnc1:
 		// `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this service: `Router::route`'s
-		// `is_mod_or_gold` sends them to `services.mod_knobs` one step earlier (`shell/router.cpp`), which is where
+		// `is_mod_or_gold` sends them to `services.mod_knobs` one step earlier (`ui/shell/router.cpp`), which is where
 		// `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`) is ported. Listed so the tail's
 		// arm census is complete.
 		return r;
@@ -601,7 +601,7 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 		// Legacy's arm returned `DEALT_WITH`, so the tail is skipped -- but the work is
 		// `MidiLearn`'s and this service did none of it, so the event is reported **unhandled**
 		// and continues down the chain. `services::MidiLearn` is routed one step further on
-		// (`shell/router.cpp`'s `run_chain`, which ends
+		// (`ui/shell/router.cpp`'s `run_chain`, which ends
 		// `global_controls` -> `midi_learn` -> drop) and claims exactly these four buttons, so
 		// what this returns is a hand-off, not a drop. See the class doc's @warning.
 		return Result::unhandled();

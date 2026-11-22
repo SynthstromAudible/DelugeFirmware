@@ -22,7 +22,7 @@
 /// -- this header/TU pair carries only the two lookups, nothing else.
 ///
 /// `tests/unit/harness/tables_spec.cpp` cross-checks the tables here against
-/// `deluge_profile()` (`src/shell/profiles/deluge.cpp`), so the two copies cannot silently drift.
+/// `deluge_profile()` (`src/ui/shell/profiles/deluge.cpp`), so the two copies cannot silently drift.
 #ifndef HOST_SCRIPT_TABLES_H
 #define HOST_SCRIPT_TABLES_H
 
@@ -34,7 +34,7 @@ extern "C" {
 
 /// @brief Where a button name sits in the Deluge's button matrix.
 ///
-/// The table is `src/shell/profiles/deluge.cpp`'s `kMatrix` (itself from
+/// The table is `src/ui/shell/profiles/deluge.cpp`'s `kMatrix` (itself from
 /// the `*ButtonCoord` constants of `src/definitions_cxx.hpp`), copied into C because the BSP may not depend on the app.
 /// `tests/unit/harness/tables_spec.cpp` cross-checks the copy against `deluge_profile()` so the
 /// two cannot drift.

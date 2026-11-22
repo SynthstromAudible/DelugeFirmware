@@ -91,13 +91,13 @@
 ///     is the documented gap above.
 ///   * `after_render()` -- fires `Action::Kind::Remove` the tick this scene stops showing, so
 ///     whatever pushes it can push-and-forget; never `Pop`, which would also take down anything
-///     legitimately stacked above it (see the warning on `Action`, `shell/scene.h`).
+///     legitimately stacked above it (see the warning on `Action`, `ui/shell/scene.h`).
 ///
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
-///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
+///          `Action` in `ui/shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
 
 #include "scenes/bind/ports/transport.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include <cstddef>
 #include <cstdint>

@@ -20,10 +20,10 @@
 #include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
 #include "processing/sound/sound.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"

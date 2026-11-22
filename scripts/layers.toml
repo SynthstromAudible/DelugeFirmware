@@ -89,10 +89,6 @@ path = "serialization"
 target = "src/serialization"
 
 [[directory]]
-path = "shell"
-target = "src/ui/shell"
-
-[[directory]]
 path = "synth"
 target = "src/synth"
 
@@ -292,7 +288,7 @@ exclude = [
     "src/deluge/gui/ui/shell_guest_knobs.h",
     "src/deluge/gui/ui/shell_host/*",
 ]
-pattern = '^(scenes/|shell/)'
+pattern = '^(scenes/|ui/shell/)'
 reason = "the legacy tree reaches the scenes and the shell only through the host files that wire them"
 
 [[rule]]
@@ -310,6 +306,7 @@ reason = "the notification channel includes only itself and the standard library
 [[rule]]
 name = "ui-includes-outside"
 files = ["src/ui/**"]
+exclude = ["src/ui/shell/**"]
 pattern = '^(?!ui/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
 
@@ -327,14 +324,14 @@ reason = "the OLED widgets and the pad components never include each other"
 
 [[rule]]
 name = "shell-includes-outside"
-files = ["src/shell/**"]
-pattern = '^(?!shell/|ui/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+files = ["src/ui/shell/**"]
+pattern = '^(?!ui/shell/|ui/|ui/gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi ids and libdeluge"
 
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|ui/gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|ui/shell/|ui/|ui/gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

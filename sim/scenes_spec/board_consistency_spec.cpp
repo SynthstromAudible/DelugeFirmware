@@ -3,7 +3,7 @@
 #include "definitions_cxx.hpp"
 #include "host/chains/pages.h"
 #include "scenes/profile.h"
-#include "shell/profile.h"
+#include "ui/shell/profile.h"
 #include <cppspec.hpp>
 
 #include <algorithm>

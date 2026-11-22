@@ -42,7 +42,7 @@ constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::Led
 constexpr uint32_t kFlashMs = MidiLearn::kFlashMs;
 
 /// @brief `LedId` for a `ButtonId`, exactly as `global_controls.cpp` spells it: the Deluge profile
-///        numbers its LEDs by their button (`shell/profiles/deluge.h`'s `kDelugeLedByButton`).
+///        numbers its LEDs by their button (`ui/shell/profiles/deluge.h`'s `kDelugeLedByButton`).
 /// @param b The button.
 /// @return Its LED id.
 constexpr deluge::ui::widgets::core::LedId led(ButtonId b) {
@@ -447,7 +447,7 @@ void MidiLearn::leds(deluge::ui::widgets::core::LedFrame& frame) {
 		// LEARN is declared rather than left alone because legacy really does write it here, and an
 		// undeclared LED keeps its last sent value (`shell::led_send_needed`). `MenuScene::leds`
 		// declares LEARN too and outranks this: `LedCompose::compose` runs every service before
-		// every scene (`shell/leds.h`).
+		// every scene (`ui/shell/leds.h`).
 		(void)frame.set(led(ButtonId::Learn), kOff);
 		return;
 	}

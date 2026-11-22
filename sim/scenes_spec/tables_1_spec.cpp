@@ -36,8 +36,8 @@
 #include "support/fake_ports.h"
 #include "unit/ui/support/frames.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -148,7 +148,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next

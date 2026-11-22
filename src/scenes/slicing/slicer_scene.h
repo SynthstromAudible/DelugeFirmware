@@ -18,8 +18,8 @@
 /// @par This is not a root scene
 ///
 /// `class Slicer final : public UI` (`origin/main:src/deluge/gui/ui/slicer.h`) is a plain `UI`, opened with
-/// `openUI(&slicer)`; the only `RootUI`s are `TimelineView` and `KeyboardScreen` (`shell/scene.h`). So `is_root()` is
-/// false, and `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it:
+/// `openUI(&slicer)`; the only `RootUI`s are `TimelineView` and `KeyboardScreen` (`ui/shell/scene.h`). So `is_root()`
+/// is false, and `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it:
 /// with the slicer up, those arms are unreachable in legacy too, because `UI::buttonAction`'s base returns
 /// `NOT_DEALT_WITH` without forwarding to `view` (`gui/ui/ui.h`). It does not consume
 /// `scenes::timeline::TimelineState` either: legacy's slicer navigates a *sample*, through `waveformBasicNavigator`,
@@ -35,7 +35,7 @@
 ///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and
 ///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h`), so legacy's top-down grid walk keeps going and
 ///     the sidebar beneath paints -- `MarkerScene`'s situation. The predicate means "covers the grid completely, so
-///     scenes beneath need not render" (`shell/scene.h`), and `Shell::tick_stack` stops advancing clocks beneath a
+///     scenes beneath need not render" (`ui/shell/scene.h`), and `Shell::tick_stack` stops advancing clocks beneath a
 ///     scene that claims it; claiming it here would stop the clock of the scene that owns the sidebar.
 ///
 /// `Slicer::canSeeViewUnderneath()` returns false (`origin/main:src/deluge/gui/ui/slicer.h`), the one legacy predicate
@@ -87,7 +87,7 @@
 /// `focusRegained()` on whatever it leaves on top (`gui/ui/ui.cpp`). A legacy popup is a display overlay, not a
 /// UI, while a shell popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()`
 /// changes hands, and an `input_transparent()` overlay never holds it, so a popup the scene raises coming and going
-/// does not reset its slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
+/// does not reset its slice table (`ui/shell/scene_stack.h`'s contract table). Both directions are asserted in
 /// `sim/scenes_spec/slicer_scene_spec.cpp`.
 ///
 /// @par Two legacy hazards
@@ -110,10 +110,10 @@
 /// continues into another word character.
 ///
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
-///          `Action` in `shell/scene.h`.
+///          `Action` in `ui/shell/scene.h`.
 
 #include "scenes/bind/ports/ports.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/grid/frame.h"
 #include "ui/widgets/oled/frame.h"
 

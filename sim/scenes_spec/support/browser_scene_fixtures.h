@@ -12,8 +12,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/grid/keyboard.h"
 
 #include "base/notify/dirty_set.h"
@@ -192,13 +192,13 @@ struct ScratchCard {
 	SdRoot root{dir.string()};
 };
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
+/// Board encoder indices and matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kSelectEncoder = 3;
 inline constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-/// SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
+/// SHIFT, at matrix (8, 0) (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kShiftX = 8, kShiftY = 0;
 inline constexpr uint8_t kBackX = 7, kBackY = 1;
-/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`shell/profiles/deluge.cpp`).
+/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`ui/shell/profiles/deluge.cpp`).
 inline constexpr uint8_t kXEncX = 0, kXEncY = 1;
 inline constexpr uint8_t kLoadX = 6, kLoadY = 1;
 inline constexpr uint8_t kKeyboardX = 3, kKeyboardY = 3;
@@ -239,7 +239,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `BrowserScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `BrowserScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next

@@ -220,7 +220,7 @@ Result SlicerScene::horizontal_encoder(int32_t offset, bool shift) {
 	// `uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF)` -- the PADS only; legacy files no
 	// `renderUIsForOled()` here, because the OLED page shows a count this arm does not change.
 	// `RepaintAll` is nonetheless what it maps to: `SurfaceRole` names OLED panels only, so
-	// `Action::Kind::RepaintAll` is the one action that reaches the grid at all (`shell/scene.h`'s
+	// `Action::Kind::RepaintAll` is the one action that reaches the grid at all (`ui/shell/scene.h`'s
 	// `Action` table). The cost is one extra OLED blit per detent of a knob the user is turning --
 	// bounded by input, unlike the timer-armed blits `Scene::timer_repaints()` warns about.
 	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -599,7 +599,7 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 			ops_->kill_voices();
 			ops_->restore_full_range();
 		}
-		// `close()`. `Remove` and not `Pop`, for the reason `shell/scene.h`'s note on
+		// `close()`. `Remove` and not `Pop`, for the reason `ui/shell/scene.h`'s note on
 		// `Action::Kind::Pop` gives: a `Popup` this scene itself raised can legally be above it by
 		// the time the router applies the action, and a blind `Pop` would take that instead.
 		if (ops_ != nullptr) {
@@ -619,7 +619,7 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Pad:
 		// Legacy's third parameter is the raw velocity, which it names `on` and passes straight
 		// through to `preview` (`Slicer::padAction`). The shell keeps `on == (velocity != 0)` invariantly
-		// (`InputLowering::on_pad`, `shell/input_lowering.cpp`), so the velocity alone is
+		// (`InputLowering::on_pad`, `ui/shell/input_lowering.cpp`), so the velocity alone is
 		// exactly what legacy is handed. Refused while a commit is out (our legacy's `slicePhase_` gate).
 		if (committing_) {
 			Result swallowed;
@@ -642,7 +642,7 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Encoder:
 		break;
 
-	// The MIDI kinds (`shell/scene.h`) are declined here, as every non-timeline scene declines them: claiming one
+	// The MIDI kinds (`ui/shell/scene.h`) are declined here, as every non-timeline scene declines them: claiming one
 	// means answering `learnable_at(pad)`, which is the timeline scenes' work. Declining lets `Router::run_chain` carry
 	// the message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:

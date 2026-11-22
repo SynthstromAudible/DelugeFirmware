@@ -12,8 +12,8 @@
 #include "project/song.h"
 #include "sample-view/peaks.h"
 #include "scenes/services/peak_retry.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/grid/waveform.h"
 
 #include "fakes.h"

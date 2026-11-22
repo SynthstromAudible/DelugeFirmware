@@ -40,8 +40,8 @@
 #include "scenes/rename/rename_scene.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/scene.h"
-#include "shell/shell.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
 
 #include "gui/ui/browser_host.h"
 #include "gui/ui/shell_drum_creator.h"

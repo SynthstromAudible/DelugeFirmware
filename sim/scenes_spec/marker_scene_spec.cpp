@@ -51,8 +51,8 @@
 #include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/oled/sample_position.h"

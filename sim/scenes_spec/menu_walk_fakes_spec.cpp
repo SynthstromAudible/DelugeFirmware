@@ -10,7 +10,7 @@
 #include "scenes/menu/nodes/nodes.h"
 
 #include "gui/l10n/strings.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "support/fake_menu_shell.h"
 

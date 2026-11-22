@@ -24,7 +24,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
-#include "shell/profiles/deluge.h"
+#include "ui/shell/profiles/deluge.h"
 
 #include "cppspec.hpp"
 

@@ -28,8 +28,8 @@
 #include "scenes/services/view_state.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -358,11 +358,11 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// Board encoder indices (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select,
+/// Board encoder indices (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select,
 /// 4 = GoldUpper, 5 = GoldLower.
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kGoldUpper = 4;
-/// Matrix coordinates (`kMatrix`, `shell/profiles/deluge.cpp`).
+/// Matrix coordinates (`kMatrix`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kLearnX = 7, kLearnY = 0;
@@ -389,7 +389,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, exactly the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -1948,7 +1948,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(cursor_of(1)).to_equal(1); // range 1, 41..60
 
-		r.edges(1, -2, 120); // one detent of the horizontal encoder (`shell/profiles/deluge.cpp`)
+		r.edges(1, -2, 120); // one detent of the horizontal encoder (`ui/shell/profiles/deluge.cpp`)
 		r.shell.tick(125);
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::widgets::oled::RangeEdge::Left));
 		expect(menu_scene().state().list[1].hide_cursor).to_be_true();

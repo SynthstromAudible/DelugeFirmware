@@ -20,11 +20,11 @@
 /// its entries from afterwards.
 ///
 /// **The busy indicator is not invented here.** `request()` raises a `notify::Notice::Kind::Working`
-/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp`)
+/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`ui/shell/notices.cpp`)
 /// turns those into pushing and removing `SceneKind::Working`. A failed listing raises
 /// `notice_error_code`, which `Notices` turns into the same popup legacy's
 /// `Browser::onListingFailed` shows via `display->displayError`.
-/// This file therefore reaches nothing in `shell/` directly -- only `base/notify/`.
+/// This file therefore reaches nothing in `ui/shell/` directly -- only `base/notify/`.
 ///
 /// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
 ///          `Notices::drain`'s `Kind::ClearWorking` case calls `working_.clear()` unconditionally
@@ -88,7 +88,7 @@
 ///          events (encoder edges included, `InputLowering::on_encoder_edges`) where the legacy gate
 ///          defers and retries. The port of the legacy gate is `InputLowering::set_sd_busy`, which
 ///          deliberately has no `Action` behind it. See the warning on `Action` in
-///          `shell/scene.h`.
+///          `ui/shell/scene.h`.
 ///
 /// @par What this seam does NOT do
 ///
@@ -292,7 +292,7 @@ enum class RequestOutcome : uint8_t {
 ///
 /// The rule that makes this satisfiable rather than merely stated: **own a `Listing` as a member of
 /// a scene, and nothing else.** Scenes are long-lived singletons owned by the application and are
-/// never destroyed while the shell is running (`shell/scene.h`); a scene being *popped* does not
+/// never destroyed while the shell is running (`ui/shell/scene.h`); a scene being *popped* does not
 /// destroy it, so a listing outliving its scene's time on the stack is fine. A `Listing` on a
 /// stack frame, in a container that reallocates, or owned by anything with a scene's lifetime but
 /// not a scene's storage, is the hazard.

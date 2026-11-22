@@ -14,7 +14,7 @@ enum class LedId : uint8_t;
 ///
 /// `Lower` is 0 and `Upper` is 1, deliberately: these values ARE the `which` index the board's
 /// `set_indicator` takes, and the board passes it straight through to
-/// `deluge_control_set_indicator` (`shell/board_surfaces.cpp`). On the wire that index is legacy's
+/// `deluge_control_set_indicator` (`ui/shell/board_surfaces.cpp`). On the wire that index is legacy's
 /// `whichKnob`, which is the *mod encoder* number -- main's `View::setKnobIndicatorLevel(whichModEncoder)`
 /// (`origin/main:src/deluge/gui/views/view.cpp`) -> `indicator_leds::setKnobIndicatorLevel` ->
 /// `deluge_control_set_indicator(whichKnob, …)` (`src/deluge/hid/led/indicator_leds.cpp`) --

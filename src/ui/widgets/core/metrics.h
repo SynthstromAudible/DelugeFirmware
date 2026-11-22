@@ -77,7 +77,7 @@ constexpr int32_t kReadoutValueY = 17; // huge-font value baseline (+ visible_to
 ///
 /// A frame's origin already carries `visible_top`, so the local row is `20 - visible_top` -- and
 /// `visible_top` is a per-*board* number, not a constant: 5 on the shipped 48-row panel
-/// (`kDisplays` in `shell/profiles/deluge.cpp`) and 0 on a 64-row one. One value cannot serve both, which is
+/// (`kDisplays` in `ui/shell/profiles/deluge.cpp`) and 0 on a 64-row one. One value cannot serve both, which is
 /// exactly why `kMenuBaseY48/64` and `kOutputTypeY48/64` above are pairs; this is the third.
 /// @{
 constexpr int32_t kMidiCommandRowY48 = 15; // 20 - 5

@@ -338,7 +338,7 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return Result::unhandled();
 		}
 
-	// The MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// The MIDI kinds (the transport in `ui/shell/scene.h`) are declined here for the reason
 	// every scene declines them: claiming one means answering `learnable_at(pad)`,
 	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
@@ -400,7 +400,7 @@ bool AudioClipScene::deactivate_marker_if_necessary() {
 uint16_t AudioClipScene::clear_clip() {
 	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus `main`'s
 	// card-routine defer, which the shell answers with `InputLowering::set_sd_busy` rather than
-	// by asking the scene (`shell/scene.h`'s `Action` warning).
+	// by asking the scene (`ui/shell/scene.h`'s `Action` warning).
 	deluge::scenes::bind::ClipWrites* edits = clip_writes();
 	if (!clip_ || edits == nullptr) {
 		return 0;
@@ -439,7 +439,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 				// `LedFrame`'s and this scene declares no LEDs -- the same stance
 				// `focus_regained` takes for `IndicatorLED::BACK`.
 				// The `uiNeedsRendering(this, 0, 0xFFFFFFFF)` after it is the SIDEBAR only; `RepaintAll`
-				// is the only `Action` that reaches the grid at all (`shell/scene.h`'s table).
+				// is the only `Action` that reaches the grid at all (`ui/shell/scene.h`'s table).
 				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 			}
 			return r;
@@ -609,7 +609,7 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 
 	// `main`'s `sdRoutineLock` defer in `AudioClipView::padAction`'s main-pad arm, after the TEMPO_ENC grab, has no
 	// counterpart: the shell's SD gate is `InputLowering::set_sd_busy`, which defers and retries rather than asking a
-	// scene (`shell/scene.h`'s `Action` warning names that split).
+	// scene (`ui/shell/scene.h`'s `Action` warning names that split).
 	//
 	// The shortcut call (`menuShortcutPadAction`) is **not ported**, for
 	// `MarkerScene`'s reason (`scenes/marker/marker_scene.h`): `MenuScene` owns the shortcut
@@ -1128,7 +1128,7 @@ int32_t AudioClipScene::compute_tick_square() {
 		    // `(!currentUIMode || currentUIMode == UI_MODE_AUDITIONING) && getCurrentUI() == this`
 		    // (`ClipView::getTickSquare` in `clip_view.cpp`). The port carries no UI modes on this scene, so the first
 		    // half is true; the second has no counterpart -- a `Scene` cannot ask whether it is the
-		    // stack's input top (`Scene::on_resume` fires on the edge, and `shell/scene.h` records
+		    // stack's input top (`Scene::on_resume` fires on the edge, and `ui/shell/scene.h` records
 		    // that there is deliberately no `on_pause` dual to close the bracket). So this reads
 		    // true where legacy would read false with something open over the clip view, and the
 		    // difference is confined to the auto-extending-linear-recording follow.

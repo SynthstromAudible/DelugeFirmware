@@ -28,7 +28,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "storage/flash_storage.h"
 #include "support/feature_setting.h"

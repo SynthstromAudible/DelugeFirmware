@@ -70,9 +70,9 @@
 #include "scenes/timeline/timeline.h"
 
 #include "base/notify/dirty_set.h"
-#include "shell/input_lowering.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/metrics.h"
 
 #include "board_config.h"
@@ -742,7 +742,7 @@ void expect_edit_matches(Self& self, const ModelSnapshot& legacy, const ModelSna
 ///        carries for @p b.
 ///
 /// The same helper `sim/scenes_spec/global_controls_spec.cpp` carries, and here for its
-/// reason: the forward table is `BoardProfile::button_by_matrix` (`shell/profiles/deluge.cpp`'s `kMatrix`)
+/// reason: the forward table is `BoardProfile::button_by_matrix` (`ui/shell/profiles/deluge.cpp`'s `kMatrix`)
 /// and hard-coding coordinates would be a second copy of the layout to drift.
 /// @param b The button.
 /// @return `{x, y}`, or `{255, 255}` if the profile has no cell for it.
@@ -1327,7 +1327,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "claims the grid and NOT the OLED, because nothing time-driven reaches the OLED page", _ {
 		        // The mask is a claim about surfaces, and an over-claimed OLED is a permanent
-		        // unconditional blit (`shell/scene.h`'s `timer_repaints`). Both halves asserted, and the
+		        // unconditional blit (`ui/shell/scene.h`'s `timer_repaints`). Both halves asserted, and the
 		        // second half is checked against what the page actually draws in the OLED group below --
 		        // the output's name, which no timer here can change.
 		        expect(audio_clip_scene().timer_repaints().grid).to_be_true();

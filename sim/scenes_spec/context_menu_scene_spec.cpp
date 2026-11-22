@@ -27,8 +27,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -126,7 +126,7 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
+/// Board encoder indices and matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
@@ -168,7 +168,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `ContextMenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example
+	/// `ContextMenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example
 	/// that left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -473,7 +473,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		r.tick(0);
 		// `indicator_leds::blinkLed(IndicatorLED::BACK)`, declared rather than driven -- the shell
 		// composes and flushes it. BACK is board LED 16 on the Deluge profile
-		// (`shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h`).
+		// (`ui/shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h`).
 		constexpr uint8_t kBackLed = 16;
 		bool blinked = false;
 		for (const auto& [led, on] : r.fake.led_writes) {
@@ -488,7 +488,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		Rig r;
 		r.open(context_of(f), DescriptorId::DeleteFile);
 		r.tick(0);
-		// SAVE is board LED 33 and LOAD 15 on the Deluge profile (`shell/profiles/deluge.cpp`).
+		// SAVE is board LED 33 and LOAD 15 on the Deluge profile (`ui/shell/profiles/deluge.cpp`).
 		constexpr uint8_t kSaveLed = 33;
 		constexpr uint8_t kLoadLed = 15;
 		bool save = false;

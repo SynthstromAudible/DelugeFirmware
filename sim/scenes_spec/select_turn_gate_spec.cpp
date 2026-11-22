@@ -17,7 +17,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"

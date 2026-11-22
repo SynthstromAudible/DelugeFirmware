@@ -16,9 +16,9 @@
 #include "instruments/classic/sound_state.h"
 #include "project/device_settings.h"
 #include "project/features.h"
-#include "shell/scene.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
+#include "ui/shell/scene.h"
 
 #include "support/fake_menu_shell.h"
 #include "support/record_state.h"

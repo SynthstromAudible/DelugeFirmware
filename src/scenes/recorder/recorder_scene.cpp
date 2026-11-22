@@ -59,7 +59,7 @@ constexpr std::string_view kRecording = "Recording";
 
 /// `display->displayLoadingAnimationText("Working")`, raised the way `browser::Listing`
 /// raises the same thing: `Notices::drain` turns a `Working` notice into `SceneKind::Working` over
-/// this scene (`shell/notices.cpp`), and `ClearWorking` takes it away again.
+/// this scene (`ui/shell/notices.cpp`), and `ClearWorking` takes it away again.
 constexpr std::string_view kWorking = "Working";
 
 /// `opened()`'s `display->displayPopup("Loading")`: a literal, as legacy's is.
@@ -337,7 +337,7 @@ Result RecorderScene::after_render() {
 		// `close()`. `Remove` and not `Pop`: a `Working` or `Popup` overlay can legally be
 		// on top of this scene by the time the router applies the action -- the `Working` this very
 		// scene raised on the way to stopping, in fact -- and a blind `Pop` would take that instead.
-		// See the note on `Action::Kind::Pop` in `shell/scene.h`.
+		// See the note on `Action::Kind::Pop` in `ui/shell/scene.h`.
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kRecorderSceneKind});
 		return r;
@@ -472,7 +472,7 @@ void RecorderScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 
 void RecorderScene::leds(deluge::ui::widgets::core::LedFrame& f) {
 	// `opened()`'s LED tail, all seven of it. `LedId` values are `ButtonId` values by
-	// the contract in `shell/profiles/deluge.h`, and legacy's own `IndicatorLED` values are the
+	// the contract in `ui/shell/profiles/deluge.h`, and legacy's own `IndicatorLED` values are the
 	// same button matrix coordinates (`hid/led/indicator_leds.h`), so each of these is the
 	// same lamp.
 	//
@@ -480,7 +480,7 @@ void RecorderScene::leds(deluge::ui::widgets::core::LedFrame& f) {
 	// `SoundEditor::setLedStates` turns **both** off (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) and this UI
 	// then lights exactly one of them, by `soundEditor.editingKit()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`,
 	// which is `getCurrentOutputType() == OutputType::KIT` -- the context's own `is_kit`). `LedCompose::compose` runs
-	// the stack bottom to top and the last writer wins (`shell/leds.h`), so declaring them here is what makes the
+	// the stack bottom to top and the last writer wins (`ui/shell/leds.h`), so declaring them here is what makes the
 	// recorder's answer the one that shows.
 	constexpr deluge::ui::widgets::core::LedState kOff{deluge::ui::widgets::core::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::widgets::core::LedState kOn{deluge::ui::widgets::core::LedState::Kind::On, 0, 0};

@@ -43,7 +43,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"

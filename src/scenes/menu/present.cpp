@@ -498,7 +498,7 @@ void notify_column(const MenuContext& ctx, const Node& column) {
 	// (title, value) pair, and both of its consumers end in that slot or its port: legacy's `drain_notifications` calls
 	// the same function, and `shell::Notices::drain` reaches it through the application's `NotificationSink` -- or,
 	// with no sink installed, draws `shell::NotificationScene`, which is transparent over the menu and takes no input
-	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are enough.
+	// (`ui/shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are enough.
 	//
 	// `displayNotification` refuses first when the item's `showNotification()` is false
 	// (`HorizontalMenu::displayNotification` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): every

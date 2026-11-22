@@ -5,8 +5,8 @@
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
-#include "shell/profile.h"
 #include "ui/gfx/oled/icon.h"
+#include "ui/shell/profile.h"
 #include "ui/widgets/oled/columns.h"
 
 #include <cstdint>
@@ -142,7 +142,7 @@ void notify_column(const MenuContext& ctx, const Node& column);
 namespace detail {
 
 /// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
-///        (`BoardProfile::text_or_digits` in `shell/profile.h`, which already implements the digits fallback).
+///        (`BoardProfile::text_or_digits` in `ui/shell/profile.h`, which already implements the digits fallback).
 /// @param string_id The l10n id.
 /// @param scratch   Storage the returned view may point into.
 /// @return The text.

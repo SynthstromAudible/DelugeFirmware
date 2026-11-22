@@ -27,7 +27,7 @@
 #include "scenes/menu/menu_scene.h" // MenuState, for the placeholder `CustomItem`
 #include "scenes/profile.h"
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/oled/frame.h"
 #include "ui/widgets/oled/text.h"
 

@@ -12,7 +12,7 @@
 #include "scenes/menu/context.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/notices.h"
+#include "ui/shell/notices.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"

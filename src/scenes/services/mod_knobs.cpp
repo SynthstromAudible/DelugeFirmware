@@ -39,7 +39,7 @@
 #include "scenes/registry.h"
 #include "scenes/services/knob_push.h"
 
-#include "shell/input_lowering.h"
+#include "ui/shell/input_lowering.h"
 
 #include "gui/l10n/strings.h"
 #include "host/chains/params.h"

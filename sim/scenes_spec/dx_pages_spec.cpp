@@ -18,8 +18,8 @@
 #include "scenes/registry.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"

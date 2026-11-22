@@ -1,6 +1,6 @@
 #pragma once
-#include "shell/board_surfaces.h"
-#include "shell/surfaces.h"
+#include "ui/shell/board_surfaces.h"
+#include "ui/shell/surfaces.h"
 #include "unit/ui/gfx/support/pbm.h"
 
 #include <algorithm>
@@ -249,7 +249,7 @@ inline BoardProfile test_profile_input() {
 	static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(EncoderRole::Count));
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
 	static constexpr const deluge::ui::widgets::core::Style* kStyles[] = {&deluge::ui::widgets::core::kDelugeStyle48};
-	// `LedId` values equal `ButtonId` values for the LEDs under buttons (`shell/leds.h`,
+	// `LedId` values equal `ButtonId` values for the LEDs under buttons (`ui/shell/leds.h`,
 	// `Shell::flush` rely on it), so this table is indexed by `ButtonId`; -1 = no board LED under
 	// that button. Only `Play` and `Record` are wired -- the two ids the shell specs that exercise
 	// `Shell::flush`'s LED diff need -- everything else stays -1 until a real board profile lands.

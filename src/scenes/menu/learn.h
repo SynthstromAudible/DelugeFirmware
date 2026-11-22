@@ -7,7 +7,7 @@
 #include "project/mapping_table.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_state.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/led_frame.h"
 
 #include <cstdint>

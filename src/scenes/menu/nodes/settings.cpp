@@ -43,7 +43,7 @@
 #include "project/midi_command.h"
 #include "ui/gfx/oled/glyphs.h"
 
-#include "shell/scene.h"                          // UiEvent/UiContext/Result -- CustomItem::handle's signature
+#include "ui/shell/scene.h"                       // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/widgets/core/metrics.h"              // kReadoutValueY
 #include "ui/widgets/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
 #include "ui/widgets/oled/frame.h"

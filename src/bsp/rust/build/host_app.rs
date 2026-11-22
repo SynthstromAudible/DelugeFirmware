@@ -211,7 +211,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("ui/widgets", "libdeluge_ui_widgets_core.a"),
         ("ui/widgets", "libdeluge_ui_widgets_oled.a"),
         ("ui/widgets", "libdeluge_ui_widgets_grid.a"),
-        ("shell", "libdeluge_ui_shell.a"),
+        ("ui/shell", "libdeluge_ui_shell.a"),
         ("base/notify", "libdeluge_base_notify.a"),
         ("scenes", "libdeluge_scenes.a"),
         ("scenes/bind", "libdeluge_scenes_bind.a"),

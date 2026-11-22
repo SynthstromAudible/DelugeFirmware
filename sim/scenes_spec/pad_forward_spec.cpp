@@ -70,7 +70,7 @@
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
 #include "scenes/slicing/slicer_scene.h"
-#include "shell/scene.h" // SceneKind
+#include "ui/shell/scene.h" // SceneKind
 
 #include "support/global_guest_menu.h"
 #include "support/menu_over_root.h"

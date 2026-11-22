@@ -18,9 +18,9 @@
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/shell.h"
 
 #include "support/fake_host_rig.h"
 #include "support/mocks/fake_surfaces.h"
@@ -36,7 +36,8 @@ namespace deluge::scenes::spec {
 ///        Each one starts the menu as a boot leaves it and pops every scene when it goes, so examples do not see
 ///        each other's walk.
 struct FakeMenuShell {
-	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s (`shell/profiles/deluge.cpp`).
+	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s
+	/// (`ui/shell/profiles/deluge.cpp`).
 	/// @{
 	static constexpr uint8_t kHorizontalEncoder = 1;
 	static constexpr uint8_t kSelectEncoder = 3;

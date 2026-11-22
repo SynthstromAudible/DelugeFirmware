@@ -40,8 +40,8 @@
 #include "scenes/registry.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
@@ -93,9 +93,9 @@ namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
 
-/// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select.
+/// Board encoder index (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select.
 constexpr uint8_t kSelectEncoder = 3;
-/// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
+/// Matrix coordinates of the select-encoder button (`kMatrix`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 

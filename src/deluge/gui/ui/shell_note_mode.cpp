@@ -35,7 +35,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/note.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 namespace deluge::gui::ui {
 namespace {

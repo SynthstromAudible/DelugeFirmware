@@ -49,7 +49,7 @@
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "util/sound_menu_open.h"
 
 #include <cstddef>

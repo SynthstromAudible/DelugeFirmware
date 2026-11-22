@@ -17,7 +17,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "scenes/context_menu/context_menu_scene.h"
 

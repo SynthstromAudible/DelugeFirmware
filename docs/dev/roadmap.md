@@ -320,7 +320,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 
 | Lane | Worktrees | Directories owned | Collision risk |
 | --- | --- | --- | --- |
-| UI shell | Off `next`; R2, then the root-view program | `src/scenes`, `src/shell`, `gui/ui` | Scene binding tables |
+| UI shell | Off `next`; R2, then the root-view program | `src/scenes`, `src/ui/shell`, `gui/ui` | Scene binding tables |
 | Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
 | Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |

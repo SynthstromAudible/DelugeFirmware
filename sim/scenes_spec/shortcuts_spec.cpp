@@ -36,8 +36,8 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/views/instrument_clip_view.h"
 #include "modulation/patch/patch_cable_set.h"

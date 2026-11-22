@@ -3,7 +3,7 @@
 /// @file
 /// @brief The sample browser's scene kind, for scenes that name it without opening it.
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include <cstdint>
 

@@ -72,10 +72,10 @@
 #include "scenes/services/learn_mode.h"
 #include "scenes/services/view_state.h"
 
-#include "shell/input_lowering.h"
-#include "shell/leds.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene_stack.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/leds.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene_stack.h"
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/ui.h"
@@ -237,7 +237,7 @@ RecordTakingUI& record_taking_ui() {
 /// @brief `deluge_profile()`'s button matrix, inverted: the `(x, y)` a `DELUGE_EVENT_BUTTON`
 ///        carries for @p b.
 ///
-/// The forward table is `BoardProfile::button_by_matrix` (`kMatrix` in `shell/profiles/deluge.cpp`);
+/// The forward table is `BoardProfile::button_by_matrix` (`kMatrix` in `ui/shell/profiles/deluge.cpp`);
 /// nothing in the shell inverts it, and hard-coding coordinates here would be a second copy of the
 /// layout to drift.
 /// @param b The button.
@@ -330,7 +330,7 @@ struct GcRig {
 	/// @brief Press or release @p b through the real lowering at @p at_ms and route every event it
 	///        emits into `GlobalControls::handle`.
 	///
-	/// The router's chain minus the two steps above this service (`shell/router.cpp`'s
+	/// The router's chain minus the two steps above this service (`ui/shell/router.cpp`'s
 	/// `run_chain`): an empty stack's `input_top()` is the null scene, which claims nothing, and
 	/// `is_mod_or_gold` sends none of these buttons to `mod_knobs`. So `handle` really is what the
 	/// event reaches.

@@ -9,8 +9,8 @@
 #include "sample-view/view.h"
 #include "scenes/browser/browser_kind.h"
 #include "scenes/services/peak_retry.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene.h"
 
 #include "fake_slice_ops.h"
 #include "fakes.h"

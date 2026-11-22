@@ -16,8 +16,8 @@
 #include "scenes/registry.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
@@ -104,7 +104,7 @@ inline std::string below_bezel(const std::string& pbm) {
 	return out + pbm.substr(pos);
 }
 
-/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
+/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;

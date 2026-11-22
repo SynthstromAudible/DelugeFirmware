@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include <format>
 #include <ostream>

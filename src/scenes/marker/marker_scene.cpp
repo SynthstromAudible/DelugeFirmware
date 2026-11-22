@@ -984,7 +984,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		return r;
 	}
 
-	// The MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// The MIDI kinds (the transport in `ui/shell/scene.h`) are declined here for the reason
 	// every scene declines them: claiming one means answering `learnable_at(pad)`,
 	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.

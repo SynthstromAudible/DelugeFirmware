@@ -35,15 +35,15 @@
 /// `ModKnobs::push` read `stack_.input_top()`; `GlobalControls::handle` gates
 /// its `View::buttonAction` group on `stack_.input_top().is_root()`; `MidiLearn::handle` reads the
 /// same. The only `SceneStack` and `InputLowering` in an application are the ones the `Shell`
-/// **owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be built before the
-/// shell it serves. `Shell::set_services` (`shell/shell.h`) re-seats all three of the things that
+/// **owns** (`ui/shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be built before the
+/// shell it serves. `Shell::set_services` (`ui/shell/shell.h`) re-seats all three of the things that
 /// hold the slots -- the shell's copy, the `Router`'s, and the deduplicated `service_list_` -- and
 /// `RealServices::installer()` calls it from `after_construct`, handing the shell `Services{}` at
 /// construction, exactly as an application does.
 ///
 /// @par What passing them changed, visibly -- and what it did not
 ///
-/// **An LED declared `Off` is not written to `.state` at all** (`unit/shell/support/script_runner.h`'s `state_text`:
+/// **An LED declared `Off` is not written to `.state` at all** (`unit/ui/shell/support/script_runner.h`'s `state_text`:
 /// "an LED declared off is not shown at all"), so "the services are wired in" and "the services are
 /// visible in a golden" are two different claims and only the second is worth making. What is
 /// actually in these 34 snapshots:
@@ -129,8 +129,8 @@
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "hid/buttons.h"
@@ -155,7 +155,7 @@
 
 #include "support/real_services.h"
 #include "support/slicer_host_open.h"
-#include "unit/shell/support/script_runner.h"
+#include "unit/ui/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
 
@@ -652,7 +652,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// The popup is a process singleton, and the run's last frame is the one AFTER its deadline
 		// passed -- so it must have taken itself down. Asserted rather than cleared: a popup still
 		// showing here is a `Remove` that did not fire, which is exactly the defect this script's
-		// last frame exists to catch (`shell/scene.h`'s warning on `Pop` vs `Remove`).
+		// last frame exists to catch (`ui/shell/scene.h`'s warning on `Pop` vs `Remove`).
 		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
 		// It drew something, and it drew the SECOND value. An empty name is the shape a popup pushed
@@ -784,7 +784,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:
 		// `AudioClipScene` declines it explicitly (`AudioClipScene::handle`), `MenuScene` has
 		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/scenes/` finds nothing
-		// outside `ModKnobs` itself. So the order stays pinned by `unit/shell/router_spec.cpp`'s "a scene that
+		// outside `ModKnobs` itself. So the order stays pinned by `unit/ui/shell/router_spec.cpp`'s "a scene that
 		// claims a gold-knob turn gets it, and mod_knobs never sees it", which uses a spec-local
 		// scene that does -- and a recorded frame for it cannot exist until a scene has such
 		// an arm.

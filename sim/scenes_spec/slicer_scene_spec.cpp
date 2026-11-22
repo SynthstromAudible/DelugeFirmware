@@ -59,8 +59,8 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/columns.h"
 
@@ -819,7 +819,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// user tapped a pad. See `SlicerScene::on_resume` for the whole argument.
 		//
 		// The popup here is raised by the scene's own Y_ENC arm (`Slicer::buttonAction`), and the 800 ms
-		// is `kPopupTimeoutMs` (`shell/notices.cpp`), returned by `Notices::timeout_for`; the push is
+		// is `kPopupTimeoutMs` (`ui/shell/notices.cpp`), returned by `Notices::timeout_for`; the push is
 		// `Notices::show_popup_with_timeout` and the removal `Notices::tick`.
 		Rig r;
 		FakeOps ops;

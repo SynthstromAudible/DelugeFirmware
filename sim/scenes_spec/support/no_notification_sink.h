@@ -3,7 +3,7 @@
 /// @file
 /// @brief `NoNotificationSink`: the shell's own `Notification` banner for an example's scope.
 
-#include "shell/notices.h"
+#include "ui/shell/notices.h"
 
 namespace deluge::scenes::spec {
 

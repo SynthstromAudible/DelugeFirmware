@@ -38,8 +38,8 @@
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"

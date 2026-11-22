@@ -76,8 +76,9 @@
 /// the port's render depend on *why* it was called, which the shell does not tell it.
 ///
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning on `Action` in
-///          `shell/scene.h`: it is one bare global bool, it *drops* events rather than deferring them, and `on_exit()`
-///          cannot give it back. Legacy's own gate here is `sdRoutineLock` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`
+///          `ui/shell/scene.h`: it is one bare global bool, it *drops* events rather than deferring them, and
+///          `on_exit()` cannot give it back. Legacy's own gate here is `sdRoutineLock` ->
+///          `REMIND_ME_OUTSIDE_CARD_ROUTINE`
 ///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
@@ -87,7 +88,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/services/peak_retry.h"
 #include "scenes/services/view_state.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/grid/effects.h"
 #include "ui/widgets/grid/markers.h"

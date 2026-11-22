@@ -39,7 +39,7 @@
 #include "scenes/recorder/recorder_scene.h" // on_resume: a refused recorder push
 
 #include "base/notify/notice_queue.h"
-#include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
+#include "ui/shell/input_lowering.h" // claim_covers -- MenuScene::owns
 
 #include "base/notify/dirty_set.h"
 #include "gui/l10n/strings.h"
@@ -886,7 +886,7 @@ Result MenuScene::after_render_navigation() {
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
-		// which is a documented no-op (`Action::Kind::Repaint`'s doc in `shell/scene.h`).
+		// which is a documented no-op (`Action::Kind::Repaint`'s doc in `ui/shell/scene.h`).
 		repaint = true;
 	}
 

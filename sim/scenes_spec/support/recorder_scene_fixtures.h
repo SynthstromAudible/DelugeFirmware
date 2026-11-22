@@ -16,8 +16,8 @@
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"

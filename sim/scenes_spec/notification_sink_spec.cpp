@@ -25,9 +25,9 @@
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
 #include "scenes/registry.h"
-#include "shell/notices.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/notices.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "support/global_guest_menu.h"
 #include "support/mocks/fake_surfaces.h"

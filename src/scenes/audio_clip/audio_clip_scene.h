@@ -20,7 +20,7 @@
 /// the tree, `TimelineView` and `KeyboardScreen` (`gui/ui/keyboard/keyboard_screen.h`), and this
 /// is the first scene ported from either. So **`is_root()` returns true**, and
 /// `services::GlobalControls` gates a whole group of legacy's global button arms on exactly that
-/// predicate (`shell/scene.h`'s `Scene::is_root`, tested in `GlobalControls::handle`).
+/// predicate (`ui/shell/scene.h`'s `Scene::is_root`, tested in `GlobalControls::handle`).
 ///
 /// The group that becomes reachable with this scene on top is `View::buttonAction`'s
 /// (`gui/views/view.cpp`), and it is **nine** arms: `SAVE`, `LOAD`, `SYNC_SCALING`, `TAP_TEMPO`, `BACK`
@@ -44,7 +44,7 @@
 /// `AudioClipView` claims `BACK` for "clear clip" while `currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`
 /// (`audio_clip_view.cpp`), which in legacy runs *instead of* `View::buttonAction`'s undo/redo arm because it returns
 /// before `View::buttonAction`'s `BACK` arm is reached. `GlobalControls` is routed after the top scene
-/// (`shell/router.h`'s `Router`), so the port gets the same precedence only by claiming `Back` in that mode -- which
+/// (`ui/shell/router.h`'s `Router`), so the port gets the same precedence only by claiming `Back` in that mode -- which
 /// `handle()`'s `Back` arm now does, returning `handled = true` so the event never reaches
 /// `GlobalControls::view_button_action`'s undo/redo. Without that arm a `BACK` press with the horizontal encoder held
 /// would undo where legacy clears.
@@ -196,13 +196,13 @@
 /// is cleared anyway, on both sides.
 ///
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
-///          `Action` in `shell/scene.h`.
+///          `Action` in `ui/shell/scene.h`.
 
 #include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "project/clip_address.h"
 #include "scenes/bind/ports/write_sink.h"
 #include "scenes/timeline/timeline.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/grid/frame.h"
 #include "ui/widgets/oled/frame.h"
 
@@ -439,7 +439,7 @@ public:
 	///        the OLED page, which draws the output's name and nothing time-dependent.
 	///
 	/// Arming the OLED from this timer would be a permanent unconditional blit at the playhead's
-	/// own cadence -- the defect `Scene::timer_repaints` exists to prevent (`shell/scene.h`).
+	/// own cadence -- the defect `Scene::timer_repaints` exists to prevent (`ui/shell/scene.h`).
 	RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
 
 private:

@@ -2,7 +2,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "scenes/l10n_bridge.h"
-#include "shell/profiles/deluge.h"
+#include "ui/shell/profiles/deluge.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"

@@ -25,7 +25,7 @@
 # three goldens byte-identical and every assertion green, because the claim check that decides this
 # gesture happens in `route_post_render` BEFORE `run_chain` is entered. No real scene in the tree
 # claims a gold turn from `handle()`, so the order is only observable against a spec-local scene that
-# does -- which is `tests/unit/shell/router_spec.cpp`'s "a scene that claims a gold-knob turn gets it, and mod_knobs
+# does -- which is `tests/unit/ui/shell/router_spec.cpp`'s "a scene that claims a gold-knob turn gets it, and mod_knobs
 # never sees it".
 #
 # The subject is `nodes::saturation`, deliberately the same node `menu_int.txt` opens, so the two

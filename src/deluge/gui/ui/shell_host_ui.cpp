@@ -45,8 +45,8 @@
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
+#include "ui/shell/profiles/deluge.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -72,7 +72,7 @@ ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board
 	//
 	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
 	// it. They are built over `shell()` and installed through `Shell::set_services`
-	// (`shell/shell.h`), which is the whole reason that setter exists -- from
+	// (`ui/shell/shell.h`), which is the whole reason that setter exists -- from
 	// `wireShellGuestServices()`, called at boot and from `opened()` below. This object is a
 	// static-init global, so the constructor is not a place a real service (or a real setting) can
 	// be reached from at all.
@@ -130,7 +130,7 @@ bool ShellHostUI::opened() {
 	// `Buttons::commandToggleShift` (`InputLowering::toggle_shift` against
 	// `hid/buttons.cpp`) *except* that legacy reads the runtime feature at release time
 	// while the shell reads a `LoweringConfig` field that defaults to false
-	// (`shell/input_lowering.h`). Left unseeded, a sticky-shift user's latched shift would be
+	// (`ui/shell/input_lowering.h`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
 	// (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`) -- so shortcut pads would silently stop working under the
 	// toggle.
@@ -435,9 +435,9 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	// `GuestSurfaceSet::canReachMainPanel` asks about the *panel's* shape and says nothing about the
 	// grid (`gui/ui/shell_guest_surfaces.h`), and `SurfaceSet::build` sizes the grid straight from
 	// `DelugeBoard::pad_grid_width`/`pad_grid_height` and `BoardProfile::sidebar_cols`
-	// (`SurfaceSet::build` in `shell/surfaces.cpp`) with no reference to legacy's numbers at all -- a `PadGrid` may be
-	// up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`ui/gfx/grid/pad_grid.h`) while
-	// `PadLEDs::image` is fixed at `[kDisplayHeight][kDisplayWidth + kSideBarWidth]` = 8 x 18
+	// (`SurfaceSet::build` in `ui/shell/surfaces.cpp`) with no reference to legacy's numbers at all -- a `PadGrid` may
+	// be up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`ui/gfx/grid/pad_grid.h`) while `PadLEDs::image` is fixed at
+	// `[kDisplayHeight][kDisplayWidth + kSideBarWidth]` = 8 x 18
 	// (`hid/led/pad_leds.h`). So a profile with a taller or wider grid than legacy's is the case
 	// these two `min`s exist for, and dropping either writes past the end of legacy's buffer rather
 	// than merely painting a wrong pad. Both are mutation-covered by the tall/wide-grid board in
@@ -729,7 +729,7 @@ void ShellHostUI::syncHoldTime() {
 	// `LoweringConfig::hold_time_ms` is `FlashStorage::holdTime` -- a setting, in **audio samples**
 	// (`defaultHoldTime * kSampleRate / 20`, `storage/flash_storage.cpp`), which legacy reads
 	// *live* at shift-release time (`hid/buttons.cpp`) and the shell reads out of a config field.
-	// `InputLowering::set_hold_time_ms` (`shell/input_lowering.h`) is the setter written for this
+	// `InputLowering::set_hold_time_ms` (`ui/shell/input_lowering.h`) is the setter written for this
 	// line, and the conversion to milliseconds is `* 1000 / kSampleRate`. Legacy's default 2 gives
 	// 4410 samples and 100 ms, exactly what `LoweringConfig`'s own default documents; the settings
 	// item's range is 1..20, re-clamped on read (`storage/flash_storage.cpp`), i.e.
@@ -989,7 +989,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// itself, and both are at or past `button_rows` (4), which `on_matrix` tests before it indexes
 	// (`InputLowering::on_matrix`). There is no value of `b` for which the narrowing
 	// changes the answer -- **on a profile whose `button_rows` is at most 13**, which is what makes
-	// the Deluge's 4 (`shell/profiles/deluge.cpp`, and the matrix table it indexes) safe. The proof
+	// the Deluge's 4 (`ui/shell/profiles/deluge.cpp`, and the matrix table it indexes) safe. The proof
 	// is board-specific, not universal: a hypothetical profile with 14 or more button rows would let a `y` of 13 index
 	// a real cell for a `b` legacy never means as a matrix button. Stated rather than guarded, because no such profile
 	// exists and a guard against one would be untestable. So a guard here would be a second copy of a check that

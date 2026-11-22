@@ -24,7 +24,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "shell/profile.h"
+#include "ui/shell/profile.h"
 #include "ui/widgets/oled/text.h"
 
 namespace deluge::scenes::menu::nodes {

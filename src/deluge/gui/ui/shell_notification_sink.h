@@ -21,9 +21,9 @@
 /// @brief Installs `deluge::ui::shell::NotificationSink` -- the shell's `Notice::Kind::Notification`
 ///        consumer, pointed at legacy's own display popup slot.
 ///
-/// This header names no `shell/` type, only the one no-arguments function that installs the sink --
+/// This header names no `ui/shell/` type, only the one no-arguments function that installs the sink --
 /// the same one-symbol-wide seam `shell_note_bridge.h` draws (`scripts/check_layer_rules.py`'s
-/// `LEGACY_PORT_SEAMS` comment on each). `shell_notification_sink.cpp` is where the `shell/`
+/// `LEGACY_PORT_SEAMS` comment on each). `shell_notification_sink.cpp` is where the `ui/shell/`
 /// include happens.
 
 namespace deluge::gui::ui {

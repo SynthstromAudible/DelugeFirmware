@@ -43,8 +43,8 @@
 #include "scenes/registry.h"
 #include "support/sound_fixtures.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -191,7 +191,7 @@ const Node* const kColourNodes[] = {&nodes::pad_colour_active, &nodes::pad_colou
 /// `Colour::Option`'s order: the nine names every pad colour item offers, as the options rows spell them.
 enum PadColour : uint8_t { kRed, kGreen, kBlue, kYellow, kCyan, kMagenta, kAmber, kWhite, kPink, kNumPadColours };
 
-/// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select. Matrix
+/// Board encoder index (`kDelugeEncoders`, `ui/shell/profiles/deluge.cpp`): 3 = Select. Matrix
 /// coordinates (`kMatrix`, same file) for the select-encoder button. Same spelling every other
 /// spec in this suite uses.
 constexpr uint8_t kSelectEncoderIndex = 3;
@@ -212,7 +212,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MenuScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -296,7 +296,7 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	// Both global queues first. An undrained `Kind::Text` notice -- a `CANT_LEARN_PC` refusal from a
 	// previous iteration, or a stray fact from an earlier describe block in this same process --
 	// becomes a `PopupScene` on this Rig's very first tick, which is not `oled_transparent` for
-	// `Main` and takes the input top with it (`shell/notices.cpp`). The select press below
+	// `Main` and takes the input top with it (`ui/shell/notices.cpp`). The select press below
 	// would then never reach the menu, and the descent would silently not happen.
 	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
 	deluge::base::notify::dirty().drain();
@@ -1843,7 +1843,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (the base returns false), and the editor's
 		   // screen change turns that into `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every
 		   // screen change (`SoundEditor::updatePadLightsFor` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
-		   // Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
+		   // Board LED 7 is LEARN (`ui/shell/profiles/deluge.cpp`).
 		   constexpr uint8_t kLearnBoardLed = 7;
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -2585,7 +2585,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	// `tables_3_writes` above drives every set hook across the whole tree, including params an
 	// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which raises
 	// a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s `notice_unservable_param`).
-	// That notice sat harmlessly undrained in the global queue until `shell/notices.cpp`
+	// That notice sat harmlessly undrained in the global queue until `ui/shell/notices.cpp`
 	// composites a drained Console notice into whatever next calls `shell.tick()` -- one of the
 	// tests below, in the same process. Drain both global
 	// queues before each `it` here so a stray fact from an earlier describe block, or from the

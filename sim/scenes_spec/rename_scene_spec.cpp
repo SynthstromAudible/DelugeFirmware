@@ -26,8 +26,8 @@
 #include "unit/ui/support/frames.h"
 
 #include "base/notify/notice_queue.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/keyboard.h"
 
@@ -116,7 +116,7 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
+/// Board encoder indices and matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
@@ -159,7 +159,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `RenameScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `RenameScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next

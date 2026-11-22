@@ -20,8 +20,8 @@
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/display/display.h"
 #include "memory/heaps.h"
@@ -148,7 +148,7 @@ struct Rig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// `MarkerScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// `MarkerScene` is a process singleton (`ui/shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
 	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
@@ -271,7 +271,7 @@ struct Rig {
 	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
+	///        (`ui/shell/profiles/deluge.cpp`).
 	void turn_select(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
@@ -281,11 +281,11 @@ struct Rig {
 		                     at_ms);
 	}
 	/// @brief Press or release the horizontal encoder's own button, at matrix (0, 1)
-	///        (`shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
+	///        (`ui/shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
 	void x_enc_button(bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 0, 1, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
-	/// @brief One detent of the (detented) horizontal encoder, index 1 (`shell/profiles/deluge.cpp`).
+	/// @brief One detent of the (detented) horizontal encoder, index 1 (`ui/shell/profiles/deluge.cpp`).
 	void turn_horizontal(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 1, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}

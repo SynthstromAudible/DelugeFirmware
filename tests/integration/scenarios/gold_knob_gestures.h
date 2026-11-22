@@ -27,9 +27,9 @@
 #include "scenes/registry.h"
 #include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_knobs.h"
-#include "shell/input_lowering.h"
-#include "shell/profiles/deluge.h"
-#include "shell/scene_stack.h"
+#include "ui/shell/input_lowering.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/scene_stack.h"
 
 #include <cstdint>
 #include <string_view>

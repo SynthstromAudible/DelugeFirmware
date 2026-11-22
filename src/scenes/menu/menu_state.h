@@ -10,7 +10,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/shortcut_blink.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
 

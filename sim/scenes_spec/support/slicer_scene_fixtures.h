@@ -16,8 +16,8 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -180,7 +180,7 @@ struct Rig {
 	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
+	///        (`ui/shell/profiles/deluge.cpp`).
 	///
 	/// @warning **At most 63 detents per call.** `InputLowering::apply_encoder_edges` takes its
 	///          edge count as an `int8_t` (`InputLowering::apply_encoder_edges`), so 64 detents is 128
@@ -199,12 +199,12 @@ struct Rig {
 	void turn_vertical(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 0, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
-	/// @brief Press or release SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
+	/// @brief Press or release SHIFT, at matrix (8, 0) (`ui/shell/profiles/deluge.cpp`).
 	void shift(bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
 
-	/// @brief Press or release one button, by matrix coordinates (`shell/profiles/deluge.cpp`).
+	/// @brief Press or release one button, by matrix coordinates (`ui/shell/profiles/deluge.cpp`).
 	void button(uint8_t mx, uint8_t my, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, mx, my, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
@@ -237,7 +237,7 @@ struct Rig {
 	/// @return The text the shell's popup service last showed.
 	///
 	/// @warning This is a *record*, not a level -- `Notices::last_popup_text()` is "the text last
-	///          shown" and survives the popup's removal (`shell/notices.h`). Ask
+	///          shown" and survives the popup's removal (`ui/shell/notices.h`). Ask
 	///          `popup_showing()` whether one is on screen.
 	std::string popup() { return shell.notices().last_popup_text(); }
 

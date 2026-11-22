@@ -18,9 +18,9 @@
 #pragma once
 #include "board_config.h"
 #include "board_layout.hpp"
-#include "shell/scene_stack.h"
-#include "shell/surfaces.h"
 #include "ui/gfx/grid/rgb.h"
+#include "ui/shell/scene_stack.h"
+#include "ui/shell/surfaces.h"
 
 #include <array>
 #include <cstddef>

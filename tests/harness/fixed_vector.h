@@ -6,7 +6,7 @@ namespace deluge::harness {
 /// @brief A fixed-capacity, no-heap vector.
 ///
 /// A standalone copy of src/base/fixed_vector.h's shape: tests/harness is compiled into the
-/// host BSP and must not include anything from src/shell (see tests/harness/README.md), so it
+/// host BSP and must not include anything from src/ui/shell (see tests/harness/README.md), so it
 /// carries its own copy rather than reusing the shell's.
 ///
 /// Push past capacity `N` fails soft (returns false) rather than growing, asserting or

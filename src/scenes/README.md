@@ -4,7 +4,7 @@
 **scenes** (the `ui::shell::Scene`s a `Shell` stacks: the menu interpreter, the file browser, the
 slicer, the audio clip view, …), the **services** that port `View` (`ui::shell::Service`s: the gold
 knobs, the global buttons, MIDI learn), and the **declarative menu tree** the menu interpreter walks.
-Everything on screen comes from the `src/ui` toolkit; the shell (`src/shell`) owns the stack, the
+Everything on screen comes from the `src/ui` toolkit; the shell (`src/ui/shell`) owns the stack, the
 tick, input lowering and the flush. This layer is what knows about songs, sounds and clips, and it
 reaches them through `scenes/bind` and a `MenuContext` rather than through legacy's globals.
 
@@ -49,7 +49,7 @@ nothing.
 `scripts/check_layer_rules.py` enforces these; the include list itself is the comment at the top of
 `src/scenes/CMakeLists.txt`.
 
-* **Includes.** `scenes/`, `shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
+* **Includes.** `scenes/`, `ui/shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
   `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
   `sequence/`, `project/`, …) and three root-level headers named in that comment
@@ -104,7 +104,7 @@ Nothing under `src/scenes` depends on a spec tree existing.
 
 ### The l10n bridge and the profile
 
-`src/shell` may not include `gui/l10n/`, so `ui::shell::deluge_profile()` leaves
+`src/ui/shell` may not include `gui/l10n/`, so `ui::shell::deluge_profile()` leaves
 `BoardProfile::text`/`error_text` null. This layer may, and supplies them: `text_lookup` is
 `l10n::getView`, and `error_lookup` is a hand-kept copy of `getErrorMessage(Error)`'s switch
 (`hid/` cannot be called from here). `scenes::deluge_profile()` is the shell's profile copied
@@ -678,11 +678,11 @@ pads. They share one read and one paint, and none of them holds the sample.
 | `GlobalControls` | transport, the record combo, tempo, tap tempo, sync scaling, the BACK long press, undo/redo (`Buttons::buttonAction`'s tail and `View::buttonAction`'s global arms) | Play, Record, TapTempo, SyncScaling, Save, Load, Clip |
 | `MidiLearn` | learn mode, the held thing, the flash (`View::startMIDILearn`/`endMIDILearn`, the `*MidiLearnPadPressed` family, `midiLearnFlash`) | Learn; it **overwrites** three LEDs `GlobalControls` declares |
 
-**They live here, not in `src/shell/`**, because they touch the model, and `shell-includes-outside`
+**They live here, not in `src/ui/shell/`**, because they touch the model, and `shell-includes-outside`
 keeps the shell driveable by a fake surface set with no model linked. The `Service` interface is the
 shell's; every model-aware implementation is here, as with `Scene`.
 
-* **Router order is top scene → `mod_knobs` → `global_controls` → `midi_learn`** (`shell/router.h`):
+* **Router order is top scene → `mod_knobs` → `global_controls` → `midi_learn`** (`ui/shell/router.h`):
   legacy is current UI first and `View` as the base-class fallback, so a scene that wants a mod
   event (the menu's MIDI-learn interception) sees it before the service. `MidiLearn` is last so its
   flash composes over `GlobalControls`' LEDs.
@@ -804,7 +804,7 @@ The device's own settings are a setting group, `project::SettingGroupId::DEVICE`
 
 ## Repaint and timers
 
-The shell's tick is described in `src/shell/README.md`; what a scene needs from it:
+The shell's tick is described in `src/ui/shell/README.md`; what a scene needs from it:
 
 * **A timer is a repaint request.** `Shell::tick` arms, at a scene's `next_timer()` deadline, the
   surfaces its `timer_repaints()` names — only where the scene can actually be drawn (at or above the
@@ -897,7 +897,7 @@ What a user can see differ from `main` today, beyond the features below that the
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
 | `openMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; `main` clears after a successful `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). | `gui/ui/menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
-| The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record, so an Off the shell never saw can go unsent; no case against `main` is known. | `src/shell/leds.cpp`'s `led_send_needed` |
+| The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record, so an Off the shell never saw can go unsent; no case against `main` is known. | `src/ui/shell/leds.cpp`'s `led_send_needed` |
 | A RECORD press a scene takes never toggles recording on its release; `main` toggles on such a release within 500 ms of a RECORD tap the transport took. | `GlobalControls::tail_button_action`; `tests/ui-scripts/parity/DIFFERENCES.md` D127 |
 | After a sample take lands on the oscillator's page, the focused file selector's own shortcut pad blinks; `main`'s blocking recorder loop re-plans the recorder's pad after the take. | `MenuScene::on_resume`; `tests/ui-scripts/parity/DIFFERENCES.md` D128 |
 | A notification's 2000 ms starts when a consumer pops it, not when it was raised, and its title and value are fitted into 46 bytes value-first, where `OLED::displayNotification` measures the untruncated title. | `Notices::drain`, `notice_notification`; `tests/ui-scripts/parity/DIFFERENCES.md` D97 |

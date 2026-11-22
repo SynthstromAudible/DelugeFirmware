@@ -22,7 +22,7 @@
 /// `FirstApp + 9` the audio clip view (`audio_clip::kAudioClipSceneKind`) -- the first ROOT scene
 /// in this table.
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include <cstdint>
 
@@ -63,7 +63,7 @@ uint16_t assigned_node_ids();
 ///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
 ///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///
-///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its off switch,
+///   * **`ShellConfig::screensaver_idle_ms` (`ui/shell/shell.h`).** The screensaver's timeout and its off switch,
 ///     `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes *
 ///     60000` -- both live in `FlashStorage`, which `shell::Screensaver` may not read at all (`check_layer_rules.py`'s
 ///     `shell-includes-outside` row), so the port takes one number and spells "off" as `idle_ms == 0`. Pushed from

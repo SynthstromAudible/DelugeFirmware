@@ -11,7 +11,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
+#include "ui/shell/profiles/deluge.h"
 
 namespace AudioEngine {
 uint32_t audioSampleTimer = 0;

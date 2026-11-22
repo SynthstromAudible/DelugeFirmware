@@ -60,7 +60,7 @@
 #include "instruments/classic/sound_state.h"
 #include "ui/widgets/oled/values.h" // RangeEdge
 
-#include "shell/profile.h" // ui::shell::TextScratch
+#include "ui/shell/profile.h" // ui::shell::TextScratch
 
 #include <cstddef>
 #include <optional>
@@ -109,7 +109,7 @@ inline const MultiRangeItem kMultiRangeItem{};
 /// @param index   Which range's row.
 /// @param buf     Caller-owned storage the label is written into.
 /// @param cap     `buf`'s size.
-/// @param scratch Digit storage for the "BOTTOM" lookup (`shell/profile.h`'s text path).
+/// @param scratch Digit storage for the "BOTTOM" lookup (`ui/shell/profile.h`'s text path).
 /// @return A view over @p buf.
 std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* buf, size_t cap,
                                  deluge::ui::shell::TextScratch& scratch);

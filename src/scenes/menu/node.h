@@ -11,7 +11,7 @@
 ///       own state) and are never needed to lay out a `Node` tree as data.
 ///
 /// @note `OledFrame`, `UiEvent`, `UiContext` and `Result` are likewise forward declared rather than
-///       pulled in via `ui/widgets/oled/frame.h` / `shell/scene.h`: `CustomItem::render`/`handle` only ever
+///       pulled in via `ui/widgets/oled/frame.h` / `ui/shell/scene.h`: `CustomItem::render`/`handle` only ever
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.

@@ -27,9 +27,9 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
 #include "synth/modulation/cable.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 #include "util/sound_menu_open.h"
 
 #include "support/global_guest_menu.h"

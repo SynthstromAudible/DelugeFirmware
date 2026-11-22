@@ -4,9 +4,9 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "shell/board_surfaces.h"
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/board_surfaces.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"

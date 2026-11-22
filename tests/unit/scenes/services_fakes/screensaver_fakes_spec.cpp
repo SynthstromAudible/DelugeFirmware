@@ -5,7 +5,7 @@
 #include "scenes/overlay/screensaver_scene.h"
 
 #include "project/device_settings.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "fakes.h"
 

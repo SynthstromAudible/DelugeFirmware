@@ -47,8 +47,8 @@
 #include "scenes/overlay/screensaver_scene.h"
 #include "scenes/registry.h"
 
-#include "shell/profiles/deluge.h"
-#include "shell/shell.h"
+#include "ui/shell/profiles/deluge.h"
+#include "ui/shell/shell.h"
 
 #include "hid/display/oled.h"
 #include "hid/display/screensaver.h"
@@ -553,7 +553,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 	});
 
 	it("is what shell::Screensaver has been pushing at all along: the service now succeeds", _ {
-		// The latch `shell/screensaver.h` documents is a latch on a REFUSED push, and a refusal is
+		// The latch `ui/shell/screensaver.h` documents is a latch on a REFUSED push, and a refusal is
 		// what an unregistered `SceneKind::Screensaver` would produce. With the registry entry it
 		// never fires.
 		set_mode(::ScreensaverMode::DELUGE);

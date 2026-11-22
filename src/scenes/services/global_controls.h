@@ -13,9 +13,9 @@
 /// and `View::flashPlayRoutine` -- is this service's `tick()` and
 /// `next_timer()`.
 ///
-/// @par Why a service in `src/scenes/` and not in `src/shell/`
+/// @par Why a service in `src/scenes/` and not in `src/ui/shell/`
 ///
-/// `shell::Service` is a shell interface, but `src/shell/**` may not include `scenes/**` or `project/**`
+/// `shell::Service` is a shell interface, but `src/ui/shell/**` may not include `scenes/**` or `project/**`
 /// (`scripts/layers.toml`'s `shell-includes-outside` rule), and every arm here acts on the song through the
 /// scenes' ports and reads the song's record -- the transport, the sync-scaling clip's write, the undo history. So the
 /// shell's interface is implemented from inside the scenes library, which may see both, as `ModKnobs` and `MidiLearn`
@@ -35,7 +35,7 @@
 /// @par Where this sits in the chain, and why that is legacy's own shape
 ///
 /// `Router::route`'s chain is **top scene -> `mod_knobs` -> `global_controls`**
-/// (`shell/router.cpp`'s `run_chain`), and this service is deliberately last. That is
+/// (`ui/shell/router.cpp`'s `run_chain`), and this service is deliberately last. That is
 /// `Buttons::buttonAction` exactly: it calls `getCurrentUI()->buttonAction(b, on, inCardRoutine)`
 /// at `hid/buttons.cpp`, returns early if the UI dealt with it, and only then
 /// runs the tail. So a scene gets first refusal and this service is the last word,
@@ -56,7 +56,7 @@
 /// approximation of the rule; it **is** the rule.
 ///
 /// Hence `handle()` gates the `View`-arm group on `stack_.input_top().is_root()`
-/// (`shell/scene.h`'s `Scene::is_root`, added for this) and leaves the tail ungated. With a
+/// (`ui/shell/scene.h`'s `Scene::is_root`, added for this) and leaves the tail ungated. With a
 /// non-root scene on top -- a menu, a browser, the marker editor -- `SAVE`, `LOAD`,
 /// `SYNC_SCALING`, `TAP_TEMPO`, `BACK` and shift+`SELECT_ENC` do nothing here, exactly as they do
 /// nothing in legacy: `SoundEditor::buttonAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ends by
@@ -98,7 +98,7 @@
 /// @warning **The four arms above are returned `unhandled` rather than swallowed, and that is
 ///          load-bearing.** Swallowing them would look like a working port *and* would stop
 ///          `MidiLearn` -- routed one step further on -- from ever seeing them. `Router::run_chain` is top scene ->
-///          `mod_knobs` -> `global_controls` -> `midi_learn` -> drop (`shell/router.cpp`), and `MidiLearn::handle`
+///          `mod_knobs` -> `global_controls` -> `midi_learn` -> drop (`ui/shell/router.cpp`), and `MidiLearn::handle`
 ///          claims exactly `LEARN`, and `PLAY`/`RECORD`/`TAP_TEMPO` while its own mode is on. So a
 ///          `ViewArm::LearnOwns` result is a **hand-off, not a drop** -- do not read it as one, and
 ///          in particular do not conclude from it that the chain wants re-ordering. (Were `MidiLearn` absent
@@ -144,7 +144,7 @@
 ///     fill mode, `bind::TransportActions::fill`.
 ///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`PlaybackHandler::setLedStates`).
 ///     The external-clock LED is a board *signal*, not an `IndicatorLED`, so it has no `ButtonId`
-///     and therefore no `ui::LedId` (`shell/profiles/deluge.h`: "LedId values = ButtonId values").
+///     and therefore no `ui::LedId` (`ui/shell/profiles/deluge.h`: "LedId values = ButtonId values").
 ///     `LedFrame` cannot express it. Owed to whoever widens the LED surface.
 ///
 /// @par The pre-UI section: verified, not re-ported
@@ -153,7 +153,7 @@
 /// five items are ported and three are not**:
 ///
 ///   * `considerShiftReleaseForSticky = false` on any press -- ported,
-///     `InputLowering::on_button` (`shell/input_lowering.cpp`). Its *cross-screen* twin on
+///     `InputLowering::on_button` (`ui/shell/input_lowering.cpp`). Its *cross-screen* twin on
 ///     the very next line is **not**.
 ///   * The mod-button loop -- ported, as `Router`'s `is_mod_or_gold` plus `ModKnobs`.
 ///   * The `AFFECT_ENTIRE` -> `display->cancelPopup()` -- **not ported**. It belongs to
@@ -168,7 +168,7 @@
 ///     `Buttons::buttonAction` (`buttons.cpp`): `recordButtonPressUsedUp = false`.
 ///
 /// And the tail's `SHIFT` arm (`Buttons::buttonAction` in `hid/buttons.cpp`, `Buttons::commandToggleShift`) is already
-/// `InputLowering::toggle_shift` (`shell/input_lowering.cpp`),
+/// `InputLowering::toggle_shift` (`ui/shell/input_lowering.cpp`),
 /// called from `on_button` *before* the event is ever emitted. `handle()` therefore reports
 /// `ButtonId::Shift` handled -- legacy's tail does deal with it -- and does nothing.
 ///
@@ -204,7 +204,7 @@
 ///          press timings (`View::buttonAction`'s SAVE and LOAD arms, `Buttons::buttonAction`) become milliseconds
 ///          here; `kShortPressTime` is `kSampleRate / 2` (`definitions_cxx.hpp`), which is
 ///          exactly the 500 ms `LoweringConfig::short_press_ms` already carries
-///          (`shell/input_lowering.h`).
+///          (`ui/shell/input_lowering.h`).
 
 #include "scenes/bind/ports/ports.h"
 #include "scenes/menu/context.h"
@@ -213,9 +213,9 @@
 #include "project/song.h"
 #include "ui/widgets/core/led_frame.h"
 
-#include "shell/scene.h"
-#include "shell/scene_stack.h"
-#include "shell/service.h"
+#include "ui/shell/scene.h"
+#include "ui/shell/scene_stack.h"
+#include "ui/shell/service.h"
 
 #include <cstdint>
 #include <optional>
@@ -292,7 +292,7 @@ public:
 	///                 has none (and for a spec that wants a switchable one).
 	///
 	/// @note `lowering` is a **non-const** reference and `UiContext::lowering` is a `const`
-	///       pointer (`shell/scene.h`), so the context cannot serve: `Buttons::buttonAction`'s PLAY and RECORD arms
+	///       pointer (`ui/shell/scene.h`), so the context cannot serve: `Buttons::buttonAction`'s PLAY and RECORD arms
 	///       *write* the used-up bit. `ModKnobs` takes the same argument for the same kind of
 	///       reason.
 	GlobalControls(deluge::ui::shell::SceneStack& stack, deluge::ui::shell::InputLowering& lowering,

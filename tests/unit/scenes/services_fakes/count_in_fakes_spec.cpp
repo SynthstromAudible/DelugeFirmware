@@ -4,7 +4,7 @@
 
 #include "scenes/overlay/count_in_scene.h"
 
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "fakes.h"
 

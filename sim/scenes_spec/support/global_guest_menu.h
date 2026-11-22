@@ -19,7 +19,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/registry.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 
 #include "menu_context.h"
 #include "song_fixture.h"

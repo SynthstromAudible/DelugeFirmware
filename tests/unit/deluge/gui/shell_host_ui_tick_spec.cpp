@@ -269,7 +269,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 
 	it("blinks a declared LED on schedule with no input at all", _ {
 		Rig r;
-		// `LedId`'s values ARE `ButtonId`'s (`shell/profiles/deluge.h`), and the profile maps
+		// `LedId`'s values ARE `ButtonId`'s (`ui/shell/profiles/deluge.h`), and the profile maps
 		// `Back` to board LED 16 -- cross-checked here against legacy's own enum rather than
 		// hardcoded, so a profile that renumbered would fail here rather than pass silently.
 		const uint8_t back = static_cast<uint8_t>(IndicatorLED::BACK);

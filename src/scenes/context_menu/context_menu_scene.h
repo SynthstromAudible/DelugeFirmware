@@ -19,7 +19,7 @@
 /// reads a wall clock other than the frame's own `now_ms()`.
 
 #include "scenes/menu/context.h"
-#include "shell/scene.h"
+#include "ui/shell/scene.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/effects.h"
 

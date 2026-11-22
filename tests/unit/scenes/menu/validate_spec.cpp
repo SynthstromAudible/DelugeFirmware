@@ -14,7 +14,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/validate.h"
-#include "shell/scene.h" // ui::shell::Result -- CustomItem::handle returns one by value
+#include "ui/shell/scene.h" // ui::shell::Result -- CustomItem::handle returns one by value
 
 #include "support/fake_shortcuts.h"
 

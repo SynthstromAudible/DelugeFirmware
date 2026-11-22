@@ -6,7 +6,7 @@
 
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
-#include "shell/shell.h"
+#include "ui/shell/shell.h"
 #include "ui/widgets/core/frame_context.h"
 
 namespace deluge::scenes::spec {
