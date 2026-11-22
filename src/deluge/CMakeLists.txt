@@ -122,7 +122,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_base
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
-    deluge_ui_controls  # the gold knobs' focus
+    deluge_ui_controls # the gold knobs' focus
     deluge_plugin_types # the host–plugin contract's data-only types
     deluge_plugin # the host–plugin contract's interface
     deluge_instruments_classic # the Deluge instrument's state, words and codec

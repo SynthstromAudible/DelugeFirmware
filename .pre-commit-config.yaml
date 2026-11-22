@@ -127,7 +127,7 @@ repos:
         language: system
         pass_filenames: false
         # Its rows cover the legacy tree, the toolkit, the shell, the scenes, and (two of them) sim/ and tests/.
-        files: ^(src/deluge/|src/ui/|src/ui/shell/|src/scenes/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        files: ^(src/deluge/|src/ui/|src/scenes/|sim/|tests/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
         name: legacy's line citations resolve (warning only)
         description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
