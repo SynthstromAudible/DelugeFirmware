@@ -1,0 +1,88 @@
+---
+title: Swing Feel
+---
+
+import { Aside, Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.4 Feature" variant="tip" />
+
+Swing on the Deluge is set with two values: the swing **amount** and the swing **interval**. Swing feel adds a
+third, per-song setting that decides whether swing also applies at the note lengths shorter than the interval. You
+still turn one knob for the amount; the swing feel decides how the shorter note lengths follow it.
+
+## How swing works
+
+Swing works on pairs of notes at the swing interval. With an interval of 8th notes, each beat is a pair of 8ths, and
+the amount says where the second 8th lands:
+
+- **50** is straight: the second 8th is exactly half way through the beat.
+- **Above 50** the second note is late. **66** is a triplet shuffle (the first 8th gets two thirds of the beat).
+  Around **54** loosens a straight beat without sounding swung, and **58** gives a loose, natural swing.
+- **Below 50** the second note is early.
+
+Swing moves when notes play, not where they are in the clip, so it applies to every clip in the song, including
+notes you record, and turning it off brings everything back to straight timing.
+
+## The swing feels
+
+The swing interval is the **main level** and always gets the full swing amount. The swing feel decides what happens
+at the note lengths below it:
+
+| Feel        | Finer levels                                                      |
+| ----------- | ----------------------------------------------------------------- |
+| **Classic** | None. Only the main level swings (how swing worked before c1.4).  |
+| **Nested**  | Each level below gets half the previous level's distance from 50. |
+| **Even**    | Each level below gets the same amount as the main level.          |
+
+Nested and Even add up to two finer levels. For example, with 8th-note swing at 58:
+
+| Feel    | 8th level | 16th level | 32nd level |
+| ------- | --------- | ---------- | ---------- |
+| Classic | 58        | –          | –          |
+| Nested  | 58        | 54         | 52         |
+| Even    | 58        | 58         | 58         |
+
+Nested is meant as the "just works" setting: a shuffle at the main level with a subtler, looser feel underneath.
+
+### Details
+
+- Nested halves the distance from 50 and rounds toward 50: 58 → 54 → 52, 57 → 53 → 51, 43 → 47 → 49. A level that
+  would round to exactly 50 is left out, along with anything finer.
+- Swing below 50 carries down the same way, so finer levels are early too.
+- Finer levels stop at the shortest swing interval, so a 64th-note main level only gets one finer level and the
+  shortest interval gets none.
+
+## How the levels combine
+
+Each level swings the pairs at its own note length, inside the timing the level above has already set. The finer
+level works within each swung note of the level above, so its swing stays in proportion: with Nested swing at 58,
+the two 16ths inside every 8th are always split 54:46, whether that 8th was stretched or squeezed by the 8th-note
+swing.
+
+Where the four 16ths of a beat land, as a fraction of the beat, with 8th-note swing:
+
+| Amount | Classic             | Nested              | Even                |
+| ------ | ------------------- | ------------------- | ------------------- |
+| 50     | 0, .250, .500, .750 | 0, .250, .500, .750 | 0, .250, .500, .750 |
+| 58     | 0, .290, .580, .790 | 0, .313, .580, .807 | 0, .336, .580, .824 |
+| 66     | 0, .330, .660, .830 | 0, .383, .660, .857 | 0, .436, .660, .884 |
+
+The 8th-note offbeat (the third 16th) is in the same place for all three feels; only the 16ths in between move.
+The start of every main-level pair is never moved, so the downbeats stay on the grid.
+
+## Setting it
+
+- **Song:** in song view press `SELECT` to open the song menu, then choose `SWING FEEL` (just after
+  `SWING INTERVAL`). It's saved with the song.
+- **Default for new songs:** `SETTINGS > DEFAULTS > SWING FEEL`. From the factory this is Nested.
+- **Swing amount:** hold `SHIFT` and turn `TEMPO`. **Swing interval:** hold `TAP TEMPO` and turn `TEMPO`. In both
+  cases the first detent shows the current swing without changing it.
+
+On OLED the swing popup also shows the first finer level when the swing feel adds one, for example
+`8th-notes +16th 54`.
+
+<Aside>
+  Songs saved before swing feel existed load as Classic, so they sound exactly
+  as they did. Firmware older than c1.4 ignores the setting and plays every song
+  as Classic.
+</Aside>

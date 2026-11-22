@@ -216,6 +216,7 @@
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
+#include "gui/menu_item/swing/feel.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
@@ -987,6 +988,7 @@ PLACE_SDRAM_BSS cv::Selection cvSelectionMenu{STRING_FOR_CV, STRING_FOR_CV_OUTPU
 PLACE_SDRAM_BSS gate::Selection gateSelectionMenu{STRING_FOR_GATE, STRING_FOR_GATE_OUTPUTS};
 
 PLACE_SDRAM_BSS swing::Interval swingIntervalMenu{STRING_FOR_SWING_INTERVAL};
+PLACE_SDRAM_BSS swing::Feel swingFeelMenu{STRING_FOR_SWING_FEEL, swing::Feel::SONG};
 
 // Pads menu
 PLACE_SDRAM_BSS shortcuts::Version shortcutsVersionMenu{STRING_FOR_SHORTCUTS_VERSION,
@@ -1410,6 +1412,7 @@ PLACE_SDRAM_BSS Submenu defaultAutomationMenu{
 PLACE_SDRAM_BSS IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
 PLACE_SDRAM_BSS IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
 PLACE_SDRAM_BSS defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
+PLACE_SDRAM_BSS swing::Feel defaultSwingFeelMenu{STRING_FOR_SWING_FEEL, swing::Feel::DEFAULT};
 PLACE_SDRAM_BSS KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
 PLACE_SDRAM_BSS defaults::DefaultScale defaultScaleMenu{STRING_FOR_INIT_SCALE};
 PLACE_SDRAM_BSS defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
@@ -1458,6 +1461,7 @@ PLACE_SDRAM_BSS Submenu defaultsSubmenu{
         &defaultTempoMenu,
         &defaultSwingAmountMenu,
         &defaultSwingIntervalMenu,
+        &defaultSwingFeelMenu,
         &defaultKeyMenu,
         &defaultScalesSubmenu,
         &defaultVelocityMenu,
@@ -1850,6 +1854,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
         &globalFiltersMenu,
         &globalFXMenu,
         &swingIntervalMenu,
+        &swingFeelMenu,
         &activeScaleMenu,
         &songThresholdRecordingSubmenu,
         &configureSongMacrosMenu,

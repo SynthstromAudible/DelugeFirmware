@@ -70,6 +70,8 @@
 #include <new>
 #include <stdint.h>
 
+static_assert(kSwingMaxSyncLevel == MAX_SYNC_LEVEL);
+
 extern "C" {}
 
 namespace params = deluge::modulation::params;
@@ -162,6 +164,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	swingAmount = 0;
 
 	swingInterval = FlashStorage::defaultSwingInterval;
+	swingFeel = FlashStorage::defaultSwingFeel;
 
 	songViewYScroll = 1 - kDisplayHeight;
 	arrangementYScroll = -kDisplayHeight;
@@ -261,6 +264,7 @@ void Song::setupDefault() {
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
 	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
+	swingFeel = FlashStorage::defaultSwingFeel;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
@@ -1215,6 +1219,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	writer.writeAttribute("swingAmount", swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
+	writer.writeAttribute("swingFeel", util::to_underlying(swingFeel));
 
 	if (tripletsOn) {
 		writer.writeAttribute("tripletsLevel", tripletsLevel);
@@ -1446,6 +1451,9 @@ Error Song::readFromFile(Deserializer& reader) {
 	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
 	// so this is only used as a fallback
 	model = deluge::dsp::Reverb::Model::FREEVERB;
+
+	// Songs from before swing feel existed keep their single-level swing
+	swingFeel = SwingFeel::CLASSIC;
 
 	if (!reader.match('{'))
 		return Error::FILE_CORRUPTED;
@@ -1709,6 +1717,14 @@ unknownTag:
 				// old ints, to be read irrespective of insideWorldTickMagnitude
 				swingInterval = reader.readTagOrAttributeValueInt();
 				reader.exitTag("swingInterval");
+			}
+
+			else if (!strcmp(tagName, "swingFeel")) {
+				int32_t feel = reader.readTagOrAttributeValueInt();
+				if (feel >= 0 && feel < kNumSwingFeels) {
+					swingFeel = static_cast<SwingFeel>(feel);
+				}
+				reader.exitTag("swingFeel");
 			}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
