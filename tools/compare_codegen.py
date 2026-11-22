@@ -134,9 +134,12 @@ UNCONDITIONAL_BRANCH = re.compile(r"^(?:b(?:\.w)?\s|bx\s|pop(?:\.w)?\s+\{.*\bpc\
 LOCAL_TARGET = re.compile(r"<\.(\d+)>")
 # Mnemonics whose first operand is read, not written.
 NO_WRITE = re.compile(r"^(?:str|cmp|cmn|tst|teq|b|push|vst|vcmp|it|pld)")
-# lld fills the gaps between functions with 0xd4: `bmi .-0x54` as Thumb, `ldrble sp, [r4], #1236` as ARM. The fill's
-# length follows the layout, so a function's trailing fill is dropped.
-PADDING = re.compile(r"^\s*(?:bmi\s.*@ imm = #-0x58|ldrble\s+sp, \[r4\], #1236)\s*$")
+# lld fills the gaps between functions with 0xd4: `bmi .-0x54` as Thumb, `ldrble sp, [r4], #1236` as ARM, and
+# `.word 0xd4d4d4d4` after a literal pool, where objdump prints data. The fill's length follows the layout, so a
+# function's trailing fill is dropped. A literal pool whose last real word is 0xd4d4d4d4 loses that word too.
+PADDING = re.compile(
+    r"^\s*(?:bmi\s.*@ imm = #-0x58|ldrble\s+sp, \[r4\], #1236|\.word\s+0xd4d4d4d4)\s*$"
+)
 
 
 def keep(name: str) -> str:
@@ -455,7 +458,7 @@ def functions(
     least = {address: names[0] for address, names in (alias or {}).items()}
     result = {}
     for name, (_, body) in found.items():
-        while body and PADDING.match(body[-1][1]):
+        while body and PADDING.match(RAW_BYTES.sub("", body[-1][1].strip())):
             body.pop()
         index = {address: i for i, (address, _) in enumerate(body)}
         lines = [

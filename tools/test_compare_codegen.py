@@ -578,6 +578,14 @@ class CompareTest(unittest.TestCase):
         )
         self.assertEqual(compare(functions(SAMPLE), functions(filled)), ([], [], []))
 
+    def test_trailing_trap_fill_after_a_literal_pool_is_dropped(self):
+        # After a literal pool objdump prints the fill as data, with its raw bytes, not as an instruction.
+        filled = SAMPLE.replace(
+            "20001014:      \t.word\t0x20251190\n",
+            "20001014:      \t.word\t0x20251190\n20001018: d4 d4 d4 d4  \t.word\t0xd4d4d4d4\n",
+        )
+        self.assertEqual(compare(functions(SAMPLE), functions(filled)), ([], [], []))
+
     def test_added_and_removed_functions_are_reported(self):
         without_bar = SAMPLE.split("\n\n")[0] + "\n"
         self.assertEqual(
