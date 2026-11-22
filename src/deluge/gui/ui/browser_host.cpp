@@ -305,11 +305,12 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 ///        `LoadMidiDeviceDefinitionUI::definitionLoaded` does: an error leaves it open, a load closes it.
 void midiDefinitionLoaded(Error error) {
 	if (error != Error::NONE) {
-		deluge::notify::notice(error);
+		deluge::base::notify::notice(error);
 		answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = false});
 		return;
 	}
-	deluge::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED, deluge::notify::Notice::Kind::Console);
+	deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED,
+	                             deluge::base::notify::Notice::Kind::Console);
 	answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = true});
 }
 
@@ -632,14 +633,14 @@ void deliverSampleClaimDone(bool success) {
 void deliverFileDeleteDone(std::string_view path, FileDeleteOutcome outcome) {
 	switch (outcome) {
 	case FileDeleteOutcome::Removed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
 		browser_scene().file_deleted(path);
 		break;
 	case FileDeleteOutcome::Missing:
 		// Not on the card: a sample's list entry has no instrument to drop, so nothing changes.
 		break;
 	case FileDeleteOutcome::Failed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
 		break;
 	}
 }

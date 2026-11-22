@@ -27,8 +27,8 @@
 #include "scenes/bind/ports/learn_sink.h"
 #include "scenes/bind/ports/midi_devices.h"
 
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 
 #include "shell/profile.h"
 #include "ui/core/metrics.h"
@@ -206,7 +206,7 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
 	if (ctx.ports.learn != nullptr) {
 		ctx.ports.learn->learn_global(command_, std::nullopt);
 	}
-	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 	return {.handled = true};
 }
 
@@ -221,7 +221,7 @@ bool MidiCommandItem::learn_note_on(const MenuContext& ctx, deluge::midi::Device
 	ctx.ports.learn->learn_global(command_, bind::LearnedBinding{.device = device,
 	                                                             .channel_or_zone = static_cast<uint8_t>(channel),
 	                                                             .note_or_cc = static_cast<uint8_t>(note)});
-	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 	return true;
 }
 
@@ -241,7 +241,7 @@ bool MidiCommandItem::learn_program_change(const MenuContext& ctx, deluge::midi:
 	// a program change cannot drive -- it is a momentary hold, and a PC has no off half -- so legacy refuses it with a
 	// popup; the menu still uses the message, as `SoundEditor::pcReceivedForMidiLearn` does.
 	if (command_ == deluge::project::GlobalCommand::FILL) {
-		deluge::notify::notice_string(sid(String::STRING_FOR_CANT_LEARN_PC));
+		deluge::base::notify::notice_string(sid(String::STRING_FOR_CANT_LEARN_PC));
 		return false;
 	}
 	return learn_note_on(ctx, device, channel + kFirstProgramChangeChannel, program);
@@ -253,7 +253,7 @@ bool MidiCommandItem::unlearn(const MenuContext& ctx) const {
 		return false;
 	}
 	ctx.ports.learn->learn_global(command_, std::nullopt);
-	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 	return true;
 }
 

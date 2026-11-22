@@ -193,8 +193,8 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	writer.reset();
 	if (!created) {
 		if (displayErrors) {
-			deluge::notify::notice_clear_working();
-			deluge::notify::notice(created.error());
+			deluge::base::notify::notice_clear_working();
+			deluge::base::notify::notice(created.error());
 		}
 		return created.error();
 	}
@@ -210,8 +210,8 @@ Error StorageManager::createJsonFile(char const* filePath, JsonSerializer& write
 	writer.reset();
 	if (!created) {
 		if (displayErrors) {
-			deluge::notify::notice_clear_working();
-			deluge::notify::notice(created.error());
+			deluge::base::notify::notice_clear_working();
+			deluge::base::notify::notice(created.error());
 		}
 		return created.error();
 	}

@@ -21,6 +21,7 @@
 
 #include "gui/ui/shell_pad_forward.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // kDisplayWidth, the same include sound_editor.cpp itself uses
 #include "extern.h"            // picFirmwareVersion
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -34,7 +35,6 @@
 #include "model/clip/clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // currentSong, getCurrentClip()
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 
 #include "scenes/menu/menu_scene.h"
@@ -131,7 +131,7 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 		char text[24] = {};
 		const auto [end, ec] = std::to_chars(std::begin(text), std::end(text) - 1, firmwareDiagnostic(x));
 		(void)ec;
-		deluge::notify::notice_text(std::string_view{text, static_cast<size_t>(end - text)});
+		deluge::base::notify::notice_text(std::string_view{text, static_cast<size_t>(end - text)});
 		break;
 	}
 	case PadForwardTarget::NoteEditorEdit:

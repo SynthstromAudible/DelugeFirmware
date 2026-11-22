@@ -1,4 +1,4 @@
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/shell.h"
 #include "support/mocks/fake_surfaces.h"
 
@@ -13,7 +13,7 @@
 
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::notify::Dirty;
+using deluge::base::notify::Dirty;
 
 namespace {
 
@@ -121,8 +121,8 @@ bool stacked(Rig& r, SceneKind kind) {
 
 /// @brief Empty the global notice queue, so an earlier example's notices cannot reach this one's shell.
 void drain_global_notices() {
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {}
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {}
 }
 
 /// A fixed `root_for_song` the song-swap specs share: always the application's one root scene,
@@ -137,7 +137,7 @@ SceneId root_for_song(void*) {
 // clang-format off
 describe shell_lifecycle("shell::Shell lifecycle", $ {
 	it("boot pushes nothing and the first tick still blits every surface", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.boot();
 		// **Nothing on the stack, deliberately.** `boot()` pushes no "DELUGE" + version splash:
@@ -155,7 +155,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("screensaver pushes after idle and pops on activity", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
 
@@ -193,12 +193,12 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		// `shell::Screensaver::tick` (`src/shell/screensaver.cpp`) mirrors `Screensaver::timerEvent`
 		// (`hid/display/screensaver.cpp`): the working animation inhibits it, and each inhibited check re-arms the full
 		// timeout from then.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		deluge::base::notify::notice_text("Loading", deluge::base::notify::Notice::Kind::Working);
 		r.shell.tick(10);
 		expect(stacked(r, SceneKind::Working)).to_be_true();
 
@@ -206,7 +206,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.tick(1500);
 		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
 
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::ClearWorking);
 		r.shell.tick(1600);
 		r.shell.tick(1700);
 		expect(stacked(r, SceneKind::Working)).to_be_false();
@@ -216,7 +216,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("the working animation starting while the screensaver shows takes the screensaver down", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
@@ -227,17 +227,17 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		// `hid/display/screensaver.cpp`).
 		expect(r.shell.next_wake().has_value()).to_be_true();
 
-		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		deluge::base::notify::notice_text("Loading", deluge::base::notify::Notice::Kind::Working);
 		r.shell.tick(1010);
 		r.shell.tick(1020);
 		expect(stacked(r, SceneKind::Working)).to_be_true();
 		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::ClearWorking);
 		r.shell.tick(1030);
 	});
 
 	it("the host's inhibit fact (stem export, a permanent-looking popup) holds the screensaver off", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
@@ -254,14 +254,14 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	it("a working animation that ends before the idle deadline does not move it", _ {
 		// Main asks about inhibitors only when the deadline comes (`Screensaver::timerEvent` in
 		// `hid/display/screensaver.cpp`).
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		deluge::base::notify::notice_text("Loading", deluge::base::notify::Notice::Kind::Working);
 		r.shell.tick(300);
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::ClearWorking);
 		r.shell.tick(500);
 		r.shell.tick(600);
 		expect(stacked(r, SceneKind::Working)).to_be_false();
@@ -272,12 +272,12 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	it("a timed popup does not inhibit the screensaver", _ {
 		// Legacy's inhibitors are the permanent-looking popup class, the working animation and stem export only
 		// (`Screensaver::timerEvent`'s inhibitor arm in `hid/display/screensaver.cpp`): an ordinary popup is covered.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("HELLO");
+		deluge::base::notify::notice_text("HELLO");
 		r.shell.tick(500);
 		expect(stacked(r, SceneKind::Popup)).to_be_true();
 		r.shell.tick(1000);
@@ -285,7 +285,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("activity the host handles itself (a forwarded pad) wakes the screensaver and re-arms it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
@@ -303,7 +303,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("an unregistered screensaver kind latches the service off instead of retrying every tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// No `SceneKind::Screensaver` in the registry -- a state an application can be in --
 		// with the idle timer switched on, which is what an
 		// application setting `screensaver_idle_ms` today actually gets.
@@ -332,7 +332,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("set_highlighting restyles the surfaces and repaints them on the next tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
@@ -346,7 +346,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("set_rounded restyles the surfaces and repaints them on the next tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
@@ -360,7 +360,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("set_screensaver_idle_ms is the port of settingsChanged: it arms, re-arms and switches off", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// **The state an application actually starts in**, and the reason this setter exists: a host
 		// built at static-init cannot read flash, so its `ShellConfig` carries the 0 default and the
 		// screensaver can never show however the two settings are set (`shell/shell.h`'s
@@ -402,7 +402,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("a re-supplied timeout takes effect at the new period, not the old one", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// The half of the settings change a "did it arm?" example cannot see: the *value* has to be
 		// the new one. Two rigs, same script, only the second number varied -- so an implementation
 		// that re-armed at whatever it already held passes neither.
@@ -427,7 +427,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("the screensaver idle deadline survives the uint32 clock wrap", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
 		r.shell.init(SceneId{kRoot, 0});
 
@@ -454,7 +454,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("song_loading(true) resets to Loading and locks input; (false) restores the song root", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.set_song_hooks(SongHooks{.root_for_song = &root_for_song, .ctx = nullptr});
@@ -489,14 +489,14 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("Dirty::SongSwapped replaces the root", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.set_song_hooks(SongHooks{.root_for_song = &root_for_song, .ctx = nullptr});
 		r.shell.tick(0);
 		expect(r.root.enters).to_equal(1);
 
-		deluge::notify::dirty().raise(Dirty::SongSwapped);
+		deluge::base::notify::dirty().raise(Dirty::SongSwapped);
 		r.shell.tick(10);
 		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.root.exits).to_equal(1);
@@ -504,11 +504,11 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.root.last_arg).to_equal(uint16_t(42));
 
 		// With no hooks set, a bare SongSwapped is a no-op: the stack is untouched.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig unhooked;
 		unhooked.shell.init(SceneId{kRoot, 0});
 		unhooked.shell.tick(0);
-		deluge::notify::dirty().raise(Dirty::SongSwapped);
+		deluge::base::notify::dirty().raise(Dirty::SongSwapped);
 		unhooked.shell.tick(10);
 		expect(unhooked.shell.stack().top().kind()).to_equal(kRoot);
 		expect(unhooked.root.exits).to_equal(0);

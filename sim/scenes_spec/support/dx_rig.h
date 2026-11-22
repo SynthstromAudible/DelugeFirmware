@@ -19,9 +19,9 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
-#include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
@@ -78,8 +78,8 @@ struct DxRig {
 /// @brief The language the menu's text comes from, and no notice left over from another example.
 inline void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 /// @brief The panel `pixels/<name>.pbm` of the reference tables holds, or nothing where there is no such file.

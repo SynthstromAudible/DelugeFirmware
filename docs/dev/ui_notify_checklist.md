@@ -1,7 +1,7 @@
 # notify migration — on-device checklist
 
 Run after any PR that moves a `display->`/`uiNeedsRendering`/RootUI-hook site onto
-`deluge_notify`. Every item below only ran through compile + host sim + host tests during
+`deluge_base_notify`. Every item below only ran through compile + host sim + host tests during
 development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
 `task-7-report.md`); none of it has been confirmed on a real Deluge yet.
 
@@ -78,7 +78,7 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
       (`Notice::text` was widened from 24 to 48 bytes specifically for these).
 - [ ] Select a threshold recording mode, then press Record: the threshold-recording popup
       still shows and still edits live turning the select encoder (this site is deliberately
-      not migrated to `deluge_notify`).
+      not migrated to `deluge_base_notify`).
 
 ## LEDs
 

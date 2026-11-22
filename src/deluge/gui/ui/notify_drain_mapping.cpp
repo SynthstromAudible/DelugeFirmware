@@ -1,8 +1,8 @@
 #include "gui/ui/notify_drain.h"
 #include <initializer_list>
 
-LegacyRedraw legacy_redraw_for(const deluge::notify::DirtySet& d) {
-	using deluge::notify::Dirty;
+LegacyRedraw legacy_redraw_for(const deluge::base::notify::DirtySet& d) {
+	using deluge::base::notify::Dirty;
 	LegacyRedraw r;
 	auto any = [&](std::initializer_list<Dirty> ds) {
 		for (auto x : ds)

@@ -25,7 +25,7 @@
 #include "scenes/rename/rename_scene.h"
 #include "unit/ui/support/frames.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
@@ -89,8 +89,8 @@ using ShellAction = deluge::ui::shell::Action;
 ///        `menu_scene_spec.cpp` resets, for the same reasons.
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped
@@ -292,9 +292,9 @@ Kit* kit_of(spec::SongFixture& f) {
 /// @brief The text of the last notice raised, or "" -- the popup the shell turns
 ///        `ShellAction::Kind::Popup` into arrives here.
 std::string last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -1094,7 +1094,7 @@ describe rename_exits("scenes::rename::RenameScene exits", $ {
 describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 	it("opens on the drum target when drum_name_edit is focused, and steps back out after", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
 		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
@@ -1137,7 +1137,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 	it("draws no menu title beneath the drum rename opened from its shortcut pad", _ {
 		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
 		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
@@ -1163,7 +1163,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 
 	it("reopens the editor when a menu parked on the item is restored", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();
 		kit_of(f)->selectedDrum->setName("Snare");
 
@@ -1193,7 +1193,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		expect(menu_scene().focused()).to_equal(&nodes::drum_name_edit);
 		// `SceneStack::replace_root` flags the stack changed, which redraws every surface; a bare restore asks for
 		// that frame itself.
-		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 		r.tick(200);
 		expect(r.shell.stack().depth()).to_equal(size_t(2));
 		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
@@ -1202,7 +1202,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 
 	it("opens the clip and track targets from the sound root's edit-name page", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			spec::SongFixture f = spec::make_synth_song();
 			deluge::edits::clipSettingFor(*f.clip, "name", deluge::serialization::Value::makeScalar("Verse"));

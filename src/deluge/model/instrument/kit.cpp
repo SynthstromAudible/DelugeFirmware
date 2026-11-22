@@ -1557,7 +1557,7 @@ goingToRecordNoteOnEarly:
 				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
 				if (getRootUI()) {
 					instrumentClip->notify_content_changed();
-					deluge::notify::raise(deluge::notify::Dirty::NoteRows);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::NoteRows);
 				}
 			}
 			// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does
@@ -1585,7 +1585,7 @@ goingToRecordNoteOnEarly:
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 					if (getRootUI()) {
 						instrumentClip->notify_content_changed();
-						deluge::notify::raise(deluge::notify::Dirty::NoteRows);
+						deluge::base::notify::raise(deluge::base::notify::Dirty::NoteRows);
 					}
 				}
 			}
@@ -1654,7 +1654,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 
 				UI* currentUI = getCurrentUI();
 				if (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
-					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 				}
 			}
 		}

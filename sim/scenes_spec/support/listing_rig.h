@@ -9,8 +9,8 @@
 
 #include "scenes/browser/listing.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
-#include "notify/notice_queue.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -81,16 +81,16 @@ struct NoticeTally {
 
 inline NoticeTally drain_notices() {
 	NoticeTally tally;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
 		switch (n.kind) {
-		case deluge::notify::Notice::Kind::Working:
+		case deluge::base::notify::Notice::Kind::Working:
 			tally.working++;
 			break;
-		case deluge::notify::Notice::Kind::ClearWorking:
+		case deluge::base::notify::Notice::Kind::ClearWorking:
 			tally.clear_working++;
 			break;
-		case deluge::notify::Notice::Kind::Error:
+		case deluge::base::notify::Notice::Kind::Error:
 			tally.error++;
 			tally.last_error_code = n.error_code;
 			break;

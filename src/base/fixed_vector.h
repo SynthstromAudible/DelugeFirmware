@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 
-namespace deluge::ui::shell {
+namespace deluge::base {
 
 /// @brief A fixed-capacity, no-heap vector.
 ///
@@ -54,4 +54,4 @@ private:
 	size_t n_ = 0;
 };
 
-} // namespace deluge::ui::shell
+} // namespace deluge::base

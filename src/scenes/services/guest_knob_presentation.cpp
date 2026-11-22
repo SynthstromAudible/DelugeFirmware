@@ -24,8 +24,8 @@
 #include "scenes/menu/node.h"
 #include "scenes/registry.h"
 
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 
 #include <algorithm>
 #include <utility>
@@ -104,26 +104,26 @@ void GuestKnobPresentation::stop_blink_indicator(int32_t knob) {
 
 void GuestKnobPresentation::note_tails_changed() {
 	if (root_is_timeline_view_) {
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 	}
 	(void)result_.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 }
 
 void GuestKnobPresentation::popup_text(std::string_view text) {
-	deluge::notify::Notice n;
-	n.kind = deluge::notify::Notice::Kind::Text;
-	n.severity = deluge::notify::Notice::Severity::Warn; // stays until something removes it
+	deluge::base::notify::Notice n;
+	n.kind = deluge::base::notify::Notice::Kind::Text;
+	n.severity = deluge::base::notify::Notice::Severity::Warn; // stays until something removes it
 	const size_t length = text.copy(n.text, sizeof(n.text) - 1);
 	n.text[length] = '\0';
-	(void)deluge::notify::notices().push(n);
+	(void)deluge::base::notify::notices().push(n);
 }
 
 void GuestKnobPresentation::notice_text(std::string_view text) {
-	deluge::notify::notice_text(text);
+	deluge::base::notify::notice_text(text);
 }
 
 void GuestKnobPresentation::notification(std::string_view title, std::string_view value) {
-	deluge::notify::notice_notification(title, value);
+	deluge::base::notify::notice_notification(title, value);
 }
 
 void GuestKnobPresentation::popup(deluge::l10n::String string) {
@@ -133,7 +133,7 @@ void GuestKnobPresentation::popup(deluge::l10n::String string) {
 }
 
 void GuestKnobPresentation::cancel_popup() {
-	deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+	deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelPopup);
 }
 
 Result GuestKnobPresentation::take_result() {

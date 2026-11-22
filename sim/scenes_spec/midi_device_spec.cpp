@@ -42,7 +42,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -110,9 +110,9 @@ using spec::mididev::SpecCable;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
-	deluge::notify::dirty().drain();
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
+	deluge::base::notify::dirty().drain();
 }
 
 /// Board encoder index and the select-encoder button's matrix position (`shell/profiles/deluge.cpp`).
@@ -949,10 +949,10 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		shellHostUI.selectEncoderAction(1); // UPPER ZONE
 		(void)shellHostUI.timerCallback();
 		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		deluge::gui::ui::mpeZonesPotentiallyUpdated();
 		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
 	});
 });
 

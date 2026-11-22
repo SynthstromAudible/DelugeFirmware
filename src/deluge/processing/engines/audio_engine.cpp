@@ -2216,7 +2216,7 @@ void doRecorderCardRoutines() {
 
 		Error error = recorder->cardRoutine();
 		if (error != Error::NONE) {
-			deluge::notify::notice(error);
+			deluge::base::notify::notice(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
@@ -2240,7 +2240,7 @@ void doRecorderCardRoutines() {
 	}
 
 	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
-		deluge::notify::notice("MORE");
+		deluge::base::notify::notice("MORE");
 	}
 }
 

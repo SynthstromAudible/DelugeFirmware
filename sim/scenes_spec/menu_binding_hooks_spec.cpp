@@ -27,7 +27,7 @@
 #include "scenes/registry.h"
 #include "ui/oled/columns.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -67,8 +67,8 @@ namespace menu = deluge::scenes::menu;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 constexpr uint16_t sid(String s) {
@@ -206,9 +206,9 @@ struct Rig {
 };
 
 std::string last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -216,10 +216,10 @@ std::string last_notice() {
 
 /// @brief Pop every queued notice and return the last one, whole -- for the examples that read a
 ///        `Notice::Kind::Notification`'s (title, value) pair rather than a single text.
-deluge::notify::Notice last_raised_notice() {
-	deluge::notify::Notice n;
-	deluge::notify::Notice last{};
-	while (deluge::notify::notices().pop(n)) {
+deluge::base::notify::Notice last_raised_notice() {
+	deluge::base::notify::Notice n;
+	deluge::base::notify::Notice last{};
+	while (deluge::base::notify::notices().pop(n)) {
 		last = n;
 	}
 	return last;
@@ -231,7 +231,7 @@ deluge::notify::Notice last_raised_notice() {
 describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, value_text, permitted)", $ {
 	it("a select turn on an adjust node calls adjust once, with the accumulated offset, at commit -- never set", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		r.shell.tick(0);
@@ -264,7 +264,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// turn's own accumulation (`st_.tick.edit_offset += detents`) would add onto the first turn's abandoned offset
 		// instead of starting fresh from it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		g_adjust_get_value = 64;
@@ -305,7 +305,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// names, not back onto `adjust_page` -- fine here, since the assertion is only about
 		// `edit_offset`, not about which node ends up focused.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 
@@ -330,7 +330,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// `commit_value` applies it once and clears it. Three turns between ticks exercise the
 		// accumulation itself, not just a single-turn passthrough.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(adjust_page);
 		r.shell.tick(0);
@@ -350,7 +350,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   "and raises no notification",
 	   _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(permit_page);
 		r.shell.tick(0);
@@ -377,7 +377,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// Confirms the false case above is really the hook's answer and not some other block on
 		// this node -- flipping `g_permit` to true and turning again edits it like any plain node.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(permit_page);
 		r.shell.tick(0);
@@ -393,7 +393,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 	it("a value_text node's post-edit notification is (name, its Notification text)", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(text_page);
 		r.shell.tick(0);
@@ -405,11 +405,11 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 		// Legacy's `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the pair, as one `Notification`.
-		const deluge::notify::Notice notice = last_raised_notice();
+		const deluge::base::notify::Notice notice = last_raised_notice();
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
 		    deluge::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
-		expect(notice.kind).to_equal(deluge::notify::Notice::Kind::Notification);
+		expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
 		expect(std::string(notice.notification_title())).to_equal(expected_name);
 		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));
 	});
@@ -422,7 +422,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// (`TextColumn::strikethrough`'s own example); this only proves `render_horizontal` wires the flag through to
 		// begin with.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(strike_page);
 

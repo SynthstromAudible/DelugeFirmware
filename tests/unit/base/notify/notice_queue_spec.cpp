@@ -1,12 +1,12 @@
+#include "base/notify/notice_queue.h"
 #include "cppspec.hpp"
-#include "notify/notice_queue.h"
 #include "support/spec_main.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 
-using namespace deluge::notify;
+using namespace deluge::base::notify;
 
 // clang-format off
 describe notice_queue("notify::NoticeQueue", $ {

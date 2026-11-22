@@ -28,8 +28,8 @@
 /// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
 /// `handle()` are the two places a write may happen.
 
+#include "base/notify/dirty_set.h"
 #include "gfx/oled/icon.h"
-#include "notify/dirty_set.h"
 #include "project/mapping_table.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/chains.h"
@@ -139,7 +139,7 @@ public:
 	/// @brief Whether LEARN holds the menu in learn mode, legacy's `UI_MODE_MIDI_LEARN`, which the menu keeps itself
 	///        rather than in `currentUIMode`; the guest refuses select turns in it.
 	bool learn_mode() const { return visit_.learn.mode(); }
-	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
+	void on_model_changed(const deluge::base::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
 	bool is_grid_overlay() const override { return true; }

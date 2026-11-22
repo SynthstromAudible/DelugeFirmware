@@ -21,6 +21,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/buttons.h"
@@ -28,7 +29,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "notify/notice_queue.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"

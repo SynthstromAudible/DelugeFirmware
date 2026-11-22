@@ -1,6 +1,6 @@
 #pragma once
+#include "base/fixed_vector.h"
 #include "libdeluge/control_surface.h"
-#include "shell/fixed_vector.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
 #include "ui/core/encoder_acceleration.h"
@@ -499,8 +499,8 @@ private:
 
 	/// @name Per-tick state, reset by `begin_tick`
 	/// @{
-	FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
-	FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
+	base::FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
+	base::FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
 	/// The first of @ref turns_ still in the snapshot: the ones before it were routed (`withdraw`).
 	uint8_t turns_first_ = 0;
 	uint32_t now_ms_ = 0;

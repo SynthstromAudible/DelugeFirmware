@@ -55,7 +55,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	else {
 		Error error = clip->sampleHolder.loadFile(false, false, true);
 		if (error != Error::NONE) {
-			deluge::notify::notice(error); // Rare, shouldn't cause later problems.
+			deluge::base::notify::notice(error); // Rare, shouldn't cause later problems.
 		}
 
 		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

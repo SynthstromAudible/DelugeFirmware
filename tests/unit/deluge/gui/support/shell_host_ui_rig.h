@@ -7,6 +7,7 @@
 #include "fake_legacy_hid.h"
 #include "fake_legacy_ui.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
@@ -14,7 +15,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "notify/dirty_set.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "shell/profiles/deluge.h"
@@ -125,7 +125,7 @@ public:
 	}
 
 	/// Make `handle` take this scene off the stack, the way `MenuScene` answers Back at depth 0.
-	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
+	void on_model_changed(const deluge::base::notify::DirtySet&) override { model_changed++; }
 
 	bool remove_self_on_event = false;
 	/// Make `handle` use every MIDI learn offer.

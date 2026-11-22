@@ -27,7 +27,7 @@
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -105,8 +105,8 @@ namespace nodes = deluge::scenes::menu::nodes;
 /// and put an overlay scene on its stack.
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 /// @brief An `l10n::String` as the plain `uint16_t` a `Node` carries (`node.h`: no `gui/l10n` in
@@ -522,7 +522,7 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 	it("is a grid overlay that neither occludes, dims nor lets the OLED through", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -539,7 +539,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		// `should_render_shortcut_overlay()`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and the menu has no
 		// such overlay of its own: every pad is the root view's.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		expect(menu_scene().pad_regions()).to_equal(deluge::ui::shell::PadRegions::None);
@@ -554,7 +554,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 
 	it("greys the whole main grid for a clip-minder context, sparing the sidebar", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm
@@ -566,7 +566,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 
 	it("takes the root UI's own greyout arms: none over the keyboard, the sidebar spared over automation", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open(settings_root);
 		// `SoundEditor::getGreyoutColsAndRows`' KEYBOARD_SCREEN and AUTOMATION arms
@@ -582,7 +582,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 
 	it("resolves on_enter through the node-id registry and refuses an unknown id", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -601,7 +601,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input, and its two battery/firmware CustomItems", $ {
 	it("delivers input to a focused custom item, ahead of the scene's own handling", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_custom_consumes.handled = 0;
@@ -621,7 +621,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 
 	it("falls through to the scene's own handling when the custom item does not consume the event", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_custom_passes_through.handled = 0;
@@ -638,7 +638,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 
 	it("firmware_version's real CustomItem draws the build string, centred under its title", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		expect(nodes::firmware_version.kind).to_equal(menu::Kind::Custom);
@@ -662,7 +662,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// voltage-delta held across timer ticks on the menu item instance -- `BatteryLevelItem`'s `mutable` fields
 		// reproduce exactly that, which is why this is a `CustomItem` rather than a stateless `Kind::Info` hook.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		expect(nodes::battery_level.kind).to_equal(menu::Kind::Custom);
@@ -702,7 +702,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 
 	it("CustomItem::on_focus fires once per focus transition, not once per render", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_custom_consumes.focused = 0;
@@ -732,7 +732,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// stays at whatever it last was, rather than being re-established fresh for this visit.
 		// This example fails (still shows " CHG") if that reset is removed.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 
@@ -780,7 +780,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// (`nodes/dynamic.cpp`) is what fixes it, and this is the case `node.h` names as the reason a backward arm is
 		// needed at all: the forward arm alone (`CustomItem::on_focus`) never fires on the way up.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `gate_selection` lives there,
@@ -845,7 +845,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// ever puts a short label at row 5, the label will not overflow its row and `offset` will
 		// stay 0, failing loudly rather than silently checking the wrong row.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree, not this file's synthetic one
@@ -871,7 +871,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a select-encoder detent moves the cursor without touching the model", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -889,7 +889,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("select on a submenu row descends, and back ascends", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -909,7 +909,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a Back that ascends to the root is delivered once, and the next Back closes the menu", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -933,7 +933,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a Select turn and a Back at the root in one tick: the turn moves the cursor, then the menu closes", _ {
 		// Main handles them in order: the turn, then `goUpOneLevel`'s exit.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -948,7 +948,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a select that enters a submenu and a Back in one tick: enters, then ascends", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -964,7 +964,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a Select turn and the press after it in one tick both reach the menu that took the input", _ {
 		// The press enters in `after_render`, after both were routed, so neither reaches the page it opens.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -979,7 +979,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("select descends on release, not press", _ {
 		// `SoundEditor::buttonAction` acts on `!on` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -995,7 +995,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `Value::selectEncoderAction` uses the press up while Select is held
 		// (`origin/main:src/deluge/gui/menu_item/value.h`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(int_leaf);
 		r.shell.tick(0);
@@ -1013,7 +1013,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("the release of the press that opened the menu does not act", _ {
 		// `SoundEditor::opened` uses the press up (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 0);
 		(void)r.open(settings_root);
@@ -1029,7 +1029,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), in which its Select arm does not act. A param allows
 		// learn (`MenuItemWithCCLearning`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(nodes::lpf_freq);
 		r.shell.tick(0);
@@ -1044,7 +1044,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("LEARN on an item that refuses learn raises main's CANT_LEARN popup", _ {
 		// `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(int_leaf);
 		r.shell.tick(0);
@@ -1059,7 +1059,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ->
 		// `MenuItemWithCCLearning::unlearnAction`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(nodes::lpf_freq);
 		r.shell.tick(0);
@@ -1086,7 +1086,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), `kFastFlashTime`; the release puts back the item's own
 		// blink or nothing (its LEARN release arm).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(nodes::lpf_freq);
 		r.shell.tick(0);
@@ -1124,7 +1124,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// notes-pressed), Shift up (Shift makes it the unlearn) and `allowsLearnMode()`. In each case Select's release
 		// acts: at depth 0 on a leaf it leaves the menu.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			(void)r.open(nodes::lpf_freq);
@@ -1177,7 +1177,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`origin/main:src/deluge/gui/menu_item/value.h` `Value<T>::selectEncoderAction`), so the release neither
 		// opens the output nor ascends.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `cv_selection` lives there
@@ -1199,7 +1199,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("back at the root removes the scene off the stack", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1230,7 +1230,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`Submenu::beginSession` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): closing the editor forgets
 		// nothing.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
@@ -1249,7 +1249,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("each root remembers its own row, and a submenu its own", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
@@ -1283,7 +1283,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()`: a leaf a
 		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(int_leaf);
@@ -1301,7 +1301,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SceneStack::pop(kind)` removes that kind AND everything above it. `Remove` must excise only the menu, leaving the overlay (wherever it
 		// sits) exactly as it was.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1363,7 +1363,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::potentialShortcutPadAction` refuses a shortcut whose item has no param kind while the root is
 		// the automation view (LPF MODE at (8,5) is a setting); a param's shortcut is taken as anywhere else.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		menu_scene().set_root_facts(MenuContext::RootGreyout::SpareSidebar, false, true);
@@ -1380,7 +1380,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("takes a shortcut to an item with no param over any other root", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1392,7 +1392,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a shift-held shortcut pad replaces the scene at that node, and state_lines says so", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1424,7 +1424,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::potentialShortcutPadAction`'s other half: an audition held over the instrument clip view. The
 		// host reads the UI mode and the root and puts the reason on the press it feeds (`Shell::on_host_pad`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(nodes::sound_root);
 		r.shell.tick(0);
@@ -1444,7 +1444,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// Legacy decides per press. Three presses reach the menu before one tick: HPF frequency with SHIFT held, LPF
 		// frequency an audition's (SHIFT up by then), and HPF frequency again with neither, which is no shortcut.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(nodes::sound_root);
 		r.shell.tick(0);
@@ -1464,7 +1464,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("re-roots the open menu at another root, landed on a column, through one Replace", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(nodes::sound_root);
 		r.shell.tick(0);
@@ -1485,18 +1485,18 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
 		// cancels a notification popup (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(nodes::filters_group);
 		r.shell.tick(0);
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30); // handles the pad; the notice it raises is read before the next tick drains it
 		bool cancelled = false;
-		for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
-			cancelled = cancelled || n.kind == deluge::notify::Notice::Kind::CancelNotification;
+		for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
+			cancelled = cancelled || n.kind == deluge::base::notify::Notice::Kind::CancelNotification;
 		}
 		expect(cancelled).to_be_true();
 		r.button(kShiftX, kShiftY, false, 40);
@@ -1504,7 +1504,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("takes the second shortcut layer only on a second press of the focused item's own pad", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -1532,7 +1532,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("returns one Replace action naming the page that lists the target", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -1561,7 +1561,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::setup`: `checkPermissionToBeginSession` answers NO, it shows the popup and
 		// opens nothing.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1591,7 +1591,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a coming-soon pad inside the menu says Feature not (yet?) implemented and stays put", _ {
 		// `potentialShortcutPadAction`: a `comingSoonMenu` cell pops STRING_FOR_UNIMPLEMENTED and opens nothing.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1623,7 +1623,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    {MenuContext::Root::Sound, 4, 2, true, true},        // the control: the cell, with Shift
 		};
 		for (const Case& c : cases) {
-			deluge::notify::dirty().drain();
+			deluge::base::notify::dirty().drain();
 			Rig r;
 			MenuContext ctx = r.open(settings_root);
 			ctx.root = c.root;
@@ -1641,7 +1641,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a coming-soon pad from the scene over the menu says so and jumps nowhere", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1657,7 +1657,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it
 		// (`maybeGetParentMenu`, `focusChild`, then `enterSubmenu`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1695,7 +1695,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `HorizontalMenu::beginSession` keeps the range only for a range-dependent column, so a jump to the LPF page
 		// drops it and a later jump to the transpose asks for a range again.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1732,7 +1732,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so `setup()` opens
 		// the item alone.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// The feature is read when the menu opens (`context_for`), so it is set before the open.
 		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
@@ -1753,7 +1753,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("re-sends no OLED frame when only the page's pad blink steps", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.button(kShiftX, kShiftY, true, 0);
@@ -1776,7 +1776,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): these go straight to the marker editor or the browser, so
 		// `setup()` opens the item rather than a page.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		for (const Node* node : {&nodes::sample0_start, &nodes::sample1_start, &nodes::file0_selector,
@@ -1789,7 +1789,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a MustSelectRange node opens the range picker, which then heads to the node it stood in for", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1844,7 +1844,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// the item leaves it set. After BACK, `goUpOneLevel` maps the picker to it and `updatePadLightsFor` blinks its
 		// shortcut, and `MultiRange::selectButtonPress` returns it again.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1886,7 +1886,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `MultiRange::selectEncoderAction`); a voice start writes it too
 		// (`SourceResources::getRange`), and the open picker's cursor stays where it was.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1925,7 +1925,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `Range::horizontalEncoderAction`, `MultiRange::selectEncoderAction`'s edge arm, and `SoundEditor::buttonAction`
 		// asking the item to cancel the edge before going up.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -1998,7 +1998,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `SoundEditor::goUpOneLevel` ends in `beginScreen`, which runs `MultiRange::beginSession` with the range
 		// still selected: the range is written to `defaultRangeI` and `Range::beginSession` turns the edge off.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -2046,7 +2046,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// A shortcut opens the picker at depth 0 (`SoundEditor::setup` substituting it for the item), and legacy's BACK
 		// still cancels the edge first.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
@@ -2077,7 +2077,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("leaves an edited edge alone when the host's UI mode refuses BACK, and cancels it once the mode allows", _ {
 		// The picker reads BACK from its own frame, so only the menu's claim keeps a refused press from reaching it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
@@ -2110,7 +2110,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
 		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sound port.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		for (int32_t i = 0; i < 3; i++) {
@@ -2141,10 +2141,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(sound->sourceResources[0].ranges.getElement(2)->topNote)).to_equal(60);
 		expect(cursor_of(1)).to_equal(2);
 
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell);
 		menu_scene().delete_range_press(); // the range below takes the mean of the two tops
 		// SAVE is the host's press, between the menu's ticks: the picker asks for a frame of its own.
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 		r.shell.tick(150);
 		expect(static_cast<int32_t>(std::ssize(sound->sourceResources[0].ranges))).to_equal(3);
@@ -2160,7 +2160,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
 		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		expect(sound->sourceResources[0].ranges.empty()).to_be_true(); // the fixture starts with none
@@ -2206,7 +2206,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// main opens it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		expect(sound->sourceResources[0].ranges.empty()).to_be_true(); // the fixture starts with none
@@ -2235,7 +2235,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// just opens -- which is why the level-3 A/B cannot see it) and live the moment a user
 		// presses LOAD on a multisampled oscillator.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -2261,7 +2261,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `Node::range_specific` -- and an ordinary param takes `MenuItem::checkPermissionToBeginSession`
 		// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), which never looks at a range at all.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		expect(sound->sourceResources[0].ranges.empty()).to_be_true();
@@ -2275,7 +2275,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("save_state and restore_state round-trip a depth-3 path", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2316,7 +2316,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// arm -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
 		// both answers through the real shell and asserts each.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2364,7 +2364,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// is written as an unconditional descend: an even value means "no menu", i.e. legacy's
 		// `return nullptr` = `goUpOneLevel()`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2389,7 +2389,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `assign_node_ids` follows `chain_targets`: without that, `chain_target_leaf` -- which no
 		// `children` span names -- would have id 0 and `SceneId::arg` could never address it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2407,7 +2407,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 	it("a select-encoder detent on an Int leaf commits through bindings::write", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_int = 3;
@@ -2434,7 +2434,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		// `SoundEditor::buttonAction`'s SELECT arm does not enter an item whose `shouldEnterSubmenu()` is false: it
 		// calls the item's `selectButtonPress`, and `Toggle`'s flips the value from the list and answers NO_NAVIGATION.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_toggle = false;
@@ -2461,7 +2461,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		// `Toggle::selectButtonPress`'s guard: when the toggle is the current item (a shortcut opened it), the press
 		// goes up a level and leaves the value alone.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(toggle_leaf);
 		g_toggle = false;
@@ -2476,7 +2476,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		// `arpeggiator::Mode::shouldEnterSubmenu` is false, so its row flips as a Toggle's does; `delay::PingPong`
 		// keeps the default, and its row opens the page.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(flip_list);
 		g_flip_enum = 0;
@@ -2510,7 +2510,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 
 	it("a turn on an Enum leaf moves the option and commits it", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_enum = 1;
@@ -2532,7 +2532,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 
 	it("a Decimal leaf edits at its own places and commits", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_decimal = 1234;
@@ -2557,7 +2557,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 
 	it("a SyncLevel leaf reads OFF at zero and edits through the select encoder, not the gold knobs", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		g_sync = 0;
@@ -2598,7 +2598,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		// select turn edits the focused column and never moves focus. The gold knobs do not touch a horizontal page at
 		// all -- they fall through to `services::ModKnobs`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		r.shell.tick(0);
@@ -2611,12 +2611,12 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.turn(-1, 30);
 		r.shell.tick(40);
 		expect(menu::bindings::read(lpf_freq, ctx)).to_equal(before - 1);
-		expect(deluge::notify::dirty().has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
+		expect(deluge::base::notify::dirty().has(deluge::base::notify::Dirty::ParamAutomation)).to_be_true();
 	});
 
 	it("deletes a param's automation on shift+select, on a leaf and on a horizontal column, and stays put", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Song* const saved_song = currentSong;
 		const auto lpf_of = [](const spec::SongFixture& s) {
 			return deluge::project::ParamAddress{
@@ -2755,17 +2755,17 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		(void)r.open(nodes::lpf);
 		r.shell.tick(0);
 		menu_scene().state_for_spec().edit_int = 777;
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu_scene().read_value_again();
 		expect(menu_scene().state().edit_int).to_equal(777);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_true();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_true();
 	});
 });
 
 describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 	it("claims the turn and the select but never the back at the root", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -2781,7 +2781,7 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 
 	it("claims the back once it has somewhere to go up to", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2799,7 +2799,7 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 
 	it("renders nothing for a role this board does not have", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -2812,7 +2812,7 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 
 	it("a full shell tick never double-claims an input", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -2925,7 +2925,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		using deluge::ui::grid::FlashColour;
 		using deluge::ui::grid::PadFlash;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		// Jump to `lpfFreqMenu`'s real cell, (8, 7) of `paramShortcutsForSounds`. Through the shell,
@@ -2977,7 +2977,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		using deluge::ui::grid::FlashColour;
 		using deluge::ui::grid::PadFlash;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.button(kShiftX, kShiftY, true, 0);
@@ -3013,7 +3013,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
 			select_language();
-			deluge::notify::dirty().drain();
+			deluge::base::notify::dirty().drain();
 			Rig r;
 			(void)r.open(*node);
 			expect(menu_scene().focused()).to_equal(node);
@@ -3042,7 +3042,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		using deluge::ui::grid::FlashColour;
 		using deluge::ui::grid::PadFlash;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.button(kShiftX, kShiftY, true, 0);
@@ -3085,7 +3085,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		using deluge::ui::grid::FlashColour;
 		using deluge::ui::grid::PadFlash;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		// Jump to `lpfFreqMenu` so its shortcut cell (8, 7) is the focused pad.
@@ -3146,7 +3146,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		//     arms. It fires only AT a step edge, not on every tick inside a step, so the window
 		//     below stays strictly inside one step (the long 180 ms param step) to avoid crossing it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		r.button(kShiftX, kShiftY, true, 0);
@@ -3176,7 +3176,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 
 	it("declares button LEDs only, with the back LED blinking", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 
@@ -3230,19 +3230,19 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 	};
 
 	/// @brief The last notice raised, whole -- the Decimal example reads a `Notification`'s value half.
-	static const auto last_raised_notice = []() -> deluge::notify::Notice {
-		deluge::notify::Notice n;
-		deluge::notify::Notice last{};
-		while (deluge::notify::notices().pop(n)) {
+	static const auto last_raised_notice = []() -> deluge::base::notify::Notice {
+		deluge::base::notify::Notice n;
+		deluge::base::notify::Notice last{};
+		while (deluge::base::notify::notices().pop(n)) {
 			last = n;
 		}
 		return last;
 	};
 	/// @brief The text of the notice the last tick raised, or "" if none.
 	static const auto last_notice = []() -> std::string {
-		deluge::notify::Notice n;
+		deluge::base::notify::Notice n;
 		std::string text;
-		while (deluge::notify::notices().pop(n)) {
+		while (deluge::base::notify::notices().pop(n)) {
 			text = n.text;
 		}
 		return text;
@@ -3250,7 +3250,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 
 	it("focuses the first column of the first page", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		open_lpf(r, 0, 10);
@@ -3266,7 +3266,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		// SYNTH/KIT/MIDI/CV name columns 0-3 of the visible page directly, in one press. The select turn edits the
 		// focused column and never moves it (`selectEncoderAction`), so there is no "one column per detent" walk.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		open_lpf(r, 3, 10); // CV -> column 3, MORPH
@@ -3277,7 +3277,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 
 	it("formats a Decimal column with the point always placed", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
 		open_lpf(r, 3, 10); // MORPH, two decimal places, CV's column
@@ -3307,8 +3307,8 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
 			// so a second tick here (the button's release) would consume it
 			// before this can.
-			const deluge::notify::Notice notice = last_raised_notice();
-			expect(notice.kind).to_equal(deluge::notify::Notice::Kind::Notification);
+			const deluge::base::notify::Notice notice = last_raised_notice();
+			expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
 			expect(std::string(notice.notification_value())).to_equal(std::string(c.text));
 			r.button(kCvX, kCvY, false, at + 20);
 			r.shell.tick(at + 30);
@@ -3318,7 +3318,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 
 	it("draws the four-column page the same on both shipped panel geometries", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		g_morph = 1234;
 		g_lpf_mode = 1;
 		{
@@ -3347,7 +3347,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 	it("draws the settings root the same on both shipped panel geometries", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			(void)r.open(settings_root);
@@ -3368,7 +3368,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 
 	it("draws a SyncLevel leaf's note-length string centred, on both shipped panel geometries", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		g_sync = 7; // a real note length, not the zero/OFF arm -- the text this example draws
 		{
 			Rig r;
@@ -3409,7 +3409,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 	it("draws a SyncLevel leaf's OFF text centred, on both shipped panel geometries -- the zero "
 	   "branch the non-zero golden above does not exercise", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		g_sync = 0; // the zero/OFF arm: a different l10n string and a different buffer path entirely
 		{
 			Rig r;

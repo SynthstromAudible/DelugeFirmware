@@ -21,9 +21,9 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // kMaxSequenceLength
 #include "gfx/grid/palette.h"
-#include "notify/notice_queue.h"
 #include "ui/grid/columns.h"
 #include "ui/grid/sidebar.h"
 #include "ui/grid/waveform.h"
@@ -518,7 +518,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 			enter_ui_mode(kUiModeHoldingHorizontalEncoder);
 		}
 		else if (ui_mode_active(kUiModeHoldingHorizontalEncoder)) {
-			deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+			deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelPopup);
 			exit_ui_mode(kUiModeHoldingHorizontalEncoder);
 		}
 		return r;
@@ -965,12 +965,12 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	const int32_t old_length = loop_length();
 	// A clip with no sample to measure is refused, which legacy reports as no sample.
 	if (!edits->resize_audio_clip(*clip_, ResizeKind::TO_SAMPLE_LENGTH, 0, old_length)) {
-		deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
+		deluge::base::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return;
 	}
 	after_loop_length_change(old_length, loop_length());
 	note_undo_scroll();
-	deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED));
+	deluge::base::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED));
 }
 
 void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
@@ -1017,25 +1017,26 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 	append_int(b.beat);
 	append(" : ");
 	append_int(b.sub_beat);
-	deluge::notify::notice_text(std::string_view{buffer.data(), len});
+	deluge::base::notify::notice_text(std::string_view{buffer.data(), len});
 }
 
 // ---------------------------------------------------------------------------------------------
 // Model notifications
 
-void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
+void AudioClipScene::on_model_changed(const deluge::base::notify::DirtySet& dirty) {
 	// `AudioClipView::clipNeedsReRendering`, `sampleNeedsReRendering` and `playbackEnded`. Two of the three are pure
 	// `uiNeedsRendering` calls, which `Shell::apply_dirty` already does for these facts; what is left is the
 	// scroll-back-left legacy hides inside `clipNeedsReRendering`.
-	if (!dirty.has(deluge::notify::Dirty::ClipContent) || !clip_) {
+	if (!dirty.has(deluge::base::notify::Dirty::ClipContent) || !clip_) {
 		return;
 	}
 	// The clip's waveform may have changed (a sample attached, a take cleared): a redraw waiting on the old one stops.
 	retry_.restart();
 	// `AudioClipView::clipNeedsReRendering`'s `if (c == getCurrentAudioClip())`. The fact carries clip bits when the
 	// raiser named one; a raise with no index means "which clips is unknown -- treat as all dirty"
-	// (`notify/dirty_set.h`'s `has()` note), which is the over-invalidating side and so is safe to take as "this clip".
-	const deluge::notify::ClipBits& clips = dirty.clips(deluge::notify::Dirty::ClipContent);
+	// (`base/notify/dirty_set.h`'s `has()` note), which is the over-invalidating side and so is safe to take as "this
+	// clip".
+	const deluge::base::notify::ClipBits& clips = dirty.clips(deluge::base::notify::Dirty::ClipContent);
 	if (clips.any()) {
 		const std::optional<deluge::scenes::bind::AudioClipFact> f = fact();
 		const int32_t index = f ? f->session_index : -1;

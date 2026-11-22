@@ -11,8 +11,8 @@
 #include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/nodes.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
-#include "notify/notice_queue.h"
 
 #include "io/midi/midi_device.h"
 #include "model/song/song.h"
@@ -118,9 +118,9 @@ struct Fixture {
 inline Fixture& fixture() {
 	static Fixture f = [] {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
 		Fixture k;
 		k.song = spec::make_synth_song();
 		k.a = std::make_unique<SpecCable>("CABLE A");

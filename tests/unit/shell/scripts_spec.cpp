@@ -129,8 +129,8 @@ public:
 		}
 	}
 
-	void on_model_changed(const deluge::notify::DirtySet& dirty) override {
-		if (!dirty.has(deluge::notify::Dirty::ClipContent)) {
+	void on_model_changed(const deluge::base::notify::DirtySet& dirty) override {
+		if (!dirty.has(deluge::base::notify::Dirty::ClipContent)) {
 			return;
 		}
 		model_changes_++;

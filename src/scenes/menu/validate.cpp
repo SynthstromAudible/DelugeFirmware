@@ -78,7 +78,7 @@ namespace deluge::scenes::menu {
 
 namespace {
 
-using Issues = deluge::ui::shell::FixedVector<Issue, 64>;
+using Issues = deluge::base::FixedVector<Issue, 64>;
 
 void add(Issues& out, Issue::Kind kind, const Node* node, uint16_t detail = 0) {
 	(void)out.push_back(Issue{kind, node, detail});
@@ -261,11 +261,11 @@ bool flag_half_precision(const Node& n) {
 
 } // namespace
 
-deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
-                                                        std::span<const MenuContext> contexts,
-                                                        std::span<const Node* const> expected_range_specific,
-                                                        std::span<const Node* const> expected_half_precision,
-                                                        ValidateOptions options) {
+deluge::base::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
+                                                   std::span<const MenuContext> contexts,
+                                                   std::span<const Node* const> expected_range_specific,
+                                                   std::span<const Node* const> expected_half_precision,
+                                                   ValidateOptions options) {
 	Issues out;
 
 	// Ids first, so everything downstream (and the `Unreachable` rule below) has them.

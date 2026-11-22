@@ -2508,7 +2508,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		deluge::notify::notice("E336"); // Popup only
+		deluge::base::notify::notice("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -3792,7 +3792,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
-						deluge::notify::notice("E073");
+						deluge::base::notify::notice("E073");
 					}
 				}
 			}

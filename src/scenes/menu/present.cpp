@@ -23,7 +23,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "gui/l10n/short_label.h"
 #include "ui/oled/list.h"
@@ -509,7 +509,7 @@ void notify_column(const MenuContext& ctx, const Node& column) {
 	    column_notification(column, ctx, bindings::read(column, ctx), std::span<char>{value_buf, sizeof(value_buf)});
 	NodeText name_scratch;
 	const std::string_view name = display_text(column, ValueTextUse::Name, ctx, name_scratch);
-	deluge::notify::notice_notification(name, text);
+	deluge::base::notify::notice_notification(name, text);
 }
 
 } // namespace deluge::scenes::menu

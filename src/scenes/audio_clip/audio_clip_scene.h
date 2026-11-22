@@ -385,7 +385,7 @@ public:
 	/// comment there calls it "a bit hacky that I put this in this function".
 	///
 	/// @param dirty What changed.
-	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
+	void on_model_changed(const deluge::base::notify::DirtySet& dirty) override;
 
 	/// @brief **True**: this scene is a root. See the class docstring.
 	bool is_root() const override { return true; }

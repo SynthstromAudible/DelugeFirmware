@@ -69,7 +69,7 @@
 #include "scenes/registry.h"
 #include "scenes/timeline/timeline.h"
 
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 #include "shell/input_lowering.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -1078,7 +1078,8 @@ describe audio_clip_scene_spec_body(
 		        }
 		        r.f.clip->sampleHolder.audioFile = flat;
 		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
-		        deluge::notify::raise(deluge::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
+		        deluge::base::notify::raise(
+		            deluge::base::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
 		        r.f.clip->sampleHolder.audioFile = r.sample;
@@ -2239,8 +2240,8 @@ describe audio_clip_scene_spec_body(
 		        const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
 		        expect(legacy_scroll).to_equal(0);
 
-		        deluge::notify::DirtySet dirty;
-		        dirty.raise(deluge::notify::Dirty::ClipContent);
+		        deluge::base::notify::DirtySet dirty;
+		        dirty.raise(deluge::base::notify::Dirty::ClipContent);
 		        audio_clip_scene().on_model_changed(dirty);
 		        expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll);
 	        });
@@ -2259,8 +2260,8 @@ describe audio_clip_scene_spec_body(
 		        legacy_view.clipNeedsReRendering(r.f.clip);
 		        expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(384);
 
-		        deluge::notify::DirtySet dirty;
-		        dirty.raise(deluge::notify::Dirty::ClipContent);
+		        deluge::base::notify::DirtySet dirty;
+		        dirty.raise(deluge::base::notify::Dirty::ClipContent);
 		        audio_clip_scene().on_model_changed(dirty);
 		        expect(r.scene().timeline().x_scroll).to_equal(384);
 	        });

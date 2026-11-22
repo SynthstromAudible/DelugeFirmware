@@ -1,5 +1,5 @@
 #pragma once
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 
 /// @brief Which of the legacy redraw calls a drained DirtySet requires.
 struct LegacyRedraw {
@@ -9,7 +9,7 @@ struct LegacyRedraw {
 /// @brief Map a drained DirtySet to the legacy redraw calls it implies.
 /// @param d The drained dirty set to inspect.
 /// @return Which redraw calls to make.
-LegacyRedraw legacy_redraw_for(const deluge::notify::DirtySet& d);
+LegacyRedraw legacy_redraw_for(const deluge::base::notify::DirtySet& d);
 
 /// @brief Bridge onto the legacy renderers: drains the global DirtySet and NoticeQueue and
 ///        dispatches them to the legacy redraw calls and display-> calls.

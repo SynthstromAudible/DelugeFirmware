@@ -534,7 +534,7 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 	} break;
 
 	case SysEx::SysexCommands::Popup:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_HELLO_SYSEX);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_HELLO_SYSEX);
 		break;
 
 	case SysEx::SysexCommands::HID:

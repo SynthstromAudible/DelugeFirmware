@@ -20,7 +20,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -69,8 +69,8 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 /// Board encoder indices (`kDelugeEncoders`).

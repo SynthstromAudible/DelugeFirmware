@@ -58,8 +58,8 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 
 		// `noteModeReadValueAgain`'s shape: a legacy callback raises a fact while the guest sleeps, and
 		// `drain_notifications` runs first, as it does on every pass of the app loop.
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
 		r.guest.wakeForPendingFacts();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 

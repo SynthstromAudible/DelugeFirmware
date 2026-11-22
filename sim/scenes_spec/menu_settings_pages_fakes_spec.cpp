@@ -20,14 +20,14 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
 #include "midi/device_id.h"
 #include "music/preset_scales.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/instrument_slot.h"
@@ -161,7 +161,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.turn(row_of(nodes::defaults_settings, nodes::default_patch_cable_polarity, ctx).value_or(0), 10);
 		r.select(30);
 		expect(menu_scene().focused()).to_equal(&nodes::default_patch_cable_polarity);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		r.turn(-1, 50);
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		if (!r.fakes.host.device.stores.empty()) {
@@ -180,27 +180,27 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kPatchCablePolarity},
 		                                            deluge::serialization::Value::makeScalar("tripolar"));
 		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 2);
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, -1);
 		expect(r.fakes.host.device.stores.empty()).to_be_true();
 		expect(r.fakes.host.device.values.at(std::string{device_path::kPatchCablePolarity}).str())
 			.to_equal(std::string{"tripolar"});
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
 	});
 
 	it("raises nothing for a write the device port refuses", _ {
 		FakeMenuShell r;
 		const MenuContext ctx = r.open_settings(nodes::defaults_settings);
 		r.fakes.host.device.refuse.insert(std::string{device_path::kPatchCablePolarity});
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 0);
 		// The write reached the port, which kept nothing and said so.
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
-		deluge::notify::Notice notice{};
-		expect(deluge::notify::notices().pop(notice)).to_be_false();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
+		deluge::base::notify::Notice notice{};
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
 	});
 
 	it("says restart to apply for a USB audio enable the device takes at its next start, and only then", _ {
@@ -210,15 +210,15 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(menu::bindings::read(nodes::usb_audio_enabled, ctx)).to_equal(1);
 		// A write the device has in effect at once says nothing.
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 0);
-		deluge::notify::Notice notice{};
-		expect(deluge::notify::notices().pop(notice)).to_be_false();
+		deluge::base::notify::Notice notice{};
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
 		// One it takes only at its next start says so.
 		r.fakes.host.device.accept_restart.insert(std::string{device_path::kUsbAudioEnabled});
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 1);
 		expect(last_stores(r.fakes, 2))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kUsbAudioEnabled} + "=0",
 		                                       std::string{device_path::kUsbAudioEnabled} + "=1"});
-		expect(deluge::notify::notices().pop(notice)).to_be_true();
+		expect(deluge::base::notify::notices().pop(notice)).to_be_true();
 		expect(static_cast<int>(notice.string_id))
 			.to_equal(static_cast<int>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();

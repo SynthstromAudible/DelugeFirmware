@@ -20,8 +20,8 @@ namespace deluge::scenes::services {
 ///
 /// The value popup is a scene on the shell's stack; the indicators' blink is state the frame reads
 /// (`ModKnobs::leds`); a redraw is an action in the `shell::Result` the gesture returns; a popup or notice is a
-/// `deluge::notify` notice. The indicators, the mod LEDs and the VU sidebar are redeclared every frame, so the hooks
-/// that ask for them do nothing here.
+/// `deluge::base::notify` notice. The indicators, the mod LEDs and the VU sidebar are redeclared every frame, so the
+/// hooks that ask for them do nothing here.
 class GuestKnobPresentation final : public KnobPresentation {
 public:
 	/// @param popup  The value popup.

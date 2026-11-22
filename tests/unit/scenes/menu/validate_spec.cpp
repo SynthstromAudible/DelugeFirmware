@@ -71,7 +71,7 @@ const Node* chain_hook(const MenuContext&, const MenuState&) {
 	return nullptr;
 }
 
-size_t count_of(const deluge::ui::shell::FixedVector<Issue, 64>& issues, Issue::Kind kind) {
+size_t count_of(const deluge::base::FixedVector<Issue, 64>& issues, Issue::Kind kind) {
 	size_t n = 0;
 	for (const Issue& i : issues) {
 		if (i.kind == kind) {

@@ -1,40 +1,40 @@
-# deluge_notify
+# deluge_base_notify
 
 The model→UI notification channel: `DirtySet` (facts, pointer-free) and `NoticeQueue`
 (presentation requests, copied payloads).
 
-Rules: include nothing but `notify/**` and the standard library; `raise*`/`push` are [any]
-(atomic, allocation-free, no UI symbols); `drain`/`pop` are [task]. `deluge_notify` stores
+Rules: include nothing but `base/notify/**` and the standard library; `raise*`/`push` are [any]
+(atomic, allocation-free, no UI symbols); `drain`/`pop` are [task]. `deluge_base_notify` stores
 `int16_t error_code` / `uint16_t string_id`; the typed conversions live in
 `src/deluge/util/notify.h` because `gui/l10n/strings.h` is not a leaf header (it includes
 `io/midi/midi_device.h`).
 
 ## Usage
 
-**Facts** (`notify/dirty_set.h`) — a model-side fact that a redraw is owed, raised from any
+**Facts** (`base/notify/dirty_set.h`) — a model-side fact that a redraw is owed, raised from any
 context:
 
 ```cpp
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 
-deluge::notify::raise(deluge::notify::Dirty::GridMain);
-deluge::notify::raise_clip(deluge::notify::Dirty::ClipContent, session_clip_index);
+deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+deluge::base::notify::raise_clip(deluge::base::notify::Dirty::ClipContent, session_clip_index);
 ```
 
 `Clip::notify_content_changed()` (`src/deluge/model/clip/clip.h`) is the usual way to raise
 `Dirty::ClipContent`: it looks the clip up in `currentSong->sessionClips` and calls
 `raise_clip()` when it finds a session index, `raise()` otherwise.
 
-**Notices** (`notify/notice_queue.h`) are presentation requests with a copied payload. The
+**Notices** (`base/notify/notice_queue.h`) are presentation requests with a copied payload. The
 library's own entry points store plain integers:
 
 ```cpp
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
-deluge::notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
-deluge::notify::notice_text("Undo", deluge::notify::Notice::Kind::Console);
-deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNDO),
-                               deluge::notify::Notice::Kind::Text,
+deluge::base::notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
+deluge::base::notify::notice_text("Undo", deluge::base::notify::Notice::Kind::Console);
+deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNDO),
+                               deluge::base::notify::Notice::Kind::Text,
                                static_cast<uint8_t>(PopupType::SWING));
 ```
 
@@ -45,12 +45,12 @@ Callers almost always want the typed layer instead — `src/deluge/util/notify.h
 #include "gui/l10n/strings.h" // deluge::l10n::String::* -- util/notify.h only forward-declares String
 #include "util/notify.h"
 
-deluge::notify::notice(Error::INSUFFICIENT_RAM);                        // -> error popup + console line
-deluge::notify::notice(deluge::l10n::String::STRING_FOR_UNDO, deluge::notify::Notice::Kind::Console);
-deluge::notify::notice("Loading sample failed");                        // computed/literal text, Kind::Text popup
-deluge::notify::notice_cancel_popup();
-deluge::notify::notice_working("Loading");
-deluge::notify::notice_clear_working();
+deluge::base::notify::notice(Error::INSUFFICIENT_RAM);                        // -> error popup + console line
+deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_UNDO, deluge::base::notify::Notice::Kind::Console);
+deluge::base::notify::notice("Loading sample failed");                        // computed/literal text, Kind::Text popup
+deluge::base::notify::notice_cancel_popup();
+deluge::base::notify::notice_working("Loading");
+deluge::base::notify::notice_clear_working();
 ```
 
 A popup type (`hid/display/display.h`'s `PopupType`) is passed as `static_cast<uint8_t>(PopupType::X)`

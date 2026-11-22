@@ -18,12 +18,12 @@
 // Notice::popup_type is a plain uint8_t whose 0 means "unspecified" -- and today PopupType::NONE
 // happens to be 0 while GENERAL is 1, so a raw cast would turn every default notice into NONE.
 // Map 0 to GENERAL at this boundary.
-static PopupType popup_type_of(const deluge::notify::Notice& n) {
+static PopupType popup_type_of(const deluge::base::notify::Notice& n) {
 	return n.popup_type ? static_cast<PopupType>(n.popup_type) : PopupType::GENERAL;
 }
 
 void drain_notifications() {
-	using namespace deluge::notify;
+	using namespace deluge::base::notify;
 	const DirtySet d = dirty().drain(DirtyConsumer::Legacy);
 	// The shell keeps its own copy of every fact; a guest asleep when one arrives is woken for it.
 	shellHostUI.wakeForPendingFacts();

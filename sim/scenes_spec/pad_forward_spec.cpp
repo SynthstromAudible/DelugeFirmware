@@ -53,11 +53,11 @@
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "extern.h" // picFirmwareVersion
 #include "memory/heaps.h"
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -349,12 +349,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&sessionView);
 		currentUIMode = UI_MODE_NONE;
 		const auto popped = [](int32_t x) {
-			deluge::notify::Notice n;
-			while (deluge::notify::notices().pop(n)) {} // what was queued before
+			deluge::base::notify::Notice n;
+			while (deluge::base::notify::notices().pop(n)) {} // what was queued before
 			(void)deluge::gui::ui::forwardGridPad(x, 7, 64);
 			std::string text;
-			while (deluge::notify::notices().pop(n)) {
-				if (n.kind == deluge::notify::Notice::Kind::Text) {
+			while (deluge::base::notify::notices().pop(n)) {
+				if (n.kind == deluge::base::notify::Notice::Kind::Text) {
 					text = n.text;
 				}
 			}
@@ -1166,10 +1166,10 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		}
 
 		// This spec records the forward rather than performing it (`seen`); what it performs is the clip view's pad.
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell);
 		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 64); // an audition note in range 2
 		// The note arrives between the guest's ticks: the picker asks for a frame of its own.
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 0);
 		shellHostUI.shell().tick(2);

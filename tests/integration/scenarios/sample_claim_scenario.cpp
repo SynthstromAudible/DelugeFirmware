@@ -91,11 +91,11 @@
 
 #include "unit/deluge/dsp-next/wavetable_band_crc.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "instruments/deluge/state_access.h"
-#include "notify/notice_queue.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -1669,13 +1669,13 @@ void sendNextSongDuringSlice() {
 	command.channelOrZone = kNextSongChannel;
 	command.noteOrCC = kNextSongNote;
 	bool thru = false;
-	const size_t queuedBefore = deluge::notify::notices().size();
+	const size_t queuedBefore = deluge::base::notify::notices().size();
 	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, true, kNextSongChannel, kNextSongNote, 64,
 	                                    &thru);
 	g_nextHeld = playbackHandler.nextSongPending_;
 	// Read the notices the command raised and put every one back, in order, for the UI to drain as it would.
-	std::vector<deluge::notify::Notice> queued;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	std::vector<deluge::base::notify::Notice> queued;
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		queued.push_back(n);
 	}
 	for (size_t i = 0; i < queued.size(); i++) {
@@ -1683,7 +1683,7 @@ void sendNextSongDuringSlice() {
 		                || (i >= queuedBefore
 		                    && queued[i].string_id
 		                           == static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_SLICE));
-		(void)deluge::notify::notices().push(queued[i]);
+		(void)deluge::base::notify::notices().push(queued[i]);
 	}
 	// The job that lets it go, run while the slice is still out: it must keep holding it.
 	playbackHandler.slowRoutine();

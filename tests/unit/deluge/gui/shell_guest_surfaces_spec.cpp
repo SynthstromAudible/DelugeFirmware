@@ -396,7 +396,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	});
 
 	it("takes only the owned columns: a Main-only take_grid leaves columns 16-17 alone", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ShellRig r;
 		r.base.regions = PadRegions::Main;
 		r.set.observe(r.shell.stack());
@@ -421,7 +421,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("leaves the main columns to legacy while they are held, and only the sidebar goes out", _ {
 		// Legacy's horizontal scroll animates `PadLEDs::image` itself; the guest must not paint over it.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ShellRig r;
 		r.base.regions = PadRegions::All;
 		r.set.observe(r.shell.stack());
@@ -657,7 +657,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	// ---- end to end: a real Shell, through the guest, into the legacy buffers --------------------
 
 	it("carries a real Shell's first frame all the way into OLED::main and PadLEDs::image", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ShellRig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -690,14 +690,14 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	});
 
 	it("carries a changed column, and only that column, on the next frame", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ShellRig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		fakelegacy::column_sends.clear();
 
 		r.base.override_x = 5; // column 5 sits in pair 2 (columns 4, 5)
-		deluge::notify::dirty().raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::GridMain);
 		r.shell.tick(10);
 
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(1));
@@ -708,7 +708,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	});
 
 	it("holds the frame when legacy's OLED gate is shut, and delivers it when it opens", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ShellRig r;
 		r.shell.init({kBase, 0});
 		fakelegacy::pad_output_space = kLegacyOledGate; // shut: not strictly greater

@@ -5,9 +5,9 @@
 /// tagged entry, and each example asserts the exact sequence a turn, a push or a mod button produces. The values the
 /// gestures write are `mod_knobs_spec`'s subject, against legacy; this spec pins only the calls.
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
@@ -148,8 +148,8 @@ struct Rig {
 		knobs.set_model(&f.song->project);
 		knobs.set_focus(focus_of(*f.song, f.clip), false);
 		knobs.set_mod_region();
-		deluge::notify::Notice discarded;
-		while (deluge::notify::notices().pop(discarded)) {}
+		deluge::base::notify::Notice discarded;
+		while (deluge::base::notify::notices().pop(discarded)) {}
 	}
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;

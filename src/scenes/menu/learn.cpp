@@ -29,9 +29,9 @@
 #include "instruments/deluge/cables.h"
 #include "project/song.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 
 #include <algorithm>
 
@@ -52,10 +52,10 @@ const CustomItem* custom_of(const Node* node) {
 ///        through its page (`soundEditor.getCurrentMenuItem() != this`) pops @p what instead.
 void announce(const MenuState& st, const Node& learned, deluge::l10n::String what) {
 	if (&learned == focused(st)) {
-		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 	}
 	else {
-		deluge::notify::notice_string(static_cast<uint16_t>(what));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(what));
 	}
 }
 
@@ -180,8 +180,8 @@ bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, deluge::midi::
 	    || !ctx.ports.learn->learn_knob(*param, device, which_knob, midi_channel)) {
 		return false;
 	}
-	deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LEARNED));
-	deluge::notify::dirty().raise(deluge::notify::Dirty::ModTarget); // `view.setKnobIndicatorLevels()`
+	deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LEARNED));
+	deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::ModTarget); // `view.setKnobIndicatorLevels()`
 	return true;
 }
 
@@ -216,7 +216,7 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	const std::optional<deluge::project::OwnerParamTarget> learned = target(ctx, st);
 	if (learned && ctx.model != nullptr && ctx.ports.learn != nullptr && ctx.model->mappings.find(*learned) != nullptr
 	    && ctx.ports.learn->learn(*learned, std::nullopt, std::nullopt)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
 	}
 }
 
@@ -235,7 +235,7 @@ bool MenuLearn::observe(const MenuContext& ctx, const MenuState& st, const UiEve
 	const bool no_mode = host_allows.has_value() ? *host_allows : (!pad_held && !ctx.addresses.affect_entire);
 	if (event.on && no_mode) {
 		if (!allows_mode(ctx, st)) {
-			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
+			deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
 		}
 		else if (ui.shift) {
 			unlearn(ctx, st);

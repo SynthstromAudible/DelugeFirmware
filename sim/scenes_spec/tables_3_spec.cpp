@@ -281,7 +281,7 @@ void shift_learn() {
 /// @brief The last popup notice's string id, draining the queue; 0 for none.
 uint16_t last_popup_string() {
 	uint16_t last = 0;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		last = n.string_id;
 	}
 	return last;
@@ -298,10 +298,10 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	// `Main` and takes the input top with it (`shell/notices.cpp`). The select press below
 	// would then never reach the menu, and the descent would silently not happen.
 	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
-	deluge::notify::dirty().drain();
+	deluge::base::notify::dirty().drain();
 	{
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	}
 	// The turns below count from row 0, so the page must not land on the row an earlier walk left it on.
 	menu_scene().reset_process_state();
@@ -318,10 +318,10 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 
 /// @brief Open the MIDI-commands list on `Rig` @p r with the cursor on its @p row'th child, not entered.
 void cursor_on_command_row(Rig& r, const MenuContext& ctx, size_t row) {
-	deluge::notify::dirty().drain();
+	deluge::base::notify::dirty().drain();
 	{
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	}
 	menu_scene().reset_process_state();
 	r.open(nodes::midi_commands, ctx);
@@ -1531,14 +1531,14 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 		// `kResetSettingsChildren`) -- cursor down to row `i`, then the select-encoder press that
 		// `enter_child` -> `enter_leaf` -> `CustomItem::on_focus` runs on, the same path
 		// `rename_scene_spec.cpp`'s "opens on the drum target" test drives `EditNameItem` through.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		// A stray notice left in the global queue by an earlier describe block in this same process
 		// would otherwise push a `ConsoleScene` overlay on this test's very first tick, one deeper
 		// than the plain menu-then-context-menu stack this counts -- `tables_3_pixels`' own
 		// `before_each` drains both queues for exactly this reason.
 		{
-			deluge::notify::Notice stray;
-			while (deluge::notify::notices().pop(stray)) {}
+			deluge::base::notify::Notice stray;
+			while (deluge::base::notify::notices().pop(stray)) {}
 		}
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -1574,10 +1574,10 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 	it("resets exactly what main resets, driven through the real node, the real push and the real "
 	   "accept button -- not just through a DescriptorId",
 	   _ {
-		   deluge::notify::dirty().drain();
+		   deluge::base::notify::dirty().drain();
 		   {
-			   deluge::notify::Notice stray;
-			   while (deluge::notify::notices().pop(stray)) {}
+			   deluge::base::notify::Notice stray;
+			   while (deluge::base::notify::notices().pop(stray)) {}
 		   }
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -1742,7 +1742,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   const std::string pc_got = CommandSlots::capture().describe();
 			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
 			   size_t refusals = 0;
-			   for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+			   for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 				   refusals += (n.string_id == uint16_t(String::STRING_FOR_CANT_LEARN_PC)) ? 1 : 0;
 			   }
 			   expect(is_fill ? std::string{"(all clear)"} : want).to_equal(pc_got);
@@ -2455,10 +2455,10 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		// Both geometries, because a row constant that is right on one panel and wrong on the other
 		// is exactly the class of mistake a single golden cannot see. Nothing here hand-computes a
 		// rect: both pages lay out through `ui::oled::menu_rect(f)`, like every other menu screen.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
-			deluge::notify::Notice stray;
-			while (deluge::notify::notices().pop(stray)) {}
+			deluge::base::notify::Notice stray;
+			while (deluge::base::notify::notices().pop(stray)) {}
 		}
 		CableFixture cables;
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
@@ -2592,9 +2592,9 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 	before_each([] {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice stray;
+		while (deluge::base::notify::notices().pop(stray)) {}
 	});
 
 	// The golden names are `menu_settings_tree_*`, not `menu_settings_root_*`: those belong to

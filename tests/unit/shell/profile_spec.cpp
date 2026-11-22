@@ -1,4 +1,4 @@
-#include "shell/fixed_vector.h"
+#include "base/fixed_vector.h"
 #include "shell/profile.h"
 
 #include "cppspec.hpp"
@@ -20,7 +20,7 @@ describe shell_profile("shell::profile", $ {
 		expect(s.any()).to_be_false();
 	});
 	it("FixedVector refuses past capacity", _ {
-		FixedVector<int, 2> v;
+		deluge::base::FixedVector<int, 2> v;
 		expect(v.push_back(1)).to_be_true(); expect(v.push_back(2)).to_be_true(); expect(v.push_back(3)).to_be_false();
 		expect(v.size()).to_equal(size_t(2));
 	});

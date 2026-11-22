@@ -1,7 +1,7 @@
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include <cstring>
 
-namespace deluge::notify {
+namespace deluge::base::notify {
 
 namespace {
 NoticeQueue g_notices;
@@ -101,4 +101,4 @@ void notice_kind(Notice::Kind k, uint8_t popup_type) {
 	push_counting_drops(n);
 }
 
-} // namespace deluge::notify
+} // namespace deluge::base::notify

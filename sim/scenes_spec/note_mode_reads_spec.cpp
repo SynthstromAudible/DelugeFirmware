@@ -22,6 +22,7 @@
 #include "gui/ui/shell_note_mode.h"
 #include "util/note_editor_open.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/shell_note_bridge.h"
@@ -43,7 +44,6 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/notice_queue.h"
 #include "playback/mode/session.h"
 #include "processing/sound/sound_drum.h"
 #include "project/sequence_direction.h"
@@ -261,8 +261,8 @@ struct LegacyViewGuard {
 	}
 
 	static void drain_notices() {
-		deluge::notify::Notice n;
-		while (deluge::notify::notices().pop(n)) {}
+		deluge::base::notify::Notice n;
+		while (deluge::base::notify::notices().pop(n)) {}
 	}
 };
 
@@ -286,9 +286,9 @@ void set_row_direction(LegacyViewGuard& legacy, int32_t y, SequenceDirection dir
 
 /// @brief The last notice queued since the previous drain, or empty.
 std::string drain_last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -482,13 +482,13 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		deluge::hid::display::OLED::removePopup();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 
 		instrumentClipView.adjustVelocity(5);
 
 		expect(display->hasPopup()).to_be_false();
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 	});
 
@@ -1035,16 +1035,16 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		menu_scene().enter_submenu(nodes::sequence_direction);
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		instrumentClipView.lastAuditionedYDisplay = 1;
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
 		// `Value::readValueAgain`'s `renderUIsForOled()` (`origin/main:src/deluge/gui/menu_item/value.h`): a re-read
 		// value is shown on the shell's next tick, which a pending fact asks for, whatever the legacy drain takes
 		// first.
-		expect(deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)).to_be_true();
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		expect(deluge::base::notify::dirty().pending(deluge::base::notify::DirtyConsumer::Shell)).to_be_true();
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell).has(deluge::base::notify::Dirty::Oled))
 		    .to_be_true();
 		// And nothing holds a 0 ms timer for it.
 		expect(menu_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{0});

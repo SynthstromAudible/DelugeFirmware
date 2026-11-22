@@ -946,7 +946,7 @@ void Song::changeFillMode(bool on) {
 	UI* root_ui = getRootUI();
 	if (root_ui == &instrumentClipView) {
 		// we peek fill notes when fill is held so need to re render rows
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 	}
 
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
@@ -2179,7 +2179,7 @@ loadOutput:
 
 				if (lookingForIndex >= static_cast<int32_t>(clips->size())) {
 #if ALPHA_OR_BETA_VERSION
-					deluge::notify::notice("E248");
+					deluge::base::notify::notice("E248");
 #endif
 skipInstance:
 					thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + i);
@@ -2192,7 +2192,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					deluge::notify::notice("E451"); // Changed from E041 - was a duplicate.
+					deluge::base::notify::notice("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -2201,7 +2201,7 @@ skipInstance:
 				if (isArrangementClip && thisInstance->clip->gotInstanceYet) {
 
 #if ALPHA_OR_BETA_VERSION
-					deluge::notify::notice("E042");
+					deluge::base::notify::notice("E042");
 #endif
 					goto skipInstance;
 				}
@@ -2232,7 +2232,7 @@ skipInstance:
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
-			deluge::notify::notice("E043");
+			deluge::base::notify::notice("E043");
 #endif
 			if (runtimeView.currentClip == clip) {
 				runtimeView.currentClip = nullptr;
@@ -3258,7 +3258,7 @@ void Song::clearTempoAutomation() {
 		                                          deluge::edits::SetParamValue::Resolve::EXACT};
 		deluge::edits::apply(editCtx, edit);
 	}
-	deluge::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
+	deluge::base::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
@@ -4464,7 +4464,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
 				if (!live.param_backup.getPreferablyWithClip(*output, nullptr)) {
 #if ALPHA_OR_BETA_VERSION
-					deluge::notify::notice("E044");
+					deluge::base::notify::notice("E044");
 #endif
 					deleteOutputThatIsInMainList(output,
 					                             false); // Do *not* try to stop any auditioning first. There is
@@ -4930,7 +4930,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
-					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
+					deluge::base::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 				if (newChannel == CVInstrumentMode::both) {
@@ -4975,7 +4975,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
 					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
+					deluge::base::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 
@@ -5024,7 +5024,7 @@ Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const delug
 	};
 	if (acquired.error != Error::NONE) {
 		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
-			deluge::notify::notice(acquired.error);
+			deluge::base::notify::notice(acquired.error);
 		}
 		return removeWorkingAnimationAndGetOut();
 	}
@@ -5041,7 +5041,7 @@ Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const delug
 	}
 
 	replaceInstrument(oldInstrument, newInstrument);
-	deluge::notify::notice_clear_working();
+	deluge::base::notify::notice_clear_working();
 
 	instrumentSwapped(newInstrument);
 
@@ -5134,7 +5134,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS);
+				deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS);
 				return nullptr;
 			}
 		}
@@ -5147,7 +5147,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			deluge::notify::notice(Error::INSUFFICIENT_RAM);
+			deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 
@@ -5168,7 +5168,7 @@ gotAnInstrument: {}
 
 Instrument* Song::applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
-		deluge::notify::notice(acquired.error);
+		deluge::base::notify::notice(acquired.error);
 		return nullptr;
 	}
 	Instrument* newInstrument = acquired.instrument;
@@ -5414,7 +5414,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE);
+			deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE);
 			return nullptr;
 		}
 	}
@@ -5432,7 +5432,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			deluge::notify::notice(Error::INSUFFICIENT_RAM);
+			deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 	}
@@ -6055,7 +6055,7 @@ void Song::displayCurrentRootNoteAndScaleName() {
 			return;
 		}
 	}
-	deluge::notify::notice(std::string_view(popupMsg));
+	deluge::base::notify::notice(std::string_view(popupMsg));
 }
 
 void Song::commandTranspose(int32_t interval) {
@@ -6076,7 +6076,7 @@ void Song::transpose(int32_t interval) {
 		displayCurrentRootNoteAndScaleName();
 	}
 	else {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE);
 	}
 }
 
@@ -6099,7 +6099,7 @@ void Song::displayMasterTransposeInterval() {
 		deluge::string::appendInt(popupMsg, masterTransposeInterval);
 		popupMsg.append(" Semitones");
 	}
-	deluge::notify::notice(std::string_view(popupMsg));
+	deluge::base::notify::notice(std::string_view(popupMsg));
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {

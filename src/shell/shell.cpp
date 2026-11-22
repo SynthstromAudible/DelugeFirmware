@@ -1,7 +1,7 @@
 #include "shell/shell.h"
 
+#include "base/notify/notice_queue.h"
 #include "gfx/grid/tween.h"
-#include "notify/notice_queue.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
@@ -13,7 +13,7 @@ namespace deluge::ui::shell {
 
 namespace {
 
-using notify::Dirty;
+using base::notify::Dirty;
 
 /// @brief Legacy's full greyout strength, as `ui::grid::greyout`'s `amount` argument.
 ///
@@ -43,7 +43,7 @@ bool names_a_surface(Dirty f) {
 ///
 /// Such a fact is a model change whose consequences the shell cannot attribute, so it invalidates
 /// both sides.
-bool has_untargeted_fact(const notify::DirtySet& dirty) {
+bool has_untargeted_fact(const base::notify::DirtySet& dirty) {
 	for (uint8_t i = 0; i < static_cast<uint8_t>(Dirty::Count); i++) {
 		const Dirty f = static_cast<Dirty>(i);
 		if (!names_a_surface(f) && dirty.has(f)) {
@@ -358,10 +358,10 @@ void Shell::tick(uint32_t now_ms) {
 	}
 	const uint32_t dt = now_ms - last_ms_;
 	// 1. Model facts -> the gates and every stacked scene.
-	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell));
+	apply_dirty(base::notify::dirty().drain(base::notify::DirtyConsumer::Shell));
 	// 2. Presentation requests -> the overlay scenes, while this shell owns the queue.
 	if (owns_notices_) {
-		notices_.drain(notify::notices(), now_ms);
+		notices_.drain(base::notify::notices(), now_ms);
 	}
 	// 3. Lower, route and apply, in arrival order. A widget-owned shape the input-frontmost scene's
 	// widgets own stays in the snapshot for step 5's render instead.
@@ -577,7 +577,7 @@ void Shell::tick(uint32_t now_ms) {
 	// 8d. Facts this tick raised after step 1 -- in `handle()`, `tick()` or `after_render()` -- reach
 	// the scenes now, and the frames they name are owed to the next tick, at a deadline of now so
 	// `next_wake()` says so.
-	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell), now_ms);
+	apply_dirty(base::notify::dirty().drain(base::notify::DirtyConsumer::Shell), now_ms);
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
 	flush(now_ms);
@@ -592,7 +592,7 @@ void Shell::tick(uint32_t now_ms) {
 	tick_open_ = false;
 }
 
-void Shell::apply_dirty(const notify::DirtySet& dirty, std::optional<uint32_t> owed_at) {
+void Shell::apply_dirty(const base::notify::DirtySet& dirty, std::optional<uint32_t> owed_at) {
 	if (!dirty.any()) {
 		return;
 	}

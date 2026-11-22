@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace deluge::notify {
+namespace deluge::base::notify {
 
 /// @brief One raised notice: an error, a message, or a display-state request, copied by value.
 struct Notice {
@@ -116,4 +116,4 @@ void notice_notification(std::string_view title, std::string_view value);
 /// @return The drop count.
 uint32_t dropped_notices();
 
-} // namespace deluge::notify
+} // namespace deluge::base::notify

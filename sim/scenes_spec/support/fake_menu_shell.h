@@ -14,10 +14,10 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/shell.h"
@@ -58,9 +58,9 @@ struct FakeMenuShell {
 
 	FakeMenuShell() {
 		l10n::chosenLanguage = &l10n::built_in::english;
-		notify::Notice discard;
-		while (notify::notices().pop(discard)) {}
-		(void)notify::dirty().drain();
+		base::notify::Notice discard;
+		while (base::notify::notices().pop(discard)) {}
+		(void)base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 	}
 	FakeMenuShell(const FakeMenuShell&) = delete;

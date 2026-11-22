@@ -16,7 +16,6 @@ add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulat
 add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
 add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
 add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
-add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 # deluge_scenes (with deluge_scenes_bind): the first UI layer allowed to include the model. It

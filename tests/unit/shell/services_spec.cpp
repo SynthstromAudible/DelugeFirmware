@@ -166,7 +166,7 @@ struct ScreensaverRig {
 // clang-format off
 describe shell_services("shell::Shell::set_services", $ {
 	it("routes to services installed after construction", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -191,7 +191,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("ticks, lights and polls the timer of every installed service", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -214,7 +214,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("lists a service occupying two slots exactly once", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -236,7 +236,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("installing the same services twice does not double-tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -253,7 +253,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("installing over a live set leaves none of the old ones behind", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		std::vector<std::string> second_log;
 		CountingService replacement{&second_log, "replacement"};
@@ -284,7 +284,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("installing Services{} again puts the shell back to null services", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -304,7 +304,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("skips a null slot rather than listing it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -322,7 +322,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("keeps the shell's own two services in the rebuilt list", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ScreensaverRig r;
 		std::vector<std::string> log;
 		CountingService installed{&log, "installed"};
@@ -342,7 +342,7 @@ describe shell_services("shell::Shell::set_services", $ {
 	});
 
 	it("routes a lowered turn to the knobs' service as it is, the first after a pause included", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);

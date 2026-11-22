@@ -1,8 +1,8 @@
 #include "model/edits/audio_input_for.h"
 
+#include "base/notify/dirty_set.h"
 #include "model/edits/setting_edit.h"
 #include "model/output.h"
-#include "notify/dirty_set.h"
 #include "processing/audio_output.h"
 #include "project/audio_input.h"
 #include "util/misc.h"
@@ -33,7 +33,7 @@ void audioModeFor(::AudioOutput& output, AudioOutputMode mode) {
 
 void scrollAudioModeFor(::AudioOutput& output, int32_t offset) {
 	audioModeFor(output, output.scrolledMode(offset));
-	notify::raise(notify::Dirty::Oled);
+	base::notify::raise(base::notify::Dirty::Oled);
 }
 
 } // namespace deluge::edits

@@ -17,9 +17,9 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gfx/grid/palette.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -62,8 +62,8 @@ constexpr uint8_t kShiftX = 8, kShiftY = 0;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -241,7 +241,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		r.shift(true);
 		expect(menu_scene().pad_regions()).to_equal(PadRegions::Main);
 		menu_scene().state_for_spec().walk.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
-		deluge::notify::raise(deluge::notify::Dirty::Oled); // a render, so `after_render` drains the push
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // a render, so `after_render` drains the push
 		r.tick();
 		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 	});

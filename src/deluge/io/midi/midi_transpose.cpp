@@ -61,14 +61,14 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 			if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 				switch (rootUI->getUIType()) {
 				case UIType::KEYBOARD_SCREEN:
-					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 					break;
 				case UIType::INSTRUMENT_CLIP:
-					deluge::notify::raise(deluge::notify::Dirty::GridMain);
-					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 					break;
 				case UIType::AUTOMATION:
-					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 					break;
 				default:
 				    // fallthrough for everything else -- to many UIs to list explicitly

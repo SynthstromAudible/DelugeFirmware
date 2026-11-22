@@ -30,8 +30,8 @@
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/walk.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
-#include "notify/notice_queue.h"
 
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcuts.h"
@@ -242,7 +242,7 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		    shortcut_node(ctx.root, shortcuts_version(ctx), toggles_layer && st.second_layer, event.x, event.y);
 		// A `comingSoonMenu` cell pops its message ahead of every other check (`potentialShortcutPadAction`).
 		if (target == nullptr && shortcut_coming_soon(ctx.root, event.x, event.y)) {
-			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+			deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 			Result r;
 			r.handled = true;
 			return r;
@@ -257,7 +257,7 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		if (target != nullptr && !shortcut_applies(*target, ctx)) {
 			const Node* fallback = nodes::dx_shortcut_fallback(*target, ctx, event.x);
 			if (fallback == nullptr) {
-				deluge::notify::notice_string(
+				deluge::base::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 				Result r;
 				r.handled = true;
@@ -273,7 +273,7 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 			// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), and `HorizontalMenu::endSession` cancels its
 			// notification (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 			if (on_horizontal_page(ctx, st)) {
-				deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+				deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 			}
 			// `Replace`, not an in-place re-target: `SceneId::arg` is how the shell spells which
 			// node is open (`Shell::state_lines()` -> `app16/<id>`), and a path the scene moved

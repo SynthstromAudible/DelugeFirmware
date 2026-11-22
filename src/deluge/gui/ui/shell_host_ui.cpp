@@ -19,6 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 
+#include "base/notify/notice_queue.h"
 #include "base/panic.h" // FREEZE_WITH_ERROR
 #include "gui/ui/browser_host.h"
 #include "gui/ui/shell_action_dispatch.h"
@@ -37,7 +38,6 @@
 #include "io/midi/device_registry.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -688,8 +688,8 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 void ShellHostUI::wakeForPendingFacts() {
 	// A notice left for this guest's shell (`drain_notifications` skips the queue while it is current) wakes it too.
 	if (getCurrentUI() == this
-	    && (deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)
-	        || deluge::notify::notices().size() != 0)) {
+	    && (deluge::base::notify::dirty().pending(deluge::base::notify::DirtyConsumer::Shell)
+	        || deluge::base::notify::notices().size() != 0)) {
 		armTickSoon();
 	}
 }

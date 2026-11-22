@@ -11,15 +11,15 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/grid/keyboard.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "model/sample/last_file_path_loaded.h"
-#include "notify/dirty_set.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -163,9 +163,9 @@ struct CleanBrowser {
 		shouldInterpretNoteNames = false;
 		octaveStartsFromA = false;
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
 	}
 	CleanBrowser(const CleanBrowser&) = delete;
 	CleanBrowser& operator=(const CleanBrowser&) = delete;

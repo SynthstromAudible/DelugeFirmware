@@ -1,5 +1,5 @@
 #pragma once
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profile.h"
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
@@ -24,7 +24,7 @@ namespace deluge::ui::shell {
 /// `src/shell` may not include `hid/display` (`scripts/layers.toml`'s `shell-includes-outside`
 /// rule), so the numbers are reproduced here rather than named from the real enum -- exactly as
 /// `shell::Action::popup_type` already documents doing for the same reason. `Notice::popup_type`
-/// (`notify/notice_queue.h`) is a bare `uint8_t` for the same boundary reason, and
+/// (`base/notify/notice_queue.h`) is a bare `uint8_t` for the same boundary reason, and
 /// `notify_drain.cpp`'s `popup_type_of()` folds 0 ("unspecified") to `GENERAL`, never to `NONE` --
 /// `Notices::popup_type_of` below does the same.
 /// @{
@@ -44,7 +44,7 @@ const char* popup_type_name(uint8_t popup_type);
 /// @brief The name of notice kind \p k, for `.state` "notice <Kind> <arg>" lines.
 /// @param k The kind to name.
 /// @return A static, NUL-terminated name; never null (`Notice::Kind` has no unnamed values).
-const char* notice_kind_name(notify::Notice::Kind k);
+const char* notice_kind_name(base::notify::Notice::Kind k);
 
 /// @brief A transient message drawn over whatever is beneath it: legacy's `OLED::popupText`/
 ///        `displayPopup`, ported to the shell's `Scene` vocabulary.
@@ -418,7 +418,7 @@ public:
 	/// an empty popup box.
 	/// @param queue  The notice queue to drain.
 	/// @param now_ms The tick's wall clock.
-	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
+	void drain(base::notify::NoticeQueue& queue, uint32_t now_ms);
 
 	/// @brief Disarm the working animation and take it off the stack, with no notice.
 	///
@@ -505,7 +505,7 @@ public:
 	/// an `Action::Kind::Popup` reaches. A console line, a working animation or a cancel never
 	/// touches it, since none of them is what a shown popup came from.
 	/// @return The kind of the most recent popup; `Kind::Text` if no popup has been shown yet.
-	notify::Notice::Kind last_notice_kind() const { return last_notice_kind_; }
+	base::notify::Notice::Kind last_notice_kind() const { return last_notice_kind_; }
 
 	/// @brief The popup this class has stacked, as a host closing over it hands it on: legacy's one display keeps a
 	///        popup up whatever UI closes under it.
@@ -532,7 +532,7 @@ private:
 	/// @param timeout_ms How long the popup should stay up; 0 for a persistent (`Warn`) notice.
 	/// @param kind       What raised it, recorded for `last_notice_kind()`.
 	void show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms,
-	                             notify::Notice::Kind kind);
+	                             base::notify::Notice::Kind kind);
 
 	SceneStack& stack_;
 	const BoardProfile& profile_;
@@ -541,7 +541,7 @@ private:
 	WorkingScene& working_;
 	NotificationScene& notification_;
 	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
-	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
+	base::notify::Notice::Kind last_notice_kind_ = base::notify::Notice::Kind::Text;
 	/// The clock of the last `tick()`, which `next_timer()` measures from.
 	uint32_t now_ms_ = 0;
 	bool popup_retargeted_ = false;

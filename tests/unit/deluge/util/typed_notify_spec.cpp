@@ -3,7 +3,7 @@
 #include "support/spec_main.h"
 #include "util/notify.h"
 
-using namespace deluge::notify;
+using namespace deluge::base::notify;
 
 // clang-format off
 describe typed_notify("notify typed raisers", $ {

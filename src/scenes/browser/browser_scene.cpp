@@ -20,8 +20,8 @@
 
 #include "scenes/browser/browser_scene.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // AudioInputChannel, Error, kNumSources
-#include "notify/notice_queue.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/grid/favourites.h"
@@ -1220,7 +1220,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI::enterKeyPress` returns silently. The
 		// louder of the two is kept for both -- a select press that does nothing at all is the shape
 		// of bug this stack has been bitten by twice.
-		notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
+		base::notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
 		Result r;
 		r.handled = true;
 		return r;
@@ -1276,7 +1276,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	case AcceptOutcome::Close:
 		return close();
 	case AcceptOutcome::Stay: {
-		notify::notice_error_code(static_cast<int16_t>(error));
+		base::notify::notice_error_code(static_cast<int16_t>(error));
 		Result r;
 		r.handled = true;
 		return r;
@@ -1669,7 +1669,7 @@ Result BrowserScene::after_render() {
 		r.handled = true;
 		if (opened) {
 			if (std::exchange(slice_from_shift_, false)) {
-				notify::notice_text("SLICER");
+				base::notify::notice_text("SLICER");
 			}
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = SceneId{slicing::kSlicerSceneKind, 0}});
 		}

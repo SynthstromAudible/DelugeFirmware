@@ -1124,7 +1124,7 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the sound-editor root list", _ {
 		Rigged& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
@@ -1133,7 +1133,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 
 	it("renders the sound-editor root list on a 64-row panel", _ {
 		Rigged& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
@@ -1149,7 +1149,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(f.ctx, plain, 1234)).to_be_true();
 
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			r.open(nodes::patch_cables, f.ctx);
@@ -1191,7 +1191,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 		// this records what the whole page composes to.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		for (bool tall : {false, true}) {
 			Rig r = tall ? Rig{board_64(), profile_64()} : Rig{};
 			r.open(nodes::vibrato, f.ctx);
@@ -1212,7 +1212,7 @@ describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the source picker the 53 PatchedParam nodes chain to, on both panels", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			r.open(nodes::lpf_freq, f.ctx);

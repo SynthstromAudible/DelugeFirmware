@@ -6,11 +6,11 @@
 
 #include "ui/oled/popup.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
-#include "notify/notice_queue.h"
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
 #include "plugin/types/param.h"
@@ -216,7 +216,7 @@ namespace {
 /// @brief Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`), so every draw
 ///        replaces whatever notification was up -- a menu column's value, say.
 void take_notification_slot() {
-	deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+	deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 }
 
 } // namespace

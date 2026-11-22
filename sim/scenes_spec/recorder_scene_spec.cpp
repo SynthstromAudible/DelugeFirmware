@@ -85,8 +85,8 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 
 #include "support/fake_ports.h"
 #include "support/menu_engine.h"
@@ -345,10 +345,10 @@ bool working_on_stack(deluge::ui::shell::Shell& shell) {
 }
 
 /// @brief Whether a notice of @p kind, saying @p text when one is given, is queued; empties the queue.
-bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {}) {
+bool drained_notice(deluge::base::notify::Notice::Kind kind, std::string_view text = {}) {
 	bool seen = false;
-	deluge::notify::Notice notice;
-	while (deluge::notify::notices().pop(notice)) {
+	deluge::base::notify::Notice notice;
+	while (deluge::base::notify::notices().pop(notice)) {
 		seen = seen || (notice.kind == kind && (text.empty() || std::string_view{notice.text} == text));
 	}
 	return seen;
@@ -636,9 +636,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		bool error_shown = false;
-		deluge::notify::Notice notice;
-		while (deluge::notify::notices().pop(notice)) {
-			error_shown = error_shown || notice.kind == deluge::notify::Notice::Kind::Error;
+		deluge::base::notify::Notice notice;
+		while (deluge::base::notify::notices().pop(notice)) {
+			error_shown = error_shown || notice.kind == deluge::base::notify::Notice::Kind::Error;
 		}
 		expect(error_shown).to_be_true();
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
@@ -886,7 +886,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 			(void)shellHostUI.timerCallback();
 		}
 		expect(working_on_stack(shellHostUI.shell())).to_be_false();
-		deluge::notify::notice_text("POPUP");
+		deluge::base::notify::notice_text("POPUP");
 		(void)shellHostUI.timerCallback();
 		expect(shellHostUI.shell().notices().next_timer().has_value()).to_be_true();
 		nullifyUIs();
@@ -985,7 +985,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		deluge::notify::notice_text("A KNOB", deluge::notify::Notice::Kind::Text);
+		deluge::base::notify::notice_text("A KNOB", deluge::base::notify::Notice::Kind::Text);
 		r.tick(10);
 		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"A KNOB"});
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
@@ -1127,7 +1127,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 		// A kit row is a sample source already: the range holding no file is what says nothing was attached.
 		expect(k.drum->sourceResources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("refuses a take with a Loading popup while a load may replace its sound, and keeps the undo log", _ {
@@ -1143,7 +1143,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		deluge::scenes::spec::HeldPorts loading{c};
 		loading.card.replacing = true;
 		r.open_on(c); // `on_enter` runs as the scene is pushed
-		expect(drained_notice(deluge::notify::Notice::Kind::Text, "Loading")).to_be_true();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Text, "Loading")).to_be_true();
 		r.tick(0);
 		expect(r.on_stack()).to_be_false();
 		expect(recorder_scene().recording()).to_be_false();
@@ -1179,13 +1179,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC021.WAV"};
 		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
-		(void)drained_notice(deluge::notify::Notice::Kind::Error);
+		(void)drained_notice(deluge::base::notify::Notice::Kind::Error);
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		expect(r.on_stack()).to_be_false();
 		expect(r.source->ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("keeps the take unattached, silently, when its edited synth is replaced under it and only sleeps in the song", _ {
@@ -1208,7 +1208,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.on_stack()).to_be_false();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(replacement->oscType(0)).not_().to_equal(OscType::SAMPLE);
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("keeps the take unattached, silently, in another song, even one with a sound at its slot", _ {
@@ -1230,7 +1230,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.on_stack()).to_be_false();
 		expect(static_cast<int32_t>(other_sound->oscType(0))).to_equal(static_cast<int32_t>(before));
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
-		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+		expect(drained_notice(deluge::base::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("greys out every column of the grid, exactly as getGreyoutColsAndRows does", _ {
@@ -1716,10 +1716,10 @@ constexpr deluge::project::LaneAddress kDrumLane{.kit_id = 40, .drum_id = 9};
 constexpr std::string_view kTakePath = "SAMPLES/RECORD/REC00001.WAV";
 
 /// @brief Every notice the queue holds, drained.
-std::vector<deluge::notify::Notice::Kind> drain_notices() {
-	std::vector<deluge::notify::Notice::Kind> kinds;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
+std::vector<deluge::base::notify::Notice::Kind> drain_notices() {
+	std::vector<deluge::base::notify::Notice::Kind> kinds;
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
 		kinds.push_back(n.kind);
 	}
 	return kinds;
@@ -1823,8 +1823,8 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.last_enter_refused()).to_be_true();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		const std::vector<deluge::notify::Notice::Kind> notices = recorder_fakes::drain_notices();
-		expect(notices).to_equal(std::vector<deluge::notify::Notice::Kind>{deluge::notify::Notice::Kind::Error});
+		const std::vector<deluge::base::notify::Notice::Kind> notices = recorder_fakes::drain_notices();
+		expect(notices).to_equal(std::vector<deluge::base::notify::Notice::Kind>{deluge::base::notify::Notice::Kind::Error});
 	});
 
 	it("begins in stereo when an input is plugged in, and in mono otherwise", _ {
@@ -1900,7 +1900,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 	});
 
 	it("orphans a running take on exit and on being taken down, and only exit clears the Working it showed", _ {
-		using Notice = deluge::notify::Notice;
+		using Notice = deluge::base::notify::Notice;
 		recorder_fakes::FakesRig r;
 		expect(r.enter(r.ctx())).to_be_true();
 		r.take().capturing_data = true;
@@ -1954,7 +1954,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		c.ports = {};
 		expect(r.enter(c)).to_be_false();
 		expect(r.scene.recording()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 
 	it("with no take port, wipes, names, clears and ends the audition, then refuses with no error", _ {
@@ -1965,7 +1965,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.host.order).to_equal(std::vector<std::string_view>{"wipe", "name", "ticks", "audition"});
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 
 	it("with no audio port to read a take back, begins none, and refuses with no error", _ {
@@ -1976,7 +1976,7 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(r.host.take_actions.calls).to_equal(std::vector<TakeCall>{});
 		expect(r.scene.recording()).to_be_false();
 		expect(r.scene.next_timer().has_value()).to_be_false();
-		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::notify::Notice::Kind>{});
+		expect(recorder_fakes::drain_notices()).to_equal(std::vector<deluge::base::notify::Notice::Kind>{});
 	});
 });
 

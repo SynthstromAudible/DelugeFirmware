@@ -34,8 +34,8 @@
 /// @note The spec may include `gui/` (for the browser host and the guest); the library may not. Same
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/menu_view_of.h"
-#include "notify/dirty_set.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bindings.h"
@@ -1272,19 +1272,19 @@ describe browser_choice_reroot(
 		        r.enter();
 		        deluge::gui::ui::pollShellBrowserHost();
 		        r.step();
-		        (void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+		        (void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Shell);
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
-		        expect(deluge::notify::dirty()
-		                   .drain(deluge::notify::DirtyConsumer::Shell)
-		                   .has(deluge::notify::Dirty::Oled))
+		        expect(deluge::base::notify::dirty()
+		                   .drain(deluge::base::notify::DirtyConsumer::Shell)
+		                   .has(deluge::base::notify::Dirty::Oled))
 		            .to_be_true();
 
 		        // A refusal moves nothing and asks for nothing.
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
-		        expect(deluge::notify::dirty()
-		                   .drain(deluge::notify::DirtyConsumer::Shell)
-		                   .has(deluge::notify::Dirty::Oled))
+		        expect(deluge::base::notify::dirty()
+		                   .drain(deluge::base::notify::DirtyConsumer::Shell)
+		                   .has(deluge::base::notify::Dirty::Oled))
 		            .to_be_false();
 	        });
 

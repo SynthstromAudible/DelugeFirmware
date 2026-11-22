@@ -70,9 +70,9 @@
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h" // a device setting's "restart to apply"
 #include "gui/l10n/strings.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h" // a device setting's "restart to apply"
 #include "plugin/types/display_mapping.h"
 
 #include <algorithm>
@@ -175,14 +175,14 @@ bool write_device(const deluge::scenes::bind::Target& target, SetFn after_write,
 		return false;
 	}
 	if (done == DeviceWrite::STORED_FOR_RESTART) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
 	}
 	if (after_write != nullptr) {
 		after_write(ctx, request->menu_value);
 	}
-	notify::raise(notify::Dirty::Oled);
+	base::notify::raise(base::notify::Dirty::Oled);
 	if (repaints_grid) {
-		notify::raise(notify::Dirty::GridMain);
+		base::notify::raise(base::notify::Dirty::GridMain);
 	}
 	return true;
 }
@@ -334,9 +334,9 @@ bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 		if (!request || !ctx.ports.writes->write(*request)) {
 			return false;
 		}
-		notify::raise(notify::Dirty::Oled);
+		base::notify::raise(base::notify::Dirty::Oled);
 		if (bind.repaints_grid) {
-			notify::raise(notify::Dirty::GridMain);
+			base::notify::raise(base::notify::Dirty::GridMain);
 		}
 		if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
 			// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
@@ -365,9 +365,9 @@ bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 			//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
 			//    every param write asks for one grid repaint the drain already coalesces, rather than
 			//    silently dropping the one that mattered.
-			notify::raise(notify::Dirty::ParamAutomation);
-			notify::raise(notify::Dirty::ModTarget);
-			notify::raise(notify::Dirty::GridMain);
+			base::notify::raise(base::notify::Dirty::ParamAutomation);
+			base::notify::raise(base::notify::Dirty::ModTarget);
+			base::notify::raise(base::notify::Dirty::GridMain);
 		}
 		return true;
 	}
@@ -378,7 +378,7 @@ bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// without this function writing to it. The hook reports no refusal, so the write stands as taken.
 	if (bind.set != nullptr) {
 		bind.set(ctx, value);
-		notify::raise(notify::Dirty::Oled);
+		base::notify::raise(base::notify::Dirty::Oled);
 		return true;
 	}
 	// Nothing to write, so nothing refused it.
@@ -407,7 +407,7 @@ void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
 	// -- so all this layer knows is that something the OLED shows has changed.
 	if (node.bind.adjust != nullptr) {
 		node.bind.adjust(ctx, offset);
-		notify::raise(notify::Dirty::Oled);
+		base::notify::raise(base::notify::Dirty::Oled);
 	}
 }
 
@@ -652,7 +652,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	if (note_row_bridge_direction(ctx,
 	                              &existing)) { // `Direction::writeCurrentValue`'s note-row arm, through `NoteBridge`
 		note_bridge()->set_row_sequence_direction(value);
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 		return;
 	}
 	if (!has_instrument_clip(ctx) || ctx.ports.writes == nullptr) {
@@ -665,7 +665,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	if (request) {
 		(void)ctx.ports.writes->write(*request);
 	}
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 } // namespace deluge::scenes::menu::bindings

@@ -52,6 +52,7 @@
 #include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 
+#include "base/notify/dirty_set.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/column_controls/dx.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -77,7 +78,6 @@
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/dirty_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
@@ -2158,8 +2158,8 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
 
-		deluge::notify::DirtySet dirty;
-		dirty.raise(deluge::notify::Dirty::SongSwapped);
+		deluge::base::notify::DirtySet dirty;
+		dirty.raise(deluge::base::notify::Dirty::SongSwapped);
 		deluge::scenes::menu_scene().on_model_changed(dirty);
 		expect(entry::soundMenuModControllable()).to_be_null();
 		expect(entry::soundMenuParamManager()).to_be_null();

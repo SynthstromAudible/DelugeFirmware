@@ -3919,7 +3919,7 @@ bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
 		if (displayPopup) {
-			deluge::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
+			deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
 		}
 		return false;
 	}
@@ -4015,7 +4015,7 @@ bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelS
 Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
                                                   const deluge::storage::AcquireResult& acquired) {
 	if (acquired.error != Error::NONE) {
-		deluge::notify::notice(acquired.error);
+		deluge::base::notify::notice(acquired.error);
 		return nullptr;
 	}
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
@@ -4397,7 +4397,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		deluge::notify::notice(Error::INSUFFICIENT_RAM);
+		deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -4405,7 +4405,7 @@ ramError:
 
 	Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error != Error::NONE) {
-		deluge::notify::notice(error);
+		deluge::base::notify::notice(error);
 		return nullptr;
 	}
 

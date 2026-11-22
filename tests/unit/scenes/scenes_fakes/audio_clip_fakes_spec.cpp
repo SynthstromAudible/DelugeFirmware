@@ -5,8 +5,8 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
-#include "notify/notice_queue.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/song.h"
@@ -168,9 +168,9 @@ uint16_t popup_of(const Result& r) {
 /// @brief The text notices raised since the last call, oldest first.
 std::vector<std::string> text_notices() {
 	std::vector<std::string> out;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
-		if (n.kind == deluge::notify::Notice::Kind::Text) {
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
+		if (n.kind == deluge::base::notify::Notice::Kind::Text) {
 			out.emplace_back(n.text);
 		}
 	}

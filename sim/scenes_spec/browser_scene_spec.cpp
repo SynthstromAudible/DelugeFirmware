@@ -39,7 +39,7 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -837,9 +837,9 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		expect(browser_scene().listing_in_flight()).to_be_false();
 		expect(Deferred::pending()).to_be_false();
 		// Nothing was raised, so nothing in `Notices` will redraw this scene for us.
-		deluge::notify::Notice n;
+		deluge::base::notify::Notice n;
 		int raised = 0;
-		while (deluge::notify::notices().pop(n)) {
+		while (deluge::base::notify::notices().pop(n)) {
 			raised++;
 		}
 		expect(raised).to_equal(0);
@@ -1237,7 +1237,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
 		held.range->sampleHolder.audioFile = nullptr;
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_false();
 	});
@@ -3173,7 +3173,7 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		const Result oled_only = browser_scene().after_render(); // a tick that drew no pads
 		expect(browser_scene().take_scroll().has_value()).to_be_false(); // the waveform is not on the grid yet
 		expect(find_action(oled_only, ShellAction::Kind::RepaintAll)).not_().to_be_null();
-		deluge::notify::raise(deluge::notify::Dirty::GridMain); // the repaint that after_render asked for
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain); // the repaint that after_render asked for
 		run_until(r, r.clock + 30);
 		expect(browser_scene().take_scroll()).to_equal(ScrollRequest{.direction = 1});
 		expect(browser_scene().scroll_pending()).to_be_false();
@@ -3612,7 +3612,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		run_until(r, r.clock + 50);
 		const std::string shown = r.fake.state();
 		held.range->sampleHolder.audioFile = nullptr;
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		expect(r.fake.state()).to_equal(shown);

@@ -14,7 +14,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -61,8 +61,8 @@ constexpr uint8_t kMidiLed = 23, kCvLed = 32;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -230,8 +230,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);
-		deluge::notify::Notice notice;
-		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
+		deluge::base::notify::Notice notice;
+		expect(deluge::base::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused()).to_equal(&nodes::master_volume);
 	});

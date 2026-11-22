@@ -20,6 +20,7 @@
 #include "board_controls.hpp"
 #include "controls/board.h"
 
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_guest_knobs.h"
@@ -32,7 +33,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "notify/notice_queue.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_knobs.h"
@@ -90,8 +90,8 @@ public:
 	/// `ModControllableAudio::displayFilterSettings`
 	///        and its siblings): up until the release cancels it.
 	void popup_text(std::string_view text) override { display->popupText(std::string{text}.c_str()); }
-	/// @brief A push's setting change (`Sound::modEncoderButtonAction`'s `deluge::notify::notice`).
-	void notice_text(std::string_view text) override { deluge::notify::notice_text(text); }
+	/// @brief A push's setting change (`Sound::modEncoderButtonAction`'s `deluge::base::notify::notice`).
+	void notice_text(std::string_view text) override { deluge::base::notify::notice_text(text); }
 	/// @brief The song compressor's setting (main's `GlobalEffectable::modEncoderActionForNonExistentParam`).
 	void notification(std::string_view title, std::string_view value) override {
 		display->displayNotification(title, value);

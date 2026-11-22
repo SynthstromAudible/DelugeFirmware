@@ -419,7 +419,7 @@ void resetSettings() {
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
 	}
 	resetSettings();
 	writeSettings();

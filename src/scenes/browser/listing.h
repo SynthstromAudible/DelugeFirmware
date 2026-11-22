@@ -24,7 +24,7 @@
 /// turns those into pushing and removing `SceneKind::Working`. A failed listing raises
 /// `notice_error_code`, which `Notices` turns into the same popup legacy's
 /// `Browser::onListingFailed` shows via `display->displayError`.
-/// This file therefore reaches nothing in `shell/` directly -- only `notify/`.
+/// This file therefore reaches nothing in `shell/` directly -- only `base/notify/`.
 ///
 /// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
 ///          `Notices::drain`'s `Kind::ClearWorking` case calls `working_.clear()` unconditionally

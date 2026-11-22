@@ -2,7 +2,7 @@
 #include "gui/ui/notify_drain.h"
 #include "support/spec_main.h"
 
-using namespace deluge::notify;
+using namespace deluge::base::notify;
 
 // clang-format off
 describe drain_mapping("legacy_redraw_for", $ {

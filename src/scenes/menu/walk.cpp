@@ -24,7 +24,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "gui/l10n/strings.h"
 #include "scenes/menu/bindings.h"
@@ -278,7 +278,8 @@ RangeGate MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& se
 	// The first range goes to the source the item's own rule is about (`range_rule_context`): REC 2's oscillator, not
 	// the menu's. A refusal is `main`'s `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`.
 	if (ensure_item_first_range(child, ctx) == Permission::No) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+		deluge::base::notify::notice_string(
+		    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 		return RangeGate::Refused;
 	}
 	// `handleInstrumentButtonPress`'s own suppression (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
@@ -325,7 +326,7 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	// popup -- every other `MenuItem::endSession` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`)
 	// is a no-op. This is "entering a child" from a horizontal page.
 	if (on_horizontal_page(ctx, st)) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 	}
 	remember_path(ctx, st);
 	st.depth++;
@@ -397,7 +398,7 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// anything, while `focused()` still names the page being left.
 	remember_path(ctx, st);
 	if (on_horizontal_page(ctx, st)) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 	}
 	const Node* left = nullptr;
 	do {
@@ -583,7 +584,7 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
 			st.columns[0].focused = static_cast<int8_t>(
 			    deluge::ui::oled::page_switch(std::span<const deluge::ui::oled::Column>{cols, n}, 0, 1));
 		}
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+		deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 		return true;
 	}
 	return false;

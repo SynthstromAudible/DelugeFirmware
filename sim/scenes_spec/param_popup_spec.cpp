@@ -37,7 +37,7 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -244,8 +244,8 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	// Each draw files a notification cancel; a later example's shell would drain it into a display it may not have.
 	after_each([] {
-		deluge::notify::Notice notice;
-		while (deluge::notify::notices().pop(notice)) {
+		deluge::base::notify::Notice notice;
+		while (deluge::base::notify::notices().pop(notice)) {
 		}
 	});
 
@@ -629,11 +629,11 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	it("takes the notification slot whenever it draws, a deferred update included, and not on a hand-off", _ {
 		// Legacy's knob popup is the display's notification (`View::displayModEncoderValuePopup`): every draw
 		// replaces whatever notification was up. A hand-off gives the popup to that very slot, so it cancels nothing.
-		using deluge::notify::Notice;
+		using deluge::base::notify::Notice;
 		const auto cancels = [] {
 			int n = 0;
 			Notice notice;
-			while (deluge::notify::notices().pop(notice)) {
+			while (deluge::base::notify::notices().pop(notice)) {
 				n += notice.kind == Notice::Kind::CancelNotification ? 1 : 0;
 			}
 			return n;

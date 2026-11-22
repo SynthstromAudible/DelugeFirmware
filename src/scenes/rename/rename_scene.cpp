@@ -574,7 +574,7 @@ Result RenameScene::enter_key_press() {
 	// targets raise the same string, so nothing is lost by hoisting it.
 	//
 	// (A `notify::Severity::Warn` notice is not an option. There is no such path: the
-	// raise-side helpers in `notify/notice_queue.h` take no severity at all, and the shell's own
+	// raise-side helpers in `base/notify/notice_queue.h` take no severity at all, and the shell's own
 	// popup action is the direct port of `displayPopup`.)
 	(void)r.actions.push_back(Action{.kind = Action::Kind::Popup,
 	                                 .surface = SurfaceRole::Main,

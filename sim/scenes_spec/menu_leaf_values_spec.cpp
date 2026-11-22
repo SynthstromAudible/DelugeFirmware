@@ -32,7 +32,7 @@
 #include "ui/oled/list.h"
 #include "ui/oled/values.h"
 
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -97,7 +97,7 @@ struct Rig {
 
 	Rig() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 	}
 	Rig(const Rig&) = delete;

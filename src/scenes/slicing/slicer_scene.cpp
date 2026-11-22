@@ -15,8 +15,8 @@
 
 #include "gfx/grid/palette.h"
 
+#include "base/notify/notice_queue.h"
 #include "gfx/grid/pad_grid.h"
-#include "notify/notice_queue.h"
 
 #include <algorithm>
 #include <array>
@@ -214,7 +214,8 @@ Result SlicerScene::horizontal_encoder(int32_t offset, bool shift) {
 	// `popupText(text, /*persistent=*/false)` (`hid/display/oled.h`), i.e. a timed popup,
 	// which is what `Notice::Kind::Text` is.
 	char buffer[24]; // legacy's own `char buffer[24]`
-	deluge::notify::notice_text(prefixed_int("Start: ", points_[current_slice_].start_pos, std::span<char>{buffer}));
+	deluge::base::notify::notice_text(
+	    prefixed_int("Start: ", points_[current_slice_].start_pos, std::span<char>{buffer}));
 
 	// `uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF)` -- the PADS only; legacy files no
 	// `renderUIsForOled()` here, because the OLED page shows a count this arm does not change.
@@ -247,7 +248,7 @@ Result SlicerScene::vertical_encoder(int32_t offset) {
 	// `snprintf(buffer, 32, "Transpose: %d", transpose)`, through the notify seam for
 	// the reason `horizontal_encoder`'s popup is.
 	char buffer[32]; // legacy's own `char buffer[32]`
-	deluge::notify::notice_text(prefixed_int("Transpose: ", transpose, std::span<char>{buffer}));
+	deluge::base::notify::notice_text(prefixed_int("Transpose: ", transpose, std::span<char>{buffer}));
 
 	// No repaint: legacy's `verticalEncoderAction` files none -- the transpose is not on either
 	// surface. (`Slicer::buttonAction`'s `Y_ENC` arm shows the same value as a popup and files none either.)
@@ -360,7 +361,7 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 
 	points_[num_manual_slices_] = SlicePoint{.start_pos = sample_pos, .transpose = 0};
 	num_manual_slices_++;
-	deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+	deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelPopup);
 
 	// Legacy's own bubble sort over the placed slices, kept as a bubble sort: it is
 	// `numManualSlice` <= 64 elements on a pad press, and swapping it for something else would be a
@@ -421,7 +422,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 			if (close_popup) {
 				// `display->cancelPopup()`, through the notify seam -- the popup service
 				// owns the panel, so "take mine down" is a notice, not a frame write.
-				deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+				deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelPopup);
 			}
 		}
 		// Do slice.
@@ -535,7 +536,7 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 	// have: `currentSlice < numManualSlice`.
 	if (b == ButtonId::YEnc && mode_ == Mode::Manual && current_slice_ < num_manual_slices_) {
 		char buffer[24]; // legacy's own `char buffer[24]`
-		deluge::notify::notice_text(
+		deluge::base::notify::notice_text(
 		    prefixed_int("Transpose: ", points_[current_slice_].transpose, std::span<char>{buffer}));
 		r.handled = true;
 		return r;

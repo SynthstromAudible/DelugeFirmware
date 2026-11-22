@@ -7,7 +7,7 @@
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"
@@ -124,7 +124,7 @@ bool RecorderScene::name_drum() {
 		}
 	}
 	// `display->displayError(error); return false;`.
-	notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
+	base::notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	return false;
 }
 
@@ -139,7 +139,7 @@ bool RecorderScene::setup_recording() {
 	armed_ = can_take && t->begin(stereo ? bind::TakeChannels::STEREO : bind::TakeChannels::MONO);
 	if (can_take && !armed_) {
 		// `display->displayError(Error::INSUFFICIENT_RAM); return false;`.
-		notify::notice_error_code(static_cast<int16_t>(Error::INSUFFICIENT_RAM));
+		base::notify::notice_error_code(static_cast<int16_t>(Error::INSUFFICIENT_RAM));
 	}
 	return armed_;
 }
@@ -161,7 +161,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	// `opened()`'s first refusal, ahead of the undo-log wipe so a refused take leaves the history intact: a load is
 	// running that may swap out what the take would attach to.
 	if (ctx_.ports.card != nullptr && ctx_.ports.card->output_may_be_replaced()) {
-		notify::notice_text(kLoading);
+		base::notify::notice_text(kLoading);
 		return false;
 	}
 	if (!can(ctx_)) {
@@ -212,7 +212,7 @@ void RecorderScene::on_exit() {
 	const bool showed_working = armed_ && stopping_;
 	orphan_take();
 	if (showed_working) {
-		notify::notice_kind(notify::Notice::Kind::ClearWorking);
+		base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
 	}
 }
 
@@ -252,7 +252,7 @@ void RecorderScene::end_recording_soon() {
 	if (!armed_ || !t || !t->capturing_data || takes() == nullptr) {
 		return;
 	}
-	notify::notice_text(kWorking, notify::Notice::Kind::Working);
+	base::notify::notice_text(kWorking, base::notify::Notice::Kind::Working);
 	stopping_ = true;
 	takes()->end_soon();
 }
@@ -278,7 +278,7 @@ void RecorderScene::attach_sample() {
 	}
 	if (!ctx_.ports.sound_writes->attach_recording(target_.slot, target_.source, *range, path->c_str())) {
 		// The take is on the card, but the sound did not get it.
-		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
+		base::notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	}
 }
 
@@ -307,7 +307,7 @@ void RecorderScene::finish_recording() {
 	}
 	armed_ = false;
 	stopping_ = false;
-	notify::notice_kind(notify::Notice::Kind::ClearWorking);
+	base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
 }
 
 Result RecorderScene::after_render() {

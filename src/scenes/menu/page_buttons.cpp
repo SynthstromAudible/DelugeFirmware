@@ -22,7 +22,7 @@
 
 #include "scenes/menu/bindings.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "ui/oled/columns.h"
 
@@ -113,7 +113,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						// `switchVisiblePage` cancels the notification unconditionally once past its
 						// own `totalPages <= 1` guard -- `page_switch` returning a
 						// different column already implies that guard passed.
-						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+						deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 						repaint = true;
 					}
 				}

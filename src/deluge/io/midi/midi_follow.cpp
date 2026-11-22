@@ -165,7 +165,7 @@ void MidiFollow::init() {
 
 void MidiFollow::factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW);
+		deluge::base::notify::notice(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
@@ -462,7 +462,7 @@ void MidiFollow::displayParamControlError(Target sound, Target global) {
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);
 		}
-		deluge::notify::notice(std::string_view(popupMsg));
+		deluge::base::notify::notice(std::string_view(popupMsg));
 	}
 }
 

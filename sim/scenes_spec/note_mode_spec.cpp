@@ -27,6 +27,7 @@
 
 #include "gui/ui/shell_note_mode.h"
 
+#include "base/notify/dirty_set.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/ui.h"            // setRootUILowLevel, nullifyUIs, openUI, clearPendingUIRendering
@@ -34,7 +35,6 @@
 #include "gui/views/session_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 
 #include "scenes/menu/context.h"
@@ -250,8 +250,8 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
-		deluge::notify::DirtySet dirty;
-		dirty.raise(deluge::notify::Dirty::SongSwapped);
+		deluge::base::notify::DirtySet dirty;
+		dirty.raise(deluge::base::notify::Dirty::SongSwapped);
 		menu_scene().on_model_changed(dirty);
 		expect(shellHostUI.shell().stack().depth()).to_be_greater_than(0u);
 		expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);

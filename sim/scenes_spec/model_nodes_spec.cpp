@@ -15,11 +15,11 @@
 #include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/nodes/sound_voice.h"
 
+#include "base/notify/dirty_set.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "project/setting_group.h"
@@ -223,9 +223,9 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 	it("repaints the grid when an audio clip's reverse changes", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const MenuContext ctx = at(*f.song, f.clip);
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		menu::bindings::write(nodes::audio_clip_reverse, ctx, 1);
-		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::GridMain)).to_be_true();
+		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::GridMain)).to_be_true();
 	});
 
 	it("edits a synth's voice priority on its sound, and an audio clip's on the clip", _ {

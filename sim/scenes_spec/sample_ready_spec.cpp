@@ -14,11 +14,11 @@
 
 #include "support/mocks/fake_surfaces.h"
 
+#include "base/notify/dirty_set.h"
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h"
 #include "model/edits/setting_edit.h"
 #include "model/sample/sample.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"

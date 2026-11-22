@@ -223,7 +223,7 @@ doRecord:
 								                             mpeValuesOrNull, midiChannel);
 								if (getRootUI()) {
 									instrumentClip->notify_content_changed();
-									deluge::notify::raise(deluge::notify::Dirty::NoteRows);
+									deluge::base::notify::raise(deluge::base::notify::Dirty::NoteRows);
 								}
 							}
 
@@ -278,7 +278,7 @@ justAuditionNote:
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 							if (getRootUI()) {
 								instrumentClip->notify_content_changed();
-								deluge::notify::raise(deluge::notify::Dirty::NoteRows);
+								deluge::base::notify::raise(deluge::base::notify::Dirty::NoteRows);
 							}
 						}
 					}
@@ -435,8 +435,8 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	if (type == OutputType::MIDI_OUT) {
 		if (getRootUI() == &automationView) {
 			if (activeClip->lastSelectedParamID == ccNumber) {
-				deluge::notify::raise(deluge::notify::Dirty::GridMain);
-				deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 			}
 		}
 	}

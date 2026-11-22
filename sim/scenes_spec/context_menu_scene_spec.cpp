@@ -26,7 +26,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -98,8 +98,8 @@ using ShellAction = deluge::ui::shell::Action;
 /// panel globals main's confirmation window was drawn under (`support/reset_witness.h`).
 void reset_globals() {
 	menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 	spec::reset::pin_panel_globals();
 }
 
@@ -721,8 +721,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		// Every reset raises a notice. One left queued by an earlier example would make the shell push a notice
 		// overlay on this Rig's first tick, and the stack would still be one deep after the menu removed itself:
 		// correct (it is why `close()` spells `Remove` rather than `Pop`), but not what these examples measure.
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.open(context_of(f), id);
 		r.tick(0);

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rewrite model-side display-> presentation calls to notify::notice*. Idempotent.
 
-  display->displayError(e);                                  -> deluge::notify::notice(e);
+  display->displayError(e);                                  -> deluge::base::notify::notice(e);
   display->consoleText("lit");                               -> notice("lit", Notice::Kind::Console);
   display->consoleText(deluge::l10n::get(String::X));        -> notice(String::X, Notice::Kind::Console);
   display->displayPopup("lit"[, ...]);                       -> notice("lit"[, Kind::Text, uint8_t(PopupType::T)]);
@@ -33,7 +33,7 @@ import re
 import sys
 from pathlib import Path
 
-NS = "deluge::notify::"
+NS = "deluge::base::notify::"
 L10N = re.compile(
     r"(?:deluge::)?l10n::get\(\s*"
     r"(deluge::l10n::String::\w+|l10n::String::\w+|String::\w+)\s*\)"

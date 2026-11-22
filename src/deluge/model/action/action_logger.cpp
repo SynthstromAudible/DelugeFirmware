@@ -705,8 +705,8 @@ currentClipSwitchedOver:
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (whichAnimation == Animation::NONE) {
-					deluge::notify::raise(deluge::notify::Dirty::GridMain);
-					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 				}
 			}
 		}
@@ -718,27 +718,27 @@ currentClipSwitchedOver:
 					instrumentClipView.recalculateColours();
 				}
 				if (whichAnimation == Animation::NONE) {
-					deluge::notify::raise(deluge::notify::Dirty::GridMain);
-					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+					deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 				}
 			}
 		}
 		else if (currentUI == &audioClipView) {
 			if (whichAnimation == Animation::NONE) {
-				deluge::notify::raise(deluge::notify::Dirty::GridMain);
-				deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 			}
 		}
 		else if (currentUI == &keyboardScreen) {
 			if (whichAnimation != Animation::ENTER_KEYBOARD_VIEW) {
-				deluge::notify::raise(deluge::notify::Dirty::GridMain);
+				deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 			}
 		}
 		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
 		// failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (currentUI == &sessionView) {
-			deluge::notify::raise(deluge::notify::Dirty::GridMain);
-			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 		}
 		else if (currentUI == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);
@@ -786,7 +786,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error != Error::NONE) {
-		deluge::notify::notice(error);
+		deluge::base::notify::notice(error);
 
 		deleteAllLogs();
 	}
@@ -860,7 +860,7 @@ displayUndoMessage:
 #ifdef undoLedX
 		indicator_leds::indicateAlertOnLed(undoLedX, undoLedY);
 #else
-		deluge::notify::notice("Undo", deluge::notify::Notice::Kind::Console);
+		deluge::base::notify::notice("Undo", deluge::base::notify::Notice::Kind::Console);
 #endif
 	}
 }
@@ -870,7 +870,7 @@ void ActionLogger::redo() {
 #ifdef redoLedX
 		indicator_leds::indicateAlertOnLed(redoLedX, redoLedY);
 #else
-		deluge::notify::notice("Redo", deluge::notify::Notice::Kind::Console);
+		deluge::base::notify::notice("Redo", deluge::base::notify::Notice::Kind::Console);
 #endif
 	}
 }

@@ -11,9 +11,9 @@
 /// run in the host suite (`tests/unit/scenes/menu/validate_spec.cpp`, over fake trees and fake
 /// contexts) as well as against the real tables in the sim spec.
 
+#include "base/fixed_vector.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
-#include "shell/fixed_vector.h"
 
 #include <cstdint>
 #include <span>
@@ -205,10 +205,10 @@ struct ValidateOptions {
 /// @param options   Which strict rules to stand down. Default-constructed is strict.
 /// @return The issues found, capped at 64 (a tree with more than 64 problems does not need an
 ///         exhaustive list to be rejected).
-deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
-                                                        std::span<const MenuContext> contexts,
-                                                        std::span<const Node* const> expected_range_specific = {},
-                                                        std::span<const Node* const> expected_half_precision = {},
-                                                        ValidateOptions options = {});
+deluge::base::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
+                                                   std::span<const MenuContext> contexts,
+                                                   std::span<const Node* const> expected_range_specific = {},
+                                                   std::span<const Node* const> expected_half_precision = {},
+                                                   ValidateOptions options = {});
 
 } // namespace deluge::scenes::menu

@@ -10,6 +10,7 @@
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
 
+#include "base/notify/notice_queue.h"
 #include "effects/chain.h"
 #include "effects/words.h"
 #include "gui/views/view.h"
@@ -24,7 +25,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/notice_queue.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -195,9 +195,9 @@ void hold_mod_button(int32_t mode, bool held) {
 /// @brief The last text notice raised, and the queue emptied.
 std::string last_notice() {
 	std::string text;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
-		if (n.kind == deluge::notify::Notice::Kind::Text) {
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
+		if (n.kind == deluge::base::notify::Notice::Kind::Text) {
 			text = n.text;
 		}
 	}

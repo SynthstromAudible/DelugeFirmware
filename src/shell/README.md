@@ -14,7 +14,7 @@ Over `src/shell/**`, `scripts/layers.toml` holds the include rule (checked by `s
 
 | row | rule |
 |---|---|
-| `shell-includes-outside` | include only `shell/`, `ui/`, `gfx/`, `notify/`, `libdeluge/` and the standard library -- never `model/`, `gui/`, `hid/`, `io/`, `storage/`, `definitions*`, `board_config.h` |
+| `shell-includes-outside` | include only `shell/`, `ui/`, `gfx/`, `base/`, `libdeluge/` and the standard library -- never `model/`, `gui/`, `hid/`, `io/`, `storage/`, `definitions*`, `board_config.h` |
 | `shell-no-clock` | no clock of its own: every deadline runs off the `now_ms` the caller passes, so a spec drives the shell with a fake clock |
 | `scenes-no-root-ui` | no legacy root-UI globals (`soundEditor`, `sessionView`, ...) or UI-stack calls (`openUI`, ...) |
 | `services-no-oled-timer-claim` | no `Service` claims the OLED in `timer_repaints()` (see Services) |

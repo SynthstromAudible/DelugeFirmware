@@ -6,6 +6,7 @@
 /// Each example writes the param with the edit a gold knob makes (`edits::SetParamValue`, which
 /// `HostEditSink::write_param` applies), then runs the timer's callback itself: the harness fires no UI timer.
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -17,7 +18,6 @@
 #include "model/edits/set_param_value.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "notify/dirty_set.h"
 #include "processing/sound/sound_instrument.h"
 
 #include "scenes/menu/bindings.h"
@@ -81,8 +81,10 @@ bool open_sound_menu_at(spec::SongFixture& fx, const menu::Node& node) {
 
 /// @brief Did something ask the guest's shell for an OLED frame since the last drain?
 bool shell_asked_for_a_frame() {
-	(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-	return deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled);
+	(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
+	return deluge::base::notify::dirty()
+	    .drain(deluge::base::notify::DirtyConsumer::Shell)
+	    .has(deluge::base::notify::Dirty::Oled);
 }
 
 } // namespace
@@ -114,7 +116,7 @@ describe menu_value_follow("View::displayAutomation under the menu scene", $ {
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_sound_menu_at(fx, nodes::lpf)).to_be_true();
 		expect(knob_write(fx, 0)).to_be_true();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		display_automation_fires();
 		expect(shell_asked_for_a_frame()).to_be_true();
 	});
@@ -125,7 +127,7 @@ describe menu_value_follow("View::displayAutomation under the menu scene", $ {
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(spec::open_note_mode_over_clip_view(fx, menu::MenuContext::Root::Settings)).to_be_true();
 		(void)shellHostUI.timerCallback();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		display_automation_fires();
 		expect(shell_asked_for_a_frame()).to_be_true();
 	});

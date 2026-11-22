@@ -55,7 +55,7 @@ CPP_TARGETS = [
     "deluge_ui_oled",
     "deluge_ui_grid",
     "deluge_ui_shell",
-    "deluge_notify",
+    "deluge_base_notify",
     "deluge_scenes",
     "deluge_scenes_bind",
 ]

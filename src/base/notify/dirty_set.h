@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace deluge::notify {
+namespace deluge::base::notify {
 
 /// @brief Independently raisable UI/model "something changed" facts.
 enum class Dirty : uint8_t {
@@ -143,4 +143,4 @@ inline void raise_clip(Dirty d, uint16_t i) {
 	dirty().raise_clip(d, i);
 }
 
-} // namespace deluge::notify
+} // namespace deluge::base::notify

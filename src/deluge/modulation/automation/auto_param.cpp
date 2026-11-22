@@ -319,7 +319,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
-					deluge::notify::notice(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED);
+					deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED);
 				}
 				return;
 			}
@@ -2052,7 +2052,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
-			deluge::notify::notice(Error::INSUFFICIENT_RAM);
+			deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 			return;
 		}
 

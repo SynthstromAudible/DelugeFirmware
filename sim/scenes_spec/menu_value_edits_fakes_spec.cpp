@@ -10,7 +10,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
 
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 #include "project/device_settings.h"
 
 #include "support/fake_menu_shell.h"
@@ -41,7 +41,7 @@ constexpr int8_t kVibratoColumn = 4;
 
 /// @brief Did the last write ask for the OLED to be redrawn?
 bool repainted() {
-	return deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled);
+	return deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled);
 }
 
 } // namespace
@@ -51,7 +51,7 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 	it("writes an int param as one request on the edit sink, at its menu value", _ {
 		FakeMenuShell r;
 		const MenuContext ctx = r.fakes.synth_context();
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		expect(menu::bindings::write(nodes::lpf_freq, ctx, 30)).to_be_true();
 		const auto& requests = r.fakes.host.writes.requests;
 		expect(requests.size()).to_equal(size_t{1});
@@ -152,7 +152,7 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		FakeMenuShell r;
 		const MenuContext ctx = r.fakes.synth_context();
 		r.fakes.host.writes.accept = false;
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		expect(menu::bindings::write(nodes::osc_sync, ctx, 1)).to_be_false();
 		// The request reached the sink, which refused it: nothing the screen shows has changed.
 		expect(r.fakes.host.writes.requests.size()).to_equal(size_t{1});
@@ -164,7 +164,7 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		const MenuContext ctx = r.fakes.settings_context(/*with_model=*/false);
 		const int32_t lower = menu::bindings::read(nodes::default_tempo, ctx);
 		r.fakes.host.device.refuse.insert(std::string{device_path::kTempoLower});
-		(void)deluge::notify::dirty().drain();
+		(void)deluge::base::notify::dirty().drain();
 		expect(menu::bindings::write(nodes::default_tempo, ctx, lower + 10)).to_be_false();
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(lower);

@@ -213,7 +213,7 @@ void PlaybackHandler::slowRoutine() {
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
-				deluge::notify::notice(std::string_view(buffer));
+				deluge::base::notify::notice(std::string_view(buffer));
 			}
 
 			// The reversion runs on the interaction tier: it loads the files its consequences will bind
@@ -270,8 +270,8 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
-				deluge::notify::raise(deluge::notify::Dirty::Oled);
-				deluge::notify::notice_cancel_popup();
+				deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
+				deluge::base::notify::notice_cancel_popup();
 			}
 
 			// Otherwise, if internal clock, restart playback
@@ -280,7 +280,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					deluge::notify::notice(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK);
+					deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK);
 				}
 			}
 		}
@@ -636,7 +636,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 	setLedStates();
 
-	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::PlaybackState);
 
 	// The render holds its ticks until releaseTicks(), so nothing but this writes the flag meanwhile.
 	currentlyActioningSwungTickOrResettingPlayPos = true;
@@ -678,7 +678,7 @@ void PlaybackHandler::endPlayback() {
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	// [any] The UI tick clears the tick squares once it sees playback has stopped.
-	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::PlaybackState);
 
 	// Sometimes, ending playback will trigger an instant song swap
 	if (shouldDoInstantSongSwap) {
@@ -703,7 +703,7 @@ void PlaybackHandler::endPlayback() {
 
 	if (currentVisualCountForCountIn) {
 		currentVisualCountForCountIn = 0;
-		deluge::notify::notice_cancel_popup(); // In case the count-in was showing
+		deluge::base::notify::notice_cancel_popup(); // In case the count-in was showing
 	}
 
 	setLedStates();
@@ -1089,7 +1089,7 @@ void PlaybackHandler::actionSwungTick() {
 
 			// [audio] The UI tick sees the count go back to 0 and takes down the popup.
 			currentVisualCountForCountIn = 0;
-			deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
+			deluge::base::notify::raise(deluge::base::notify::Dirty::PlaybackState);
 
 			// And then yeah, just keep going below
 		}
@@ -2294,7 +2294,7 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 			numInputTicksToSkip++; // Perform one less tick
 		}
 	}
-	deluge::notify::notice(deluge::l10n::String::STRING_FOR_SYNC_NUDGED);
+	deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_SYNC_NUDGED);
 }
 
 void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
@@ -2709,7 +2709,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != ClipType::AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP);
+		deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP);
 		return;
 	}
 
@@ -2979,11 +2979,11 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				// take down finishes it. Each hold says so.
 				if (deluge::recording::inputTakeInProgress()) {
 					nextSongPending_ = true;
-					deluge::notify::notice(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_TAKE);
+					deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_TAKE);
 				}
 				else if (deluge::gui::ui::shellSliceOut()) {
 					nextSongPending_ = true;
-					deluge::notify::notice(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_SLICE);
+					deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_SLICE);
 					deluge::runtime::appLoop.request(slowJob);
 				}
 				else {
@@ -3216,7 +3216,7 @@ void PlaybackHandler::switchToArrangement() {
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 	}
 
 	if (getCurrentUI() == &sessionView) {
@@ -3507,11 +3507,11 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					deluge::notify::notice(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL);
+					deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL);
 				}
 			}
 			else {
-				deluge::notify::notice(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP);
+				deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP);
 			}
 		}
 	}

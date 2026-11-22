@@ -1,8 +1,8 @@
 #pragma once
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "harness/snapshot.h"
 #include "harness/ui_script.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "support/mocks/fake_surfaces.h"
@@ -268,12 +268,12 @@ inline std::optional<uint8_t> encoder_index_of(const BoardProfile& profile, delu
 
 /// @brief The `Dirty` fact named \p name.
 ///
-/// The name table lives here rather than in `src/notify`: it exists only so a *test script* can
+/// The name table lives here rather than in `src/base/notify`: it exists only so a *test script* can
 /// spell a fact, and the firmware never prints one.
 /// @param name The script's `Dirty` name.
 /// @return The fact, or `std::nullopt` when no fact is named that.
-inline std::optional<deluge::notify::Dirty> dirty_by_name(std::string_view name) {
-	using deluge::notify::Dirty;
+inline std::optional<deluge::base::notify::Dirty> dirty_by_name(std::string_view name) {
+	using deluge::base::notify::Dirty;
 	static constexpr const char* kNames[] = {
 	    "GridMain",    "GridSidebar",   "Oled",        "ClipContent",   "NoteRows",
 	    "SampleReady", "PlaybackState", "SongSwapped", "OutputChanged", "ParamAutomation",
@@ -291,8 +291,8 @@ inline std::optional<deluge::notify::Dirty> dirty_by_name(std::string_view name)
 /// @brief The `Notice::Kind` named \p name, matching `shell::notice_kind_name`'s spelling.
 /// @param name The script's kind name.
 /// @return The kind, or `std::nullopt` when no kind is named that.
-inline std::optional<deluge::notify::Notice::Kind> notice_kind_by_name(std::string_view name) {
-	using Kind = deluge::notify::Notice::Kind;
+inline std::optional<deluge::base::notify::Notice::Kind> notice_kind_by_name(std::string_view name) {
+	using Kind = deluge::base::notify::Notice::Kind;
 	for (uint8_t i = 0; i <= static_cast<uint8_t>(Kind::CancelNotification); i++) {
 		if (name == deluge::ui::shell::notice_kind_name(static_cast<Kind>(i))) {
 			return static_cast<Kind>(i);
@@ -549,8 +549,8 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		board = &board_storage.board;
 	}
 
-	deluge::notify::dirty().drain();
-	for (deluge::notify::Notice drop; deluge::notify::notices().pop(drop);) {}
+	deluge::base::notify::dirty().drain();
+	for (deluge::base::notify::Notice drop; deluge::base::notify::notices().pop(drop);) {}
 
 	FakeSurfaceSet fake{*board, *opts.profile};
 	const ShellConfig config = opts.config;
@@ -693,36 +693,36 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_NO_PRESSES, 0, 0, 0}, t);
 				break;
 			case StepKind::Model: {
-				const std::optional<deluge::notify::Dirty> d = detail::dirty_by_name(s.name);
+				const std::optional<deluge::base::notify::Dirty> d = detail::dirty_by_name(s.name);
 				if (!d) {
 					result.error = detail::make_error(line, "unknown Dirty name");
 					return result;
 				}
 				// `raise_clip` is the per-clip form; every other fact has no clip index to carry,
 				// and `DirtySet::raise_clip` would just raise the coarse fact anyway.
-				if (*d == deluge::notify::Dirty::ClipContent || *d == deluge::notify::Dirty::NoteRows) {
-					deluge::notify::dirty().raise_clip(*d, static_cast<uint16_t>(s.a));
+				if (*d == deluge::base::notify::Dirty::ClipContent || *d == deluge::base::notify::Dirty::NoteRows) {
+					deluge::base::notify::dirty().raise_clip(*d, static_cast<uint16_t>(s.a));
 				}
 				else {
-					deluge::notify::dirty().raise(*d);
+					deluge::base::notify::dirty().raise(*d);
 				}
 				break;
 			}
 			case StepKind::Notice: {
-				const std::optional<deluge::notify::Notice::Kind> k = detail::notice_kind_by_name(s.name);
+				const std::optional<deluge::base::notify::Notice::Kind> k = detail::notice_kind_by_name(s.name);
 				if (!k) {
 					result.error = detail::make_error(line, "unknown notice kind");
 					return result;
 				}
-				deluge::notify::Notice n;
+				deluge::base::notify::Notice n;
 				n.kind = *k;
-				if (*k == deluge::notify::Notice::Kind::Error) {
+				if (*k == deluge::base::notify::Notice::Kind::Error) {
 					n.error_code = static_cast<int16_t>(s.a);
 				}
 				else {
 					std::memcpy(n.text, s.text, std::min(sizeof(n.text) - 1, sizeof(s.text) - 1));
 				}
-				if (!deluge::notify::notices().push(n)) {
+				if (!deluge::base::notify::notices().push(n)) {
 					// Not reachable today (the queue is drained at the top of every run, and no
 					// committed script pushes enough notices in one run to fill it), but a full
 					// queue silently dropping a script's `notice` step is the same silent-loss

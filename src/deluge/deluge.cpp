@@ -149,7 +149,7 @@ void inputRoutine() {
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 	}
 
 	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
@@ -162,7 +162,7 @@ void inputRoutine() {
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 	}
 
 	// Battery voltage
@@ -243,7 +243,7 @@ bool picSaysOLEDPresent = false;
 
 namespace Deluge {
 void factoryReset() {
-	deluge::notify::notice(deluge::l10n::String::STRING_FOR_FACTORY_RESET);
+	deluge::base::notify::notice(deluge::l10n::String::STRING_FOR_FACTORY_RESET);
 	FlashStorage::factoryReset(false);
 	runtimeFeatureSettings.factoryReset(false);
 	midiFollow.factoryReset(false);
@@ -340,7 +340,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 void setupBlankSong() {

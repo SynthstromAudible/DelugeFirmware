@@ -23,7 +23,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/note_bridge.h"
 
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 #include "scenes/menu/bindings.h"
 
 namespace deluge::scenes::menu {
@@ -192,7 +192,7 @@ void ValueSession::refused(MenuContext& ctx, MenuState& st, const Node& node) {
 	// The page shows what is stored, never a value that was not kept: the edit storage goes back to the stored value,
 	// and the screen is redrawn to show it. An accepted write reads nothing back, so its page draws as it did.
 	read_value_again(ctx, st, node);
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 void ValueSession::read_again(MenuCore core) const {
@@ -203,7 +203,7 @@ void ValueSession::read_again(MenuCore core) const {
 	// `MenuItem::readValueAgain`: the value is read again and the screen redrawn (`Value::readValueAgain` is
 	// `readCurrentValue` and a render); `Submenu::readValueAgain` only redraws.
 	read_value_again(core.ctx, core.st, *node);
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 } // namespace deluge::scenes::menu

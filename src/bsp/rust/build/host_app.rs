@@ -212,7 +212,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("ui", "libdeluge_ui_oled.a"),
         ("ui", "libdeluge_ui_grid.a"),
         ("shell", "libdeluge_ui_shell.a"),
-        ("notify", "libdeluge_notify.a"),
+        ("base/notify", "libdeluge_base_notify.a"),
         ("scenes", "libdeluge_scenes.a"),
         ("scenes/bind", "libdeluge_scenes_bind.a"),
         ("level3", "libdeluge_ui_level3.a"),

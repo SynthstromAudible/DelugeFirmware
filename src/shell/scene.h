@@ -1,7 +1,7 @@
 #pragma once
+#include "base/fixed_vector.h"
+#include "base/notify/dirty_set.h"
 #include "midi/device_id.h"
-#include "notify/dirty_set.h"
-#include "shell/fixed_vector.h"
 #include "shell/profile.h"
 #include "ui/core/frame_context.h"
 #include "ui/core/input.h"
@@ -293,10 +293,10 @@ struct Action {
 /// nothing, or ask for a repaint while letting the event fall through.
 ///
 /// Eight actions is well past what any single event produces (the busiest path is a pop
-/// plus a push plus a popup); a ninth is dropped by `FixedVector::push_back` rather than growing.
+/// plus a push plus a popup); a ninth is dropped by `base::FixedVector::push_back` rather than growing.
 struct Result {
 	bool handled = false;
-	FixedVector<Action, 8> actions;
+	base::FixedVector<Action, 8> actions;
 
 	/// @brief The "I did nothing with this" result: not handled, no actions.
 	static Result unhandled() { return {}; }
@@ -490,7 +490,7 @@ public:
 
 	/// @brief React to model changes published since the last tick.
 	/// @param dirty What changed.
-	virtual void on_model_changed(const notify::DirtySet& dirty) {}
+	virtual void on_model_changed(const base::notify::DirtySet& dirty) {}
 
 	/// @name Composition
 	/// How the shell composes this scene with the ones beneath it.

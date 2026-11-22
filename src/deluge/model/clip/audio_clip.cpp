@@ -313,7 +313,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
-		deluge::notify::notice(Error::INSUFFICIENT_RAM);
+		deluge::base::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 

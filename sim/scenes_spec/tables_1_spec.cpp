@@ -503,7 +503,7 @@ describe tables_1_validation("scenes::menu sound-subtree tables: validation", $ 
 describe tables_1_pixels("scenes::menu sound-subtree tables: pixels", $ {
 	it("renders the LPF page", _ {
 		Fixture& f = fixture();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const Node* filters = nodes::kSoundFiltersChildren[0];
 		r.open(*filters->children[0], f.ctx);

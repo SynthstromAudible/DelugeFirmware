@@ -17,7 +17,7 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -66,8 +66,8 @@ using Band = MenuScene::DrainBand;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 struct Rig {
@@ -142,7 +142,7 @@ Result gold(deluge::ui::EncoderRole knob) {
 /// @brief The last notice's string id, draining the queue; 0 for none.
 uint16_t last_notice_string() {
 	uint16_t last = 0;
-	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
 		last = n.string_id;
 	}
 	return last;

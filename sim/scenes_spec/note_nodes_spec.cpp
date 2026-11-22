@@ -26,7 +26,7 @@
 #include "scenes/menu/nodes/note.h"
 #include "scenes/menu/validate.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 
 #include "definitions_cxx.hpp"
 #include "sequence/iterance.h"
@@ -70,9 +70,9 @@ void select_language() {
 }
 
 std::string drain_last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;

@@ -17,8 +17,8 @@
 
 #include "scenes/browser/listing.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // Availability, Error
-#include "notify/notice_queue.h"
 #include "storage/storage_manager.h"
 
 #include <cassert>
@@ -115,14 +115,14 @@ RequestOutcome Listing::request(ListingRequest req) {
 	// pushes `SceneKind::Working` on this notice. "Working" is
 	// legacy's own word here -- `beginListing` calls
 	// `display->displayLoadingAnimationText("Working", /*delayed=*/true)` (`Browser::beginListing`).
-	notify::notice_text("Working", notify::Notice::Kind::Working);
+	base::notify::notice_text("Working", base::notify::Notice::Kind::Working);
 
 	if (!dispatch_(&Listing::trampoline, this)) {
 		// The owner dropped it, so the op will never run. Undo everything the dispatch attempt
 		// did: clear the in-flight state, release the claim and drop the working notice.
 		state_.store(State::Idle, std::memory_order_release);
 		FileCatalogue::release(this);
-		notify::notice_kind(notify::Notice::Kind::ClearWorking);
+		base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
 		return RequestOutcome::Dropped;
 	}
 	return RequestOutcome::Accepted;
@@ -169,11 +169,11 @@ void Listing::perform() {
 	// Raised from the op, which the shipped dispatcher (`run_inline`) runs on the caller's tier. Legacy's
 	// `Browser::runPendingListing` (`gui/ui/browser/browser.cpp`) removes the loading animation and reports a
 	// failure (`onListingFailed`) itself; here the notices carry both. `NoticeQueue` documents itself as
-	// single-logical-producer, serialised by cooperative scheduling (`notify/notice_queue.h`, COOP-WRITE), so a
+	// single-logical-producer, serialised by cooperative scheduling (`base/notify/notice_queue.h`, COOP-WRITE), so a
 	// dispatcher that moved the op to another context would have to keep that.
-	notify::notice_kind(notify::Notice::Kind::ClearWorking);
+	base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
 	if (result_.error != Error::NONE && announces_errors(result_.action)) {
-		notify::notice_error_code(static_cast<int16_t>(result_.error));
+		base::notify::notice_error_code(static_cast<int16_t>(result_.error));
 	}
 
 	// Last, and with release: a poller that sees `Ready` must see `result_` and the catalogue the

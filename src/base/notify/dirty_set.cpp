@@ -1,6 +1,6 @@
-#include "notify/dirty_set.h"
+#include "base/notify/dirty_set.h"
 
-namespace deluge::notify {
+namespace deluge::base::notify {
 
 namespace {
 DirtySet g_dirty;
@@ -100,4 +100,4 @@ const ClipBits& DirtySet::clips(Dirty d) const {
 	return s >= 0 ? snapshot_[s] : kNoClips;
 }
 
-} // namespace deluge::notify
+} // namespace deluge::base::notify

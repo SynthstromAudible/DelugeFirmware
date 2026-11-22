@@ -25,7 +25,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -98,8 +98,8 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
 }
 
 constexpr uint16_t sid(String s) {
@@ -415,9 +415,9 @@ int depth_of() {
 }
 
 std::string last_notice() {
-	deluge::notify::Notice n;
+	deluge::base::notify::Notice n;
 	std::string text;
-	while (deluge::notify::notices().pop(n)) {
+	while (deluge::base::notify::notices().pop(n)) {
 		text = n.text;
 	}
 	return text;
@@ -425,19 +425,19 @@ std::string last_notice() {
 
 /// @brief Pop every queued notice, in raise order -- for the examples that pin the *kind* a raise
 ///        used, not only that something was raised.
-std::vector<deluge::notify::Notice> raised_notices() {
-	std::vector<deluge::notify::Notice> out;
-	deluge::notify::Notice n;
-	while (deluge::notify::notices().pop(n)) {
+std::vector<deluge::base::notify::Notice> raised_notices() {
+	std::vector<deluge::base::notify::Notice> out;
+	deluge::base::notify::Notice n;
+	while (deluge::base::notify::notices().pop(n)) {
 		out.push_back(n);
 	}
 	return out;
 }
 
 /// @return How many of @p raised are of kind @p kind.
-size_t count_kind(const std::vector<deluge::notify::Notice>& raised, deluge::notify::Notice::Kind kind) {
+size_t count_kind(const std::vector<deluge::base::notify::Notice>& raised, deluge::base::notify::Notice::Kind kind) {
 	size_t n = 0;
-	for (const deluge::notify::Notice& notice : raised) {
+	for (const deluge::base::notify::Notice& notice : raised) {
 		n += notice.kind == kind ? 1 : 0;
 	}
 	return n;
@@ -448,16 +448,17 @@ size_t count_kind(const std::vector<deluge::notify::Notice>& raised, deluge::not
 ///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- so the port raises exactly one `Notification`
 ///        and no `Console` line. Returns that notice.
 template <typename Self>
-deluge::notify::Notice expect_one_notification(Self& self, const std::vector<deluge::notify::Notice>& raised) {
-	using Kind = deluge::notify::Notice::Kind;
+deluge::base::notify::Notice expect_one_notification(Self& self,
+                                                     const std::vector<deluge::base::notify::Notice>& raised) {
+	using Kind = deluge::base::notify::Notice::Kind;
 	expect(count_kind(raised, Kind::Notification)).to_equal(size_t{1});
 	expect(count_kind(raised, Kind::Console)).to_equal(size_t{0});
-	for (const deluge::notify::Notice& notice : raised) {
+	for (const deluge::base::notify::Notice& notice : raised) {
 		if (notice.kind == Kind::Notification) {
 			return notice;
 		}
 	}
-	return deluge::notify::Notice{};
+	return deluge::base::notify::Notice{};
 }
 
 /// @brief Whether \p f declared \p b's LED `On` this frame -- `LedFrame` has no query accessor of
@@ -479,7 +480,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("a select turn edits the focused column and leaves focus alone", _ {
 		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -495,7 +496,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// ...and notifies (main's `HorizontalMenu::selectEncoderAction` -> `HorizontalMenu::displayNotification`,
 		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). Read before any further tick: the next tick's
 		// notice drain (`Shell::tick`) would take it.
-		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+		const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 		expect(std::string(n.notification_title())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
 		expect(std::string(n.notification_value()).empty()).to_be_false();
 	});
@@ -505,7 +506,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`kHorizontalMenuAcceleration`), truncated to an int: four +1 turns 10 ms apart on the clock
 		// acceleration is timed on multiply by 1.0, 1.5, 2.85 and 4.065, which move the value 1 + 1 + 2 + 4.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -522,7 +523,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("times the acceleration on its own clock: turns close on the tick's clock but a second apart on it do not accelerate", _ {
 		// Legacy times it on the scheduler's clock (`getSystemTime()`), apart from its UI timers' audio-sample clock.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -545,7 +546,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// each on the clock then. Four +1 turns decoded 10 ms apart reach one tick here, long after: each is
 		// accelerated on its own time (1.0, 1.5, 2.85, 4.065: 1 + 1 + 2 + 4), not as one turn of four on the tick's.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -564,7 +565,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// turn behind it: the first edits now, the second on the next tick, each once. Turns a second apart do not
 		// accelerate, so the two move the value 1 + 1.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -581,7 +582,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("an enum column's notification names the option, as Selection::getNotificationValue does", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -589,7 +590,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)raised_notices();
 		r.turn(1, 10);
 		r.shell.tick(20);
-		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+		const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 		expect(std::string(n.notification_value())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ENABLED)));
 	});
 
@@ -757,7 +758,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `stutter::Rate::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): the nearest
 		// option's index moves by the offset, clamped, and the value becomes that option's 0 12 25 37 50.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open_real(menu::nodes::stutter);
 		menu::nodes::set_stutter_direction(ctx, 1); // the sound's own stutter
@@ -842,7 +843,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `origin/main:src/deluge/gui/menu_item/mod_fx/type.h`): `drawHorizontalLine(kScreenTitleSeparatorY, ...)` then
 		// `Selection::drawPixelsForOled`'s three-row window.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::filter_routing_page);
 		r.shell.tick(0);
@@ -943,7 +944,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `DecimalWithoutScrolling::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`):
 		// `drawDecimal(kTextHugeSpacingX, kTextHugeSizeY, 18)`, no edit cursor.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open_real(menu::nodes::audio_comp);
 		ctx.horizontal_menus = false;
@@ -1046,7 +1047,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `VoiceUsage::beginSession` and `timerCallback` (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`),
 		// `kRefreshIntervalMs` 500; `VoiceCount::selectEncoderActionIsPermitted` is false.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::voice_usage);
 		r.shell.tick(0);
@@ -1076,7 +1077,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`); the timer re-reads the open counter in the
 		// VERTICAL style (`VoiceUsage::timerCallback`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open_real(menu::nodes::voice_usage);
 		ctx.horizontal_menus = false;
@@ -1102,7 +1103,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `SoundEditor::updatePadLightsFor` (from `beginScreen`) for an item that wants it: both reset the shared
 		// `ledBlinkState[0]` and its timer, so BACK restarts with LEARN (`blinkLed` in `indicator_leds.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::midi_commands);
 		r.shell.tick(0);
@@ -1306,7 +1307,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// current member's (`origin/main:src/deluge/gui/menu_item/horizontal_menu_group.cpp`), and CROSS_SCREEN/SCALE
 		// page across members, wrapping.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(menu::nodes::filters_group);
 		r.shell.tick(0);
@@ -1334,7 +1335,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenu::renderOLED` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): lit iff
 		// `totalPages > 1`, the group's total on a group.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(menu::nodes::filters_group);
 		r.shell.tick(0);
@@ -1346,7 +1347,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a group member with no relevant columns contributes no page", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(synthetic_group);
 		r.shell.tick(0);
@@ -1360,7 +1361,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("reopening a group lands on the member and column last focused", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		menu_scene().reset_process_state();
 		Rig r;
 		const MenuContext ctx = r.open(menu::nodes::filters_group);
@@ -1384,7 +1385,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// enters it (`SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`): the recorder,
 		// the file selectors, the cable strengths.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(session_page);
 		r.shell.tick(0);
@@ -1429,7 +1430,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`); only the page's own select goes on to the
 		// range picker (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::sound_master);
 		r.shell.tick(0);
@@ -1448,7 +1449,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a select on the SIDECHAIN page's DUCK column opens its strength page", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::sidechain);
 		r.shell.tick(0);
@@ -1467,7 +1468,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// what the column shows, and `Decimal::getNumberEditSize` on a horizontal page
 		// (`origin/main:src/deluge/gui/menu_item/decimal.cpp`) the step.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
 		r.shell.tick(0);
@@ -1490,7 +1491,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `Decimal::getNumberEditSize` on a horizontal page (`origin/main:src/deluge/gui/menu_item/decimal.cpp`):
 		// MASTER's transpose, a semitone a detent, a cent with SELECT or SHIFT held.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
 		r.shell.tick(0);
@@ -1549,7 +1550,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// Main's `osc::Type` wraps only while its parent renders horizontally (`wrapAround`), so the type column
 		// goes from the last type to the first.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open_real(menu::nodes::source0);
 		const menu::IntRange range = menu::bindings::range(menu::nodes::osc0_type, ctx);
@@ -1568,7 +1569,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the page renders and edits as a `Submenu`, the
 		// select knob moving the row cursor.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open(horiz_page);
 		ctx.horizontal_menus = false;
@@ -1584,7 +1585,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `IntegerContinuous::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): the Big-face
 		// digits over the value bar at canvas rows 35..43, columns 12..114.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		MenuContext ctx = r.open_real(menu::nodes::lpf);
 		ctx.horizontal_menus = false;
@@ -1616,7 +1617,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// param before `SourceSelection::beginSession` (`origin/main:src/deluge/gui/menu_item/source_selection.h`)
 		// lands on the first source patched to it -- from a column as from the item alone.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		int16_t vertical_cursor = -1;
 		{
 			Rig r;
@@ -1668,7 +1669,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `stutter::Rate::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): quantized, the
 		// option label alone; otherwise `UnpatchedParam`'s continuous screen with its bar.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		for (const bool quantized : {false, true}) {
 			Rig r;
 			MenuContext ctx = r.open_real(menu::nodes::stutter);
@@ -1752,7 +1753,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("the envelope group pages ENV1..ENV4 as 1/4..4/4, each drawn as main's envelope graph", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::env_group);
 		r.shell.tick(0);
@@ -1767,7 +1768,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenuGroup::preparePaging` (`origin/main:src/deluge/gui/menu_item/horizontal_menu_group.cpp`) adds
 		// up each member's pages, however many columns the members list between them; an FM synth's lists seventeen.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::source_group);
 		deluge::edits::settingFor(*spec::menu_engine(ctx, *r.song.song).sound, "mode",
@@ -1828,7 +1829,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("the mod FX page is titled with the effect's name past its first page", _ {
 		// `submenu::ModFxHorizontalMenu::getTitle` (`origin/main:src/deluge/gui/menu_item/submenu/mod_fx.h`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::mod_fx);
 		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // flanger
@@ -1916,7 +1917,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("an instrument button on a FIXED page's irrelevant column does nothing", _ {
 		// `HorizontalMenu::handleInstrumentButtonPress` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(fixed_page);
 		r.shell.tick(0);
@@ -1935,7 +1936,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `selectMenuItem` breaks on slots alone, so its page 2 starts at that column, which sits at the focused
 		// position: the walk stops there with no relevant column seen and the focus stays.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(fixed_page);
 		r.shell.tick(0);
@@ -1949,7 +1950,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
 		// `if (child->isSubmenu()) return;` -- no action at all.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -1982,7 +1983,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `handleInstrumentButtonPress`'s new-focus tail (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)
 		// and `handleItemAction`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2000,7 +2001,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`); a `Toggle` spells no value
 		// (`MenuItem::getNotificationValue` in `origin/main:src/deluge/gui/menu_item/menu_item.h`).
 		{ // new-focus notification
-			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(monophonic);
 			expect(std::string(n.notification_value()).empty()).to_be_true();
 		}
@@ -2009,7 +2010,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kKitX, kKitY, 500); // already focused: the column's own press
 		expect(g_toggle_col).to_be_true();
 		{
-			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(monophonic);
 		}
 	});
@@ -2029,7 +2030,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// or sits only on a vertical page in the shipped tree (`Selection::isToggle()`'s other three overriders --
 		// `arpeggiator::Mode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::SettingToggle`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2058,7 +2059,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// examples `Node::selection_is_toggle`'s doc names, and the first column
 		// (`kRandomizerChildren[0]`, SYNTH) of the real, shipped `randomizer` horizontal page.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		// Not `r.open()`: that assigns ids over this file's own local `kRoots`, not the real tree
 		// `nodes::randomizer` lives in.
@@ -2086,7 +2087,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	   "already-focused-press half",
 	   _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx =
 		    spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -2105,7 +2106,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_false();
 		std::string title;
 		{
-			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 			title = n.notification_title();
 			expect(title.empty()).to_be_false();
 		}
@@ -2114,7 +2115,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
 		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_true();
 		{
-			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(title); // the same column, notified again
 		}
 	});
@@ -2127,7 +2128,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// file selector's browser back at depth 0.
 		const NoNotificationSink no_sink;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2154,12 +2155,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// cancelling it must take the banner down and leave the unrelated line, and its scene, up.
 		const NoNotificationSink no_sink;
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 
-		(void)deluge::notify::notice_text("UNRELATED", deluge::notify::Notice::Kind::Console);
+		(void)deluge::base::notify::notice_text("UNRELATED", deluge::base::notify::Notice::Kind::Console);
 		r.shell.tick(50); // queues it
 		r.shell.tick(60); // drains it -- pushes `SceneKind::Console`
 		expect(r.shell.state_lines()).to_contain("scene Console");
@@ -2181,7 +2182,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenu::buttonAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), one debounce
 		// shared by all six buttons.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2203,7 +2204,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenu::switchVisiblePage`, reached from main's `HorizontalMenu::buttonAction`
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2227,7 +2228,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) over `horizontalMenusChainForSound`
 		// (`origin/main:src/deluge/gui/ui/menus.cpp`): FILTERS is followed by EQ.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::filters_group);
 		r.shell.tick(0);
@@ -2244,7 +2245,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("switching onto mod FX lands on its page 1", _ {
 		// `switchHorizontalMenu`'s `desired_page` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::eq);
 		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // an effect, so the page has its controls' page
@@ -2261,7 +2262,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `SoundEditor::buttonAction`'s select arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`):
 		// `maybeGetParentMenu` finds the chained group that lists the item, and it is entered focused on it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::sound_filters);
 		r.shell.tick(0);
@@ -2284,7 +2285,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `SoundEditor::buttonAction`'s SELECT arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`); no
 		// `displayNotification` on this arm at all.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2325,7 +2326,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `Submenu::selectButtonPress` forwards to the focused column; `Selection`'s answers NO_NAVIGATION from the
 		// page whatever the selection is, after a `toggleValue()` that changes nothing on a non-toggle.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(stay_parent);
 		r.shell.tick(0);
@@ -2347,7 +2348,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a select press on an Int column with no chain goes up, as MenuItem::selectButtonPress's null does", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(stay_parent);
 		r.shell.tick(0);
@@ -2365,7 +2366,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `voice::PolyphonyType` returns `Selection::selectButtonPress()` outside POLY (stays); `osc::Type` returns
 		// null outside DX7 (goes up). With a target, both enter it.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(stay_parent);
 		r.shell.tick(0);
@@ -2408,7 +2409,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): its `MUST_SELECT_RANGE` arm after
 		// `initializeItem`, ported through `enter_range_picker_if_needed`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -2448,7 +2449,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// range. The menu's source stays oscillator 1, which nothing re-resolves on the way into oscillator 2's page,
 		// and gets no range.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		SoundInstrument* sound = r.without_ranges();
 		(void)r.open(other_source_page);
@@ -2469,7 +2470,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A sound port that
 		// refuses is one whose range request is refused.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		SoundInstrument* sound = r.without_ranges();
 		r.open_refusing_ranges(range_submenu_page, /*list=*/true); // a list, entered row by row
@@ -2481,7 +2482,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(205); // the press is handled at the tick
 		const auto raised = raised_notices();
 		r.shell.tick(215);
-		expect(std::ranges::any_of(raised, [](const deluge::notify::Notice& n) {
+		expect(std::ranges::any_of(raised, [](const deluge::base::notify::Notice& n) {
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
@@ -2496,7 +2497,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `handleItemAction`'s else-path reads only `MUST_SELECT_RANGE` from `initializeItem`: a `NO` after
 		// `displayError(INSUFFICIENT_RAM)` still reaches `soundEditor.enterSubmenu(menuItem)`.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		SoundInstrument* sound = r.without_ranges();
 		r.open_refusing_ranges(range_submenu_page);
@@ -2512,7 +2513,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const auto raised = raised_notices();
 		r.button(kKitX, kKitY, false, 710);
 		r.shell.tick(720);
-		expect(std::ranges::any_of(raised, [](const deluge::notify::Notice& n) {
+		expect(std::ranges::any_of(raised, [](const deluge::base::notify::Notice& n) {
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
@@ -2527,7 +2528,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `initializeItem` answers `NO` after `displayError(INSUFFICIENT_RAM)`, and `handleInstrumentButtonPress` reads
 		// only `MUST_SELECT_RANGE`: the item stays focused and `displayNotification` runs.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.without_ranges();
 		r.open_refusing_ranges(other_source_page);
@@ -2539,12 +2540,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.button(kKitX, kKitY, false, 310);
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(depth_of()).to_equal(0);
-		const auto error = std::ranges::find_if(raised, [](const deluge::notify::Notice& n) {
+		const auto error = std::ranges::find_if(raised, [](const deluge::base::notify::Notice& n) {
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		});
 		expect(std::ranges::distance(raised.begin(), error)).to_be_less_than(std::ranges::ssize(raised));
-		expect(std::any_of(error, raised.end(), [](const deluge::notify::Notice& n) {
-			return n.kind == deluge::notify::Notice::Kind::Notification;
+		expect(std::any_of(error, raised.end(), [](const deluge::base::notify::Notice& n) {
+			return n.kind == deluge::base::notify::Notice::Kind::Notification;
 		})).to_be_true();
 	});
 
@@ -2561,7 +2562,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		//     the same check here -- permission is read unconditionally, and `MUST_SELECT_RANGE`
 		//     still opens the picker, exactly as it would for an ordinary range-dependent column.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
 		sound->sourceResources[0].ranges.insertMultiRange(0);
@@ -2588,7 +2589,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("LEDs: SYNTH/KIT/MIDI/CV light the focused column's slots", _ {
 		// `HorizontalMenu::updateSelectedMenuItemLED` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2605,7 +2606,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `HorizontalMenu::renderOLED`'s own two-line LED update
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		{
 			Rig r;
 			(void)r.open(horiz_page); // two pages
@@ -2631,7 +2632,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() < 4` is false here, so
 		// `led_states` stays all-false.
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(wide_page);
 		r.shell.tick(0);
@@ -2646,7 +2647,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("LEDs: all six off on a vertical page", _ {
 		select_language();
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open(vertical_page);
 		r.shell.tick(0);

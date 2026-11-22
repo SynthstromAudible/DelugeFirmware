@@ -20,8 +20,8 @@
 #include "support/printers/scene_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::notify::Notice;
-using deluge::notify::NoticeQueue;
+using deluge::base::notify::Notice;
+using deluge::base::notify::NoticeQueue;
 
 namespace {
 

@@ -1,6 +1,6 @@
 // The shell's headers reach libdeluge/types.h, whose DelugeFileLocation::context the cppspec `context` macro would
 // rewrite, so they come before anything that includes cppspec.
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/shell.h"
 #include "support/mocks/fake_surfaces.h"
 
@@ -17,7 +17,7 @@
 #include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::notify::Dirty;
+using deluge::base::notify::Dirty;
 
 namespace {
 
@@ -148,7 +148,7 @@ public:
 		events_at_after_render = events;
 		if (raise_in_after_render) {
 			raise_in_after_render = false;
-			deluge::notify::dirty().raise(Dirty::Oled);
+			deluge::base::notify::dirty().raise(Dirty::Oled);
 		}
 		if (!emit_repaint_from_after_render) {
 			return {};
@@ -162,13 +162,13 @@ public:
 		ticks++;
 		if (raise_in_tick) {
 			raise_in_tick = false;
-			deluge::notify::dirty().raise(Dirty::Oled);
+			deluge::base::notify::dirty().raise(Dirty::Oled);
 		}
 	}
 	bool owns(const UiEvent& event) const override {
 		return owns_turn && event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select;
 	}
-	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
+	void on_model_changed(const deluge::base::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
 	Scene::RepaintSurfaces timer_repaints() const override { return timer_repaints_; }
 
@@ -328,7 +328,7 @@ struct Rig {
 // clang-format off
 describe shell_tick("shell::Shell::tick", $ {
 	it("a clean tick produces no blit and no column sends after the first frame", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 
@@ -355,7 +355,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("model dirtiness re-renders the surface it names, and reaches on_model_changed", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -369,7 +369,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// signal that the grid rendered again, and `columns_sent` staying flat confirms the diff
 		// correctly found nothing changed rather than merely not being exercised.)
 		const size_t columns_before_grid_fact = r.fake.columns_sent.size();
-		deluge::notify::dirty().raise(Dirty::ClipContent);
+		deluge::base::notify::dirty().raise(Dirty::ClipContent);
 		r.shell.tick(20);
 		expect(r.base.model_changed).to_equal(1);
 		expect(r.base.grid_renders).to_equal(2);
@@ -381,7 +381,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// An OLED-only fact is the mirror image: both panels re-render and (being unbusy) reblit.
 		r.consume_pending();
 		const size_t blits_before_oled_fact = r.fake.blits.size();
-		deluge::notify::dirty().raise(Dirty::Oled);
+		deluge::base::notify::dirty().raise(Dirty::Oled);
 		r.shell.tick(30);
 		expect(r.base.oled_renders).to_equal(4);
 		expect(r.fake.blits.size()).to_be_greater_than(blits_before_oled_fact);
@@ -392,7 +392,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.consume_pending();
 		const size_t blits_before_untargeted_fact = r.fake.blits.size();
 		const size_t columns_before_untargeted_fact = r.fake.columns_sent.size();
-		deluge::notify::dirty().raise(Dirty::PlaybackState);
+		deluge::base::notify::dirty().raise(Dirty::PlaybackState);
 		r.shell.tick(40);
 		expect(r.base.oled_renders).to_equal(6);
 		expect(r.base.grid_renders).to_equal(3);
@@ -401,7 +401,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("input requests a frame and routes to the top scene", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -418,7 +418,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("an overlay composites over the base and leaves the rest as the base painted it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
@@ -431,7 +431,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("greyout mask from the stack is applied", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		// `GreyoutMask::cols` is counted right-to-left -- bit `n` selects column `width - 1 - n`
 		// (`ui/grid/effects.h`, from `prepareColour`'s `kDisplayWidth + kSideBarWidth - 1 - x`) --
@@ -453,7 +453,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("greys the grid by the topmost non-empty mask, not the union", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.colour = RGB{100, 100, 100};
 		// Two overlays that paint nothing, so the greyout is the only thing on the grid:
@@ -479,7 +479,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("greys_in_send_path leaves the composed grid ungreyed", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r{ShellConfig{.greys_in_send_path = true}};
 		r.base.colour = RGB{100, 100, 100};
 		r.overlay.paints = false;
@@ -515,7 +515,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("occludes_grid stops ticking scenes beneath", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.overlay.occludes = true;
 		r.shell.init({kBase, 0});
@@ -528,7 +528,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("oled_transparent lets the scene below show through", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.overlay.transparent = true;
 		r.shell.init({kBase, 0});
@@ -546,7 +546,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect_golden(self, "shell/overlay_48.pbm", r.fake.pbm(0));
 
 		// Made opaque, the same overlay stops the base being drawn at all.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig opaque;
 		opaque.overlay.transparent = false;
 		opaque.shell.init({kBase, 0});
@@ -557,7 +557,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("next_wake is the earliest gate deadline or scene timer", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -576,7 +576,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("reconsider_wake brings the wake forward to a scene timer set since the tick, never later", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.base.timer = 50;
@@ -596,7 +596,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// wake: the shell would come back, `RepaintGate::needs_frame` would say no on every surface,
 		// and the scene's state would advance against a framebuffer that never changed. So step 8b
 		// of `Shell::tick` folds the two together.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0); // the first frame every gate gives away
@@ -634,7 +634,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// The opt-out: a timer whose consequence is not on screen. It must still wake the shell --
 		// `compute_next_wake`'s scene loop exists for exactly these scenes, every other timer being
 		// represented by the gate deadline step 8b armed -- and it must not dirty anything.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -660,7 +660,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// source pad blink cadence, a grid-only concern -- and this pins the mechanism directly:
 		// a scene that names only the grid must see its OLED render count stay flat forever, no
 		// matter how many quiet ticks land on the timer's cadence, while the grid keeps repainting.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -689,7 +689,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// Browser/Marker/Recorder -- would keep the grid gate firing at 20 ms for the whole life of the
 		// scene above it. (An arm made inside `MenuScene::render_grid` simply stops being called
 		// when covered; the fold has to match.)
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.overlay.overlay = false;    // NOT a grid overlay, so it becomes the grid base itself
 		r.overlay.transparent = true; // the OLED is not what this example is about
@@ -727,7 +727,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// changing. The
 		// per-surface mask cannot catch this one -- the surface is the right surface, the scene is
 		// just not the drawn one.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.overlay.overlay = true;      // a grid overlay, as `PopupScene` is
 		r.overlay.transparent = false; // and opaque on the OLED, as `PopupScene` is
@@ -753,7 +753,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("renders each OLED surface with its own role and geometry", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -769,7 +769,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("derives the LED surface from the composed frame, top scene winning", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -787,7 +787,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("two scenes' shared blinks of one rate blink together, and a restart by either restarts both", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.shared_blink = true;
 		r.overlay.shared_blink = true;
@@ -818,7 +818,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a notice scene overlays the grid rather than replacing it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		// The shell owns SceneKind::Popup, so this pushes its own PopupScene.
@@ -834,7 +834,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a passive overlay leaves the scene beneath focused and routed", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.owns_turn = true;
 		r.base.read_turn = true;
@@ -862,7 +862,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("the frame clock is the tick's, not the feed's", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -875,7 +875,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("an owned event is consumed by the render and not routed", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ownership_audit() = {};
 		Rig r;
 		r.base.owns_turn = true;
@@ -891,7 +891,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("an unowned event is routed before the render, which cannot read it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.owns_turn = false;
 		r.base.read_turn = true;
@@ -905,7 +905,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("no event is delivered after the render", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.owns_turn = true;
 		r.base.read_turn = false;
@@ -919,7 +919,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("counts a widget claiming what its scene said it does not own, and an owned event nothing claimed", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ownership_audit() = {};
 		Rig denied;
 		denied.base.owns_turn = false;
@@ -931,7 +931,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(ownership_audit().undeclared_claims).to_equal(uint32_t(1));
 
 		ownership_audit() = {};
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig unread;
 		unread.base.owns_turn = true;
 		unread.base.read_turn = false;
@@ -944,7 +944,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a widget-owned shape the scene does not own is routed before the render", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.emit_repaint_from_handle = true;
 		r.shell.init({kBase, 0});
@@ -963,7 +963,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("events reach the scene in arrival order", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -975,13 +975,13 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a fact raised in after_render is drawn on the next tick without input", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		r.consume_pending();
 		r.base.raise_in_after_render = true;
-		deluge::notify::dirty().raise(Dirty::Oled); // a reason to render, so after_render runs
+		deluge::base::notify::dirty().raise(Dirty::Oled); // a reason to render, so after_render runs
 		const int changed = r.base.model_changed;
 		r.shell.tick(10);
 		// Step 1's fact, then the one after_render raised, at the end of the same tick.
@@ -995,7 +995,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a fact raised in tick_stack is drawn on the next tick without input", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1011,13 +1011,13 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a fact raised between ticks is a wake, whatever the legacy drain took", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		expect(r.shell.next_wake().has_value()).to_be_false();
-		deluge::notify::dirty().raise(Dirty::Oled);
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		deluge::base::notify::dirty().raise(Dirty::Oled);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
 		expect(r.shell.next_wake(5).has_value()).to_be_true();
 		expect(*r.shell.next_wake(5)).to_equal(uint32_t(5));
 		const int changed = r.base.model_changed;
@@ -1026,7 +1026,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene covered by an overlay that passes nothing reads no pads", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
@@ -1038,7 +1038,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene covered by an overlay that passes pads beneath reads them", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.overlay.passes_pads = true;
 		r.shell.init({kBase, 0});
@@ -1050,7 +1050,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("an event after one the scene's widgets own waits for the next tick, which comes at once", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.owns_turn = true;
 		r.base.read_turn = true;
@@ -1068,7 +1068,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene that owns input under an opaque passive overlay still draws, and claims it", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ownership_audit() = {};
 		Rig r;
 		r.base.owns_turn = true;
@@ -1084,7 +1084,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene pushed between ticks starts its clock at the next tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1096,7 +1096,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene a pad press pushes reads shift on its first frame", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1110,7 +1110,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene pushed by this tick's input starts its clock at this tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1125,7 +1125,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a Popup action becomes the popup scene, resolved through the profile's text", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1141,7 +1141,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a Repaint from after_render is honoured on the next tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1153,7 +1153,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// already been made -- so it is for the *next* tick, and the shell must both keep it and
 		// arrange to be woken for it.
 		r.base.emit_repaint_from_after_render = true;
-		deluge::notify::dirty().raise(Dirty::Oled);
+		deluge::base::notify::dirty().raise(Dirty::Oled);
 		r.shell.tick(10);
 		const int renders_after_the_asking_tick = r.base.oled_renders;
 		expect(r.base.after_renders).to_be_greater_than(0);
@@ -1176,7 +1176,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("events deferred by the SD lock are routed once the lock is released", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -1204,7 +1204,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("state_lines reports the stack top first, then the lock", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 7});
 		expect(r.shell.stack().push({kOverlay, 3})).to_be_true();
@@ -1215,17 +1215,17 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a second popup over a live one reaches the panel on a tick with no input", _ {
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("FIRST");
+		deluge::base::notify::notice_text("FIRST");
 		r.shell.tick(10);
 		const std::string first = r.fake.pbm(0);
 		r.consume_pending();
-		deluge::notify::notice_text("SECOND");
+		deluge::base::notify::notice_text("SECOND");
 		r.shell.tick(20); // quiet: no pad, button or encoder, only the drain
 		expect(r.fake.pbm(0)).not_().to_equal(first);
 	});
@@ -1233,13 +1233,13 @@ describe shell_tick("shell::Shell::tick", $ {
 	it("a popup's timeout is a wake: the shell comes back when it expires and takes it down", _ {
 		// Legacy's `TimerName::DISPLAY` fires `OLED::timerRoutine` 800 ms after `OLED::popupText`, whatever else is
 		// armed; with no wake of its own the popup stays up until an unrelated one (a blink, a pad timer).
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("LEARNED");
+		deluge::base::notify::notice_text("LEARNED");
 		r.shell.tick(100);
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
 		expect(r.shell.next_wake().has_value()).to_be_true();
@@ -1250,13 +1250,13 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a notification banner's 2000 ms is a wake too", _ {
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_notification("Probability", "100%");
+		deluge::base::notify::notice_notification("Probability", "100%");
 		r.shell.tick(100);
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Notification);
 		expect(r.shell.next_wake().has_value()).to_be_true();
@@ -1265,13 +1265,13 @@ describe shell_tick("shell::Shell::tick", $ {
 
 	it("a console line clears at its expiry with nothing else waking the shell", _ {
 		// Legacy's `TimerName::OLED_CONSOLE` scrolls a line off at its own time; the line's 1179 ms is the port's unit.
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("UNDO", deluge::notify::Notice::Kind::Console);
+		deluge::base::notify::notice_text("UNDO", deluge::base::notify::Notice::Kind::Console);
 		r.shell.tick(100);
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Console);
 		expect(r.shell.next_wake().has_value()).to_be_true();
@@ -1283,15 +1283,15 @@ describe shell_tick("shell::Shell::tick", $ {
 
 	it("the earlier of two console lines is erased from the panel at its own expiry", _ {
 		// No stack change marks this frame: the console stays up for the later line, so the wake must repaint too.
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
-		deluge::notify::notice_text("UNDO", deluge::notify::Notice::Kind::Console);
+		deluge::base::notify::notice_text("UNDO", deluge::base::notify::Notice::Kind::Console);
 		r.shell.tick(100);
-		deluge::notify::notice_text("REDO", deluge::notify::Notice::Kind::Console);
+		deluge::base::notify::notice_text("REDO", deluge::base::notify::Notice::Kind::Console);
 		r.shell.tick(600);
 		r.consume_pending();
 		const std::string both = r.fake.pbm(0);
@@ -1304,21 +1304,21 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("drains the notice queue only while it owns it", _ {
-		deluge::notify::dirty().drain();
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		expect(r.shell.owns_notices()).to_be_true();
 		r.shell.set_owns_notices(false);
-		deluge::notify::notice_text("SAVED");
+		deluge::base::notify::notice_text("SAVED");
 		r.shell.tick(10);
-		expect(deluge::notify::notices().size()).to_equal(size_t{1});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{1});
 		expect(r.shell.stack().top().kind()).not_().to_equal(SceneKind::Popup);
 		r.shell.set_owns_notices(true);
 		r.shell.tick(20);
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
 	});
 });

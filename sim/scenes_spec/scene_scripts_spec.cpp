@@ -127,8 +127,8 @@
 #include "scenes/services/mod_knobs.h"
 #include "scenes/slicing/slicer_scene.h"
 
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
@@ -293,9 +293,9 @@ void install_display() {
 void reset_globals() {
 	menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
-	deluge::notify::dirty().drain();
+	deluge::base::notify::Notice discard;
+	while (deluge::base::notify::notices().pop(discard)) {}
+	deluge::base::notify::dirty().drain();
 }
 
 // --- the services ---------------------------------------------------------------------------------

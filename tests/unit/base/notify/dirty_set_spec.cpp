@@ -1,10 +1,10 @@
+#include "base/notify/dirty_set.h"
 #include "cppspec.hpp"
-#include "notify/dirty_set.h"
 #include "support/spec_main.h"
 #include <cstdlib>
 #include <thread>
 
-using namespace deluge::notify;
+using namespace deluge::base::notify;
 
 // clang-format off
 describe dirty_set("notify::DirtySet", $ {

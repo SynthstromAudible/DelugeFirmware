@@ -28,11 +28,11 @@
 ///     (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`), both view-side and not ported; only the *arming* is
 ///     compared here.
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
 #include "gui/ui/menu_view_of.h"
 #include "modulation/automation/record_events.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -351,8 +351,8 @@ struct DirectCtx {
 
 /// Empty the notice queue, so a case counts only what it raises.
 void drain_notices() {
-	deluge::notify::Notice discarded;
-	while (deluge::notify::notices().pop(discarded)) {}
+	deluge::base::notify::Notice discarded;
+	while (deluge::base::notify::notices().pop(discarded)) {}
 }
 
 /// A gold-knob turn event.
@@ -1090,20 +1090,20 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// Over a timeline view, the root view's pads under a menu are legacy's to draw: they are told too.
 		rig.knobs.set_view_state({.root_is_timeline_view = true});
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
 		expect(turn_until_no_tails()).to_equal(1);
 		expect(tails()).to_be_false();
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy).has(deluge::notify::Dirty::GridMain))
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy).has(deluge::base::notify::Dirty::GridMain))
 		    .to_be_true();
 
 		// Over any other root, only the shell's pads repaint.
 		set_value(deluge::modulation::params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::min());
 		expect(tails()).to_be_true();
 		rig.knobs.set_view_state({.root_is_timeline_view = false});
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
 		expect(turn_until_no_tails()).to_equal(1);
 		expect(tails()).to_be_false();
-		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy).has(deluge::notify::Dirty::GridMain))
+		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy).has(deluge::base::notify::Dirty::GridMain))
 		    .to_be_false();
 		display = nullptr;
 		currentSong = nullptr;
@@ -1172,15 +1172,15 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		rig.knobs.mod_button_action(3, true);
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
-		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 		expect(rig.knobs.mode()).to_equal(0);
 
 		rig.knobs.mod_button_action(3, false);
 		expect(currentUIMode).to_equal(UI_MODE_NONE);
-		expect(deluge::notify::notices().size()).to_equal(size_t{1});
-		deluge::notify::Notice raised;
-		expect(deluge::notify::notices().pop(raised)).to_be_true();
-		expect(raised.kind).to_equal(deluge::notify::Notice::Kind::CancelPopup);
+		expect(deluge::base::notify::notices().size()).to_equal(size_t{1});
+		deluge::base::notify::Notice raised;
+		expect(deluge::base::notify::notices().pop(raised)).to_be_true();
+		expect(raised.kind).to_equal(deluge::base::notify::Notice::Kind::CancelPopup);
 		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
 		currentSong = nullptr;
@@ -1839,13 +1839,13 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region();
-		deluge::notify::Notice n;
-		while (deluge::notify::notices().pop(n)) {}
+		deluge::base::notify::Notice n;
+		while (deluge::base::notify::notices().pop(n)) {}
 		DirectCtx c{60'000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
 		bool cancelled = false;
-		while (deluge::notify::notices().pop(n)) {
-			cancelled = cancelled || n.kind == deluge::notify::Notice::Kind::CancelNotification;
+		while (deluge::base::notify::notices().pop(n)) {
+			cancelled = cancelled || n.kind == deluge::base::notify::Notice::Kind::CancelNotification;
 		}
 		expect(cancelled).to_be_true();
 	});

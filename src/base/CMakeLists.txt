@@ -14,3 +14,5 @@ add_library(deluge_base STATIC
 )
 
 target_include_directories(deluge_base PUBLIC ${SHARED_INCLUDE})
+
+add_subdirectory(notify)

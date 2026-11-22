@@ -137,7 +137,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_ui_oled
     deluge_ui_grid
     deluge_ui_shell # surfaces, scene stack, input lowering, services, tick, flush
-    deluge_notify # the model->UI notification channel
+    deluge_base_notify # the model->UI notification channel
 )
 
 target_compile_definitions(deluge_app PUBLIC

@@ -31,7 +31,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "ui/core/led_frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/routing.h"
@@ -776,7 +776,7 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 			     .polarity_only = true});
 		}
 	}
-	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::dirty().raise(deluge::base::notify::Dirty::Oled);
 }
 
 std::optional<deluge::project::ParamAddress> PatchCableStrengthItem::automation_address(const MenuContext& ctx,
@@ -980,7 +980,7 @@ SourcePress SourceSelectionItem::source_press(const MenuContext& ctx, MenuState&
 	state.walk.patching_param = folded_volume(previous);
 	if (!patching::source_is_allowed(ctx, source, destination_for(state, false))) {
 		state.walk.patching_param = previous;
-		deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return SourcePress::Unhandled;
 	}
 	state.walk.patch_source = source;

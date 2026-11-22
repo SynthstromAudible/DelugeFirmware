@@ -14,7 +14,7 @@
 #include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
-using deluge::notify::Dirty;
+using deluge::base::notify::Dirty;
 
 namespace {
 
@@ -252,7 +252,7 @@ void record_mirror(std::span<const uint8_t> bytes, uint16_t w, uint16_t h) {
 // clang-format off
 describe shell_flush("shell::Shell::flush", $ {
 	it("blits only surfaces that rendered, skips busy panels and retries next tick", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.fake.busy[0] = true;
@@ -277,7 +277,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("sends only changed column pairs in order and honours backpressure", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -288,7 +288,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// Column 3 sits in pair 1 (columns 2,3); column 12 in pair 6 (columns 12,13).
 		r.base.column_overrides = {{3, RGB{9, 9, 9}}, {12, RGB{7, 7, 7}}};
 		r.fake.space = kBytesPerColumnPair; // budget for exactly one pair this tick.
-		deluge::notify::dirty().raise(Dirty::GridMain);
+		deluge::base::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
 
 		expect(r.fake.columns_sent.size()).to_equal(size_t(10)); // the 9 plus this tick's one pair
@@ -318,7 +318,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	it("sends this tick's pad flashes through flash_pad after the columns, then clears them", _ {
 		using deluge::ui::grid::FlashColour;
 		using deluge::ui::grid::PadFlash;
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.base.flashes = {{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
@@ -331,14 +331,14 @@ describe shell_flush("shell::Shell::flush", $ {
 
 		// The next render flashes nothing: nothing more is sent.
 		r.base.flashes.clear();
-		deluge::notify::dirty().raise(Dirty::GridMain);
+		deluge::base::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
 		expect(r.fake.flashes_sent).to_equal(expected);
 	});
 
 	it("a tick whose only output is a flash still flushes once", _ {
 		using deluge::ui::grid::FlashColour;
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -347,7 +347,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		const size_t blits = r.fake.blits.size();
 
 		r.base.flashes = {{3, 2, FlashColour::Default}};
-		deluge::notify::dirty().raise(Dirty::GridMain);
+		deluge::base::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
 		expect(r.fake.columns_sent.size()).to_equal(columns);
 		expect(r.fake.blits.size()).to_equal(blits);
@@ -356,7 +356,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("LED diff emits only changes; indicators only on change", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 
@@ -381,7 +381,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("hands an LED back once when nothing declares it any more, and re-sends it when re-declared", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 
@@ -410,7 +410,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("mirror sees the main surface after a blit, throttled, and never drops a deferred frame", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		std::vector<MirrorCall> calls;
@@ -423,7 +423,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(calls[0].h).to_equal(uint16_t(48));
 
 		// A reblit 10 ms later, inside the 100 ms throttle window, is not sent immediately...
-		deluge::notify::dirty().raise(Dirty::Oled);
+		deluge::base::notify::dirty().raise(Dirty::Oled);
 		r.shell.tick(10);
 		expect(calls.size()).to_equal(size_t(1));
 		// ...but is remembered, not dropped: `next_wake()` reports exactly when it is owed.
@@ -441,7 +441,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a fade tween interpolates from the snapshot to the live grid over its duration", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		const RGB kFrom{40, 60, 80};
@@ -478,7 +478,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a scroll-horizontal tween interpolates from the snapshot to the live grid over its duration", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
@@ -520,7 +520,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a scroll-vertical tween interpolates from the snapshot to the live grid over its duration", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
@@ -558,7 +558,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a greyout tween ramps the mask from half to full over its duration, replacing the static pass", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		// Grey every row (and therefore every pad, regardless of column) -- sidesteps
 		// `GreyoutMask`'s right-to-left column numbering (see `tests/unit/shell/tick_spec.cpp`'s greyout test).
@@ -600,7 +600,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// `FlushScene` has no `next_timer()` of its own and this rig arms no gate past the first
 		// tick, so the blink is the ONLY thing that could produce a wake here -- which is what
 		// makes the example fail without the fix rather than pass by accident.
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.base.play_override = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 110, 0};
 		r.shell.init({kBase, 0});
@@ -642,7 +642,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// so an unneeded grid arm costs a repaint and no bytes; an OLED surface is blitted
 		// unconditionally once it has rendered, so an unneeded OLED arm is a permanent blit at the
 		// timer's cadence for as long as the service asks (see `Scene::timer_repaints`).
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ServiceRig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -703,7 +703,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// 220 before this half could clear it, and asserting on the same rig would be asserting
 		// against that standing deadline rather than against the claim. (Found by writing it the
 		// other way first and watching it fail.)
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		ServiceRig quiet;
 		quiet.service.claim = Scene::RepaintSurfaces{.oled = false, .grid = true};
 		quiet.shell.init({kBase, 0});
@@ -732,7 +732,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(Scene::RepaintSurfaces{.grid = true}.oled).to_be_false();
 		expect(Scene::RepaintSurfaces{.oled = true}.grid).to_be_false();
 
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		NaturalServiceRig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -763,7 +763,7 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("next_wake sees a running tween's step cadence", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
@@ -787,14 +787,14 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("next_wake sees the backpressure backlog's retry deadline, and the next tick past it drains more", _ {
-		deluge::notify::dirty().drain();
+		deluge::base::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0); // baseline: all 9 pairs sent
 
 		r.base.column_overrides = {{3, RGB{9, 9, 9}}, {12, RGB{7, 7, 7}}};
 		r.fake.space = kBytesPerColumnPair; // budget for exactly one pair
-		deluge::notify::dirty().raise(Dirty::GridMain);
+		deluge::base::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
 		expect(r.fake.grid().dirty).to_be_true(); // pair 6 is still owed
 		expect(r.shell.next_wake().has_value()).to_be_true();

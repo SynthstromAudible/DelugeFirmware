@@ -73,10 +73,6 @@ path = "music"
 target = "src/music"
 
 [[directory]]
-path = "notify"
-target = "src/base/notify"
-
-[[directory]]
 path = "plugin"
 target = "src/plugin"
 
@@ -306,8 +302,8 @@ reason = "the model and the engine raise notifications; they do not include the 
 
 [[rule]]
 name = "notify-is-leaf"
-files = ["src/notify/**"]
-pattern = '^(?!notify/).*/'
+files = ["src/base/notify/**"]
+pattern = '^(?!base/notify/).*/'
 reason = "the notification channel includes only itself and the standard library"
 
 [[rule]]
@@ -331,13 +327,13 @@ reason = "the OLED widgets and the pad components never include each other"
 [[rule]]
 name = "shell-includes-outside"
 files = ["src/shell/**"]
-pattern = '^(?!shell/|ui/|gfx/|notify/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+pattern = '^(?!shell/|ui/|gfx/|base/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi ids and libdeluge"
 
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|controls/|music/|sample-view/|base/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

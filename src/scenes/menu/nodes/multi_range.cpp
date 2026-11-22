@@ -28,9 +28,9 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "base/notify/notice_queue.h"
 #include "gfx/oled/font.h"
 #include "gfx/oled/glyphs.h"
-#include "notify/notice_queue.h"
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -259,7 +259,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			list_state.freeze_cursor = true;
 			const std::vector<synth::SourceRange> ranges = ranges_of(ctx);
 			if (const std::optional<RangeInsert> plan = plan_range_insert(ranges, index, t); !plan) {
-				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
+				deluge::base::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 			}
 			else if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot
 			         && ctx.ports.sound_writes->insert_range(
@@ -269,8 +269,8 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 				if (!plan->previous_top) {
 					list_state.scroll++; // inserted before, the window moves with the old range
 				}
-				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_INSERTED),
-				                              deluge::notify::Notice::Kind::Console);
+				deluge::base::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_INSERTED),
+				                                    deluge::base::notify::Notice::Kind::Console);
 			}
 			f.gate().request_repaint();
 		}
@@ -389,7 +389,7 @@ void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	const int32_t index = list.cursor;
 	const std::optional<RangeDelete> plan = plan_range_delete(ranges_of(ctx), index);
 	if (!plan) {
-		deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_LAST_RANGE_CANT_DELETE));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_LAST_RANGE_CANT_DELETE));
 		return;
 	}
 	if (ctx.ports.sound_writes == nullptr || !ctx.addresses.slot
@@ -399,7 +399,7 @@ void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	}
 	list.cursor = static_cast<int16_t>(plan->cursor);
 	state.walk.range_choice = static_cast<int16_t>(plan->cursor);
-	deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_DELETED));
+	deluge::base::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_DELETED));
 }
 
 int32_t range_for_note(std::span<const synth::SourceRange> ranges, int32_t note) {

@@ -19,10 +19,10 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "base/notify/dirty_set.h"
+#include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
-#include "notify/dirty_set.h"
-#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
@@ -262,9 +262,9 @@ struct NoForegroundRecording {
 ///       exit would be asserting something untrue.
 struct DrainedNotices {
 	DrainedNotices() {
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
+		deluge::base::notify::Notice discard;
+		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::base::notify::dirty().drain();
 	}
 	~DrainedNotices() = default;
 	DrainedNotices(const DrainedNotices&) = delete;

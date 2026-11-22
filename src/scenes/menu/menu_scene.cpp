@@ -38,11 +38,11 @@
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/recorder/recorder_scene.h" // on_resume: a refused recorder push
 
-#include "notify/notice_queue.h"
+#include "base/notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
 
+#include "base/notify/dirty_set.h"
 #include "gui/l10n/strings.h"
-#include "notify/dirty_set.h"
 #include "plugin/types/param_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
@@ -197,7 +197,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 			// context makes oscillator 2's range, and its picker test reads oscillator 2.
 			const Permission range = ensure_item_first_range(*target, ctx_);
 			if (range == Permission::No) {
-				deluge::notify::notice_string(
+				deluge::base::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 				return false;
 			}
@@ -323,7 +323,7 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	const MenuContext& press = kit_global.has_value() ? *kit_global : ctx_;
 	// A `comingSoonMenu` cell pops its message and goes nowhere (`potentialShortcutPadAction`).
 	if (shortcut_coming_soon(press.root, x, y)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+		deluge::base::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return std::nullopt;
 	}
 	// Over the automation view any item is taken: `potentialShortcutPadAction` refuses a non-param one only while
@@ -335,7 +335,7 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	if (!shortcut_applies(*target, press)) {
 		target = nodes::dx_shortcut_fallback(*target, press, x);
 		if (target == nullptr) {
-			deluge::notify::notice_string(
+			deluge::base::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return std::nullopt;
 		}
@@ -400,7 +400,7 @@ void MenuScene::dx_column_press(int32_t op) {
 		st_.dx.blink_on_focus = true;
 		pending_retarget_ = node_id(nodes::dx_param);
 	}
-	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 bool MenuScene::takes_affect_entire() const {
@@ -416,19 +416,19 @@ void MenuScene::set_affect_entire_hold(bool on) {
 	affect_entire_blink_restart_ = on;
 	ctx_.affect_entire_held = on;
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
 	open(root, ctx);
 	pending_retarget_ = arm_page_landing(root, column);
-	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 void MenuScene::reroot_at(const Node& root, const MenuContext& ctx, uint16_t arg, const Node* shortcut) {
 	open(root, ctx);
 	pending_retarget_ = shortcut != nullptr ? arm_shortcut_landing(*shortcut) : arg;
-	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
@@ -450,7 +450,7 @@ void MenuScene::delete_range_press() {
 		return;
 	}
 	nodes::range_delete_press(ctx_, st_);
-	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 bool MenuScene::select_range_for_note(int32_t note) {
@@ -460,7 +460,7 @@ bool MenuScene::select_range_for_note(int32_t note) {
 	if (!nodes::range_note_press(ctx_, st_, note)) {
 		return false;
 	}
-	deluge::notify::raise(deluge::notify::Dirty::Oled); // a note the root played, between the guest's ticks
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled); // a note the root played, between the guest's ticks
 	return true;
 }
 
@@ -511,16 +511,16 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 	// page no longer shows leaves the page on its first column, as legacy's discarded `focusChild` does.
 	walk_.focus_column(core(), item);
 	// Callers run between the guest's ticks: ask for the frame that shows the page.
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 	return true;
 }
 
-void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
+void MenuScene::on_model_changed(const deluge::base::notify::DirtySet& dirty) {
 	// A song swap invalidates every pointer in `ctx_`. The application re-resolves the context and
 	// calls `open()` again; until it does, refuse to render anything by dropping the path, which
 	// is strictly safer than drawing a menu over a freed `Sound`. The emptied context goes out through the context hook
 	// too (`install_context`), so the host republishes the target, now empty.
-	if (dirty.has(deluge::notify::Dirty::SongSwapped)) {
+	if (dirty.has(deluge::base::notify::Dirty::SongSwapped)) {
 		const DxState dx = st_.dx;
 		st_ = MenuState{};
 		st_.dx = dx;
@@ -1270,7 +1270,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		// `reroot_to_scene_opener_page()` puts a claimed file selector's browser back here at
 		// depth 0, so this is a shipped path, not a hypothetical one.
 		if (on_horizontal_page()) {
-			deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+			deluge::base::notify::notice_kind(deluge::base::notify::Notice::Kind::CancelNotification);
 		}
 		Result r;
 		r.handled = true;

@@ -97,8 +97,8 @@ bool Arrangement::endPlayback() {
 
 	// Main rows too: in grid session layout the clip pads are the main pads, so both need
 	// invalidating together.
-	deluge::notify::raise(deluge::notify::Dirty::GridMain);
-	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
 	// but we need it before reassessing sessionView's greyout.
@@ -287,7 +287,7 @@ notRecording:
 						}
 
 						if (getCurrentUI() == &arrangerView) {
-							deluge::notify::raise(deluge::notify::Dirty::OutputChanged);
+							deluge::base::notify::raise(deluge::base::notify::Dirty::OutputChanged);
 						}
 
 						// Make sure we come back here when the clipInstance ends
@@ -406,7 +406,7 @@ void Arrangement::afterMoveToPos(int32_t newPos, bool doingComplete, [[maybe_unu
 		}
 		Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 		if (error != Error::NONE) {
-			deluge::notify::notice(error);
+			deluge::base::notify::notice(error);
 		}
 	}
 }
@@ -580,7 +580,7 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-	deluge::notify::raise(deluge::notify::Dirty::Oled);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 }
 
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {
@@ -687,5 +687,5 @@ void Arrangement::endAnyLinearRecording() {
 
 	arrangerView.mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
 
-	deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 }

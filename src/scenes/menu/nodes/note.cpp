@@ -2,8 +2,8 @@
 
 #include "scenes/menu/note_bridge.h"
 
+#include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp" // FillMode, kNumProbabilityValues, the iterance presets
-#include "notify/notice_queue.h"
 #include "sequence/iterance.h"
 
 #include <algorithm>
@@ -192,7 +192,7 @@ bool permitted_note(const MenuContext&) {
 	if (note_bridge() != nullptr && note_bridge()->note_selected()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Note"); // `origin/main:src/deluge/gui/menu_item/note/selected_note.h`
+	deluge::base::notify::notice_text("Select Note"); // `origin/main:src/deluge/gui/menu_item/note/selected_note.h`
 	return false;
 }
 
@@ -200,7 +200,8 @@ bool permitted_row(const MenuContext&) {
 	if (note_bridge() != nullptr && note_bridge()->row_auditioning()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Row"); // `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`
+	deluge::base::notify::notice_text(
+	    "Select Row"); // `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`
 	return false;
 }
 

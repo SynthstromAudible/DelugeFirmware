@@ -70,23 +70,23 @@ const char* popup_type_name(uint8_t popup_type) {
 	return popup_type < sizeof(kNames) / sizeof(kNames[0]) ? kNames[popup_type] : nullptr;
 }
 
-const char* notice_kind_name(notify::Notice::Kind k) {
+const char* notice_kind_name(base::notify::Notice::Kind k) {
 	switch (k) {
-	case notify::Notice::Kind::Error:
+	case base::notify::Notice::Kind::Error:
 		return "Error";
-	case notify::Notice::Kind::Text:
+	case base::notify::Notice::Kind::Text:
 		return "Text";
-	case notify::Notice::Kind::Console:
+	case base::notify::Notice::Kind::Console:
 		return "Console";
-	case notify::Notice::Kind::Working:
+	case base::notify::Notice::Kind::Working:
 		return "Working";
-	case notify::Notice::Kind::ClearWorking:
+	case base::notify::Notice::Kind::ClearWorking:
 		return "ClearWorking";
-	case notify::Notice::Kind::CancelPopup:
+	case base::notify::Notice::Kind::CancelPopup:
 		return "CancelPopup";
-	case notify::Notice::Kind::Notification:
+	case base::notify::Notice::Kind::Notification:
 		return "Notification";
-	case notify::Notice::Kind::CancelNotification:
+	case base::notify::Notice::Kind::CancelNotification:
 		return "CancelNotification";
 	}
 	return "Text";
@@ -256,8 +256,8 @@ void WorkingScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	ui::oled::working(frame, frame.bounds(), word_, blink_);
 }
 
-void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
-	notify::Notice n;
+void Notices::drain(base::notify::NoticeQueue& queue, uint32_t now_ms) {
+	base::notify::Notice n;
 	while (queue.pop(n)) {
 		// Every id resolved below goes through `BoardProfile::text_or_digits`/`error_text_or_digits`
 		// rather than testing the hook itself, so a profile with no l10n bridge -- which is every
@@ -266,7 +266,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 		// built from it, and `show_popup`/`console_.append` copy the text before the case ends.
 		TextScratch scratch;
 		switch (n.kind) {
-		case notify::Notice::Kind::Error:
+		case base::notify::Notice::Kind::Error:
 			// Legacy's `OLED::displayError` shows nothing at all for
 			// Error::NONE/Error::ABORTED_BY_USER -- suppressed here the same way, before ever
 			// resolving error_text or touching the stack.
@@ -277,9 +277,9 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// default in `hid/display/display.h`) -- always General, never `n.popup_type` -- and the ordinary
 			// (non-persistent) timeout: `Display::displayError` never reads severity.
 			show_popup_with_timeout(profile_.error_text_or_digits(n.error_code, scratch), kPopupTypeGeneral, now_ms,
-			                        timeout_for(kPopupTypeGeneral), notify::Notice::Kind::Error);
+			                        timeout_for(kPopupTypeGeneral), base::notify::Notice::Kind::Error);
 			break;
-		case notify::Notice::Kind::Text: {
+		case base::notify::Notice::Kind::Text: {
 			const std::string_view text =
 			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
 			const uint8_t type = popup_type_of(n.popup_type);
@@ -287,11 +287,11 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// (`flashes = (severity == Warn) ? 0 : 3`) feeds OLED::displayPopup's inline
 			// `persistent = !numFlashes` (in `oled.h`), which `OLED::popupText` turns into "never set
 			// the DISPLAY timer" -- everything else keeps the ordinary timeout_for() duration.
-			const uint32_t timeout_ms = n.severity == notify::Notice::Severity::Warn ? 0 : timeout_for(type);
-			show_popup_with_timeout(text, type, now_ms, timeout_ms, notify::Notice::Kind::Text);
+			const uint32_t timeout_ms = n.severity == base::notify::Notice::Severity::Warn ? 0 : timeout_for(type);
+			show_popup_with_timeout(text, type, now_ms, timeout_ms, base::notify::Notice::Kind::Text);
 			break;
 		}
-		case notify::Notice::Kind::Console: {
+		case base::notify::Notice::Kind::Console: {
 			const std::string_view text =
 			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
 			console_.append(text, now_ms, n.popup_type);
@@ -320,13 +320,13 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			}
 			break;
 		}
-		case notify::Notice::Kind::Working:
+		case base::notify::Notice::Kind::Working:
 			working_.arm(n.text, now_ms);
 			if (stack_.top().kind() != SceneKind::Working) {
 				stack_.push(SceneId{SceneKind::Working});
 			}
 			break;
-		case notify::Notice::Kind::ClearWorking:
+		case base::notify::Notice::Kind::ClearWorking:
 			// Does not pop here: Notices::tick is what pops the working scene, once armed()
 			// reports false -- see that method's doc.
 			//
@@ -349,7 +349,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 				sink->remove_working();
 			}
 			break;
-		case notify::Notice::Kind::CancelPopup:
+		case base::notify::Notice::Kind::CancelPopup:
 			// `remove`, not `pop`: a popup is `input_transparent()`, so a scene pushed above a
 			// live popup is there legitimately (its own `Push` landed above a layer that never
 			// took input) and must not be taken down just because the popup itself is being
@@ -363,7 +363,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 				sink->cancel_popup();
 			}
 			break;
-		case notify::Notice::Kind::Notification: {
+		case base::notify::Notice::Kind::Notification: {
 			// Legacy's `display->displayNotification(title, value)` (`HorizontalMenu::displayNotification` in
 			// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). With a sink installed this *is* that call,
 			// in legacy's own popup slot -- the same call legacy's `drain_notifications` makes for this kind, so it
@@ -390,7 +390,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			stack_.push(SceneId{SceneKind::Notification});
 			break;
 		}
-		case notify::Notice::Kind::CancelNotification: {
+		case base::notify::Notice::Kind::CancelNotification: {
 			// Legacy's guarded cancel,
 			// `if (display->hasPopupOfType(PopupType::NOTIFICATION)) { display->cancelPopup(); }`
 			// (`HorizontalMenu::switchHorizontalMenu` and `::endSession` in
@@ -413,11 +413,11 @@ void Notices::show_popup(std::string_view text, uint8_t popup_type, uint32_t now
 	const uint8_t type = popup_type_of(popup_type);
 	// `Kind::Text`: an `Action::Kind::Popup` draws the same popup a text notice does, through this
 	// same funnel -- see this method's own doc -- so that is the kind `.state` reports for it.
-	show_popup_with_timeout(text, type, now_ms, timeout_for(type), notify::Notice::Kind::Text);
+	show_popup_with_timeout(text, type, now_ms, timeout_for(type), base::notify::Notice::Kind::Text);
 }
 
 void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms,
-                                      notify::Notice::Kind kind) {
+                                      base::notify::Notice::Kind kind) {
 	last_notice_kind_ = kind;
 	// One popup slot: `popupText` -> `setupPopup` overwrites a `NOTIFICATION` popup like any other
 	// (`oled.cpp`), so a live banner goes.

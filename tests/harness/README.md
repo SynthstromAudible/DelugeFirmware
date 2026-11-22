@@ -9,7 +9,7 @@ and compiled directly into the host BSP. **This directory must not include anyth
   (`ui_script_load` / `ui_script_next_due`) for the host BSP.
 - `snapshot.{h,cpp}` -- the `.state` formatter (`StateLines`), an `oled_pbm` PBM writer, and
   `write_file`.
-- `tests/harness/fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
+- `tests/harness/fixed_vector.h` -- a standalone copy of `src/base/fixed_vector.h`'s shape (see above for why
   it isn't shared).
 
 ## Script format
