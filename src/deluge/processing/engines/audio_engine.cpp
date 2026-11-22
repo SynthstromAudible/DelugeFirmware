@@ -219,9 +219,26 @@ private:
 };
 SongTickCost songTickCost;
 
+/// The time to keep for a song tick before the next render: songTickCost if one's due at the start of its window, and
+/// none otherwise. Ticks are only ever actioned there - a window that a tick falls in is cut short, so the tick starts
+/// the next one - so a render without one due at its start won't have one at all
+float songTickReserve(int32_t timeTilNextTick) {
+	return timeTilNextTick <= 0 ? songTickCost.get() : 0.f;
+}
+
 // How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
-// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
-constexpr int32_t kRenderSafetyMargin = 8;
+// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest. Renders
+// whose cost jumps (the one right after a song tick that ends a chord, say) can take 8-15 samples longer than
+// predicted. And it's above where cullVoices() hard culls (32 below kCullMargin), with room for rounding the render up
+// to a multiple of 4 samples, so that catching up can't cause a hard cull by itself
+constexpr int32_t kRenderSafetyMargin = kCullMargin - 32 + 4;
+
+// For this many renders after one that starts with a song tick, the margin is expected to dip: the tick took time, and
+// the notes it started and stopped are being rendered while the queue catches up. Outside that, a margin under the cull
+// limit means the voices playing don't fit
+constexpr uint32_t kTickRecoveryRenders = 3;
+// Renders since the last one that started with a song tick
+uint32_t rendersSinceSongTick = kTickRecoveryRenders + 1;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
@@ -268,7 +285,7 @@ bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
-bool usbInputMonitoredByTrack = false;
+uint8_t usbInputsMonitoredByTrack = 0;
 // ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
 // then ~50ms to fade it in so monitoring doesn't switch on with a click.
 constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
@@ -276,6 +293,8 @@ constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
 volatile int voices_started_this_render = 0;
+// What those voice starts took, in samples of time (see voiceStarted())
+float voiceStartTimeThisRender = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -536,9 +555,9 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// Starting voices is a heavy load and we know it's temporary, so be a bit more lenient with the limit if any voice
-	// started in the last render. Not per voice: the voice-start budget may start several in one render
-	auto max_num_samples = numSamplesLimit + (voices_started_this_render > 0 ? 20 : 0);
+	// Starting voices takes time that won't be needed again, so don't cull for the time the last render's voice starts
+	// took - but only for that much (the voices themselves have to be rendered from now on, so they count)
+	auto max_num_samples = numSamplesLimit + static_cast<int32_t>(std::ceil(voiceStartTimeThisRender));
 	static int32_t last_num_samples_over = 0;
 	int32_t num_samples_over_limit = numSamples - max_num_samples;
 
@@ -577,10 +596,12 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
+		// Or if it's just a little bit dire, do a soft cull with fade-out. Right after a song tick, only if numSamples
+		// is increasing - the margin dips there while the queue catches up with the tick - but otherwise for sure: the
+		// load then is the voices playing, and they don't fit
 		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+			bool afterTick = rendersSinceSongTick <= kTickRecoveryRenders;
+			if (!afterTick || (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over)) {
 				forceReleaseOneVoice(numSamples);
 				if (numRoutines > 0) {
 					culled = true;
@@ -609,7 +630,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 // not in header (private to audio engine)
 /// How many samples to render, given how many there's space for in the output buffer. Can be up to 128
-size_t getRenderSize(size_t numSamples) {
+size_t getRenderSize(size_t numSamples, int32_t timeTilNextTick) {
 	size_t const spaceInBuffer = numSamples;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
@@ -628,8 +649,8 @@ size_t getRenderSize(size_t numSamples) {
 	// when the CPU's busy, doubling can make a render take longer than the backlog it's catching up on. Never fewer
 	// than there's space for, though
 	if (numSamples > spaceInBuffer) {
-		float timeAvailable =
-		    (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickCost.get();
+		float timeAvailable = (float)(SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)spaceInBuffer - kRenderSafetyMargin)
+		                      - songTickReserve(timeTilNextTick);
 		float sizeAllowed = renderCost.sizeFor(timeAvailable);
 		if (sizeAllowed < (float)numSamples) {
 			numSamples = std::max(spaceInBuffer, (size_t)std::max(sizeAllowed, 0.f));
@@ -645,26 +666,58 @@ size_t getRenderSize(size_t numSamples) {
 }
 
 // not in header (private to audio engine)
-/// set the direness level and cull any voices
-inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+/// set the direness level and cull any voices - before increasing the number of samples
+inline void setDireness(size_t numSamples, int32_t timeTilNextTick) {
 	// numSamples is the space in the output buffer, so the rest is still queued for the codec. The next render won't
 	// output anything until it's done, so predict how long it'll take from its size and what recent renders have cost,
-	// plus a song tick
+	// plus a song tick if one's due first
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
-	size_t renderSize = getRenderSize(numSamples);
-	int32_t predicted = (int32_t)(songTickCost.get() + renderCost.predict(renderSize));
+	size_t renderSize = getRenderSize(numSamples, timeTilNextTick);
+	// If a tick falls within the window, tickSongFinalizeWindows() will cut the render short there
+	if (timeTilNextTick > 0) {
+		renderSize = std::min<size_t>(renderSize, timeTilNextTick);
+	}
+	int32_t predicted = (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
+
+	// Direness (cheaper oscillators, interpolation and filters) is for when the voices playing take more time than
+	// there is, so it goes by the smallest render that keeps up - one that fills the space - not the bigger one
+	// getRenderSize() may pick to catch up, whose margin it shrinks towards kRenderSafetyMargin whatever the load. And
+	// not right after a song tick: the margin dips there while the queue catches up with the tick, and cheaper voices
+	// wouldn't help that - they'd just stay cheap for the rest of the step, as direness only falls 1 per 1/8 s
+	int32_t keepUpSize = numSamples;
+	if (timeTilNextTick > 0) {
+		keepUpSize = std::min<int32_t>(keepUpSize, timeTilNextTick);
+	}
+	int32_t keepUpMargin =
+	    queued - (int32_t)(songTickReserve(timeTilNextTick) + renderCost.predict(std::max<int32_t>(keepUpSize, 0)));
+	int32_t direnessLevel = std::max<int32_t>(numSamplesLimit + kCullMargin - keepUpMargin, 0);
+	bool afterTick = rendersSinceSongTick <= kTickRecoveryRenders;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
 	// don't smooth this - used for other decisions as well
-	if (numSamples >= direnessThreshold) {
-
-		int32_t newDireness = std::min<int32_t>(numSamples - (direnessThreshold - 1), 14);
-
+	if (direnessLevel >= direnessThreshold && !afterTick) {
+		int32_t newDireness = std::min<int32_t>(direnessLevel - (direnessThreshold - 1), 14);
 		if (newDireness >= cpuDireness) {
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
+	}
+	// otherwise lower it (with some hysteresis to avoid jittering
+	else if (direnessLevel < direnessThreshold - 3) {
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
+			timeDirenessChanged = audioSampleTimer;
+			cpuDireness--;
+			if (cpuDireness < 0) {
+				cpuDireness = 0;
+			}
+			else {
+				D_PRINTLN("direness:  %d", cpuDireness);
+			}
+		}
+	}
+
+	if (numSamples >= direnessThreshold) {
 		auto numAudio = currentSong ? currentSong->countAudioVoices() : 0;
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
@@ -676,20 +729,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			if (num_samples_over_limit >= 0) {
 				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
 				logAction("skipped cull");
-			}
-		}
-	}
-	// otherwise lower it (with some hysteresis to avoid jittering
-	else if (numSamples < direnessThreshold - 3) {
-
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
-			timeDirenessChanged = audioSampleTimer;
-			cpuDireness--;
-			if (cpuDireness < 0) {
-				cpuDireness = 0;
-			}
-			else {
-				D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
 	}
@@ -853,6 +892,8 @@ void midiGateOutputTimerFired() {
 	armMidiGateOutputTimer(now, guard);
 }
 
+int32_t getTimeTilNextSongTick(int32_t* nextTickType = nullptr);
+
 // The voice-start budget (wouldRefuseVoiceStart(), voiceStarted()). Starting a voice takes about a sample of time, and
 // then the voice has to be rendered - in this render, and in the next ones, whose predicted cost (renderCost, a
 // decaying average) only catches up with the extra voices gradually. So voices start only while that still fits:
@@ -920,8 +961,10 @@ float marginAfterAnotherVoiceStart() {
 		size_t space = ((uint32_t)((uint32_t)getTxBufferCurrentPlace() - i2sTXBufferPos)
 		                >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 		               & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
-		size_t renderSize = getRenderSize(space);
-		margin = (SSI_TX_BUFFER_NUM_SAMPLES - space) - songTickCost.get() - renderCost.predict(renderSize);
+		int32_t timeTilNextTick = getTimeTilNextSongTick();
+		size_t renderSize = getRenderSize(space, timeTilNextTick);
+		margin =
+		    (SSI_TX_BUFFER_NUM_SAMPLES - space) - songTickReserve(timeTilNextTick) - renderCost.predict(renderSize);
 		perVoice = voiceRenderCost(renderSize);
 	}
 	int32_t newVoices = voices_started_this_render + voicesStartedLastRender + 1;
@@ -978,14 +1021,19 @@ bool calledFromScheduler = false;
 	setMIDIDueAtWindowOffset(0);
 
 	flushMIDIGateBuffers();
-	setDireness(numSamples);
+
+	// Whether the song ticks at the start of this window - and if not, where the window will be cut short for one
+	int32_t const timeTilNextTick = getTimeTilNextSongTick();
+	rendersSinceSongTick = (timeTilNextTick <= 0) ? 0 : std::min(rendersSinceSongTick + 1, kTickRecoveryRenders + 1);
+	setDireness(numSamples, timeTilNextTick);
 
 	// What's left of the TX buffer is still waiting for the codec, in front of this render
 	size_t const txQueued = SSI_TX_BUFFER_NUM_SAMPLES - numSamples;
 
-	numSamples = getRenderSize(numSamples);
+	numSamples = getRenderSize(numSamples, timeTilNextTick);
 	voicesStartedLastRender = voices_started_this_render;
 	voices_started_this_render = 0;
+	voiceStartTimeThisRender = 0;
 	voiceStartBudgetForRender(txQueued, numSamples);
 
 	uint32_t tickStartTicks = getSystemTicks();
@@ -1042,16 +1090,16 @@ q31_t getInputMonitoringGain(uint32_t offset) {
 }
 
 int32_t* getInputBufferStart(AudioInputChannel channel) {
-	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingStart() : getRxBufferStart();
+	return isUSBInput(channel) ? usb_audio::getInputRingStart(usbInputNumber(channel)) : getRxBufferStart();
 }
 
 int32_t* getInputBufferEnd(AudioInputChannel channel) {
-	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingEnd() : getRxBufferEnd();
+	return isUSBInput(channel) ? usb_audio::getInputRingEnd(usbInputNumber(channel)) : getRxBufferEnd();
 }
 
 int32_t* getInputReadPos(AudioInputChannel channel) {
 	auto* rxPos = reinterpret_cast<int32_t*>(i2sRXBufferPos);
-	return (channel == AudioInputChannel::USB) ? usb_audio::toInputRing(rxPos) : rxPos;
+	return isUSBInput(channel) ? usb_audio::toInputRing(rxPos, usbInputNumber(channel)) : rxPos;
 }
 
 void renderAudio(size_t numSamples) {
@@ -1067,7 +1115,9 @@ void renderAudio(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputsMonitoredByTrack = 0;
+	// Multitrack USB's track buses - except while exporting stems in real time, which need every track
+	usb_audio::startRender(!stemExport.processStarted);
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1103,7 +1153,8 @@ void renderAudioForStemExport(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputsMonitoredByTrack = 0;
+	usb_audio::startRender(false); // Every track goes in the stems
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1152,27 +1203,41 @@ void flushMIDIGateBuffers() {
 	}
 }
 
-void tickSongFinalizeWindows(size_t& numSamples) {
-	// If a timer-tick is due during or directly after this window of audio samples...
+/// How many samples from the start of the next render window (audioSampleTimer) the next song tick - timer or swung -
+/// is due: 0 or less if it's due right at the start, so the render will action it first. Only looks, so it can be
+/// called ahead of tickSongFinalizeWindows(). 9999 if no clock is running, or no tick is scheduled yet (following an
+/// external clock, before the next input tick)
+int32_t getTimeTilNextSongTick(int32_t* nextTickType) {
+	int32_t tickType = 0;
+	uint32_t timeNextTick = audioSampleTimer + 9999;
+
 	if (playbackHandler.isEitherClockActive()) {
-
-startAgain:
-		int32_t nextTickType = 0;
-		uint32_t timeNextTick = audioSampleTimer + 9999;
-
 		if (playbackHandler.isInternalClockActive()) {
 			timeNextTick = playbackHandler.timeNextTimerTickBig >> 32;
-			nextTickType = TICK_TYPE_TIMER;
+			tickType = TICK_TYPE_TIMER;
 		}
 
 		// Or if a swung tick is scheduled sooner...
 		if (playbackHandler.swungTickScheduled
 		    && (int32_t)(playbackHandler.scheduledSwungTickTime - timeNextTick) < 0) {
 			timeNextTick = playbackHandler.scheduledSwungTickTime;
-			nextTickType = TICK_TYPE_SWUNG;
+			tickType = TICK_TYPE_SWUNG;
 		}
+	}
 
-		int32_t timeTilNextTick = timeNextTick - audioSampleTimer;
+	if (nextTickType != nullptr) {
+		*nextTickType = tickType;
+	}
+	return (int32_t)(timeNextTick - audioSampleTimer);
+}
+
+void tickSongFinalizeWindows(size_t& numSamples) {
+	// If a timer-tick is due during or directly after this window of audio samples...
+	if (playbackHandler.isEitherClockActive()) {
+
+startAgain:
+		int32_t nextTickType = 0;
+		int32_t timeTilNextTick = getTimeTilNextSongTick(&nextTickType);
 
 		// If tick occurs right now at the start of this window - which is fairly likely, cos we would have cut the
 		// previous window short if it had such a tick during it...
@@ -1355,7 +1420,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 }
 void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::USB) {
+	if (isUSBInput(audioRecorder.recordingSource)) {
 		// No risk of feedback from the internal mic here, so "conditional" means on. Unless it's already being sent
 		// straight to the outputs - then we'd hear it twice
 		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF && !usb_audio::directMonitoring);
@@ -1488,6 +1553,7 @@ void routine() {
 				// holds every later note for the rest of the export and stems come out silent (issue #5010). Offline,
 				// only that limit applies, not the time budget.
 				voices_started_this_render = 0;
+				voiceStartTimeThisRender = 0;
 				tickSongFinalizeWindows(numSamples);
 				DeferredNoteOns::sendWhatCanStart();
 				sendWindowOutputsNow();
@@ -1543,21 +1609,28 @@ bool doSomeOutputting() {
 
 	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
+	size_t const renderOffset = renderingBufferOutputPosNow - renderingMemory.data(); // For the USB track buses
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 
-	// Monitored input - normally the codec's, but the USB input if that's what we're sampling
+	// Monitored input - normally the codec's, but a USB input if that's what we're sampling
 	AudioInputChannel const monitoringSource =
-	    (audioRecorder.recordingSource == AudioInputChannel::USB) ? AudioInputChannel::USB : AudioInputChannel::STEREO;
+	    isUSBInput(audioRecorder.recordingSource) ? audioRecorder.recordingSource : AudioInputChannel::STEREO;
 	int32_t* __restrict__ inputReadPos = getInputReadPos(monitoringSource);
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 
-	// Audio from a USB host, mixed straight into the outputs if the user wants - unless it's already coming through
-	// an audio track's monitoring. The sampler only monitors it when this is off (setMonitoringMode()). It's added
-	// after toUSB is taken, so it isn't sent back to the host, which would echo it
-	bool const doUSBDirectMonitoring =
-	    usb_audio::directMonitoring && !usbInputMonitoredByTrack && usb_audio::receivingFromHost();
-	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
-	int32_t const* const usbInputEnd = usb_audio::getInputRingEnd();
+	// Audio from a USB host, mixed straight into the outputs if the user wants - each input unless it's already coming
+	// through an audio track's monitoring. The sampler only monitors them when this is off (setMonitoringMode()). It's
+	// added after toUSB is taken, so it isn't sent back to the host, which would echo it
+	uint8_t const usbDirectInputs = (usb_audio::directMonitoring && usb_audio::receivingFromHost())
+	                                    ? ((1u << usb_audio::numInputs()) - 1) & ~usbInputsMonitoredByTrack
+	                                    : 0;
+	bool const doUSBDirectMonitoring = (usbDirectInputs != 0);
+	bool const usbDirectInput1 = (usbDirectInputs & 1);
+	bool const usbDirectInput2 = (usbDirectInputs & 2);
+	// The inputs' rings are in step, so one position does for both
+	int32_t const* __restrict__ const usbInput1 = usb_audio::getInputRingStart(0);
+	int32_t const* __restrict__ const usbInput2 = usb_audio::getInputRingStart(1);
+	uint32_t usbReadSample = getInputReadPos(AudioInputChannel::USB) - usbInput1;
 	bool const doSendToUSB = usb_audio::sendingToHost();
 	std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> toUSB;
 
@@ -1636,12 +1709,16 @@ bool doSomeOutputting() {
 		}
 
 		if (doUSBDirectMonitoring) {
-			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			usbReadPos += NUM_MONO_INPUT_CHANNELS;
-			if (usbReadPos >= usbInputEnd) {
-				usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			if (usbDirectInput1) {
+				lAdjusted = add_saturate(lAdjusted, usbInput1[usbReadSample] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+				rAdjusted = add_saturate(rAdjusted, usbInput1[usbReadSample + 1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 			}
+			if (usbDirectInput2) {
+				lAdjusted = add_saturate(lAdjusted, usbInput2[usbReadSample] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+				rAdjusted = add_saturate(rAdjusted, usbInput2[usbReadSample + 1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+			}
+			usbReadSample =
+			    (usbReadSample + NUM_MONO_INPUT_CHANNELS) & (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS - 1);
 		}
 
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
@@ -1671,7 +1748,7 @@ bool doSomeOutputting() {
 	if (numSamplesOutputted) {
 
 		if (doSendToUSB) {
-			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow);
+			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow, renderOffset);
 		}
 
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
@@ -1927,6 +2004,7 @@ bool wouldRefuseVoiceStart() {
 void voiceStarted(uint32_t ticksTaken) {
 	float taken = ticksToSamples(ticksTaken);
 	voices_started_this_render += 1;
+	voiceStartTimeThisRender += taken;
 	constexpr float kDecay = 15.f / 16.f;
 	voiceStartCost = voiceStartCost * kDecay + taken * (1.f - kDecay);
 }
