@@ -30,9 +30,11 @@ from compare_codegen import (
     canonical,
     classifier,
     compare,
+    compare_data,
     demangler,
     disassemble,
     functions,
+    keep,
     mangled_renamer,
     mask_address_halves,
     namespace_renamer,
@@ -1108,6 +1110,80 @@ class UnsymbolledData(MainHarness, unittest.TestCase):
             self.image("_ZN1X1gEv"), self.image("_ZN1X1gEv", shift=0x100)
         )
         self.assertEqual(status, 0)
+
+
+class DataRules(unittest.TestCase):
+    """The edges of data_objects() and compare_data()."""
+
+    SEGMENTS = "LOAD 0x0 0x20000000 0x20000000 0x0 0x00400000 0x00400000 RW 0x4\n"
+
+    def objects(
+        self, nm: str, blob: bytes, base: int = 0x20200000, rename=keep
+    ) -> dict:
+        return compare_codegen.data_objects(nm, [(base, blob)], self.SEGMENTS, rename)
+
+    def test_a_raw_match_does_not_hide_a_function_pointer_retargeted(self):
+        # g now sits where f was: the value is the same, what it names is not.
+        base = {"t": (("20001001", "<f>+1"),)}
+        new = {"t": (("20001001", "<g>+1"),)}
+        self.assertEqual(compare_data(base, new)[0], ["t"])
+        for strong in ("<f>+0", "<'hello'>"):
+            self.assertEqual(
+                compare_data(
+                    {"t": (("20200000", strong),)}, {"t": (("20200000", "<x>+4"),)}
+                )[0],
+                ["t"],
+            )
+
+    def test_an_object_that_grows_is_a_change(self):
+        word = ("00000001", "00000001")
+        self.assertEqual(compare_data({"t": (word,)}, {"t": (word, word)})[0], ["t"])
+
+    def test_the_bytes_around_the_aligned_words_are_compared(self):
+        nm = "20200002 00000007 r _ZL1t\n"
+        old = self.objects(nm, b"\x00\x00ab" + struct.pack("<I", 7) + b"c\x00")
+        head = self.objects(nm, b"\x00\x00xb" + struct.pack("<I", 7) + b"c\x00")
+        tail = self.objects(nm, b"\x00\x00ab" + struct.pack("<I", 7) + b"x\x00")
+        self.assertEqual(compare_data(old, head)[0], ["_ZL1t"])
+        self.assertEqual(compare_data(old, tail)[0], ["_ZL1t"])
+
+    def test_code_symbols_are_no_data_objects(self):
+        nm = "20200000 00000004 T f\n20200004 00000004 t g\n20200008 00000004 r _ZL1t\n"
+        self.assertEqual(list(self.objects(nm, bytes(12))), ["_ZL1t"])
+
+    def test_a_thumb_function_without_a_size_reads_as_itself(self):
+        nm = "20001000 00000000 t handler\n20200000 00000004 r _ZL1t\n"
+        self.assertEqual(
+            self.objects(nm, struct.pack("<I", 0x20001001))["_ZL1t"][0][1],
+            "<handler>+1",
+        )
+
+    def test_two_objects_under_one_key_are_an_error(self):
+        nm = "20200000 00000004 r _ZL1a\n20200004 00000004 r _ZL1b\n"
+        with self.assertRaises(ValueError):
+            self.objects(nm, bytes(8), rename=lambda name: "same")
+
+    def test_loaded_data_reads_a_real_image(self):
+        # testdata/compare_codegen_tiny (make.sh rebuilds it): .rodata, .data, .init_array, and an SDRAM image whose
+        # unwind tail is left out.
+        objcopy = shutil.which("llvm-objcopy")
+        self.assertIsNotNone(objcopy, "the test needs llvm-objcopy on PATH")
+        elf = os.path.join(
+            os.path.dirname(__file__), "testdata", "compare_codegen_tiny", "tiny.elf"
+        )
+        sections = subprocess.run(
+            ["llvm-readelf", "-SW", elf], capture_output=True, text=True, check=True
+        ).stdout
+        found = compare_codegen.loaded_data(objcopy, elf, sections)
+        self.assertEqual(
+            found,
+            [
+                (0x20002000, struct.pack("<II", 0x11111111, 0x20001001)),
+                (0x20003000, struct.pack("<I", 0x22222222)),
+                (0x20004000, struct.pack("<I", 0x20001001), ".init_array"),
+                (0x0C000000, b"sdram text here!" + bytes(16) + b"SDRAM data......"),
+            ],
+        )
 
 
 class LiteralLoads(MainHarness, unittest.TestCase):

@@ -79,17 +79,18 @@ last), is an object, keyed like functions (renames, aliases, twins); `.init_arra
 of its own, an ordered list of functions. Each 4-byte-aligned word that holds an address reads as what it points at: a
 symbol's start (`<f>+1` for a Thumb function), a place inside a named object (`<table>+offset`, a vtable's slots among
 them), the C string that starts there, or a Rust `&str`'s text (as long as the word after it says); any other word
-compares raw, as do the bytes around the aligned words. Two words match when what they read as matches or their raw
-values do: a value that only looks like an address (a sample, a character table) keeps its value while the object it
-would point into moves. What no sized symbol covers (string literals and Rust's format templates, panic locations, a
-Rust trait object's vtable, exception tables) is text that compare_strings compares, and words that shift with that
-text; there only the words that point at a symbol's start or a function are compared, each run of them keyed by the
-nearest named symbol before it and its ordinal there. So vtables, dispatch tables, pointer tables, `.init_array` and the
-function pointers of unnamed vtables are gated. Not compared: the other words of unsymbolled data (a trait vtable's size
-and alignment, a panic location's line and column), the unwind tables (.ARM.exidx, .sdram_exidx: offsets that follow the
-layout), and anything not loaded (.bss). A pointer retargeted to the object that now sits at the old target's address
-keeps its value, and so compares clean. Data objects that differ, appear or go are reported as `data changed`, `data
-added` and `data removed`, and count toward the exit status.
+compares raw, as do the bytes around the aligned words. Two words match when what they read as matches, or, when neither
+reads as a symbol's start, a function or a string, when their raw values do: a value that only looks like an address (a
+sample, a character table) keeps its value while the object it would point into moves. What no sized symbol covers
+(string literals and Rust's format templates, panic locations, a Rust trait object's vtable, exception tables) is text
+that compare_strings compares, and words that shift with that text; there only the words that point at a symbol's start
+or a function are compared, each run of them keyed by the nearest named symbol before it and its ordinal there. So
+vtables, dispatch tables, pointer tables, `.init_array` and the function pointers of unnamed vtables are gated. Not
+compared: the other words of unsymbolled data (a trait vtable's size and alignment, a panic location's line and column),
+the unwind tables (.ARM.exidx, .sdram_exidx: offsets that follow the layout), and anything not loaded (.bss). A pointer
+into another object's interior that is retargeted to the place that now sits at its old address keeps its value, and so
+compares clean; a pointer to a symbol's start, a function or a string cannot. Data objects that differ, appear or go are
+reported as `data changed`, `data added` and `data removed`, and count toward the exit status.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -116,7 +117,7 @@ OLD::f beside a moved NEW::f reads both as one name, so they keep their raw name
 Usage:
     tools/compare_codegen.py BASE.elf NEW.elf [--rename OLD=NEW ...]
                              [--objdump llvm-objdump] [--nm llvm-nm] [--readelf llvm-readelf]
-                             [--cxxfilt llvm-cxxfilt] [--objcopy PATH] [--show N] [--diff NAME ...]
+                             [--cxxfilt llvm-cxxfilt] [--objcopy llvm-objcopy] [--show N] [--diff NAME ...]
 """
 
 from __future__ import annotations
@@ -1203,12 +1204,13 @@ def data_objects(
     nm_text: str, blobs: list[tuple[int, bytes]], segments_text: str, rename=keep
 ) -> dict[str, tuple]:
     """Each sized data object of @p nm_text whose bytes @p blobs hold, keyed by its name through @p rename, as its
-    words, each as (its raw value, what it reads as; see compare_data()). A 4-byte-aligned word that holds an address
-    inside a LOAD segment reads as what it points at: `<symbol>+0`
-    at a symbol's start, `<function>+1` at a Thumb function, `<vtable>+8` at a vtable's first slot, and the text of the
-    C string that starts there (merged string literals have no name that lasts). Any other word, a value or an
-    address inside an object (`&table[i]`), compares raw, as do the bytes around the aligned words. Code symbols
-    (`t`/`T`/`w`/`W`, and `?` inside the SDRAM code range) are functions, compared as such."""
+    words, each as (its raw value, what it reads as; see compare_data()); each pointer array (`.init_array`), keyed by
+    its section; and the pointer runs of unsymbolled data (see the module's description). A 4-byte-aligned word that
+    holds an address inside a LOAD segment reads as what it points at: `<symbol>+0` at a symbol's start, `<function>+1`
+    at a Thumb function (sized or not), `<object>+offset` inside a named object, the text of the C string that starts
+    there (merged string literals have no name that lasts), or a Rust `&str`'s text. Any other word compares raw, as do
+    the bytes around the aligned words. Code symbols (`t`/`T`/`w`/`W`, and `?` inside the SDRAM code range) are
+    functions, compared as such. Two objects under one key are an error, as two bodies are in functions()."""
     loads = []
     for line in segments_text.splitlines():
         fields = line.split()
@@ -1232,11 +1234,6 @@ def data_objects(
     for address, _, _, name in symbols:
         if not name.startswith("$"):
             starting.setdefault(address, []).append(name)
-    vtables = {
-        address + 8
-        for address, size, _, name in symbols
-        if name.startswith("_ZTV") and size >= 12
-    }
 
     arrays = [
         (entry[0], entry[1], entry[2]) for entry in blobs if len(entry) > 2 and entry[2]
@@ -1284,11 +1281,6 @@ def data_objects(
         ]
         return max(held) if held else None
 
-    def strong(reading: str) -> bool:
-        """Whether @p reading names a symbol's start, a Thumb function or a string: what a value can only be by being
-        that pointer."""
-        return reading.endswith((">+0", ">+1")) or reading.startswith(("<'", '<"'))
-
     def loaded(value: int) -> bool:
         return any(lo <= value < hi for lo, hi in loads)
 
@@ -1300,8 +1292,6 @@ def data_objects(
             name = named(target)
             if name is not None:
                 return f"<{name}>+{offset}"
-        if value in vtables:
-            return f"<{named(value - 8)}>+8"
         held = holder(value)
         if held is not None and not held[2].startswith("."):
             return f"<{named(held[0])}>+{value - held[0]}"
@@ -1344,13 +1334,18 @@ def data_objects(
         return not (kind == "?" and sdram_text[0] <= address < sdram_text[1])
 
     objects: dict[str, tuple] = {}
+    placed: dict[str, int] = {}
     for address, size, kind, name in symbols:
         if not is_object(size, kind, name, address):
             continue
         body = content(address, size)
         if body is None:
             continue
-        objects.setdefault(rename(LTO_SUFFIX.sub("", name)), read(address, body))
+        key = rename(LTO_SUFFIX.sub("", name))
+        if key in objects and placed[key] != address:
+            raise ValueError(f"two data objects are named {key}")
+        placed[key] = address
+        objects[key] = read(address, body)
     for address, body, name in arrays:
         objects[name] = read(address, body)
     # What no sized symbol covers: padding, string literals and Rust's format templates, panic locations, a Rust
@@ -1414,16 +1409,24 @@ def data_objects(
     return objects
 
 
+def strong(reading: str) -> bool:
+    """Whether @p reading (data_objects()) names a symbol's start, a Thumb function or a string: what a word reads as
+    only by being that pointer."""
+    return reading.endswith((">+0", ">+1")) or reading.startswith(("<'", '<"'))
+
+
 def compare_data(
     base: dict[str, tuple], new: dict[str, tuple]
 ) -> tuple[list[str], list[str], list[str]]:
-    """The changed, added and removed data objects (data_objects()). Two words match when their raw values or what they
-    point at match: a value that only looks like an address (a sample, a character table) keeps its value while what
-    it would point at moves, and a pointer keeps its target while its value moves."""
+    """The changed, added and removed data objects (data_objects()). Two words match when what they read as matches (a
+    pointer keeps its target while its value moves), or when their raw values match and neither reads as a symbol's
+    start, a function or a string (a value that only looks like an address, a sample or a character table, keeps its
+    value while the object it would point into moves)."""
 
     def alike(a: tuple, b: tuple) -> bool:
         return len(a) == len(b) and all(
-            x[0] == y[0] or x[1] == y[1] for x, y in zip(a, b)
+            x[1] == y[1] or (x[0] == y[0] and not strong(x[1]) and not strong(y[1]))
+            for x, y in zip(a, b)
         )
 
     changed = sorted(n for n in base.keys() & new.keys() if not alike(base[n], new[n]))
@@ -1441,9 +1444,7 @@ def main() -> int:
     parser.add_argument("--readelf", default="llvm-readelf")
     parser.add_argument("--cxxfilt", default="llvm-cxxfilt")
     parser.add_argument(
-        "--objcopy",
-        default=None,
-        help="the objcopy that reads loaded data (default: compare_strings' default, the dbt toolchain's)",
+        "--objcopy", default="llvm-objcopy", help="the objcopy that reads loaded data"
     )
     parser.add_argument(
         "--gnu-cxxfilt",
@@ -1497,10 +1498,6 @@ def main() -> int:
     for (which, nm, sections, mapping, sections_text), twins_moved, side in zip(
         read, (frozenset(), moved), "!?"
     ):
-        if args.objcopy is None:
-            import compare_strings
-
-            args.objcopy = str(compare_strings.DEFAULT_OBJCOPY)
         datas.append(loaded_data(args.objcopy, which, sections_text))
         nm, disassembly = number_twins(
             nm,

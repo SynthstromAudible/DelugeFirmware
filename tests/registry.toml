@@ -1875,7 +1875,7 @@ template = "unittest"
 path = "tools"
 gates = "the machine-code comparison of two images names what an address points at instead of its value"
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
-requires = ["llvm-cxxfilt"]
+requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
 
 [[harness]]
 name = "relocate-selftest"
