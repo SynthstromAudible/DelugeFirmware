@@ -59,6 +59,8 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 
 // Once we're within the crossfade length of the loop end, start the next pass through the loop alongside us. It starts
 // as far into the loop as we are into the crossfade, so the two finish the crossfade together, just as we hit the end.
+// We only get to check once per render window, so we'll usually start a little after the ideal sample. The fade then
+// runs over whatever's actually left, so it still starts from silence rather than jumping in part-way.
 void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, int32_t wantedLength,
                                                 int32_t priorityRating) {
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
@@ -74,7 +76,7 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 	int32_t loopLength = (loopEndByte - loopStartByte) * guide->playDirection / bytesPerSample;
 	int32_t length = std::min(wantedLength, loopLength >> 1);
 	int32_t samplesLeft = bytesLeft / bytesPerSample;
-	if (length <= 0 || samplesLeft > length) {
+	if (length <= 0 || samplesLeft <= 0 || samplesLeft > length) {
 		return;
 	}
 
@@ -85,11 +87,11 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 		}
 	}
 
+	int32_t incomingOffsetBytes = (length - samplesLeft) * bytesPerSample;
 	loopIncoming->oscPos = oscPos;
 	loopIncoming->interpolationBufferSizeLastTime = 0;
-	if (loopIncoming->setupClusersForInitialPlay(guide, sample, (length - samplesLeft) * bytesPerSample, true,
-	                                             priorityRating)) {
-		loopCrossfadeLength = length;
+	if (loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating)) {
+		loopCrossfadeLength = samplesLeft;
 	}
 	else {
 		loopIncoming->unassignAllReasons(false); // It may have got some of them. We'll try again next window
@@ -163,9 +165,13 @@ static void getLoopCrossfadeLevels(int32_t progress, int32_t length, int32_t* in
 VoiceSample::LoopCrossfadeGains VoiceSample::getLoopCrossfadeGains(SamplePlaybackGuide* guide, Sample* sample,
                                                                    int32_t numSamples, int32_t phaseIncrement,
                                                                    int32_t amplitude, int32_t amplitudeIncrement) {
+	// The crossfade ends as the outgoing pass reaches the loop end. That's the loop marker even after a note-off, which
+	// would otherwise let this pass play on past it
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
-	int32_t progress = (loopIncoming->getPlayByteLowLevel(sample, guide, true) - guide->getBytePosToStartPlayback(true))
-	                   * guide->playDirection / bytesPerSample;
+	int32_t loopEndByte = static_cast<int32_t>(guide->getLoopEndPlaybackAtByte());
+	int32_t samplesLeft =
+	    (loopEndByte - getPlayByteLowLevel(sample, guide, true)) * guide->playDirection / bytesPerSample;
+	int32_t progress = loopCrossfadeLength - samplesLeft;
 	int32_t progressAfter = progress + (int32_t)(((uint64_t)numSamples * (uint32_t)phaseIncrement) >> 24);
 
 	int32_t inStart, outStart, inEnd, outEnd;
