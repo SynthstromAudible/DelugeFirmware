@@ -353,8 +353,8 @@ describe list_w("ui::widgets::oled::list", $ {
 		// draw_vertical_line(xMin, startY, endY) -- one column, no rounding, nothing else.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
-		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		widgets::core::ListState st; widgets::core::ScrollText sc;
 		list(f, menu_rect(f), st, rows, sc);
@@ -379,7 +379,7 @@ describe list_w("ui::widgets::oled::list", $ {
 		r.input.now_ms = 0;             list(r.frame, m, st, rows, sc);  // arms the 400ms pause
 		expect(sc.offset).to_equal(int16_t(0));
 		r.input.now_ms = widgets::core::kScrollTime;   list(r.frame, m, st, rows, sc);  // first pixel step
-		r.input.now_ms = widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs;
+		r.input.now_ms = widgets::core::kScrollTime + widgets::core::kScrollStepForwardMs;
 		list(r.frame, m, st, rows, sc);
 		expect(sc.offset).to_be_greater_than(0);
 		expect(sc.offset).to_equal(int16_t(2));
@@ -401,14 +401,14 @@ describe list_w("ui::widgets::oled::list", $ {
 		const char* longest = "A VERY LONG MENU ROW LABEL THAT OVERFLOWS";
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
-		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
-		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		widgets::core::ListState st; widgets::core::ScrollText sc;
 		const Rect m = menu_rect(f);
 		r.input.now_ms = 0;             list(f, m, st, rows, sc);
 		r.input.now_ms = widgets::core::kScrollTime;   list(f, m, st, rows, sc);
-		r.input.now_ms = widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs;
+		r.input.now_ms = widgets::core::kScrollTime + widgets::core::kScrollStepForwardMs;
 		list(f, m, st, rows, sc);
 		expect(sc.offset).to_equal(int16_t(2));
 		for (int y = 19; y <= 27; y++) {

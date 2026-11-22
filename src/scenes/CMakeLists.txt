@@ -151,9 +151,10 @@ target_include_directories(deluge_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../../include
     ${CMAKE_CURRENT_LIST_DIR}/../deluge
 )
-# deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/deluge_base_notify PUBLIC (the
-# `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/shell/CMakeLists.txt); deluge_app is the portable
-# application (an OBJECT library) this layer is allowed to read model/modulation/playback/storage from.
+# deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/
+# deluge_base_notify PUBLIC (the `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/shell/CMakeLists.txt);
+# deluge_app is the portable application (an OBJECT library) this layer is allowed to read
+# model/modulation/playback/storage from.
 #
 # $<COMPILE_ONLY:deluge_app> (CMake >= 3.27 -- both cmake_minimum_required floors that build this
 # file were raised to 3.27 for exactly this, see CMakeLists.txt and sim/CMakeLists.txt): deluge_app

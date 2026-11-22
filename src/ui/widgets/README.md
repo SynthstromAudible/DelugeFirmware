@@ -16,7 +16,7 @@ All three are `STATIC` libraries built as C++26.
 
 ## Rules
 
-- `ui/oled` and `ui/grid` never include each other.
+- `ui/widgets/oled` and `ui/widgets/grid` never include each other.
 - Nothing here includes anything outside `ui/`, `ui/gfx/` and the standard library: no `model`,
   `notify`, `libdeluge`, `l10n`, `gui/`, `hid/`, nor the root headers `definitions*`,
   `board_config.h`, `board_layout.hpp`.
@@ -108,7 +108,7 @@ shell, not by widgets; see `src/ui/gfx/README.md`.
 
 `keyboard(GridFrame&, Layout&)` and `control_column(GridFrame&, int32_t, Column&, void*)` let a
 scene drive the legacy `KeyboardLayout` and `ControlColumn` classes through a `GridFrame`. They are
-templates so the caller supplies the concrete `gui/` type and `ui/grid` never includes `gui/`. Each
+templates so the caller supplies the concrete `gui/` type and `ui/widgets/grid` never includes `gui/`. Each
 renders into a zeroed `RGB[8][18]` scratch image (`LegacyImage`) and copies it into the frame,
 sidebar included. They go once the keyboard layouts paint through the frame directly.
 

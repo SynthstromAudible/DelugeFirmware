@@ -249,8 +249,8 @@ describe option_window_w("ui::widgets::oled::option_window", $ {
 		// this layer reads as `style.highlighting == Highlighting::NoInversion` -- the same
 		// substitution `list`, `columns` and `text_edit` make for the same legacy primitive.
 		uitest::Rig48 r;
-		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
-		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		widgets::core::ScrollText label;
 		option_window(f, kAreYouSure, three(), 1, 0, label);
@@ -315,13 +315,13 @@ describe option_window_w("ui::widgets::oled::option_window", $ {
 		r.begin_tick(widgets::core::kScrollTime);
 		option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		expect(static_cast<int>(label.offset)).to_equal(1);
-		expect(static_cast<int>(label.next_step_ms)).to_equal(widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs);
+		expect(static_cast<int>(label.next_step_ms)).to_equal(widgets::core::kScrollTime + widgets::core::kScrollStepForwardMs);
 		expect(r.pbm()).not_().to_equal(first_frame);
 
 		// ...and it keeps going on further quiet ticks.
 		uint32_t now = widgets::core::kScrollTime;
 		for (int i = 0; i < 5; i++) {
-			now += static_cast<uint32_t>(deluge::ui::widgets::core::kScrollStepForwardMs);
+			now += static_cast<uint32_t>(widgets::core::kScrollStepForwardMs);
 			r.begin_tick(now);
 			option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		}

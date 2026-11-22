@@ -226,7 +226,7 @@ describe values_w("ui::widgets::oled::values", $ {
 
 		// With rounded corners off the outline is `drawRectangleRounded`'s square arm, `drawRectangle`.
 		uitest::Rig48 square;
-		deluge::ui::widgets::core::Style square_style = square.style;
+		widgets::core::Style square_style = square.style;
 		square_style.rounded = false;
 		OledFrame square_frame = root_frame(square.canvas, square_style, square.ctx);
 		int32_t sq = 0;

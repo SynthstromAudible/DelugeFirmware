@@ -79,7 +79,7 @@ describe text_widgets("ui::widgets::oled text & title", $ {
 		// MetricBold9, so the example above cannot tell a styled title from a hardcoded one --
 		// this one gives the style something to prove.
 		uitest::Rig48 r;
-		widgets::core::Style big = deluge::ui::widgets::core::kDelugeStyle48;
+		widgets::core::Style big = widgets::core::kDelugeStyle48;
 		big.title_font = FontId::MetricBold13;
 		OledFrame f = root_frame(r.canvas, big, r.ctx);
 		title(f, "SOUND");

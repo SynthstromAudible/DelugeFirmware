@@ -149,8 +149,8 @@ describe text_edit_w("ui::widgets::oled::text_edit", $ {
 		// primitives (draw_string then draw_vertical_line) rather than against assumptions about which columns the
 		// 'B'/'C' glyphs themselves light up.
 		uitest::Rig48 r;
-		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
-		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 2, .scroll = 0};
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);
@@ -169,8 +169,8 @@ describe text_edit_w("ui::widgets::oled::text_edit", $ {
 		// avoided here: "highlightStartX = 0" (the panel's own left edge), generalised to the
 		// rect's own left edge the same way every other panel-edge constant in this widget is.
 		uitest::Rig48 r;
-		widgets::core::Style plain = deluge::ui::widgets::core::kDelugeStyle48;
-		plain.highlighting = deluge::ui::widgets::core::Highlighting::NoInversion;
+		widgets::core::Style plain = widgets::core::kDelugeStyle48;
+		plain.highlighting = widgets::core::Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 0, .scroll = 0}; // scrollAmount == cursor - scroll == 0
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);

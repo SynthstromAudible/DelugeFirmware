@@ -33,7 +33,7 @@ describe led_frame("ui::LedFrame", $ {
 	});
 
 	it("carries the tick's clock and the restarts its declarers asked for, which clear() forgets", _ {
-		using deluge::ui::widgets::core::BlinkRate;
+		using widgets::core::BlinkRate;
 		widgets::core::LedFrame f;
 		f.begin(1234);
 		expect(f.now_ms()).to_equal(uint32_t(1234));

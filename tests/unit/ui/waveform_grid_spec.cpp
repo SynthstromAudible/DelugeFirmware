@@ -71,7 +71,7 @@ const RGB kBase{200, 40, 120};
 } // namespace
 
 // clang-format off
-describe waveform_grid("ui/grid/waveform", $ {
+describe waveform_grid("ui::widgets::grid::waveform", $ {
 
 	// --- waveform_row -------------------------------------------------------------------------
 

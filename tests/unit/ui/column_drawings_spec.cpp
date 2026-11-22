@@ -234,7 +234,7 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 		constexpr int32_t kTwoSlots = 63;
 		for (const int32_t source : {0, 1}) {
 			for (const bool focused : {false, true}) {
-				for (const deluge::ui::widgets::core::Highlighting h : {deluge::ui::widgets::core::Highlighting::PartialInversion, deluge::ui::widgets::core::Highlighting::FullInversion}) {
+				for (const widgets::core::Highlighting h : {widgets::core::Highlighting::PartialInversion, widgets::core::Highlighting::FullInversion}) {
 					uitest::Rig48 r;
 					widgets::core::Style style = r.style;
 					style.highlighting = h;
@@ -243,7 +243,7 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 					// No label (`showColumnLabel()` false), so the whole 25-row box.
 					frame.region(Rect{kStartX, kStartY - 5, kTwoSlots, 25}, false,
 					             [&](OledFrame& slot) { draw_column(slot, focused, &data); });
-					legacy_recorder(r.reference, kTwoSlots, source, focused, h == deluge::ui::widgets::core::Highlighting::FullInversion);
+					legacy_recorder(r.reference, kTwoSlots, source, focused, h == widgets::core::Highlighting::FullInversion);
 					expect(r.pbm()).to_equal(r.reference_pbm());
 				}
 			}

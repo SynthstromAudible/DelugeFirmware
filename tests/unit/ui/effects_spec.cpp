@@ -61,7 +61,7 @@ constexpr int32_t kShortPressMs = 500; // legacy's kShortPressTime
 } // namespace
 
 // clang-format off
-describe effects_grid("ui/grid/effects", $ {
+describe effects_grid("ui::widgets::grid::effects", $ {
 
 	// --- greyout ------------------------------------------------------------------------------
 

@@ -203,7 +203,7 @@ Rect number_rect() {
 template <class R>
 void draw_number(R& r, int32_t value, int8_t edit_pos) {
 	widgets::core::Blink blink{};
-	blink.period_ms = deluge::ui::widgets::core::kFlashTime;
+	blink.period_ms = widgets::core::kFlashTime;
 	blink.restart_lit(0);
 	cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, edit_pos, blink);
 }

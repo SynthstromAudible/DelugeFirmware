@@ -146,8 +146,8 @@ describe misc_oled_w("ui::widgets::oled::misc", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
 		// The two y positions, spelled out: OLED_MAIN_TOPMOST_PIXEL + 3 and + 17.
-		expect(r.frame.origin.y + deluge::ui::widgets::core::kOutputTypeY48).to_equal(8);
-		expect(r.frame.origin.y + deluge::ui::widgets::core::kOutputNameY48).to_equal(22);
+		expect(r.frame.origin.y + widgets::core::kOutputTypeY48).to_equal(8);
+		expect(r.frame.origin.y + widgets::core::kOutputNameY48).to_equal(22);
 		expect_golden(self, "ui/widgets/output_name_synth_48.pbm", r.pbm());
 	});
 
@@ -163,8 +163,8 @@ describe misc_oled_w("ui::widgets::oled::misc", $ {
 		legacy::drawOutputNameFromDetails(r.reference, "SYNTH", "BASS 1", 128, 64, 0);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
-		expect(deluge::ui::widgets::core::kOutputTypeY64).to_equal(12);
-		expect(deluge::ui::widgets::core::kOutputNameY64).to_equal(30);
+		expect(widgets::core::kOutputTypeY64).to_equal(12);
+		expect(widgets::core::kOutputNameY64).to_equal(30);
 		expect_golden(self, "ui/widgets/output_name_synth_64.pbm", r.pbm());
 
 		// The two panels really do lay the type text out differently.

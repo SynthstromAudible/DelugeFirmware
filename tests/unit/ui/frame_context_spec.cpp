@@ -455,7 +455,7 @@ describe frame_context("ui::FrameContext", $ {
 		    Column{.label = "L", .render = &EnumSlot::render, .ctx = &left},
 		    Column{.label = "R", .render = &EnumSlot::render, .ctx = &right},
 		};
-		deluge::ui::widgets::core::ColumnsState state;
+		widgets::core::ColumnsState state;
 		r.begin_tick(0);
 		r.input.turn = 1;
 		columns(r.frame, r.frame.bounds(), state, cols, "MENU");
@@ -481,7 +481,7 @@ describe frame_context("ui::FrameContext", $ {
 		const Column submenu[] = {
 		    Column{.label = "S", .is_submenu = true, .render = &EnumSlot::render, .ctx = &only},
 		};
-		deluge::ui::widgets::core::ColumnsState sub_state;
+		widgets::core::ColumnsState sub_state;
 		sub.begin_tick(0);
 		sub.input.select_pressed = true;
 		const widgets::core::Response entered = columns(sub.frame, sub.frame.bounds(), sub_state, submenu, "MENU");

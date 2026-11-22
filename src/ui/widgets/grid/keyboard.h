@@ -169,7 +169,7 @@ core::Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLay
 /// @brief The shape of legacy's pad image: `RGB image[rows][cols]`, matching
 ///        `KeyboardLayout::renderPads` and `ControlColumn::renderColumn`.
 ///
-/// Spelled out here as literals because `ui/grid` must not include `gui/` -- that is the entire
+/// Spelled out here as literals because `ui/widgets/grid` must not include `gui/` -- that is the entire
 /// point of these two adapters.
 constexpr int32_t kLegacyImageRows = 8;
 constexpr int32_t kLegacyImageCols = 18;
@@ -188,7 +188,7 @@ void copy_legacy_column(GridFrame& f, int32_t x, const LegacyImage& image);
 
 /// @brief Adapter over the legacy `KeyboardLayout` interface.
 ///
-/// @note Templated on the concrete layout type because `ui/grid` may not include `gui/`, and
+/// @note Templated on the concrete layout type because `ui/widgets/grid` may not include `gui/`, and
 ///       `KeyboardLayout` lives behind a deep `gui/` include chain; templating lets the caller
 ///       supply the concrete type with no `gui/` include here. Together with `control_column`
 ///       below and `GridFrame::region`, these are the only templates in the toolkit.

@@ -67,7 +67,7 @@ struct KeyRig {
 };
 
 // --- Fakes for the two adapters ---------------------------------------------------------------
-// Deliberately *not* the real gui/ classes: the adapters exist so ui/grid never includes gui/,
+// Deliberately *not* the real gui/ classes: the adapters exist so ui/widgets/grid never includes gui/,
 // and a spec that reached for KeyboardLayout would defeat the point. These carry the exact method
 // shapes the header documents.
 struct FakeLayout {
@@ -104,7 +104,7 @@ struct FakeColumn {
 } // namespace
 
 // clang-format off
-describe keyboard_grid("ui/grid/keyboard", $ {
+describe keyboard_grid("ui::widgets::grid::keyboard", $ {
 
 	// --- text_keyboard_char_at ----------------------------------------------------------------
 

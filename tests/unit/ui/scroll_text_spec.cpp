@@ -36,7 +36,7 @@ describe scroll_text_w("ui::widgets::oled::scroll_text", $ {
 		expect(st.offset).to_equal(int16_t(0));                   // still sitting still during the pause
 		r.input.now_ms = widgets::core::kScrollTime;  scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // pause elapsed: first pixel step
 		expect(st.offset).to_equal(int16_t(1));
-		for (int t = widgets::core::kScrollTime + deluge::ui::widgets::core::kScrollStepForwardMs; st.dir > 0; t += deluge::ui::widgets::core::kScrollStepForwardMs) {
+		for (int t = widgets::core::kScrollTime + widgets::core::kScrollStepForwardMs; st.dir > 0; t += widgets::core::kScrollStepForwardMs) {
 			r.input.now_ms = t; scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);
 		}
 		expect(st.dir).to_equal(int8_t(-1));                       // reached the end and paused
@@ -84,7 +84,7 @@ describe scroll_text_w("ui::widgets::oled::scroll_text", $ {
 		r.input.now_ms = 0;            scroll_text(r.frame, rect, s, FontId::Apple7, st); mirror();
 		r.input.now_ms = widgets::core::kScrollTime;  scroll_text(r.frame, rect, s, FontId::Apple7, st); mirror(); // offset -> 1
 		for (int i = 0; i < 9; i++) {
-			r.input.now_ms += deluge::ui::widgets::core::kScrollStepForwardMs;
+			r.input.now_ms += widgets::core::kScrollStepForwardMs;
 			scroll_text(r.frame, rect, s, FontId::Apple7, st);
 			mirror();
 		}

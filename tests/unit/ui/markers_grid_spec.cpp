@@ -67,7 +67,7 @@ void paint_underlay(uitest::GridRig& r) {
 } // namespace
 
 // clang-format off
-describe markers_grid("ui/grid/markers", $ {
+describe markers_grid("ui::widgets::grid::markers", $ {
 
 	// --- marker_tint --------------------------------------------------------------------------
 

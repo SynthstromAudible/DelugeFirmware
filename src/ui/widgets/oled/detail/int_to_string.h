@@ -6,7 +6,7 @@
 #include <span>
 #include <string_view>
 
-/// @brief Internal to `ui/oled`; not part of any widget's interface.
+/// @brief Internal to `ui/widgets/oled`; not part of any widget's interface.
 ///
 /// Widgets that have to render a number all need the same legacy conversion, and this is the one
 /// copy of it.
