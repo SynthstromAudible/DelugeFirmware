@@ -80,13 +80,19 @@ def sections(**by_name: bytes):
 
 
 class Strings(unittest.TestCase):
-    def read(self, at=None, ranges=(), **by_name):
+    def read(self, at=None, ranges=(), objects=(), **by_name):
         """strings() over the sections @p by_name, loaded at @p at (section name -> address), in an image whose loaded
-        address ranges are @p ranges."""
+        address ranges are @p ranges and whose data objects (no strings) occupy @p objects."""
         layout = lambda readelf, elf: (at or {}, list(ranges))
         with (
             mock.patch.object(compare_strings, "section", sections(**by_name)),
             mock.patch.object(compare_strings, "layout", layout, create=True),
+            mock.patch.object(
+                compare_strings,
+                "data_objects",
+                lambda nm, elf: list(objects),
+                create=True,
+            ),
         ):
             return strings("objcopy", "x.elf")
 
@@ -156,6 +162,59 @@ class Strings(unittest.TestCase):
             at={".rodata": 0x20010000}, ranges=[(0x20000000, 0x20300000)], rodata=blob
         )
         self.assertIn("hello worldE2", found)
+
+    def words(self, *values: int) -> bytes:
+        return struct.pack(f"<{len(values)}I", *values)
+
+    def loaded(self, rodata: bytes, objects=()) -> list[str]:
+        return self.read(
+            at={".rodata": 0x20000000},
+            ranges=[(0x20000000, 0x20300000)],
+            objects=objects,
+            rodata=rodata,
+        )
+
+    def test_a_table_of_pointers_is_no_string(self):
+        # SRAM addresses end in `2X 20`, so a table of them (a data object) prints; the NUL after it would make it a
+        # C string.
+        table = self.words(0x20253245, 0x20243346, 0x20212121)
+        self.assertEqual(
+            self.loaded(
+                b"\x00\x00\x00\x00" + table + b"\x00", [(0x20000004, 0x20000010)]
+            ),
+            [],
+        )
+
+    def test_a_name_after_a_pointer_word_compares_alike_when_the_pointer_changes(self):
+        # A type-info object (its vtable pointer), then its name (`_ZTS…`, a string).
+        typeinfo = [(0x20000004, 0x20000008)]
+        old = self.loaded(
+            b"\x00\x00\x00\x00" + self.words(0x20253245) + b"St9bad_alloc\x00", typeinfo
+        )
+        new = self.loaded(
+            b"\x00\x00\x00\x00" + self.words(0x20253345) + b"St9bad_alloc\x00", typeinfo
+        )
+        self.assertEqual(old, ["St9bad_alloc"])
+        self.assertEqual(diff_strings(old, new, []), ([], []))
+
+    def test_a_changed_name_after_a_pointer_word_is_reported(self):
+        typeinfo = [(0x20000004, 0x20000008)]
+        old = self.loaded(
+            b"\x00\x00\x00\x00" + self.words(0x20253245) + b"St9bad_alloc\x00", typeinfo
+        )
+        new = self.loaded(
+            b"\x00\x00\x00\x00" + self.words(0x20253345) + b"St9bad_allor\x00", typeinfo
+        )
+        self.assertEqual(
+            diff_strings(old, new, []), (["St9bad_alloc"], ["St9bad_allor"])
+        )
+
+    def test_a_pointer_like_word_outside_a_data_object_is_text(self):
+        # ` -  ` reads as 0x20202d20, but a string literal is no data object.
+        found = self.loaded(
+            b"\x00\x00\x00\x00failed -  %d and more\x00", [(0x20000100, 0x20000110)]
+        )
+        self.assertEqual(found, ["failed -  %d and more"])
 
     def test_a_string_the_section_ends_short_of_eight_is_no_target(self):
         blob = self.section_with(
@@ -293,6 +352,19 @@ class Strings(unittest.TestCase):
             sdram_init_pack=pack(b"in sdram\x00"),
         )
         self.assertEqual(sorted(found), ["in sdram", "read only", "read write"])
+
+
+class DataObjects(unittest.TestCase):
+    def test_string_symbols_are_no_data_objects(self):
+        listing = (
+            "201de59f 00000031 r .str.9.llvm.2661485587678768373\n201e0000 00000010 V _ZTISt9bad_alloc\n"
+            "201e0010 0000000d V _ZTSSt9bad_alloc\n201e0020 00000000 t $d\n2007cf21 00000008 T f\n"
+            "201e0030 00000000 r kEmpty\n"
+        )
+        with mock.patch.object(compare_strings.subprocess, "run") as run:
+            run.return_value.stdout = listing
+            found = compare_strings.data_objects("nm", "x.elf")
+        self.assertEqual(found, [(0x201E0000, 0x201E0010), (0x2007CF20, 0x2007CF28)])
 
 
 class Sdram(unittest.TestCase):

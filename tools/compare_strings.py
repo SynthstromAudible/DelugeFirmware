@@ -7,6 +7,13 @@
 .sdram_init_pack), after renaming paths and crates in the first image's strings. A string is a run of printable ASCII of
 at least six characters, or of at least three when a NUL byte ends it (a C string).
 
+Data objects are no strings, however their bytes print: an SRAM address ends in `2X 20`, so a vtable, a type-info
+object, a table of pointers or a code literal pool reads as text, with a NUL after it as a C string, and its pointers
+change whenever what they point at moves. So every 4-byte-aligned word (aligned by its load address) that lies inside a
+sized symbol other than a string (local labels such as `.str.N` and `.Lanon.…`, which hold string literals, and
+type-info names `_ZTS…` are strings) and holds an address inside a LOAD segment or the SDRAM content is masked before
+the runs are read. A type-info name after its object's vtable pointer is then read alone.
+
 A Rust string has no NUL after it, so when a pointer follows it (a `&str`'s data pointer, in a panic location) the
 pointer's printable low bytes join the run, and they change whenever the text they point at moves. So a run no NUL ends,
 that ends inside or at the end of a 4-byte-aligned word (aligned by the section's load address; the inflated SDRAM
@@ -17,7 +24,8 @@ code, zeroed memory, the middle of a string or a lone printable byte (a Rust for
 table) are text.
 
 Equal multisets after the renames show that every string found this way is unchanged. They do not show:
-- that the bytes of a word cut as a pointer are unchanged (that word is not compared);
+- that the bytes of a word cut or masked as a pointer are unchanged (that word is not compared), which includes a
+  pointer-like word of text inside a named data object (a `static const char` array);
 - anything about a run shorter than six characters that no NUL ends, including one a pointer cut made that short;
 - anything about tables and other non-text data, which bytes_check covers.
 
@@ -26,7 +34,7 @@ contains renamed text compares equal to the same string with the new text. That 
 paths and crate names. Each string is rewritten in one pass: at every position the first matching rename wins, and
 its output is not renamed again.
 
-Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy PATH] [--readelf PATH]
+Usage: tools/compare_strings.py OLD.elf NEW.elf [--rename OLD=NEW ...] [--objcopy PATH] [--readelf PATH] [--nm PATH]
 """
 
 from __future__ import annotations
@@ -100,6 +108,47 @@ def layout(readelf: str, elf: str) -> tuple[dict[str, int], list[tuple[int, int]
     return at, ranges
 
 
+def data_objects(nm: str, elf: str) -> list[tuple[int, int]]:
+    """The address ranges of @p elf's sized symbols that are no string: every one but local labels (`.str.N`,
+    `.Lanon.…`, which hold string literals), type-info names (`_ZTS…`) and mapping symbols."""
+    out = subprocess.run(
+        [nm, "-S", "-n", "--defined-only", elf],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    found = []
+    for line in out.splitlines():
+        fields = line.split()
+        if (
+            len(fields) == 4
+            and int(fields[1], 16)
+            and not fields[3].startswith((".", "_ZTS", "$"))
+        ):
+            start = int(fields[0], 16) & ~1
+            found.append((start, start + int(fields[1], 16)))
+    return found
+
+
+def unpointered(
+    blob: bytes,
+    base: int,
+    ranges: list[tuple[int, int]],
+    objects: list[tuple[int, int]],
+) -> bytes:
+    """@p blob, loaded at @p base, with each 4-byte-aligned word inside one of @p objects (data_objects()) that holds an
+    address inside @p ranges made non-text: a vtable, a type-info object, a table of pointers or a code literal pool is
+    no string, however its pointers' bytes print (an SRAM address ends in `2X 20`)."""
+    out = bytearray(blob)
+    for start, end in objects:
+        lo, hi = max(start, base), min(end, base + len(blob))
+        for at in range(lo + (-lo % 4), hi - 3, 4):
+            value = struct.unpack_from("<I", blob, at - base)[0]
+            if any(first <= value < last for first, last in ranges):
+                out[at - base : at - base + 4] = b"\x01" * 4
+    return bytes(out)
+
+
 def pointer_at(
     blob: bytes, offset: int, ranges: list[tuple[int, int]], text_at
 ) -> bool:
@@ -137,9 +186,13 @@ def runs(
     return found
 
 
-def strings(objcopy: str, elf: str, readelf: str = "llvm-readelf") -> list[str]:
-    """Every printable run in the loaded data of @p elf (runs()), each loaded where layout() says."""
+def strings(
+    objcopy: str, elf: str, readelf: str = "llvm-readelf", nm: str = "llvm-nm"
+) -> list[str]:
+    """Every printable run in the loaded data of @p elf (runs()), each loaded where layout() says, with the pointers in
+    its data objects masked (unpointered())."""
     at, ranges = layout(readelf, elf)
+    objects = data_objects(nm, elf)
     content = sdram(objcopy, elf)
     if content and ".sdram_init" in at:
         ranges = [*ranges, (at[".sdram_init"], at[".sdram_init"] + len(content))]
@@ -159,7 +212,16 @@ def strings(objcopy: str, elf: str, readelf: str = "llvm-readelf") -> list[str]:
                 )
         return False
 
-    return [text for blob, base in blobs for text in runs(blob, base, ranges, text_at)]
+    return [
+        text
+        for blob, base in blobs
+        for text in runs(
+            unpointered(blob, base, ranges, objects) if base is not None else blob,
+            base,
+            ranges,
+            text_at,
+        )
+    ]
 
 
 def diff_strings(
@@ -200,6 +262,7 @@ def main() -> int:
         default=str(DEFAULT_OBJCOPY),
     )
     p.add_argument("--readelf", default="llvm-readelf")
+    p.add_argument("--nm", default="llvm-nm")
     a = p.parse_args()
     renames = []
     for spec in a.rename:
@@ -208,8 +271,8 @@ def main() -> int:
             p.error(f"--rename wants OLD=NEW, got {spec!r}")
         renames.append((old, new))
     gone, came = diff_strings(
-        strings(a.objcopy, a.old, a.readelf),
-        strings(a.objcopy, a.new, a.readelf),
+        strings(a.objcopy, a.old, a.readelf, a.nm),
+        strings(a.objcopy, a.new, a.readelf, a.nm),
         renames,
     )
     for s in gone:
