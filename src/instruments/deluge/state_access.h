@@ -20,7 +20,7 @@
 #include "effects/state.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/interpolation_mode.h"
+#include "plugin/types/interpolation_mode.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/sources/source_state.h"
 #include "synth/voice/voicing_state.h"

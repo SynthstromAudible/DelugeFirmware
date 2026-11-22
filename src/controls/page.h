@@ -22,7 +22,7 @@
 ///        targets in the owner's spaces.
 
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/remote_controls.h"
+#include "plugin/types/remote_controls.h"
 
 #include <array>
 #include <cstdint>

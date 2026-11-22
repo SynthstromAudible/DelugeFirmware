@@ -122,7 +122,7 @@
 #include "scenes/menu/relevance.h"
 
 #include "deluge-project/device_settings.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <span>
 

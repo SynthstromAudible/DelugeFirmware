@@ -226,10 +226,10 @@ endif()
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
-add_subdirectory(${REPO_ROOT}/src/plugin-api/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
+add_subdirectory(${REPO_ROOT}/src/plugin/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
 add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
-add_subdirectory(${REPO_ROOT}/src/plugin-api ${CMAKE_BINARY_DIR}/plugin-api) # deluge_plugin_api
+add_subdirectory(${REPO_ROOT}/src/plugin ${CMAKE_BINARY_DIR}/plugin) # deluge_plugin
 add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects
 add_subdirectory(${REPO_ROOT}/src/instruments/deluge ${CMAKE_BINARY_DIR}/instruments-deluge) # deluge_instrument
 add_subdirectory(${REPO_ROOT}/src/effects/host_chain ${CMAKE_BINARY_DIR}/host-chain) # deluge_host_chain

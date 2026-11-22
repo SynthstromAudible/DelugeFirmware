@@ -124,7 +124,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_project   # the project model (deluge::project::Song)
     deluge_controls  # the gold knobs' focus
     deluge_plugin_types # the host–plugin contract's data-only types
-    deluge_plugin_api # the host–plugin contract's interface
+    deluge_plugin # the host–plugin contract's interface
     deluge_instrument # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
     deluge_host_chain # the host chain's param table and pages

@@ -11,7 +11,7 @@
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
 

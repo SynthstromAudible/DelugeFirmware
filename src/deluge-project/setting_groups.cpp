@@ -8,10 +8,10 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
 #include "deluge-project/song.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/rate_tables.h"
-#include "plugin-api/types/sync.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/rate_tables.h"
+#include "plugin/types/sync.h"
+#include "plugin/types/voice_priority.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

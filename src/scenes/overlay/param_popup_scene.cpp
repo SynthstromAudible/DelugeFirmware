@@ -12,9 +12,9 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
 #include "notify/notice_queue.h"
-#include "plugin-api/types/arp_rhythm.h"
-#include "plugin-api/types/display_mapping.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/arp_rhythm.h"
+#include "plugin/types/display_mapping.h"
+#include "plugin/types/param.h"
 
 #include <algorithm>
 #include <cstdio>

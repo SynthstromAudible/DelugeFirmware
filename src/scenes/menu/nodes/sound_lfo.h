@@ -41,7 +41,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 
-#include "plugin-api/types/display_mapping.h" // kMaxCombinedSync
+#include "plugin/types/display_mapping.h" // kMaxCombinedSync
 
 #include <span>
 

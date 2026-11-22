@@ -1,5 +1,5 @@
 #include "instruments/deluge/params.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 #include "support/printers/runtime_slot_printer.h"
 
 #include <algorithm>

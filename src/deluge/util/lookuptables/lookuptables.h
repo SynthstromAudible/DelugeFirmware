@@ -19,7 +19,7 @@
 
 #include "dsp-next/fixed/tables/cent_adjust.h"
 #include "music/note_names.h"
-#include "plugin-api/types/rate_tables.h"
+#include "plugin/types/rate_tables.h"
 
 #include <array>
 #include <cstdint>
@@ -46,7 +46,7 @@ extern const int16_t hanningWindow[];
 // without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
 extern const int32_t noteFrequencyTable[12];
 extern const int32_t noteIntervalTable[12];
-// The sidechain's rate tables are plugin data (plugin-api/types/rate_tables.h).
+// The sidechain's rate tables are plugin data (plugin/types/rate_tables.h).
 inline constexpr const auto& attackRateTable = deluge::plugin::kSidechainAttackRates;
 inline constexpr const auto& releaseRateTable = deluge::plugin::kSidechainReleaseRates;
 

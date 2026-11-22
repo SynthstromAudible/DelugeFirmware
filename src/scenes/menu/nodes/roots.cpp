@@ -39,7 +39,7 @@
 
 #include "deluge-project/song.h"
 #include "notify/dirty_set.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 namespace deluge::scenes::menu::nodes {
 

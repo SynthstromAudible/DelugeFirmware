@@ -45,7 +45,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"

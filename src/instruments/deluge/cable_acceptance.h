@@ -5,7 +5,7 @@
 
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/sound_state.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 namespace deluge::instrument {
 

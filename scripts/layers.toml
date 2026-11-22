@@ -77,7 +77,7 @@ path = "notify"
 target = "src/base/notify"
 
 [[directory]]
-path = "plugin-api"
+path = "plugin"
 target = "src/plugin"
 
 [[directory]]
@@ -108,13 +108,13 @@ target = "src/ui/widgets"
 
 [[library]]
 name = "plugin-types"
-root = "src/plugin-api/types"
-prefix = "plugin-api/types/"
+root = "src/plugin/types"
+prefix = "plugin/types/"
 
 [[library]]
-name = "plugin-api"
-root = "src/plugin-api"
-prefix = "plugin-api/"
+name = "plugin"
+root = "src/plugin"
+prefix = "plugin/"
 may_include = [
     "serialization/",
     "foundation/panic.h",
@@ -125,7 +125,7 @@ name = "effects"
 root = "src/effects"
 prefix = "effects/"
 may_include = [
-    "plugin-api/",
+    "plugin/",
     "serialization/",
     "foundation/panic.h",
     "dsp-next/",
@@ -136,7 +136,7 @@ name = "instrument"
 root = "src/instruments/deluge"
 prefix = "instruments/deluge/"
 may_include = [
-    "plugin-api/",
+    "plugin/",
     "effects/",
     "serialization/",
     "foundation/panic.h",
@@ -164,11 +164,11 @@ name = "host-chain"
 root = "src/effects/host_chain"
 prefix = "effects/host_chain/"
 may_include = [
-    "plugin-api/types/",
-    # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state it
+    "plugin/types/",
+    # the library publishes the chains' remote-controls pages, so it reads plugin and the effect state it
     # publishes
-    "plugin-api/remote_controls_publisher.h",
-    "plugin-api/state_handle.h",
+    "plugin/remote_controls_publisher.h",
+    "plugin/state_handle.h",
     "effects/plugin.h",
     "effects/words.h",
     "effects/setting_params.h",
@@ -191,8 +191,8 @@ root = "src/music"
 prefix = "music/"
 may_include = [
     # the sync words a note length is named from (header-only vocabulary)
-    "plugin-api/types/sync.h",
-    "plugin-api/types/display_mapping.h",
+    "plugin/types/sync.h",
+    "plugin/types/display_mapping.h",
     "foundation/panic.h",
 ]
 
@@ -206,10 +206,10 @@ name = "model"
 root = "src/deluge-project"
 prefix = "deluge-project/"
 may_include = [
-    "plugin-api/types/",
+    "plugin/types/",
     # an engine's state, held without naming its type (a record owns its instrument's state)
-    "plugin-api/state_handle.h",
-    "plugin-api/plugin.h",
+    "plugin/state_handle.h",
+    "plugin/plugin.h",
     "serialization/",
     "music/",
     "foundation/panic.h",
@@ -221,7 +221,7 @@ root = "src/controls"
 prefix = "controls/"
 may_include = [
     "deluge-project/",
-    "plugin-api/",
+    "plugin/",
     "serialization/",
     "foundation/panic.h",
 ]
@@ -233,7 +233,7 @@ prefix = "scenes/bind/"
 may_include = [
     "deluge-project/",
     "controls/",
-    "plugin-api/",
+    "plugin/",
     "instruments/deluge/",
     "effects/",
     "effects/host_chain/",
@@ -337,7 +337,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|deluge-project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

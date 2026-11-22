@@ -21,7 +21,7 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/model_memory.h"
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <cstddef>
 #include <cstdint>

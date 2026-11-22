@@ -24,8 +24,8 @@
 #include "effects/host_chain/params.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
-#include "plugin-api/remote_controls_publisher.h"
-#include "plugin-api/types/remote_controls.h"
+#include "plugin/remote_controls_publisher.h"
+#include "plugin/types/remote_controls.h"
 
 #include <algorithm>
 #include <cstdint>

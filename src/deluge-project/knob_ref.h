@@ -21,7 +21,7 @@
 /// @brief The reading and writing of a knob element's param that the controls and mapping codecs share, so a mod knob
 /// and a learned MIDI knob name their param under the same keys. Internal to deluge-project.
 
-#include "plugin-api/types/param_naming.h"
+#include "plugin/types/param_naming.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
 

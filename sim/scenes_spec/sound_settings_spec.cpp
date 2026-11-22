@@ -14,7 +14,7 @@
 #include "instruments/deluge/settings.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/menu_engine.h"

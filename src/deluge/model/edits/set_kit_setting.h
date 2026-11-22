@@ -1,7 +1,7 @@
 #pragma once
 
 #include "model/edits/edit.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "serialization/value.h"
 
 #include <cstdint>

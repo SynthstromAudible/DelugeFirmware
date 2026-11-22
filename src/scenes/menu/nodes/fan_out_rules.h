@@ -6,7 +6,7 @@
 
 #include "effects/settings.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 
 #include <array>
 #include <cstdint>

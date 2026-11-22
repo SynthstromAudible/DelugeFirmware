@@ -1,7 +1,7 @@
 #pragma once
 
 #include "model/edits/edit.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <cstdint>
 

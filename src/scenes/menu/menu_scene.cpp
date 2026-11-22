@@ -43,7 +43,7 @@
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/menu_core.h"

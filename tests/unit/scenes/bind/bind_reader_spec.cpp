@@ -1,6 +1,6 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"

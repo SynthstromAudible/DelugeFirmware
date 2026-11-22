@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp" // OscType, SampleRepeatMode
 #include "dsp-next/core/fixed_point.h"
-#include "plugin-api/types/interpolation_mode.h"
+#include "plugin/types/interpolation_mode.h"
 #include "synth/sources/input/input_channel.h"
 
 #include <array>

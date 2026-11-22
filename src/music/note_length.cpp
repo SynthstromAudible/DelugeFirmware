@@ -1,7 +1,7 @@
 #include "music/note_length.h"
 
-#include "plugin-api/types/display_mapping.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/display_mapping.h"
+#include "plugin/types/sync.h"
 
 #include <algorithm>
 

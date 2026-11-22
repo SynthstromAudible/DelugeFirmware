@@ -26,7 +26,7 @@
 /// the rows whose value a scene branches on; each enumerator's value is its choice's index in the row.
 
 #include "deluge-project/features.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 
 #include <algorithm>
 #include <array>

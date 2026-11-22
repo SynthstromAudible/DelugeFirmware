@@ -18,7 +18,7 @@
 #pragma once
 
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/voice_priority.h"
 #include "synth/voice/voice_host.h"
 
 #include <algorithm>

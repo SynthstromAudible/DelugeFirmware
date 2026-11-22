@@ -27,7 +27,7 @@
 #include "controls/section.h"
 #include "deluge-project/device_settings.h"
 #include "deluge-project/song.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/knob_assignment.h"

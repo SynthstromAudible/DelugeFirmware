@@ -19,7 +19,7 @@
 
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
-#include "plugin-api/types/param_naming.h"
+#include "plugin/types/param_naming.h"
 #include "serialization/value.h"
 
 #include <cstdint>

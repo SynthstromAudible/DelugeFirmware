@@ -137,8 +137,8 @@
 #include <string>
 
 #include "instruments/deluge/settings.h"
-#include "plugin-api/types/plugin_id.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/plugin_id.h"
+#include "plugin/types/setting.h"
 #include <string_view>
 #include <vector>
 

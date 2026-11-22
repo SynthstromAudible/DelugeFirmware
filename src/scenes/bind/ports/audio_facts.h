@@ -3,7 +3,7 @@
 /// @file
 /// @brief What a scene reads of the audio hardware and engine that no record holds.
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 #include <cstdint>
 #include <optional>

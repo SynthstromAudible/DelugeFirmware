@@ -14,7 +14,7 @@
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 

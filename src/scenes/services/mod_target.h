@@ -3,7 +3,7 @@
 /// @file
 /// @brief The plain results `ModKnobs` computes for a gold-knob turn and a knob's indicator, over the knobs' focus.
 
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 #include "scenes/bind/knob_focus.h"
 
 #include <cstdint>

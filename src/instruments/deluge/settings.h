@@ -18,7 +18,7 @@
 #pragma once
 
 #include "instruments/deluge/sound_state.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "serialization/value.h"
 
 #include <optional>

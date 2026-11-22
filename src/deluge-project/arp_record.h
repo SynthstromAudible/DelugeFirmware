@@ -7,7 +7,7 @@
 /// is the engine's, saved beside these fields. The host values are held only where they are settings (a MIDI or CV
 /// clip, a MIDI or gate kit row); on a sound they are params, and the record leaves them absent.
 
-#include "plugin-api/types/arp.h"
+#include "plugin/types/arp.h"
 
 #include <array>
 #include <cstddef>

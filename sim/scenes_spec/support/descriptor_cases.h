@@ -10,8 +10,8 @@
 #include "effects/settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "instruments/deluge/settings.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/setting.h"
 
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"

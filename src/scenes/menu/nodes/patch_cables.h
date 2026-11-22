@@ -81,7 +81,7 @@
 #include "scenes/menu/nodes/detail.h"
 
 #include "instruments/deluge/cables.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "scenes/bind/ports/write_sink.h"
 
 #include <cstdint>

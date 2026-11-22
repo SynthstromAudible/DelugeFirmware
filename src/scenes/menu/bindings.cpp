@@ -73,7 +73,7 @@
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h" // a device setting's "restart to apply"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <algorithm>
 #include <array>

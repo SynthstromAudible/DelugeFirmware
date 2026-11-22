@@ -19,7 +19,7 @@
 
 #include "effects/param_row.h"
 #include "effects/params.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <array>
 #include <cstdint>

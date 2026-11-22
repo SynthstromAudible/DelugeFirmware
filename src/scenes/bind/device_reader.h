@@ -5,7 +5,7 @@
 ///        branches on one.
 
 #include "deluge-project/device_settings.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "scenes/bind/ports/device_settings.h"
 
 #include <cstdint>

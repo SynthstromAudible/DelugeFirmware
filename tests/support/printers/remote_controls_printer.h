@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "plugin-api/types/param_kind.h"
-#include "plugin-api/types/remote_controls.h"
+#include "plugin/types/param_kind.h"
+#include "plugin/types/remote_controls.h"
 #include "support/printers/list_printer.h"
 #include "support/printers/optional_printer.h"
 #include "support/printers/param_id_printer.h"

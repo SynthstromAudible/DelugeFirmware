@@ -5,7 +5,7 @@
 
 #include "util/c_string.h"
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 using deluge::plugin::SyncLevel;
 using deluge::plugin::SyncType;

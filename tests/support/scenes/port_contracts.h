@@ -9,7 +9,7 @@
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/transport.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 #include "sample-view/divide.h"
 #include "sample-view/peaks.h"
 #include "scenes/bind/device_reader.h"

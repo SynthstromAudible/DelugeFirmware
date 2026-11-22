@@ -20,9 +20,9 @@
 #include "effects/host_chain/params.h"
 #include "effects/param_row.h"
 #include "effects/params.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/param_kind.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/param.h"
+#include "plugin/types/param_kind.h"
+#include "plugin/types/plugin_id.h"
 
 #include <array>
 #include <cstdint>

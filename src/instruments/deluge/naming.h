@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/param_naming.h"
+#include "plugin/types/param_naming.h"
 
 namespace deluge::instrument {
 

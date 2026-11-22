@@ -25,7 +25,7 @@
 
 #include "effects/compressor.h" // the dsp-next display functions
 #include "foundation/string_format.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <algorithm>
 #include <cstring>

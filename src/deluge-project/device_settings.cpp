@@ -18,7 +18,7 @@
 #include "deluge-project/device_settings.h"
 
 #include "music/preset_scales.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <array>
 #include <cstddef>

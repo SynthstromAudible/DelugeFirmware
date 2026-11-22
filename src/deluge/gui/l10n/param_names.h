@@ -21,8 +21,8 @@
 /// @brief The params' display names, in the current language, keyed by the neutral kinds and ids.
 
 #include "effects/words.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param.h"
+#include "plugin/types/param_kind.h"
 
 #include <cstdint>
 #include <string_view>

@@ -44,7 +44,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
-#include "plugin-api/types/arp_rhythm.h"
+#include "plugin/types/arp_rhythm.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
 #include "util/functions.h"

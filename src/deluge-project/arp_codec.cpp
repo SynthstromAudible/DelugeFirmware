@@ -1,6 +1,6 @@
 #include "deluge-project/arp_codec.h"
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

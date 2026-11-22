@@ -5,8 +5,8 @@
 ///        chain's for a kit's, an audio track's and the song's.
 
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/param.h"
+#include "plugin/types/plugin_id.h"
 
 namespace deluge::scenes::bind {
 

@@ -27,7 +27,7 @@
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "processing/audio_output.h"
 #include "serialization/tree.h"
 #include "util/functions.h"

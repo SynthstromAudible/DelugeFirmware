@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 #include <compare>
 #include <cstdint>
 #include <optional>

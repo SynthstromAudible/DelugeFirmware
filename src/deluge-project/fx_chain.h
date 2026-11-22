@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/state_handle.h"
+#include "plugin/state_handle.h"
 #include "serialization/value.h"
 
 #include <cstdint>

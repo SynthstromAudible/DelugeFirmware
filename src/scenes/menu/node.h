@@ -20,7 +20,7 @@
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
 #include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
 #include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`

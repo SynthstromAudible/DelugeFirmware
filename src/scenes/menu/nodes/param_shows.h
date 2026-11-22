@@ -6,8 +6,8 @@
 
 #include "effects/settings.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/setting.h"
 #include "scenes/bind/target.h"
 #include "scenes/menu/node.h"
 

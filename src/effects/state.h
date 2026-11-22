@@ -18,7 +18,7 @@
 #pragma once
 
 #include "effects/words.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 #include <algorithm>
 #include <cstdint>

@@ -25,8 +25,8 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/remote_controls_publisher.h"
-#include "plugin-api/types/remote_controls.h"
+#include "plugin/remote_controls_publisher.h"
+#include "plugin/types/remote_controls.h"
 
 #include <algorithm>
 #include <array>

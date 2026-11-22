@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "plugin-api/types/interpolation_mode.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/interpolation_mode.h"
+#include "plugin/types/voice_priority.h"
 
 #include <cstdint>
 #include <string>

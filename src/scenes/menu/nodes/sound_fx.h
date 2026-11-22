@@ -89,7 +89,7 @@
 #include "scenes/menu/nodes/sound_sidechain.h" // kSidechainSyncRange, kSidechainRateRange
 #include "scenes/menu/relevance.h"
 
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <span>
 

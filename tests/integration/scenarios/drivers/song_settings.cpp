@@ -25,7 +25,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"

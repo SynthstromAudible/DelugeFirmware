@@ -598,10 +598,10 @@ class RealTable(unittest.TestCase):
 
     def test_the_plugin_api_may_use_the_document_tree_but_not_the_model(self):
         self.assertEqual(
-            self.library_found("plugin-api", '#include "serialization/value.h"\n'), []
+            self.library_found("plugin", '#include "serialization/value.h"\n'), []
         )
         self.assertEqual(
-            len(self.library_found("plugin-api", '#include "deluge-project/song.h"\n')),
+            len(self.library_found("plugin", '#include "deluge-project/song.h"\n')),
             1,
         )
 
@@ -610,7 +610,7 @@ class RealTable(unittest.TestCase):
             self.library_found("controls", '#include "deluge-project/song.h"\n'), []
         )
         self.assertEqual(
-            self.library_found("controls", '#include "plugin-api/plugin.h"\n'), []
+            self.library_found("controls", '#include "plugin/plugin.h"\n'), []
         )
         self.assertEqual(
             len(
@@ -623,7 +623,7 @@ class RealTable(unittest.TestCase):
 
     def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
         self.assertEqual(
-            self.library_found("instrument", '#include "plugin-api/plugin.h"\n'), []
+            self.library_found("instrument", '#include "plugin/plugin.h"\n'), []
         )
         self.assertEqual(
             len(
@@ -636,11 +636,11 @@ class RealTable(unittest.TestCase):
 
     def test_the_host_chain_table_may_use_only_the_plugin_types(self):
         self.assertEqual(
-            self.library_found("host-chain", '#include "plugin-api/types/param.h"\n'),
+            self.library_found("host-chain", '#include "plugin/types/param.h"\n'),
             [],
         )
         self.assertEqual(
-            len(self.library_found("host-chain", '#include "plugin-api/plugin.h"\n')), 1
+            len(self.library_found("host-chain", '#include "plugin/plugin.h"\n')), 1
         )
         self.assertEqual(
             len(

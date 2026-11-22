@@ -5,7 +5,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "scenes/bind/ports/ports.h"
 
 #include <cstdint>

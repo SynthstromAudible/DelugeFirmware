@@ -20,14 +20,14 @@
 #include "instruments/deluge/record_edit.h"
 #include "instruments/deluge/state_access.h"
 
-#include "plugin-api/settings.h"
+#include "plugin/settings.h"
 
 #include "effects/settings.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/arp.h"
-#include "plugin-api/types/sync.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/arp.h"
+#include "plugin/types/sync.h"
+#include "plugin/types/voice_priority.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

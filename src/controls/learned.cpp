@@ -18,7 +18,7 @@
 #include "controls/learned.h"
 
 #include "controls/knob_math.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 
 namespace deluge::controls {
 

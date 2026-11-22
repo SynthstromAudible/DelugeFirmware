@@ -5,7 +5,7 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/song.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "scenes/bind/ports/track_facts.h"
 
 #include <cstdint>

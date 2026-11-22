@@ -24,7 +24,7 @@
 #include "modulation/arp_ratchet.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/arp_rhythm.h"
+#include "plugin/types/arp_rhythm.h"
 #include "storage/flash_storage.h"
 #include "synth/matrix/param_format.h"
 #include "util/exceptions.h"

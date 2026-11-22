@@ -17,7 +17,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "serialization/value.h"
 
 #include <cstdint>

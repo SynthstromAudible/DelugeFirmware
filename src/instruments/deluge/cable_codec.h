@@ -18,7 +18,7 @@
 #pragma once
 
 #include "instruments/deluge/cables.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 #include "serialization/value.h"
 
 #include <cstddef>

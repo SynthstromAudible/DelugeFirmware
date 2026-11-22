@@ -5,7 +5,7 @@
 
 #include "controls/facts.h"
 #include "controls/pages.h"
-#include "plugin-api/remote_controls_publisher.h"
+#include "plugin/remote_controls_publisher.h"
 
 #include <span>
 

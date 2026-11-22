@@ -70,7 +70,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"

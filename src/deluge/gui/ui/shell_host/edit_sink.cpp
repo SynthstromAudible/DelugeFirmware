@@ -43,7 +43,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"

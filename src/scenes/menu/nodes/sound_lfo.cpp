@@ -25,7 +25,7 @@
 #include "scenes/menu/context.h"
 
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "serialization/value.h"
 
 #include <string>

@@ -19,8 +19,8 @@
 
 #include "effects/state.h"
 #include "effects/words.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param.h"
+#include "plugin/types/param_mapping.h"
 #include "serialization/value.h"
 
 #include <algorithm>

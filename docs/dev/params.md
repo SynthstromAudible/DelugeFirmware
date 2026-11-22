@@ -248,7 +248,7 @@ mutations, that every unpatched and patched lane the render's lookup finds is th
 
 ## The descriptor
 
-Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):
+Each row is a `plugin::ParamInfo` (`src/plugin/types/param.h`):
 
 | Field | Meaning |
 |---|---|
@@ -269,7 +269,7 @@ and mappings, each against an oracle recorded from the code the tables replaced.
 
 ## Host positions
 
-A host converts only through the mapping kinds (`src/plugin-api/types/param_mapping.h`) and never switches on a param:
+A host converts only through the mapping kinds (`src/plugin/types/param_mapping.h`) and never switches on a param:
 
 | Kind | Knob (−64..+64) | Menu | Params |
 |---|---|---|---|
@@ -312,7 +312,7 @@ the same param. It also checks each chain's init state: every cursor at its lane
 ## Controls
 
 The gold knobs and the mod buttons read pages, not tables. An owner publishes its remote-controls pages
-(`plugin::RemotePage`, `plugin-api`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
+(`plugin::RemotePage`, `plugin`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
 setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
@@ -320,7 +320,7 @@ group enters at. Any board's knobs come from the published records alone: `contr
 `section_pages` (`src/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
 publishers, the device facts, the `controls::Board` and the host's reading of a chain's view. `current_page` builds the
 current page alone, with no allocation, for a turn and the knobs' indicators; `section_pages` adds the cycle for a
-press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin-api/remote_controls_publisher.h`),
+press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin/remote_controls_publisher.h`),
 handed the owner's state from the model song; the app collects the records in `scenes::bind::app_publishers`. A
 publisher's `find` may serve pages its `get` does not list: the instrument's serves the sound's filter cycle on any
 section.

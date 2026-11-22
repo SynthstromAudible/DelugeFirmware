@@ -23,8 +23,8 @@
 #include "controls/knob_focus.h"
 #include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/param_kind.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/param_kind.h"
+#include "plugin/types/plugin_id.h"
 
 #include <cstdint>
 #include <optional>

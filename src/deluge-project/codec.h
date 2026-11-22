@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "serialization/firmware_version.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"

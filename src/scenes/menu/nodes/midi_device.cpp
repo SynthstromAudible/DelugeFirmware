@@ -26,7 +26,7 @@
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth
 #include "scenes/profile.h"
 
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 #include "shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/oled/frame.h"
 #include "ui/oled/list.h"

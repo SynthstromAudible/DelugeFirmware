@@ -21,9 +21,9 @@
 
 #include "effects/state.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/interpolation_mode.h"
-#include "plugin-api/types/sync.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/interpolation_mode.h"
+#include "plugin/types/sync.h"
+#include "plugin/types/voice_priority.h"
 #include "synth/sources/source_state.h"
 
 #include <array>

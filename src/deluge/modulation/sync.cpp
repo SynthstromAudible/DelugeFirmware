@@ -1,6 +1,6 @@
 #include "modulation/sync.h"
 #include "music/note_length.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <utility>
 

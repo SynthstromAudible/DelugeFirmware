@@ -33,8 +33,8 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/arp_rhythm.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/arp_rhythm.h"
+#include "plugin/types/display_mapping.h"
 
 #include <algorithm>
 #include <array>

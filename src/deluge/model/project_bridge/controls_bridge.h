@@ -24,7 +24,7 @@
 #include "model/fx/effects_owner.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <array>
 #include <optional>

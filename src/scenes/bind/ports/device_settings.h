@@ -3,7 +3,7 @@
 /// @file
 /// @brief The device's own settings, by DEVICE row: what a scene reads and writes of them.
 
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -40,7 +40,7 @@ public:
 	/// @return The value, or nullopt when no DEVICE row has that path.
 	[[nodiscard]] std::optional<int32_t> read(std::string_view path) const;
 
-	/// @brief A reader over the DEVICE rows, for the plugin-api's setting helpers. Valid while this port lives.
+	/// @brief A reader over the DEVICE rows, for the plugin's setting helpers. Valid while this port lives.
 	[[nodiscard]] plugin::SettingReader reader() const;
 
 	/// @brief Stores @p menu_value, in the row's menu units, in the DEVICE row at @p path.

@@ -1,7 +1,7 @@
 #include "scenes/bind/ports/device_settings.h"
 
 #include "deluge-project/device_settings.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

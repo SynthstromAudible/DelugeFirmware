@@ -41,7 +41,7 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
-#include "plugin-api/types/arp_rhythm.h"
+#include "plugin/types/arp_rhythm.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"

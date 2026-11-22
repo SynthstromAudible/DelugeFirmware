@@ -10,7 +10,7 @@ two tiers, in the synth library:
   decides how the two slots relate.
 
 Engines are loaded by the Deluge instrument, never by the host: what the host loads is a plugin
-(`src/plugin-api/`). The CLAP boundary stays at the instrument (L3); this tier is a lean native C++ interface.
+(`src/plugin/`). The CLAP boundary stays at the instrument (L3); this tier is a lean native C++ interface.
 
 ## The tiers
 

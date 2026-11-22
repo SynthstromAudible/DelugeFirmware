@@ -71,7 +71,7 @@
 
 #include "shell/scene.h"
 
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 
 #include "effects/state.h"
 #include "synth/modulation/patch_source.h"

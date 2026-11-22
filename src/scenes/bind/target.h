@@ -11,8 +11,8 @@
 #include "deluge-project/note_address.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/param.h"
+#include "plugin/types/setting.h"
 
 #include <cstdint>
 #include <optional>

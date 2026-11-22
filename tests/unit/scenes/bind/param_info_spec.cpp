@@ -1,7 +1,7 @@
 #include "deluge-project/param_address.h"
 #include "effects/host_chain/params.h"
 #include "instruments/deluge/params.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 #include "scenes/bind/ports/param_info.h"
 
 #include <cppspec.hpp>

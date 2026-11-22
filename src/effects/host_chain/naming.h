@@ -18,7 +18,7 @@
 #pragma once
 
 #include "effects/host_chain/params.h"
-#include "plugin-api/types/param_naming.h"
+#include "plugin/types/param_naming.h"
 
 namespace deluge::host_chain {
 

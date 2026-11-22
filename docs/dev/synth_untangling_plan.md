@@ -205,7 +205,7 @@ Thumb and a low inline threshold (5).
 | L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
 | L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/deluge/` | `deluge_instrument` |
 | Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
-| The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
+| The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin/` | `deluge_plugin` |
 
 The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/deluge/dsp-next/`, once the legacy
 `src/deluge/dsp/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;

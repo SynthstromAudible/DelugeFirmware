@@ -26,7 +26,7 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/voice_pool.h"
-#include "plugin-api/plugin.h"
+#include "plugin/plugin.h"
 #include "synth/voice/block_values.h"
 #include "synth/voice/host_block.h"
 #include "synth/voice/sound_config.h"

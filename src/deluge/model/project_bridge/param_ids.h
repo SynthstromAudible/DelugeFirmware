@@ -21,7 +21,7 @@
 #include "deluge-project/param_automation.h"
 #include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <cstdint>
 #include <optional>

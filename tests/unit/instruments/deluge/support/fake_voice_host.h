@@ -19,7 +19,7 @@
 
 #include "instruments/deluge/voice_pool.h"
 #include "instruments/deluge/words.h"
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/voice_priority.h"
 #include "synth/voice/voice_clock.h"
 
 #include <array>

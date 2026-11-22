@@ -18,7 +18,7 @@
 #include "effects/settings.h"
 
 #include "effects/words.h"
-#include "plugin-api/settings.h"
+#include "plugin/settings.h"
 #include "serialization/tree.h"
 
 #include <string>

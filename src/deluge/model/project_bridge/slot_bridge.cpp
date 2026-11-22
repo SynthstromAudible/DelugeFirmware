@@ -32,7 +32,7 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"

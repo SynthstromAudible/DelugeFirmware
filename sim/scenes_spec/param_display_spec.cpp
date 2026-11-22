@@ -9,7 +9,7 @@
 
 #include "effects/host_chain/params.h"
 #include "instruments/deluge/params.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"

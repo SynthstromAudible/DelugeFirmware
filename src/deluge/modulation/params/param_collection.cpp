@@ -28,7 +28,7 @@
 #include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include <algorithm>
 #include <vector>
 

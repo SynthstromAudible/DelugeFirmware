@@ -28,7 +28,7 @@
 #include "instruments/deluge/params.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 
 #include <array>
 #include <cassert>

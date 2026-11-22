@@ -32,7 +32,7 @@
 #include "modulation/params/lane_publication.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"

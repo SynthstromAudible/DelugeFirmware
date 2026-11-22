@@ -23,7 +23,7 @@
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "music/note_length.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <algorithm>
 #include <array>

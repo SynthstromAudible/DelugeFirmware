@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 #include <cstdint>
 

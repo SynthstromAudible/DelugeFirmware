@@ -19,8 +19,8 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/param_naming.h"
+#include "plugin/types/param.h"
+#include "plugin/types/param_naming.h"
 
 #include <cstdint>
 #include <span>

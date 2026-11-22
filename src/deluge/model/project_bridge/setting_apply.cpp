@@ -33,7 +33,7 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"

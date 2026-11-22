@@ -45,7 +45,7 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin/types/param_mapping.h"
 #include "synth/modulation/cable.h"
 
 #include <algorithm>

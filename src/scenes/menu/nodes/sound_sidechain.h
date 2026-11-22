@@ -43,7 +43,7 @@
 #include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/relevance.h"
 
-#include "plugin-api/types/sync.h"
+#include "plugin/types/sync.h"
 
 #include <cstdint>
 #include <span>

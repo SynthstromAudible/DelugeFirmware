@@ -51,7 +51,7 @@ nothing.
 
 * **Includes.** `scenes/`, `shell/`, `ui/`, `gfx/`, `notify/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
-  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin-api/`, `serialization/`,
+  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
   `sequence/`, `deluge-project/`, …) and three root-level headers named in that comment
   (`definitions_cxx.hpp`, `src/deluge/deluge.h` and the generated `version.h`, each included by its bare
   name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`, `scenes-includes-gui`). The

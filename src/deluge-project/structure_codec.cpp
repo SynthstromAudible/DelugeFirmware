@@ -19,13 +19,13 @@
 
 #include "deluge-project/arp_codec.h"
 #include "deluge-project/audio_input.h"
-#include "plugin-api/types/setting.h"
+#include "plugin/types/setting.h"
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/plugin_id.h"
 #include "serialization/tree.h"
 
 #include <algorithm>

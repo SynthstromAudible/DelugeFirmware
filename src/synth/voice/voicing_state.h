@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // PolyphonyMode
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/voice_priority.h"
 #include "synth/sources/source_state.h"
 
 #include <cstdint>

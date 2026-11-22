@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/plugin.h"
+#include "plugin/plugin.h"
 #include "support/printers/expected_printer.h"
 
 #include <expected>

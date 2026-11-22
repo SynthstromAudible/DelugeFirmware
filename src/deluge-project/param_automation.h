@@ -18,7 +18,7 @@
 #pragma once
 
 #include "deluge-project/param_node.h"
-#include "plugin-api/types/param.h"
+#include "plugin/types/param.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>

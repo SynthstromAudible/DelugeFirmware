@@ -24,7 +24,7 @@
 #include "controls/board.h"
 #include "controls/knob_focus.h"
 #include "controls/page.h"
-#include "plugin-api/remote_controls_publisher.h"
+#include "plugin/remote_controls_publisher.h"
 
 #include <array>
 #include <cstdint>

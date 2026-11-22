@@ -1,5 +1,5 @@
 # Gate unit-arm:
-#     the dsp-next, NEON, model, effects, instrument, music, serialization, plugin-api, host-chain and
+#     the dsp-next, NEON, model, effects, instrument, music, serialization, plugin, host-chain and
 #     bench specs and model equality hold on ARM, cross-built with clang and run under qemu: tests/unit/deluge/dsp-next
 #     and the test directories under tests/unit that name this tree, the fixed-point and VFP specs among them. The NEON
 #     conversion kernels must match their scalar references bit for bit, every fixed-point operation (and its portable

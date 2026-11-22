@@ -25,8 +25,8 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/param.h"
-#include "plugin-api/types/plugin_id.h"
+#include "plugin/types/param.h"
+#include "plugin/types/plugin_id.h"
 
 #include <cstdint>
 #include <optional>

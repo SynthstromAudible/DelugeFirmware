@@ -21,8 +21,8 @@
 
 #include "scenes/menu/nodes/sound_sidechain.h"
 
-#include "plugin-api/types/rate_tables.h"
-#include "plugin-api/types/sync.h"
+#include "plugin/types/rate_tables.h"
+#include "plugin/types/sync.h"
 
 #include <algorithm>
 

@@ -26,7 +26,7 @@
 
 #include "controls/knob_focus.h"
 #include "deluge-project/param_address.h"
-#include "plugin-api/types/param_kind.h"
+#include "plugin/types/param_kind.h"
 
 #include <cstdint>
 #include <optional>

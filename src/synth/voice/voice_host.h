@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin-api/types/voice_priority.h"
+#include "plugin/types/voice_priority.h"
 #include "synth/voice/voice_clock.h"
 
 #include <array>

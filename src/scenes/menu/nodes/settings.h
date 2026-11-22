@@ -90,7 +90,7 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
 #include "deluge-project/setting_group.h"
-#include "plugin-api/types/display_mapping.h"
+#include "plugin/types/display_mapping.h"
 
 #include <limits>
 #include <optional>
