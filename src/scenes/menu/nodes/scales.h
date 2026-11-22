@@ -13,7 +13,7 @@
 /// | `active_scales` | `activeScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`Song::disabledPresetScales`) |
 // clang-format on
 ///
-/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`music-theory/preset_scales.h`),
+/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`music/preset_scales.h`),
 /// labelled from `scalelikeNames`, each carrying a checked or unchecked box. The select
 /// press toggles the row's bit and stays put; there is nothing to navigate into.
 ///

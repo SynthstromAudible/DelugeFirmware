@@ -24,7 +24,7 @@ endif()
 # controls. Each is built with only the standalone libraries' include roots, so a hidden dependency on the app fails
 # the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/music-theory ${_deluge_libs}/music-theory EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/music ${_deluge_libs}/music EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/sample-view ${_deluge_libs}/sample-view EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api/types ${_deluge_libs}/plugin-api-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api ${_deluge_libs}/plugin-api EXCLUDE_FROM_ALL)

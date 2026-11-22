@@ -1,7 +1,7 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"

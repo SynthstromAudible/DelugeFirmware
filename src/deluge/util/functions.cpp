@@ -24,7 +24,7 @@
 #include "hid/display/display.h"
 #include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
-#include "music-theory/note_length.h"
+#include "music/note_length.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"

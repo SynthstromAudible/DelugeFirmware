@@ -1,4 +1,4 @@
-#include "music-theory/utils.h"
+#include "music/utils.h"
 
 namespace deluge::music {
 

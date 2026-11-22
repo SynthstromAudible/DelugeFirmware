@@ -42,7 +42,7 @@ CPP_TARGETS = [
     "deluge_synth",
     "deluge_foundation",
     "deluge_serialization",
-    "deluge_music_theory",
+    "deluge_music",
     "deluge_project",
     "deluge_controls",
     "deluge_instrument",

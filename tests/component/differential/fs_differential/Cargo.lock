@@ -1321,27 +1321,3 @@ checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
 ]
-
-[[patch.unused]]
-name = "deluge-audio-format"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-board"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-bsp"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-simulator"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "deluge-usb-classes"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "rza1-hal"
-version = "0.2.0"

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "music-theory/note_set.h"
-#include "music-theory/preset_scales.h" // Scale (return type of getCurrentScale)
+#include "music/note_set.h"
+#include "music/preset_scales.h" // Scale (return type of getCurrentScale)
 #include <cstdint>
 
 namespace deluge::music {

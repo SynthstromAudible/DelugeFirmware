@@ -1,4 +1,4 @@
-#include "music-theory/note_names.h"
+#include "music/note_names.h"
 
 #include <cppspec.hpp>
 

@@ -199,7 +199,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("synth", "libdeluge_synth.a"),
         ("foundation", "libdeluge_foundation.a"),
         ("serialization", "libdeluge_serialization.a"),
-        ("music-theory", "libdeluge_music_theory.a"),
+        ("music", "libdeluge_music.a"),
         ("deluge-project", "libdeluge_project.a"),
         ("controls", "libdeluge_controls.a"),
         ("instruments-deluge", "libdeluge_instrument.a"),

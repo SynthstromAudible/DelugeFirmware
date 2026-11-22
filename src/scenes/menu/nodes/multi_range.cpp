@@ -22,7 +22,7 @@
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "music-theory/note_names.h"
+#include "music/note_names.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"

@@ -29,7 +29,7 @@
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
 #include "midi/device_id.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/profile.h"

@@ -32,7 +32,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "music-theory/note_length.h"
+#include "music/note_length.h"
 #include "plugin-api/types/display_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "ui/oled/columns.h"

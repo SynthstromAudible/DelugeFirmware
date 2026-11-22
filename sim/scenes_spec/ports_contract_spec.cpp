@@ -33,7 +33,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"

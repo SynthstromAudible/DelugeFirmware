@@ -81,7 +81,7 @@ goes from 39 KB to **386 KB** (+346.5 KB).
 
 Applied with per-source `COMPILE_OPTIONS` to `gui/`, `hid/`, `storage/`, `io/debug/`,
 `model/{project_bridge,edits,action,consequence,favourite}/` and `processing/stem_export/`, plus `target_compile_options`
-on `deluge_project`, `deluge_serialization` and `deluge_music_theory`. DSP, voices, playback, modulation and the clip
+on `deluge_project`, `deluge_serialization` and `deluge_music`. DSP, voices, playback, modulation and the clip
 model stay at `-O2`.
 
 The `optsize`/`minsize` function attributes survive ThinLTO, so per-source levels work. An earlier `-Os` trial on the

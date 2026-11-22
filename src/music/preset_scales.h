@@ -1,6 +1,6 @@
 #pragma once
 
-#include "music-theory/note_set.h"
+#include "music/note_set.h"
 
 #include <array>
 #include <bitset>

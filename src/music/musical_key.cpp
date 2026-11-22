@@ -1,5 +1,5 @@
-#include "music-theory/musical_key.h"
-#include "music-theory/modulo.h"
+#include "music/musical_key.h"
+#include "music/modulo.h"
 
 #include <algorithm>
 #include <cstdint>

@@ -41,7 +41,7 @@
 #include "deluge-project/midi_channels.h"
 #include "deluge-project/midi_command.h"
 #include "gfx/oled/glyphs.h"
-#include "music-theory/note_names.h"
+#include "music/note_names.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY

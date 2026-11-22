@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/fixed/tables/cent_adjust.h"
-#include "music-theory/note_names.h"
+#include "music/note_names.h"
 #include "plugin-api/types/rate_tables.h"
 
 #include <array>
@@ -50,7 +50,7 @@ extern const int32_t noteIntervalTable[12];
 inline constexpr const auto& attackRateTable = deluge::plugin::kSidechainAttackRates;
 inline constexpr const auto& releaseRateTable = deluge::plugin::kSidechainReleaseRates;
 
-// The note-name tables are music-theory's (music-theory/note_names.h), laid out by pitch class under the names the
+// The note-name tables are music's (music/note_names.h), laid out by pitch class under the names the
 // app's callers index.
 inline constexpr std::array<char, 12> noteCodeToNoteLetter = [] {
 	std::array<char, 12> letters{};

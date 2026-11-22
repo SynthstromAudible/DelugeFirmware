@@ -129,7 +129,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_effects # the effects' words, state and codec
     deluge_host_chain # the host chain's param table and pages
     deluge_serialization # the document tree and its XML and JSON parsers
-    deluge_music_theory # note sets, scales, keys and scale mapping
+    deluge_music # note sets, scales, keys and scale mapping
     deluge_sample_view # a waveform view's columns, peaks and navigation
     deluge_gfx_oled # pure drawing primitives
     deluge_gfx_grid

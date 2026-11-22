@@ -1,7 +1,7 @@
 #pragma once
 
-#include "music-theory/note_set.h"
-#include "music-theory/scale_change.h"
+#include "music/note_set.h"
+#include "music/scale_change.h"
 
 #include <cstdint>
 

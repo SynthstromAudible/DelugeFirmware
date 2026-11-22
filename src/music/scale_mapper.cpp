@@ -1,4 +1,4 @@
-#include "music-theory/scale_mapper.h"
+#include "music/scale_mapper.h"
 #include "foundation/panic.h"
 
 namespace deluge::music {

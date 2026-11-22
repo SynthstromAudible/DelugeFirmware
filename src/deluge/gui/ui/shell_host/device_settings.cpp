@@ -17,7 +17,7 @@
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/setting.h"

@@ -32,7 +32,7 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/song.h"
-#include "music-theory/preset_scales.h"
+#include "music/preset_scales.h"
 #include "scenes/bind/device_reader.h"
 
 #include <algorithm>
@@ -48,7 +48,7 @@ namespace deluge::scenes::menu::nodes {
 namespace {
 
 /// @brief The number of rows both items draw: `PresetScale` 0 .. `LAST_PRESET_SCALE`
-///        (`music-theory/preset_scales.h`).
+///        (`music/preset_scales.h`).
 ///
 /// `NUM_PRESET_SCALES` is `LAST_PRESET_SCALE + 1`, i.e. the preset scales and nothing after them -- `USER_SCALE` and
 /// the rest of `NUM_SCALELIKE` are not offered here, exactly as `ActiveScaleMenu::selectEncoderAction`'s clamp to
@@ -143,7 +143,7 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// the focused row's side scroller -- see `scales.h` for why that is the same renderer and not merely a similar one.
 	deluge::ui::oled::ListRow rows[kScaleRows];
 	for (size_t i = 0; i < kScaleRows; i++) {
-		// `scalelikeNames` holds `char const*` with static storage (`music-theory/preset_scales.h`),
+		// `scalelikeNames` holds `char const*` with static storage (`music/preset_scales.h`),
 		// so the view outlives this frame.
 		rows[i].label = std::string_view{deluge::music::scalelikeNames[i]};
 		rows[i].icon =

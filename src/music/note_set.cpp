@@ -1,5 +1,5 @@
-#include "music-theory/note_set.h"
-#include "music-theory/preset_scales.h"
+#include "music/note_set.h"
+#include "music/preset_scales.h"
 
 namespace deluge::music {
 

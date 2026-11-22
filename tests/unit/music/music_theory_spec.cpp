@@ -1,9 +1,9 @@
-#include "music-theory/musical_key.h"
-#include "music-theory/note_set.h"
-#include "music-theory/preset_scales.h"
-#include "music-theory/scale_change.h"
-#include "music-theory/scale_mapper.h"
-#include "music-theory/utils.h"
+#include "music/musical_key.h"
+#include "music/note_set.h"
+#include "music/preset_scales.h"
+#include "music/scale_change.h"
+#include "music/scale_mapper.h"
+#include "music/utils.h"
 
 #include "support/printers/note_set_printer.h"
 

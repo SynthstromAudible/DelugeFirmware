@@ -69,7 +69,7 @@ path = "midi"
 target = "src/midi"
 
 [[directory]]
-path = "music-theory"
+path = "music"
 target = "src/music"
 
 [[directory]]
@@ -186,9 +186,9 @@ may_include = [
 ]
 
 [[library]]
-name = "music-theory"
-root = "src/music-theory"
-prefix = "music-theory/"
+name = "music"
+root = "src/music"
+prefix = "music/"
 may_include = [
     # the sync words a note length is named from (header-only vocabulary)
     "plugin-api/types/sync.h",
@@ -211,7 +211,7 @@ may_include = [
     "plugin-api/state_handle.h",
     "plugin-api/plugin.h",
     "serialization/",
-    "music-theory/",
+    "music/",
     "foundation/panic.h",
 ]
 
@@ -239,7 +239,7 @@ may_include = [
     "effects/host_chain/",
     "serialization/",
     "midi/device_id.h",
-    "music-theory/",
+    "music/",
     # a waveform's columns and peaks, the Waveforms port's vocabulary (header-only)
     "sample-view/peaks.h",
     "foundation/panic.h",
@@ -337,7 +337,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/scenes/**"]
-pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music/|sample-view/|foundation/|definitions_cxx\.hpp)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]

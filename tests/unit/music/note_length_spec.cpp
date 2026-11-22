@@ -1,4 +1,4 @@
-#include "music-theory/note_length.h"
+#include "music/note_length.h"
 
 #include <cppspec.hpp>
 
