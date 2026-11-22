@@ -57,8 +57,10 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 	cancelLoopCrossfade();
 }
 
-// Once we're within the crossfade length of the loop end, start the next pass through the loop alongside us. It starts
-// as far into the loop as we are into the crossfade, so the two finish the crossfade together, just as we hit the end.
+// Once we're within the crossfade length of the loop end, start the next pass alongside us. It starts the crossfade
+// length before the loop start, using the audio that's there, and reaches the loop start just as we reach the loop end,
+// so the loop keeps its length (and any tempo sync). If there isn't that much audio before the loop start, the rest of
+// the crossfade comes out of the start of the loop instead, shortening it by that much.
 // We only get to check once per render window, so we'll usually start a little after the ideal sample. The fade then
 // runs over whatever's actually left, so it still starts from silence rather than jumping in part-way.
 void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, int32_t wantedLength,
@@ -87,15 +89,34 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 		}
 	}
 
-	int32_t incomingOffsetBytes = (length - samplesLeft) * bytesPerSample;
+	// How much audio there is before the loop start, in the direction we're playing
+	int32_t marginBytes = (guide->playDirection == 1)
+	                          ? loopStartByte - static_cast<int32_t>(sample->audioDataStartPosBytes)
+	                          : static_cast<int32_t>(sample->audioDataStartPosBytes + sample->audioDataLengthBytes)
+	                                - bytesPerSample - loopStartByte;
+	int32_t margin = std::clamp<int32_t>(marginBytes / bytesPerSample, 0, length);
+
+	// Negative while we're still in the margin before the loop start
+	int32_t incomingOffsetBytes = (length - margin - samplesLeft) * bytesPerSample;
 	loopIncoming->oscPos = oscPos;
 	loopIncoming->interpolationBufferSizeLastTime = 0;
-	if (loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating)) {
+
+	// If the last try failed, it's still holding the Clusters it got. Only let go of them once it's claimed this try's,
+	// so one that's still loading stays queued - dropping its last reason would take it off the queue, and the audio
+	// before the loop start often isn't held by anything else
+	std::array<Cluster*, kNumClustersLoadedAhead> previousClusters = loopIncoming->clusters;
+	loopIncoming->clusters.fill(nullptr);
+	bool success = loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating);
+	for (Cluster* cluster : previousClusters) {
+		if (cluster != nullptr) {
+			audioFileManager.removeReasonFromCluster(*cluster, "E027");
+		}
+	}
+
+	if (success) {
 		loopCrossfadeLength = samplesLeft;
 	}
-	else {
-		loopIncoming->unassignAllReasons(false); // It may have got some of them. We'll try again next window
-	}
+	// Otherwise it keeps whatever it got, so they carry on loading, and we try again next window
 }
 
 // The incoming pass takes over from us
