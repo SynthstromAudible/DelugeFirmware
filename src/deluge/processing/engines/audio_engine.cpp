@@ -40,6 +40,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -535,9 +536,9 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
-	// we can be a bit more lenient with the limit
-	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
+	// Starting voices is a heavy load and we know it's temporary, so be a bit more lenient with the limit if any voice
+	// started in the last render. Not per voice: the voice-start budget may start several in one render
+	auto max_num_samples = numSamplesLimit + (voices_started_this_render > 0 ? 20 : 0);
 	static int32_t last_num_samples_over = 0;
 	int32_t num_samples_over_limit = numSamples - max_num_samples;
 
@@ -852,6 +853,82 @@ void midiGateOutputTimerFired() {
 	armMidiGateOutputTimer(now, guard);
 }
 
+// The voice-start budget (wouldRefuseVoiceStart(), voiceStarted()). Starting a voice takes about a sample of time, and
+// then the voice has to be rendered - in this render, and in the next ones, whose predicted cost (renderCost, a
+// decaying average) only catches up with the extra voices gradually. So voices start only while that still fits:
+// while what will be left queued for the codec when this render is done - what was queued when it began, minus the
+// time spent so far (song tick and voice starts included), the predicted render, and for every voice started in this
+// render or the last one (and one more), its share of a render twice over plus a voice start - stays above
+// kCullMargin, where culling would start. Notes that don't fit wait in DeferredNoteOns for a later render. At least one
+// voice starts per render, so they always get going; this replaces a fixed limit of 1 per render (4 when the CPU
+// wasn't busy), which smeared a 20-note step over 10-15 ms at the loads where it was 1.
+namespace {
+// A backstop. The charge for a voice's share of a render is rough (the voices just released by the same step are still
+// fading out and dilute it), and every voice that starts makes the next renders' predictions - which getRenderSize()
+// fills to within a few samples of what's queued - too optimistic until renderCost catches up. Measured in the
+// emulator at Deluge speed, 8 per render let the codec buffer get down to 3-5 samples from empty after a burst; 4 keeps
+// it where the old 1-per-render rule did, and still gets a 20-note step going in about half the time
+constexpr int32_t kMaxVoiceStartsPerRender = 4;
+
+// Samples of time one voice start takes: a decaying average of the measured starts, like RenderCost. They cost about
+// the same each (mostly Voice::noteOn()'s initial patching), so a short memory is plenty
+float voiceStartCost = 1.f;
+
+// Set while routine_() renders: what was queued for the codec when it began, the render's size, and what one voice
+// adds to it (its share of the predicted render, in samples of time)
+bool budgetingRender = false;
+int32_t budgetQueuedAtStart = 0;
+size_t budgetRenderSize = 0;
+float budgetVoiceRenderCost = 0;
+
+// Voices started in the previous render, which this render's prediction doesn't fully include yet
+int32_t voicesStartedLastRender = 0;
+
+/// A voice's share of a render of this size: the predicted render spread over the voices playing (so the fixed costs
+/// are shared out too, which errs on the safe side)
+float voiceRenderCost(size_t renderSize) {
+	return renderCost.predict(renderSize) / (float)std::max<int32_t>(getNumVoices(), 1);
+}
+
+float ticksToSamples(uint32_t ticks) {
+	return (float)(ticks << 8) / kSystemTicksPerSampleQ8;
+}
+
+void voiceStartBudgetForRender(size_t queuedAtStart, size_t renderSize) {
+	budgetingRender = true;
+	budgetQueuedAtStart = static_cast<int32_t>(queuedAtStart);
+	budgetRenderSize = renderSize;
+	budgetVoiceRenderCost = voiceRenderCost(renderSize);
+}
+
+void voiceStartBudgetBetweenRenders() {
+	budgetingRender = false;
+}
+
+/// What will be left queued for the codec when the current (or, between renders, the next) render is done, if
+/// another voice starts first. Samples
+float marginAfterAnotherVoiceStart() {
+	float margin;
+	float perVoice;
+	if (budgetingRender) {
+		float spent = ticksToSamples(getSystemTicks() - windowStartTicks);
+		margin = budgetQueuedAtStart - spent - renderCost.predict(budgetRenderSize);
+		perVoice = budgetVoiceRenderCost;
+	}
+	else {
+		// The same prediction setDireness() will make for the next render, from what's queued now
+		size_t space = ((uint32_t)((uint32_t)getTxBufferCurrentPlace() - i2sTXBufferPos)
+		                >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
+		               & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		size_t renderSize = getRenderSize(space);
+		margin = (SSI_TX_BUFFER_NUM_SAMPLES - space) - songTickCost.get() - renderCost.predict(renderSize);
+		perVoice = voiceRenderCost(renderSize);
+	}
+	int32_t newVoices = voices_started_this_render + voicesStartedLastRender + 1;
+	return margin - 2 * perVoice * newVoices - voiceStartCost;
+}
+} // namespace
+
 void scheduleMidiGateOutISR(size_t numSamples);
 void setMonitoringMode();
 void renderSongFX(size_t numSamples);
@@ -907,11 +984,18 @@ bool calledFromScheduler = false;
 	size_t const txQueued = SSI_TX_BUFFER_NUM_SAMPLES - numSamples;
 
 	numSamples = getRenderSize(numSamples);
+	voicesStartedLastRender = voices_started_this_render;
 	voices_started_this_render = 0;
+	voiceStartBudgetForRender(txQueued, numSamples);
 
 	uint32_t tickStartTicks = getSystemTicks();
 	tickSongFinalizeWindows(numSamples);
 	uint32_t renderStartTicks = getSystemTicks();
+	voiceStartBudgetForRender(txQueued, numSamples); // The tick may have cut the window short
+
+	// Note-ons the song tick (this one or an earlier one) held back because they couldn't have started a voice then.
+	// Counted as part of the render, like the pending notes Sound::render() would otherwise start
+	DeferredNoteOns::sendWhatCanStart();
 
 	numSamplesLastTime = numSamples;
 
@@ -939,6 +1023,7 @@ bool calledFromScheduler = false;
 	}
 
 	bypassCulling = false;
+	voiceStartBudgetBetweenRenders();
 }
 q31_t getInputMonitoringGain(uint32_t offset) {
 	if (inputMonitoringWarmedUp) {
@@ -1402,10 +1487,12 @@ void routine() {
 
 				size_t numSamples = 32;
 				// routine_() resets this every render, but it never runs while we render offline. Without resetting it
-				// here, allowedToStartVoice() refuses every voice after the first few, so notes stay pending for the
-				// rest of the export and stems come out silent (issue #5010).
+				// here, the per-render voice-start limit is used up after the first few voices, so DeferredNoteOns
+				// holds every later note for the rest of the export and stems come out silent (issue #5010). Offline,
+				// only that limit applies, not the time budget.
 				voices_started_this_render = 0;
 				tickSongFinalizeWindows(numSamples);
+				DeferredNoteOns::sendWhatCanStart();
 				sendWindowOutputsNow();
 
 				numSamplesLastTime = numSamples;
@@ -1836,13 +1923,26 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechain.syncLevel = song->reverbSidechainSync;
 }
 
-bool allowedToStartVoice() {
-	auto threshold = cpuDireness > 12 ? 1 : 4;
-	if (voices_started_this_render < threshold) {
-		voices_started_this_render += 1;
+bool wouldRefuseVoiceStart() {
+	if (voices_started_this_render >= kMaxVoiceStartsPerRender) {
 		return true;
 	}
-	return false;
+	// Rendering offline has no deadline (issue #5010)
+	if (stemExport.renderingOffline()) {
+		return false;
+	}
+	// At least one per render, so waiting notes always get going
+	if (budgetingRender && voices_started_this_render == 0) {
+		return false;
+	}
+	return marginAfterAnotherVoiceStart() <= kCullMargin;
+}
+
+void voiceStarted(uint32_t ticksTaken) {
+	float taken = ticksToSamples(ticksTaken);
+	voices_started_this_render += 1;
+	constexpr float kDecay = 15.f / 16.f;
+	voiceStartCost = voiceStartCost * kDecay + taken * (1.f - kDecay);
 }
 
 VoiceSample* solicitVoiceSample() {

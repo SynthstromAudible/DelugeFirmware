@@ -1349,6 +1349,12 @@ void usb_peri_class_request_ioss(usb_setup_t* req)
  ***********************************************************************************************************************/
 void usb_peri_class_request_rwds(usb_setup_t* req)
 {
+    /* USB audio's feature unit (volume and mute) */
+    if (usbAudioClassRequest(req->type, req->value, req->index, req->length))
+    {
+        return;
+    }
+
 #if defined(USB_CFG_PMSC_USE)
 
     usb_ctrl_t ctrl;
@@ -1563,6 +1569,9 @@ void usb_peri_class_request_rss(usb_setup_t* req)
 void usb_peri_class_request_wss(usb_setup_t* req)
 {
     usb_ctrl_t ctrl;
+
+    /* The data from a USB audio SET request has all arrived */
+    usbAudioClassRequestWriteDone(req->type, req->value, req->index);
 
     ctrl.setup = *req;
     usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0); /* Set BUF */

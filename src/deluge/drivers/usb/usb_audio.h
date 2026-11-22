@@ -29,7 +29,8 @@
 // host sends us as many frames as we sent it, and they're copied straight through with no resampling. Hosts that don't
 // do implicit feedback send at their own clock's rate, which we cope with by dropping or repeating the odd frame.
 // Audio from the host is laid out in a ring buffer exactly like the SSI RX buffer, so it can be used anywhere the
-// line/mic input is.
+// line/mic input is. The host gets a volume and mute control for it (a feature unit), which we apply as it goes into
+// that ring - at full volume, the samples are untouched.
 //
 // Multitrack is an optional configuration in place of stereo, chosen at power-on: 8 channels of 16-bit to the host (the
 // usual stereo output, then three stereo track buses), and 4 of 16-bit from it (two stereo inputs). Its rings are
@@ -55,14 +56,22 @@ bool usbAudioActive(void);
 /// streaming before the pipe gets reconfigured). The out stream has two: 1 follows our clock through implicit
 /// feedback, 2 is adaptive, following the host's
 void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting);
-/// Bus reset, detach, or a new configuration - all streaming stops
+/// Detach, or a new configuration - all streaming stops
 void usbAudioStopAll(void);
+/// Bus reset, which is how every host starts with us. All streaming stops, and the volume and mute the last host set
+/// go back to their defaults
+void usbAudioBusReset(void);
 /// From the USB interrupt, with the pipes whose BRDY status was set. Returns the ones that are ours, whose status it's
 /// cleared - our pipes are serviced from our own interrupts (see usb_audio.cpp)
 uint16_t usbAudioHandleBrdy(uint16_t pipeBits);
 /// From the USB task, with usbLock held. Reconnects us if the host's given up sending after a stall (see
 /// usb_audio.cpp)
 void usbAudioServiceTask(void);
+/// From the USB task: a class or vendor request's data stage is starting. If it's for our feature unit (volume and
+/// mute), starts the data stage or stalls, and returns true. Otherwise returns false, for the driver to deal with
+bool usbAudioClassRequest(uint16_t type, uint16_t value, uint16_t index, uint16_t length);
+/// From the USB task: a class or vendor request with a data stage from the host has finished receiving it
+void usbAudioClassRequestWriteDone(uint16_t type, uint16_t value, uint16_t index);
 
 #ifdef __cplusplus
 }

@@ -37,11 +37,12 @@ Macro definitions
 #define USB_BCDNUM (0x0200u) /* bcdUSB */
 // Release Number. Bumped when USB audio was added, so hosts don't reuse anything they cached about the MIDI-only
 // configuration, then each time the audio streams' descriptors changed: when the out stream went from adaptive to
-// asynchronous with implicit feedback, and when it got its adaptive alternate setting back as well
-#define USB_RELEASE (0x0302u)
+// asynchronous with implicit feedback, when it got its adaptive alternate setting back as well, and when the out stream
+// got a feature unit (volume and mute)
+#define USB_RELEASE (0x0303u)
 // The multitrack configuration has its own, so a host doesn't take anything it cached about the stereo one for it, or
-// the other way round, when the user switches between them
-#define USB_RELEASE_MULTITRACK (0x0310u)
+// the other way round, when the user switches between them. Bumped for the feature unit too
+#define USB_RELEASE_MULTITRACK (0x0311u)
 // With USB audio turned off we describe ourselves exactly as before USB audio existed
 #define USB_RELEASE_MIDI_ONLY (0x0200u)
 #define USB_CONFIGNUM (1u) /* Configuration number */
@@ -65,10 +66,13 @@ Macro definitions
 
 /* USB audio (UAC1), described in audio10.pdf and frmts10.pdf from usb.org
  * Audio control: interface descriptor, then the class-specific header (8 + 1 per streaming interface), then an input
- * and an output terminal for each direction
+ * and an output terminal for each direction, plus a feature unit (master volume and mute) between the host's stream and
+ * the outputs. The feature unit lists every channel of the host's stream, so the multitrack configuration's is longer
+ * than the stereo one's - and so is everything that contains it
  */
-#define USB_AUDIO_AC_CS_LENGTH (8 + 3 + (12 + 9) * 2)
-#define USB_AUDIO_AC_LENGTH (9 + USB_AUDIO_AC_CS_LENGTH)
+#define USB_AUDIO_FU_LENGTH(channels) (7 + ((channels) + 1))
+#define USB_AUDIO_AC_CS_LENGTH(fromHostChannels) (8 + 3 + (12 + 9) * 2 + USB_AUDIO_FU_LENGTH(fromHostChannels))
+#define USB_AUDIO_AC_LENGTH(fromHostChannels) (9 + USB_AUDIO_AC_CS_LENGTH(fromHostChannels))
 /* Each streaming interface: alternate setting 0 (no endpoint, so no bandwidth when not streaming), then for each
  * streaming alternate setting: interface descriptor, general descriptor, format type descriptor (with one sample
  * rate), standard and class-specific endpoint. The out stream has two of those, the in stream one
@@ -76,12 +80,17 @@ Macro definitions
 #define USB_AUDIO_AS_ALT_LENGTH (9 + 7 + 11 + 9 + 7)
 #define USB_AUDIO_AS_OUT_LENGTH (9 + USB_AUDIO_AS_ALT_LENGTH * 2)
 #define USB_AUDIO_AS_IN_LENGTH (9 + USB_AUDIO_AS_ALT_LENGTH)
+// The whole audio function: the audio control interface and both streaming interfaces
+#define USB_AUDIO_FUNCTION_LENGTH(fromHostChannels)                                                                    \
+	(USB_AUDIO_AC_LENGTH(fromHostChannels) + USB_AUDIO_AS_OUT_LENGTH + USB_AUDIO_AS_IN_LENGTH)
 
 // Where the MIDI streaming interface starts in g_midi_configuration - everything from there on is the same in the
-// MIDI-only configuration
-#define MIDI_SECTION_OFFSET (9 + USB_AUDIO_AC_LENGTH + USB_AUDIO_AS_OUT_LENGTH + USB_AUDIO_AS_IN_LENGTH)
+// MIDI-only and multitrack configurations
+#define MIDI_SECTION_OFFSET (9 + USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_NUM_CHANNELS))
 // 9 for config descriptor. Add any additional config lengths here
 #define TOTAL_CONFIG_LENGTH (MIDI_SECTION_OFFSET + USB_MIDI_CD_WTOTALLENGTH)
+#define MULTITRACK_CONFIG_LENGTH                                                                                       \
+	(9 + USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_MT_CHANNELS_FROM_HOST) + USB_MIDI_CD_WTOTALLENGTH)
 #define MIDI_ONLY_CONFIG_LENGTH (9 + USB_MIDI_CD_WTOTALLENGTH)
 // Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 
@@ -97,6 +106,17 @@ Macro definitions
 #define AUDIO_AC_HEADER 0x01
 #define AUDIO_AC_INPUT_TERMINAL 0x02
 #define AUDIO_AC_OUTPUT_TERMINAL 0x03
+#define AUDIO_AC_FEATURE_UNIT 0x06
+// bmaControls bits for a feature unit - audio10.pdf 4.3.2.5
+#define AUDIO_FU_CONTROL_MUTE 0x01
+#define AUDIO_FU_CONTROL_VOLUME 0x02
+// A feature unit has a bmaControls entry for each channel of its stream, after the master's. Ours are all empty - only
+// the master has controls. One of these per channel count, so the descriptor can't end up a different length from
+// USB_AUDIO_FU_LENGTH()
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_2 0, 0
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_4 0, 0, 0, 0
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_##channels
+#define AUDIO_FU_NO_CHANNEL_CONTROLS(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels)
 #define AUDIO_AS_GENERAL 0x01
 #define AUDIO_AS_FORMAT_TYPE 0x02
 #define AUDIO_EP_GENERAL 0x01
@@ -133,8 +153,9 @@ Macro definitions
 #define HI(x) ((uint8_t)(((x) >> 8) & 0xFF))
 
 /* The USB audio function: the audio control interface, then the two audio streaming interfaces. The same layout for
- * both the stereo and multitrack configurations - only the formats and packet sizes differ, so they share endpoints,
- * pipes and all of the driver's code. audio10.pdf and frmts10.pdf from usb.org describe it all.
+ * both the stereo and multitrack configurations - only the formats and packet sizes differ (and with the channel
+ * count, the feature unit's length), so they share endpoints, pipes and all of the driver's code. audio10.pdf and
+ * frmts10.pdf from usb.org describe it all.
  *
  * fromHostChannels / fromHostChannelConfig / fromHostSubframe / fromHostBits: the out stream's format (host to Deluge)
  * toHostChannels / toHostChannelConfig / toHostSubframe / toHostBits: the in stream's format (Deluge to host)
@@ -152,15 +173,22 @@ Macro definitions
 	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_CONTROL, 0 /* bAlternateSetting */,                        \
 	    0 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_CONTROL, 0, 0,                                            \
 	/* Class-specific header - audio10.pdf 4.3.2. Its collection is the two audio streams and MIDI */                  \
-	11, CS_INTERFACE, AUDIO_AC_HEADER, 0x00, 0x01 /* bcdADC 1.00 */, LO(USB_AUDIO_AC_CS_LENGTH),                       \
-	    HI(USB_AUDIO_AC_CS_LENGTH), 3 /* bInCollection */, USB_PAUDIO_INTERFACE_STREAM_OUT,                            \
+	11, CS_INTERFACE, AUDIO_AC_HEADER, 0x00, 0x01 /* bcdADC 1.00 */, LO(USB_AUDIO_AC_CS_LENGTH(fromHostChannels)),     \
+	    HI(USB_AUDIO_AC_CS_LENGTH(fromHostChannels)), 3 /* bInCollection */, USB_PAUDIO_INTERFACE_STREAM_OUT,          \
 	    USB_PAUDIO_INTERFACE_STREAM_IN, USB_PMIDI_INTERFACE,                                                           \
 	/* Host to Deluge - a stream in from USB, going to the outputs. audio10.pdf 4.3.2.1 and 4.3.2.2 */                 \
 	12, CS_INTERFACE, AUDIO_AC_INPUT_TERMINAL, AUDIO_TERMINAL_FROM_HOST, LO(AUDIO_TERMINAL_STREAMING),                 \
 	    HI(AUDIO_TERMINAL_STREAMING), 0 /* bAssocTerminal */, (fromHostChannels), LO(fromHostChannelConfig),           \
 	    HI(fromHostChannelConfig), 0 /* iChannelNames */, 0 /* iTerminal */,                                           \
+	/* Volume and mute for the host's stream, so macOS and iOS give the Deluge a working volume control rather than    \
+	 * greying it out. Master channel only, whichever configuration - audio10.pdf 4.3.2.5 */                           \
+	USB_AUDIO_FU_LENGTH(fromHostChannels), CS_INTERFACE, AUDIO_AC_FEATURE_UNIT, USB_PAUDIO_FEATURE_UNIT_FROM_HOST,     \
+	    AUDIO_TERMINAL_FROM_HOST /* bSourceID */, 1 /* bControlSize */,                                                \
+	    AUDIO_FU_CONTROL_MUTE | AUDIO_FU_CONTROL_VOLUME /* bmaControls(0) - master */,                                 \
+	    AUDIO_FU_NO_CHANNEL_CONTROLS(fromHostChannels) /* bmaControls(1) on - each channel */, 0 /* iFeature */,       \
 	9, CS_INTERFACE, AUDIO_AC_OUTPUT_TERMINAL, AUDIO_TERMINAL_OUTPUTS, LO(AUDIO_TERMINAL_LINE),                        \
-	    HI(AUDIO_TERMINAL_LINE), 0 /* bAssocTerminal */, AUDIO_TERMINAL_FROM_HOST /* bSourceID */, 0 /* iTerminal */,  \
+	    HI(AUDIO_TERMINAL_LINE), 0 /* bAssocTerminal */, USB_PAUDIO_FEATURE_UNIT_FROM_HOST /* bSourceID */,            \
+	    0 /* iTerminal */,                                                                                             \
 	/* Deluge to host */                                                                                               \
 	12, CS_INTERFACE, AUDIO_AC_INPUT_TERMINAL, AUDIO_TERMINAL_INPUTS, LO(AUDIO_TERMINAL_LINE),                         \
 	    HI(AUDIO_TERMINAL_LINE), 0 /* bAssocTerminal */, (toHostChannels), LO(toHostChannelConfig),                    \
@@ -498,12 +526,12 @@ static const uint8_t g_multitrack_audio_function[] = {AUDIO_FUNCTION_DESCRIPTORS
     USB_PAUDIO_MT_BIT_RESOLUTION, USB_PAUDIO_MT_CHANNELS_TO_HOST, AUDIO_CHANNEL_CONFIG_7_1,
     USB_PAUDIO_MT_SUBFRAME_BYTES, USB_PAUDIO_MT_BIT_RESOLUTION, USB_PAUDIO_MT_MAX_PACKET_BYTES_FROM_HOST,
     USB_PAUDIO_MT_ADAPTIVE_MAX_PACKET_BYTES_FROM_HOST, USB_PAUDIO_MT_MAX_PACKET_BYTES_TO_HOST)};
-_Static_assert(sizeof(g_multitrack_audio_function) == MIDI_SECTION_OFFSET - USB_CD_BLENGTH,
-               "The multitrack audio function must be laid out like the stereo one");
+_Static_assert(sizeof(g_multitrack_audio_function) == USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_MT_CHANNELS_FROM_HOST),
+               "The multitrack audio function's length macros need updating");
 
-/* The multitrack configuration: the stereo one with the multitrack audio function swapped in. Only built if it's used
- */
-static uint8_t g_multitrack_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)];
+/* The multitrack configuration: the stereo one with the multitrack audio function in place of its own, and the MIDI
+ * section moved along to follow it - the multitrack function's the longer one. Only built if it's used */
+static uint8_t g_multitrack_configuration[MULTITRACK_CONFIG_LENGTH + (MULTITRACK_CONFIG_LENGTH % 2)];
 
 uint8_t* usbPeripheralConfigurationDescriptor(uint8_t which) {
 	uint16_t release = (which == USB_PAUDIO_CONFIG_MULTITRACK) ? USB_RELEASE_MULTITRACK
@@ -517,9 +545,13 @@ uint8_t* usbPeripheralConfigurationDescriptor(uint8_t which) {
 	}
 
 	if (which == USB_PAUDIO_CONFIG_MULTITRACK) {
-		memcpy(g_multitrack_configuration, g_midi_configuration, sizeof(g_multitrack_configuration));
+		memcpy(g_multitrack_configuration, g_midi_configuration, USB_CD_BLENGTH);
+		g_multitrack_configuration[2] = LO(MULTITRACK_CONFIG_LENGTH); /* wTotalLength */
+		g_multitrack_configuration[3] = HI(MULTITRACK_CONFIG_LENGTH);
 		memcpy(&g_multitrack_configuration[USB_CD_BLENGTH], g_multitrack_audio_function,
 		       sizeof(g_multitrack_audio_function));
+		memcpy(&g_multitrack_configuration[USB_CD_BLENGTH + sizeof(g_multitrack_audio_function)],
+		       &g_midi_configuration[MIDI_SECTION_OFFSET], USB_MIDI_CD_WTOTALLENGTH);
 		return g_multitrack_configuration;
 	}
 
