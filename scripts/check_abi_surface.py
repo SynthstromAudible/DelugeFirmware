@@ -8,8 +8,8 @@
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
 ``src/platform/device/src`` or a crates-workspace member's ``src``, or by a C/C++ body in ``src/``. A header in
 ``EXTERNAL`` is defined by a dependency outside this repository instead, and each of its functions counts as defined
-only when an ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function nobody
-calls keeps nothing alive.
+only when an ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function
+nobody calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
@@ -276,13 +276,12 @@ def scope_of(path: Path) -> Scope | None:
 
 
 def pinned() -> dict[str, set[Scope]]:
-    """Every C name pinned by an `abi_pin!` in `src/platform/device/src` or `tests/harness`, with the scope
-    each pin checks. A plain or rename pin checks the item in scope at the invocation: the definition or import in its
-    own file. The
-    `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
-    scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is
-    pinned apart from the BSP's definition, and a pin of the import alone leaves the definition unchecked and
-    reported. Likewise a pin beside the host definition does not cover the device one in another file."""
+    """Every C name pinned by an `abi_pin!` in `src/platform/device/src` or `tests/harness`, with the scope each pin
+    checks. A plain or rename pin checks the item in scope at the invocation: the definition or import in its own file.
+    The `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
+    scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is pinned
+    apart from the BSP's definition, and a pin of the import alone leaves the definition unchecked and reported.
+    Likewise a pin beside the host definition does not cover the device one in another file."""
     crates = crate_names()
     names: dict[str, set[Scope]] = {}
     for path in RUST:

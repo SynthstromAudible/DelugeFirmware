@@ -36,8 +36,8 @@ abi_pin!(in deluge_storage_sample_source::abi: deluge_sample_source_open, deluge
     deluge_sample_region_release, deluge_sample_source_close);
 
 abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
-    deluge_sample_stream_open_at, deluge_sample_stream_close, deluge_sample_stream_set_geometry, deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id,
-    deluge_sample_stream_read_at);
+    deluge_sample_stream_open_at, deluge_sample_stream_close, deluge_sample_stream_set_geometry,
+    deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id, deluge_sample_stream_read_at);
 
 // --- The crates' own declarations of header functions (they cannot see `sys`) ---
 
@@ -154,7 +154,9 @@ abi_const!(
 );
 
 // `DelugeTimestamp` is not crate-defined, so `file_bytes`'s copy is checked against `sys`.
-abi_layout!(crate::channel::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
+abi_layout!(crate::channel::file_bytes::FileTimestamp => sys DelugeTimestamp {
+    year, month, day, hour, minute, second
+});
 
 abi_const!(
     crate::channel::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
