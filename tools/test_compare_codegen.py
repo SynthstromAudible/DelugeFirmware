@@ -1049,6 +1049,67 @@ class DataWords(unittest.TestCase):
         self.assertEqual(compare_codegen.compare_data(base, new)[0], ["_ZL5table"])
 
 
+class UnsymbolledData(MainHarness, unittest.TestCase):
+    """Loaded data no sized symbol covers (a Rust trait object's vtable, an exception table), and `.init_array`, are
+    compared too."""
+
+    DEMANGLED: ClassVar[dict[str, str]] = {
+        "_ZL6before": "before",
+        "_ZN1X1fEv": "X::f()",
+        "_ZN1X1gEv": "X::g()",
+    }
+
+    def image(self, slot: str, order=("_ZN1X1fEv", "_ZN1X1gEv"), shift: int = 0):
+        at = {
+            "_ZN1X1fEv": 0x20001000,
+            "_ZN1X1gEv": 0x20001010,
+            "_ZL6before": 0x20200000,
+        }
+        at = {k: v + shift for k, v in at.items()}
+        listing = "".join(
+            f"{at[f]:08x} <{f}>:\n{at[f]:08x}:\tbx\tlr\n\n"
+            for f in ("_ZN1X1fEv", "_ZN1X1gEv")
+        )
+        nm = (
+            f"{at['_ZN1X1fEv']:08x} 00000002 T _ZN1X1fEv\n{at['_ZN1X1gEv']:08x} 00000002 T _ZN1X1gEv\n"
+            f"{at['_ZL6before']:08x} 00000004 r _ZL6before\n"
+        )
+        # After `before`: 12 bytes of padding, then a vtable no symbol names (drop, size, align, method).
+        rodata = struct.pack(
+            "<I3I4I", 7, 0, 0, 0, at["_ZN1X1fEv"] | 1, 8, 4, at[slot] | 1
+        )
+        init = struct.pack("<2I", *(at[f] | 1 for f in order))
+        return (listing, nm), [
+            (at["_ZL6before"], rodata),
+            (0x20300000 + shift, init, ".init_array"),
+        ]
+
+    def compare(self, a, b):
+        (ia, da), (ib, db) = a, b
+        return self.run_main(
+            {"a.elf": ia, "b.elf": ib}, blobs={"a.elf": da, "b.elf": db}
+        )
+
+    def test_a_slot_of_an_unnamed_vtable_retargeted_is_a_change(self):
+        status, printed = self.compare(self.image("_ZN1X1fEv"), self.image("_ZN1X1gEv"))
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("data changed: 1"), printed)
+
+    def test_init_array_in_another_order_is_a_change(self):
+        status, printed = self.compare(
+            self.image("_ZN1X1fEv"),
+            self.image("_ZN1X1fEv", order=("_ZN1X1gEv", "_ZN1X1fEv")),
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  .init_array"), printed)
+
+    def test_the_same_unnamed_data_at_other_addresses_compares_identical(self):
+        status, _ = self.compare(
+            self.image("_ZN1X1gEv"), self.image("_ZN1X1gEv", shift=0x100)
+        )
+        self.assertEqual(status, 0)
+
+
 class LiteralLoads(MainHarness, unittest.TestCase):
     """A pc-relative load names the literal it reads by its index in the function, as a branch names its target."""
 

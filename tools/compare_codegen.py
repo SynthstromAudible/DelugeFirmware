@@ -73,16 +73,23 @@ identifier bytes that look like one; that can only make a key differ between ima
 at two addresses of one image never share a key. Names at one address (folded aliases) are one symbol and may share a
 key: a reference to either is the same, so an alias set that regroups between the images still pairs.
 
-Data objects are compared too: every sized symbol whose bytes a loaded, non-executable section holds (.rodata, .data,
-the SDRAM content inflated from .sdram_init_pack; not unwind tables), other than functions and local labels (`.str.N`,
-`.Lanon.…`, whose names do not last), keyed like functions (renames, aliases, twins). Each 4-byte-aligned word that
-holds an address reads as what it points at: a symbol's start (`<f>+1` for a Thumb function), a vtable's first slot, a
-place inside a named object (`<table>+offset`), the C string that starts there, or a Rust `&str`'s text (as long as the
-word after it says); any other word compares raw. Two words match when their raw values or what they read as match,
-because a value that only looks like an address (a sample, a character table) keeps its value while what it would point
-at moves. A pointer retargeted to another object that sits where the old one did keeps its value and so compares clean.
-Data objects that differ, appear or go are reported as `data changed`, `data added` and `data removed`, and count toward
-the exit status, so vtables, dispatch tables and pointer tables are gated.
+Data is compared too. Every sized symbol whose bytes a loaded, non-executable section holds (.rodata, .data, the SDRAM
+content inflated from .sdram_init_pack), other than functions and local labels (`.str.N`, `.Lanon.…`, whose names do not
+last), is an object, keyed like functions (renames, aliases, twins); `.init_array` (and any `.fini_array`) is an object
+of its own, an ordered list of functions. Each 4-byte-aligned word that holds an address reads as what it points at: a
+symbol's start (`<f>+1` for a Thumb function), a place inside a named object (`<table>+offset`, a vtable's slots among
+them), the C string that starts there, or a Rust `&str`'s text (as long as the word after it says); any other word
+compares raw, as do the bytes around the aligned words. Two words match when what they read as matches or their raw
+values do: a value that only looks like an address (a sample, a character table) keeps its value while the object it
+would point into moves. What no sized symbol covers (string literals and Rust's format templates, panic locations, a
+Rust trait object's vtable, exception tables) is text that compare_strings compares, and words that shift with that
+text; there only the words that point at a symbol's start or a function are compared, each run of them keyed by the
+nearest named symbol before it and its ordinal there. So vtables, dispatch tables, pointer tables, `.init_array` and the
+function pointers of unnamed vtables are gated. Not compared: the other words of unsymbolled data (a trait vtable's size
+and alignment, a panic location's line and column), the unwind tables (.ARM.exidx, .sdram_exidx: offsets that follow the
+layout), and anything not loaded (.bss). A pointer retargeted to the object that now sits at the old target's address
+keeps its value, and so compares clean. Data objects that differ, appear or go are reported as `data changed`, `data
+added` and `data removed`, and count toward the exit status.
 
 The linker folds identical functions into one body that several symbols name. Each such body is registered under every
 one of its names, so two images that print different names for one folded body compare alike while a function that
@@ -1121,6 +1128,8 @@ def classifier(segments_text: str, nm_sized: str, rename=keep):
 
 # Sections that hold no objects to compare: the packed SDRAM image (its content is read inflated) and unwind tables,
 # whose entries are offsets that follow the layout.
+# Sections that are lists of function pointers, compared in order (the static constructors' order is theirs).
+POINTER_ARRAYS = ("INIT_ARRAY", "FINI_ARRAY", "PREINIT_ARRAY")
 UNREAD_SECTIONS = re.compile(r"^\.(?:sdram_init_pack|ARM\.ex(?:idx|tab)|sdram_exidx)")
 SECTION_HEADER = re.compile(
     r"\]\s+(\S+)\s+(\S+)\s+([0-9a-f]{8})\s+[0-9a-f]+\s+([0-9a-f]+)\s+[0-9a-f]+\s+([A-Z]*)"
@@ -1150,6 +1159,7 @@ def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, b
 
     found = []
     sdram_at = None
+    sdram_exidx = None
     for line in sections_text.splitlines():
         m = SECTION_HEADER.search(line)
         if not m:
@@ -1162,6 +1172,10 @@ def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, b
         )
         if name == ".sdram_init":
             sdram_at = address
+        if name == ".sdram_exidx":
+            sdram_exidx = address
+        if kind in POINTER_ARRAYS and int(m.group(4), 16):
+            found.append((address, compare_strings.section(objcopy, elf, name), name))
         if (
             kind == "PROGBITS"
             and "A" in flags
@@ -1174,6 +1188,12 @@ def loaded_data(objcopy: str, elf: str, sections_text: str) -> list[tuple[int, b
             found.append((address, compare_strings.section(objcopy, elf, name)))
     if sdram_at is not None:
         content = compare_strings.sdram(objcopy, elf)
+        if sdram_exidx is not None and sdram_at <= sdram_exidx < sdram_at + len(
+            content
+        ):
+            content = content[
+                : sdram_exidx - sdram_at
+            ]  # its unwind table: offsets that follow the layout
         if content:
             found.append((sdram_at, content))
     return found
@@ -1218,6 +1238,11 @@ def data_objects(
         if name.startswith("_ZTV") and size >= 12
     }
 
+    arrays = [
+        (entry[0], entry[1], entry[2]) for entry in blobs if len(entry) > 2 and entry[2]
+    ]
+    blobs = [(entry[0], entry[1]) for entry in blobs if len(entry) == 2 or not entry[2]]
+
     def content(address: int, size: int) -> bytes | None:
         for base, blob in blobs:
             if base <= address and address + size <= base + len(blob):
@@ -1259,6 +1284,11 @@ def data_objects(
         ]
         return max(held) if held else None
 
+    def strong(reading: str) -> bool:
+        """Whether @p reading names a symbol's start, a Thumb function or a string: what a value can only be by being
+        that pointer."""
+        return reading.endswith((">+0", ">+1")) or reading.startswith(("<'", '<"'))
+
     def loaded(value: int) -> bool:
         return any(lo <= value < hi for lo, hi in loads)
 
@@ -1285,18 +1315,11 @@ def data_objects(
                 return f"<{body.decode('ascii')!r}>"
         return f"{value:08x}"
 
-    objects: dict[str, tuple] = {}
-    for address, size, kind, name in symbols:
-        if not size or kind in "tTwW" or name.startswith((".", "$")):
-            continue
-        if kind == "?" and sdram_text[0] <= address < sdram_text[1]:
-            continue
-        body = content(address, size)
-        if body is None:
-            continue
+    def read(address: int, body: bytes) -> tuple:
+        """@p body, loaded at @p address, as words (see data_objects())."""
         values = [
             struct.unpack_from("<I", body, at)[0]
-            for at in range(-address % 4, size - 3, 4)
+            for at in range(-address % 4, len(body) - 3, 4)
         ]
         words = []
         head = -address % 4
@@ -1311,9 +1334,83 @@ def data_objects(
                 )
             )
             at += 4
-        if at < size:
+        if at < len(body):
             words.append((body[at:].hex(),) * 2)
-        objects.setdefault(rename(LTO_SUFFIX.sub("", name)), tuple(words))
+        return tuple(words)
+
+    def is_object(size: int, kind: str, name: str, address: int) -> bool:
+        if not size or kind in "tTwW" or name.startswith((".", "$")):
+            return False
+        return not (kind == "?" and sdram_text[0] <= address < sdram_text[1])
+
+    objects: dict[str, tuple] = {}
+    for address, size, kind, name in symbols:
+        if not is_object(size, kind, name, address):
+            continue
+        body = content(address, size)
+        if body is None:
+            continue
+        objects.setdefault(rename(LTO_SUFFIX.sub("", name)), read(address, body))
+    for address, body, name in arrays:
+        objects[name] = read(address, body)
+    # What no sized symbol covers: padding, string literals and Rust's format templates, panic locations, a Rust
+    # trait object's vtable, an exception table. Its text is compare_strings' (the moved paths in it differ by
+    # design), and its other words shift with that text, so only the aligned words that point at a symbol's start
+    # or a function are kept; each run of them, keyed by the nearest named symbol before it and its ordinal there,
+    # is compared as an object.
+    covered = sorted(
+        (a, a + size)
+        for a, size, kind, name in symbols
+        if size and not name.startswith((".", "$"))
+    )
+    covered.append((sdram_text[0], sdram_text[1]))
+    anchors = sorted(
+        (a, name)
+        for a, _, _, name in symbols
+        if not name.startswith((".", "$", "GCC_except_table"))
+    )
+    anchor_starts = [a for a, _ in anchors]
+    counts: dict[str, int] = {}
+
+    for base, blob in blobs:
+        cursor = base
+        end = base + len(blob)
+        spans = []
+        for start, stop in sorted(c for c in covered if c[1] > base and c[0] < end):
+            if start > cursor:
+                spans.append((cursor, min(start, end)))
+            cursor = max(cursor, stop)
+        if cursor < end:
+            spans.append((cursor, end))
+        for start, stop in spans:
+            run: list[tuple] = []
+            run_at = None
+            first = start + (-start % 4)
+            for at in [*range(first, stop - 3, 4), None]:
+                keep = False
+                if at is not None:
+                    word = blob[at - base : at - base + 4]
+                    value = struct.unpack("<I", word)[0]
+                    after = blob[at - base + 4 : at - base + 8]
+                    reading = token(
+                        value,
+                        struct.unpack("<I", after)[0] if len(after) == 4 else None,
+                    )
+                    keep = reading.endswith((">+0", ">+1"))
+                if keep:
+                    if run_at is None:
+                        run_at = at
+                    run.append((f"{value:08x}", reading))
+                    continue
+                if run:
+                    i = bisect.bisect_right(anchor_starts, run_at) - 1
+                    anchor = (
+                        rename(LTO_SUFFIX.sub("", anchors[i][1])) if i >= 0 else "^"
+                    )
+                    ordinal = counts.get(anchor, 0)
+                    counts[anchor] = ordinal + 1
+                    objects[f"(after {anchor} #{ordinal})"] = tuple(run)
+                run, run_at = [], None
     return objects
 
 
