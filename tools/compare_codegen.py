@@ -11,7 +11,9 @@ them. This compares what an address names instead of its value, so that what rem
   index of the instruction it lands on;
 - an address in a literal-pool word, or built by a `movw`/`movt` pair, becomes ADDR<symbol> when it falls inside a
   sized symbol, and ADDR when it falls in a loaded segment but in no symbol (merged string literals);
-- a pc-relative load or adr loses its offset (its pool word is compared where it sits);
+- a pc-relative load or adr into the function names the literal it reads by its index, as a branch names its
+  target, so a load moved between two literals of the function is a change (the pool words are compared where they
+  sit); one that reads outside the function loses its offset;
 - the linker's trap fill between functions is dropped.
 A value outside every loaded segment is a constant and compares as is, as does every other immediate.
 
@@ -128,6 +130,8 @@ SYMBOL = re.compile(r"<([^<>]+)>")
 LTO_SUFFIX = re.compile(r"\.llvm\.\d+")
 WORD = re.compile(r"^\.word\s+0x([0-9a-f]{8})$")
 PC_RELATIVE = re.compile(r"\[pc, #-?\w+\]")
+# The literal a pc-relative load reads, as objdump's annotation names it.
+LITERAL = re.compile(r"\[pc, #-?\w+\].*@ 0x([0-9a-f]+)")
 ADR = re.compile(r"^(adr\S*\s+\w+), #-?\w+")
 MOV_HALF = re.compile(r"^(mov[wt])(\S*) (\w+), #0x([0-9a-f]+)$")
 UNCONDITIONAL_BRANCH = re.compile(r"^(?:b(?:\.w)?\s|bx\s|pop(?:\.w)?\s+\{.*\bpc\})")
@@ -309,12 +313,32 @@ def canonical(demangled: str, local: bool = False) -> str:
     return name + suffix
 
 
-def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) -> str:
+def normalise(
+    line: str,
+    rename=keep,
+    classify=low_ram,
+    local=None,
+    alias=None,
+    address: int | None = None,
+) -> str:
     """One disassembled instruction with its raw bytes, annotations and pc-relative offsets removed. A target in the
     function goes through @p local (address -> its instruction index); any other goes through @p alias (address -> the
     name of a body several symbols share) or, without one, @p rename. A literal word that @p classify names an address
-    becomes that name."""
+    becomes that name. A pc-relative load names the literal it reads (its annotation's address) by its index in the
+    function, `[pc, <.k>]`, and an `adr` at @p address its target (Align(pc, 4) + its immediate, pc being @p address +
+    4, as Thumb code reads it) the same way, so a load moved between two literals of one function is a change."""
+    literal = LITERAL.search(line)
     text = RAW_BYTES.sub("", ANNOTATION.sub("", line.strip()))
+    pool = None
+    if literal and local is not None:
+        pool = local(int(literal.group(1), 16))
+    adr = ADR.match(text)
+    if adr and local is not None and address is not None:
+        immediate = re.match(r"^adr\S*\s+\w+, #(-?(?:0x[0-9a-f]+|\d+))", text)
+        if immediate:
+            index = local(((address + 4) & ~3) + int(immediate.group(1), 0))
+            if index is not None:
+                return " ".join(f"{adr.group(1)} <.{index}>".split())
 
     def target(m: re.Match) -> str:
         if local is not None:
@@ -336,7 +360,7 @@ def normalise(line: str, rename=keep, classify=low_ram, local=None, alias=None) 
         ),
         text,
     )
-    text = PC_RELATIVE.sub("[pc]", text)
+    text = PC_RELATIVE.sub(f"[pc, <.{pool}>]" if pool is not None else "[pc]", text)
     text = ADR.sub(r"\1", text)
     text = " ".join(text.split())
     word = WORD.match(text)
@@ -462,7 +486,8 @@ def functions(
             body.pop()
         index = {address: i for i, (address, _) in enumerate(body)}
         lines = [
-            normalise(text, rename, classify, index.get, least) for _, text in body
+            normalise(text, rename, classify, index.get, least, address)
+            for address, text in body
         ]
         result[name] = tuple(mask_address_halves(lines, classify))
     return result

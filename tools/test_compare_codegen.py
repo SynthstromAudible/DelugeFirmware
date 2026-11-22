@@ -910,6 +910,48 @@ class SameNamedSymbols(MainHarness, unittest.TestCase):
             number_twins(nm, listing)
 
 
+class LiteralLoads(MainHarness, unittest.TestCase):
+    """A pc-relative load names the literal it reads by its index in the function, as a branch names its target."""
+
+    def image(self, literal: int, adr: int = 0x20001008) -> tuple[str, str]:
+        offset = literal - 0x20001004
+        listing = (
+            "20001000 <foo>:\n"
+            f"20001000:      \tldr\tr0, [pc, #0x{offset:x}]           @ 0x{literal:x} <foo+0x{literal - 0x20001000:x}>\n"
+            f"20001002:      \tadr\tr1, #{adr - 0x20001004} <foo+0x{adr - 0x20001000:x}>\n"
+            "20001004:      \tbx\tlr\n"
+            "20001006:      \tnop\n"
+            "20001008:      \t.word\t0x11111111\n"
+            "2000100c:      \t.word\t0x22222222\n"
+        )
+        return listing, "20001000 00000010 T foo\n"
+
+    def test_a_load_moved_to_another_literal_of_the_function_is_a_change(self):
+        status, printed = self.run_main(
+            {"a.elf": self.image(0x20001008), "b.elf": self.image(0x2000100C)}
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+
+    def test_an_adr_moved_to_another_literal_of_the_function_is_a_change(self):
+        status, printed = self.run_main(
+            {
+                "a.elf": self.image(0x20001008, adr=0x20001008),
+                "b.elf": self.image(0x20001008, adr=0x2000100C),
+            }
+        )
+        self.assertEqual(status, 1)
+        self.assertIn(mock.call("  foo"), printed)
+
+    def test_the_same_loads_at_another_address_compare_identical(self):
+        moved = tuple(
+            t.replace("2000100", "2000300").replace("20001000 ", "20003000 ")
+            for t in self.image(0x2000100C)
+        )
+        status, _ = self.run_main({"a.elf": self.image(0x2000100C), "b.elf": moved})
+        self.assertEqual(status, 0)
+
+
 class UniquifiedCopies(MainHarness, unittest.TestCase):
     """rustc and LLVM uniquify a Rust internal function as `name.N`, numbering it across the image, so a change
     elsewhere renumbers it; the copies are read as twins, placed by their anchors."""
