@@ -1285,6 +1285,23 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	return ticksTilNextArpEvent;
 }
 
+// The active Clip's NoteRow for drum, and its index. The sequencer and auditioning already pass that NoteRow in the
+// model stack, so use it when it's the right one, rather than searching every row for every note (O(rows^2) per step).
+// A drum has at most one NoteRow in a Clip, so this finds the same row as getNoteRowForDrum().
+NoteRow* Kit::getNoteRowForDrumInActiveClip(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t* index) {
+	InstrumentClip* clip = (InstrumentClip*)activeClip;
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (noteRow != nullptr && noteRow->drum == drum && modelStack->getTimelineCounterAllowNull() == clip) {
+		int32_t noteRowId = modelStack->noteRowId;
+		if (noteRowId >= 0 && noteRowId < clip->noteRows.getNumElements()
+		    && clip->noteRows.getElement(noteRowId) == noteRow) {
+			*index = noteRowId;
+			return noteRow;
+		}
+	}
+	return clip->getNoteRowForDrum(drum, index);
+}
+
 void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
                           int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
                           int32_t ticksLate, uint32_t samplesLate) {
@@ -1296,7 +1313,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate, samplesLate);
 		return;
 	}
-	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	NoteRow* thisNoteRow = getNoteRowForDrumInActiveClip(modelStack, drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
@@ -1338,7 +1355,7 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 		drum->noteOff(modelStack, velocity);
 		return;
 	}
-	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	NoteRow* thisNoteRow = getNoteRowForDrumInActiveClip(modelStack, drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
