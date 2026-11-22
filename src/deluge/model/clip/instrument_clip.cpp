@@ -31,6 +31,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/note_regrouper.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
@@ -112,6 +113,7 @@ InstrumentClip::~InstrumentClip() {
 	// That's ok. Whereas, for AudioClips, it's made sure that all linear recording is stopped first
 
 	deleteBackedUpParamManagerMIDI();
+	DeferredNoteOns::forgetClip(this);
 }
 
 void InstrumentClip::deleteBackedUpParamManagerMIDI() {
@@ -887,9 +889,12 @@ doNewProbability:
 					}
 				}
 
-				// probability, iterance and fill conditions have passed
+				// probability, iterance and fill conditions have passed. If the note couldn't get a voice in this
+				// render anyway, it may be held back to be sent in a later one (see DeferredNoteOns)
 				if (conditionPassed) {
-					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+					if (!DeferredNoteOns::tryDefer(this, pendingNoteOnList.pendingNoteOns[i])) {
+						sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+					}
 				}
 				else {
 					pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;

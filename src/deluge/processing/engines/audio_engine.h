@@ -229,6 +229,7 @@ extern deluge::fast_vector<Sound*> sounds;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
+extern ParamManagerForTimeline* paramManagerForSamplePreview;
 extern int32_t reverbSidechainVolume;
 extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
@@ -259,8 +260,11 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 	return channel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && channel != AudioInputChannel::USB;
 }
 
-/// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
-bool allowedToStartVoice();
+/// The voice-start budget. Only DeferredNoteOns starts voices for new notes, so only it calls these.
+/// Whether another voice start would no longer fit in this render's time (or, between renders, before the next one)
+bool wouldRefuseVoiceStart();
+/// A voice was started, taking this long (system timer ticks, see getSystemTicks())
+void voiceStarted(uint32_t ticksTaken);
 
 /// Remove these gate channels from any output waiting to be sent by the MIDI/gate timer, because they've been
 /// superseded by a newer state which is being output now

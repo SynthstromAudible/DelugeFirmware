@@ -24,6 +24,7 @@
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
@@ -67,6 +68,7 @@ NoteRow::NoteRow(int16_t newY) {
 }
 
 NoteRow::~NoteRow() {
+	DeferredNoteOns::forgetNoteRow(this);
 	deleteOldDrumNames(false);
 }
 
@@ -1768,6 +1770,8 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
+	// Start from the first screen, so copies on screens before editPos's get the change too
+	editPos = (uint32_t)editPos % wrapEditLevel;
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
 
@@ -1875,6 +1879,8 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 	if (!sequenced) {
 		return;
 	}
+	// If its note-on was held back from the tick and hasn't been sent yet, it mustn't be now
+	DeferredNoteOns::forgetNoteRow(this);
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
