@@ -111,8 +111,8 @@ private:
 	                               int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
 	                               int32_t interpolationBufferSize, int32_t whichKernel, int32_t priorityRating);
 
-	// Loop crossfade: the next pass through the loop, started early so it can fade in while we fade out. Only allocated
-	// once the note first crossfades, so it costs nothing when the feature isn't used
+	// Loop crossfade: the next pass through the loop, started early so it can fade in while we fade out. Taken from
+	// AudioEngine's LoopCrossfadeReaderPool when the note first crossfades, and given back when the voice ends
 	SampleLowLevelReader* loopIncoming = nullptr;
 	int32_t loopCrossfadeLength = 0; // In source samples, for the crossfade in progress. 0 when not crossfading
 

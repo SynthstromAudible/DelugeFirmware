@@ -44,6 +44,7 @@ class SampleRecorder;
 class Voice;
 class VoiceSample;
 class TimeStretcher;
+class SampleLowLevelReader;
 class String;
 class SideChain;
 class VoiceVector;
@@ -142,6 +143,8 @@ namespace AudioEngine {
 using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
+/// The second reader a VoiceSample plays the incoming pass of a loop crossfade with
+using LoopCrossfadeReaderPool = deluge::memory::ObjectPool<SampleLowLevelReader, deluge::memory::fast_allocator>;
 void routine();
 void routine_task();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
@@ -175,6 +178,9 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
+
+SampleLowLevelReader* solicitLoopCrossfadeReader();
+void loopCrossfadeReaderUnassigned(SampleLowLevelReader* reader);
 
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();

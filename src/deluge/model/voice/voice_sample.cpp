@@ -79,11 +79,10 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 	}
 
 	if (loopIncoming == nullptr) {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleLowLevelReader));
-		if (memory == nullptr) {
+		loopIncoming = AudioEngine::solicitLoopCrossfadeReader();
+		if (loopIncoming == nullptr) {
 			return; // Just loop without the crossfade
 		}
-		loopIncoming = new (memory) SampleLowLevelReader();
 	}
 
 	loopIncoming->oscPos = oscPos;
@@ -118,8 +117,7 @@ void VoiceSample::cancelLoopCrossfade() {
 
 void VoiceSample::freeLoopIncoming() {
 	if (loopIncoming != nullptr) {
-		loopIncoming->~SampleLowLevelReader(); // Unassigns its Clusters
-		GeneralMemoryAllocator::get().dealloc(loopIncoming);
+		AudioEngine::loopCrossfadeReaderUnassigned(loopIncoming);
 		loopIncoming = nullptr;
 	}
 	loopCrossfadeLength = 0;
