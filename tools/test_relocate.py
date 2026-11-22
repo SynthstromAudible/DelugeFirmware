@@ -34,6 +34,17 @@ class Repo:
     def read(self, rel: str) -> str:
         return (self.root / rel).read_text()
 
+    def relocate_rc(self, *args: str) -> int:
+        return subprocess.run(
+            ["python3", str(Path(relocate.__file__)), "--repo", str(self.root), *args],
+            capture_output=True,
+            check=False,
+        ).returncode
+
+    def relocate(self, *args: str) -> None:
+        rc = self.relocate_rc(*args)
+        assert rc == 0, f"relocate {args} exited {rc}"
+
     def close(self) -> None:
         self._tmp.cleanup()
 
@@ -381,6 +392,249 @@ class DryRun(unittest.TestCase):
             )
         finally:
             repo.close()
+
+
+class RepoMoves(unittest.TestCase):
+    def repo(self, files):
+        r = Repo(files)
+        self.addCleanup(r.close)
+        return r
+
+    def test_a_member_crate_moves_and_its_workspace_and_dependents_follow(self):
+        r = self.repo(
+            {
+                "crates/Cargo.toml": '[workspace]\nmembers = ["a", "b"]\n',
+                "crates/a/Cargo.toml": '[package]\nname = "a"\n[lib]\nname = "a"\n',
+                "crates/a/src/lib.rs": "pub fn f() {}\n",
+                "crates/b/Cargo.toml": '[package]\nname = "b"\n[dependencies]\na = { path = "../a" }\n',
+                "crates/b/src/lib.rs": "use a::f;\n",
+                "bsp/Cargo.toml": '[package]\nname = "bsp"\n[dependencies]\na = { path = "../crates/a" }\n',
+                "CMakeLists.txt": "set(X ${CMAKE_SOURCE_DIR}/crates/a/include)\n",
+            }
+        )
+        r.relocate(
+            "--repo-move",
+            "crates/a",
+            "src/base/alloc",
+            "--crate",
+            "a=deluge_base_alloc",
+        )
+        self.assertIn(
+            'members = ["../src/base/alloc", "b"]', r.read("crates/Cargo.toml")
+        )
+        a = r.read("src/base/alloc/Cargo.toml")
+        self.assertIn('name = "deluge_base_alloc"', a)
+        self.assertIn('workspace = "../../../crates"', a)
+        self.assertIn(
+            'deluge_base_alloc = { path = "../../src/base/alloc" }',
+            r.read("crates/b/Cargo.toml"),
+        )
+        self.assertIn(
+            'deluge_base_alloc = { path = "../src/base/alloc" }',
+            r.read("bsp/Cargo.toml"),
+        )
+        self.assertEqual(r.read("crates/b/src/lib.rs"), "use deluge_base_alloc::f;\n")
+        self.assertIn(
+            "${CMAKE_SOURCE_DIR}/src/base/alloc/include", r.read("CMakeLists.txt")
+        )
+
+    def test_a_moved_manifest_recomputes_its_outgoing_paths(self):
+        r = self.repo(
+            {
+                "src/bsp/rust/Cargo.toml": '[package]\nname = "deluge-bsp-rust"\n[dependencies]\nx = { path = "../../../crates/x" }\n',
+                "src/bsp/rust/src/lib.rs": "",
+                "crates/x/Cargo.toml": '[package]\nname = "x"\n',
+                "crates/x/src/lib.rs": "",
+            }
+        )
+        r.relocate("--repo-move", "src/bsp/rust", "src/platform/device")
+        self.assertIn(
+            'x = { path = "../../../crates/x" }',
+            r.read("src/platform/device/Cargo.toml"),
+        )
+
+    def test_a_manifest_moving_deeper_recomputes_its_outgoing_paths(self):
+        r = self.repo(
+            {
+                "bsp/Cargo.toml": '[package]\nname = "bsp"\n[dependencies]\nx = { path = "../crates/x" }\n',
+                "crates/x/Cargo.toml": '[package]\nname = "x"\n',
+            }
+        )
+        r.relocate("--repo-move", "bsp", "src/platform/device")
+        self.assertIn(
+            'x = { path = "../../../crates/x" }',
+            r.read("src/platform/device/Cargo.toml"),
+        )
+
+    def test_a_path_token_is_rewritten_only_on_a_path_boundary(self):
+        r = self.repo(
+            {
+                "sim/CMakeLists.txt": "",
+                "a.cmake": "-S sim\n${R}/sim/compat\nsimulate\nsim_panel\n",
+            }
+        )
+        r.relocate("--repo-move", "sim", "src/platform/host")
+        self.assertEqual(
+            r.read("a.cmake"),
+            "-S src/platform/host\n${R}/src/platform/host/compat\nsimulate\nsim_panel\n",
+        )
+
+    def test_a_crate_rename_leaves_longer_identifiers(self):
+        r = self.repo(
+            {
+                "crates/deluge_rust/Cargo.toml": '[package]\nname = "deluge_rust"\n',
+                "crates/deluge_rust/src/lib.rs": "",
+                "t/CMakeLists.txt": "deluge_rust_rs libdeluge_rust.a -p deluge_rust\n",
+            }
+        )
+        r.relocate(
+            "--repo-move",
+            "crates/deluge_rust",
+            "tests/trees/host/rust",
+            "--crate",
+            "deluge_rust=deluge_test_rust",
+        )
+        self.assertEqual(
+            r.read("t/CMakeLists.txt"),
+            "deluge_rust_rs libdeluge_test_rust.a -p deluge_test_rust\n",
+        )
+
+    def test_refuses_a_target_inside_the_source(self):
+        r = self.repo({"crates/a/Cargo.toml": '[package]\nname = "a"\n'})
+        self.assertEqual(r.relocate_rc("--repo-move", "crates", "crates/x"), 2)
+
+    def test_refuses_an_existing_target_and_an_untracked_source(self):
+        r = self.repo({"a/x": "", "b/y": ""})
+        self.assertEqual(r.relocate_rc("--repo-move", "a", "b"), 2)
+        self.assertEqual(r.relocate_rc("--repo-move", "nope", "c"), 2)
+        self.assertEqual(r.relocate_rc("--repo-move", "a", "c", "--move", "x", "y"), 2)
+
+    def test_a_dependency_alias_keeps_its_key_and_gets_the_new_package_name(self):
+        r = self.repo(
+            {
+                "crates/alloc/Cargo.toml": '[package]\nname = "deluge_alloc"\n',
+                "bsp/Cargo.toml": (
+                    '[package]\nname = "bsp"\n'
+                    '[dependencies]\nfs_alloc = { package = "deluge_alloc", path = "../crates/alloc" }\n'
+                    "[target.'cfg(target_os = \"none\")'.dependencies]\n"
+                    'deluge_alloc = { path = "../crates/alloc", optional = true }\n'
+                    '[dependencies.other]\npath = "../crates/alloc"\n'
+                    "[profile.release.package.deluge_alloc]\nopt-level = 3\n"
+                    '[features]\nasan = ["deluge_alloc/asan", "dep:deluge_alloc"]\n'
+                ),
+            }
+        )
+        r.relocate(
+            "--repo-move",
+            "crates/alloc",
+            "src/base/alloc",
+            "--crate",
+            "deluge_alloc=deluge_base_alloc",
+        )
+        bsp = r.read("bsp/Cargo.toml")
+        self.assertIn(
+            'fs_alloc = { package = "deluge_base_alloc", path = "../src/base/alloc" }',
+            bsp,
+        )
+        self.assertIn(
+            'deluge_base_alloc = { path = "../src/base/alloc", optional = true }', bsp
+        )
+        self.assertIn('[dependencies.other]\npath = "../src/base/alloc"\n', bsp)
+        self.assertIn("[profile.release.package.deluge_base_alloc]", bsp)
+        self.assertIn('["deluge_base_alloc/asan", "dep:deluge_base_alloc"]', bsp)
+        self.assertIn('name = "deluge_base_alloc"', r.read("src/base/alloc/Cargo.toml"))
+
+    def test_a_dependencies_block_is_renamed_unless_it_aliases(self):
+        r = self.repo(
+            {
+                "c/a/Cargo.toml": '[package]\nname = "a"\n',
+                "m/Cargo.toml": (
+                    '[package]\nname = "m"\n[dependencies.a]\npath = "../c/a"\nfeatures = ["x"]\n'
+                    '[dev-dependencies.k]\npackage = "a"\npath = "../c/a"\n'
+                ),
+            }
+        )
+        r.relocate("--repo-move", "c/a", "d/z", "--crate", "a=zed")
+        m = r.read("m/Cargo.toml")
+        self.assertIn('[dependencies.zed]\npath = "../d/z"', m)
+        self.assertIn('[dev-dependencies.k]\npackage = "zed"\npath = "../d/z"', m)
+
+    def test_a_moved_member_inside_a_multiline_members_array_and_exclude_follow(self):
+        r = self.repo(
+            {
+                "w/Cargo.toml": '[workspace]\nmembers = [\n    "a", # one\n    "b",\n]\nexclude = ["a/fuzz"]\n',
+                "w/a/Cargo.toml": '[package]\nname = "a"\n',
+                "w/a/fuzz/Cargo.toml": '[package]\nname = "f"\n[dependencies.a]\npath = ".."\n',
+                "w/b/Cargo.toml": '[package]\nname = "b"\n',
+            }
+        )
+        r.relocate("--repo-move", "w/a", "z/a")
+        w = r.read("w/Cargo.toml")
+        self.assertIn('    "../z/a", # one\n    "b",', w)
+        self.assertIn('exclude = ["../z/a/fuzz"]', w)
+        self.assertIn('workspace = "../../w"', r.read("z/a/Cargo.toml"))
+        self.assertIn('path = ".."', r.read("z/a/fuzz/Cargo.toml"))
+        self.assertNotIn("workspace", r.read("z/a/fuzz/Cargo.toml"))
+
+    def test_a_cargo_path_is_not_also_rewritten_as_a_token(self):
+        r = self.repo(
+            {
+                "crates/x/Cargo.toml": '[package]\nname = "x"\n',
+                "src/bsp/Cargo.toml": '[package]\nname = "b"\n[dependencies]\nx = { path = "../../crates/x" }\n# see crates/x\n',
+            }
+        )
+        r.relocate("--repo-move", "crates/x", "src/base/x")
+        self.assertEqual(
+            r.read("src/bsp/Cargo.toml"),
+            '[package]\nname = "b"\n[dependencies]\nx = { path = "../base/x" }\n# see src/base/x\n',
+        )
+
+    def test_the_north_star_and_lock_files_are_never_rewritten(self):
+        r = self.repo(
+            {
+                "sim/a": "",
+                "docs/dev/code_layout_north_star.md": "| `sim` |\n",
+                "Cargo.lock": 'name = "sim"\n# sim\n',
+            }
+        )
+        r.relocate("--repo-move", "sim", "src/platform/host")
+        self.assertEqual(r.read("docs/dev/code_layout_north_star.md"), "| `sim` |\n")
+        self.assertEqual(r.read("Cargo.lock"), 'name = "sim"\n# sim\n')
+
+    def test_rust_identifiers_follow_a_rename_only_in_crate_position(self):
+        r = self.repo(
+            {
+                "c/a/Cargo.toml": '[package]\nname = "a_crate"\n',
+                "m/x.rs": "extern crate a_crate;\nuse a_crate::f;\nuse ::a_crate::g;\nlet a_crate_x = a_crate::h(); let a_crate = 1;\n",
+            }
+        )
+        r.relocate("--repo-move", "c/a", "d/z", "--crate", "a_crate=zed")
+        self.assertEqual(
+            r.read("m/x.rs"),
+            "extern crate zed;\nuse zed::f;\nuse ::zed::g;\nlet a_crate_x = zed::h(); let a_crate = 1;\n",
+        )
+
+    def test_dry_run_lists_the_move_and_changes_nothing(self):
+        r = self.repo({"sim/a": "", "d.md": "see sim/a\n"})
+        out = subprocess.run(
+            [
+                "python3",
+                str(Path(relocate.__file__)),
+                "--repo",
+                str(r.root),
+                "--repo-move",
+                "sim",
+                "x/sim",
+                "--dry-run",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assertIn("git mv sim x/sim", out)
+        self.assertIn("d.md: -see sim/a / +see x/sim/a", out)
+        self.assertEqual(r.read("d.md"), "see sim/a\n")
+        self.assertTrue((r.root / "sim/a").is_file())
 
 
 if __name__ == "__main__":

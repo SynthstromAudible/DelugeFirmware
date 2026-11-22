@@ -26,13 +26,32 @@ the same directory or one inside the other (a chain would move on disk different
 north-star layout document is never rewritten: its tables name today's paths beside their targets. Nor is any file
 under third_party/, toolchain/, lib/ or website/. An include spelled from tests/ (`"unit/OLD/..."`) is not respelled.
 
+--repo-move OLD NEW moves any tracked directory (both relative to the repo root) with git mv, and cannot be combined
+with --move. In every tracked text file outside the never-rewritten set, and never in a Cargo.lock, the token OLD is
+respelled NEW wherever it stands as a path: after the start of a line, `/`, a quote, whitespace or `(`, and before `/`,
+a quote, whitespace, `)` or the end. In every Cargo.toml, each `path = "..."`, `workspace = "..."` and
+`members`/`exclude`/`default-members` entry whose target lies in OLD, or whose manifest lies in OLD, is recomputed as
+the relative path from the manifest's new directory to the target's new location (the edits are line-level, so comments
+and formatting stay). A package that was a workspace member and would no longer sit under its root gets
+`workspace = "<path to the root>"` in `[package]`. Each --crate OLD=NEW renames a crate: `name =` in `[package]` and
+`[lib]`, dependency keys (a key that aliases another package, `x = { package = "OLD", ... }`, keeps its key and gets the
+new package name), `package = "OLD"`, `[profile.*.package.OLD]` and `dep:OLD` / `OLD/feature` entries in every
+Cargo.toml; the identifiers `OLD` in `use`, `extern crate` and `OLD::` position of every .rs file; and `libOLD.a`,
+`-p OLD`, `--package OLD` and backticked `OLD` in every text file. It is refused when NEW exists, when OLD and NEW
+contain one another, or when OLD is not a tracked directory. Depth arithmetic in anything but a manifest, paths built
+from variables, and build-script joins are not followed: grep the old spellings after applying.
+
 Usage:
     tools/relocate.py --move OLD NEW [--move OLD NEW ...] [--namespace OLD=NEW ...] [--target OLD=NEW ...] [--dry-run]
+    tools/relocate.py --repo-move OLD NEW [--crate OLD=NEW ...] [--dry-run]
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
+import fnmatch
+import posixpath
 import re
 import subprocess
 import sys
@@ -302,6 +321,367 @@ def apply(repo: Path, moves, namespaces, targets) -> None:
                 )
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# --repo-move: any tracked directory, Cargo path arithmetic, crate renames
+
+SENT_OPEN, SENT_CLOSE = "\x00", "\x01"
+DEP_TABLE = re.compile(
+    r"(^|\.)(dependencies|dev-dependencies|build-dependencies)$|^patch\."
+)
+DEP_BLOCK = re.compile(
+    r"^(.*\.)?(dependencies|dev-dependencies|build-dependencies)\.([^.]+)$"
+)
+HEADER = re.compile(r"^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
+WS_ARRAY = re.compile(r"^\s*(members|exclude|default-members)\s*=\s*\[")
+
+
+def moved(path: str, old: str, new: str) -> str:
+    if path == old or path.startswith(f"{old}/"):
+        return new + path[len(old) :]
+    return path
+
+
+def code_strings(line: str) -> tuple[list[tuple[int, int]], int]:
+    """Spans (inside the quotes) of the strings in a TOML line, and where its comment starts (len(line) if none)."""
+    spans: list[tuple[int, int]] = []
+    i, n = 0, len(line)
+    while i < n:
+        c = line[i]
+        if c == "#":
+            return spans, i
+        if c in "\"'":
+            j = i + 1
+            while j < n and line[j] != c:
+                j += 2 if (c == '"' and line[j] == "\\") else 1
+            spans.append((i + 1, min(j, n)))
+            i = j + 1
+        else:
+            i += 1
+    return spans, n
+
+
+def sentinel(value: str) -> str:
+    return f"{SENT_OPEN}{value}{SENT_CLOSE}"
+
+
+def split_sentinels(text: str) -> list[str]:
+    return re.split(f"({SENT_OPEN}.*?{SENT_CLOSE})", text, flags=re.DOTALL)
+
+
+def repo_path_token(old: str, new: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?:(?<=^)|(?<=[/\"'\s(])){re.escape(old)}(?=[/\"'\s)]|$)", re.MULTILINE
+    )
+
+
+class Workspaces:
+    """Which manifests are explicit members of which workspace roots, read against the layout before the move."""
+
+    def __init__(self, repo: Path, manifests: list[str]):
+        self.members: dict[str, list[str]] = {}
+        self.pointer: dict[str, str] = {}
+        self.globs: list[tuple[str, str]] = []
+        dirs = {posixpath.dirname(m) or "." for m in manifests}
+        for rel in manifests:
+            root = posixpath.dirname(rel) or "."
+            lists = workspace_lists(repo / rel)
+            if lists is None:
+                continue
+            excluded = {
+                posixpath.normpath(posixpath.join(root, e))
+                for e in lists.get("exclude", [])
+            }
+            for entry in lists.get("members", []):
+                if any(ch in entry for ch in "*?["):
+                    pattern = posixpath.normpath(posixpath.join(root, entry))
+                    self.globs.append((rel, pattern))
+                    for d in dirs:
+                        if fnmatch.fnmatch(d, pattern) and d not in excluded:
+                            self.members.setdefault(d, []).append(root)
+                    continue
+                target = posixpath.normpath(posixpath.join(root, entry))
+                if target not in excluded:
+                    self.members.setdefault(target, []).append(root)
+
+
+def workspace_lists(path: Path) -> dict[str, list[str]] | None:
+    """The `[workspace]` members/exclude entries of a manifest, or None when it has no `[workspace]`."""
+    lists: dict[str, list[str]] = {}
+    section = None
+    key = None
+    has = False
+    for line in path.read_text(encoding="utf-8", errors="surrogateescape").splitlines():
+        header = HEADER.match(line)
+        if header and key is None:
+            section = header.group(1)
+            has = has or section == "workspace"
+            continue
+        if section != "workspace":
+            continue
+        start = WS_ARRAY.match(line)
+        if start and key is None:
+            key = start.group(1)
+        if key is not None:
+            spans, comment = code_strings(line)
+            lists.setdefault(key, []).extend(line[a:b] for a, b in spans)
+            if "]" in re.sub(r'"[^"]*"|\'[^\']*\'', "", line[:comment]):
+                key = None
+    return lists if has else None
+
+
+def insert_workspace_pointer(text: str, pointer: str) -> str:
+    """Adds `workspace = "<pointer>"` to `[package]`, after its `name =` line when it has one."""
+    lines = text.splitlines(keepends=True)
+    in_package = False
+    at = None
+    for i, line in enumerate(lines):
+        header = HEADER.match(line.rstrip("\r\n"))
+        if header:
+            in_package = header.group(1) == "package"
+            if in_package and at is None:
+                at = i + 1
+        elif in_package and re.match(r'\s*name\s*=\s*"', line):
+            at = i + 1
+            break
+    if at is None:
+        return text
+    if not lines[at - 1].endswith("\n"):
+        lines[at - 1] += "\n"
+    lines.insert(at, f'workspace = "{pointer}"\n')
+    return "".join(lines)
+
+
+def rewrite_manifest(rel, text, old, new, crates, ws: Workspaces) -> str:
+    """Cargo path arithmetic and crate renames for one Cargo.toml, line by line, every other byte untouched."""
+    here = posixpath.dirname(rel) or "."
+    here_new = moved(here, old, new)
+    lines = text.splitlines(keepends=True)
+    sections: list[str | None] = []
+    current = None
+    alias_blocks: set[str] = set()
+    block_name = None
+    for line in lines:
+        header = HEADER.match(line.rstrip("\r\n"))
+        if header:
+            current = header.group(1)
+            block_name = current if DEP_BLOCK.match(current) else None
+        elif block_name and re.search(r'(?<![\w-])package\s*=\s*"', line):
+            alias_blocks.add(block_name)
+        sections.append(current)
+
+    def relocated(value: str) -> str:
+        if posixpath.isabs(value):
+            return value
+        target = posixpath.normpath(posixpath.join(here, value))
+        if target.startswith(".."):
+            return value
+        new_value = posixpath.relpath(moved(target, old, new), here_new)
+        return value if new_value == posixpath.relpath(target, here) else new_value
+
+    out: list[str] = []
+    in_array = False
+    for line, section in zip(lines, sections):
+        body = line.rstrip("\r\n")
+        tail = line[len(body) :]
+        header = HEADER.match(body)
+        comment = code_strings(body)[1]
+        if header:
+            name = header.group(1)
+            block = DEP_BLOCK.match(name)
+            for crate_old, crate_new in crates:
+                if block and block.group(3) == crate_old and name not in alias_blocks:
+                    body = body.replace(f".{crate_old}]", f".{crate_new}]", 1)
+                if re.search(
+                    rf"(^|\.)profile\.[^.]+\.package\.{re.escape(crate_old)}$", name
+                ):
+                    body = body.replace(
+                        f".package.{crate_old}]", f".package.{crate_new}]", 1
+                    )
+            out.append(body + tail)
+            in_array = False
+            continue
+
+        # path / workspace values (their text is protected from the token pass)
+        def path_value(m: re.Match[str]) -> str:
+            return f'{m.group(1)}"{sentinel(relocated(m.group(2)))}"'
+
+        head, rest = body[:comment], body[comment:]
+        if section == "workspace" and (in_array or WS_ARRAY.match(head)):
+            in_array = True
+            pieces, last = [], 0
+            for a, b in code_strings(head)[0]:
+                pieces.append(head[last:a] + sentinel(relocated(head[a:b])))
+                last = b
+            head = "".join(pieces) + head[last:]
+            if "]" in re.sub(r'"[^"]*"|\'[^\']*\'', "", head):
+                in_array = False
+        else:
+            head = re.sub(
+                r'((?<![\w-])(?:path|workspace)\s*=\s*)"([^"]*)"', path_value, head
+            )
+        for crate_old, crate_new in crates:
+            if section in ("package", "lib"):
+                head = re.sub(
+                    rf'^(\s*name\s*=\s*"){re.escape(crate_old)}(")',
+                    rf"\g<1>{crate_new}\2",
+                    head,
+                )
+            if (
+                section
+                and DEP_TABLE.search(section)
+                and not re.search(r"(?<![\w-])package\s*=", head)
+            ):
+                head = re.sub(
+                    rf"^(\s*){re.escape(crate_old)}(\s*=)", rf"\g<1>{crate_new}\2", head
+                )
+            head = re.sub(
+                rf'((?<![\w-])package\s*=\s*"){re.escape(crate_old)}(")',
+                rf"\g<1>{crate_new}\2",
+                head,
+            )
+            if section == "features":
+                head = re.sub(
+                    rf'"(dep:)?{re.escape(crate_old)}(\??/[^"]*|)"',
+                    lambda m, n=crate_new: (
+                        (f'"{m.group(1) or ""}{n}{m.group(2)}"')
+                        if (m.group(1) or m.group(2))
+                        else m.group(0)
+                    ),
+                    head,
+                )
+        out.append(head + rest + tail)
+
+    result = "".join(out)
+    # a package that stops being under its workspace root names it
+    if here in ws.members and not re.search(
+        r'^\s*workspace\s*=\s*"', result, re.MULTILINE
+    ):
+        for root in (r for r in ws.members[here] if r != here):
+            root_new = moved(root, old, new)
+            either_moved = here_new != here or root_new != root
+            under_root = root_new == "." or here_new.startswith(f"{root_new}/")
+            if either_moved and not under_root:
+                pointer = posixpath.relpath(root_new, here_new)
+                result = insert_workspace_pointer(result, sentinel(pointer))
+                break
+    return result
+
+
+def crate_idents(text: str, crates: list[tuple[str, str]]) -> str:
+    for old, new in crates:
+        o = re.escape(old)
+        text = re.sub(rf"(?<![\w:]){o}(?=\s*::)", new, text)
+        text = re.sub(rf"(\buse\s+(?:::)?){o}\b", rf"\g<1>{new}", text)
+        text = re.sub(rf"(\bextern\s+crate\s+){o}\b", rf"\g<1>{new}", text)
+    return text
+
+
+def crate_words(text: str, crates: list[tuple[str, str]]) -> str:
+    for old, new in crates:
+        o = re.escape(old)
+        text = re.sub(rf"\blib{o}\.a\b", f"lib{new}.a", text)
+        text = re.sub(
+            rf"(?<![\w-])(-p\s+|--package[\s=]+){o}(?![\w-])", rf"\g<1>{new}", text
+        )
+        text = text.replace(f"`{old}`", f"`{new}`")
+    return text
+
+
+def check_repo_move(repo: Path, old: str, new: str) -> None:
+    if old.strip("/") != old or new.strip("/") != new or not old or not new:
+        raise Refused(
+            "OLD and NEW are repo-relative paths without a leading or trailing slash"
+        )
+    if overlaps(old, new):
+        raise Refused(
+            f"{old} and {new} contain one another"
+            if old != new
+            else "OLD and NEW are the same"
+        )
+    if (repo / new).exists():
+        raise Refused(f"{new} already exists")
+    if not any(rel.startswith(f"{old}/") for rel in tracked(repo)):
+        raise Refused(f"{old} is not a tracked directory")
+
+
+def plan_repo_move(
+    repo: Path, old: str, new: str, crates: list[tuple[str, str]]
+) -> dict[str, str]:
+    check_repo_move(repo, old, new)
+    files = tracked(repo)
+    manifests = [
+        rel
+        for rel in files
+        if Path(rel).name == "Cargo.toml" and (repo / rel).is_file()
+    ]
+    ws = Workspaces(repo, manifests)
+    dirs = {posixpath.dirname(m) or "." for m in manifests}
+    for root, pattern in ws.globs:
+        if any(
+            fnmatch.fnmatch(d, pattern) and (d == old or d.startswith(f"{old}/"))
+            for d in dirs
+        ):
+            raise Refused(
+                f"{root} lists members by glob ({pattern}); name the moved crate explicitly first"
+            )
+    token = repo_path_token(old, new)
+    changes = {}
+    for rel in files:
+        if (
+            not is_text(rel)
+            or Path(rel).name == "Cargo.lock"
+            or not (repo / rel).is_file()
+        ):
+            continue
+        before = (repo / rel).read_text(encoding="utf-8", errors="surrogateescape")
+        name = Path(rel).name
+        after = before
+        if name == "Cargo.toml":
+            after = rewrite_manifest(rel, after, old, new, crates, ws)
+        after = "".join(
+            part if i % 2 else token.sub(new, part)
+            for i, part in enumerate(split_sentinels(after))
+        )
+        if name == "Cargo.toml":
+            after = after.replace(SENT_OPEN, "").replace(SENT_CLOSE, "")
+        if Path(rel).suffix == ".rs":
+            after = crate_idents(after, crates)
+        after = crate_words(after, crates)
+        if after != before:
+            changes[rel] = after
+    return changes
+
+
+def apply_repo_move(
+    repo: Path, old: str, new: str, crates: list[tuple[str, str]]
+) -> None:
+    changes = plan_repo_move(repo, old, new, crates)
+    for rel, text in changes.items():
+        (repo / rel).write_text(text, encoding="utf-8", errors="surrogateescape")
+    (repo / new).parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "mv", old, new], cwd=repo, check=True)
+
+
+def diff_lines(path: Path, after: str) -> list[str]:
+    """`-old / +new` for each replaced line, `+new` for each added one."""
+    before = path.read_text(encoding="utf-8", errors="surrogateescape").splitlines()
+    now = after.splitlines()
+    out = []
+    for tag, a0, a1, b0, b1 in difflib.SequenceMatcher(
+        None, before, now, autojunk=False
+    ).get_opcodes():
+        if tag == "replace" and a1 - a0 == b1 - b0:
+            out += [
+                f"-{before[a0 + k].strip()} / +{now[b0 + k].strip()}"
+                for k in range(a1 - a0)
+            ]
+        elif tag != "equal":
+            out += [f"-{line.strip()}" for line in before[a0:a1]] + [
+                f"+{line.strip()}" for line in now[b0:b1]
+            ]
+    return out
+
+
 def changed_lines(path: Path, after: str) -> list[str]:
     """`-old / +new` for each rewritten line that is not an include line (those follow the compiler, not the eye)."""
     before = path.read_text(encoding="utf-8", errors="surrogateescape")
@@ -322,8 +702,10 @@ def pair(text: str) -> tuple[str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--move", nargs=2, action="append", metavar=("OLD", "NEW"), required=True
+        "--move", nargs=2, action="append", metavar=("OLD", "NEW"), default=[]
     )
+    parser.add_argument("--repo-move", nargs=2, metavar=("OLD", "NEW"))
+    parser.add_argument("--crate", type=pair, action="append", default=[])
     parser.add_argument("--namespace", type=pair, action="append", default=[])
     parser.add_argument("--target", type=pair, action="append", default=[])
     parser.add_argument(
@@ -334,7 +716,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=REPO, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     moves = [tuple(m) for m in args.move]
+    if bool(args.repo_move) == bool(moves):
+        parser.error("give exactly one of --move and --repo-move")
+    if args.crate and not args.repo_move:
+        parser.error("--crate goes with --repo-move")
     try:
+        if args.repo_move:
+            old, new = args.repo_move
+            if args.dry_run:
+                changes = plan_repo_move(args.repo, old, new, args.crate)
+                print(f"git mv {old} {new}")
+                for rel in sorted(changes):
+                    print(rel)
+                    for line in diff_lines(args.repo / rel, changes[rel]):
+                        print(f"{rel}: {line}")
+                return 0
+            apply_repo_move(args.repo, old, new, args.crate)
+            return 0
         if args.dry_run:
             changes = plan(args.repo, moves, args.namespace, args.target)
             for rel in sorted(changes):
