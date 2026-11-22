@@ -43,8 +43,8 @@
 
 #include "effects/host_chain/params.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -74,11 +74,12 @@ EncoderRole role_of(int32_t which_encoder) {
 /// @brief The descriptor of the param @p assignment names, from its owner's engine table; null for a cable, a MIDI
 ///        CC or an expression dimension.
 const deluge::plugin::ParamInfo* info_of(const ParamAddress& address, Kind kind) {
-	if (address.space != ParamSpace::ENGINE || deluge::instrument::is_cable_depth(address.id)) {
+	if (address.space != ParamSpace::ENGINE || deluge::instruments::classic::is_cable_depth(address.id)) {
 		return nullptr;
 	}
-	return kind == Kind::UNPATCHED_GLOBAL ? deluge::plugin::find_param(deluge::host_chain::kParams, address.id)
-	                                      : deluge::plugin::find_param(deluge::instrument::kParams, address.id);
+	return kind == Kind::UNPATCHED_GLOBAL
+	           ? deluge::plugin::find_param(deluge::host_chain::kParams, address.id)
+	           : deluge::plugin::find_param(deluge::instruments::classic::kParams, address.id);
 }
 
 /// @brief The param @p address names as the engine's collections number it, for the popup, the menu's same-param
@@ -91,13 +92,14 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 	case ParamSpace::ENGINE:
 		break;
 	}
-	if (deluge::instrument::is_cable_depth(address.id)) {
-		return static_cast<int32_t>(deluge::instrument::cable_word_of(address.id));
+	if (deluge::instruments::classic::is_cable_depth(address.id)) {
+		return static_cast<int32_t>(deluge::instruments::classic::cable_word_of(address.id));
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
 		return deluge::host_chain::find_runtime_index(address.id).value_or(0);
 	}
-	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
+	const std::optional<deluge::instruments::classic::RuntimeSlot> slot =
+	    deluge::instruments::classic::runtime_slot(address.id);
 	return slot ? slot->index : 0;
 }
 
@@ -415,8 +417,8 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
 		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
 		// port.
-		out.blink_indicator(which_encoder,
-		                    deluge::instrument::is_bipolar_at(turn.kind, static_cast<uint32_t>(turn.param_id)));
+		out.blink_indicator(which_encoder, deluge::instruments::classic::is_bipolar_at(
+		                                       turn.kind, static_cast<uint32_t>(turn.param_id)));
 	}
 	else {
 		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`
@@ -766,7 +768,7 @@ void ModKnobs::send_midi_follow_feedback(const std::optional<TurnedParam>& param
 		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
 		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
 		const std::optional<deluge::project::ParamTarget> target = deluge::controls::follow_target(
-		    owner, param->kind, param->address.id, deluge::instrument::has_engine_param);
+		    owner, param->kind, param->address.id, deluge::instruments::classic::has_engine_param);
 		if (const std::optional<uint8_t> cc_number = target ? feedback->cc_of(owner, *target) : std::nullopt) {
 			feedback->send(*cc_number, param->knob_pos);
 		}

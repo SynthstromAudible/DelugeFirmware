@@ -11,7 +11,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action.h"
@@ -197,7 +197,7 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 	it("writes the take while the arrangement records, once made, and marks no instrument edited", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		activate(*f.song, *f.instrument, *f.clip);
-		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		RootView root;
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 		const std::optional<int32_t> before = valueOf(*f.song, lpf);
@@ -213,7 +213,7 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 		if (take == nullptr || take == f.clip) {
 			return;
 		}
-		expect(valueOf(*f.song, filterOf(f, deluge::instrument::param::kLpfFrequency, *take)))
+		expect(valueOf(*f.song, filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *take)))
 		    .to_equal(std::optional<int32_t>{1 << 26}, "the take's LPF");
 		expect(valueOf(*f.song, lpf)).to_equal(before, "the session clip's LPF");
 		// A second write finds the same take.
@@ -237,7 +237,7 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 	it("leaves WRITE as it was: the take, the cable and the edited mark", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		activate(*f.song, *f.instrument, *f.clip);
-		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		RootView root;
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 		expect(write(*f.song, cableOf(f, *f.clip), 1 << 26, Resolve::WRITE)).to_be_true();
@@ -254,7 +254,7 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 	it("leaves EXACT as it was: the named clip, no take, no cable, no edited mark", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		activate(*f.song, *f.instrument, *f.clip);
-		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		RootView root;
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 		expect(write(*f.song, cableOf(f, *f.clip), 1 << 26, Resolve::EXACT)).to_be_false();
@@ -273,9 +273,9 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 			activate(*f.song, *f.instrument, *f.clip);
 			RootView root;
 			actionLogger.deleteAllLogs();
-			expect(write(*f.song, filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip), 1 << 26, resolve))
+			expect(write(*f.song, filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip), 1 << 26, resolve))
 			    .to_be_true();
-			expect(write(*f.song, filterOf(f, deluge::instrument::param::kLpfResonance, *f.clip), 1 << 25, resolve))
+			expect(write(*f.song, filterOf(f, deluge::instruments::classic::param::kLpfResonance, *f.clip), 1 << 25, resolve))
 			    .to_be_true();
 			return undoShape();
 		};
@@ -291,7 +291,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
-		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		const ParamAddress cable = cableOf(f, *f.clip);
 		RootView root;
 		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
@@ -344,7 +344,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		expect(valueOf(*f.song, cable).has_value()).to_be_false();
 		expect(sink.make_param(cable)).to_be_true();
 		expect(valueOf(*f.song, cable)).to_equal(std::optional<int32_t>{0}, "the made cable depth");
-		expect(sink.make_param(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip))).to_be_true();
+		expect(sink.make_param(filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip))).to_be_true();
 		const ParamAddress bend{.owner = OwnerId::instrument(*f.instrument->id()),
 		                        .space = ParamSpace::EXPRESSION,
 		                        .id = deluge::plugin::ParamId{0},
@@ -360,9 +360,9 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(f.song);
 		const OwnerParamTarget target{{Kind::OUTPUT, *f.instrument->id()},
-		                              project::ParamTarget{ParamSpace::ENGINE, deluge::instrument::param::kLpfFrequency}};
+		                              project::ParamTarget{ParamSpace::ENGINE, deluge::instruments::classic::param::kLpfFrequency}};
 		const OwnerParamTarget other{{Kind::OUTPUT, *f.instrument->id()},
-		                             project::ParamTarget{ParamSpace::ENGINE, deluge::instrument::param::kLpfResonance}};
+		                             project::ParamTarget{ParamSpace::ENGINE, deluge::instruments::classic::param::kLpfResonance}};
 		const project::MidiCommand a{.channel_or_zone = kChannel, .note_or_cc = kCc};
 		const project::MidiCommand b{.channel_or_zone = kChannel, .note_or_cc = kCc + 1};
 		deluge::edits::learnMappingFor(a, target);
@@ -390,7 +390,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		activate(*f.song, *f.instrument, *f.clip);
 		f.song->setCurrentClip(f.clip);
 		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
-		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		const project::ParamTarget volume = project::engine_target(
 		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME),
 		                                    params::Kind::UNPATCHED_GLOBAL).value);
@@ -530,7 +530,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		const auto rows = facts.sound_rows(w.kit.clip->id());
 		{
 			ArrangementRecording recording{w.synth};
-			expect(write(*w.song, filterOf(w.synth, deluge::instrument::param::kLpfFrequency, *w.synth.clip), 1 << 26,
+			expect(write(*w.song, filterOf(w.synth, deluge::instruments::classic::param::kLpfFrequency, *w.synth.clip), 1 << 26,
 			             Resolve::LEARNED)).to_be_true();
 			expect(w.synth.instrument->getActiveClip())
 			    .not_()
@@ -589,7 +589,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 
 	it("names a sound's params by the instrument's rows and a chain's by the global effectable's", _ {
 		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
-		const project::ParamTarget lpf{.space = ParamSpace::ENGINE, .id = deluge::instrument::param::kLpfFrequency};
+		const project::ParamTarget lpf{.space = ParamSpace::ENGINE, .id = deluge::instruments::classic::param::kLpfFrequency};
 		const deluge::plugin::ParamInfo* sound = facts.param_info(deluge::plugin::kDelugeInstrument, lpf);
 		expect(sound).not_().to_be_null("the sound's LPF info");
 		if (sound != nullptr) {
@@ -612,7 +612,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		activate(*f.song, *f.instrument, *f.clip);
 		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		expect(facts.param_value(cableOf(f, *f.clip)).has_value()).to_be_false();
-		expect(facts.param_value(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip)).has_value())
+		expect(facts.param_value(filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip)).has_value())
 		    .to_be_true();
 		deluge::scenes::spec::make_current(saved);
 	});

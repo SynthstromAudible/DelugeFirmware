@@ -42,7 +42,7 @@
 #include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -110,7 +110,7 @@
 // the headers above that name util:: from inside namespace deluge.
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "processing/engines/render_domain.h"
 
 namespace params = deluge::modulation::params;
@@ -2080,9 +2080,9 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX =
-	        deluge::plugin::find_param(deluge::instrument::kParams, deluge::instrument::param::kVolumePostFX)
-	            ->default_value,
+	    .volumePostFX = deluge::plugin::find_param(deluge::instruments::classic::kParams,
+	                                               deluge::instruments::classic::param::kVolumePostFX)
+	                        ->default_value,
 	    .localVolume = 0,
 	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),

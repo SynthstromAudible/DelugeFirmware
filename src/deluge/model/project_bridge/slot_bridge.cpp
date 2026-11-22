@@ -23,10 +23,10 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/state_access.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -48,17 +48,17 @@
 namespace deluge::bridge {
 
 void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSlot>& slot, const ::Song& song) {
-	if (slot && slot->state.as<deluge::instrument::DelugeSynth>() != nullptr
-	    && slot->state.as<deluge::instrument::DelugeSynth>() == &sound.state()) {
+	if (slot && slot->state.as<deluge::instruments::classic::DelugeSynth>() != nullptr
+	    && slot->state.as<deluge::instruments::classic::DelugeSynth>() == &sound.state()) {
 		return; // the sound plays this slot's state already
 	}
 	// What the sound plays moves into the record, which it then plays: its own state, or a copy of the record it
 	// plays now, which stays that record's.
-	slot =
-	    deluge::project::InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
-	                                    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>({}),
-	                                    .tick_magnitude = song.getInputTickMagnitude()};
-	sound.bindState(*slot->state.as<deluge::instrument::DelugeSynth>(), slot->routing);
+	slot = deluge::project::InstrumentSlot{
+	    .plugin = std::string(deluge::plugin::kDelugeInstrument.name),
+	    .state = deluge::plugin::StateHandle::of<deluge::instruments::classic::DelugeSynth>({}),
+	    .tick_magnitude = song.getInputTickMagnitude()};
+	sound.bindState(*slot->state.as<deluge::instruments::classic::DelugeSynth>(), slot->routing);
 }
 
 namespace {
@@ -158,9 +158,9 @@ deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, 
 	return out;
 }
 
-Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song) {
-	deluge::instrument::SoundState& record = sound.record();
-	const deluge::instrument::SoundState before = record;
+Error commitState(::Sound& sound, const deluge::instruments::classic::SlotChange& change, ::Song& song) {
+	deluge::instruments::classic::SoundState& record = sound.record();
+	const deluge::instruments::classic::SoundState before = record;
 	record = change.state;
 	Error error = applyChange(sound, before, change.state, song);
 	// The runtime reshapes ranges as it takes a type (keeping only top notes across kinds), which it reflects into the
@@ -181,16 +181,16 @@ std::optional<deluge::serialization::Value> typedWriteAuditBase(const ::Sound& s
 	if (!typedWriteAuditOn()) {
 		return std::nullopt;
 	}
-	return deluge::instrument::encode(sound.state(), {.input_tick_magnitude = slot.tick_magnitude});
+	return deluge::instruments::classic::encode(sound.state(), {.input_tick_magnitude = slot.tick_magnitude});
 }
 
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
                      const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
-                     const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got,
+                     const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& got,
                      std::string_view what) {
 	TypedWriteAudit& audit = typedWriteAudit();
-	const auto want =
-	    deluge::instrument::decode_change(element, whole, sound.state(), {.input_tick_magnitude = slot.tick_magnitude});
+	const auto want = deluge::instruments::classic::decode_change(element, whole, sound.state(),
+	                                                              {.input_tick_magnitude = slot.tick_magnitude});
 	audit.writes++;
 	const bool same =
 	    want.has_value() == got.has_value() && (!want || (want->state == got->state && want->changed == got->changed));
@@ -205,10 +205,10 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
 	}
 }
 
-void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
+void auditSettingWrite(const deluge::instruments::classic::SoundState& before, std::string_view path,
                        const deluge::serialization::Value& value,
-                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
-                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got) {
+                       const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& want,
+                       const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& got) {
 	TypedWriteAudit& audit = typedWriteAudit();
 	if (!typedWriteAuditOn()) {
 		return;
@@ -221,17 +221,18 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
 	else if (want && got->state == want->state) {
 		const bool named = std::ranges::all_of(
 		    got->changed, [&](std::string_view key) { return std::ranges::contains(want->changed, key); });
-		if (got->changed != deluge::instrument::changed_entries(before, got->state) || !named) {
+		if (got->changed != deluge::instruments::classic::changed_entries(before, got->state) || !named) {
 			why = " (touched entries)";
 		}
 	}
 	else if (want) {
 		// The old way lost a write the file cannot hold: the typed state is the old way's with that field written.
-		deluge::instrument::SoundState again = want->state;
-		(void)deluge::instrument::write_setting(again, path, value);
+		deluge::instruments::classic::SoundState again = want->state;
+		(void)deluge::instruments::classic::write_setting(again, path, value);
 		const std::string_view key = path.substr(0, path.find('/'));
 		if (!(again == got->state)
-		    || deluge::instrument::changed_entries(want->state, got->state) != std::vector<std::string_view>{key}) {
+		    || deluge::instruments::classic::changed_entries(want->state, got->state)
+		           != std::vector<std::string_view>{key}) {
 			why = " (state)";
 		}
 	}
@@ -258,15 +259,16 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	// (a source whose record already holds what it loaded takes no Edit)
 	deluge::edits::Context ctx{song, song.project};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		const deluge::instrument::DxPatchState* recordedPatch = deluge::instrument::dx_patch(sound.state(), id);
-		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sourceResources[s]);
+		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
+		const deluge::instruments::classic::DxPatchState* recordedPatch =
+		    deluge::instruments::classic::dx_patch(sound.state(), id);
+		if (std::optional<deluge::instruments::classic::DxPatchState> patch = dxPatchOf(sound.sourceResources[s]);
 		    patch && (recordedPatch == nullptr || *patch != *recordedPatch)) {
 			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
 			(void)deluge::edits::apply(ctx, dx);
 		}
 		if (std::vector<synth::SourceRange> held = rangesOf(sound.sourceResources[s]);
-		    !std::ranges::equal(held, deluge::instrument::source_ranges(sound.state(), id))) {
+		    !std::ranges::equal(held, deluge::instruments::classic::source_ranges(sound.state(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
 			(void)deluge::edits::apply(ctx, ranges);
 		}

@@ -17,7 +17,7 @@
 
 #include "model/project_bridge/cable_bridge.h"
 
-#include "instruments/deluge/cable_codec.h"
+#include "instruments/classic/cable_codec.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_serialization.h"
 #include "modulation/automation/auto_param.h"
@@ -43,12 +43,12 @@ bool containsSomething(const deluge::serialization::Value& leaf, int32_t readAut
 }
 
 void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCables, int32_t readAutomationUpToPos) {
-	const std::vector<deluge::instrument::CableState> cables = deluge::instrument::decode_cables(
+	const std::vector<deluge::instruments::classic::CableState> cables = deluge::instruments::classic::decode_cables(
 	    patchCables, [readAutomationUpToPos](const deluge::serialization::Value& leaf) {
 		    return containsSomething(leaf, readAutomationUpToPos);
 	    });
 	set.truncateCables(0);
-	for (const deluge::instrument::CableState& state : cables) {
+	for (const deluge::instruments::classic::CableState& state : cables) {
 		const deluge::synth::CableTarget target = deluge::synth::CableTarget{cableWordOf(state.depth())}.modulated();
 		PatchCable* added =
 		    set.appendCable({state.source, {target.word}, static_cast<deluge::synth::CablePolarity>(state.polarity)});

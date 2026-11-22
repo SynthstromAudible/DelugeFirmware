@@ -1,6 +1,6 @@
 #pragma once
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "model/edits/edit.h"
 #include "project/instrument_slot.h"
 

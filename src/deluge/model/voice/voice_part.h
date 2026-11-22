@@ -17,7 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "instruments/deluge/voice_pool.h"
+#include "instruments/classic/voice_pool.h"
 #include "model/voice/sample_playback_adapter.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "processing/dx7/dx_voice_adapter.h"
@@ -47,4 +47,4 @@ struct VoicePart {
 
 /// @brief A sound's voice: the library slot over the host's part, and nothing more. A type of its own rather than an
 /// alias so that headers can declare it without the kernel's.
-struct SoundVoice final : deluge::instrument::VoiceSlot<VoicePart, deluge::synth::Voice> {};
+struct SoundVoice final : deluge::instruments::classic::VoiceSlot<VoicePart, deluge::synth::Voice> {};

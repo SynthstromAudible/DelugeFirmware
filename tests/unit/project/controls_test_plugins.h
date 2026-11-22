@@ -6,7 +6,7 @@
 #include "chain_test_plugins.h"
 #include "effects/host_chain/naming.h"
 #include "instrument_test_plugins.h"
-#include "instruments/deluge/naming.h"
+#include "instruments/classic/naming.h"
 #include "project/controller_mapping.h"
 
 #include <array>
@@ -15,7 +15,7 @@ namespace deluge::project::test {
 
 /// @brief The namings the tests' codecs use.
 inline const std::array<deluge::plugin::ParamNaming, 2>& test_namings() {
-	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
+	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instruments::classic::kNaming,
 	                                                                deluge::host_chain::kNaming};
 	return namings;
 }

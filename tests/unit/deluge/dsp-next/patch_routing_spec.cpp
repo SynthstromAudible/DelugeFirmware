@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "instruments/deluge/cable_records.h"
+#include "instruments/classic/cable_records.h"
 #include "synth/modulation/patch_routing.h"
 
 #include "modulation/params/param.h"
@@ -28,7 +28,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::synth;
-using deluge::instrument::CableRecords;
+using deluge::instruments::classic::CableRecords;
 namespace params = deluge::modulation::params;
 
 namespace {

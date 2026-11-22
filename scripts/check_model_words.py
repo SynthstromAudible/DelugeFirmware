@@ -6,7 +6,7 @@
 """The model names no plugin's state: no file under src/project may name a sound record, one of the Deluge
 instrument's words, one of the runtime's param collections or its cable words. A song holds a plugin slot, which the
 model stores without understanding, and addresses params (cable depths included) by their plugin's id; the words belong
-to the plugin (src/instruments/deluge) and the runtime.
+to the plugin (src/instruments/classic) and the runtime.
 
 Usage:
     scripts/check_model_words.py               # check src/project, exit 1 on a match

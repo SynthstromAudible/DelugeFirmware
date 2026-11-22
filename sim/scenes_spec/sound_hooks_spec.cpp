@@ -51,12 +51,12 @@ void give_sample_range(::Sound& sound) {
 }
 
 /// @brief The sound's state, by its slot.
-const deluge::instrument::SoundState* state_of(const MenuContext& ctx) {
+const deluge::instruments::classic::SoundState* state_of(const MenuContext& ctx) {
 	return ctx.addresses.slot ? menu::host_ports().sound->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
 /// @brief The sound at @p slot.
-const deluge::instrument::SoundState* state_at(deluge::project::SlotAddress slot) {
+const deluge::instruments::classic::SoundState* state_at(deluge::project::SlotAddress slot) {
 	return menu::host_ports().sound->sound_state(slot);
 }
 
@@ -80,10 +80,10 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 
 		menu::bindings::write(nodes::source0_transpose, ctx, 250);
-		const deluge::instrument::SoundState* const state = state_of(ctx);
+		const deluge::instruments::classic::SoundState* const state = state_of(ctx);
 		expect(state).not_().to_be_null();
 		const std::vector<deluge::synth::SourceRange> ranges =
-		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
+		    state != nullptr ? deluge::instruments::classic::source_ranges(*state, deluge::instruments::classic::SourceId::A)
 		                     : std::vector<deluge::synth::SourceRange>{};
 		if (state != nullptr) {
 			expect(ranges.size()).to_equal(1);
@@ -109,12 +109,12 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::source0_transpose, ctx, 300);
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
-		const deluge::instrument::SoundState* const a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* const b = state_at(synth_slot);
+		const deluge::instruments::classic::SoundState* const a = state_at(sampled_slot);
+		const deluge::instruments::classic::SoundState* const b = state_at(synth_slot);
 		expect(a).not_().to_be_null();
 		if (a != nullptr) {
 			const std::vector<deluge::synth::SourceRange> ranges =
-			    deluge::instrument::source_ranges(*a, deluge::instrument::SourceId::A);
+			    deluge::instruments::classic::source_ranges(*a, deluge::instruments::classic::SourceId::A);
 			expect(ranges.empty()).to_be_false();
 			if (!ranges.empty()) {
 				expect(ranges[0].tuning.transpose).to_equal(3);
@@ -122,7 +122,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 		expect(b).not_().to_be_null();
 		if (b != nullptr) {
-			expect(deluge::instrument::source_tuning(*b, deluge::instrument::SourceId::A).transpose).to_equal(3);
+			expect(deluge::instruments::classic::source_tuning(*b, deluge::instruments::classic::SourceId::A).transpose).to_equal(3);
 		}
 	});
 
@@ -151,12 +151,12 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		to_be_at_least(expect(recording.requests.size()), size_t{3});
 
 		menu::bindings::write(nodes::stutter_direction, ctx, 0);
-		const deluge::instrument::SoundState* const state = state_of(ctx);
+		const deluge::instruments::classic::SoundState* const state = state_of(ctx);
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
-			expect(deluge::instrument::sound_effects(*state).stutter.use_song_stutter).to_be_true();
-			expect(deluge::instrument::sound_effects(*state).stutter.quantized).to_be_true();
-			expect(deluge::instrument::sound_effects(*state).stutter.reversed).to_be_true();
+			expect(deluge::instruments::classic::sound_effects(*state).stutter.use_song_stutter).to_be_true();
+			expect(deluge::instruments::classic::sound_effects(*state).stutter.quantized).to_be_true();
+			expect(deluge::instruments::classic::sound_effects(*state).stutter.reversed).to_be_true();
 		}
 	});
 
@@ -236,16 +236,16 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
 		expect(menu::bindings::read(nodes::sample0_interpolation, ctx)).to_equal(1); // SMOOTH, the default
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0);                  // LINEAR
-		const deluge::instrument::SoundState* const a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* const b = state_at(synth_slot);
+		const deluge::instruments::classic::SoundState* const a = state_at(sampled_slot);
+		const deluge::instruments::classic::SoundState* const b = state_at(synth_slot);
 		expect(a).not_().to_be_null();
 		if (a != nullptr) {
-			expect(deluge::instrument::sample_playback(*a, deluge::instrument::SourceId::A).interpolation).to_equal(deluge::plugin::InterpolationMode::LINEAR);
+			expect(deluge::instruments::classic::sample_playback(*a, deluge::instruments::classic::SourceId::A).interpolation).to_equal(deluge::plugin::InterpolationMode::LINEAR);
 		}
 		// A synth source takes no interpolation: legacy's per-drum setting write refuses it too.
 		expect(b).not_().to_be_null();
 		if (b != nullptr) {
-			expect(deluge::instrument::sample_playback(*b, deluge::instrument::SourceId::A).interpolation).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
+			expect(deluge::instruments::classic::sample_playback(*b, deluge::instruments::classic::SourceId::A).interpolation).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
 		}
 	});
 
@@ -264,17 +264,17 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
 		menu::bindings::write(nodes::stutter_direction, ctx, 2); // reversed
-		const deluge::instrument::SoundState* const a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* const b = state_at(synth_slot);
+		const deluge::instruments::classic::SoundState* const a = state_at(sampled_slot);
+		const deluge::instruments::classic::SoundState* const b = state_at(synth_slot);
 		expect(a).not_().to_be_null();
 		if (a != nullptr) {
-			expect(deluge::instrument::sound_effects(*a).stutter.reversed).to_be_true();
-			expect(deluge::instrument::sound_effects(*a).stutter.use_song_stutter).to_be_false();
+			expect(deluge::instruments::classic::sound_effects(*a).stutter.reversed).to_be_true();
+			expect(deluge::instruments::classic::sound_effects(*a).stutter.use_song_stutter).to_be_false();
 		}
 		expect(b).not_().to_be_null();
 		if (b != nullptr) {
-			expect(deluge::instrument::sound_effects(*b).stutter.reversed).to_be_true();
-			expect(deluge::instrument::sound_effects(*b).stutter.use_song_stutter).to_be_false();
+			expect(deluge::instruments::classic::sound_effects(*b).stutter.reversed).to_be_true();
+			expect(deluge::instruments::classic::sound_effects(*b).stutter.use_song_stutter).to_be_false();
 		}
 	});
 

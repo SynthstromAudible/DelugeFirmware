@@ -218,7 +218,8 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 }
 
 bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
-                                   const deluge::instrument::CableRecords& records, const CableDepth* restore) {
+                                   const deluge::instruments::classic::CableRecords& records,
+                                   const CableDepth* restore) {
 	struct Kept {
 		deluge::synth::CableRecord record;
 		int32_t value;

@@ -12,7 +12,7 @@ C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/go
 | Directory | Holds | Read by | Re-recorded by |
 | --- | --- | --- | --- |
 | `gfx/` | the gfx primitives' OLED panels (`oled/`) and grid states (`grid/`) | the gfx specs | `unit` |
-| `instrument/` | the instrument's answers about every sound of the engine × oscillator-kind matrix, hashed per sound and family (`record_reference.tsv`) | `tests/unit/instruments/deluge/composed_state_spec.cpp` | `unit` |
+| `instrument/` | the instrument's answers about every sound of the engine × oscillator-kind matrix, hashed per sound and family (`record_reference.tsv`) | `tests/unit/instruments/classic/composed_state_spec.cpp` | `unit` |
 | `shell/` | the shell's popup and overlay panels | the shell specs | `unit` |
 | `ui/widgets/` | the UI widgets' panels and grid states | the ui specs | `unit` |
 | `ui/shell/<script>/` | each level-2 script's snapshots (`tests/ui-scripts/shell/`) | `expect_script_goldens`, in the unit specs and `sim/scenes_spec` | `unit`, `ui-scenes-spec` |

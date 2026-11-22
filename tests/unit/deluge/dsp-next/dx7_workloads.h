@@ -202,7 +202,7 @@ inline constexpr std::size_t kOpSwitch = 155;
 /// @return The init voice with every op sounding: output level 99, rates 99/50/40/30, levels 99/80/60/0, coarse 1 to
 /// 6 across the ops, detune 7, key-velocity sensitivity 3, every op switched on.
 inline Patch all_ops_sounding() {
-	Patch p = deluge::instrument::kDx7InitVoice;
+	Patch p = deluge::instruments::classic::kDx7InitVoice;
 	for (std::size_t op = 0; op < 6; ++op) {
 		uint8_t* o = &p[op * kOpBytes];
 		o[0] = 99;

@@ -31,7 +31,8 @@ namespace deluge::l10n {
 
 /// @brief The display name of a param.
 /// @param kind The param's collection.
-/// @param id   The param's id, as @c instrument::runtime_param_id numbers it (an unpatched param's id starts at 90).
+/// @param id   The param's id, as @c instruments::classic::runtime_param_id numbers it (an unpatched param's id starts
+/// at 90).
 /// @return The name; "None" for an id the kind does not hold and for a kind with no names.
 [[nodiscard]] std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id);
 

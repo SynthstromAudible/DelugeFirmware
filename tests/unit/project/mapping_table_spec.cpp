@@ -17,9 +17,9 @@
 
 #include "effects/host_chain/naming.h"
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/naming.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/naming.h"
+#include "instruments/classic/params.h"
 #include "project/mapping_codec.h"
 #include "project/mapping_table.h"
 #include "project/song.h"
@@ -353,7 +353,7 @@ describe mapping_table("the song's mapping table", ${
 	it("reads and writes a sound's knob learned on an MPE zone, on a cable's depth", _ {
 		const Trip trip = round_trip(
 		    R"({"midiKnobs": [{"midiKnob": {"mpeZone": "lower", "ccNumber": 74, "relative": 1, "controlsParam": "pitch", "patchAmountFromSource": "lfo1"}}]})",
-		    ControlsAddress{ControlsAddress::Kind::DRUM, 3}, &deluge::instrument::kNaming);
+		    ControlsAddress{ControlsAddress::Kind::DRUM, 3}, &deluge::instruments::classic::kNaming);
 		expect(trip.count).to_equal(size_t{1});
 		expect(trip.same).to_be_true();
 		const Mapping& m = trip.first;
@@ -363,8 +363,8 @@ describe mapping_table("the song's mapping table", ${
 		expect(m.target).to_equal(MappingTarget{OwnerParamTarget{
 		    {ControlsAddress::Kind::DRUM, 3},
 		    deluge::project::engine_target(
-		        deluge::instrument::cable_depth_id(deluge::instrument::PatchSource::LFO_GLOBAL_1,
-		                                           deluge::instrument::param::kPitch)
+		        deluge::instruments::classic::cable_depth_id(deluge::instruments::classic::PatchSource::LFO_GLOBAL_1,
+		                                           deluge::instruments::classic::param::kPitch)
 		            ->value)}});
 	});
 

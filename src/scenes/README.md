@@ -719,7 +719,7 @@ A scene's context holds one `bind::Ports`: a pointer per port, null where the ho
 `DeviceActions`, `MidiFeedback`, `TakeActions` and `ViewActions` for calls; `Indicators` for the indicators a scene
 changes outside its frames; `MidiDevices` for the per-device settings; `DeviceSettings` (`device`) for the device's
 own settings, by DEVICE row, read and written outside any song and its undo; and `controls::Facts` for live param
-values. Their vocabulary is `project::` addresses, `plugin::` ids, `instrument::`, `effects::`, `controls::`, `midi::`
+values. Their vocabulary is `project::` addresses, `plugin::` ids, `instruments::classic::`, `effects::`, `controls::`, `midi::`
 and `sample_view::` words (`sample-view/peaks.h` only), never a legacy type; a MIDI device is a `midi::DeviceId`,
 which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 

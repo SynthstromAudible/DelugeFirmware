@@ -53,11 +53,11 @@ public:
 	Error apply(Context& ctx) override;
 
 private:
-	EditCable(ModelStackWithThreeMainThings* modelStack, deluge::instrument::CableDelta::Op op,
+	EditCable(ModelStackWithThreeMainThings* modelStack, deluge::instruments::classic::CableDelta::Op op,
 	          deluge::synth::CableRecord cable, size_t index)
 	    : op_(op), cable_(cable), index_(index), modelStack_(modelStack) {}
 
-	deluge::instrument::CableDelta::Op op_;
+	deluge::instruments::classic::CableDelta::Op op_;
 	deluge::synth::CableRecord cable_;
 	size_t index_;
 	/// Valid only for the duration of apply(); never stored beyond it.

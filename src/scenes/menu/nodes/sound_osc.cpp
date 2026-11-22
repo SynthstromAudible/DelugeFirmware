@@ -31,8 +31,8 @@
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/words.h"
 #include "scenes/bind/ports/sound_writes.h"
 
 #include <span>
@@ -79,21 +79,22 @@ constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {
 /// @brief Does source @p id of a sound in @p state take its transpose in its range? A sample source with ranges does,
 ///        unless the sound is FM (`Transpose::readCurrentValue` in
 ///        `origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
-bool transposes_in_range(const deluge::instrument::SoundState& state, deluge::instrument::SourceId id) {
-	using namespace deluge::instrument;
+bool transposes_in_range(const deluge::instruments::classic::SoundState& state,
+                         deluge::instruments::classic::SourceId id) {
+	using namespace deluge::instruments::classic;
 	return !source_ranges(state, id).empty() && synth_mode(state) != SynthMode::FM
 	       && source_type(state, id) == OscType::SAMPLE;
 }
 
 int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
-	const deluge::instrument::SoundState* state =
+	const deluge::instruments::classic::SoundState* state =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (state == nullptr) {
 		return 0;
 	}
-	const auto id = static_cast<deluge::instrument::SourceId>(index);
+	const auto id = static_cast<deluge::instruments::classic::SourceId>(index);
 	if (transposes_in_range(*state, id)) {
-		const std::vector<synth::SourceRange> ranges = deluge::instrument::source_ranges(*state, id);
+		const std::vector<synth::SourceRange> ranges = deluge::instruments::classic::source_ranges(*state, id);
 		// The selected range when the menu is on this very source, else range 0.
 		const size_t r =
 		    ctx.source_index == index && ctx.range_index >= 0 && static_cast<size_t>(ctx.range_index) < ranges.size()
@@ -101,7 +102,7 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 		        : 0;
 		return transpose_to_menu(ranges[r].tuning.transpose, ranges[r].tuning.cents);
 	}
-	const deluge::instrument::Tuning tuning = deluge::instrument::source_tuning(*state, id);
+	const deluge::instruments::classic::Tuning tuning = deluge::instruments::classic::source_tuning(*state, id);
 	return transpose_to_menu(tuning.transpose, tuning.cents);
 }
 

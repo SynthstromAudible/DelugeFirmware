@@ -18,10 +18,10 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/pages.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/pages.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/state_access.h"
 #include "music/note_length.h"
 #include "plugin/types/display_mapping.h"
 
@@ -37,7 +37,7 @@ namespace {
 
 using deluge::l10n::String;
 using deluge::project::ControllerMapping;
-namespace ip = deluge::instrument::param;
+namespace ip = deluge::instruments::classic::param;
 
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
@@ -436,14 +436,14 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		return {};
 	}
 	const plugin::ParamId id = address->id;
-	if (instrument::is_cable_depth(id)) {
-		const int level = instrument::detail::depth_level(id.value);
-		const auto first = static_cast<PatchSource>(instrument::detail::source_field(id.value, 0) - 1);
-		const auto second = level > 1
-		                        ? static_cast<PatchSource>(instrument::detail::source_field(id.value, level - 1) - 1)
-		                        : PatchSource::NONE;
-		const std::optional<instrument::RuntimeSlot> destination =
-		    instrument::runtime_slot(plugin::ParamId{id.value & 0xFFu});
+	if (instruments::classic::is_cable_depth(id)) {
+		const int level = instruments::classic::detail::depth_level(id.value);
+		const auto first = static_cast<PatchSource>(instruments::classic::detail::source_field(id.value, 0) - 1);
+		const auto second =
+		    level > 1 ? static_cast<PatchSource>(instruments::classic::detail::source_field(id.value, level - 1) - 1)
+		              : PatchSource::NONE;
+		const std::optional<instruments::classic::RuntimeSlot> destination =
+		    instruments::classic::runtime_slot(plugin::ParamId{id.value & 0xFFu});
 		std::string out = second == PatchSource::NONE ? std::string{text(source_display_string(first))}
 		                                              : std::string{source_short_name(first)};
 		out += " -> ";
@@ -461,12 +461,13 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		                                               fx.filter.hpf_mode)}
 		             : std::string{};
 	}
-	const std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(id);
+	const std::optional<instruments::classic::RuntimeSlot> slot = instruments::classic::runtime_slot(id);
 	if (!slot) {
 		return {};
 	}
-	const plugin::ParamKind kind =
-	    slot->set == instrument::RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND;
+	const plugin::ParamKind kind = slot->set == instruments::classic::RuntimeSet::PATCHED
+	                                   ? plugin::ParamKind::PATCHED
+	                                   : plugin::ParamKind::UNPATCHED_SOUND;
 	return std::string{l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode)};
 }
 
@@ -502,8 +503,8 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 		return nullptr;
 	}
 	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-		const instrument::SoundState* state = sound.sound_state(*slot);
-		return state != nullptr ? &instrument::sound_effects(*state) : nullptr;
+		const instruments::classic::SoundState* state = sound.sound_state(*slot);
+		return state != nullptr ? &instruments::classic::sound_effects(*state) : nullptr;
 	}
 	return tracks.chain_effects(std::get<project::ChainAddress>(*owner));
 }
@@ -565,7 +566,7 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 		if (pair(ip::kDelayRate, ip::kDelayFeedback)) {
 			return delay_popup(song, fx, inputs.pages.alt_delay);
 		}
-		if (top && instrument::is_sidechain_cable(*top) && bottom == ip::kReverbAmount) {
+		if (top && instruments::classic::is_sidechain_cable(*top) && bottom == ip::kReverbAmount) {
 			return sidechain_reverb_popup(song, fx);
 		}
 		return names_popup(song, focus, button, inputs);

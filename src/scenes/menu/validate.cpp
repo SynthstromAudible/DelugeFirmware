@@ -70,7 +70,7 @@
 
 #include "effects/host_chain/params.h"
 #include "gfx/grid/pad_grid.h" // kMaxGridCols / kMaxGridRows -- the widest pad grid to sweep
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 
 #include <algorithm>
 
@@ -147,10 +147,10 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 /// params; either unpatched kind holds as many as the larger of the instrument's second block and the host chain's.
 bool param_in_range(const ParamRef& param) {
 	constexpr size_t kUnpatchedMax =
-	    std::max<size_t>(deluge::instrument::kParamBlocks[1].count, deluge::host_chain::kParamBlock.count);
+	    std::max<size_t>(deluge::instruments::classic::kParamBlocks[1].count, deluge::host_chain::kParamBlock.count);
 	switch (param.kind) {
 	case deluge::plugin::ParamKind::PATCHED:
-		return param.index < deluge::instrument::kParamBlocks[0].count;
+		return param.index < deluge::instruments::classic::kParamBlocks[0].count;
 	case deluge::plugin::ParamKind::UNPATCHED_SOUND:
 	case deluge::plugin::ParamKind::UNPATCHED_GLOBAL:
 		return param.index < kUnpatchedMax;

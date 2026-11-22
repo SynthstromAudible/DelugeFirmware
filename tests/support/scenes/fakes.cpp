@@ -16,7 +16,7 @@ uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
 	return found != loaded.end() ? found->second : 0;
 }
 
-const instrument::SoundState* FakeSoundFacts::sound_state(project::SlotAddress slot) const {
+const instruments::classic::SoundState* FakeSoundFacts::sound_state(project::SlotAddress slot) const {
 	const auto found = states.find(slot.id);
 	return found != states.end() ? &found->second : nullptr;
 }
@@ -179,7 +179,7 @@ bool RecordingSoundWrites::attach_recording(project::SlotAddress slot, uint8_t s
 }
 
 bool RecordingSoundWrites::write_dx_patch(project::SlotAddress slot, uint8_t source,
-                                          const instrument::DxPatchState& patch) {
+                                          const instruments::classic::DxPatchState& patch) {
 	calls.push_back({.kind = Call::Kind::DX_PATCH, .slot = slot, .source = source, .dx_patch = patch});
 	return accept;
 }

@@ -1,6 +1,6 @@
 // clang-format off
 #include "controls/knob_math.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "support/printers/controls_printer.h"
 #include <cppspec.hpp>
 
@@ -9,7 +9,7 @@ using namespace deluge::controls;
 
 namespace {
 const project::ParamAddress kEngine{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{7}};
-const project::ParamAddress kCable{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{instrument::kCableDepthFlag | 7}};
+const project::ParamAddress kCable{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{instruments::classic::kCableDepthFlag | 7}};
 const project::ParamAddress kCc{.space = project::ParamSpace::MIDI_CC, .id = plugin::ParamId{21}};
 } // namespace
 

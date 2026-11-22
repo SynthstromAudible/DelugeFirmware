@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "modulation/automation/auto_param.h"
 #include "synth/modulation/cable.h"
 #include <cstdint>
@@ -27,7 +27,7 @@ class Sound;
 class ParamManagerForTimeline;
 class InstrumentClip;
 
-using Polarity = deluge::instrument::Polarity;
+using Polarity = deluge::instruments::classic::Polarity;
 
 std::string_view polarityToString(Polarity polarity);
 

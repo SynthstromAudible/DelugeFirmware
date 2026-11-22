@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "support/printers/param_id_printer.h"
 
 #include <ostream>
@@ -31,7 +31,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 
 /// @brief Prints a route as its source's number and its destination param, e.g. `{source 3, destination 25}`.
 /// @param os The stream to print to.
@@ -41,4 +41,4 @@ inline std::ostream& operator<<(std::ostream& os, const CableRoute& r) {
 	return os << "{source " << +std::to_underlying(r.source) << ", destination " << r.destination << "}";
 }
 
-} // namespace deluge::instrument
+} // namespace deluge::instruments::classic

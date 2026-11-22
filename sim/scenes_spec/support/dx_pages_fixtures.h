@@ -62,7 +62,7 @@ struct IsomorphicRoot {
 ///        is called whenever @p patch changed and @p shot once per panel, with its name and the param it shows.
 /// @param patch The patch to change; @p write puts it where the page reads it.
 template <typename Write, typename Shot>
-void for_each_layout(deluge::instrument::DxPatchState& patch, Write&& write, Shot&& shot) {
+void for_each_layout(deluge::instruments::classic::DxPatchState& patch, Write&& write, Shot&& shot) {
 	for (size_t b = 0; b < 155; b++) {
 		patch.params[b] = static_cast<uint8_t>((b * 7 + 3) % (dx::upper_limit(static_cast<int16_t>(b)) + 1));
 	}

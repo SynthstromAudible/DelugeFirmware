@@ -21,7 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
@@ -129,7 +129,7 @@ bool volumeAutomated(const spec::SongFixture& f) {
 	const deluge::project::DocAutoParam* param =
 	    f.song->project.resolveParam({.owner = project::OwnerId::instrument(*f.instrument->id()),
 	                                  .space = project::ParamSpace::ENGINE,
-	                                  .id = deluge::instrument::param::kVolume,
+	                                  .id = deluge::instruments::classic::param::kVolume,
 	                                  .clip_id = f.clip->id()});
 	return param != nullptr && !param->nodes.empty();
 }
@@ -188,7 +188,7 @@ std::optional<int32_t> panOn(const spec::SongFixture& f, std::optional<uint32_t>
 	return deluge::bridge::paramValueAt(*f.song,
 	                                    {.owner = project::OwnerId::instrument(*f.instrument->id()),
 	                                     .space = project::ParamSpace::ENGINE,
-	                                     .id = deluge::instrument::param::kPan,
+	                                     .id = deluge::instruments::classic::param::kPan,
 	                                     .clip_id = clip},
 	                                    0xFFFFFFFF);
 }
@@ -650,7 +650,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*b.instrument->id()}, 0);
 		const auto pan_of = [](const spec::SongFixture& f) {
 			return project::ParamAddress{.owner = project::OwnerId::instrument(*f.instrument->id()),
-			                             .space = project::ParamSpace::ENGINE, .id = deluge::instrument::param::kPan,
+			                             .space = project::ParamSpace::ENGINE, .id = deluge::instruments::classic::param::kPan,
 			                             .clip_id = f.clip->id()};
 		};
 		const auto names = [](const std::optional<project::ParamAddress>& got, const project::ParamAddress& want) {
@@ -703,7 +703,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(engine.has_value()).to_be_true("the lower knob's address");
 		if (engine.has_value()) {
 			expect(engine->space).to_equal(project::ParamSpace::ENGINE);
-			expect(engine->id).to_equal(deluge::instrument::param::kPan);
+			expect(engine->id).to_equal(deluge::instruments::classic::param::kPan);
 		}
 		view.releaseActiveModControllable();
 
@@ -861,7 +861,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::midi::learnedCcToOutput(*f.instrument, MIDIDeviceManager::dinMIDIPorts, 1, 75, 100);
 		const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
 		    {.owner = project::OwnerId::drum(*drum->id()), .space = project::ParamSpace::ENGINE,
-		     .id = deluge::instrument::param::kVolume, .clip_id = f.clip->id()});
+		     .id = deluge::instruments::classic::param::kVolume, .clip_id = f.clip->id()});
 		expect(param).not_().to_be_null();
 		if (param != nullptr) {
 			expect(param->nodes.empty()).to_be_false();

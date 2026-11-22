@@ -152,9 +152,11 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 		return;
 	}
 	const bool is_volume =
-	    param == deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostFX)
-	    || param == deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend)
-	    || param == deluge::instrument::runtime_index(deluge::instrument::param::kVolume);
+	    param == deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX)
+	    || param
+	           == deluge::instruments::classic::runtime_index(
+	               deluge::instruments::classic::param::kVolumePostReverbSend)
+	    || param == deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolume);
 	const auto allowed = [&](PatchSource source, bool edits_range) {
 		if (source >= PatchSource::NONE) {
 			return false;
@@ -163,17 +165,20 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 			// `PatchCableStrength::checkPermissionToBeginSession`
 			// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) for a cable's range.
 			return source < PatchSource::ENVELOPE_0
-			       || param < deluge::instrument::runtime_index(deluge::instrument::kFirstGlobalParam);
+			       || param < deluge::instruments::classic::runtime_index(
+			              deluge::instruments::classic::kFirstGlobalParam);
 		}
 		// The volume triple takes the destination the source can reach.
 		if (is_volume) {
 			return patching::source_may_patch(
-			           ctx, source, deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostFX))
-			       || patching::source_may_patch(ctx, source,
-			                                     deluge::instrument::runtime_index(deluge::instrument::param::kVolume))
+			           ctx, source,
+			           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX))
 			       || patching::source_may_patch(
 			           ctx, source,
-			           deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend));
+			           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolume))
+			       || patching::source_may_patch(ctx, source,
+			                                     deluge::instruments::classic::runtime_index(
+			                                         deluge::instruments::classic::param::kVolumePostReverbSend));
 		}
 		return patching::source_may_patch(ctx, source, param);
 	};

@@ -132,7 +132,8 @@ constexpr int32_t kNumGlobalParamsForAutomation = params::kGlobalParamsForAutoma
 namespace {
 
 /// Portamento, which a kit row's automation leaves out.
-constexpr ParamTarget kPortamento = deluge::project::engine_target(deluge::instrument::param::kPortamento.value);
+constexpr ParamTarget kPortamento =
+    deluge::project::engine_target(deluge::instruments::classic::param::kPortamento.value);
 
 /// The runtime param a sound's target names.
 RuntimeParam soundParam(ParamTarget target) {

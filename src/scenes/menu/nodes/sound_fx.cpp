@@ -32,7 +32,7 @@
 #include "effects/state.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "plugin/types/display_mapping.h"
 #include "plugin/types/sync.h"
 #include "project/song.h"
@@ -71,9 +71,10 @@ bool show_use_song(const MenuContext& ctx) {
 /// @brief The stutter the context edits, as its record holds it: its sound's, else its chain's.
 std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) {
 	if (ctx.addresses.slot) {
-		const deluge::instrument::SoundState* state =
+		const deluge::instruments::classic::SoundState* state =
 		    ctx.ports.sound != nullptr ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
-		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
+		return state != nullptr ? std::optional{deluge::instruments::classic::sound_effects(*state).stutter}
+		                        : std::nullopt;
 	}
 	if (ctx.addresses.chain && ctx.ports.tracks != nullptr) {
 		const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);

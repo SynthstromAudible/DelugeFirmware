@@ -9,8 +9,8 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/settings.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/setting_apply.h"
@@ -97,9 +97,9 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 	    phases.time("resolve_slot", [&] { return song.project.resolveSlot(address); });
 	::Sound* sound = phases.time("sound_at", [&] { return deluge::bridge::soundAt(song, address); });
 	const auto value = phases.time("checks", [&] {
-		auto canonical = deluge::instrument::canonical_setting(path, wanted);
-		if (canonical && deluge::instrument::takes_setting(sound->state(), path)
-		    && deluge::instrument::allows_setting(sound->state(), path, *canonical)) {
+		auto canonical = deluge::instruments::classic::canonical_setting(path, wanted);
+		if (canonical && deluge::instruments::classic::takes_setting(sound->state(), path)
+		    && deluge::instruments::classic::allows_setting(sound->state(), path, *canonical)) {
 			return canonical;
 		}
 		return std::optional<Value>{};
@@ -112,16 +112,16 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 		return;
 	}
 	phases.time("commit_state", [&] { return deluge::bridge::commitState(*sound, *change, song); });
-	phases.time("landed", [&] { return deluge::instrument::setting_value(sound->state(), path); });
+	phases.time("landed", [&] { return deluge::instruments::classic::setting_value(sound->state(), path); });
 }
 
 /// One kit-wide write of menu value @p menu at @p path, phase by phase, as the sink runs it over @p kit's drums.
 void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, int32_t menu) {
-	const auto& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
+	const auto& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, path);
 	const auto stored = deluge::plugin::from_menu(row, menu);
 	const std::string_view partner = deluge::plugin::mapping_of(row).partner_path();
 	const auto* partner_row =
-	    partner.empty() ? nullptr : deluge::plugin::find_setting(deluge::instrument::kSettings, partner);
+	    partner.empty() ? nullptr : deluge::plugin::find_setting(deluge::instruments::classic::kSettings, partner);
 	const Target target{.kind = Target::Kind::SOUND, .path = path};
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		if (drum->type != DrumType::SOUND) {

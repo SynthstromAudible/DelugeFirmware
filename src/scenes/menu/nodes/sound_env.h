@@ -7,8 +7,8 @@
 /// (`origin/main:src/deluge/gui/menu_item/envelope/segment.h`), which is a `source::PatchedParam` -- a patched param
 /// whose index is `p + source_id_` (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`), with the envelope
 /// number playing the part of the source id. Main's menu therefore uses `LOCAL_ENV_0_ATTACK` with an envelope
-/// index of 0..3 and the four attack params come out consecutive (`instrument::param::kEnv1Attack` to `kEnv4Attack`),
-/// which is exactly what a `ParamRef` carries directly here.
+/// index of 0..3 and the four attack params come out consecutive (`instruments::classic::param::kEnv1Attack` to
+/// `kEnv4Attack`), which is exactly what a `ParamRef` carries directly here.
 ///
 // clang-format off
 /// | node | legacy global | param |
@@ -41,7 +41,7 @@ namespace deluge::scenes::menu::nodes {
 ///
 /// The first of the four envelopes' ids + @p index is `source::PatchedParam::getP()`
 /// (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`) written out: the four envelopes' copies of each
-/// parameter are consecutive enumerators (`instrument::param::kEnv1Attack` to `kEnv4Attack`).
+/// parameter are consecutive enumerators (`instruments::classic::param::kEnv1Attack` to `kEnv4Attack`).
 constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index) {
 	return with_patch_chain(param(name, {deluge::plugin::ParamKind::PATCHED, static_cast<uint8_t>(first_param + index)},
 	                              Hint::Knob, nullptr, title));
@@ -52,24 +52,26 @@ constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_par
 ///        a `constexpr` factory returning an aggregate cannot hand back pointers into itself.
 #define DELUGE_ENVELOPE(n, index)                                                                                      \
 	inline constexpr Node env##n##_attack = with_title_arg(                                                            \
-	    envelope_segment(sid(deluge::l10n::String::STRING_FOR_ATTACK),                                                 \
-	                     sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE),                                  \
-	                     deluge::instrument::runtime_index(deluge::instrument::param::kEnv1Attack), (index)),          \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_ATTACK), sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE), \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Attack), (index)),   \
 	    (n));                                                                                                          \
 	inline constexpr Node env##n##_decay = with_title_arg(                                                             \
-	    envelope_segment(sid(deluge::l10n::String::STRING_FOR_DECAY),                                                  \
-	                     sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),                                   \
-	                     deluge::instrument::runtime_index(deluge::instrument::param::kEnv1Decay), (index)),           \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_DECAY), sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),   \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Decay), (index)),    \
 	    (n));                                                                                                          \
 	inline constexpr Node env##n##_sustain = with_title_arg(                                                           \
-	    envelope_segment(sid(deluge::l10n::String::STRING_FOR_SUSTAIN),                                                \
-	                     sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),                                 \
-	                     deluge::instrument::runtime_index(deluge::instrument::param::kEnv1Sustain), (index)),         \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_SUSTAIN),                                                             \
+	        sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),                                              \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Sustain), (index)),  \
 	    (n));                                                                                                          \
 	inline constexpr Node env##n##_release = with_title_arg(                                                           \
-	    envelope_segment(sid(deluge::l10n::String::STRING_FOR_RELEASE),                                                \
-	                     sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),                                 \
-	                     deluge::instrument::runtime_index(deluge::instrument::param::kEnv1Release), (index)),         \
+	    envelope_segment(                                                                                              \
+	        sid(deluge::l10n::String::STRING_FOR_RELEASE),                                                             \
+	        sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),                                              \
+	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Release), (index)),  \
 	    (n));                                                                                                          \
 	inline constexpr const Node* kEnv##n##Children[] = {&env##n##_attack, &env##n##_decay, &env##n##_sustain,          \
 	                                                    &env##n##_release};                                            \

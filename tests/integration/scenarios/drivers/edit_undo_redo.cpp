@@ -406,12 +406,12 @@ void cableTarget(Song* song) {
 
 	// ADD
 	freshAction();
-	const deluge::instrument::CableRecords before = cables.records();
+	const deluge::instruments::classic::CableRecords before = cables.records();
 	deluge::edits::EditCable add =
 	    deluge::edits::EditCable::add(ms, {PatchSource::RANDOM, cutoff, deluge::synth::CablePolarity::BIPOLAR});
 	check(deluge::edits::apply(ctx, add) == Error::NONE, "cable add: applies");
 	checkLanesPublished(__LINE__);
-	const deluge::instrument::CableRecords after = cables.records();
+	const deluge::instruments::classic::CableRecords after = cables.records();
 	check(after.size() == before.size() + 1, "cable add: one more record");
 	actionLogger.revert(BEFORE, false, false);
 	checkLanesPublished(__LINE__);
@@ -465,7 +465,7 @@ void cableTarget(Song* song) {
 	freshAction();
 	at = *cables.records().find(PatchSource::RANDOM, cutoff);
 	cables.patchCables[at].param.setBase(*cables.docForParam(static_cast<int32_t>(at)), 123456);
-	const deluge::instrument::CableRecords withCable = cables.records();
+	const deluge::instruments::classic::CableRecords withCable = cables.records();
 	deluge::edits::EditCable remove = deluge::edits::EditCable::remove(ms, at);
 	check(deluge::edits::apply(ctx, remove) == Error::NONE, "cable remove: applies");
 	checkLanesPublished(__LINE__);
@@ -482,7 +482,7 @@ void cableTarget(Song* song) {
 
 	// Create-on-edit: a depth written to a missing cable adds it; one undo takes back both.
 	freshAction();
-	const deluge::instrument::CableRecords bare = cables.records();
+	const deluge::instruments::classic::CableRecords bare = cables.records();
 	ModelStackWithAutoParam* depth = deluge::edits::cableDepthForEdit(ms, PatchSource::RANDOM, cutoff);
 	check(depth != nullptr, "create-on-edit: the write finds its cable");
 	if (depth == nullptr) {
@@ -504,7 +504,7 @@ void cableTarget(Song* song) {
 
 	// Delete-at-zero: depth 0, no automation, active clip; one undo restores the cable and its depth.
 	freshAction();
-	const deluge::instrument::CableRecords live = cables.records();
+	const deluge::instruments::classic::CableRecords live = cables.records();
 	ModelStackWithAutoParam* zero = deluge::edits::cableDepthForEdit(ms, PatchSource::RANDOM, cutoff);
 	if (zero == nullptr || zero->autoParam->isAutomated(*zero->doc())) {
 		return;

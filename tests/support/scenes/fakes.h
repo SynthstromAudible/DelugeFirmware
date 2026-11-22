@@ -81,7 +81,7 @@ struct FakeUiFacts final : UiFacts {
 /// @brief SoundFacts a spec sets directly, keyed by slot id.
 struct FakeSoundFacts final : SoundFacts {
 	std::map<uint32_t, uint8_t> loaded;                              ///< what `loaded_sources` answers, by slot id
-	std::map<uint32_t, instrument::SoundState> states;               ///< what `sound_state` points at, by slot id
+	std::map<uint32_t, instruments::classic::SoundState> states;     ///< what `sound_state` points at, by slot id
 	mutable std::vector<project::SlotAddress> asked;                 ///< every slot `loaded_sources` was asked about
 	std::map<uint32_t, bool> whole_folder;                           ///< what `kit_takes_whole_folder` answers
 	std::map<std::pair<uint32_t, uint8_t>, uint16_t> default_ranges; ///< by {slot id, source}
@@ -90,7 +90,7 @@ struct FakeSoundFacts final : SoundFacts {
 	std::optional<DxCartridgeNames> cartridge;                              ///< what `dx_cartridge` answers
 	std::vector<CableFact> cable_list;                                      ///< what `cables` answers
 	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override;
-	[[nodiscard]] const instrument::SoundState* sound_state(project::SlotAddress slot) const override;
+	[[nodiscard]] const instruments::classic::SoundState* sound_state(project::SlotAddress slot) const override;
 	[[nodiscard]] bool kit_takes_whole_folder(project::SlotAddress slot) const override;
 	[[nodiscard]] std::optional<uint16_t> default_range(project::SlotAddress slot, uint8_t source) const override;
 	[[nodiscard]] std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
@@ -227,10 +227,10 @@ struct RecordingSoundWrites final : SoundWrites {
 		/// An INSERT_RANGE's new top for the range below the inserted one; a DELETE_RANGE's new top for the range
 		/// below the deleted one. None where it keeps its top.
 		std::optional<int16_t> neighbour_top;
-		std::string text;                                 ///< ATTACH's path
-		std::optional<instrument::DxPatchState> dx_patch; ///< DX_PATCH's patch
-		Addresses where{};                                ///< TRANSPOSE's owner
-		midi::DeviceId device{};                          ///< VELOCITY_EVERYWHERE's device
+		std::string text;                                           ///< ATTACH's path
+		std::optional<instruments::classic::DxPatchState> dx_patch; ///< DX_PATCH's patch
+		Addresses where{};                                          ///< TRANSPOSE's owner
+		midi::DeviceId device{};                                    ///< VELOCITY_EVERYWHERE's device
 	};
 	std::vector<Call> calls; ///< every request taken, in order
 	bool accept{true};       ///< what each request answers (set_default_range answers nothing)
@@ -242,7 +242,8 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
+	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
+	                    const instruments::classic::DxPatchState& patch) override;
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;

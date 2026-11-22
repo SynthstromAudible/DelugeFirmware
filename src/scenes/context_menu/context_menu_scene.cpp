@@ -40,7 +40,7 @@
 #include "deluge.h"
 #include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -413,9 +413,9 @@ static_assert(
 } // namespace
 
 size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out) {
-	const deluge::instrument::SoundState* state =
+	const deluge::instruments::classic::SoundState* state =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
-	const bool ringmod = state != nullptr && deluge::instrument::synth_mode(*state) == SynthMode::RINGMOD;
+	const bool ringmod = state != nullptr && deluge::instruments::classic::synth_mode(*state) == SynthMode::RINGMOD;
 	const bool available[] = {!ringmod, !is_folder && !ringmod, !is_folder, !is_folder};
 	size_t n = 0;
 	for (uint8_t i = 0; i < std::size(available) && n < out.size(); i++) {

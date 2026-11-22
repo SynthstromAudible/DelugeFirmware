@@ -24,7 +24,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/sync.h"
 #include "serialization/value.h"
 

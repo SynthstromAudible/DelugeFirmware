@@ -26,7 +26,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_core.h"
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "project/song.h"
 
 #include "base/notify/dirty_set.h"
@@ -117,7 +117,7 @@ std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuCon
 		if (!from_item.is_null() && owner) {
 			return deluge::project::OwnerParamTarget{
 			    .owner = *owner,
-			    .param = deluge::project::engine_target(deluge::instrument::knob_param_of(from_item).value)};
+			    .param = deluge::project::engine_target(deluge::instruments::classic::knob_param_of(from_item).value)};
 		}
 	}
 	return bindings::learn_target(*node, ctx);

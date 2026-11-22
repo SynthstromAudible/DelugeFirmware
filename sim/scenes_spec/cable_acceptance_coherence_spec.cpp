@@ -1,13 +1,13 @@
 // The Deluge instrument's cable acceptance answers as the running sound does: over every source and patched param, in
 // every synth mode, with each filter on and off, each global LFO free and synced, on a synth and on a kit's drum,
-// `instrument::cable_allowed` over the sound's typed state agrees with `Sound::maySourcePatchToParam` refusing the
-// cable or not.
+// `instruments::classic::cable_allowed` over the sound's typed state agrees with `Sound::maySourcePatchToParam`
+// refusing the cable or not.
 
-#include "instruments/deluge/cable_acceptance.h"
+#include "instruments/classic/cable_acceptance.h"
 #include "scenes/menu/bind_host.h"
 
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
@@ -41,7 +41,7 @@ namespace {
 /// @p first.
 int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::SlotAddress slot, bool is_drum,
                       std::string& first) {
-	const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(slot);
+	const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(slot);
 	if (state == nullptr) {
 		first = "no sound state";
 		return 1;
@@ -52,9 +52,9 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 			const bool legacy =
 			    sound.maySourcePatchToParam(static_cast<PatchSource>(s), static_cast<uint8_t>(p), &manager)
 			    != PatchCableAcceptance::DISALLOWED;
-			const bool port =
-			    deluge::instrument::cable_allowed(static_cast<deluge::instrument::PatchSource>(s),
-			                                      deluge::plugin::ParamId{static_cast<uint32_t>(p)}, *state, is_drum);
+			const bool port = deluge::instruments::classic::cable_allowed(
+			    static_cast<deluge::instruments::classic::PatchSource>(s),
+			    deluge::plugin::ParamId{static_cast<uint32_t>(p)}, *state, is_drum);
 			if (legacy != port) {
 				if (found++ == 0) {
 					char line[96];
@@ -72,14 +72,14 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 /// @return Whether the Edit applied.
 bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path,
                  std::string_view text) {
-	deluge::instrument::SoundState wanted = sound.state();
-	const std::optional<deluge::serialization::Value> written =
-	    deluge::instrument::canonical_setting(path, deluge::serialization::Value::makeScalar(std::string(text)));
-	if (!written || !deluge::instrument::allows_setting(wanted, path, *written)) {
+	deluge::instruments::classic::SoundState wanted = sound.state();
+	const std::optional<deluge::serialization::Value> written = deluge::instruments::classic::canonical_setting(
+	    path, deluge::serialization::Value::makeScalar(std::string(text)));
+	if (!written || !deluge::instruments::classic::allows_setting(wanted, path, *written)) {
 		return false;
 	}
-	(void)deluge::instrument::write_setting(wanted, path, *written);
-	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
+	(void)deluge::instruments::classic::write_setting(wanted, path, *written);
+	const std::optional<deluge::serialization::Value> value = deluge::instruments::classic::setting_value(wanted, path);
 	if (!value) {
 		return false;
 	}
@@ -101,13 +101,13 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 	int32_t found = 0;
 	// Ring mod takes ring-moddable oscillators; acceptance reads no oscillator type, so both are saws throughout.
 	for (const char* path : {"osc1/type", "osc2/type"}) {
-		if (!set_setting(sound, song, slot, path, deluge::instrument::to_string(OscType::SAW))) {
+		if (!set_setting(sound, song, slot, path, deluge::instruments::classic::to_string(OscType::SAW))) {
 			first = std::string(path) + " refused";
 			return 1;
 		}
 	}
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
-		if (!set_setting(sound, song, slot, "mode", deluge::instrument::to_string(mode))) {
+		if (!set_setting(sound, song, slot, "mode", deluge::instruments::classic::to_string(mode))) {
 			first = "mode " + std::to_string(static_cast<int>(mode)) + " refused";
 			return found + 1;
 		}

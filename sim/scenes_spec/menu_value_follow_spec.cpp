@@ -12,7 +12,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_param_value.h"
@@ -52,7 +52,7 @@ ParamAddress lpf_on(spec::SongFixture& fx) {
 	auto* synth = static_cast<SoundInstrument*>(fx.instrument);
 	return ParamAddress{.owner = OwnerId::instrument(*synth->id()),
 	                    .space = ParamSpace::ENGINE,
-	                    .id = deluge::instrument::param::kLpfFrequency,
+	                    .id = deluge::instruments::classic::param::kLpfFrequency,
 	                    .clip_id = fx.clip->id()};
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "instruments/deluge/codec.h"
+#include "instruments/classic/codec.h"
 #include "model/edits/edit.h"
 #include "project/instrument_slot.h"
 #include "serialization/value.h"
@@ -21,7 +21,7 @@ namespace deluge::edits {
 /// @param path  The setting's path.
 /// @param value The canonical value, taken and allowed by the sound's state.
 /// @return The new state and the entries touched.
-[[nodiscard]] std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
+[[nodiscard]] std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>
 settingChange(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
 /// @brief Commit @p value, already canonical and taken and allowed by @p sound's state, at @p path into @p slot and

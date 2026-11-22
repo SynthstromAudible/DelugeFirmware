@@ -4,7 +4,7 @@
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
 #include "controls/sink.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "plugin/types/sync.h"
 #include "project/param_address.h"
 #include "scenes/bind/target.h"
@@ -23,7 +23,7 @@ struct WriteRequest {
 	int32_t param_value{0};
 	/// CABLE only: the polarity a new cable takes, or, with @ref polarity_only, the polarity an existing cable is set
 	/// to.
-	instrument::Polarity polarity{instrument::Polarity::UNIPOLAR};
+	instruments::classic::Polarity polarity{instruments::classic::Polarity::UNIPOLAR};
 	/// CABLE only: set an existing cable's polarity and leave its strength.
 	bool polarity_only{false};
 	bool operator==(const WriteRequest&) const = default;

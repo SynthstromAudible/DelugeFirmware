@@ -24,8 +24,8 @@
 #include "base/notify/notice_queue.h"
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
 #include "midi/device_id.h"
 #include "music/preset_scales.h"
 #include "project/device_settings.h"
@@ -352,8 +352,8 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		MenuContext ctx = r.fakes.settings_context(/*with_model=*/false);
 		ctx.addresses.slot = deluge::project::SlotAddress{.kind = deluge::project::SlotAddress::Kind::OUTPUT, .id = 7};
 		ctx.source_index = 0;
-		deluge::instrument::SoundState& state = r.fakes.host.sound.states[7];
-		state = deluge::instrument::with_ranges(state, deluge::instrument::SourceId::A,
+		deluge::instruments::classic::SoundState& state = r.fakes.host.sound.states[7];
+		state = deluge::instruments::classic::with_ranges(state, deluge::instruments::classic::SourceId::A,
 		                                        {deluge::synth::SourceRange{.top_note = 60},
 		                                         deluge::synth::SourceRange{.top_note = 72}});
 		// Range 1 starts at the note above range 0's top, 61: C sharp 3 or D flat 3.

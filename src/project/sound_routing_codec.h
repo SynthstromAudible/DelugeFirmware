@@ -2,7 +2,8 @@
 
 /// @file
 /// @brief A sound's routing in its element: the `sideChainSend` attribute and the `midiOutput` element. The
-/// instrument's codec places them among its own entries (deluge::instrument::encode_pieces); these read and write them.
+/// instrument's codec places them among its own entries (deluge::instruments::classic::encode_pieces); these read and
+/// write them.
 
 #include "project/instrument_slot.h"
 #include "serialization/value.h"

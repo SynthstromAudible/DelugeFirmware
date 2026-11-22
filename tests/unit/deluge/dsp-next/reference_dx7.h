@@ -185,7 +185,7 @@
 
 #pragma once
 
-#include "instruments/deluge/dx7_init_voice.h"
+#include "instruments/classic/dx7_init_voice.h"
 
 #include <algorithm>
 #include <array>
@@ -1142,7 +1142,7 @@ struct Patch {
 	uint32_t lfo_value{};
 
 	Patch() {
-		memcpy(params, deluge::instrument::kDx7InitVoice.data(), sizeof params);
+		memcpy(params, deluge::instruments::classic::kDx7InitVoice.data(), sizeof params);
 		eg_mod = 127;
 		random_detune = 0;
 

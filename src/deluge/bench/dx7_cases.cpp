@@ -4,7 +4,7 @@
 
 #include "bench/cases.h"
 
-#include "instruments/deluge/dx7_init_voice.h"
+#include "instruments/classic/dx7_init_voice.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/dx7/dx_voice_adapter.h"
@@ -43,7 +43,7 @@ Dx7Rig rig{};
 
 /// @brief Writes @p config's patch into @p p: the init voice with every op sounding, and the case's globals.
 void build_patch(const Dx7Config& config, DxPatch& p) {
-	std::ranges::copy(instrument::kDx7InitVoice, p.params.begin());
+	std::ranges::copy(instruments::classic::kDx7InitVoice, p.params.begin());
 	for (std::size_t op = 0; op < 6; ++op) {
 		uint8_t* o = &p.params[op * kOpBytes];
 		o[0] = 99;

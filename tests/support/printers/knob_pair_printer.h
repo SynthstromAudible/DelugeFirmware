@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/pages.h"
+#include "instruments/classic/pages.h"
 #include "support/printers/param_id_printer.h"
 
 #include <ostream>
@@ -29,7 +29,7 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 
 /// @brief Prints a knob pair as its lower and upper param, e.g. `{lower ParamId 12, upper ParamId 13}`.
 /// @param os The stream to print to.
@@ -39,4 +39,4 @@ inline std::ostream& operator<<(std::ostream& os, const KnobPair& pair) {
 	return os << "{lower " << pair.lower << ", upper " << pair.upper << "}";
 }
 
-} // namespace deluge::instrument
+} // namespace deluge::instruments::classic

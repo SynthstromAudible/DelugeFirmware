@@ -15,10 +15,10 @@
 //
 // Exit: 0 = edit persisted; 1 = load error; 2 = usage/IO; 3 = edit not applied / not persisted.
 
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/state_rules.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/state_rules.h"
+#include "instruments/classic/words.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -230,7 +230,7 @@ bool sameTuning(const deluge::dsp::fixed::FineTune& a, const deluge::dsp::fixed:
 }
 
 /// The oscillator slots a sound has, in file order.
-constexpr std::array kSourceIds{instrument::SourceId::A, instrument::SourceId::B};
+constexpr std::array kSourceIds{instruments::classic::SourceId::A, instruments::classic::SourceId::B};
 
 /// Each bound Sound of @p song: a synth instrument's, or a kit's sound drum's, live or hibernating.
 template <typename F>
@@ -263,16 +263,19 @@ std::string phaseText(uint32_t word) {
 /// the current song, else the unslotted write): the value is what the setting reads in the record with @p text written
 /// to a copy. @return Whether the state then holds the value.
 bool setThrough(Sound& sound, std::string_view path, std::string_view text) {
-	const std::optional<deluge::instrument::SoundState> wanted = deluge::test::try_set(*sound.state_, path, text);
+	const std::optional<deluge::instruments::classic::SoundState> wanted =
+	    deluge::test::try_set(*sound.state_, path, text);
 	if (!wanted) {
 		return false;
 	}
-	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(*wanted, path);
+	const std::optional<deluge::serialization::Value> value =
+	    deluge::instruments::classic::setting_value(*wanted, path);
 	if (!value) {
 		return false;
 	}
 	deluge::edits::settingFor(sound, path, *value);
-	const std::optional<deluge::serialization::Value> landed = deluge::instrument::setting_value(*sound.state_, path);
+	const std::optional<deluge::serialization::Value> landed =
+	    deluge::instruments::classic::setting_value(*sound.state_, path);
 	return landed && landed->str() == value->str();
 }
 
@@ -284,21 +287,21 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 	Sound* modeProbe = nullptr; // one that can go to ring mod and back (or back from it) without leaving FM
 	Sound* fmProbe = nullptr;   // one whose modulators an Edit writes
 	forEachBoundSound(song, [&](Sound& sound) {
-		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		const auto d = [&sound]() -> const instruments::classic::SoundState& { return *sound.state_; }; // read live
 		sounds++;
 		probe = (probe != nullptr) ? probe : &sound;
-		const bool ringable = std::ranges::all_of(kSourceIds, [&](instrument::SourceId id) {
-			return instrument::source_type(d(), id) <= OscType::WAVETABLE;
+		const bool ringable = std::ranges::all_of(kSourceIds, [&](instruments::classic::SourceId id) {
+			return instruments::classic::source_type(d(), id) <= OscType::WAVETABLE;
 		});
-		if (modeProbe == nullptr && instrument::synth_mode(d()) != SynthMode::FM && ringable) {
+		if (modeProbe == nullptr && instruments::classic::synth_mode(d()) != SynthMode::FM && ringable) {
 			modeProbe = &sound;
 		}
-		if (fmProbe == nullptr && instrument::synth_mode(d()) == SynthMode::FM) {
+		if (fmProbe == nullptr && instruments::classic::synth_mode(d()) == SynthMode::FM) {
 			fmProbe = &sound;
 		}
-		if (sound.getTranspose() != instrument::voicing(d()).master.transpose) {
+		if (sound.getTranspose() != instruments::classic::voicing(d()).master.transpose) {
 			std::fprintf(io.err, "M4b FAIL %s: transpose snapshot=%d record=%d\n", label, sound.getTranspose(),
-			             instrument::voicing(d()).master.transpose);
+			             instruments::classic::voicing(d()).master.transpose);
 			bad++;
 		}
 		// A copy: the unison-table check below reprojects, and every field must be compared as loaded.
@@ -309,15 +312,15 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				bad++;
 			}
 		};
-		expect(snap.engine.osc_sync == instrument::oscillator_sync(d()), "oscillator_sync");
-		expect(snap.voicing.priority == static_cast<VoicePriority>(instrument::voicing(d()).priority),
+		expect(snap.engine.osc_sync == instruments::classic::oscillator_sync(d()), "oscillator_sync");
+		expect(snap.voicing.priority == static_cast<VoicePriority>(instruments::classic::voicing(d()).priority),
 		       "voice_priority");
-		expect(snap.engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d()),
+		expect(snap.engine.modulator1_to_modulator0 == instruments::classic::modulator1_to_modulator0(d()),
 		       "modulator1_to_modulator0");
 		expect(sound.renderEffects() == sound.effects(), "effects");
-		expect(snap.voicing.unison.count == instrument::unison(d()).count, "num_unison");
-		expect(snap.voicing.unison_detune == instrument::unison(d()).detune, "unison_detune");
-		expect(snap.voicing.unison_spread == instrument::unison(d()).spread, "unison_stereo_spread");
+		expect(snap.voicing.unison.count == instruments::classic::unison(d()).count, "num_unison");
+		expect(snap.voicing.unison_detune == instruments::classic::unison(d()).detune, "unison_detune");
+		expect(snap.voicing.unison_spread == instruments::classic::unison(d()).spread, "unison_stereo_spread");
 		{
 			// The unison tables are derived; the loaded ones must match a fresh projection from the record.
 			sound.deriveConfig();
@@ -327,37 +330,41 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				expect(snap.voicing.unison.pans[u] == sound.config().voicing.unison.pans[u], "unison_pan");
 			}
 		}
-		expect(snap.voicing.cents == instrument::voicing(d()).master.cents, "cents");
-		expect(sameTuning(snap.voicing.tune, centsTuner(instrument::voicing(d()).master.cents)), "fine_tuner");
+		expect(snap.voicing.cents == instruments::classic::voicing(d()).master.cents, "cents");
+		expect(sameTuning(snap.voicing.tune, centsTuner(instruments::classic::voicing(d()).master.cents)),
+		       "fine_tuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
-			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_state.shape");
-			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instrument::lfo(d(), l).sync_type),
+			expect(snap.lfos[l].shape == static_cast<LFOType>(instruments::classic::lfo(d(), l).shape),
+			       "lfo_state.shape");
+			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instruments::classic::lfo(d(), l).sync_type),
 			       "lfo_state.sync_type");
-			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instrument::lfo(d(), l).sync_level),
+			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instruments::classic::lfo(d(), l).sync_level),
 			       "lfo_state.sync_level");
 		}
 		for (int32_t i = 0; i < 2; i++) {
-			expect(snap.engine.modulators[i].cents == instrument::modulators(d())[i].tuning.cents, "modulator_cents");
-			expect(sameTuning(snap.engine.modulators[i].tune, centsTuner(instrument::modulators(d())[i].tuning.cents)),
+			expect(snap.engine.modulators[i].cents == instruments::classic::modulators(d())[i].tuning.cents,
+			       "modulator_cents");
+			expect(sameTuning(snap.engine.modulators[i].tune,
+			                  centsTuner(instruments::classic::modulators(d())[i].tuning.cents)),
 			       "modulator_transposers");
-			expect(snap.engine.modulators[i].transpose == instrument::modulators(d())[i].tuning.transpose,
+			expect(snap.engine.modulators[i].transpose == instruments::classic::modulators(d())[i].tuning.transpose,
 			       "modulator_transpose");
 			expect(snap.engine.osc_retrigger_phase[i]
-			           == instrument::phase_word(instrument::source_retrigger(d(), kSourceIds[i])),
+			           == instruments::classic::phase_word(instruments::classic::source_retrigger(d(), kSourceIds[i])),
 			       "osc_retrigger_phase");
 			expect(snap.engine.modulators[i].retrigger_phase
-			           == instrument::phase_word(instrument::modulators(d())[i].retrigger),
+			           == instruments::classic::phase_word(instruments::classic::modulators(d())[i].retrigger),
 			       "modulator_retrigger_phase");
 		}
-		if (sound.getSynthMode() != static_cast<SynthMode>(instrument::synth_mode(d()))) {
+		if (sound.getSynthMode() != static_cast<SynthMode>(instruments::classic::synth_mode(d()))) {
 			std::fprintf(io.err, "M4b FAIL %s: synthMode snapshot=%d record=%d\n", label,
-			             static_cast<int>(sound.getSynthMode()), instrument::synth_mode(d()));
+			             static_cast<int>(sound.getSynthMode()), instruments::classic::synth_mode(d()));
 			bad++;
 		}
 	});
 	if (probe != nullptr) {
 		Sound& sound = *probe;
-		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		const auto d = [&sound]() -> const instruments::classic::SoundState& { return *sound.state_; }; // read live
 		auto roundTrip = [&](bool ok, const char* setting) {
 			if (!ok) {
 				std::fprintf(io.err, "M4b FAIL %s: the %s Edit did not write the record and reproject\n", label,
@@ -369,51 +376,53 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		const int16_t otherTranspose = static_cast<int16_t>(transpose + 7);
 		roundTrip(setThrough(sound, "transpose", std::to_string(otherTranspose))
 		              && sound.getTranspose() == otherTranspose
-		              && instrument::voicing(d()).master.transpose == otherTranspose,
+		              && instruments::classic::voicing(d()).master.transpose == otherTranspose,
 		          "transpose");
 		setThrough(sound, "transpose", std::to_string(transpose));
 		const deluge::synth::SoundConfig before = sound.config();
 		roundTrip(setThrough(sound, "osc2/oscillatorSync", before.engine.osc_sync ? "0" : "1")
-		              && sound.config().engine.osc_sync == instrument::oscillator_sync(d())
-		              && instrument::oscillator_sync(d()) != before.engine.osc_sync,
+		              && sound.config().engine.osc_sync == instruments::classic::oscillator_sync(d())
+		              && instruments::classic::oscillator_sync(d()) != before.engine.osc_sync,
 		          "osc2/oscillatorSync");
 		setThrough(sound, "osc2/oscillatorSync", before.engine.osc_sync ? "1" : "0");
 		const VoicePriority otherPriority =
 		    before.voicing.priority == VoicePriority::HIGH ? VoicePriority::LOW : VoicePriority::HIGH;
 		roundTrip(setThrough(sound, "voicePriority", std::to_string(std::to_underlying(otherPriority)))
 		              && sound.config().voicing.priority == otherPriority
-		              && static_cast<VoicePriority>(instrument::voicing(d()).priority) == otherPriority,
+		              && static_cast<VoicePriority>(instruments::classic::voicing(d()).priority) == otherPriority,
 		          "voicePriority");
 		setThrough(sound, "voicePriority", std::to_string(std::to_underlying(before.voicing.priority)));
 		const uint32_t otherPhase = before.engine.osc_retrigger_phase[1] + 5;
 		roundTrip(setThrough(sound, "osc2/retrigPhase", phaseText(otherPhase))
 		              && sound.config().engine.osc_retrigger_phase[1]
-		                     == instrument::phase_word(instrument::source_retrigger(d(), instrument::SourceId::B))
-		              && instrument::phase_word(instrument::source_retrigger(d(), instrument::SourceId::B))
+		                     == instruments::classic::phase_word(
+		                         instruments::classic::source_retrigger(d(), instruments::classic::SourceId::B))
+		              && instruments::classic::phase_word(
+		                     instruments::classic::source_retrigger(d(), instruments::classic::SourceId::B))
 		                     == otherPhase,
 		          "osc2/retrigPhase");
 		setThrough(sound, "osc2/retrigPhase", phaseText(before.engine.osc_retrigger_phase[1]));
 		const deluge::synth::LfoState lfo = before.lfos[LFO2_ID];
 		const LFOType otherWave = lfo.shape == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
-		roundTrip(setThrough(sound, "lfo2/type", instrument::to_string(otherWave))
+		roundTrip(setThrough(sound, "lfo2/type", instruments::classic::to_string(otherWave))
 		              && sound.config().lfos[LFO2_ID].shape == otherWave
-		              && static_cast<LFOType>(instrument::lfo(d(), LFO2_ID).shape) == otherWave,
+		              && static_cast<LFOType>(instruments::classic::lfo(d(), LFO2_ID).shape) == otherWave,
 		          "lfo2/type");
-		setThrough(sound, "lfo2/type", instrument::to_string(lfo.shape));
+		setThrough(sound, "lfo2/type", instruments::classic::to_string(lfo.shape));
 		const SyncLevel otherLevel = lfo.sync_level == SYNC_LEVEL_8TH ? SYNC_LEVEL_16TH : SYNC_LEVEL_8TH;
 		const bool typeLanded =
 		    setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(SYNC_TYPE_TRIPLET)));
 		roundTrip(typeLanded && setThrough(sound, "lfo2/syncLevel", std::to_string(plugin::index_of(otherLevel)))
 		              && sound.config().lfos[LFO2_ID].sync_type == SYNC_TYPE_TRIPLET
 		              && sound.config().lfos[LFO2_ID].sync_level == otherLevel
-		              && static_cast<SyncType>(instrument::lfo(d(), LFO2_ID).sync_type) == SYNC_TYPE_TRIPLET
-		              && static_cast<SyncLevel>(instrument::lfo(d(), LFO2_ID).sync_level) == otherLevel,
+		              && static_cast<SyncType>(instruments::classic::lfo(d(), LFO2_ID).sync_type) == SYNC_TYPE_TRIPLET
+		              && static_cast<SyncLevel>(instruments::classic::lfo(d(), LFO2_ID).sync_level) == otherLevel,
 		          "lfo2/syncType and lfo2/syncLevel");
 		setThrough(sound, "lfo2/syncLevel", std::to_string(plugin::index_of(lfo.sync_level)));
 		setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(lfo.sync_type)));
 		const int8_t otherCents = static_cast<int8_t>(before.voicing.cents == 25 ? -25 : 25);
 		roundTrip(setThrough(sound, "cents", std::to_string(otherCents)) && sound.config().voicing.cents == otherCents
-		              && instrument::voicing(d()).master.cents == otherCents
+		              && instruments::classic::voicing(d()).master.cents == otherCents
 		              && sameTuning(sound.config().voicing.tune, centsTuner(otherCents)),
 		          "cents");
 		setThrough(sound, "cents", std::to_string(before.voicing.cents));
@@ -425,9 +434,9 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		{
 			const deluge::synth::SoundConfig edited = sound.config();
 			roundTrip(unisonLanded && edited.voicing.unison.count == otherUnison
-			              && instrument::unison(d()).count == otherUnison
-			              && edited.voicing.unison_detune == instrument::unison(d()).detune
-			              && edited.voicing.unison_spread == instrument::unison(d()).spread,
+			              && instruments::classic::unison(d()).count == otherUnison
+			              && edited.voicing.unison_detune == instruments::classic::unison(d()).detune
+			              && edited.voicing.unison_spread == instruments::classic::unison(d()).spread,
 			          "unison/num, unison/detune and unison/spread");
 			sound.deriveConfig();
 			for (int32_t u = 0; u < otherUnison; u++) {
@@ -462,19 +471,20 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 	if (modeProbe != nullptr) {
 		// Between subtractive and ring mod: neither the filters nor the knobs move with the mode.
 		Sound& sound = *modeProbe;
-		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		const auto d = [&sound]() -> const instruments::classic::SoundState& { return *sound.state_; }; // read live
 		const SynthMode mode = sound.getSynthMode();
 		const SynthMode other = (mode == SynthMode::RINGMOD) ? SynthMode::SUBTRACTIVE : SynthMode::RINGMOD;
-		const bool landed = setThrough(sound, "mode", instrument::to_string(other));
-		if (!landed || sound.getSynthMode() != other || static_cast<SynthMode>(instrument::synth_mode(d())) != other) {
+		const bool landed = setThrough(sound, "mode", instruments::classic::to_string(other));
+		if (!landed || sound.getSynthMode() != other
+		    || static_cast<SynthMode>(instruments::classic::synth_mode(d())) != other) {
 			std::fprintf(io.err, "M4b FAIL %s: the mode Edit did not write the record and reproject\n", label);
 			bad++;
 		}
-		setThrough(sound, "mode", instrument::to_string(mode));
+		setThrough(sound, "mode", instruments::classic::to_string(mode));
 	}
 	if (fmProbe != nullptr) {
 		Sound& sound = *fmProbe;
-		const auto d = [&sound]() -> const instrument::SoundState& { return *sound.state_; }; // read live
+		const auto d = [&sound]() -> const instruments::classic::SoundState& { return *sound.state_; }; // read live
 		auto roundTrip = [&](bool ok, const char* setting) {
 			if (!ok) {
 				std::fprintf(io.err, "M4b FAIL %s: the %s Edit did not write the record and reproject\n", label,
@@ -484,21 +494,23 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		};
 		const deluge::synth::SoundConfig before = sound.config();
 		roundTrip(setThrough(sound, "modulator2/toModulator1", before.engine.modulator1_to_modulator0 ? "0" : "1")
-		              && sound.config().engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d())
-		              && instrument::modulator1_to_modulator0(d()) != before.engine.modulator1_to_modulator0,
+		              && sound.config().engine.modulator1_to_modulator0
+		                     == instruments::classic::modulator1_to_modulator0(d())
+		              && instruments::classic::modulator1_to_modulator0(d()) != before.engine.modulator1_to_modulator0,
 		          "modulator2/toModulator1");
 		setThrough(sound, "modulator2/toModulator1", before.engine.modulator1_to_modulator0 ? "1" : "0");
 		const uint32_t otherPhase = before.engine.modulators[1].retrigger_phase + 5;
 		roundTrip(setThrough(sound, "modulator2/retrigPhase", phaseText(otherPhase))
 		              && sound.config().engine.modulators[1].retrigger_phase
-		                     == instrument::phase_word(instrument::modulators(d())[1].retrigger)
-		              && instrument::phase_word(instrument::modulators(d())[1].retrigger) == otherPhase,
+		                     == instruments::classic::phase_word(instruments::classic::modulators(d())[1].retrigger)
+		              && instruments::classic::phase_word(instruments::classic::modulators(d())[1].retrigger)
+		                     == otherPhase,
 		          "modulator2/retrigPhase");
 		setThrough(sound, "modulator2/retrigPhase", phaseText(before.engine.modulators[1].retrigger_phase));
 		const int8_t otherModCents = static_cast<int8_t>(before.engine.modulators[1].cents == 30 ? -30 : 30);
 		roundTrip(setThrough(sound, "modulator2/cents", std::to_string(otherModCents))
 		              && sound.config().engine.modulators[1].cents == otherModCents
-		              && instrument::modulators(d())[1].tuning.cents == otherModCents
+		              && instruments::classic::modulators(d())[1].tuning.cents == otherModCents
 		              && sameTuning(sound.config().engine.modulators[1].tune, centsTuner(otherModCents)),
 		          "modulator2/cents");
 		setThrough(sound, "modulator2/cents", std::to_string(before.engine.modulators[1].cents));

@@ -47,7 +47,7 @@
 #include "scenes/menu/relevance.h"
 
 #include "gfx/oled/icons.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 
 #include <optional>
 #include <span>
@@ -100,8 +100,9 @@ inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
 inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                           .path = "polyphonic"};
 inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
-	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(instrument::PolyphonyMode::POLY) ? &voice_count
-	                                                                                                   : nullptr;
+	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(instruments::classic::PolyphonyMode::POLY)
+	           ? &voice_count
+	           : nullptr;
 }
 
 inline constexpr Node polyphony = with_affect_entire(
@@ -109,13 +110,14 @@ inline constexpr Node polyphony = with_affect_entire(
                          setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
                          polyphony_chain, kPolyphonyChain)),
                      sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT)));
-inline constexpr Node portamento =
-    with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
-                                            {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-                                             deluge::instrument::runtime_index(deluge::instrument::param::kPortamento)},
-                                            Hint::None),
-                                      sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
-                     glide_draw);
+inline constexpr Node portamento = with_column_draw(
+    with_column_name(
+        param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
+              {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPortamento)},
+              Hint::None),
+        sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
+    glide_draw);
 
 inline constexpr const Node* kVoiceChildren[] = {&voice_priority, &polyphony, &voice_count, &portamento, &unison};
 inline constexpr Node voice =

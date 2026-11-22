@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 enum class Polarity : uint8_t;
 }
 
@@ -30,7 +30,8 @@ public:
 	/// @param value    The new strength, as the engine stores it.
 	/// @param polarity The polarity a new cable takes.
 	/// @param write    How the strength is written.
-	SetPatchCable(project::ParamAddress cable, int32_t value, instrument::Polarity polarity, Write write = Write::USER)
+	SetPatchCable(project::ParamAddress cable, int32_t value, instruments::classic::Polarity polarity,
+	              Write write = Write::USER)
 	    : cable_(cable), value_(value), polarity_(polarity), write_(write) {}
 
 	/// @copydoc Edit::apply
@@ -40,7 +41,7 @@ public:
 private:
 	project::ParamAddress cable_;
 	int32_t value_;
-	instrument::Polarity polarity_;
+	instruments::classic::Polarity polarity_;
 	Write write_;
 };
 

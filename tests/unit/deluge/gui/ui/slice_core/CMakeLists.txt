@@ -28,7 +28,7 @@ deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
     deluge_gfx_oled
     deluge_gfx_grid
     deluge_serialization
-    deluge_instrument
+    deluge_instruments_classic
   INCLUDES
     ${DELUGE_REPO_ROOT}/src
     ${DELUGE_REPO_ROOT}/src/deluge

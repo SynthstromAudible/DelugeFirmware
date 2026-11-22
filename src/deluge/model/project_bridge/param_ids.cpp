@@ -23,8 +23,8 @@
 #include "modulation/patch/patch_cable.h"
 
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 
 #include <optional>
 #include <span>
@@ -32,7 +32,7 @@
 namespace deluge::bridge {
 
 namespace params = deluge::modulation::params;
-namespace instrument = deluge::instrument;
+namespace instrument = deluge::instruments::classic;
 namespace host_chain = deluge::host_chain;
 
 // The runtime's numbering may move only with the engines' maps; these anchor each run's ends and sizes.

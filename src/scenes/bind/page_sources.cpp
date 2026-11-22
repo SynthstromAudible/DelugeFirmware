@@ -1,7 +1,7 @@
 #include "scenes/bind/page_sources.h"
 
 #include "effects/host_chain/pages.h"
-#include "instruments/deluge/pages.h"
+#include "instruments/classic/pages.h"
 #include "project/fx_chain.h"
 
 #include <algorithm>
@@ -10,7 +10,7 @@
 namespace deluge::scenes::bind {
 
 std::span<const plugin::RemoteControls> app_publishers() {
-	static const std::array<plugin::RemoteControls, 2> kRecords{instrument::kRemoteControls,
+	static const std::array<plugin::RemoteControls, 2> kRecords{instruments::classic::kRemoteControls,
 	                                                            host_chain::kRemoteControls};
 	return kRecords;
 }

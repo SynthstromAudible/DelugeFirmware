@@ -615,7 +615,7 @@ class RealTable(unittest.TestCase):
         self.assertEqual(
             len(
                 self.library_found(
-                    "controls", '#include "instruments/deluge/words.h"\n'
+                    "controls", '#include "instruments/classic/words.h"\n'
                 )
             ),
             1,
@@ -623,12 +623,13 @@ class RealTable(unittest.TestCase):
 
     def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
         self.assertEqual(
-            self.library_found("instrument", '#include "plugin/plugin.h"\n'), []
+            self.library_found("instruments-classic", '#include "plugin/plugin.h"\n'),
+            [],
         )
         self.assertEqual(
             len(
                 self.library_found(
-                    "instrument", '#include "processing/sound/sound.h"\n'
+                    "instruments-classic", '#include "processing/sound/sound.h"\n'
                 )
             ),
             1,
@@ -645,7 +646,7 @@ class RealTable(unittest.TestCase):
         self.assertEqual(
             len(
                 self.library_found(
-                    "host-chain", '#include "instruments/deluge/params.h"\n'
+                    "host-chain", '#include "instruments/classic/params.h"\n'
                 )
             ),
             1,

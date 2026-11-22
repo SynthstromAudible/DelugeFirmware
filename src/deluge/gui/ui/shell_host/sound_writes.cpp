@@ -3,7 +3,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "hid/display/display.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "io/midi/device_registry.h"
 #include "model/edits/attach_recorded_sample.h"
 #include "model/edits/edit.h"
@@ -70,16 +70,17 @@ public:
 		}
 		// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a
 		// range with no file at @p at, the one below it narrowed
-		const auto id = static_cast<instrument::SourceId>(source);
-		std::vector<synth::SourceRange> ranges = instrument::source_ranges(sound->state(), id);
+		const auto id = static_cast<instruments::classic::SourceId>(source);
+		std::vector<synth::SourceRange> ranges = instruments::classic::source_ranges(sound->state(), id);
 		if (at > ranges.size()) {
 			return false;
 		}
 		// A new sample range's end is unset until a file gives it one, as a runtime range starts; a wavetable range
 		// has no zone
-		const bool sample = instrument::source_type(sound->state(), id) == OscType::SAMPLE;
-		ranges.insert(ranges.begin() + at,
-		              synth::SourceRange{.top_note = top_note, .zone = {.end = sample ? instrument::kUnsetEndPos : 0}});
+		const bool sample = instruments::classic::source_type(sound->state(), id) == OscType::SAMPLE;
+		ranges.insert(
+		    ranges.begin() + at,
+		    synth::SourceRange{.top_note = top_note, .zone = {.end = sample ? instruments::classic::kUnsetEndPos : 0}});
 		if (previous_top && at > 0) {
 			ranges[at - 1].top_note = *previous_top;
 		}
@@ -99,7 +100,7 @@ public:
 		// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the range goes, the one
 		// below it widened
 		std::vector<synth::SourceRange> ranges =
-		    instrument::source_ranges(sound->state(), static_cast<instrument::SourceId>(source));
+		    instruments::classic::source_ranges(sound->state(), static_cast<instruments::classic::SourceId>(source));
 		if (index >= ranges.size()) {
 			return false;
 		}
@@ -118,7 +119,8 @@ public:
 		return applied(edit);
 	}
 
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override {
+	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
+	                    const instruments::classic::DxPatchState& patch) override {
 		::Sound* sound = sound_at(slot);
 		if (sound == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7) {
 			return false;
@@ -156,11 +158,11 @@ public:
 			if (sound == nullptr) {
 				return false;
 			}
-			const instrument::SoundState& state = sound->state();
-			const auto id = static_cast<instrument::SourceId>(source);
-			const std::vector<synth::SourceRange> held = instrument::source_ranges(state, id);
-			if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
-			    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
+			const instruments::classic::SoundState& state = sound->state();
+			const auto id = static_cast<instruments::classic::SourceId>(source);
+			const std::vector<synth::SourceRange> held = instruments::classic::source_ranges(state, id);
+			if (!held.empty() && instruments::classic::synth_mode(state) != instruments::classic::SynthMode::FM
+			    && instruments::classic::source_type(state, id) == instruments::classic::OscType::SAMPLE) {
 				std::vector<synth::SourceRange> ranges{held.begin(), held.end()};
 				const size_t r = in_range && *in_range < ranges.size() ? *in_range : 0;
 				ranges[r].tuning.transpose = static_cast<int16_t>(transpose);

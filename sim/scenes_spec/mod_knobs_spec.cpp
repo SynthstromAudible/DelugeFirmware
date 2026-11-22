@@ -61,8 +61,8 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/sound_state.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action.h"
@@ -634,14 +634,15 @@ struct FakeKnobs {
 	CountingPresentation out;
 
 	FakeKnobs() {
-		fakes.hold_synth(deluge::instrument::SoundState{});
+		fakes.hold_synth(deluge::instruments::classic::SoundState{});
 		deluge::project::DocOutput& output =
 		    fakes.model.output_structure.getOrCreate(spec::FakeHostRig::kSynthOutputId);
 		output.mod_knob_mode = 1;
-		output.controls = {{.control = {.button = 1, .knob = 1}, .target = deluge::instrument::param::kLpfFrequency}};
+		output.controls = {
+		    {.control = {.button = 1, .knob = 1}, .target = deluge::instruments::classic::param::kLpfFrequency}};
 		fakes.host.midi_feedback.ccs.emplace_back(
 		    deluge::project::OwnerPlugin::INSTRUMENT,
-		    deluge::project::engine_target(deluge::instrument::param::kLpfFrequency.value), kLpfFrequencyCc);
+		    deluge::project::engine_target(deluge::instruments::classic::param::kLpfFrequency.value), kLpfFrequencyCc);
 		rig.knobs.set_ports(&ports);
 		rig.knobs.set_model(&fakes.model);
 		rig.knobs.set_focus(bind::KnobFocus{.owner = bind::SoundFocus{.slot = spec::FakeHostRig::kSynthSlot,
@@ -2332,8 +2333,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				lower_target = mapping.target;
 			}
 		}
-		expect(upper_target).to_equal(std::optional{deluge::instrument::param::kHpfFrequency});
-		expect(lower_target).to_equal(std::optional{deluge::instrument::param::kHpfResonance});
+		expect(upper_target).to_equal(std::optional{deluge::instruments::classic::param::kHpfFrequency});
+		expect(lower_target).to_equal(std::optional{deluge::instruments::classic::param::kHpfResonance});
 
 		rig.set_target_without_timeline(&f.song->live.master_channel, &f.song->paramManager);
 		const uint8_t before = f.song->project.master_effects.filter_type;

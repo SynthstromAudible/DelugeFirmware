@@ -6,7 +6,7 @@
 
 #include "effects/state.h"
 #include "fakes.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "project/fx_chain.h"
 #include "project/instrument_slot.h"
 #include "project/setting_group.h"
@@ -56,7 +56,7 @@ struct ModelFixture {
 	/// The host's ports; valid while this fixture lives.
 	[[nodiscard]] Ports ports() { return host.ports(); }
 	/// Set @p slot's state and re-encode its slot from it, as a coherent song holds them.
-	void set_state(project::SlotAddress slot, const instrument::SoundState& state);
+	void set_state(project::SlotAddress slot, const instruments::classic::SoundState& state);
 };
 
 } // namespace deluge::scenes::bind::test

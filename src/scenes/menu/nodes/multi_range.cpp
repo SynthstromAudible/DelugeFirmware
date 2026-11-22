@@ -19,8 +19,8 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/words.h"
 #include "music/note_names.h"
 #include "project/song.h"
 
@@ -127,10 +127,11 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 	if (ctx.source_index != source || index < 0 || count <= 1 || index >= count) {
 		return 0;
 	}
-	const instrument::SoundState* sound =
+	const instruments::classic::SoundState* sound =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr
-	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != instrument::OscType::SAMPLE) {
+	    || instruments::classic::source_type(*sound, static_cast<instruments::classic::SourceId>(source))
+	           != instruments::classic::OscType::SAMPLE) {
 		return 0;
 	}
 	char* buf = out.data();

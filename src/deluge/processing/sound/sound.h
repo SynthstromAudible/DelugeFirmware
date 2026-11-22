@@ -82,9 +82,9 @@ class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
 #include "effects/fx_section.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/voice_pool.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/voice_pool.h"
 #include <optional>
 #include <utility>
 
@@ -295,16 +295,16 @@ public:
 
 	/// @brief The Deluge instrument's settings for this sound, from its construction on: its own state (ownedState_)
 	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
-	deluge::instrument::SoundState* state_{&ownedState_};
+	deluge::instruments::classic::SoundState* state_{&ownedState_};
 	/// @brief Bind this sound into its record's slot: the slot's state (@p record) and routing (@p routing) take what
 	/// the sound holds, its own moved in or another record's copied, and every setter writes the record while bound.
 	/// @param record  The state the sound's record owns; it must outlive the binding (unbindState before it goes).
 	/// @param routing The routing the same slot owns, beside @p record.
-	void bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing);
+	void bindState(deluge::instruments::classic::SoundState& record, deluge::project::SoundRouting& routing);
 	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
 	/// slot's record the sound is bound into, else in its own state, which its record takes when it is adopted.
 	/// @param loaded The state to play.
-	void adoptState(deluge::instrument::SoundState loaded);
+	void adoptState(deluge::instruments::classic::SoundState loaded);
 	/// @brief Take the state and the routing back from the record the sound is bound into, as the record goes: they
 	/// move into the sound's own, which it then plays, and the record is left empty. Nothing when it plays its own
 	/// state already.
@@ -320,14 +320,14 @@ public:
 	void applyRouting();
 	/// @brief The state this sound plays: its record's once adopted, its own before.
 	/// @return The state.
-	[[nodiscard]] const deluge::instrument::SoundState& state() const { return *state_; }
+	[[nodiscard]] const deluge::instruments::classic::SoundState& state() const { return *state_; }
 	/// @brief The state this sound plays, to write a change into before applying it.
 	/// @return The state.
-	[[nodiscard]] deluge::instrument::SoundState& record() { return *state_; }
+	[[nodiscard]] deluge::instruments::classic::SoundState& record() { return *state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
-	Error applyState(const deluge::instrument::SoundState& state);
+	Error applyState(const deluge::instruments::classic::SoundState& state);
 
 	/// @brief The sound's settings as its voices play them, derived from state_ at bind, on a read and after
 	/// edits; the render reads it. Always present, so the render never needs a fallback.
@@ -583,7 +583,9 @@ public:
 	void cull(deluge::synth::CullKind kind, uint32_t increment = 0);
 	/// @brief The sound's voices, to read through the pool with the render excluded.
 	/// @return The pool.
-	[[nodiscard]] const deluge::instrument::VoicePool<SoundVoiceHost>& voicePool() const { return synth_.voices(); }
+	[[nodiscard]] const deluge::instruments::classic::VoicePool<SoundVoiceHost>& voicePool() const {
+		return synth_.voices();
+	}
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
@@ -605,7 +607,9 @@ protected:
 	void voiceExpressionImmediate(SoundVoice& voice, int32_t voiceLevelValue, int32_t s);
 	/// @brief The sound's voices, for its kinds to change in place through the pool.
 	/// @return The pool.
-	[[nodiscard]] deluge::instrument::VoicePool<SoundVoiceHost>& editableVoicePool() { return synth_.voices(); }
+	[[nodiscard]] deluge::instruments::classic::VoicePool<SoundVoiceHost>& editableVoicePool() {
+		return synth_.voices();
+	}
 
 private:
 	friend struct SoundVoiceHost;
@@ -643,7 +647,7 @@ private:
 	/// excluded.
 	deluge::audio::VoiceCost voiceCost_;
 	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
-	deluge::instrument::SoundState ownedState_;
+	deluge::instruments::classic::SoundState ownedState_;
 	/// @brief The sound's routing, owned here until a record adopts it (bindState).
 	deluge::project::SoundRouting ownedRouting_;
 	/// @brief The routing the sound plays: ownedRouting_, or its record's slot's.
@@ -680,7 +684,7 @@ private:
 	/// @brief The sound's synth: its config and its voices. Only the pool edits the voice list, each edit inside an
 	/// AudioExcludedSection (free on the audio tier, the render walking every Sound's voices) and reported to the
 	/// structural-edit probe (util/structural_edit_probe.h).
-	deluge::instrument::DelugeSynth::Instance<SoundVoiceHost> synth_{voiceHost_};
+	deluge::instruments::classic::DelugeSynth::Instance<SoundVoiceHost> synth_{voiceHost_};
 
 	static void noteVoicesEdit();
 };

@@ -1,11 +1,11 @@
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/settings.h"
 #include "plugin/types/setting.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
 
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "support/record_state.h"
 #include <cppspec.hpp>
 #include <string>
@@ -22,13 +22,13 @@ namespace {
 /// "path=got/want"; empty when every row agrees.
 std::string reads_unlike_state(ModelFixture& fixture, deluge::project::SlotAddress slot) {
 	const SlotReader reader{fixture.song, slot, fixture.host.sound};
-	const deluge::instrument::SoundState& state = fixture.host.sound.states.at(slot.id);
+	const deluge::instruments::classic::SoundState& state = fixture.host.sound.states.at(slot.id);
 	std::string unlike;
-	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::instruments::classic::kSettings) {
 		if (row.kind == SettingKind::STRUCTURED || row.kind == SettingKind::TEXT) {
 			continue;
 		}
-		const auto want = deluge::instrument::held_setting(state, row.path);
+		const auto want = deluge::instruments::classic::held_setting(state, row.path);
 		const auto got = reader.read(row.path);
 		if (got != want) {
 			unlike += std::string(row.path) + "=" + (got ? std::to_string(*got) : "none") + "/"
@@ -49,16 +49,16 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 
 	it("reads a changed state: a choice, a number, an LFO's sync level and an FM sound's oscillator type", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
-		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::MONO));
+		deluge::instruments::classic::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instruments::classic::to_string(deluge::instruments::classic::PolyphonyMode::MONO));
 		deluge::test::set(state, "unison/num", "4");
 		deluge::test::set(state, "lfo1/syncLevel", "5");
-		deluge::test::set(state, "osc1/type", deluge::instrument::to_string(deluge::instrument::OscType::SAW));
-		deluge::test::set(state, "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
+		deluge::test::set(state, "osc1/type", deluge::instruments::classic::to_string(deluge::instruments::classic::OscType::SAW));
+		deluge::test::set(state, "mode", deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::FM));
 		fixture.set_state(kSynth, state);
 		expect(reads_unlike_state(fixture, kSynth)).to_equal(std::string{});
 		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
-		expect(reader.read("osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(deluge::instrument::OscType::SAW));
+		expect(reader.read("osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(deluge::instruments::classic::OscType::SAW));
 	});
 
 	it("reads every row the table holds: the host contract's reader never answers nothing for one", _ {
@@ -66,7 +66,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 		for (const deluge::project::SlotAddress slot : {kSynth, kDrum}) {
 			const SlotReader reader{fixture.song, slot, fixture.host.sound};
 			std::string missing;
-			for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
+			for (const deluge::plugin::SettingInfo& row : deluge::instruments::classic::kSettings) {
 				if (row.kind != SettingKind::STRUCTURED && row.kind != SettingKind::TEXT && !reader.read(row.path)) {
 					missing += std::string(row.path) + " ";
 				}

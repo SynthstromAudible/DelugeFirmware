@@ -201,37 +201,39 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                                    set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose), \
 	                       sid(deluge::l10n::String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)),                            \
 	            {deluge::plugin::ParamKind::PATCHED,                                                                   \
-	             static_cast<uint8_t>(deluge::instrument::runtime_index(deluge::instrument::param::kOscAPitch)         \
-	                                  + (i))}))),                                                                      \
+	             static_cast<uint8_t>(                                                                                 \
+	                 deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kOscAPitch)      \
+	                 + (i))}))),                                                                                       \
 	        (i) + 1),                                                                                                  \
 	    transpose##i##_range_suffix);                                                                                  \
 	inline constexpr Node source##i##_wave_index = with_title_arg(                                                     \
-	    with_patch_chain(                                                                                              \
-	        param(sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                                    \
-	              {deluge::plugin::ParamKind::PATCHED,                                                                 \
-	               static_cast<uint8_t>(                                                                               \
-	                   deluge::instrument::runtime_index(deluge::instrument::param::kOscAWavetablePosition) + (i))},   \
-	              Hint::Slider, param_shows::kOscWaveIndex[i],                                                         \
-	              sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE))),                                     \
+	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                       \
+	                           {deluge::plugin::ParamKind::PATCHED,                                                    \
+	                            static_cast<uint8_t>(deluge::instruments::classic::runtime_index(                      \
+	                                                     deluge::instruments::classic::param::kOscAWavetablePosition)  \
+	                                                 + (i))},                                                          \
+	                           Hint::Slider, param_shows::kOscWaveIndex[i],                                            \
+	                           sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
 	inline constexpr Node osc##i##_pulse_width = with_column_draw(                                                     \
 	    with_title_arg(with_patch_chain(param(                                                                         \
 	                       sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),                                          \
 	                       {deluge::plugin::ParamKind::PATCHED,                                                        \
-	                        static_cast<uint8_t>(                                                                      \
-	                            deluge::instrument::runtime_index(deluge::instrument::param::kOscAPhaseWidth) + (i))}, \
+	                        static_cast<uint8_t>(deluge::instruments::classic::runtime_index(                          \
+	                                                 deluge::instruments::classic::param::kOscAPhaseWidth)             \
+	                                             + (i))},                                                              \
 	                       Hint::None, param_shows::kOscPulseWidth[i],                                                 \
 	                       sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)),     \
 	                   (i) + 1),                                                                                       \
 	    pulse_width_draw);                                                                                             \
 	inline constexpr Node source##i##_feedback = with_title_arg(                                                       \
-	    with_patch_chain(                                                                                              \
-	        param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                                      \
-	              {deluge::plugin::ParamKind::PATCHED,                                                                 \
-	               static_cast<uint8_t>(                                                                               \
-	                   deluge::instrument::runtime_index(deluge::instrument::param::kCarrier1Feedback) + (i))},        \
-	              Hint::Bar, param_shows::kOscCarrierFeedback[i],                                                      \
-	              sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE))),                                     \
+	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
+	                           {deluge::plugin::ParamKind::PATCHED,                                                    \
+	                            static_cast<uint8_t>(deluge::instruments::classic::runtime_index(                      \
+	                                                     deluge::instruments::classic::param::kCarrier1Feedback)       \
+	                                                 + (i))},                                                          \
+	                           Hint::Bar, param_shows::kOscCarrierFeedback[i],                                         \
+	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
 	inline constexpr Node osc##i##_phase = retrigger_phase_screen(with_horizontal_step(                                \
 	    with_column_name(                                                                                              \
@@ -326,16 +328,18 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                                2),                                                                                \
 	            sid(deluge::l10n::String::STRING_FOR_FM_MOD_TRAN_MENU_TITLE)),                                         \
 	        {deluge::plugin::ParamKind::PATCHED,                                                                       \
-	         static_cast<uint8_t>(deluge::instrument::runtime_index(deluge::instrument::param::kModulator1Pitch)       \
-	                              + (i))})),                                                                           \
+	         static_cast<uint8_t>(                                                                                     \
+	             deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kModulator1Pitch)    \
+	             + (i))})),                                                                                            \
 	    (i) + 1);                                                                                                      \
 	inline constexpr Node modulator##i##_feedback = with_title_arg(                                                    \
-	    with_patch_chain(                                                                                              \
-	        param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                                      \
-	              {deluge::plugin::ParamKind::PATCHED,                                                                 \
-	               static_cast<uint8_t>(                                                                               \
-	                   deluge::instrument::runtime_index(deluge::instrument::param::kModulator1Feedback) + (i))},      \
-	              Hint::Bar, param_shows::kOnFm, sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE))),      \
+	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
+	                           {deluge::plugin::ParamKind::PATCHED,                                                    \
+	                            static_cast<uint8_t>(deluge::instruments::classic::runtime_index(                      \
+	                                                     deluge::instruments::classic::param::kModulator1Feedback)     \
+	                                                 + (i))},                                                          \
+	                           Hint::Bar, param_shows::kOnFm,                                                          \
+	                           sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
 	inline constexpr Node modulator##i##_phase_node = retrigger_phase_screen(with_horizontal_step(                     \
 	    with_column_name(                                                                                              \
@@ -401,39 +405,42 @@ inline constexpr Node recorder =
 
 // The mixer page (`source0VolumeMenu` onward in `origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr Node source0_volume = with_value_text(
-    with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
-                                          {deluge::plugin::ParamKind::PATCHED,
-                                           deluge::instrument::runtime_index(deluge::instrument::param::kOscAVolume)},
-                                          Hint::Bar, param_shows::kOffRingMod)),
+    with_title_arg(with_patch_chain(param(
+                       sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
+                       {deluge::plugin::ParamKind::PATCHED,
+                        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kOscAVolume)},
+                       Hint::Bar, param_shows::kOffRingMod)),
                    1),
     source0_volume_text);
 inline constexpr Node source1_volume = with_value_text(
-    with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
-                                          {deluge::plugin::ParamKind::PATCHED,
-                                           deluge::instrument::runtime_index(deluge::instrument::param::kOscBVolume)},
-                                          Hint::Bar, param_shows::kOffRingMod)),
+    with_title_arg(with_patch_chain(param(
+                       sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
+                       {deluge::plugin::ParamKind::PATCHED,
+                        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kOscBVolume)},
+                       Hint::Bar, param_shows::kOffRingMod)),
                    2),
     source1_volume_text);
-inline constexpr Node modulator0_volume = with_value_text(
-    with_title_arg(
-        with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
-                               {deluge::plugin::ParamKind::PATCHED,
-                                deluge::instrument::runtime_index(deluge::instrument::param::kModulator1Volume)},
-                               Hint::Bar, param_shows::kOnFm)),
-        1),
-    modulator0_volume_text);
-inline constexpr Node modulator1_volume = with_value_text(
-    with_title_arg(
-        with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
-                               {deluge::plugin::ParamKind::PATCHED,
-                                deluge::instrument::runtime_index(deluge::instrument::param::kModulator2Volume)},
-                               Hint::Bar, param_shows::kOnFm)),
-        2),
-    modulator1_volume_text);
-inline constexpr Node noise = with_patch_chain(param(
-    sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
-    {deluge::plugin::ParamKind::PATCHED, deluge::instrument::runtime_index(deluge::instrument::param::kNoiseVolume)},
-    Hint::Bar, param_shows::kOffFm));
+inline constexpr Node modulator0_volume =
+    with_value_text(with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
+                                                          {deluge::plugin::ParamKind::PATCHED,
+                                                           deluge::instruments::classic::runtime_index(
+                                                               deluge::instruments::classic::param::kModulator1Volume)},
+                                                          Hint::Bar, param_shows::kOnFm)),
+                                   1),
+                    modulator0_volume_text);
+inline constexpr Node modulator1_volume =
+    with_value_text(with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE),
+                                                          {deluge::plugin::ParamKind::PATCHED,
+                                                           deluge::instruments::classic::runtime_index(
+                                                               deluge::instruments::classic::param::kModulator2Volume)},
+                                                          Hint::Bar, param_shows::kOnFm)),
+                                   2),
+                    modulator1_volume_text);
+inline constexpr Node noise = with_patch_chain(
+    param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
+          {deluge::plugin::ParamKind::PATCHED,
+           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kNoiseVolume)},
+          Hint::Bar, param_shows::kOffFm));
 inline constexpr Node osc_sync = with_affect_entire(
     with_column_name(setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
                                   {.kind = deluge::scenes::bind::Target::Kind::SOUND,

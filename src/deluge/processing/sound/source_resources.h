@@ -22,7 +22,7 @@
 #include "storage/multi_range/multi_range_array.h"
 #include "synth/sources/input/live/live_inputs.h"
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 
 class ParamManagerForTimeline;
 class WaveTable;
@@ -38,7 +38,7 @@ public:
 	~SourceResources();
 
 	/// @brief The DX7 patch it holds: the 156 params, engine mode and random detune; none when it holds none.
-	[[nodiscard]] std::optional<deluge::instrument::DxPatchState> heldDxPatch() const;
+	[[nodiscard]] std::optional<deluge::instruments::classic::DxPatchState> heldDxPatch() const;
 
 	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the current
 	/// type) their zones and tuning, which a type change and back keeps.

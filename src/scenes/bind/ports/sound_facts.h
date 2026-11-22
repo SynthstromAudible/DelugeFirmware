@@ -4,8 +4,8 @@
 /// @brief What a scene reads of a sound that its record does not hold: what the card has loaded into it, its
 ///        engine's typed state, its patch cables, its ranges' identities, and the DX7 bank last read.
 
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/sound_state.h"
 #include "project/clip_address.h"
 #include "project/instrument_slot.h"
 #include "project/param_address.h"
@@ -19,8 +19,8 @@ namespace deluge::scenes::bind {
 
 /// @brief One of a sound's patch cables, as the engine holds it.
 struct CableFact {
-	plugin::ParamId depth;           ///< the cable's depth id, which names its source and its destination
-	instrument::Polarity polarity{}; ///< its polarity
+	plugin::ParamId depth;                     ///< the cable's depth id, which names its source and its destination
+	instruments::classic::Polarity polarity{}; ///< its polarity
 };
 
 /// @brief The most patch cables a sound holds.
@@ -68,7 +68,7 @@ public:
 	/// @brief The instrument's typed state for the sound at @p slot, or nullptr when there is no such sound. It is what
 	/// the slot decodes to, kept equal to it by every Edit, plus what no file can hold (an FM sound's oscillator types,
 	/// a non-FM sound's modulators): a read of a row a menu does not show, which a condition may still read, needs it.
-	[[nodiscard]] virtual const instrument::SoundState* sound_state(project::SlotAddress slot) const = 0;
+	[[nodiscard]] virtual const instruments::classic::SoundState* sound_state(project::SlotAddress slot) const = 0;
 	/// @brief Whether the sound at @p slot is a kit's only drum, on its clip's first note row: the kit a whole folder
 	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit` in
 	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`, which also asks that the menu edits source 0 -- the

@@ -3,5 +3,5 @@
 deluge_specs_driver(controls_specs TREES host arm
   SOURCES ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
           ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_panic.cpp
-  LIBRARIES deluge_controls deluge_project deluge_instrument deluge_host_chain
+  LIBRARIES deluge_controls deluge_project deluge_instruments_classic deluge_host_chain
   INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)

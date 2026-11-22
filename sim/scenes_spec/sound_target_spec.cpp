@@ -54,7 +54,7 @@ struct SourceRig {
 		const RangesRetypeWatch watch{*source};
 		deluge::edits::settingFor(
 		    *sound, deluge::edits::oscSettingPath(0, "type"),
-		    deluge::serialization::Value::makeScalar(std::string{deluge::instrument::to_string(type)}));
+		    deluge::serialization::Value::makeScalar(std::string{deluge::instruments::classic::to_string(type)}));
 		return watch.result();
 	}
 };

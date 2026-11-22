@@ -25,7 +25,7 @@
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
-#include "instruments/deluge/deluge_synth.h"
+#include "instruments/classic/deluge_synth.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 #include "support/sound_fixtures.h"
@@ -95,7 +95,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -767,10 +767,12 @@ Sample* previewedSample() {
 /// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
-	const deluge::instrument::SoundState& state = preview.state();
-	const bool derived = preview.config() == deluge::instrument::DelugeSynth::derive(state);
+	const deluge::instruments::classic::SoundState& state = preview.state();
+	const bool derived = preview.config() == deluge::instruments::classic::DelugeSynth::derive(state);
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
-	if (!derived || deluge::instrument::source_type(state, deluge::instrument::SourceId::A) != OscType::SAMPLE
+	if (!derived
+	    || deluge::instruments::classic::source_type(state, deluge::instruments::classic::SourceId::A)
+	           != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {
 		g_report.fail("PREVIEW leg=%s the preview does not play its sample sound's config (derived=%d smooth=%d)",
 		              legName(g_leg), derived ? 1 : 0, osc.interpolation_mode == InterpolationMode::SMOOTH ? 1 : 0);
@@ -865,7 +867,7 @@ bool openOsc2Claim() {
 	}
 	frontClip(legName(g_leg), clip, &instrumentClipView, nullptr);
 	if (g_leg == Leg::WaveTableOsc2) {
-		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->oscType(1))};
+		g_osc2TypeBefore = std::string{deluge::instruments::classic::to_string(g_synth->oscType(1))};
 		deluge::edits::settingFor(*g_synth, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 	}
 	return true;
@@ -2056,8 +2058,9 @@ void checkLeg() {
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
-		       static_cast<int>(
-		           deluge::instrument::sample_playback(*g_synth->state_, deluge::instrument::SourceId::A).repeat_mode),
+		       static_cast<int>(deluge::instruments::classic::sample_playback(*g_synth->state_,
+		                                                                      deluge::instruments::classic::SourceId::A)
+		                            .repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2275,15 +2278,14 @@ void checkLeg() {
 		SoundDrum* drum = kitDrum();
 		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		printf(
-		    "SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
-		    holder != nullptr ? holder->filePath.c_str() : "",
-		    drum != nullptr
-		        ? static_cast<int>(
-		              deluge::instrument::sample_playback(*drum->state_, deluge::instrument::SourceId::A).repeat_mode)
-		        : -1,
-		    drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
-		    g_wait.ticks());
+		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
+		       holder != nullptr ? holder->filePath.c_str() : "",
+		       drum != nullptr ? static_cast<int>(deluge::instruments::classic::sample_playback(
+		                                              *drum->state_, deluge::instruments::classic::SourceId::A)
+		                                              .repeat_mode)
+		                       : -1,
+		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
+		       g_wait.ticks());
 		if (!bound) {
 			g_report.fail("KIT the claim bound no file");
 		}
@@ -2452,9 +2454,9 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(
-				           deluge::instrument::sample_playback(*soundDrum->state_, deluge::instrument::SourceId::A)
-				               .repeat_mode),
+				       static_cast<int>(deluge::instruments::classic::sample_playback(
+				                            *soundDrum->state_, deluge::instruments::classic::SourceId::A)
+				                            .repeat_mode),
 				       soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]

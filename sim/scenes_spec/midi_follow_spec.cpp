@@ -11,7 +11,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -543,14 +543,14 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 		for (int32_t index = 0; index < params::GLOBAL_NONE; index++) {
 			const auto target = deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, index);
 			if (target) {
-				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+				expect(deluge::instruments::classic::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
 			}
 		}
 		for (int32_t index = 0; index < params::UNPATCHED_SOUND_MAX_NUM; index++) {
 			const auto target =
 			    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, index);
 			if (target) {
-				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+				expect(deluge::instruments::classic::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
 			}
 		}
 	});

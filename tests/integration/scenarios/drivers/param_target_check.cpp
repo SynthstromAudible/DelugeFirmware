@@ -31,7 +31,7 @@
 #include "effects/host_chain/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
-#include "instruments/deluge/pages.h"
+#include "instruments/classic/pages.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
@@ -460,7 +460,7 @@ void checkKnobs(Checker& check) {
 	};
 	sound("sound knobs", Table::SOUND_KNOBS);
 	// The sample row's knobs are the instrument's sample pages; setupAsSample takes them.
-	for (const deluge::plugin::RemotePage& page : deluge::instrument::kSamplePages) {
+	for (const deluge::plugin::RemotePage& page : deluge::instruments::classic::kSamplePages) {
 		for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
 			checkCell(
 			    check, "sample pages", OwnerPlugin::INSTRUMENT,

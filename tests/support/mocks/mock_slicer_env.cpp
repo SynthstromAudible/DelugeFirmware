@@ -16,7 +16,7 @@
  */
 
 #include "mock_slicer_env.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_target.h"
@@ -142,9 +142,9 @@ void resetSlicerEnv() {
 	g_kit.get()->firstDrum = static_cast<Drum*>(g_drum.get());
 	// The drum's record, which the slicer's zone edits copy, change and hand to applyRanges: one range, as the mock's
 	// first range is.
-	static deluge::instrument::SoundState record;
-	record = deluge::instrument::with_ranges(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
-	                                         {synth::SourceRange{}});
+	static deluge::instruments::classic::SoundState record;
+	record = deluge::instruments::classic::with_ranges(
+	    deluge::instruments::classic::SoundState{}, deluge::instruments::classic::SourceId::A, {synth::SourceRange{}});
 	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
@@ -426,8 +426,8 @@ Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<synth::So
 	deluge::test::lastAppliedRanges = ranges;
 	return Error::NONE;
 }
-void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,
-                       deluge::instrument::SynthMode /*to*/) {
+void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instruments::classic::SynthMode /*from*/,
+                       deluge::instruments::classic::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
 namespace deluge::edits {

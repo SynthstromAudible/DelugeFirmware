@@ -7,9 +7,9 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/words.h"
 #include "io/debug/log.h"
 #include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
@@ -89,7 +89,8 @@ bool silences_kit_arp(const scenes::bind::Target& target, const plugin::SettingI
 	if (target.kind != scenes::bind::Target::Kind::SOUND || !row.path.ends_with("/loopMode")) {
 		return false;
 	}
-	return stored == std::to_underlying(instrument::SampleRepeatMode::ONCE); // a loop mode is saved as its index
+	return stored
+	       == std::to_underlying(instruments::classic::SampleRepeatMode::ONCE); // a loop mode is saved as its index
 }
 
 /// @brief Whether @p kit has a sound drum: legacy's loop-mode note-off is sent from inside its loop over them.
@@ -250,7 +251,7 @@ void HostEditSink::write_cable_target(const WriteRequest& request) {
 		D_PRINTLN("menu write refused: cable %x has no owner", static_cast<unsigned>(request.target.param.value));
 		return;
 	}
-	const instrument::Polarity polarity = request.polarity;
+	const instruments::classic::Polarity polarity = request.polarity;
 	if (request.polarity_only) {
 		edits::SetCablePolarity edit{*address, polarity};
 		counted_apply(edit);
@@ -322,7 +323,7 @@ bool HostEditSink::make_param(const project::ParamAddress& address) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	// Only a cable's depth is made, as a learned knob that reads it makes it (resolved as a learned write resolves it,
 	// which records the cable as an undo step); any other param is only looked for.
-	if (address.space != project::ParamSpace::ENGINE || !instrument::is_cable_depth(address.id)) {
+	if (address.space != project::ParamSpace::ENGINE || !instruments::classic::is_cable_depth(address.id)) {
 		const ModelStackWithAutoParam* found = bridge::paramStackFollowingTake(*currentSong, address, memory);
 		return found != nullptr && found->autoParam != nullptr;
 	}
@@ -406,7 +407,7 @@ void HostEditSink::apply(const WriteRequest& request) {
 	}
 	const std::span<const plugin::SettingInfo> table = model                  ? project::table_of(model->group)
 	                                                   : kind == Kind::EFFECT ? effects::kEffectSettings
-	                                                                          : instrument::kSettings;
+	                                                                          : instruments::classic::kSettings;
 	const std::string_view path = model && kind == Kind::SOUND ? request.target.audio_clip_path : request.target.path;
 	const plugin::SettingInfo* row = plugin::find_setting(table, path);
 	const auto stored = row != nullptr ? plugin::from_menu(*row, request.menu_value) : std::nullopt;

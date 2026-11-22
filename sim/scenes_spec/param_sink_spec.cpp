@@ -12,7 +12,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action.h"
@@ -54,7 +54,7 @@ using deluge::project::ParamAddress;
 
 namespace {
 
-constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
+constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kLpfFrequency};
 constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
                            .param = deluge::host_chain::param::kLpfFrequency,
                            .param_table = bind::ParamTable::CHAIN};
@@ -213,7 +213,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
 		                                      .param_value = 0x12345678,
-		                                      .polarity = deluge::instrument::Polarity::BIPOLAR}))
+		                                      .polarity = deluge::instruments::classic::Polarity::BIPOLAR}))
 		    .to_be_true();
 		PatchCable* made = engine_cable(synth, PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
 		expect(made).not_().to_be_null();
@@ -229,10 +229,10 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		(void)menu::host_ports().writes->write({.target = cable,
 		                                     .where = on_synth(synth),
 		                                     .param_value = 0x12345678,
-		                                     .polarity = deluge::instrument::Polarity::BIPOLAR});
+		                                     .polarity = deluge::instruments::classic::Polarity::BIPOLAR});
 		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
-		                                      .polarity = deluge::instrument::Polarity::UNIPOLAR,
+		                                      .polarity = deluge::instruments::classic::Polarity::UNIPOLAR,
 		                                      .polarity_only = true}))
 		    .to_be_true();
 		PatchCable* existing =

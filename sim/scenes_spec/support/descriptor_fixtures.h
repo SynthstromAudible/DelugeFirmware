@@ -66,8 +66,8 @@ inline void plain_kit(const MenuContext& ctx, Song& song, std::string_view arp_m
 	set_song_stutter(ctx, song, true);
 }
 inline void osc_types(const MenuContext& ctx, Song& song, OscType first, OscType second) {
-	set_word(*spec::menu_engine(ctx, song).sound, "osc1/type", deluge::instrument::to_string(first));
-	set_word(*spec::menu_engine(ctx, song).sound, "osc2/type", deluge::instrument::to_string(second));
+	set_word(*spec::menu_engine(ctx, song).sound, "osc1/type", deluge::instruments::classic::to_string(first));
+	set_word(*spec::menu_engine(ctx, song).sound, "osc2/type", deluge::instruments::classic::to_string(second));
 }
 
 inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT, Family::ARP,
@@ -182,9 +182,12 @@ inline const std::vector<Fixture>& fixtures() {
 	    {"a synth with other LFO waves", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c, Song& s) {
 		     plain_sound(c, s);
-		     set_word(*spec::menu_engine(c, s).sound, "lfo1/type", deluge::instrument::to_string(LFOType::SINE));
-		     set_word(*spec::menu_engine(c, s).sound, "lfo2/type", deluge::instrument::to_string(LFOType::RANDOM_WALK));
-		     set_word(*spec::menu_engine(c, s).sound, "lfo3/type", deluge::instrument::to_string(LFOType::WARBLER));
+		     set_word(*spec::menu_engine(c, s).sound, "lfo1/type",
+		              deluge::instruments::classic::to_string(LFOType::SINE));
+		     set_word(*spec::menu_engine(c, s).sound, "lfo2/type",
+		              deluge::instruments::classic::to_string(LFOType::RANDOM_WALK));
+		     set_word(*spec::menu_engine(c, s).sound, "lfo3/type",
+		              deluge::instruments::classic::to_string(LFOType::WARBLER));
 	     }},
 	    {"an FM synth whose first oscillator holds a sample", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c, Song& s) {

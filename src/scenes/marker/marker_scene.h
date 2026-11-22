@@ -109,10 +109,10 @@ namespace deluge::synth {
 struct SourceRange;
 } // namespace deluge::synth
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 struct SoundState;
 enum class SourceId : uint8_t;
-} // namespace deluge::instrument
+} // namespace deluge::instruments::classic
 
 namespace deluge::scenes::marker {
 
@@ -277,9 +277,9 @@ private:
 	static std::optional<bind::WaveformAddress> address_of(const menu::MenuContext& ctx);
 	/// @brief The edited sound's state, or null on an audio clip, where the facts hold no sound, or where the edited
 	///        source is not one of the sound's two.
-	const deluge::instrument::SoundState* sound_state() const;
+	const deluge::instruments::classic::SoundState* sound_state() const;
 	/// @brief The edited source's slot; meaningful where sound_state() is not null.
-	deluge::instrument::SourceId source_id() const;
+	deluge::instruments::classic::SourceId source_id() const;
 	/// @brief The edited range as the record holds it, or none.
 	std::optional<synth::SourceRange> edited_range() const;
 	/// @brief An integer row of the audio clip's record, or 0 where it has none.

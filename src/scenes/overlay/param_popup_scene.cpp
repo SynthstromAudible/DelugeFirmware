@@ -10,7 +10,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
 #include "plugin/types/param.h"
@@ -84,7 +84,8 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	if (kind == Kind::MIDI) {
 		return knob_pos;
 	}
-	const deluge::plugin::ParamInfo* info = deluge::instrument::param_row_at(kind, static_cast<uint32_t>(param_id));
+	const deluge::plugin::ParamInfo* info =
+	    deluge::instruments::classic::param_row_at(kind, static_cast<uint32_t>(param_id));
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
@@ -119,13 +120,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		// `knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`; a non-null instrument *is* that
 		// test having passed.
 		if (kind == Kind::EXPRESSION) {
-			if (std::cmp_equal(param_id, deluge::instrument::kExpressionPitchBend.value)) {
+			if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionPitchBend.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 			}
-			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionPressure.value)) {
+			else if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionPressure.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 			}
-			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionSlide.value)) {
+			else if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionSlide.value)) {
 				// In mono expression this is the mod wheel; the y axis is not directly controllable.
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}
@@ -164,8 +165,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
 int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
-	if (deluge::instrument::is_stutter_rate_at(kind, static_cast<uint32_t>(param_id)) && context.stutter_quantized
-	    && !context.stuttering) {
+	if (deluge::instruments::classic::is_stutter_rate_at(kind, static_cast<uint32_t>(param_id))
+	    && context.stutter_quantized && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
 		if (knob_pos < -39) {
@@ -191,7 +192,7 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		out.append(text);
 		return display_value;
 	}
-	if (deluge::instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
+	if (deluge::instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
 		const int32_t display_value =
 		    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 		char name[12];

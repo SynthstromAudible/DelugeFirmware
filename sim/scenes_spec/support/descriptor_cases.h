@@ -9,7 +9,7 @@
 
 #include "effects/settings.h"
 #include "gui/ui/menu_view_of.h"
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/settings.h"
 #include "plugin/types/arp.h"
 #include "plugin/types/setting.h"
 
@@ -437,7 +437,7 @@ inline SettingContext context_of(Where where, Family family) {
 inline std::span<const SettingInfo> table_of(Family family) {
 	switch (family) {
 	case Family::INSTRUMENT:
-		return deluge::instrument::kSettings;
+		return deluge::instruments::classic::kSettings;
 	case Family::EFFECT:
 		return deluge::effects::kEffectSettings;
 	case Family::ARP:
@@ -581,7 +581,8 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
-		value = deluge::instrument::setting_value(spec::menu_engine(ctx, song_of(where)).sound->state(), row.path);
+		value = deluge::instruments::classic::setting_value(spec::menu_engine(ctx, song_of(where)).sound->state(),
+		                                                    row.path);
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(
@@ -916,7 +917,7 @@ struct SpecReader {
 			        }
 			        switch (owner.family) {
 			        case Family::INSTRUMENT: {
-				        const std::optional<int32_t> held = deluge::instrument::held_setting(
+				        const std::optional<int32_t> held = deluge::instruments::classic::held_setting(
 				            spec::menu_engine(owner.ctx, song_of(owner.where)).sound->state(), path);
 				        if (!held) {
 					        owner.unknown.emplace_back(path);

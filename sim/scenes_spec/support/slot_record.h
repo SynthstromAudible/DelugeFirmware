@@ -3,8 +3,8 @@
 /// @file
 /// @brief A slot's record as the scenes read it, for specs that check what an Edit left there.
 
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
 #include "project/instrument_slot.h"
 #include "scenes/menu/bind_host.h"
 
@@ -17,8 +17,8 @@ namespace deluge::scenes::spec {
 /// @param slot The slot.
 /// @return The ranges.
 inline std::vector<synth::SourceRange> first_ranges(project::SlotAddress slot) {
-	const instrument::SoundState* state = menu::host_ports().sound->sound_state(slot);
-	return state != nullptr ? instrument::source_ranges(*state, instrument::SourceId::A)
+	const instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(slot);
+	return state != nullptr ? instruments::classic::source_ranges(*state, instruments::classic::SourceId::A)
 	                        : std::vector<synth::SourceRange>{};
 }
 

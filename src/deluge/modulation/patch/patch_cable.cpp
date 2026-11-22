@@ -21,11 +21,11 @@
 #include <storage/flash_storage.h>
 
 std::string_view polarityToString(const Polarity polarity) {
-	return deluge::instrument::to_string(polarity);
+	return deluge::instruments::classic::to_string(polarity);
 }
 
 Polarity PatchCable::getDefaultPolarity(PatchSource source) {
-	return deluge::instrument::fixed_polarity(source).value_or(FlashStorage::defaultPatchCablePolarity);
+	return deluge::instruments::classic::fixed_polarity(source).value_or(FlashStorage::defaultPatchCablePolarity);
 }
 
 void PatchCable::setDefaultPolarity() {

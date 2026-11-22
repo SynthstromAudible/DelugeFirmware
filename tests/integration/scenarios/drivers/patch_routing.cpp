@@ -20,7 +20,7 @@
 
 #include "synth/modulation/patch_routing.h"
 #include "definitions_cxx.hpp"
-#include "instruments/deluge/cable_records.h"
+#include "instruments/classic/cable_records.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/patch/patch_cable.h"
@@ -181,8 +181,8 @@ void route(PatchCableSet& set, ParamCollectionSummary& summary, const Topology& 
 	set.setupPatching(summary, usable);
 }
 
-deluge::instrument::CableRecords recordsOf(const Topology& t) {
-	deluge::instrument::CableRecords r;
+deluge::instruments::classic::CableRecords recordsOf(const Topology& t) {
+	deluge::instruments::classic::CableRecords r;
 	for (const TopologyCable& c : t.cables) {
 		r.append({c.from, {c.target.word}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
 	}
@@ -191,7 +191,7 @@ deluge::instrument::CableRecords recordsOf(const Topology& t) {
 
 /// Whether the library's compile of @p t gives the runtime's routing of it, @p set.
 bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
-	deluge::instrument::CableRecords records = recordsOf(t);
+	deluge::instruments::classic::CableRecords records = recordsOf(t);
 	const auto usable =
 	    deluge::synth::usability_of(records.records(), [&](PatchSource s, deluge::synth::CableTarget target) {
 		    return target != deluge::synth::CableTarget::param(params::PLACEHOLDER_RANGE)

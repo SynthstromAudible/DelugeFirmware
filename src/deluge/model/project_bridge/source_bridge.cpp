@@ -169,11 +169,11 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRang
 	return Error::NONE;
 }
 
-std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResources& source) {
+std::optional<deluge::instruments::classic::DxPatchState> dxPatchOf(const ::SourceResources& source) {
 	return source.heldDxPatch();
 }
 
-Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
+Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch) {
 	::SourceResources& source = sound.sourceResources[s];
 	if (sound.oscType(s) != OscType::DX7) {
 		return Error::UNSPECIFIED;

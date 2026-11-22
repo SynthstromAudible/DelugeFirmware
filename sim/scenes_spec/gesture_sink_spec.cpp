@@ -29,7 +29,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -207,7 +207,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		expect(deluge::scenes::spec::first_ranges(slot).empty()).to_be_true();
 		const std::vector<SourceRange> first{
-		    {.top_note = deluge::instrument::kOpenTopNote, .zone = {.end = deluge::instrument::kUnsetEndPos}}};
+		    {.top_note = deluge::instruments::classic::kOpenTopNote, .zone = {.end = deluge::instruments::classic::kUnsetEndPos}}};
 		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, first, {})).to_be_true();
 		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(std::ssize(sound.sourceResources[0].ranges)).to_equal(1);

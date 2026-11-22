@@ -5,7 +5,7 @@
 ///        and the engine's enums, as each node's legacy `isRelevant` states them.
 
 #include "effects/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/arp.h"
 #include "plugin/types/setting.h"
 #include "scenes/bind/target.h"
@@ -41,20 +41,20 @@ inline constexpr std::array kLpfOn{plugin::setting_is_not("lpfMode", kLpfOff)};
 inline constexpr std::array kHpfOn{plugin::setting_is_not("hpfMode", kHpfOff)};
 
 // The synth mode.
-inline constexpr std::array<int32_t, 1> kFm{value_of(instrument::SynthMode::FM)};
-inline constexpr std::array<int32_t, 1> kRingMod{value_of(instrument::SynthMode::RINGMOD)};
+inline constexpr std::array<int32_t, 1> kFm{value_of(instruments::classic::SynthMode::FM)};
+inline constexpr std::array<int32_t, 1> kRingMod{value_of(instruments::classic::SynthMode::RINGMOD)};
 inline constexpr std::array kIsFm{plugin::setting_is("mode", kFm)};
 inline constexpr std::array kNotFm{plugin::setting_is_not("mode", kFm)};
 inline constexpr std::array kNotRingMod{plugin::setting_is_not("mode", kRingMod)};
 
 // The oscillators' types.
 inline constexpr std::array<std::string_view, 2> kOscType{"osc1/type", "osc2/type"};
-inline constexpr std::array<int32_t, 1> kWavetable{value_of(instrument::OscType::WAVETABLE)};
-inline constexpr std::array<int32_t, 1> kSupersaw{value_of(instrument::OscType::SUPERSAW)};
-inline constexpr std::array<int32_t, 1> kDx7{value_of(instrument::OscType::DX7)};
+inline constexpr std::array<int32_t, 1> kWavetable{value_of(instruments::classic::OscType::WAVETABLE)};
+inline constexpr std::array<int32_t, 1> kSupersaw{value_of(instruments::classic::OscType::SUPERSAW)};
+inline constexpr std::array<int32_t, 1> kDx7{value_of(instruments::classic::OscType::DX7)};
 inline constexpr std::array<int32_t, 4> kSampleOrInput{
-    value_of(instrument::OscType::SAMPLE), value_of(instrument::OscType::INPUT_L),
-    value_of(instrument::OscType::INPUT_R), value_of(instrument::OscType::INPUT_STEREO)};
+    value_of(instruments::classic::OscType::SAMPLE), value_of(instruments::classic::OscType::INPUT_L),
+    value_of(instruments::classic::OscType::INPUT_R), value_of(instruments::classic::OscType::INPUT_STEREO)};
 
 /// A source's wave index (`origin/main:src/deluge/gui/menu_item/osc/source/wave_index.h`): not FM, and a supersaw (its
 /// spread) or a loaded wavetable.

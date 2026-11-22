@@ -5,8 +5,8 @@
 #include "controls/knob_math.h"
 
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
@@ -86,15 +86,15 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		currentSong = f.song;
 		const OwnerId synth = OwnerId::instrument(*f.instrument->id());
 		std::vector<std::string> found;
-		for (const ParamInfo& info : deluge::instrument::kParams) {
+		for (const ParamInfo& info : deluge::instruments::classic::kParams) {
 			const ParamAddress address{.owner = synth, .space = ParamSpace::ENGINE, .id = info.id, .clip_id = f.clip->id()};
 			if (std::string why = disagreement(*f.song, address, &info); !why.empty()) {
 				found.push_back(why);
 			}
 		}
 		// A cable: LFO 1 to pitch, made first.
-		const std::optional<deluge::plugin::ParamId> depth = deluge::instrument::cable_depth_id(
-		    deluge::instrument::PatchSource::LFO_GLOBAL_1, deluge::instrument::param::kPitch);
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_1, deluge::instruments::classic::param::kPitch);
 		expect(depth.has_value()).to_be_true();
 		if (depth) {
 			const ParamAddress cable{.owner = synth, .space = ParamSpace::ENGINE, .id = *depth, .clip_id = f.clip->id()};

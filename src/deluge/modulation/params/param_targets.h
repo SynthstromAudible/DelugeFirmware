@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 #include "project/param_address.h"
 
 #include <array>
@@ -34,7 +34,7 @@
 namespace deluge::modulation::params {
 
 namespace shortcuts_detail {
-namespace ip = deluge::instrument::param;
+namespace ip = deluge::instruments::classic::param;
 namespace gp = deluge::host_chain::param;
 using deluge::project::ParamTarget;
 [[nodiscard]] constexpr ParamTarget sound(deluge::plugin::ParamId id) {
@@ -44,7 +44,7 @@ using deluge::project::ParamTarget;
 	return deluge::project::engine_target(id.value);
 }
 [[nodiscard]] constexpr ParamTarget cable(PatchSource source, deluge::plugin::ParamId destination) {
-	return deluge::project::engine_target(deluge::instrument::cable_depth_id(source, destination)->value);
+	return deluge::project::engine_target(deluge::instruments::classic::cable_depth_id(source, destination)->value);
 }
 [[nodiscard]] constexpr ParamTarget expression(Expression dimension) {
 	return {deluge::project::ParamSpace::EXPRESSION, deluge::plugin::ParamId{static_cast<uint32_t>(dimension)}};

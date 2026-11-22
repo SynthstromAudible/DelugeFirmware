@@ -33,17 +33,17 @@ for routing edges and summing buffers.
 | `Sound::sources` | `Sound::sourceResources` | done | |
 | `LFOConfig` | `synth::LfoState` | done | an LFO's component state, from the record to the render |
 | `ModControllableSnapshot` | deleted | done | an effects binding's render copy is its own `renderEffects()` and `renderModFXParam()` |
-| `FlatSoundState` | the codec's parse form, inside the library | done | outside `src/instruments/deluge` only the composition spec names it |
+| `FlatSoundState` | the codec's parse form, inside the library | done | outside `src/instruments/classic` only the composition spec names it |
 | `synth::SampleRange`, `synth::WavetableRange` | `synth::SourceRange` | done | a source's key-split range in the record, a sample's or a wavetable's (which has only its note and file); `source_ranges` returns them as the record holds them |
 | `instrument::RangeState` | the codec's flat range, in `flat_sound_state.h` | done | named only by the codec, the composition and the slot edit |
 | `synth::kNoRetrigger` | `synth::kFreeRunningPhase` | done | one free-running phase word for the file and the render |
 | a sound's sidechain send and MIDI output in its state | `project::SoundRouting` on the slot | done | the `SOUND_ROUTING` setting group |
 | `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
-| `SoundVoice` (`model/voice/sound_voice.h`: the kernel, the ports, the guides and the lifecycle steps) | `instrument::VoiceSlot<VoicePart, synth::Voice>` (`instruments/deluge/voice_pool.h`) over the app's `VoicePart` (`model/voice/voice_part.h`) | done | `SoundVoice` names the app's slot type; the lifecycle steps are `Sound` members (`sound_voices.cpp`) |
+| `SoundVoice` (`model/voice/sound_voice.h`: the kernel, the ports, the guides and the lifecycle steps) | `instrument::VoiceSlot<VoicePart, synth::Voice>` (`instruments/classic/voice_pool.h`) over the app's `VoicePart` (`model/voice/voice_part.h`) | done | `SoundVoice` names the app's slot type; the lifecycle steps are `Sound` members (`sound_voices.cpp`) |
 | `Sound::voicePool_` and its edits | `instrument::VoicePool`, held by `DelugeSynth::Instance` | done | the only code that edits a sound's voice list: note on and off, steals, the render loop, culls; the host it draws on is the app's `SoundVoiceHost` |
 | `Sound::config_` | `DelugeSynth::Instance::config()` | done | one sound's synth: its derived `SoundConfig` and its `VoicePool`; `configure(state)` derives the config |
 | `Sound::projectSnapshot` | `Sound::deriveConfig` | done | calls `DelugeSynth::Instance::configure` |
-| `Sound::render`'s `BlockValues` | `DelugeSynth::begin_block(synth::HostBlock, instrument::SoundBlockFacts)` | done | `HostBlock` (`synth/voice/host_block.h`) is the engine's facts for a block, `SoundBlockFacts` (`instruments/deluge/block_facts.h`) the sound's; the render's shared scratch stays in `VoiceRenderArgs` |
+| `Sound::render`'s `BlockValues` | `DelugeSynth::begin_block(synth::HostBlock, instrument::SoundBlockFacts)` | done | `HostBlock` (`synth/voice/host_block.h`) is the engine's facts for a block, `SoundBlockFacts` (`instruments/classic/block_facts.h`) the sound's; the render's shared scratch stays in `VoiceRenderArgs` |
 | `Sound` | deleted | after Track A step 4 part 2 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
 
 ## Slot

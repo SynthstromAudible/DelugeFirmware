@@ -4,7 +4,7 @@
 /// @brief The menu's state: the path, the widgets' own state, the mailboxes `after_render` drains, and what
 ///        `save_state` keeps.
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "midi/device_id.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
@@ -162,11 +162,11 @@ struct MenuWalkState {
 	///
 	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's worth of state; here
 	/// the item is `const`, so it lives beside the rest of the page's navigation state. `on_focus` seeds it (from the
-	/// cable, or `instrument::fixed_polarity`, then the device default), the render writes it, and `commit` applies it
-	/// to a cable it has just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing
+	/// cable, or `instruments::classic::fixed_polarity`, then the device default), the render writes it, and `commit`
+	/// applies it to a cable it has just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing
 	/// `setPatchCablePolarity` on the `!patch_cable_exists_` path (`PatchCableStrength::getModelStack` in
 	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
-	instrument::Polarity patch_polarity = instrument::Polarity::BIPOLAR;
+	instruments::classic::Polarity patch_polarity = instruments::classic::Polarity::BIPOLAR;
 	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
 	///
 	/// `mpe::DirectionSelector::whichDirection` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) and

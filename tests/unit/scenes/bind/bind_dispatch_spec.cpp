@@ -1,6 +1,6 @@
 #include "gui/l10n/setting_names.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/plugin_id.h"
 #include "plugin/types/setting.h"
 #include "project/device_settings.h"
@@ -17,7 +17,7 @@
 #include <vector>
 
 using namespace deluge::scenes::bind;
-using deluge::instrument::OscType;
+using deluge::instruments::classic::OscType;
 using deluge::l10n::String;
 using deluge::scenes::bind::test::kDrum;
 using deluge::scenes::bind::test::kSynth;
@@ -25,7 +25,7 @@ using deluge::scenes::bind::test::ModelFixture;
 
 namespace {
 const deluge::plugin::SettingInfo& row_at(std::string_view path) {
-	return *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
+	return *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, path);
 }
 
 Target sound(std::string_view path) {
@@ -84,8 +84,8 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("shows a stored choice that no longer applies as a marked entry the menu cannot write", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.host.sound.states.at(kDrum.id);
-		deluge::test::set(state, "osc1/type", deluge::instrument::to_string(OscType::INPUT_R));
+		deluge::instruments::classic::SoundState state = fixture.host.sound.states.at(kDrum.id);
+		deluge::test::set(state, "osc1/type", deluge::instruments::classic::to_string(OscType::INPUT_R));
 		fixture.set_state(kDrum, state);
 		const auto shown = view(sound("osc1/type"), &fixture.song, at(kDrum), fixture.ports());
 		expect(shown->stale.has_value()).to_be_true();
@@ -107,8 +107,8 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("reads a stored value the menu never writes as legacy shows it", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
-		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::POLY));
+		deluge::instruments::classic::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instruments::classic::to_string(deluge::instruments::classic::PolyphonyMode::POLY));
 		deluge::test::set(state, "maxVoices", "20");
 		fixture.set_state(kSynth, state);
 		const auto shown = view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports());
@@ -117,7 +117,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("reads a combined menu through its partner row", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::instruments::classic::SoundState state = fixture.host.sound.states.at(kSynth.id);
 		deluge::test::set(state, "transpose", "-3");
 		deluge::test::set(state, "cents", "25");
 		deluge::test::set(state, "lfo1/syncLevel", "4");
@@ -131,11 +131,11 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("says a row does not apply where its conditions fail", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.host.sound.states.at(kSynth.id);
-		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::MONO));
+		deluge::instruments::classic::SoundState state = fixture.host.sound.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instruments::classic::to_string(deluge::instruments::classic::PolyphonyMode::MONO));
 		fixture.set_state(kSynth, state);
 		expect(view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports())->applies).to_be_false();
-		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::POLY));
+		deluge::test::set(state, "polyphonic", deluge::instruments::classic::to_string(deluge::instruments::classic::PolyphonyMode::POLY));
 		fixture.set_state(kSynth, state);
 		expect(view(sound("maxVoices"), &fixture.song, at(kSynth), fixture.ports())->applies).to_be_true();
 	});
@@ -144,7 +144,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 	it("resolves every row the table holds, a row whose mapping clamps (no partner) included", _ {
 		ModelFixture fixture;
 		std::string unresolved;
-		for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
+		for (const deluge::plugin::SettingInfo& row : deluge::instruments::classic::kSettings) {
 			if (row.kind == deluge::plugin::SettingKind::STRUCTURED || row.kind == deluge::plugin::SettingKind::TEXT) {
 				continue;
 			}

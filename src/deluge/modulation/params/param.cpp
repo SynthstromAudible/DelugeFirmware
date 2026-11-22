@@ -21,7 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
 #include <cstring>
@@ -30,7 +30,7 @@
 namespace deluge::modulation::params {
 
 const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
-	return paramId < 0 ? nullptr : instrument::param_row_at(kind, static_cast<uint32_t>(paramId));
+	return paramId < 0 ? nullptr : instruments::classic::param_row_at(kind, static_cast<uint32_t>(paramId));
 }
 
 bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
@@ -39,15 +39,15 @@ bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
 }
 
 bool isParamBipolar(Kind kind, int32_t paramID) {
-	return instrument::is_bipolar_at(kind, static_cast<uint32_t>(paramID));
+	return instruments::classic::is_bipolar_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamArpRhythm(Kind kind, int32_t paramID) {
-	return instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(paramID));
+	return instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamStutter(Kind kind, int32_t paramID) {
-	return instrument::is_stutter_rate_at(kind, static_cast<uint32_t>(paramID));
+	return instruments::classic::is_stutter_rate_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner) {
@@ -107,7 +107,7 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 	using enum Kind;
 	// Patched params have one name whichever collection asks
 	if (param < UNPATCHED_START) {
-		return tableName(instrument::kParams, param);
+		return tableName(instruments::classic::kParams, param);
 	}
 	if (kind == UNPATCHED_GLOBAL) {
 		const auto unpatched = static_cast<UnpatchedGlobal>(param - UNPATCHED_START);
@@ -126,7 +126,7 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 	}
 	// A sound's own unpatched params only for a sound's collection; the shared ones for any
 	if (kind == UNPATCHED_SOUND || param < UNPATCHED_START + UNPATCHED_NUM_SHARED) {
-		return tableName(instrument::kParams, param);
+		return tableName(instruments::classic::kParams, param);
 	}
 	return "none";
 }

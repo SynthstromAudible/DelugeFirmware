@@ -18,11 +18,11 @@
 
 #include "effects/settings.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/sound_state.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
@@ -101,7 +101,8 @@ MenuContext whole_kit(spec::SongFixture& f) {
 
 /// The descriptor menu value of choice @p stored of instrument row @p path.
 int32_t menu_of(std::string_view path, int32_t stored) {
-	return deluge::plugin::to_menu(*deluge::plugin::find_setting(deluge::instrument::kSettings, path), stored);
+	return deluge::plugin::to_menu(*deluge::plugin::find_setting(deluge::instruments::classic::kSettings, path),
+	                               stored);
 }
 
 /// Writes @p node's target = descriptor menu value @p menu through the app's sink at @p ctx.
@@ -138,7 +139,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		set_polyphony(*spec::menu_engine(ctx, *f.song).sound, "poly");
 		bindings::write(kMaxVoices, ctx, 5);
-		expect(static_cast<int>(deluge::instrument::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices)).to_equal(5);
+		expect(static_cast<int>(deluge::instruments::classic::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices)).to_equal(5);
 		expect(static_cast<int>(spec::menu_engine(ctx, *f.song).sound->config().voicing.max_voices)).to_equal(5);
 		expect(bindings::read(kMaxVoices, ctx)).to_equal(5);
 	});
@@ -152,7 +153,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		static_cast<Kit*>(f.instrument)->selectedDrum = poly;
 		set_polyphony(*poly, "poly");
 		set_polyphony(*mono, "mono");
-		const int before = deluge::instrument::voicing(mono->state()).max_voices;
+		const int before = deluge::instruments::classic::voicing(mono->state()).max_voices;
 		const auto midi_channel = midi->channel();
 		const auto gate_channel = gate->channel();
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
@@ -160,8 +161,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		expect(ctx.addresses.affect_entire).to_be_true();
 		bindings::write(menu::nodes::voice_count, ctx, 3);
-		expect(static_cast<int>(deluge::instrument::voicing(poly->state()).max_voices)).to_equal(3);
-		expect(static_cast<int>(deluge::instrument::voicing(mono->state()).max_voices)).to_equal(before);
+		expect(static_cast<int>(deluge::instruments::classic::voicing(poly->state()).max_voices)).to_equal(3);
+		expect(static_cast<int>(deluge::instruments::classic::voicing(mono->state()).max_voices)).to_equal(before);
 		expect(midi->channel()).to_equal(midi_channel);
 		expect(gate->channel()).to_equal(gate_channel);
 	});
@@ -178,8 +179,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		const MenuContext ctx = whole_kit(f);
 		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
 		sink_write(menu::nodes::sample0_reverse, ctx, 1);
-		expect(deluge::instrument::sample_playback(first->state(), deluge::instrument::SourceId::A).reversed).to_be_true();
-		expect(deluge::instrument::sample_playback(unloaded->state(), deluge::instrument::SourceId::A).reversed).to_be_true();
+		expect(deluge::instruments::classic::sample_playback(first->state(), deluge::instruments::classic::SourceId::A).reversed).to_be_true();
+		expect(deluge::instruments::classic::sample_playback(unloaded->state(), deluge::instruments::classic::SourceId::A).reversed).to_be_true();
 		expect(deluge::gui::shell_host::edit_refusals()).to_equal(refused);
 	});
 
@@ -196,10 +197,10 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		static_cast<Kit*>(f.instrument)->selectedDrum = saw;
 		const MenuContext ctx = whole_kit(f);
 		sink_write(menu::nodes::synth_mode, ctx,
-		           menu_of("mode", std::to_underlying(deluge::instrument::SynthMode::SUBTRACTIVE)));
-		expect(static_cast<int>(deluge::instrument::synth_mode(sampled->state()))).to_equal(static_cast<int>(deluge::instrument::SynthMode::FM));
-		expect(static_cast<int>(deluge::instrument::synth_mode(saw->state())))
-		    .to_equal(static_cast<int>(deluge::instrument::SynthMode::SUBTRACTIVE));
+		           menu_of("mode", std::to_underlying(deluge::instruments::classic::SynthMode::SUBTRACTIVE)));
+		expect(static_cast<int>(deluge::instruments::classic::synth_mode(sampled->state()))).to_equal(static_cast<int>(deluge::instruments::classic::SynthMode::FM));
+		expect(static_cast<int>(deluge::instruments::classic::synth_mode(saw->state())))
+		    .to_equal(static_cast<int>(deluge::instruments::classic::SynthMode::SUBTRACTIVE));
 	});
 
 	it("routes the filters only on drums with both filters on, under affect-entire", _ {
@@ -239,7 +240,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 			const MenuContext ctx =
 			    entire ? whole_kit(f) : spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			sink_write(menu::nodes::sample0_repeat, ctx,
-			           menu_of("osc1/loopMode", std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE)));
+			           menu_of("osc1/loopMode", std::to_underlying(deluge::instruments::classic::SampleRepeatMode::ONCE)));
 			expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_false();
 			OutputPeek::active_clip(*kit) = nullptr;
 		}
@@ -261,7 +262,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		menu::host_ports().writes->write(
 		    {.target = menu::nodes::sample0_repeat.bind.target,
 		     .where = bind::Addresses{.kit_output = kit->id(), .affect_entire = true},
-		     .menu_value = menu_of("osc1/loopMode", std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE))});
+		     .menu_value = menu_of("osc1/loopMode", std::to_underlying(deluge::instruments::classic::SampleRepeatMode::ONCE))});
 		expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_true();
 		OutputPeek::active_clip(*kit) = nullptr;
 	});
@@ -290,13 +291,13 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		SoundDrum* other = spec::add_drum<SoundDrum>(f);
 		SoundDrum* selected = spec::add_drum<SoundDrum>(f);
 		static_cast<Kit*>(f.instrument)->selectedDrum = selected;
-		const auto before = deluge::instrument::source_type(other->state(), deluge::instrument::SourceId::A);
+		const auto before = deluge::instruments::classic::source_type(other->state(), deluge::instruments::classic::SourceId::A);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
-		expect(deluge::instrument::source_type(selected->state(), deluge::instrument::SourceId::A)).to_equal(deluge::instrument::OscType::SAW);
-		expect(deluge::instrument::source_type(other->state(), deluge::instrument::SourceId::A)).to_equal(before);
+		expect(deluge::instruments::classic::source_type(selected->state(), deluge::instruments::classic::SourceId::A)).to_equal(deluge::instruments::classic::OscType::SAW);
+		expect(deluge::instruments::classic::source_type(other->state(), deluge::instruments::classic::SourceId::A)).to_equal(before);
 	});
 
 	it("each knob request reaches its Edit or command, and the recording sink keeps it", _ {
@@ -319,7 +320,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
 		for (deluge::project::ControllerMapping& mapping : controls) {
 			if (mapping.control == upper) {
-				mapping.target = deluge::instrument::param::kHpfFrequency;
+				mapping.target = deluge::instruments::classic::param::kHpfFrequency;
 			}
 		}
 		const deluge::project::ControlsAddress synth{.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = id};
@@ -386,8 +387,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
 		expect(slot).not_().to_be_null();
-		expect(slot->state.as<deluge::instrument::DelugeSynth>()).to_equal(&drum->state());
-		const auto voices = deluge::instrument::setting_value(*slot->state.as<deluge::instrument::DelugeSynth>(), "maxVoices");
+		expect(slot->state.as<deluge::instruments::classic::DelugeSynth>()).to_equal(&drum->state());
+		const auto voices = deluge::instruments::classic::setting_value(*slot->state.as<deluge::instruments::classic::DelugeSynth>(), "maxVoices");
 		expect(voices.has_value()).to_be_true();
 		if (voices.has_value()) {
 			expect(voices->str()).to_equal("7");
@@ -398,14 +399,14 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const int before = deluge::instrument::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices;
+		const int before = deluge::instruments::classic::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices;
 		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
 		menu::host_ports().writes->write(bind::WriteRequest{
 		    .target = kMaxVoices.bind.target,
 		    .where = bind::Addresses{.slot = deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::DRUM, 9999}},
 		    .menu_value = 2});
 		expect(deluge::gui::shell_host::edit_refusals()).to_equal(refused + 1);
-		expect(static_cast<int>(deluge::instrument::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices)).to_equal(before);
+		expect(static_cast<int>(deluge::instruments::classic::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices)).to_equal(before);
 	});
 
 	it("shows no target node on a kit row with no note row", _ {

@@ -72,18 +72,18 @@ inline constexpr IntRange kSyncLevelRange{0, deluge::plugin::kMaxCombinedSync, 1
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "lfo" #n "/syncLevel"}),   \
 	               sid(deluge::l10n::String::STRING_FOR_LFO_SYNC)),                                                    \
 	    (n)));                                                                                                         \
-	inline constexpr Node lfo##n##_rate =                                                                              \
-	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),                                             \
-	                           {deluge::plugin::ParamKind::PATCHED, deluge::instrument::runtime_index(rate_param)},    \
-	                           Hint::Knob, nullptr, sid(deluge::l10n::String::rate_title)));                           \
+	inline constexpr Node lfo##n##_rate = with_patch_chain(                                                            \
+	    param(sid(deluge::l10n::String::STRING_FOR_RATE),                                                              \
+	          {deluge::plugin::ParamKind::PATCHED, deluge::instruments::classic::runtime_index(rate_param)},           \
+	          Hint::Knob, nullptr, sid(deluge::l10n::String::rate_title)));                                            \
 	inline constexpr const Node* kLfo##n##Children[] = {&lfo##n##_type, &lfo##n##_sync, &lfo##n##_rate};               \
 	inline constexpr Node lfo##n =                                                                                     \
 	    submenu(sid(deluge::l10n::String::STRING_FOR_LFO##n), kLfo##n##Children, Layout::Horizontal)
 
-DELUGE_LFO(1, deluge::instrument::param::kLfo1Rate, STRING_FOR_LFO1_RATE);
-DELUGE_LFO(2, deluge::instrument::param::kLfo2Rate, STRING_FOR_LFO2_RATE);
-DELUGE_LFO(3, deluge::instrument::param::kLfo3Rate, STRING_FOR_LFO3_RATE);
-DELUGE_LFO(4, deluge::instrument::param::kLfo4Rate, STRING_FOR_LFO4_RATE);
+DELUGE_LFO(1, deluge::instruments::classic::param::kLfo1Rate, STRING_FOR_LFO1_RATE);
+DELUGE_LFO(2, deluge::instruments::classic::param::kLfo2Rate, STRING_FOR_LFO2_RATE);
+DELUGE_LFO(3, deluge::instruments::classic::param::kLfo3Rate, STRING_FOR_LFO3_RATE);
+DELUGE_LFO(4, deluge::instruments::classic::param::kLfo4Rate, STRING_FOR_LFO4_RATE);
 
 #undef DELUGE_LFO
 

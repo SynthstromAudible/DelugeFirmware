@@ -37,7 +37,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1229,7 +1229,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const MenuContext ctx = r.open(horiz_page);
 		menu::ColumnSlot slot;
 		deluge::ui::oled::Column col;
-		menu::present_column(nodes::lfo1_type, ctx, static_cast<int32_t>(deluge::instrument::LFOType::SAW), slot, col);
+		menu::present_column(nodes::lfo1_type, ctx, static_cast<int32_t>(deluge::instruments::classic::LFOType::SAW), slot, col);
 		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
 		expect(slot.art.icon == &deluge::gfx::oled::icons::saw).to_equal(true);
 		expect(static_cast<int>(slot.art.dy)).to_equal(2);
@@ -1772,7 +1772,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::source_group);
 		deluge::edits::settingFor(*spec::menu_engine(ctx, *r.song.song).sound, "mode",
-		                          deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::FM))));
+		                          deluge::serialization::Value::makeScalar(std::string(deluge::instruments::classic::to_string(SynthMode::FM))));
 		expect(spec::menu_engine(ctx, *r.song.song).sound->getSynthMode()).to_equal(SynthMode::FM);
 		const Node* listed[menu::kMaxDynamicChildren];
 		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),

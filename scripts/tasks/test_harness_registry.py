@@ -504,7 +504,7 @@ class GoldenRootTest(unittest.TestCase):
             "tests/goldenx/a.json",
             "tests/integration/checks/x.sha256",
             "tests/unit/x.h",
-            "src/instruments/deluge/cable_records.h",
+            "src/instruments/classic/cable_records.h",
             "build/golden/a.json",
         ):
             with self.subTest(bad):

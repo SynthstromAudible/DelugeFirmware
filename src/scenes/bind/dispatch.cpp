@@ -3,8 +3,8 @@
 #include "effects/host_chain/params.h"
 #include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/settings.h"
 #include "plugin/types/plugin_id.h"
 #include "plugin/types/setting.h"
 #include "project/device_settings.h"
@@ -116,7 +116,7 @@ std::optional<Resolved> resolve(const Target& target, const project::Song* model
 	// A sound's effects are rows of its own table, read and named as its other settings are; a host chain's are named
 	// by the host chains' table.
 	const plugin::SettingInfo* row =
-	    plugin::find_setting(effect ? effects::kEffectSettings : instrument::kSettings, target.path);
+	    plugin::find_setting(effect ? effects::kEffectSettings : instruments::classic::kSettings, target.path);
 	if (row == nullptr) {
 		return std::nullopt;
 	}
@@ -149,7 +149,7 @@ struct ResolvedParam {
 
 /// The param table of @p table.
 std::span<const plugin::ParamInfo> params_of(ParamTable table) {
-	return table == ParamTable::SOUND ? std::span<const plugin::ParamInfo>{instrument::kParams}
+	return table == ParamTable::SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
 	                                  : std::span<const plugin::ParamInfo>{host_chain::kParams};
 }
 
@@ -177,7 +177,7 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		return std::nullopt;
 	}
 	if (where.slot) {
-		const plugin::ParamInfo* info = plugin::find_param(instrument::kParams, address->id);
+		const plugin::ParamInfo* info = plugin::find_param(instruments::classic::kParams, address->id);
 		Reader reader{SlotReader{model, *where.slot, *ports.sound}};
 		if (info == nullptr || !reader.resolved()) {
 			return std::nullopt;
@@ -486,7 +486,7 @@ std::span<const plugin::SettingInfo> rows_named_by(const Target& target) {
 	case Target::Kind::MODEL:
 		return project::table_of(target.group);
 	case Target::Kind::SOUND:
-		return instrument::kSettings;
+		return instruments::classic::kSettings;
 	case Target::Kind::EFFECT:
 		return effects::kEffectSettings;
 	case Target::Kind::NONE:

@@ -41,7 +41,7 @@ describe dx7_lfo_spec_body("dx7::Lfo", ${
 			for (const uint8_t rate : kRates) {
 				static dx7_reference::Patch reference;
 				reference = {};
-				std::ranges::copy(deluge::instrument::kDx7InitVoice, reference.params);
+				std::ranges::copy(deluge::instruments::classic::kDx7InitVoice, reference.params);
 				reference.params[kLfoRate] = rate;
 				reference.params[kLfoWave] = waveform;
 				Control<dx7::Lfo> lfo;

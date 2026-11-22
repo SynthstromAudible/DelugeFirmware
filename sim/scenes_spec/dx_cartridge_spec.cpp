@@ -129,7 +129,9 @@ struct DxSong {
 		return *spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
-	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sourceResources[0]).value(); }
+	deluge::instruments::classic::DxPatchState patch() {
+		return deluge::bridge::dxPatchOf(sound->sourceResources[0]).value();
+	}
 };
 
 /// @brief The card these examples list: `tests/fixtures/scenes_spec/dx_cartridge`, installed for this file before boot
@@ -269,7 +271,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxSong s;
 		load_bank();
 		s.song.instrument->mightExistOnCard = false;
-		deluge::instrument::DxPatchState want = s.patch();
+		deluge::instruments::classic::DxPatchState want = s.patch();
 		const std::vector<std::string>* params = table().find("bank/5", "params");
 		expect(params).not_().to_be_null();
 		if (params != nullptr) {
@@ -295,7 +297,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 	it("refuses a program outside the bank, a source that is not DX7, a slot that does not resolve and no bank", _ {
 		DxSong s;
 		load_bank();
-		const deluge::instrument::DxPatchState before = s.patch();
+		const deluge::instruments::classic::DxPatchState before = s.patch();
 		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, -1)).to_be_false();
 		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 32)).to_be_false();
 		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 1, 0)).to_be_false();
@@ -477,7 +479,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		const deluge::instruments::classic::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});

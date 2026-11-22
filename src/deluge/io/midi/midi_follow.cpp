@@ -32,7 +32,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "io/file.hpp"
 #include "io/midi/follow_host.h"
 #include "io/midi/midi_device.h"
@@ -92,7 +92,7 @@ using deluge::project::ParamTarget;
 
 namespace {
 
-static_assert(deluge::controls::kFollowRefusedOnKitRow == deluge::instrument::param::kPortamento.value);
+static_assert(deluge::controls::kFollowRefusedOnKitRow == deluge::instruments::classic::param::kPortamento.value);
 
 /// The tables of which param each CC follows, as the controls library reads them.
 controls::FollowTables followTablesOf(const MidiFollow& follow) {
@@ -211,7 +211,7 @@ void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
 }
 
 void MidiFollow::initDefaultMappings() {
-	namespace ip = deluge::instrument::param;
+	namespace ip = deluge::instruments::classic::param;
 	namespace gp = deluge::host_chain::param;
 	auto mapSound = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapSound(cc, deluge::project::engine_target(id.value));

@@ -17,7 +17,7 @@
 
 #include "scenarios/drivers/driver.h"
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "model/edits/param_address_for.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
@@ -157,7 +157,7 @@ void dispatch(Main main) {
 		Pinned swingInterval(FlashStorage::defaultSwingInterval, uint8_t{0});
 		Pinned disabledScales(FlashStorage::defaultDisabledPresetScales, std::bitset<NUM_PRESET_SCALES>{});
 		Pinned thresholdMode(FlashStorage::defaultThresholdRecordingMode, ThresholdRecordingMode{});
-		Pinned cablePolarity(FlashStorage::defaultPatchCablePolarity, deluge::instrument::Polarity{});
+		Pinned cablePolarity(FlashStorage::defaultPatchCablePolarity, deluge::instruments::classic::Polarity{});
 		Pinned recordQuantize(FlashStorage::recordQuantizeLevel, uint8_t{0});
 		// The doc() fallback tally counts from zero for a driver: a driver that
 		// requires no fallback hits means none of its own, not none since boot.

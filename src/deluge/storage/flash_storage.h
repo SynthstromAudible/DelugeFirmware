@@ -27,7 +27,7 @@
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
 #define PREVIEW_ON 2
 
-namespace deluge::instrument {
+namespace deluge::instruments::classic {
 enum class Polarity : uint8_t;
 }
 namespace FlashStorage {
@@ -88,7 +88,7 @@ extern uint8_t screensaverTimeoutMinutes;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
-extern deluge::instrument::Polarity defaultPatchCablePolarity;
+extern deluge::instruments::classic::Polarity defaultPatchCablePolarity;
 
 extern bool defaultUseSharps;
 

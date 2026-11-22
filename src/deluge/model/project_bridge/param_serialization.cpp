@@ -16,10 +16,10 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
-#include "instruments/deluge/cable_codec.h"
+#include "instruments/classic/cable_codec.h"
 
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
@@ -35,7 +35,7 @@
 namespace deluge::bridge {
 
 using deluge::plugin::ParamId;
-namespace ip = deluge::instrument::param;
+namespace ip = deluge::instruments::classic::param;
 namespace gp = deluge::host_chain::param;
 
 using namespace deluge::project;
@@ -364,15 +364,16 @@ void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
 	if (cables.empty()) {
 		return;
 	}
-	std::vector<deluge::instrument::CableState> states;
+	std::vector<deluge::instruments::classic::CableState> states;
 	states.reserve(cables.size());
 	for (const deluge::synth::CableRecord& cable : cables) {
 		states.push_back({.source = cable.source,
 		                  .destination = cableDepthIdOf(cable.target.word),
-		                  .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)});
+		                  .polarity = static_cast<deluge::instruments::classic::Polarity>(cable.polarity)});
 	}
 	out.writeArrayStart("patchCables");
-	for (const deluge::instrument::EncodedCable& cable : deluge::instrument::encode_cables(states)) {
+	for (const deluge::instruments::classic::EncodedCable& cable :
+	     deluge::instruments::classic::encode_cables(states)) {
 		out.writeOpeningTagBeginning("patchCable", true);
 		out.writeAttribute("source", sourceToString(cable.route.source));
 		out.writeAttribute("destination",
@@ -391,7 +392,7 @@ void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
 		if (!cable.depth_controllers.empty()) {
 			out.writeOpeningTagEnd();
 			out.writeArrayStart("depthControlledBy");
-			for (const deluge::instrument::EncodedCable::Controller& d : cable.depth_controllers) {
+			for (const deluge::instruments::classic::EncodedCable::Controller& d : cable.depth_controllers) {
 				out.writeOpeningTagBeginning("patchCable", true);
 				out.writeAttribute("source", sourceToString(d.source));
 				out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(d.polarity)).data());

@@ -57,7 +57,7 @@
 
 #include "scenes/menu/node.h"
 
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/track_kind.h"
@@ -73,13 +73,13 @@ namespace {
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
 std::vector<synth::SourceRange> edited_ranges(const MenuContext& ctx) {
 	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0
-	    || ctx.source_index >= static_cast<int32_t>(instrument::kSourceCount)) {
+	    || ctx.source_index >= static_cast<int32_t>(instruments::classic::kSourceCount)) {
 		return {};
 	}
-	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
-	return state != nullptr
-	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
-	           : std::vector<synth::SourceRange>{};
+	const deluge::instruments::classic::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
+	return state != nullptr ? deluge::instruments::classic::source_ranges(
+	                              *state, static_cast<deluge::instruments::classic::SourceId>(ctx.source_index))
+	                        : std::vector<synth::SourceRange>{};
 }
 
 } // namespace
@@ -97,7 +97,8 @@ std::vector<synth::SourceRange> ranges_of(const MenuContext& ctx) {
 
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
-		return deluge::instrument::kOpenTopNote; // `SourceResources::getOrCreateFirstRange`'s "top of the keyboard"
+		return deluge::instruments::classic::kOpenTopNote; // `SourceResources::getOrCreateFirstRange`'s "top of the
+		                                                   // keyboard"
 	}
 	return edited_ranges(ctx)[static_cast<size_t>(index)].top_note;
 }
@@ -109,8 +110,9 @@ bool ensure_first_range(MenuContext& ctx) {
 	if (range_count(ctx) == 0) {
 		// `SourceResources::getOrCreateFirstRange()`, as a request: the first range, which the app makes and the record
 		// holds. A refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
-		const std::array<synth::SourceRange, 1> first{synth::SourceRange{
-		    .top_note = deluge::instrument::kOpenTopNote, .zone = {.end = deluge::instrument::kUnsetEndPos}}};
+		const std::array<synth::SourceRange, 1> first{
+		    synth::SourceRange{.top_note = deluge::instruments::classic::kOpenTopNote,
+		                       .zone = {.end = deluge::instruments::classic::kUnsetEndPos}}};
 		if (ctx.ports.sound_writes == nullptr
 		    || !ctx.ports.sound_writes->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first,
 		                                             {})) {
@@ -138,7 +140,7 @@ void select_range(MenuContext& ctx, int32_t index) {
 }
 
 void select_source(MenuContext& ctx, int8_t index) {
-	if (!ctx.addresses.slot || index < 0 || index >= static_cast<int32_t>(instrument::kSourceCount)) {
+	if (!ctx.addresses.slot || index < 0 || index >= static_cast<int32_t>(instruments::classic::kSourceCount)) {
 		return;
 	}
 	// The range reset in main's `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), folded in here

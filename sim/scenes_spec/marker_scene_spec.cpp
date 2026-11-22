@@ -350,14 +350,14 @@ struct FakeMarkerRig {
 	FakeMarkerRig()
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		using deluge::instrument::SourceId;
-		const deluge::instrument::SoundState sample =
-		    deluge::test::with_kind(deluge::instrument::SoundState{}, SourceId::A, deluge::instrument::OscType::SAMPLE);
-		fakes.hold_synth(
-		    deluge::instrument::with_ranges(sample, SourceId::A,
-		                                    {deluge::synth::SourceRange{.top_note = deluge::instrument::kOpenTopNote,
-		                                                                .file_path = "SAMPLES/a.wav",
-		                                                                .zone = {.start = 0, .end = 1000}}}));
+		using deluge::instruments::classic::SourceId;
+		const deluge::instruments::classic::SoundState sample = deluge::test::with_kind(
+		    deluge::instruments::classic::SoundState{}, SourceId::A, deluge::instruments::classic::OscType::SAMPLE);
+		fakes.hold_synth(deluge::instruments::classic::with_ranges(
+		    sample, SourceId::A,
+		    {deluge::synth::SourceRange{.top_note = deluge::instruments::classic::kOpenTopNote,
+		                                .file_path = "SAMPLES/a.wav",
+		                                .zone = {.start = 0, .end = 1000}}}));
 		fakes.model.getOrCreateDocAudioClip(spec::FakeHostRig::kSynthClip).end_pos = 1000;
 		fakes.host.waveforms.waveforms.push_back({.at = kRange, .info = kInfo});
 		bind::WaveformInfo clip = kInfo;
@@ -757,7 +757,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			}
 			expect(recording.calls[0].kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::RANGES);
 			expect(recording.calls[0].ranges.size()).to_equal(size_t{1});
-			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
+			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instruments::classic::kOpenTopNote);
 		}
 
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);

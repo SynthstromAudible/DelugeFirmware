@@ -21,7 +21,7 @@
 #include "effects/words.h"
 #include "gfx/oled/font.h"
 #include "gfx/oled/glyphs.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/interpolation_mode.h"
 #include "plugin/types/voice_priority.h"
 #include "project/arrangement.h"
@@ -326,7 +326,7 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-using deluge::instrument::OscType;
+using deluge::instruments::classic::OscType;
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
@@ -352,14 +352,14 @@ enum LFO_ID {
 	LFO_COUNT = 4,
 };
 
-using deluge::instrument::LFOType;
+using deluge::instruments::classic::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 using deluge::effects::kNumModFXTypes;
 using deluge::effects::ModFXType;
 
-using deluge::instrument::SynthMode;
+using deluge::instruments::classic::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -370,7 +370,7 @@ enum WavFormat : uint8_t {
 	WAV_FORMAT_FLOAT = 3,
 };
 
-using deluge::instrument::PolyphonyMode;
+using deluge::instruments::classic::PolyphonyMode;
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
@@ -444,14 +444,14 @@ enum class Error {
 	LISTING_DEFERRED,
 };
 
-using deluge::instrument::SampleRepeatMode;
+using deluge::instruments::classic::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 using FilterType = deluge::effects::FilterType;
 constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
-constexpr int32_t kNumSources =
-    static_cast<int32_t>(deluge::instrument::kSourceCount); // sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources = static_cast<int32_t>(
+    deluge::instruments::classic::kSourceCount); // sources as in oscillators - within a Sound (synth).
 
 enum class OldArpMode {
 	OFF,

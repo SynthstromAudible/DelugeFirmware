@@ -5,7 +5,7 @@ q31 instrument and any later instrument publish through the same model; only the
 
 ## Identity
 
-A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/deluge/params.h`) for a
+A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/classic/params.h`) for a
 sound, `host_chain::kParams` (`src/effects/host_chain/params.h`) for the song, a kit's affect-entire and
 an audio track. Ids are pinned forever by the tables' specs. The runtime's own numbering (the `params::` enums, a
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
@@ -15,7 +15,7 @@ collection `Kind` and index) maps to ids through `model/project_bridge/param_ids
 
 The host names a param without its owner as a `project::ParamTarget{ParamSpace space; plugin::ParamId id}`
 (`src/project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
-the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/deluge/cables.h`); a
+the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/classic/cables.h`); a
 MIDI_CC id is the CC number, an EXPRESSION id the MPE dimension. Ids are per plugin (116 is portamento in the
 instrument's table and mod FX rate in the global effectable's), so a target is read only together with its owner's
 `bridge::OwnerPlugin`, which the code reading it knows from its owner (a sound is the instrument; a global effectable,
@@ -360,7 +360,7 @@ a `KnobPresentation` that shows each popup, indicator and blink as the view does
 keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
 published pages to the engine's param layout.
 
-The instrument's layouts are data beside its device pages (`src/instruments/deluge/pages.h`): a sample row's mod
+The instrument's layouts are data beside its device pages (`src/instruments/classic/pages.h`): a sample row's mod
 button 6 is `kSamplePages` (the device pages with the pitch on the lower knob of mod button 6), the FM knob swap is the
 `kIntoFm` and `kOutOfFm` remap rows that `remap_for_mode` applies, and a wavetable claim's knobs are `wavetable_claimed`
 and `wavetable_released`. `remap_for_mode` takes the sound's saved knobs, the synth mode it leaves and the one it enters;

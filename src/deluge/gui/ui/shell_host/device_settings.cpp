@@ -8,7 +8,7 @@
 #include "hid/buttons.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -54,8 +54,8 @@ static_assert(std::to_underlying(FlashCursor::OFF) == FLASH_CURSOR_OFF);
 static_assert(std::to_underlying(FlashCursor::SLOW) == FLASH_CURSOR_SLOW);
 static_assert(std::to_underlying(ShortcutsVersion::V1) == FlashStorage::kShortcutsVersion1);
 static_assert(std::to_underlying(ShortcutsVersion::V3) == FlashStorage::kShortcutsVersion3);
-static_assert(std::to_underlying(instrument::Polarity::UNIPOLAR) == 0
-              && std::to_underlying(instrument::Polarity::BIPOLAR) == 1);
+static_assert(std::to_underlying(instruments::classic::Polarity::UNIPOLAR) == 0
+              && std::to_underlying(instruments::classic::Polarity::BIPOLAR) == 1);
 static_assert(std::to_underlying(StartupSongMode::LASTSAVED) == 3 && kNumStartupSongMode == 4);
 static_assert(std::to_underlying(SampleRepeatMode::STRETCH) == 3);
 static_assert(std::to_underlying(ThresholdRecordingMode::OFF) == 0 && kLastThresholdRecordingMode == 3);
@@ -444,7 +444,7 @@ std::optional<DeviceWrite> store_defaults(std::string_view path, int32_t stored)
 		return DeviceWrite::STORED;
 	}
 	if (path == device_path::kPatchCablePolarity) {
-		FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(stored);
+		FlashStorage::defaultPatchCablePolarity = static_cast<instruments::classic::Polarity>(stored);
 		return DeviceWrite::STORED;
 	}
 	if (const std::optional<size_t> scale = disabled_scale_of(path)) {

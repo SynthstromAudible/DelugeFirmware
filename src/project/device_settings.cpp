@@ -79,7 +79,7 @@ constexpr auto kCvVoltsPaths = output_paths<kCvOutputCount>(device_path::kCvVolt
 constexpr auto kCvTransposePaths = output_paths<kCvOutputCount>(device_path::kCvTranspose);
 constexpr auto kGateModePaths = output_paths<kGateOutputCount>(device_path::kGateMode);
 
-/// The patch cable's polarities, as the cable's own file words name them (`instrument::to_string`).
+/// The patch cable's polarities, as the cable's own file words name them (`instruments::classic::to_string`).
 constexpr std::array<std::string_view, 2> kPolarityWords = stored_words<"unipolar", "bipolar">;
 /// The shortcut layouts, in ShortcutsVersion's order.
 constexpr std::array<std::string_view, 2> kShortcutsVersionWords = stored_words<"v1", "v3">;

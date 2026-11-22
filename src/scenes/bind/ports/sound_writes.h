@@ -4,7 +4,7 @@
 /// @brief Where a scene's edits of a sound's sources go: its ranges, the take a range records, its DX7 patch and its
 ///        transpose.
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "midi/device_id.h"
 #include "project/instrument_slot.h"
 #include "scenes/bind/target.h"
@@ -59,7 +59,8 @@ public:
 	/// @brief Make @p patch the DX7 patch of source @p source of the sound at @p slot: its voice bytes, engine mode and
 	/// random detune, as the DX7 menu pages write them. Not undoable, as legacy's DX7 edits are not.
 	/// @return Whether it was taken: false where the address does not resolve or the source is not a DX7 one.
-	virtual bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) = 0;
+	virtual bool write_dx_patch(project::SlotAddress slot, uint8_t source,
+	                            const instruments::classic::DxPatchState& patch) = 0;
 	/// @brief Load program @p program of the DX7 bank the last `.syx` read loaded into source @p source of the sound at
 	/// @p slot, as the cartridge page's turn does: the patch unpacked, the voices cut, and an unsaved synth renamed to
 	/// the program. Not undoable, as legacy's is not.

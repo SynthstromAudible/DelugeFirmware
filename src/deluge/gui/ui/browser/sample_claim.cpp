@@ -24,8 +24,8 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
-#include "instruments/deluge/pages.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/pages.h"
+#include "instruments/classic/state_access.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/edits/set_mod_knob_mode.h"
@@ -104,7 +104,9 @@ void openGate() {
 
 void autoDetectSideChainSending(SoundDrum* drum, int32_t s, char const* fileName) {
 	// A one-shot that looks like a kick sends to the sidechain. Otherwise, no change.
-	if (deluge::instrument::sample_playback(*drum->state_, static_cast<deluge::instrument::SourceId>(s)).repeat_mode
+	if (deluge::instruments::classic::sample_playback(*drum->state_,
+	                                                  static_cast<deluge::instruments::classic::SourceId>(s))
+	            .repeat_mode
 	        == SampleRepeatMode::ONCE
 	    && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		deluge::edits::routingSettingFor(
@@ -389,8 +391,9 @@ bool SampleClaim::stepDecideSample() {
 
 	// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
 	if (const SampleRepeatMode repeatMode =
-	        deluge::instrument::sample_playback(*current_.target.sound->state_,
-	                                            static_cast<deluge::instrument::SourceId>(current_.target.sourceIndex))
+	        deluge::instruments::classic::sample_playback(
+	            *current_.target.sound->state_,
+	            static_cast<deluge::instruments::classic::SourceId>(current_.target.sourceIndex))
 	            .repeat_mode;
 	    repeatMode == SampleRepeatMode::STRETCH || repeatMode == SampleRepeatMode::LOOP) {}
 
@@ -502,8 +505,9 @@ bool SampleClaim::stepDecideWavetable() {
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
 	if (oldOscType_ != OscType::WAVETABLE) {
 		const auto osc = static_cast<uint8_t>(current_.target.sourceIndex);
-		deluge::bridge::writeKnobPairs(*current_.target.sound, *currentSong,
-		                               [osc](auto knobs) { return deluge::instrument::wavetable_claimed(knobs, osc); });
+		deluge::bridge::writeKnobPairs(*current_.target.sound, *currentSong, [osc](auto knobs) {
+			return deluge::instruments::classic::wavetable_claimed(knobs, osc);
+		});
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
 	}
@@ -596,7 +600,7 @@ void SampleClaim::removeWaveTableKnobs() {
 	// Anyway, by now we know we've loaded as a Sample, not a Wavetable. So remove WaveTable gold knob assignments.
 	const auto osc = static_cast<uint8_t>(current_.target.sourceIndex);
 	const bool anyChange = deluge::bridge::writeKnobPairs(*current_.target.sound, *currentSong, [osc](auto knobs) {
-		return deluge::instrument::wavetable_released(knobs, osc);
+		return deluge::instruments::classic::wavetable_released(knobs, osc);
 	});
 	if (anyChange) {
 		(void)deluge::edits::modKnobModeFor(

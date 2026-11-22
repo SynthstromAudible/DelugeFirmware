@@ -34,7 +34,7 @@
 
 #include "scenes/menu/context.h"
 
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "project/audio_input.h"
 #include "project/device_settings.h"
 #include "project/features.h"
@@ -49,14 +49,14 @@ namespace deluge::scenes::menu::relevance {
 
 namespace {
 
-using deluge::instrument::OscType;
-using deluge::instrument::source_type;
-using deluge::instrument::SourceId;
-using deluge::instrument::synth_mode;
-using deluge::instrument::SynthMode;
+using deluge::instruments::classic::OscType;
+using deluge::instruments::classic::source_type;
+using deluge::instruments::classic::SourceId;
+using deluge::instruments::classic::synth_mode;
+using deluge::instruments::classic::SynthMode;
 
 /// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
-const deluge::instrument::SoundState* sound_state(const MenuContext& ctx) {
+const deluge::instruments::classic::SoundState* sound_state(const MenuContext& ctx) {
 	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
 	                                                        : nullptr;
 }
@@ -70,7 +70,7 @@ bool loaded(const MenuContext& ctx, uint8_t index) {
 
 /// @brief `isSampleModeSample` (`origin/main:src/deluge/gui/menu_item/sample/utils.cpp`).
 bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
-	const deluge::instrument::SoundState* state = sound_state(ctx);
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE
 	       && source_type(*state, static_cast<SourceId>(index)) == OscType::SAMPLE && loaded(ctx, index);
 }
@@ -82,7 +82,7 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (ctx.is_audio_clip) {
 		return true; // `getCurrentClip()->type == ClipType::AUDIO`
 	}
-	const deluge::instrument::SoundState* state = sound_state(ctx);
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	if (state == nullptr) {
 		return false;
 	}
@@ -93,7 +93,7 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 
 /// @brief `sample::Transpose::isRelevant` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
 bool transpose(const MenuContext& ctx, uint8_t index) {
-	const deluge::instrument::SoundState* state = sound_state(ctx);
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	if (state == nullptr) {
 		return false;
 	}
@@ -110,11 +110,11 @@ bool transpose(const MenuContext& ctx, uint8_t index) {
 // Sound-wide
 
 bool is_fm(const MenuContext& ctx) {
-	const deluge::instrument::SoundState* state = sound_state(ctx);
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::FM;
 }
 bool is_subtractive(const MenuContext& ctx) {
-	const deluge::instrument::SoundState* state = sound_state(ctx);
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE;
 }
 // ---------------------------------------------------------------------------------------------
@@ -169,8 +169,8 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 	if (ctx.ports.tracks == nullptr) {
 		return false;
 	}
-	if (const deluge::instrument::SoundState* state = sound_state(ctx); state != nullptr) {
-		return !deluge::instrument::sound_effects(*state).stutter.use_song_stutter;
+	if (const deluge::instruments::classic::SoundState* state = sound_state(ctx); state != nullptr) {
+		return !deluge::instruments::classic::sound_effects(*state).stutter.use_song_stutter;
 	}
 	if (!ctx.addresses.chain) {
 		return false;

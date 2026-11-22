@@ -28,9 +28,9 @@
 //
 // Exit: 0 agree; 1 load failure; 2 usage/IO; 3 a sound differs (its name and the first differing path are printed).
 
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/composed_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/composed_state.h"
+#include "instruments/classic/state_access.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/fx/chain_params.h"
@@ -172,7 +172,7 @@ void collect(Output& output, Song& song, const std::string& label, const Value* 
 Value stateKeysOf(const Value& element) {
 	auto map = Value::makeMap();
 	for (const auto& [key, value] : element.entries()) {
-		if (deluge::instrument::is_state_key(key)) {
+		if (deluge::instruments::classic::is_state_key(key)) {
 			map.set(key, value);
 		}
 	}
@@ -181,7 +181,8 @@ Value stateKeysOf(const Value& element) {
 
 int encodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	for (SoundEntry& entry : sounds) {
-		const Value encoded = deluge::instrument::encode(entry.sound->state(), {.input_tick_magnitude = magnitude});
+		const Value encoded =
+		    deluge::instruments::classic::encode(entry.sound->state(), {.input_tick_magnitude = magnitude});
 		const Value written = stateKeysOf(entry.element);
 		if (std::string d = deluge::serialization::first_difference(written, encoded); !d.empty()) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the written element and the encode differ at %s\n",
@@ -222,21 +223,23 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::SoundState newSynth(
+	const deluge::instruments::classic::SoundState newSynth(
 	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->state());
-	const deluge::instrument::SoundState newDrum(static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
+	const deluge::instruments::classic::SoundState newDrum(
+	    static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
 	if (std::string d = deluge::serialization::first_difference(
-	        deluge::instrument::dump_state(newSynth), deluge::instrument::dump_state(deluge::instrument::SoundState{}));
+	        deluge::instruments::classic::dump_state(newSynth),
+	        deluge::instruments::classic::dump_state(deluge::instruments::classic::SoundState{}));
 	    !d.empty()) {
-		const Value fresh = deluge::instrument::dump_state(newSynth);
-		const Value constant = deluge::instrument::dump_state(deluge::instrument::SoundState{});
+		const Value fresh = deluge::instruments::classic::dump_state(newSynth);
+		const Value constant = deluge::instruments::classic::dump_state(deluge::instruments::classic::SoundState{});
 		std::fprintf(io.err, "CODEC DIFF: a new synth and SoundState{} differ at %s (synth %s, constant %s)\n",
 		             d.c_str(), valueAt(fresh, d).c_str(), valueAt(constant, d).c_str());
 		return 3;
 	}
 	bool dumped = false;
 	for (SoundEntry& entry : sounds) {
-		const Value loaded = deluge::instrument::dump_state(entry.sound->state()); // what the reader left
+		const Value loaded = deluge::instruments::classic::dump_state(entry.sound->state()); // what the reader left
 		if (const char* dump = std::getenv("INSTRUMENT_DUMP_STATE"); dump != nullptr && !dumped) {
 			if (FILE* df = std::fopen(dump, "wb")) {
 				const std::string json = deluge::serialization::write_json(loaded);
@@ -249,16 +252,18 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the file has no element for it\n", entry.name.c_str());
 			return 3;
 		}
-		deluge::instrument::SoundState decoded = entry.drum ? newDrum : newSynth;
-		if (auto result = deluge::instrument::decode(*entry.read, decoded, {.input_tick_magnitude = magnitude});
+		deluge::instruments::classic::SoundState decoded = entry.drum ? newDrum : newSynth;
+		if (auto result =
+		        deluge::instruments::classic::decode(*entry.read, decoded, {.input_tick_magnitude = magnitude});
 		    !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: decode failed (%d)\n", entry.name.c_str(),
 			             static_cast<int>(result.error()));
 			return 3;
 		}
-		if (std::string d = deluge::serialization::first_difference(loaded, deluge::instrument::dump_state(decoded));
+		if (std::string d =
+		        deluge::serialization::first_difference(loaded, deluge::instruments::classic::dump_state(decoded));
 		    !d.empty()) {
-			const Value decodedDump = deluge::instrument::dump_state(decoded);
+			const Value decodedDump = deluge::instruments::classic::dump_state(decoded);
 			std::fprintf(io.err, "CODEC DIFF: %s: the read state and the decode differ at %s (read %s, decoded %s)\n",
 			             entry.name.c_str(), d.c_str(), valueAt(loaded, d).c_str(), valueAt(decodedDump, d).c_str());
 			return 3;
@@ -275,17 +280,18 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::SoundState newSynth(
+	const deluge::instruments::classic::SoundState newSynth(
 	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->state());
-	const deluge::instrument::SoundState newDrum(static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
+	const deluge::instruments::classic::SoundState newDrum(
+	    static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
-		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;
-		if (auto result = deluge::instrument::decode(entry.element, state, context); !result) {
+		deluge::instruments::classic::SoundState state = entry.drum ? newDrum : newSynth;
+		if (auto result = deluge::instruments::classic::decode(entry.element, state, context); !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the written element does not decode\n", entry.name.c_str());
 			return 3;
 		}
-		const Value again = deluge::instrument::encode(state, context);
+		const Value again = deluge::instruments::classic::encode(state, context);
 		const Value written = stateKeysOf(entry.element);
 		if (std::string d = deluge::serialization::first_difference(written, again); !d.empty()) {
 			std::fprintf(io.err,

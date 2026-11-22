@@ -1,6 +1,6 @@
 #include "scenes/bind/slot_reader.h"
 
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/settings.h"
 
 namespace deluge::scenes::bind {
 
@@ -11,10 +11,10 @@ SlotReader::SlotReader(const project::Song& model, project::SlotAddress slot, co
 }
 
 std::optional<int32_t> SlotReader::read(std::string_view path) const {
-	if (state_ == nullptr || plugin::find_setting(instrument::kSettings, path) == nullptr) {
+	if (state_ == nullptr || plugin::find_setting(instruments::classic::kSettings, path) == nullptr) {
 		return std::nullopt;
 	}
-	return instrument::held_setting(*state_, path);
+	return instruments::classic::held_setting(*state_, path);
 }
 
 plugin::SettingReader SlotReader::reader() const {

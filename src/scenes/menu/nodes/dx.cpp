@@ -21,7 +21,7 @@
 #include "ui/oled/text.h"
 
 #include "base/string_format.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 
@@ -66,21 +66,22 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 }
 
 /// @brief The state of the sound the menu edits, if the facts know it.
-const deluge::instrument::SoundState* sound_of(const MenuContext& ctx) {
+const deluge::instruments::classic::SoundState* sound_of(const MenuContext& ctx) {
 	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
 	                                                        : nullptr;
 }
 
 /// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
-std::optional<deluge::instrument::DxPatchState> patch_of(const MenuContext& ctx) {
-	const deluge::instrument::SoundState* sound = sound_of(ctx);
-	const deluge::instrument::DxPatchState* patch =
-	    sound != nullptr ? deluge::instrument::dx_patch(*sound, deluge::instrument::SourceId::A) : nullptr;
+std::optional<deluge::instruments::classic::DxPatchState> patch_of(const MenuContext& ctx) {
+	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
+	const deluge::instruments::classic::DxPatchState* patch =
+	    sound != nullptr ? deluge::instruments::classic::dx_patch(*sound, deluge::instruments::classic::SourceId::A)
+	                     : nullptr;
 	return patch != nullptr ? std::optional{*patch} : std::nullopt;
 }
 
 /// @brief Write oscillator 1's patch.
-void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState& patch) {
+void write_patch(const MenuContext& ctx, const deluge::instruments::classic::DxPatchState& patch) {
 	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
 		(void)ctx.ports.sound_writes->write_dx_patch(*ctx.addresses.slot, 0, patch);
 	}
@@ -224,7 +225,7 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 
 /// @brief `DxParam::drawPixelsForOled` for @p param of @p patch, on the panel frame @p p.
 /// @param top The panel's first visible row, `OLED_MAIN_TOPMOST_PIXEL` on the 48-row panel.
-void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instrument::DxPatchState& patch,
+void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instruments::classic::DxPatchState& patch,
                 int16_t param) {
 	using namespace deluge::gfx::oled;
 	const PatchBytes& params = patch.params;
@@ -258,9 +259,10 @@ void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instr
 }
 
 bool source_is_dx(const MenuContext& ctx, size_t source) {
-	const deluge::instrument::SoundState* sound = sound_of(ctx);
+	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
 	return sound != nullptr
-	       && deluge::instrument::source_type(*sound, static_cast<deluge::instrument::SourceId>(source))
+	       && deluge::instruments::classic::source_type(*sound,
+	                                                    static_cast<deluge::instruments::classic::SourceId>(source))
 	              == OscType::DX7;
 }
 
@@ -365,13 +367,13 @@ size_t dx_engine_names(const MenuContext& /*ctx*/, std::span<std::string_view> o
 }
 
 void DxEngineSelectItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+	const std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx);
 	focus_list(state, static_cast<int16_t>(patch ? patch->engine_mode : 0));
 }
 
 void DxEngineSelectItem::on_reread(const MenuContext& ctx, MenuState& state) const {
 	// `DxEngineSelect::readValueAgain`: `currentValue` is the patch's engine mode.
-	const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+	const std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx);
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(patch ? patch->engine_mode : 0);
 }
 
@@ -384,7 +386,7 @@ void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
 		const int32_t next = list.cursor + t;
 		if (next >= 0 && next < std::ssize(kEngineModes)) {
-			if (std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx)) {
+			if (std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx)) {
 				patch->engine_mode = static_cast<uint8_t>(next);
 				write_patch(ctx, *patch);
 			}
@@ -497,7 +499,7 @@ const Node* dx_operator_params_chain(const MenuContext& /*ctx*/, const MenuState
 // `DxParam` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`)
 
 void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
-	std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+	std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx);
 	int16_t& param = state.dx.param;
 	f.claim_turn();
 	f.claim_horizontal();
@@ -542,7 +544,7 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 	if (f.select_pressed()) {
 		state.tick.render_resp.entered = true; // `selectButtonPress` answers nothing: SELECT goes up
 	}
-	if (const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx)) {
+	if (const std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx)) {
 		// Legacy draws in the canvas's own coordinates, the rows above the panel's visible top included.
 		deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(f);
 		draw_param(panel, f.origin.y, *patch, state.dx.param);
@@ -572,7 +574,7 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12
 	    && ctx.ports.clips != nullptr) {
 		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.ports.clips->isomorphic_keyboard()) {
-			const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+			const std::optional<deluge::instruments::classic::DxPatchState> patch = patch_of(ctx);
 			const int32_t breakpoint = param - param % dx::kOperatorParams + 8;
 			const std::optional<dx::Pad> pad =
 			    patch ? dx::breakpoint_pad(patch->params[breakpoint], keyboard->scroll_offset, keyboard->row_interval)

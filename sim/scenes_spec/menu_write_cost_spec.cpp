@@ -11,7 +11,7 @@
 
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
@@ -28,7 +28,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -172,7 +172,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 	});
 
 	it("measures a param detent on a synth and on a full kit under affect-entire", _ {
-		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instruments::classic::param::kLpfFrequency;
 		changeRootUI(&sessionView); // each write logs its undo step, as on the device
 		{
 			spec::SongFixture f = spec::make_synth_song();
@@ -214,12 +214,12 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			       (void)menu::host_ports().writes->write({.target = cable,
 			                                            .where = ctx.addresses,
 			                                            .param_value = (i % 2) != 0 ? 0x08000000 : 0x10000000,
-			                                            .polarity = deluge::instrument::Polarity::BIPOLAR});
+			                                            .polarity = deluge::instruments::classic::Polarity::BIPOLAR});
 		       }));
 		const deluge::project::ParamAddress lpf{
 		    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
 		    .space = deluge::project::ParamSpace::ENGINE,
-		    .id = deluge::instrument::param::kLpfFrequency,
+		    .id = deluge::instruments::classic::param::kLpfFrequency,
 		    .clip_id = f.clip->id()};
 		report("synth-region", 0, "lpfFrequency", time_requests([&](int32_t i) {
 			       (void)menu::host_ports().controls_sink->write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24, deluge::controls::Resolution::KNOB);

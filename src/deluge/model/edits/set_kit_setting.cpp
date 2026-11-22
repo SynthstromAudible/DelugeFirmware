@@ -1,6 +1,6 @@
 #include "model/edits/set_kit_setting.h"
 
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/settings.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
@@ -31,13 +31,13 @@ bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& 
 	                                             .audio_inputs_present =
 	                                                 AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn,
 	                                             .loaded_sources = loaded};
-	const deluge::plugin::SettingReader reader{.read =
-	                                               [](const void* self, std::string_view path) {
-		                                               return deluge::instrument::held_setting(
-		                                                   *static_cast<const deluge::instrument::SoundState*>(self),
-		                                                   path);
-	                                               },
-	                                           .self = &sound.state()};
+	const deluge::plugin::SettingReader reader{
+	    .read =
+	        [](const void* self, std::string_view path) {
+		        return deluge::instruments::classic::held_setting(
+		            *static_cast<const deluge::instruments::classic::SoundState*>(self), path);
+	        },
+	    .self = &sound.state()};
 	return deluge::plugin::conditions_hold(rule, context, reader);
 }
 
@@ -46,7 +46,8 @@ bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& 
 Error SetKitSetting::apply(Context& ctx) {
 	drums_written_ = 0;
 	Kit* kit = deluge::bridge::kitAt(ctx.song, kit_output_);
-	const std::optional<deluge::serialization::Value> value = deluge::instrument::canonical_setting(path_, value_);
+	const std::optional<deluge::serialization::Value> value =
+	    deluge::instruments::classic::canonical_setting(path_, value_);
 	if (kit == nullptr || !value) {
 		return Error::UNSPECIFIED;
 	}
@@ -58,8 +59,8 @@ Error SetKitSetting::apply(Context& ctx) {
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 		deluge::project::InstrumentSlot* slot = address ? ctx.model.resolveSlot(*address) : nullptr;
 		if (slot == nullptr || !ruleHolds(fan_out_when_, sound)
-		    || !deluge::instrument::takes_setting(sound.state(), path_)
-		    || !deluge::instrument::allows_setting(sound.state(), path_, *value)) {
+		    || !deluge::instruments::classic::takes_setting(sound.state(), path_)
+		    || !deluge::instruments::classic::allows_setting(sound.state(), path_, *value)) {
 			continue;
 		}
 		if (commitEngineSetting(sound, slot, path_, *value, ctx.song) == Error::NONE) {

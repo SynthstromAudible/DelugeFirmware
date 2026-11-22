@@ -57,7 +57,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/sound_osc.h" // the ten `range_specific` nodes this page chains to
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include "ui/oled/values.h" // RangeEdge
 
 #include "shell/profile.h" // ui::shell::TextScratch

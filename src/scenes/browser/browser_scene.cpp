@@ -35,7 +35,7 @@
 #include "gui/l10n/strings.h"
 
 #include "gfx/grid/pad_grid.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/state_access.h"
 #include "processing/engines/audio_engine.h"
 #include "project/setting_group.h"
 #include "project/song.h"
@@ -169,12 +169,12 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 	    || ctx.source_index >= kNumSources) {
 		return std::nullopt;
 	}
-	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
+	const deluge::instruments::classic::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	if (state == nullptr) {
 		return std::nullopt;
 	}
-	const std::vector<synth::SourceRange> ranges =
-	    deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index));
+	const std::vector<synth::SourceRange> ranges = deluge::instruments::classic::source_ranges(
+	    *state, static_cast<deluge::instruments::classic::SourceId>(ctx.source_index));
 	return static_cast<size_t>(ctx.range_index) < ranges.size()
 	           ? std::optional{ranges[static_cast<size_t>(ctx.range_index)].file_path}
 	           : std::nullopt;

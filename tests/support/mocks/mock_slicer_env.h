@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/sound_state.h"
 #include <vector>
 
 #include <cstdint>

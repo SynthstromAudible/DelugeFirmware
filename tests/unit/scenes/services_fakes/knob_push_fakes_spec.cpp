@@ -8,10 +8,10 @@
 #include "board_controls.hpp"
 #include "effects/state.h"
 #include "gui/l10n/l10n.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
 #include "project/controller_mapping.h"
 #include "project/instrument_slot.h"
 #include "project/song.h"
@@ -56,20 +56,21 @@ struct Rig {
 	KnobFocus focus{.owner = SoundFocus{.slot = kSynthSlot, .clip = kSynthClip}};
 
 	Rig() {
-		deluge::instrument::SoundState state{};
-		deluge::effects::EffectStates& fx = deluge::instrument::sound_effects(state);
+		deluge::instruments::classic::SoundState state{};
+		deluge::effects::EffectStates& fx = deluge::instruments::classic::sound_effects(state);
 		fx.delay.type = deluge::effects::DelayType::ANALOG;
 		fx.delay.ping_pong = false;
 		host.sound.states[kSynthSlot.id] = state;
 		deluge::project::DocOutput& output = model.output_structure.getOrCreate(kSynthOutputId);
 		output.instrument = deluge::project::InstrumentSlot{
 		    .plugin = "deluge.instrument",
-		    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(state)};
+		    .state = deluge::plugin::StateHandle::of<deluge::instruments::classic::DelugeSynth>(state)};
 		output.mod_knob_mode = kDelayButton;
 		// A new sound's delay knobs: the rate on the upper knob, the feedback on the lower.
-		output.controls = {
-		    {.control = {.button = kDelayButton, .knob = kUpperKnob}, .target = deluge::instrument::param::kDelayRate},
-		    {.control = {.button = kDelayButton, .knob = 0}, .target = deluge::instrument::param::kDelayFeedback}};
+		output.controls = {{.control = {.button = kDelayButton, .knob = kUpperKnob},
+		                    .target = deluge::instruments::classic::param::kDelayRate},
+		                   {.control = {.button = kDelayButton, .knob = 0},
+		                    .target = deluge::instruments::classic::param::kDelayFeedback}};
 	}
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;

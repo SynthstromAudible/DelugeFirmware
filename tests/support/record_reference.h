@@ -22,12 +22,12 @@
 #pragma push_macro("context")
 #undef context
 
-#include "instruments/deluge/cable_acceptance.h"
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/state_rules.h"
+#include "instruments/classic/cable_acceptance.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/state_rules.h"
 #include "serialization/value.h"
 #include "serialization/write_json.h"
 #include "support/printers/sound_record_printer.h"
@@ -70,7 +70,7 @@ struct ReferenceAnswer {
 
 namespace reference_detail {
 
-namespace in = deluge::instrument;
+namespace in = deluge::instruments::classic;
 
 inline std::string text_of(const in::SoundState& state) {
 	std::ostringstream os;
@@ -293,8 +293,8 @@ inline std::string change_to_text(const in::SoundState& state) {
 /// the setup transforms, each settings row (read, held, taken, and each candidate's acceptance and result), the
 /// encoding at three tick magnitudes, the cables it accepts, what the codec reads back (a fresh read and reads onto
 /// it), each row's write as the codec makes it, the change to each engine and second-slot kind, and its dump.
-[[nodiscard]] inline std::vector<ReferenceAnswer> reference_answers(const instrument::SoundState& sound) {
-	namespace in = deluge::instrument;
+[[nodiscard]] inline std::vector<ReferenceAnswer> reference_answers(const instruments::classic::SoundState& sound) {
+	namespace in = deluge::instruments::classic;
 	using reference_detail::text_of;
 	std::vector<ReferenceAnswer> answers;
 	answers.push_back({"sound", text_of(sound)});

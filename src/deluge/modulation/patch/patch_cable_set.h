@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "instruments/deluge/cable_records.h"
+#include "instruments/classic/cable_records.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
 #include "project/param_automation.h"
@@ -87,7 +87,7 @@ public:
 	/// @param usable  Bit c: whether cable c (in the current order) may be patched.
 	void setupPatching(ParamCollectionSummary& summary, std::bitset<kMaxNumPatchCables> usable);
 	/// @brief The clip's cables: its patching's topology, in the order setupPatching() leaves them.
-	[[nodiscard]] const deluge::instrument::CableRecords& records() const { return records_; }
+	[[nodiscard]] const deluge::instruments::classic::CableRecords& records() const { return records_; }
 	/// @brief Append a cable from @p record, its depth 0. It joins the unusable end of the list, where the render
 	/// doesn't reach it, until setupPatching() places it.
 	/// @return The new cable; nullptr at kMaxNumPatchCables cables, or if out of memory.
@@ -101,8 +101,8 @@ public:
 	/// and a cable no longer present loses its lane. Recompiles.
 	/// @param restore A cable's depth to put back with it (an undo or redo bringing a cable back), or null.
 	/// @return False when a cable could not be added for want of memory: the set holds the cables before it.
-	bool replaceRecords(Sound& sound, ParamManager& paramManager, const deluge::instrument::CableRecords& records,
-	                    const CableDepth* restore = nullptr);
+	bool replaceRecords(Sound& sound, ParamManager& paramManager,
+	                    const deluge::instruments::classic::CableRecords& records, const CableDepth* restore = nullptr);
 	/// @brief Move cable @p c to @p target, its depth with it. The caller recompiles.
 	void retarget(uint8_t c, deluge::synth::CableTarget target);
 	/// @brief Set cable @p c's polarity.
@@ -211,7 +211,7 @@ private:
 	/// @brief Reorder the records and the cables together: position c takes the one previously at @p order[c].
 	void permuteCables(std::span<const uint8_t> order);
 
-	deluge::instrument::CableRecords records_;
+	deluge::instruments::classic::CableRecords records_;
 
 	std::vector<deluge::project::DocCableDepth> ownDepths_;
 	std::vector<deluge::project::DocCableDepth>* externalDepths_ = nullptr;

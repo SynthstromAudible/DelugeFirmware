@@ -13,9 +13,9 @@
 /// unpatched params both start after the shared ones, so the global filter frequency and the sound's portamento are the
 /// *same integer* in two different numbering spaces -- only `ParamRef::kind` separates them. A page whose params are a
 /// host chain's therefore needs its own nodes, carrying `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared**
-/// param (the ids both `instrument::param` and `host_chain::param` name alike -- the stutter rate, the EQ four, the
-/// compressor shape, the arp params, the bitcrush and decimation) the id is identical on both sides and this file names
-/// the sound-editor root's node rather than declaring a second one, exactly as `sound_actions.h` names
+/// param (the ids both `instruments::classic::param` and `host_chain::param` name alike -- the stutter rate, the EQ
+/// four, the compressor shape, the arp params, the bitcrush and decimation) the id is identical on both sides and this
+/// file names the sound-editor root's node rather than declaring a second one, exactly as `sound_actions.h` names
 /// `sample0_recorder`.
 ///
 /// Each legacy global below is a variable of `origin/main:src/deluge/gui/ui/menus.cpp`.

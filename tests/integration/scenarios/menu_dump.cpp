@@ -136,7 +136,7 @@
 #include <optional>
 #include <string>
 
-#include "instruments/deluge/settings.h"
+#include "instruments/classic/settings.h"
 #include "plugin/types/plugin_id.h"
 #include "plugin/types/setting.h"
 #include <string_view>
@@ -157,7 +157,7 @@ bool target_is_conditional(const deluge::scenes::bind::Target& target) {
 	const bool routing = target.kind == deluge::scenes::bind::Target::Kind::MODEL
 	                     && target.group == deluge::project::SettingGroupId::SOUND_ROUTING;
 	const std::span<const deluge::plugin::SettingInfo> table =
-	    routing ? deluge::project::table_of(target.group) : deluge::instrument::kSettings;
+	    routing ? deluge::project::table_of(target.group) : deluge::instruments::classic::kSettings;
 	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(table, target.path);
 	return row != nullptr && row->extras != nullptr
 	       && (!row->extras->applies_when.empty() || !row->extras->applies_any.empty());

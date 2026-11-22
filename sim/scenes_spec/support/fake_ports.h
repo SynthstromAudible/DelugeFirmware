@@ -51,7 +51,8 @@ public:
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override {
 		return real_.loaded_sources(slot);
 	}
-	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override {
+	[[nodiscard]] const deluge::instruments::classic::SoundState*
+	sound_state(deluge::project::SlotAddress slot) const override {
 		return real_.sound_state(slot);
 	}
 	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override {

@@ -30,8 +30,8 @@
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/state_access.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/state_access.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
 #include "project/song.h"
@@ -83,7 +83,7 @@ int32_t choice_of(const Node& node, const MenuContext& ctx, int32_t value) {
 }
 
 std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, int32_t value) {
-	using instrument::OscType;
+	using instruments::classic::OscType;
 	const auto type = static_cast<OscType>(choice_of(node, ctx, value));
 	if (type == OscType::DX7) {
 		return ArtColumn{
@@ -187,7 +187,7 @@ std::optional<ArtColumn> direction_art(const MenuContext&, int32_t value) {
 }
 
 std::optional<ArtColumn> lfo_type_art(const MenuContext&, int32_t value) {
-	using instrument::LFOType;
+	using instruments::classic::LFOType;
 	const Icon* icon = &icons::sine;
 	switch (static_cast<LFOType>(value)) {
 	case LFOType::TRIANGLE:
@@ -244,7 +244,7 @@ std::optional<ArtColumn> arp_rhythm_midi_art(const MenuContext&, int32_t value) 
 }
 
 std::optional<ArtColumn> repeat_art(const MenuContext&, int32_t value) {
-	using instrument::SampleRepeatMode;
+	using instruments::classic::SampleRepeatMode;
 	const Icon* icon = &icons::sampleModeCut;
 	switch (static_cast<SampleRepeatMode>(value)) {
 	case SampleRepeatMode::ONCE:
@@ -526,13 +526,13 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 		}
 		return put(last_folder(clip->file_path), out);
 	}
-	const instrument::SoundState* sound =
+	const instruments::classic::SoundState* sound =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr) {
 		return ValueText{};
 	}
 	const std::vector<synth::SourceRange> ranges =
-	    instrument::source_ranges(*sound, static_cast<instrument::SourceId>(source));
+	    instruments::classic::source_ranges(*sound, static_cast<instruments::classic::SourceId>(source));
 	if (std::ranges::none_of(ranges, [](const synth::SourceRange& r) { return !r.file_path.empty(); })) {
 		return kValueTextFallback;
 	}

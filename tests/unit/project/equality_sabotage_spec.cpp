@@ -1,9 +1,9 @@
 #include "controls_test_plugins.h"
 #include "effects/plugin.h"
 #include "equality/equality.h"
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/words.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
 #include "support/record_state.h"
@@ -146,8 +146,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				if (output.instrument) {
-					deluge::test::set(*output.instrument->state.as<deluge::instrument::DelugeSynth>(), "mode",
-					                  deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
+					deluge::test::set(*output.instrument->state.as<deluge::instruments::classic::DelugeSynth>(), "mode",
+					                  deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::FM));
 					return;
 				}
 			}
@@ -162,9 +162,9 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				for (ControllerMapping& mapping : output.controls) {
-					mapping.target = mapping.target == deluge::instrument::param::kPan
-					                     ? deluge::instrument::param::kVolumePostFX
-					                     : deluge::instrument::param::kPan;
+					mapping.target = mapping.target == deluge::instruments::classic::param::kPan
+					                     ? deluge::instruments::classic::param::kVolumePostFX
+					                     : deluge::instruments::classic::param::kPan;
 					return;
 				}
 			}
@@ -190,8 +190,8 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, drum] : document.drums) {
 				if (drum.instrument) {
-					deluge::test::set(*drum.instrument->state.as<deluge::instrument::DelugeSynth>(), "mode",
-					                  deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
+					deluge::test::set(*drum.instrument->state.as<deluge::instruments::classic::DelugeSynth>(), "mode",
+					                  deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::FM));
 					return;
 				}
 			}

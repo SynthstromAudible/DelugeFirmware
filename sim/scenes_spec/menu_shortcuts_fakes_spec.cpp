@@ -12,8 +12,8 @@
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcuts.h"
 
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/sound_state.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "shell/scene.h"
@@ -65,8 +65,9 @@ void hold_device(FakeHostRig& fakes, DevicePath path, int32_t menu_value) {
 
 /// @brief The synth's first source a loaded sample, so the menu lists the sample's own pages.
 void hold_sample_synth(FakeHostRig& fakes) {
-	fakes.hold_synth(deluge::test::with_kind(deluge::instrument::SoundState{}, deluge::instrument::SourceId::A,
-	                                         deluge::instrument::OscType::SAMPLE));
+	fakes.hold_synth(deluge::test::with_kind(deluge::instruments::classic::SoundState{},
+	                                         deluge::instruments::classic::SourceId::A,
+	                                         deluge::instruments::classic::OscType::SAMPLE));
 	fakes.host.sound.loaded[FakeHostRig::kSynthSlot.id] = 0b01;
 }
 
@@ -74,7 +75,7 @@ void hold_sample_synth(FakeHostRig& fakes) {
 void patch_to_cutoff(FakeHostRig& fakes, std::initializer_list<PatchSource> sources) {
 	const auto cutoff = deluge::synth::CableTarget::param(nodes::lpf_freq.bind.param.index);
 	for (const PatchSource source : sources) {
-		fakes.host.sound.cable_list.push_back({.depth = deluge::instrument::cable_depth_of(source, cutoff)});
+		fakes.host.sound.cable_list.push_back({.depth = deluge::instruments::classic::cable_depth_of(source, cutoff)});
 	}
 }
 

@@ -65,7 +65,8 @@ public:
 		return loaded;
 	}
 
-	[[nodiscard]] const deluge::instrument::SoundState* sound_state(project::SlotAddress slot) const override {
+	[[nodiscard]] const deluge::instruments::classic::SoundState*
+	sound_state(project::SlotAddress slot) const override {
 		::Sound* sound = sound_at(slot);
 		return sound != nullptr ? &sound->state() : nullptr;
 	}
@@ -155,7 +156,8 @@ public:
 		for (int32_t i = 0; i < set->numPatchCables && list.count < list.items.size(); ++i) {
 			const PatchCable& cable = set->patchCables[i];
 			list.items[list.count++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destination),
-			                            .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
+			                            .polarity =
+			                                static_cast<deluge::instruments::classic::Polarity>(cable.polarity)};
 		}
 		return list;
 	}

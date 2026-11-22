@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "instruments/deluge/codec.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/codec.h"
+#include "instruments/classic/sound_state.h"
 #include "project/instrument_slot.h"
 
 #include <expected>
@@ -84,7 +84,7 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 /// @param song   The song the sound belongs to.
 /// @return Error::UNSPECIFIED when an apply is refused, or (under the gates' audit) the runtime did not reach the
 /// state.
-Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song);
+Error commitState(::Sound& sound, const deluge::instruments::classic::SlotChange& change, ::Song& song);
 
 /// @brief A check of the typed writes, for the gates: when enabled, each setting, DX patch or ranges write is also made
 /// the old way (a setting through with_setting; a DX patch or ranges by encoding the state, writing the change into
@@ -133,7 +133,7 @@ typedWriteAuditBase(const ::Sound& sound, const deluge::project::InstrumentSlot&
 /// @param what    What was written, for the failure message.
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
                      const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
-                     const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got,
+                     const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& got,
                      std::string_view what);
 
 /// @brief Compare a setting's typed write, @p got, with the old way's, @p want (with_setting, or where the setting's
@@ -146,10 +146,10 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
 /// @param value  The value written.
 /// @param want   The old way's change.
 /// @param got    The typed write's change.
-void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
+void auditSettingWrite(const deluge::instruments::classic::SoundState& before, std::string_view path,
                        const deluge::serialization::Value& value,
-                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
-                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got);
+                       const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& want,
+                       const std::expected<deluge::instruments::classic::SlotChange, deluge::plugin::StateError>& got);
 
 /// @brief What loading made of @p sound's oscillators (clamped zones, found files, a made DX7 patch) recorded through
 /// the Edits a gesture would make, its effects reprojected and its controls record set from its knobs, when it is

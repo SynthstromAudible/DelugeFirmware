@@ -112,7 +112,7 @@ namespace deluge::scenes::bind::contract {
 
 /// @brief Every sound edit on a sound no song holds is refused. A fake that accepts everything is set to refuse first.
 [[nodiscard]] inline bool unknown_sound_is_refused(SoundWrites& writes, project::SlotAddress nowhere) {
-	const instrument::DxPatchState patch{};
+	const instruments::classic::DxPatchState patch{};
 	return !writes.write_ranges(nowhere, 0, {}, {}) && !writes.insert_range(nowhere, 0, 0, 40, std::nullopt)
 	       && !writes.delete_range(nowhere, 0, 0, std::nullopt)
 	       && !writes.attach_recording(nowhere, 0, 0, "NOWHERE.WAV") && !writes.write_dx_patch(nowhere, 0, patch)

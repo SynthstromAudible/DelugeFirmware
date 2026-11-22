@@ -54,7 +54,7 @@ ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse 
 inline constexpr Node comp_threshold =
     param(sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
           {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instrument::runtime_index(deluge::instrument::param::kCompressorThreshold)},
+           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kCompressorThreshold)},
           Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
 // The decimal-place counts are the `getNumDecimalPlaces()` overrides of `audio_compressor::CompressorValue`, `Release`
 // and `Blend`; the hints are the `getRenderingStyle()` overrides of `CompressorValue`, `Attack`, `Release` and

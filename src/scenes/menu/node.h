@@ -17,7 +17,7 @@
 ///       and the oled toolkit's own dependency closures.
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
 #include "plugin/types/param_kind.h"
 #include "project/device_settings.h" // RangeSpec::upper_path
@@ -1440,9 +1440,9 @@ constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 	using deluge::plugin::ParamKind;
 	switch (p.kind) {
 	case ParamKind::PATCHED:
-		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::PATCHED, p.index});
+		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::PATCHED, p.index});
 	case ParamKind::UNPATCHED_SOUND:
-		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::UNPATCHED, p.index});
+		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::UNPATCHED, p.index});
 	case ParamKind::UNPATCHED_GLOBAL:
 		return deluge::host_chain::param_id(p.index);
 	case ParamKind::NONE:

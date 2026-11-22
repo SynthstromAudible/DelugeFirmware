@@ -1,6 +1,6 @@
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/param_display.h"
 #include "scenes/bind/target.h"
@@ -30,18 +30,20 @@ constexpr std::array kOnFm{deluge::plugin::setting_is("mode", kFm)};
 constexpr std::array<int32_t, 1> kLpfOff{5}; // "Off" in the "lpfMode" row
 constexpr std::array kLpfOn{deluge::plugin::setting_is_not("lpfMode", kLpfOff)};
 
-constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
+constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kLpfFrequency};
 constexpr Target kChainLpf{
     .kind = Target::Kind::PARAM, .param = deluge::host_chain::param::kLpfFrequency, .param_table = ParamTable::CHAIN};
-constexpr Target kSoundBass{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kBass};
-constexpr Target kPortamento{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kPortamento};
+constexpr Target kSoundBass{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kBass};
+constexpr Target kPortamento{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kPortamento};
 constexpr Target kChainTempo{
     .kind = Target::Kind::PARAM, .param = deluge::host_chain::param::kTempo, .param_table = ParamTable::CHAIN};
-constexpr Target kSoundPan{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kPan};
-constexpr Target kPulseWidth{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kOscAPhaseWidth};
+constexpr Target kSoundPan{.kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kPan};
+constexpr Target kPulseWidth{.kind = Target::Kind::PARAM,
+                             .param = deluge::instruments::classic::param::kOscAPhaseWidth};
 constexpr Target kFmOnly{
-    .kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency, .applies_when = kOnFm};
-constexpr Target kWithFm{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kPan, .shown_with = &kFmOnly};
+    .kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kLpfFrequency, .applies_when = kOnFm};
+constexpr Target kWithFm{
+    .kind = Target::Kind::PARAM, .param = deluge::instruments::classic::param::kPan, .shown_with = &kFmOnly};
 constexpr Target kChainLpfOn{.kind = Target::Kind::PARAM,
                              .param = deluge::host_chain::param::kLpfFrequency,
                              .param_table = ParamTable::CHAIN,
@@ -96,23 +98,23 @@ describe bind_param("a param target", ${
 		expect(owner_of(kChainLpf, kOnSong))
 		    .to_equal(std::optional{std::pair{OwnerId::song(), std::optional<uint32_t>{}}});
 		expect(param_address(kSoundLpf, Addresses{}).has_value()).to_be_false();
-		expect(param_address(kSoundLpf, kOnSynth)->id).to_equal(deluge::instrument::param::kLpfFrequency);
+		expect(param_address(kSoundLpf, kOnSynth)->id).to_equal(deluge::instruments::classic::param::kLpfFrequency);
 	});
 
 	it("names a param on the other kind of owner only where that owner's table holds it by the same name", _ {
 		// A sound's and a chain's ids are their own tables': a sound's portamento has the id a chain's mod FX rate does.
-		expect(deluge::instrument::param::kPortamento).to_equal(deluge::host_chain::param::kModFXRate);
+		expect(deluge::instruments::classic::param::kPortamento).to_equal(deluge::host_chain::param::kModFXRate);
 		expect(param_address(kPortamento, kOnKitFx).has_value()).to_be_false();
 		ModelFixture f;
 		expect(view(kPortamento, &f.song, kOnKitFx, f.ports()).has_value()).to_be_false();
 		expect(request_for(kPortamento, &f.song, kOnKitFx, f.ports(), 10).has_value()).to_be_false();
 		expect(param_address(kChainTempo, kOnSynth).has_value()).to_be_false();
 		expect(param_address(kSoundBass, kOnSong)->id).to_equal(deluge::host_chain::param::kBass);
-		expect(param_address(kChainLpf, kOnSynth)->id).to_equal(deluge::instrument::param::kLpfFrequency);
+		expect(param_address(kChainLpf, kOnSynth)->id).to_equal(deluge::instruments::classic::param::kLpfFrequency);
 	});
 
 	it("addresses a cable on a sound's slot and nowhere on a chain", _ {
-		constexpr deluge::plugin::ParamId depth{deluge::instrument::kCableDepthFlag | 24u | (1u << 8)};
+		constexpr deluge::plugin::ParamId depth{deluge::instruments::classic::kCableDepthFlag | 24u | (1u << 8)};
 		const Target cable{.kind = Target::Kind::CABLE, .param = depth};
 		const auto on_synth = param_address(cable, kOnSynth);
 		expect(on_synth.has_value()).to_be_true();
@@ -152,7 +154,7 @@ describe bind_param("a param target", ${
 		}
 		// A param the runtime does not hold shows the value a new owner starts with.
 		const auto unheld = view(kSoundLpf, &f.song, kOnSynth, f.ports());
-		const auto* lpf_row = deluge::plugin::find_param(deluge::instrument::kParams, kSoundLpf.param);
+		const auto* lpf_row = deluge::plugin::find_param(deluge::instruments::classic::kParams, kSoundLpf.param);
 		expect(unheld.has_value()).to_be_true();
 		if (unheld.has_value()) {
 			expect(unheld->value).to_equal(menu_of(lpf_row->mapping, lpf_row->default_value));
@@ -169,10 +171,10 @@ describe bind_param("a param target", ${
 			const auto shown = view(t, &f.song, where, f.ports());
 			return shown.has_value() && shown->applies;
 		};
-		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::SUBTRACTIVE));
+		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::SUBTRACTIVE));
 		expect(applies(kFmOnly, kOnSynth)).to_be_false();
 		expect(applies(kWithFm, kOnSynth)).to_be_false();
-		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
+		deluge::test::set(f.host.sound.states[kSynth.id], "mode", deluge::instruments::classic::to_string(deluge::instruments::classic::SynthMode::FM));
 		expect(applies(kFmOnly, kOnSynth)).to_be_true();
 		expect(applies(kWithFm, kOnSynth)).to_be_true();
 		f.host.tracks.chains[FakeTrackFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::OFF;

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "instruments/deluge/dx7_init_voice.h"
-#include "instruments/deluge/settings.h"
-#include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_access.h"
+#include "instruments/classic/dx7_init_voice.h"
+#include "instruments/classic/settings.h"
+#include "instruments/classic/sound_state.h"
+#include "instruments/classic/state_access.h"
 #include "support/record_state.h"
 
 #include <cstdio>
@@ -44,15 +44,15 @@ namespace deluge::test {
 namespace detail {
 
 /// @brief Write settings row @p path as the file text @p text, as a file places it: no menu rule, any engine or kind.
-inline void put(instrument::SoundState& state, std::string_view path, std::string_view text) {
+inline void put(instruments::classic::SoundState& state, std::string_view path, std::string_view text) {
 	const std::optional<serialization::Value> value =
-	    instrument::canonical_setting(path, serialization::Value::makeScalar(std::string(text)));
-	if (!value || plugin::find_setting(instrument::kSettings, path) == nullptr) {
+	    instruments::classic::canonical_setting(path, serialization::Value::makeScalar(std::string(text)));
+	if (!value || plugin::find_setting(instruments::classic::kSettings, path) == nullptr) {
 		std::fprintf(stderr, "sound_matrix: %.*s takes no %.*s\n", static_cast<int>(path.size()), path.data(),
 		             static_cast<int>(text.size()), text.data());
 		std::abort();
 	}
-	(void)instrument::write_setting(state, path, *value);
+	(void)instruments::classic::write_setting(state, path, *value);
 }
 
 /// @brief Oscillator @p s's settings row @p key ("osc1/<key>" or "osc2/<key>").
@@ -63,10 +63,12 @@ inline std::string osc(size_t s, std::string_view key) {
 } // namespace detail
 
 /// @brief The oscillator kinds the matrix pairs.
-inline constexpr instrument::OscType kMatrixKinds[] = {
-    instrument::OscType::SINE,      instrument::OscType::SAW,     instrument::OscType::SUPERSAW,
-    instrument::OscType::WAVETABLE, instrument::OscType::SAMPLE,  instrument::OscType::DX7,
-    instrument::OscType::INPUT_L,   instrument::OscType::INPUT_R, instrument::OscType::INPUT_STEREO};
+inline constexpr instruments::classic::OscType kMatrixKinds[] = {
+    instruments::classic::OscType::SINE,        instruments::classic::OscType::SAW,
+    instruments::classic::OscType::SUPERSAW,    instruments::classic::OscType::WAVETABLE,
+    instruments::classic::OscType::SAMPLE,      instruments::classic::OscType::DX7,
+    instruments::classic::OscType::INPUT_L,     instruments::classic::OscType::INPUT_R,
+    instruments::classic::OscType::INPUT_STEREO};
 
 /// @brief A sound with engine @p mode and kinds @p a and @p b, every oscillator field set to a value its default is
 /// not, whatever its kind holds.
@@ -74,8 +76,9 @@ inline constexpr instrument::OscType kMatrixKinds[] = {
 /// @param a The first oscillator's kind.
 /// @param b The second oscillator's kind.
 /// @return The sound's record.
-inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument::OscType a, instrument::OscType b) {
-	using namespace instrument;
+inline instruments::classic::SoundState plain_sound(instruments::classic::SynthMode mode,
+                                                    instruments::classic::OscType a, instruments::classic::OscType b) {
+	using namespace instruments::classic;
 	SoundState s;
 	const OscType kinds[] = {a, b};
 	for (size_t i = 0; i < 2; i++) {
@@ -110,8 +113,9 @@ inline instrument::SoundState plain_sound(instrument::SynthMode mode, instrument
 /// @param a The first oscillator's kind.
 /// @param b The second oscillator's kind.
 /// @return The sound's record.
-inline instrument::SoundState varied_sound(instrument::SynthMode mode, instrument::OscType a, instrument::OscType b) {
-	using namespace instrument;
+inline instruments::classic::SoundState varied_sound(instruments::classic::SynthMode mode,
+                                                     instruments::classic::OscType a, instruments::classic::OscType b) {
+	using namespace instruments::classic;
 	SoundState s = plain_sound(mode, a, b);
 	detail::put(s, "osc2/transpose", "-4");
 	detail::put(s, "osc2/cents", "9");
@@ -131,8 +135,8 @@ inline instrument::SoundState varied_sound(instrument::SynthMode mode, instrumen
 /// wavetable, synced LFO and effects, non-zero settings. "new" is the codec specs' new sound; the reference's own new
 /// sound is for_each_named_sound()'s "default".
 /// @return Each sound's name and record, in that order.
-inline std::vector<std::pair<std::string, instrument::SoundState>> corner_sounds() {
-	using namespace instrument;
+inline std::vector<std::pair<std::string, instruments::classic::SoundState>> corner_sounds() {
+	using namespace instruments::classic;
 	std::vector<std::pair<std::string, SoundState>> states;
 	states.emplace_back("new", SoundState{});
 
@@ -195,7 +199,7 @@ inline bool is_kind_row(std::string_view name) {
 /// "<mode> <a> <b> plain|varied" by their enum values; the corner sounds; "default", a new sound.
 template <class Check>
 void for_each_named_sound(const Check& check) {
-	using namespace instrument;
+	using namespace instruments::classic;
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
 		for (const OscType a : kMatrixKinds) {
 			for (const OscType b : kMatrixKinds) {
@@ -215,7 +219,7 @@ void for_each_named_sound(const Check& check) {
 /// @brief Call @p check with every sound of the matrix.
 template <class Check>
 void for_each_sound(const Check& check) {
-	for_each_named_sound([&](const std::string&, const instrument::SoundState& state) { check(state); });
+	for_each_named_sound([&](const std::string&, const instruments::classic::SoundState& state) { check(state); });
 }
 
 } // namespace deluge::test

@@ -21,7 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -369,10 +369,11 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			std::optional<deluge::project::ParamTarget> cable = deluge::bridge::targetOf(
 			    deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCH_CABLE, lastSelectedParamID);
 			if (cable) {
-				std::optional<deluge::instrument::CableRoute> route = deluge::instrument::cable_route(cable->id);
-				if (route && deluge::instrument::is_cable_depth(route->destination)) {
-					while (std::optional<deluge::instrument::CableRoute> inner =
-					           deluge::instrument::cable_route(route->destination)) {
+				std::optional<deluge::instruments::classic::CableRoute> route =
+				    deluge::instruments::classic::cable_route(cable->id);
+				if (route && deluge::instruments::classic::is_cable_depth(route->destination)) {
+					while (std::optional<deluge::instruments::classic::CableRoute> inner =
+					           deluge::instruments::classic::cable_route(route->destination)) {
 						route = inner;
 					}
 					source2 = route->source;

@@ -128,9 +128,9 @@ may_include = [
 ]
 
 [[library]]
-name = "instrument"
-root = "src/instruments/deluge"
-prefix = "instruments/deluge/"
+name = "instruments-classic"
+root = "src/instruments/classic"
+prefix = "instruments/classic/"
 may_include = [
     "plugin/",
     "effects/",
@@ -230,7 +230,7 @@ may_include = [
     "project/",
     "controls/",
     "plugin/",
-    "instruments/deluge/",
+    "instruments/classic/",
     "effects/",
     "effects/host_chain/",
     "serialization/",

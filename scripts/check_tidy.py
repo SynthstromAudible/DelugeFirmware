@@ -42,7 +42,7 @@ LIBRARIES = {
     "src/deluge/dsp-next/": "/dsp-next/",
     "src/synth/": "/synth/",
     "src/effects/": "/src/effects/",
-    "src/instruments/deluge/": "/instruments/deluge/",
+    "src/instruments/classic/": "/instruments/classic/",
     "src/plugin/": "/dsp-next/",  # header-only: any library's flags see it
     "src/serialization/": "/serialization/",
     "src/controls/": "/controls/",

@@ -21,9 +21,9 @@
 
 #include "effects/host_chain/naming.h"
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/naming.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/naming.h"
+#include "instruments/classic/params.h"
 #include "project/mapping_codec.h"
 #include "project/mapping_table.h"
 #include "serialization/parse_xml.h"
@@ -34,9 +34,9 @@
 #include <vector>
 
 using namespace deluge::project;
-using deluge::instrument::PatchSource;
+using deluge::instruments::classic::PatchSource;
 using deluge::serialization::Value;
-namespace ip = deluge::instrument::param;
+namespace ip = deluge::instruments::classic::param;
 
 namespace {
 
@@ -55,7 +55,7 @@ std::vector<uint32_t> sound_knob_params(std::string_view xml) {
 	if (midiKnobs == nullptr) {
 		return params;
 	}
-	for (const Mapping& knob : decode_knobs(*midiKnobs, kSound, deluge::instrument::kNaming)) {
+	for (const Mapping& knob : decode_knobs(*midiKnobs, kSound, deluge::instruments::classic::kNaming)) {
 		params.push_back(std::get<OwnerParamTarget>(knob.target).param.id.value);
 	}
 	return params;
@@ -63,7 +63,7 @@ std::vector<uint32_t> sound_knob_params(std::string_view xml) {
 
 /// The id of the depth of a cable from @p source to @p param.
 uint32_t depth(PatchSource source, deluge::plugin::ParamId param) {
-	return deluge::instrument::cable_depth_id(source, param)->value;
+	return deluge::instruments::classic::cable_depth_id(source, param)->value;
 }
 
 } // namespace
@@ -100,11 +100,11 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 		// A depth's depth follows the source nearest the param, as the runtime's fix-up reads it.
 		expect(params).to_equal(std::vector<uint32_t>{
 		    depth(PatchSource::LFO_GLOBAL_1, ip::kVolume), depth(PatchSource::VELOCITY, ip::kVolume),
-		    deluge::instrument::cable_depth_id(PatchSource::VELOCITY,
-		                                       *deluge::instrument::cable_depth_id(PatchSource::LFO_GLOBAL_1, ip::kVolume))
+		    deluge::instruments::classic::cable_depth_id(PatchSource::VELOCITY,
+		                                       *deluge::instruments::classic::cable_depth_id(PatchSource::LFO_GLOBAL_1, ip::kVolume))
 		        ->value,
-		    deluge::instrument::cable_depth_id(
-		        PatchSource::LFO_GLOBAL_1, *deluge::instrument::cable_depth_id(PatchSource::SIDECHAIN, ip::kVolumePostReverbSend))
+		    deluge::instruments::classic::cable_depth_id(
+		        PatchSource::LFO_GLOBAL_1, *deluge::instruments::classic::cable_depth_id(PatchSource::SIDECHAIN, ip::kVolumePostReverbSend))
 		        ->value});
 	});
 
@@ -142,7 +142,7 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 		const Value sound = element(R"(<sound><midiKnobs>
 			<midiKnob mpeZone="upper" ccNumber="74" relative="1" controlsParam="volume"><device port="din" /></midiKnob>
 			</midiKnobs></sound>)", "sound");
-		const std::vector<Mapping> knobs = decode_knobs(*sound.find("midiKnobs"), kSound, deluge::instrument::kNaming);
+		const std::vector<Mapping> knobs = decode_knobs(*sound.find("midiKnobs"), kSound, deluge::instruments::classic::kNaming);
 		expect(knobs.size()).to_equal(size_t{1});
 		if (knobs.size() != 1) {
 			return;
@@ -156,7 +156,7 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 		}
 		expect(knobs[0].target).to_equal(MappingTarget{OwnerParamTarget{kSound, engine_target(ip::kVolumePostFX.value)}});
 		MappingTable table;
-		decode_mappings(sound, kSound, table, &deluge::instrument::kNaming);
+		decode_mappings(sound, kSound, table, &deluge::instruments::classic::kNaming);
 		expect(table.params_of(kSound)).to_equal(knobs);
 	});
 });

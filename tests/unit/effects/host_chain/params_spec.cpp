@@ -1,5 +1,5 @@
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 
 #include <array>
 #include <cppspec.hpp>
@@ -171,7 +171,7 @@ describe params("the host chain's param table", ${
 	it("shares the instrument's ids for the params both have", _ {
 		for (uint32_t id = 90; id <= 115; ++id) {
 			expect(deluge::plugin::find_param(kParams, ParamId{id})->file_name)
-			    .to_equal(deluge::plugin::find_param(deluge::instrument::kParams, ParamId{id})->file_name);
+			    .to_equal(deluge::plugin::find_param(deluge::instruments::classic::kParams, ParamId{id})->file_name);
 		}
 	});
 

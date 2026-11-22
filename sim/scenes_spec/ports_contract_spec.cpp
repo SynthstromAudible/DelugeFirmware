@@ -14,7 +14,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -479,11 +479,11 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		}
 		expect(static_cast<int>(PadLEDs::flashCursor)).to_equal(5); // reading heals nothing
 		PadLEDs::flashCursor = cursor;
-		const deluge::instrument::Polarity polarity = FlashStorage::defaultPatchCablePolarity;
+		const deluge::instruments::classic::Polarity polarity = FlashStorage::defaultPatchCablePolarity;
 		expect(static_cast<int>(p.device->write(device_path::kPatchCablePolarity, 0)))
 		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<int>(FlashStorage::defaultPatchCablePolarity))
-		    .to_equal(static_cast<int>(deluge::instrument::Polarity::UNIPOLAR));
+		    .to_equal(static_cast<int>(deluge::instruments::classic::Polarity::UNIPOLAR));
 		FlashStorage::defaultPatchCablePolarity = polarity;
 		// The row's words are the cable's own.
 		const deluge::plugin::SettingInfo* polarity_row =
@@ -495,8 +495,8 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 				words.emplace_back(word);
 			}
 			expect(words).to_equal(std::vector<std::string>{
-			    std::string{deluge::instrument::to_string(deluge::instrument::Polarity::UNIPOLAR)},
-			    std::string{deluge::instrument::to_string(deluge::instrument::Polarity::BIPOLAR)}});
+			    std::string{deluge::instruments::classic::to_string(deluge::instruments::classic::Polarity::UNIPOLAR)},
+			    std::string{deluge::instruments::classic::to_string(deluge::instruments::classic::Polarity::BIPOLAR)}});
 		}
 		// A shortcut byte other than V1's reads as the current layout, as the shortcut lookups read it.
 		const uint8_t version = FlashStorage::shortcutsVersion;

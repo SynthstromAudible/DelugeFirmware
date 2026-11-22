@@ -6,15 +6,15 @@
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
 #include "effects/plugin.h"
-#include "instruments/deluge/pages.h"
-#include "instruments/deluge/params.h"
-#include "instruments/deluge/deluge_synth.h"
+#include "instruments/classic/pages.h"
+#include "instruments/classic/params.h"
+#include "instruments/classic/deluge_synth.h"
 #include "support/printers/controls_printer.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
 #include <algorithm>
 #include <array>
-#include "instruments/deluge/state_rules.h"
+#include "instruments/classic/state_rules.h"
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdlib>
@@ -23,9 +23,9 @@
 #include "mock_panic.h"
 
 using namespace deluge;
-namespace ip = deluge::instrument::param;
+namespace ip = deluge::instruments::classic::param;
 namespace ge = deluge::host_chain::param;
-using deluge::instrument::SynthMode;
+using deluge::instruments::classic::SynthMode;
 
 namespace {
 /// The allocations made through the global operator new since the driver started.
@@ -45,7 +45,7 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
-const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, host_chain::kRemoteControls};
+const std::array<plugin::RemoteControls, 2> kPublishers{instruments::classic::kRemoteControls, host_chain::kRemoteControls};
 /// What the stand-in view reading last saw.
 struct ViewCall {
 	const project::FxChain* chain{nullptr};
@@ -73,7 +73,7 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	                   {.control = {.button = mode, .knob = 1}, .target = ip::kLpfResonance}};
 	output.instrument = project::InstrumentSlot{
 	    .plugin = "deluge.instrument",
-	    .state = plugin::StateHandle::of<instrument::DelugeSynth>(instrument::switch_engine(instrument::SoundState{}, synth_mode))};
+	    .state = plugin::StateHandle::of<instruments::classic::DelugeSynth>(instruments::classic::switch_engine(instruments::classic::SoundState{}, synth_mode))};
 	return song;
 }
 const controls::KnobFocus kSynth{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 3}}};

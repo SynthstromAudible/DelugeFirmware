@@ -5,7 +5,7 @@
 /// (`gui/menu_item/**`'s `writeCurrentValue` over `kit->firstDrum`): a Target's fan_out_when.
 
 #include "effects/settings.h"
-#include "instruments/deluge/words.h"
+#include "instruments/classic/words.h"
 #include "plugin/types/setting.h"
 
 #include <array>
@@ -16,11 +16,11 @@
 namespace deluge::scenes::menu::fan_out {
 
 namespace detail {
-inline constexpr std::array<int32_t, 1> kPoly{std::to_underlying(instrument::PolyphonyMode::POLY)};
-inline constexpr std::array<int32_t, 1> kFm{std::to_underlying(instrument::SynthMode::FM)};
-inline constexpr std::array<int32_t, 1> kSample{std::to_underlying(instrument::OscType::SAMPLE)};
+inline constexpr std::array<int32_t, 1> kPoly{std::to_underlying(instruments::classic::PolyphonyMode::POLY)};
+inline constexpr std::array<int32_t, 1> kFm{std::to_underlying(instruments::classic::SynthMode::FM)};
+inline constexpr std::array<int32_t, 1> kSample{std::to_underlying(instruments::classic::OscType::SAMPLE)};
 inline constexpr auto kRingable = [] {
-	std::array<int32_t, std::to_underlying(instrument::OscType::WAVETABLE) + 1> types{};
+	std::array<int32_t, std::to_underlying(instruments::classic::OscType::WAVETABLE) + 1> types{};
 	for (size_t i = 0; i < types.size(); ++i) {
 		types[i] = static_cast<int32_t>(i);
 	}

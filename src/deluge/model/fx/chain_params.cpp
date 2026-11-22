@@ -17,7 +17,7 @@
 
 #include "model/fx/chain_params.h"
 #include "effects/host_chain/params.h"
-#include "instruments/deluge/params.h"
+#include "instruments/classic/params.h"
 #include "model/fx/effect_reads.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -55,9 +55,9 @@ void setRowsToDefaults(UnpatchedParamSet& set, std::span<const plugin::ParamInfo
 } // namespace
 
 void initSharedParams(ParamManager* paramManager, params::Kind defaults) {
-	const std::span<const plugin::ParamInfo> table = defaults == params::Kind::UNPATCHED_SOUND
-	                                                     ? std::span<const plugin::ParamInfo>{instrument::kParams}
-	                                                     : std::span<const plugin::ParamInfo>{host_chain::kParams};
+	const std::span<const plugin::ParamInfo> table =
+	    defaults == params::Kind::UNPATCHED_SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
+	                                              : std::span<const plugin::ParamInfo>{host_chain::kParams};
 	setRowsToDefaults(*paramManager->getUnpatchedParamSet(), table, kFirstSharedId, kLastSharedId, {});
 }
 

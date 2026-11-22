@@ -33,7 +33,7 @@ enum class ParamTable : uint8_t {
 struct Target {
 	enum class Kind : uint8_t {
 		NONE,   ///< no target: the node binds through its own hooks
-		SOUND,  ///< a row of instrument::kSettings, on the sound at Addresses::slot
+		SOUND,  ///< a row of instruments::classic::kSettings, on the sound at Addresses::slot
 		EFFECT, ///< a row of effects::kEffectSettings, on the sound at Addresses::slot, else the chain at
 		        ///< Addresses::chain
 		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group; a DEVICE row

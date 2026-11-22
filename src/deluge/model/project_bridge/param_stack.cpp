@@ -18,7 +18,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/fx/stutter_gesture.h"
 
-#include "instruments/deluge/cables.h"
+#include "instruments/classic/cables.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit_cable.h"
@@ -202,7 +202,7 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 	switch (address.space) {
 	case project::ParamSpace::ENGINE:
 		if (owner.holder == Holder::SOUND) {
-			return instrument::is_cable_depth(address.id)
+			return instruments::classic::is_cable_depth(address.id)
 			           ? cableIn(owner.stack, address.id, create && make_cable)
 			           : paramIn(owner.stack, address.id, {params::Kind::PATCHED, params::Kind::UNPATCHED_SOUND});
 		}
@@ -456,7 +456,7 @@ PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void
 
 ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address, Polarity polarity,
                                       void* memory) {
-	if (address.space != project::ParamSpace::ENGINE || !instrument::is_cable_depth(address.id)) {
+	if (address.space != project::ParamSpace::ENGINE || !instruments::classic::is_cable_depth(address.id)) {
 		return nullptr;
 	}
 	const OwnerStack owner = ownerStackAt(song, address, memory);

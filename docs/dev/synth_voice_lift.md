@@ -9,7 +9,7 @@ The app holds each voice as a `SoundVoice` (`src/deluge/model/voice/voice_part.h
 (`instrument::VoiceSlot`) over one kernel and the app's part — the firmware ports its sources play through and the
 playback guides of the files its note plays. It has no back-reference: its `Sound` builds what the kernel reads from
 the sound and hands it over (`src/deluge/processing/sound/sound_voices.cpp`). The sound's `instrument::VoicePool`
-(`src/instruments/deluge/voice_pool.h`, held by its `DelugeSynth::Instance`) is the only code that edits its voice
+(`src/instruments/classic/voice_pool.h`, held by its `DelugeSynth::Instance`) is the only code that edits its voice
 list: it runs note on and off, the render loop and the culls, drawing on the app through `SoundVoiceHost`, which
 implements the seam in `src/synth/voice/voice_host.h`.
 

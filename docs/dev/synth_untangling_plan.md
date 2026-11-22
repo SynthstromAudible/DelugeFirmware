@@ -203,7 +203,7 @@ Thumb and a low inline threshold (5).
 | L1 sources, modulation core (envelopes, LFOs, Patcher) | `src/synth/sources/`, `src/synth/modulation/` | `deluge_synth` |
 | L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
 | L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
-| L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/deluge/` | `deluge_instrument` |
+| L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/classic/` | `deluge_instruments_classic` |
 | Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin/` | `deluge_plugin` |
 

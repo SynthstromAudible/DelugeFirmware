@@ -43,23 +43,23 @@ deluge::effects::FxSectionInputs fxSectionInputs(Sound& sound, ParamManager& par
 	            .mod_fx_type = sound.renderEffects().mod_fx.type,
 	            .mod_fx_rate = finals[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL],
 	            .mod_fx_depth = finals[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL],
-	            .mod_fx_offset =
-	                unpatched->getValue(deluge::model::unpatchedIndex(deluge::instrument::param::kModFXOffset)),
-	            .mod_fx_feedback =
-	                unpatched->getValue(deluge::model::unpatchedIndex(deluge::instrument::param::kModFXFeedback)),
-	            .eq = deluge::model::eqKnobs(*unpatched, deluge::instrument::kEqIds),
+	            .mod_fx_offset = unpatched->getValue(
+	                deluge::model::unpatchedIndex(deluge::instruments::classic::param::kModFXOffset)),
+	            .mod_fx_feedback = unpatched->getValue(
+	                deluge::model::unpatchedIndex(deluge::instruments::classic::param::kModFXFeedback)),
+	            .eq = deluge::model::eqKnobs(*unpatched, deluge::instruments::classic::kEqIds),
 	            .delay = delay,
 	            .stereo = AudioEngine::renderInStereo,
 	            .grain_send = halve_floor(reverbSendAmount),
 	            .noise = &deluge::synth_noise,
 	        },
-	    .bitcrush = deluge::model::bitcrushKnobs(*unpatched, deluge::instrument::kBitcrushIds),
+	    .bitcrush = deluge::model::bitcrushKnobs(*unpatched, deluge::instruments::classic::kBitcrushIds),
 	    .post_fx_volume = global_param_value<params::GLOBAL_VOLUME_POST_FX>(finals),
 	    .post_reverb_volume = global_param_value<params::GLOBAL_VOLUME_POST_REVERB_SEND>(finals),
 	    .reverb_send = reverbSendAmount,
 	    .sound = anyVoices,
-	    .compressor_threshold =
-	        unpatched->getKnob(deluge::model::unpatchedIndex(deluge::instrument::param::kCompressorThreshold)),
+	    .compressor_threshold = unpatched->getKnob(
+	        deluge::model::unpatchedIndex(deluge::instruments::classic::param::kCompressorThreshold)),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

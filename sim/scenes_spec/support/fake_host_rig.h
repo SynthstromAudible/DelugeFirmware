@@ -4,8 +4,8 @@
 /// @brief `FakeHostRig`: the menu's context over a fake of every port and a model song of its own, for a spec that
 ///        drives a menu page with no legacy song and no host behind it.
 
-#include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/sound_state.h"
 #include "project/instrument_slot.h"
 #include "project/setting_group.h"
 #include "project/song.h"
@@ -65,10 +65,10 @@ struct FakeHostRig {
 	///
 	/// The clip gets no arp record: the sound root's arpeggiator page lists the same rows without one.
 	/// @param state The synth's state.
-	void hold_synth(const instrument::SoundState& state) {
+	void hold_synth(const instruments::classic::SoundState& state) {
 		host.sound.states[kSynthSlot.id] = state;
 		model.output_structure.getOrCreate(kSynthSlot.id).instrument = project::InstrumentSlot{
-		    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(state)};
+		    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instruments::classic::DelugeSynth>(state)};
 	}
 
 	/// @brief The sound root's context over the synth clip, as `menu::context_for` resolves one opened from a synth
@@ -77,7 +77,7 @@ struct FakeHostRig {
 	/// @return The context; its ports point at this rig's fakes, so it is valid while the rig lives.
 	[[nodiscard]] menu::MenuContext synth_context() {
 		if (!host.sound.states.contains(kSynthSlot.id)) {
-			hold_synth(instrument::SoundState{}); // a default state is a new synth's
+			hold_synth(instruments::classic::SoundState{}); // a default state is a new synth's
 		}
 		const bind::Ports ports = host.ports();
 		return menu::context_for(

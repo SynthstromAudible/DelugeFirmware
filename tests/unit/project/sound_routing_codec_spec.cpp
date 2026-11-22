@@ -1,4 +1,4 @@
-#include "instruments/deluge/codec.h"
+#include "instruments/classic/codec.h"
 #include "project/sound_routing_codec.h"
 #include "serialization/tree.h"
 #include "support/printers/sound_routing_printer.h"
@@ -12,7 +12,7 @@
 
 using namespace deluge::project;
 using deluge::serialization::Value;
-namespace instrument = deluge::instrument;
+namespace instrument = deluge::instruments::classic;
 
 namespace {
 
