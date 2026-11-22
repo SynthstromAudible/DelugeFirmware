@@ -238,8 +238,9 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   here because its subject is the `embedded-fatfs` stack (deluge-sdk's published fork), not the BSP.
 - **`tests/component/stress/`, `tests/component/dsp-diff/`** — standalone C++ rigs with their own `run.sh`, deliberately
   not ctest-driven.
-- **`src/bsp/rust/harness/`** — harnesses built on the BSP library. `golden_vt_render` runs the
-  BSP under its own executor and virtual clock, so it lives beside the BSP it drives.
+- **`tests/harness/golden_vt_render/`, `tests/harness/preemptive_race_tsan/`** — harnesses built on the BSP
+  library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
+  host app through `src/platform/host/link`. `HOST_HARNESS.md` documents both.
 
 Three constraints keep these as separate Cargo packages rather than one
 workspace, and they are worth knowing before adding a tenth:

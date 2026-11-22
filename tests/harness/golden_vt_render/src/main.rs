@@ -700,8 +700,8 @@ fn main() {
     // The card and the pacing must be set here, before any task is spawned (see the module doc).
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
-        .nth(5)
-        .expect("CARGO_MANIFEST_DIR (src/bsp/rust/harness/golden_vt_render) has a repo root 5 levels up")
+        .nth(3)
+        .expect("CARGO_MANIFEST_DIR (tests/harness/golden_vt_render) has a repo root 3 levels up")
         .to_path_buf();
     if std::env::var_os("GOLDEN_CARD_ONLY").is_some()
         && std::env::var_os("DELUGE_SD_IMAGE").is_some()

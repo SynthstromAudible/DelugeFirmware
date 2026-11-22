@@ -10,7 +10,7 @@
 #
 # The raw material for races.txt entries; it decides nothing.
 set -euo pipefail
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 awk -v root="$REPO_ROOT/" '
 function tier(id,   n) {

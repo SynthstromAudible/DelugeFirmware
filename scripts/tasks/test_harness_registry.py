@@ -636,7 +636,7 @@ class GoldenTreeTest(unittest.TestCase):
                     "docs/golden/a.json",
                     "tests/integration/checks/a.sha256",
                     "src/a.state",
-                    "src/bsp/rust/harness/golden_vt_render/src/main.rs",
+                    "tests/harness/golden_vt_render/src/main.rs",
                     "tests/golden/README.md",
                 ]
             ),

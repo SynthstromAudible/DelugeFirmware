@@ -1,5 +1,5 @@
-//! Link helpers shared by the device and host links, and by `harness/golden_vt_render`'s build
-//! script, which includes this file and [`host_app`](super::host_app) through `#[path]`.
+//! Link helpers shared by the device link and the host link, which `golden_vt_render`'s build script
+//! reaches through [`host_app`](crate::host_app).
 
 use std::fs;
 use std::path::{Path, PathBuf};

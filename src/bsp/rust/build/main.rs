@@ -7,12 +7,12 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
+use deluge_platform_host_link::host_app;
+
 mod allowlist;
 mod bindgen;
 mod crate_types;
 mod device;
-mod host_app;
-mod link;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());

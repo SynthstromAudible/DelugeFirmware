@@ -1,0 +1,11 @@
+# Build-script support for linking the host-built C++ app (src/platform/host): a build-dependency
+# of the BSP and of the x86 golden harness. Uses only std.
+[package]
+name = "deluge_platform_host_link"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+path = "src/lib.rs"

@@ -435,9 +435,14 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
         env=env,
         check=True,
     )
+    golden_dir = (
+        "tests/harness/golden_vt_render"
+        if (root / "tests/harness/golden_vt_render").is_dir()
+        else "src/bsp/rust/harness/golden_vt_render"
+    )
     subprocess.run(
         ["cargo", "build", "--release", "--locked"],
-        cwd=root / "src/bsp/rust/harness/golden_vt_render",
+        cwd=root / golden_dir,
         env=dict(
             env,
             DELUGE_HOSTAPP_BUILD_DIR=str(tree),

@@ -134,7 +134,7 @@ jobs:
           (cd crates && cargo fmt --all --check)
           (cd src/bsp/rust && cargo fmt --check)
           (cd src/storage/sample/convert && cargo fmt --check)
-          for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
+          for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml src/platform/host/link/Cargo.toml; do
             (cd "$(dirname "$m")" && cargo fmt --check)
           done
 

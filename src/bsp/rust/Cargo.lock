@@ -1292,6 +1292,7 @@ dependencies = [
  "deluge-simulator",
  "deluge-usb-classes",
  "deluge_base_alloc",
+ "deluge_platform_host_link",
  "deluge_storage_resource",
  "deluge_storage_sample_fill",
  "deluge_storage_sample_reader",
@@ -1371,6 +1372,10 @@ dependencies = [
 
 [[package]]
 name = "deluge_base_alloc"
+version = "0.1.0"
+
+[[package]]
+name = "deluge_platform_host_link"
 version = "0.1.0"
 
 [[package]]

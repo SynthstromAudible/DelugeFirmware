@@ -233,7 +233,7 @@ class GoldenVtRenderArm(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release", "--target", ARM_TARGET],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ARM_TREE),
                     # The GCC cross driver only links: the objects are clang's.
@@ -252,7 +252,7 @@ class GoldenVtRender(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release"],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {"DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_TREE)},
             )
         ]
@@ -269,7 +269,7 @@ class GoldenVtRenderAsan(Product):
             Step(
                 "build",
                 ["cargo", "build", "--release", "--features", "asan"],
-                root / "src/bsp/rust/harness/golden_vt_render",
+                root / "tests/harness/golden_vt_render",
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
                     "CARGO_TARGET_DIR": str(root / ASAN_TARGET_SUBDIR),

@@ -5,7 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::link::{EFATFS_ROOTS, SAMPLE_STREAM_ROOTS, collect_objs, force_link_roots};
+use deluge_platform_host_link::link::{
+    EFATFS_ROOTS, SAMPLE_STREAM_ROOTS, collect_objs, force_link_roots,
+};
 
 /// Emits everything the device link needs.
 pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {

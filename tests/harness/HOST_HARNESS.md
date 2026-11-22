@@ -8,21 +8,21 @@
 | plain host | (default) | The BSP without the C++ app: a boot smoke of the control and display tasks, and the library the host tests import. `sys` is the hand-written stand-in `src/abi/sys_host.rs`. |
 | threaded host app | `host_app` | The real C++ app, built by CMake into the host tree, on three executor threads (audio, storage, app). `sys` is bindgen's output. Optional harness modes (the streaming scenario, the recorder probes) run from environment variables; see `src/runtime/host.rs`. |
 | emulator | `sim` | The threaded host app as the brain of deluge-sdk's desktop simulator (`./dbt sim`). |
-| golden renderer | — | `harness/golden_vt_render`: the library under its own executor and virtual clock. It depends on this crate without `host-runtime`. |
+| golden renderer | — | `tests/harness/golden_vt_render`: the library under its own executor and virtual clock. It depends on this crate without `host-runtime`. |
 
 `host_app` links the objects of the CMake host tree, `build/host-app` by default
 (`DELUGE_HOSTAPP_BUILD_DIR` overrides it). `./dbt test --build-only golden-vt-render` builds that
-tree. The build script never runs CMake; `build/host_app.rs` explains what it checks before it
+tree. The build script never runs CMake; `src/platform/host/link/src/host_app.rs` explains what it checks before it
 links.
 
 ## ThreadSanitizer
 
-`harness/preemptive_race_tsan/run.sh` does all of this and classifies what TSan reports against
+`tests/harness/preemptive_race_tsan/run.sh` does all of this and classifies what TSan reports against
 `races.txt`; the steps are here for running it by hand.
 
 ### One-time setup
 
-The TSan build uses a custom target spec, `sanitizer/x86_64-unknown-linux-gnu-tsan.json`: a copy
+The TSan build uses a custom target spec, `preemptive_race_tsan/sanitizer/x86_64-unknown-linux-gnu-tsan.json`: a copy
 of `x86_64-unknown-linux-gnu` under another name. With `-Zbuild-std`, a target triple equal to the
 host's makes Cargo build two `core`s for one crate (`error[E0152]: duplicate lang item`), because
 the build script's `bindgen` dependency graph overlaps the target's. The custom target has no
@@ -63,14 +63,14 @@ DELUGE_HOSTAPP_BUILD_DIR=$PWD/../../../build-embassy-hostapp-tsan \
 RUSTFLAGS="-Zsanitizer=thread" TSAN_OPTIONS="halt_on_error=0" \
 cargo +nightly run --features host_app \
   -Zbuild-std=core,alloc,std,panic_abort -Zjson-target-spec \
-  --target sanitizer/x86_64-unknown-linux-gnu-tsan.json
+  --target ../../../tests/harness/preemptive_race_tsan/sanitizer/x86_64-unknown-linux-gnu-tsan.json
 ```
 
 `halt_on_error=0` reports every race in one run rather than stopping at the first.
 
 Switching `DELUGE_HOSTAPP_BUILD_DIR` between the plain and the TSan tree relinks by itself: the
 build script tracks the variable and threads a hash of the archived objects into the build (see
-`build/link.rs`). `run.sh` still deletes `target/x86_64-unknown-linux-gnu-tsan` before each build,
+`src/platform/host/link/src/link.rs`). `run.sh` still deletes `target/x86_64-unknown-linux-gnu-tsan` before each build,
 which is cheap insurance when the C++ side is changing under you.
 
 A clean run means TSan saw no race in that schedule, not that none exists.

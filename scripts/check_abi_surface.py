@@ -172,7 +172,7 @@ def workspace_excluded() -> list[Path]:
 MEMBERS = workspace_members()
 RUST = source_files(
     "src/bsp/rust/src",
-    "src/bsp/rust/harness",
+    "tests/harness",
     *(d.relative_to(ROOT).as_posix() for d in (*MEMBERS, *workspace_excluded())),
     suffixes=(".rs",),
 )
@@ -210,7 +210,7 @@ ABI_PIN = re.compile(r"abi_pin!\s*\(\s*(?:in\s+([\w:]+)\s*:)?([^)]*)\)", re.DOTA
 # spells the C name as a raw identifier (`r#yield`), so stripping the `r#` recovers it.
 ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
 BSP_SRC = ROOT / "src" / "bsp" / "rust" / "src"
-HARNESS = ROOT / "src" / "bsp" / "rust" / "harness"
+HARNESS = ROOT / "tests" / "harness"
 # Headers whose functions a dependency defines outside this repository, by the crate name `abi/pins.rs` pins them
 # `in`. Its source is not here to scan, so the pin, which checks each function against the header, stands for the
 # definition: a function with no pin into the crate is reported undefined.
@@ -223,7 +223,7 @@ EXTERN_BLOCK = re.compile(r'\bextern\s+"C"\s*\{')
 EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
-# `src/bsp/rust/src` and `src/bsp/rust/harness`, whose pins sit beside what they pin, or the crate's package name for a crates-workspace member's `src`,
+# `src/bsp/rust/src` and `tests/harness`, whose pins sit beside what they pin, or the crate's package name for a crates-workspace member's `src`,
 # which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
@@ -255,7 +255,7 @@ def scope_of(path: Path) -> Scope | None:
 
 
 def pinned() -> dict[str, set[Scope]]:
-    """Every C name pinned by an `abi_pin!` in `src/bsp/rust/src` or `src/bsp/rust/harness`, with the scope each pin checks. A plain or
+    """Every C name pinned by an `abi_pin!` in `src/bsp/rust/src` or `tests/harness`, with the scope each pin checks. A plain or
     rename pin checks the item in scope at the invocation: the definition or import in its own file. The
     `in path:` form checks the named crate's item, a definition or an import. A name counts as pinned only for the
     scope its pin reaches, so neither stands in for the other: a crate's import of a function the BSP defines is

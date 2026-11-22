@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Layout invariance of the Embassy host render: renders `golden_vt_render`
-# (`src/bsp/rust/harness/golden_vt_render/`) in MIXDOWN mode for one fixture at several
+# (`tests/harness/golden_vt_render/`) in MIXDOWN mode for one fixture at several
 # DELUGE_SIM_HEAP_PAD values and asserts every output is byte-identical to the pad=0 render.
 # The C++ closure is built -DDELUGE_DETERMINISTIC_ALLOC, which leaks DELUGE_SIM_HEAP_PAD bytes of
 # SDRAM before the slab, so each pad shifts every allocation address. Identical renders prove the
@@ -34,7 +34,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
+CRATE_DIR="$REPO/tests/harness/golden_vt_render"
 
 FIXTURE="${1:-}"
 case "$FIXTURE" in

@@ -169,6 +169,8 @@ host_app = [
 sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/host-panel"]
 
 [build-dependencies]
+# The link of the host-built C++ app, and the link helpers the device link shares.
+deluge_platform_host_link = { path = "../../platform/host/link" }
 # Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
 bindgen = "0.70"
 

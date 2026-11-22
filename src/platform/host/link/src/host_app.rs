@@ -1,6 +1,6 @@
 //! Links the host-built C++ `deluge_app` and its integration scenarios into a host binary: this
-//! crate's own under `host_app`, and `harness/golden_vt_render`, whose build script includes this
-//! file and [`link`](super::link) through `#[path]` (link arguments do not reach dependents).
+//! crate's own under `host_app`, and `tests/harness/golden_vt_render`, whose build script calls
+//! [`crate::link`] (link arguments do not reach dependents).
 //!
 //! The objects come from the CMake host tree `./dbt test` builds; this script never invokes CMake.
 
@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::link::{
+use crate::link::{
     EFATFS_ROOTS, SAMPLE_STREAM_ROOTS, collect_objs, force_link_roots, hash_objs_content,
 };
 

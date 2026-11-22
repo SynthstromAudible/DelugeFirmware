@@ -6,7 +6,7 @@
 #        SKIP_BUILD=1 NUM_RUNS=5 ./run_live_input.sh
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 GOLDEN_DIR="${LIVE_INPUT_GOLDEN_DIR:-$SCRIPT_DIR/logs/live_input_golden}"
 rm -rf "$GOLDEN_DIR/liveinput_proj"
 python3 "$SCRIPT_DIR/make_live_input_song.py" "$REPO_ROOT/tests/fixtures/songs/two_synths_one_id.XML" \

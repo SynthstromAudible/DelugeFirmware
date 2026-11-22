@@ -326,7 +326,7 @@ runtime_s = 300
 # `dbt test`; revisit if a synthetic corpus fixture is ever built.
 [[harness]]
 name = "preemptive-race-tsan"
-path = "src/bsp/rust/harness/preemptive_race_tsan"
+path = "tests/harness/preemptive_race_tsan"
 level = "integration"
 runner = "script"
 kind = "sanitizer"

@@ -47,21 +47,21 @@ repos:
         entry: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^src/bsp/rust/(?!harness/).*\.rs$
+        files: ^src/bsp/rust/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-harness
         name: rustfmt (harness)
-        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
+        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml tests/harness/*/Cargo.toml src/platform/host/link/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
         language: system
         types: [rust]
-        files: ^(tests/component/differential/|src/bsp/rust/harness/).*\.rs$
+        files: ^(tests/component/differential/|tests/harness/|src/platform/host/link/).*\.rs$
         pass_filenames: false
       - id: check-abi-surface
         name: every declared libdeluge function has a definition, a signature pin, a context tag and DELUGE_NOEXCEPT
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/bsp/rust/src/|tests/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

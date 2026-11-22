@@ -63,13 +63,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUST_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"       # src/bsp/rust
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+RUST_DIR="$REPO_ROOT/src/bsp/rust"
 # Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt test`
 # sets it (task-harness.py points every harness at one shared `target/harness` root), so a
 # hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"
 # immediately after cargo reports success.
 TARGET_ROOT="${CARGO_TARGET_DIR:-$RUST_DIR/target}"
-REPO_ROOT="$(cd "$RUST_DIR/../../.." && pwd)"
 TSAN_BUILD_DIR="${TSAN_BUILD_DIR:-$REPO_ROOT/build-embassy-hostapp-tsan}"
 
 normalize() {
@@ -261,7 +261,7 @@ if [[ -z "${SKIP_BUILD:-}" ]]; then
     cargo +nightly build --features host_app \
         -Zbuild-std=core,alloc,std,panic_abort \
         -Zjson-target-spec \
-        --target sanitizer/x86_64-unknown-linux-gnu-tsan.json
+        --target "$SCRIPT_DIR/sanitizer/x86_64-unknown-linux-gnu-tsan.json"
 else
     echo "== [1-2/3] SKIP_BUILD set — reusing existing TSan tree + binary =="
 fi
