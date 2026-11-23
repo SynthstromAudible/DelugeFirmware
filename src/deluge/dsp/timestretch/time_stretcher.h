@@ -100,7 +100,7 @@ public:
 
 	/// @note Perc lookahead — pins the small forward/backward window of upcoming source-audio
 	///       clusters the time-stretcher's older-head search needs resident (see
-	///       updateClustersForPercLookahead), through the reservation handle (sample_reader.h).
+	///       updateClustersForPercLookahead), through the reservation handle (deluge_storage_sample_reader.h).
 	DelugeSampleReservation* percLookahead_ = nullptr;
 
 	ComputedChunk* percCacheClustersNearby[2]{}; ///< Reason-holder for the two most recently needed/accessed

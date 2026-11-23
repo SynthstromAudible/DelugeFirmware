@@ -14,6 +14,6 @@ deluge_specs_driver(resource_specs TREES host
     deluge_rust_rs
     pthread dl m  # the Rust std staticlib's system libraries
   INCLUDES
-    ${DELUGE_CRATE_INCLUDE_DIRS}                      # deluge_storage_resource.h
+    ${DELUGE_CRATE_INCLUDE_DIRS}                      # the crates' C headers
     ${DELUGE_REPO_ROOT}/include                       # libdeluge/system.h, libdeluge/types.h, libdeluge/abi.h
 )

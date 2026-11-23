@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// deluge_storage_sample_reader.h — the sample range-reader C-ABI.
+/// deluge_storage_sample_reader.h — the C header of the `deluge_storage_sample_reader` crate: the sample range-reader
+/// C-ABI.
 ///
 /// A zero-copy streaming reader-handle (plus a stateless copy convenience) over a sample's source
 /// residency, for non-voice consumers that read raw-PCM frame RANGES (pitch detect, waveform

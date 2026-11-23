@@ -37,7 +37,7 @@ namespace deluge::sample {
 ///
 /// Thin wrapper over `deluge_streaming_define_asset()`: idempotent (returns the cached id on
 /// later calls), and resolves to the SAME asset the voice region port
-/// (`sample_source.h`'s `DelugeSampleSource`) already reads through -- so a reader opened here and
+/// (`deluge_storage_sample_source.h`'s `DelugeSampleSource`) already reads through -- so a reader opened here and
 /// the playing voice share one residency per sample, exactly like two `peek()`s of the same
 /// `SampleStream` do today.
 /// @param sample The sample whose Asset id to resolve.

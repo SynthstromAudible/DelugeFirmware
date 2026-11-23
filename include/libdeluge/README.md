@@ -13,8 +13,10 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    (`abi.h`), so the compiler holds every C++ definition to it. A failure that carries a reason crosses as
    `DelugeStatus`, a channel's collect answers a `DelugeChannelStatus` (`DELUGE_CHANNEL_*`), and a path is bounded
    by `DELUGE_PATH_MAX`.
-2. **The header is the contract.** bindgen reads every header (`src/platform/device/wrapper.h`, just
-   `#include <libdeluge/libdeluge.h>`), and every
+2. **The header is the contract.** bindgen reads every header: `src/platform/device/wrapper.h` includes the umbrella
+   `<libdeluge/libdeluge.h>`, then each crate header, from the directories in `CRATE_INCLUDE_DIRS`
+   (`src/platform/device/build/bindgen.rs`). The crate headers (`src/**/include/deluge_*.h`) follow rules 1, 2 and 4 and
+   are checked by the same hook, except `deluge_storage_resource.h` (see `TODO.md`). Every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
    one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
    imports, via its `in path:` form, in `src/platform/device/src/abi/pins.rs`. That file also holds the `abi_layout!`
@@ -26,7 +28,8 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    when a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place
    that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
-   direction: callbacks the app implements and the platform calls. `scripts/check_layers.py`'s `platform-boundary` rule keeps the
+   direction: callbacks the app implements and the platform calls. Other app-defined seams live here too, such as
+   `streaming_loader.h`'s resource-manager accessor and asset lookup. `scripts/check_layers.py`'s `platform-boundary` rule keeps the
    app from including platform headers.
 4. **Call context is documented per function.** Each declaration's doc carries the tags of every context it may
    be called from; a function with several tags may be called from each of them. `scripts/check_abi_surface.py

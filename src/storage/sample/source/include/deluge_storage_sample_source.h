@@ -15,6 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// deluge_storage_sample_source.h — the C header of the `deluge_storage_sample_source` crate: the voice's sample
+/// source and cluster-indexed region port.
+
 #ifndef DELUGE_STORAGE_SAMPLE_SOURCE_H
 #define DELUGE_STORAGE_SAMPLE_SOURCE_H
 #include "libdeluge/abi.h"

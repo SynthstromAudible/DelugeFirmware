@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// deluge_storage_resource.h — the C ABI for the cached-asset / resource manager.
+/// deluge_storage_resource.h — the C header of the `deluge_storage_resource` crate: the cached-asset / resource manager
+/// C ABI.
 ///
 /// A value-scored, lease-based cache of *reconstructable* assets, layered on a
 /// `DelugeHeap` (deluge_base_alloc.h). Replaces the C++ Stealable / CacheManager /
