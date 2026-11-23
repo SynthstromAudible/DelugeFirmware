@@ -18,7 +18,9 @@
 #include "storage/audio/sample_folder_index.h"
 #include "fatfs/fatfs.hpp"
 #include "memory/general_memory_allocator.h"
+#include "memory/stealable.h"
 #include <cstring>
+#include <new>
 #include <strings.h>
 
 extern "C" {
@@ -28,20 +30,40 @@ extern volatile uint32_t sdCardChangeCount;
 
 SampleFolderIndex sampleFolderIndex{};
 
+/// One indexed folder, in a single block of stealable memory: this object, then its Entries, then their names
+class SampleFolderIndex::Folder final : public Stealable {
+public:
+	/// Not while it's being filled in. Only once it's complete does indexFolder() make it stealable, so any way out of
+	/// indexFolder() that forgets to leaves it merely unstealable, never stolen half-built.
+	bool mayBeStolen(void* thingNotToStealFrom) override { return complete; }
+	void steal(char const* errorCode) override { sampleFolderIndex.folderStolen(this); } // The allocator destructs us
+	StealableQueue getAppropriateQueue() override { return StealableQueue::NO_SONG_SAMPLE_DATA; } // Taken first
+
+	Entry* entries() { return reinterpret_cast<Entry*>(this + 1); }
+	char* names() { return reinterpret_cast<char*>(this) + namesOffset; }
+
+	char path[kMaxPathLength] = {};
+	uint32_t cardChangeCount = 0;
+	uint32_t lastUsed = 0;
+	int32_t numEntries = 0;
+	uint32_t namesOffset = sizeof(Folder) + kMaxFiles * sizeof(Entry); // Moved down once the size is known
+	bool complete = false;
+};
+
 namespace {
 bool samePath(char const* a, char const* b, size_t bLength) {
 	return strlen(a) == bLength && !strncasecmp(a, b, bLength);
 }
 } // namespace
 
-bool SampleFolderIndex::find(char const* filePath, FilePointer* filePointer) {
+std::optional<FilePointer> SampleFolderIndex::find(char const* filePath) {
 	char const* slash = strrchr(filePath, '/');
 	if (!slash || slash == filePath || !slash[1]) {
-		return false;
+		return std::nullopt;
 	}
 	size_t pathLength = slash - filePath;
 	if (pathLength >= kMaxPathLength) {
-		return false;
+		return std::nullopt;
 	}
 
 	Folder* folder = findFolder(filePath, pathLength);
@@ -49,14 +71,15 @@ bool SampleFolderIndex::find(char const* filePath, FilePointer* filePointer) {
 		if (!samePath(lastFolderLookedUp_, filePath, pathLength)) {
 			memcpy(lastFolderLookedUp_, filePath, pathLength);
 			lastFolderLookedUp_[pathLength] = 0;
-			return false;
+			return std::nullopt;
 		}
 		folder = indexFolder(filePath, pathLength);
 		if (!folder) {
-			return false;
+			return std::nullopt;
 		}
 	}
 
+	// Nothing below allocates memory, so the folder can't be stolen while we look through it
 	folder->lastUsed = ++useCounter_;
 	// Compared the way FAT compares names, ignoring case, by either the long or the short (8.3) name. Names that only
 	// differ in the case of non-ASCII letters won't match here, so they're just opened the normal way.
@@ -65,62 +88,69 @@ bool SampleFolderIndex::find(char const* filePath, FilePointer* filePointer) {
 		Entry const& entry = folder->entries()[e];
 		if (!strcasecmp(name, folder->names() + entry.longName)
 		    || !strcasecmp(name, folder->names() + entry.shortName)) {
-			*filePointer = entry.filePointer;
-			return true;
+			return entry.filePointer;
 		}
 	}
-	return false;
+	return std::nullopt;
 }
 
 SampleFolderIndex::Folder* SampleFolderIndex::findFolder(char const* path, size_t pathLength) {
-	for (Folder& folder : folders_) {
-		if (!folder.memory) {
+	for (size_t slot = 0; slot < kMaxFolders; slot++) {
+		Folder* folder = folders_[slot];
+		if (!folder) {
 			continue;
 		}
-		if (folder.cardChangeCount != sdCardChangeCount) {
-			forget(folder); // Out of date
+		if (folder->cardChangeCount != sdCardChangeCount) {
+			forget(slot); // Out of date
 			continue;
 		}
-		if (samePath(folder.path, path, pathLength)) {
-			return &folder;
+		if (samePath(folder->path, path, pathLength)) {
+			return folder;
 		}
 	}
 	return nullptr;
 }
 
 SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size_t pathLength) {
-	// Use an unused Folder, or else the least recently used one
-	Folder* folder = &folders_[0];
-	for (Folder& f : folders_) {
-		if (!f.memory) {
-			folder = &f;
+	// Use an empty slot, or else the least recently used folder's
+	size_t slot = 0;
+	for (size_t s = 0; s < kMaxFolders; s++) {
+		if (!folders_[s]) {
+			slot = s;
 			break;
 		}
-		if (f.lastUsed < folder->lastUsed) {
-			folder = &f;
+		if (folders_[s]->lastUsed < folders_[slot]->lastUsed) {
+			slot = s;
 		}
 	}
-	forget(*folder);
+	forget(slot);
 
-	folder->memory =
-	    static_cast<uint8_t*>(GeneralMemoryAllocator::get().allocLowSpeed(kMaxFiles * sizeof(Entry) + kNamesSize));
-	if (!folder->memory) {
+	// Room for the most we'll index. Cut down to what's used once done.
+	constexpr size_t kMaxSize = sizeof(Folder) + kMaxFiles * sizeof(Entry) + kNamesSize;
+	void* memory = GeneralMemoryAllocator::get().allocStealable<Folder>(kMaxSize);
+	if (!memory) {
 		return nullptr;
 	}
+	Folder* folder = new (memory) Folder();
+	auto discard = [&]() -> Folder* {
+		folder->~Folder();
+		delugeDealloc(folder);
+		return nullptr;
+	};
+
 	memcpy(folder->path, path, pathLength);
 	folder->path[pathLength] = 0;
 	uint32_t cardChangeCountBefore = sdCardChangeCount;
 
 	auto directory = FatFS::Directory::open(folder->path);
 	if (!directory) {
-		forget(*folder);
-		return nullptr;
+		return discard();
 	}
 	size_t namesUsed = 0;
-	auto addName = [&](char const* name) -> uint16_t {
+	auto addName = [&](char const* name) -> std::optional<uint16_t> {
 		size_t size = strlen(name) + 1;
 		if (namesUsed + size > kNamesSize) {
-			return UINT16_MAX;
+			return std::nullopt;
 		}
 		memcpy(folder->names() + namesUsed, name, size);
 		uint16_t offset = namesUsed;
@@ -132,8 +162,7 @@ SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size
 	while (folder->numEntries < kMaxFiles) {
 		auto item = directory->read_and_get_filepointer();
 		if (!item) {
-			forget(*folder);
-			return nullptr;
+			return discard();
 		}
 		auto& [info, filePointer] = *item;
 		if (!info.fname[0]) {
@@ -142,33 +171,52 @@ SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size
 		if (info.fattrib & AM_DIR) {
 			continue;
 		}
-		uint16_t longName = addName(info.fname);
-		uint16_t shortName = addName(info.altname);
-		if (longName == UINT16_MAX || shortName == UINT16_MAX) {
+		auto longName = addName(info.fname);
+		auto shortName = addName(info.altname);
+		if (!longName || !shortName) {
 			break;
 		}
-		folder->entries()[folder->numEntries++] = {filePointer, longName, shortName};
+		folder->entries()[folder->numEntries++] = {filePointer, *longName, *shortName};
 	}
 
 	// If the card was written to or swapped while we read, what we read may not match it any more
 	if (sdCardChangeCount != cardChangeCountBefore) {
-		forget(*folder);
-		return nullptr;
+		return discard();
 	}
+
+	// Move the names down to straight after the Entries, and give back the rest of the memory
+	uint32_t compactNamesOffset = sizeof(Folder) + folder->numEntries * sizeof(Entry);
+	memmove(reinterpret_cast<char*>(folder) + compactNamesOffset, folder->names(), namesUsed);
+	folder->namesOffset = compactNamesOffset;
+	GeneralMemoryAllocator::get().shortenRight(folder, compactNamesOffset + namesUsed);
+
 	folder->cardChangeCount = cardChangeCountBefore;
+	folder->complete = true;
+	GeneralMemoryAllocator::get().putStealableInAppropriateQueue(folder);
+	folders_[slot] = folder;
 	return folder;
 }
 
-void SampleFolderIndex::forget(Folder& folder) {
-	if (folder.memory) {
-		delugeDealloc(folder.memory);
+void SampleFolderIndex::forget(size_t slot) {
+	Folder* folder = folders_[slot];
+	if (folder) {
+		folders_[slot] = nullptr;
+		folder->~Folder(); // Also takes it out of the allocator's queue
+		delugeDealloc(folder);
 	}
-	folder = Folder{};
+}
+
+void SampleFolderIndex::folderStolen(Folder* folder) {
+	for (Folder*& f : folders_) {
+		if (f == folder) {
+			f = nullptr;
+		}
+	}
 }
 
 void SampleFolderIndex::clear() {
-	for (Folder& folder : folders_) {
-		forget(folder);
+	for (size_t slot = 0; slot < kMaxFolders; slot++) {
+		forget(slot);
 	}
 	lastFolderLookedUp_[0] = 0;
 }

@@ -753,7 +753,8 @@ tryNextAlternate:
 		else {
 tryRegular:
 			// Quicker when lots of files are being loaded from one folder - and if it can't help, the normal way below
-			if (sampleFolderIndex.find(filePath.get(), &effectiveFilePointer)) {
+			if (std::optional<FilePointer> found = sampleFolderIndex.find(filePath.get())) {
+				effectiveFilePointer = *found;
 #ifdef SAMPLE_FOLDER_INDEX_VERIFY // Testing only: check against the normal way
 				if (f_open(&smDeserializer.readFIL, filePath.get(), FA_READ) != FR_OK
 				    || smDeserializer.readFIL.obj.sclust != effectiveFilePointer.sclust
