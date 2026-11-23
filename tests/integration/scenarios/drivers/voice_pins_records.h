@@ -273,7 +273,7 @@ inline constexpr auto kRecords = std::to_array<std::string_view>({
     "readers 1 s4 71",
     "readers 2 s4 71",
     "readers 3 s4 71",
-    "facts mono legato poly presets 453",
+    "facts mono legato poly presets 454",
 // GOLDEN-RECORDS END kRecords
     // clang-format on
 });

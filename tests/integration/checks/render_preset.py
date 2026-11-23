@@ -36,7 +36,7 @@ RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed 
 finding to explain in the commit that records the new one.
 
 Gate golden-synth:
-    every synth golden master must render as recorded: each of the 453 presets (tests/golden/render/presets:
+    every synth golden master must render as recorded: each of the 454 presets (tests/golden/render/presets:
     synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
     sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
     input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
@@ -199,10 +199,26 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     return env
 
 
-def kept_records(records: dict, corpus_cases: list[str]) -> dict:
-    """The records a whole-corpus update keeps: those of the cases still in the corpus. A deleted case's record goes
-    with it, where a filtered update keeps every record it did not render."""
-    return {name: record for name, record in records.items() if name in corpus_cases}
+def records_to_write(
+    update: bool,
+    needles: list[str],
+    old: dict,
+    rendered: dict,
+    corpus_cases: list[str],
+) -> dict | None:
+    """What an update writes to the records file, or None when the run only compares.
+
+    The cases rendered take their new records. A filtered update (`needles`) keeps every other record as it was; a
+    whole-corpus update keeps only the records of `corpus_cases`, so a deleted case's record goes with it.
+    """
+    if not update:
+        return None
+    if needles:
+        kept = dict(old)
+    else:
+        kept = {name: record for name, record in old.items() if name in corpus_cases}
+    kept.update(rendered)
+    return kept
 
 
 def _wanted_frames(name: str) -> int:
@@ -275,8 +291,7 @@ def run(gate):
         runs = list(pool.map(render, enumerate(selected)))
 
     records = json.loads(records_path.read_text()) if records_path.exists() else {}
-    if update and not needles:
-        records = kept_records(records, selected)
+    rendered = {}
     failed = 0
     for name, where, result in runs:
         before = len(gate.failures)
@@ -310,7 +325,7 @@ def run(gate):
         if record["peak"] < SILENCE_PEAK:
             gate.fail(f"RP-SILENT {name}: the render is silent (peak {record['peak']})")
         elif update:
-            records[name] = record
+            rendered[name] = record
         elif name not in records:
             gate.fail(
                 f"RP-PCM {name}: no record; ./dbt test --update golden-synth records one"
@@ -324,8 +339,9 @@ def run(gate):
 
     _check_learn(gate, corpus, pcm_record)
 
-    if update and not gate.failures:
+    written = records_to_write(update, needles, records, rendered, selected)
+    if written is not None and not gate.failures:
         golden_update.write_json(
-            records_path, records, str(RECORDS), indent=1, env=gate.env
+            records_path, written, str(RECORDS), indent=1, env=gate.env
         )
     gate.say(f"RP-CASES run={len(selected)} passed={len(selected) - failed}")

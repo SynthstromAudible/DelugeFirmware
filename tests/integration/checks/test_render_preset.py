@@ -8,8 +8,8 @@ Gate render-preset-selftest:
     the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever
     the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song
     gate that switches mod FX types, clears mod FX memory or switches the reverb's model or knobs fails unless the
-    scenario's summary shows each applied as asked and reaching its path; a whole-corpus update drops the record of a
-    case no longer in the corpus
+    scenario's summary shows each applied as asked and reaching its path; a filtered update keeps every record it did not
+    render, and a whole-corpus update drops the record of a case no longer in the corpus
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
-from render_preset import kept_records, without_learned_input_json
+from render_preset import records_to_write, without_learned_input_json
 
 
 class LearnedInputJsonTest(unittest.TestCase):
@@ -44,13 +44,39 @@ class LearnedInputJsonTest(unittest.TestCase):
         self.assertEqual(json.loads(without_learned_input_json(text)), {"sound": {}})
 
 
-class KeptRecordsTest(unittest.TestCase):
-    def test_a_whole_corpus_update_drops_the_record_of_a_deleted_case(self):
-        records = {"sample/a": {"sha256": "1"}, "sample/gone": {"sha256": "2"}}
-        self.assertEqual(
-            kept_records(records, ["sample/a", "sample/new"]),
-            {"sample/a": {"sha256": "1"}},
+OLD_RECORDS = {
+    "sample/a": {"sha256": "1"},
+    "sample/b": {"sha256": "2"},
+    "sample/gone": {"sha256": "3"},
+}
+
+
+class RecordsToWriteTest(unittest.TestCase):
+    def test_a_filtered_update_keeps_the_records_it_did_not_render(self):
+        written = records_to_write(
+            True, ["sample/a"], OLD_RECORDS, {"sample/a": {"sha256": "9"}}, ["sample/a"]
         )
+        self.assertEqual(written, {**OLD_RECORDS, "sample/a": {"sha256": "9"}})
+
+    def test_a_whole_corpus_update_drops_the_record_of_a_deleted_case(self):
+        written = records_to_write(
+            True,
+            [],
+            OLD_RECORDS,
+            {"sample/a": {"sha256": "9"}, "sample/new": {"sha256": "4"}},
+            ["sample/a", "sample/b", "sample/new"],
+        )
+        self.assertEqual(
+            written,
+            {
+                "sample/a": {"sha256": "9"},
+                "sample/b": {"sha256": "2"},
+                "sample/new": {"sha256": "4"},
+            },
+        )
+
+    def test_a_comparing_run_writes_nothing(self):
+        self.assertIsNone(records_to_write(False, [], OLD_RECORDS, {}, ["sample/a"]))
 
 
 if __name__ == "__main__":
