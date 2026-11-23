@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/noise/cong.h"
-#include "dsp-next/fixed/pitch_shift/hop_scheduler.h"
-#include "dsp-next/fixed/pitch_shift/play_head.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/noise/cong.h"
+#include "dsp/fixed/pitch_shift/hop_scheduler.h"
+#include "dsp/fixed/pitch_shift/play_head.h"
 #include "synth/sources/input/input_channel.h"
 
 #include <cstdint>

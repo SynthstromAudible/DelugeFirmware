@@ -198,7 +198,7 @@ PIC and parity with main.
   renderer's collapse arithmetic, `pad_leds`' `divide_round_negative`, the timeline's `divide_round_negative` and the
   audio clip scene's bar formatting. Each moves onto `base/divide.h` when its code is rewritten.
 
-R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
+R2d must also close the transitive leaks a build without `deluge_app` shows: `src/dsp/**` headers reached
 through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,
 equalizer, filter, granular, mod-FX, stutter, send-and-volume, chain, master-chain, track-chain, LFO, live-input and
 sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definitions_cxx.hpp`; and `etl/string.h` through
@@ -231,7 +231,7 @@ Two instruments (decided 2026-10-31). The **q31 Deluge instrument** is frozen in
 as they always did, and only accepted bug fixes change it, so its remaining work is structural and bit-exact. The
 **float instrument** is new: the uniform matrix rules and float arithmetic belong to it from day one.
 
-**Done:** dsp-next L0; wave 1 (reverb, DX7, wavetable; NE10 gone); effects as components; the L1 engines and sources;
+**Done:** DSP library L0; wave 1 (reverb, DX7, wavetable; NE10 gone); effects as components; the L1 engines and sources;
 the L2 voice lifted to `synth::Voice`; the q31 mod matrix (M3) in place of the Patcher, with cables owned by the
 instrument (M1); params A, B1, B2, C1a, C1b; the float poly kernels, voice slice, and ladder with drift; the voice
 budget.
@@ -268,9 +268,9 @@ budget.
 
 | Area | Where | Size (lines) | State |
 | --- | --- | --- | --- |
-| DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp-next/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
-| Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in dsp-next; loading and the holder app-side |
-| Time-stretch, sample playback | `src/deluge/dsp/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
+| DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
+| Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in the DSP library; loading and the holder app-side |
+| Time-stretch, sample playback | `src/deluge/dsp_legacy/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
 | Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `VoicePart`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; the slot and the pool are the instrument's (`src/instruments/classic/voice_pool.h`); `SoundVoice` is that slot over the app's `VoicePart` (ports, playback guides); note-on setup and the sample adapter are app-side |
 | Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Frozen in the q31 instrument; the unified forms belong to the float instrument |
@@ -322,7 +322,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- |
 | UI shell | Off `next`; R2, then the root-view program | `src/ui/scenes`, `src/ui/shell`, `gui/ui` | Scene binding tables |
 | Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
-| Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
+| Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |
 

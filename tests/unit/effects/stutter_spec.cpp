@@ -21,7 +21,7 @@
 
 #include "effects/stutter.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "stutter_workload_records.h"
 #include "stutter_workloads.h"
 

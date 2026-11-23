@@ -234,6 +234,7 @@ endif()
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
 add_subdirectory(${REPO_ROOT}/src/plugin/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
 add_subdirectory(${REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/base) # deluge_base
+add_subdirectory(${REPO_ROOT}/src/dsp ${CMAKE_BINARY_DIR}/dsp) # deluge_dsp
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
 add_subdirectory(${REPO_ROOT}/src/plugin ${CMAKE_BINARY_DIR}/plugin) # deluge_plugin
 add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects
@@ -246,7 +247,7 @@ add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # d
 add_subdirectory(${REPO_ROOT}/src/app        ${CMAKE_BINARY_DIR}/app-ports)  # deluge_app_ports_waveforms
 add_subdirectory(${REPO_ROOT}/third_party/printf ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # deluge_synth
-add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
+add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp_legacy + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 add_subdirectory(${REPO_ROOT}/tests/integration/ui/scenes ${CMAKE_BINARY_DIR}/scenes_spec) # deluge_ui_scenes_spec

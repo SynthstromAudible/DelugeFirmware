@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/delay/delay_tape.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/delay/delay_tape.h"
 
 #include <array>
 #include <atomic>

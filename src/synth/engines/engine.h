@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/fixed/noise/cong.h"
 #include "synth/engines/engine_controls.h"
 #include "synth/engines/source_levels.h"
 #include "synth/voice/block_values.h"

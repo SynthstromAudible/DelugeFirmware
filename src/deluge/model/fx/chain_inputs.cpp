@@ -16,9 +16,9 @@
  */
 
 #include "model/fx/chain_inputs.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/param_curve.h"
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/param_curve.h"
+#include "dsp/fixed/vca/pan.h"
 #include "model/fx/effect_reads.h"
 #include "synth/matrix/param_format.h" // param_neutral
 #include "util/synth_noise.h"

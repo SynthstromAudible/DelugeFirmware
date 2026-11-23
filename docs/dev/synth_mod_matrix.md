@@ -9,7 +9,7 @@ describes the runtime as built; the design and its reasons are in the mod-matrix
 | File | What it holds |
 |---|---|
 | `src/synth/matrix/descriptors.h` | What each param and cable is: its scope (voice or sound), chain (multiply, add, depth), curve, depth shape and source conversion |
-| `src/deluge/dsp-next/fixed/curves/param_curve.h` | The curves (`ParamCurve`, which `CurveKind` names): square, linear, bipolar, exponential, the release table |
+| `src/dsp/fixed/curves/param_curve.h` | The curves (`ParamCurve`, which `CurveKind` names): square, linear, bipolar, exponential, the release table |
 | `src/synth/matrix/program.h` | The compiled program: one `ScopeView` of tables per scope |
 | `src/synth/matrix/compiler.{h,cpp}` | `compile_program` (the routing into a program, in one block sized to fit), `copy_program` (a clone) |
 | `src/synth/matrix/matrix_block.h` | `MatrixBlock`: what a pass reads besides its program (each param's preset, each cable's depth) |
@@ -56,7 +56,7 @@ scales reads its own voice's (or sound's) current result, and no pass, on either
 
 ## Exactness of the Argon forms
 
-`MatrixFixed`'s four-lane forms equal its scalar functions lane for lane; `tests/unit/deluge/dsp-next/matrix_exactness_spec.cpp` holds
+`MatrixFixed`'s four-lane forms equal its scalar functions lane for lane; `tests/unit/dsp/matrix_exactness_spec.cpp` holds
 them to that over operand corners and random operands, and over every param the four-lane curves compute, on x86,
 under UBSan and on ARM under qemu.
 
@@ -76,7 +76,7 @@ positive).
 ## Speed
 
 On the device (the DSP bench's `matrix_q31_*` cases: 14 cables, two of them depth cables, over 8 voices and the
-sound), against the Patcher (the frozen reference in `tests/unit/deluge/dsp-next/reference_patcher.cpp`, as an image of its own), in
+sound), against the Patcher (the frozen reference in `tests/unit/dsp/reference_patcher.cpp`, as an image of its own), in
 cycles over 128 blocks:
 
 | Case | Patcher | Matrix |

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/fixed/vca/amplitude.h"
+#include "dsp/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {
@@ -50,7 +50,7 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 	const int32_t wave_index = wave_index_last_ + 1073741824;
 	dsp::Q<31>* dst = controls.apply_amplitude ? scratch.data() : output.data();
 
-	// Render through the dsp-next view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
+	// Render through the DSP library view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
 	// now driven directly over our band-data view (no storage reach).
 	dsp::UQ<32> rendered_phase{};
 	if (!do_osc_sync) {

@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "modulation/params/param.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral
 

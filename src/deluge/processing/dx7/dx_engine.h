@@ -18,10 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/dx7/graph.h"
-#include "dsp-next/fixed/dx7/tables.h"
-#include "dsp-next/fixed/dx7/voice.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/fixed/dx7/graph.h"
+#include "dsp/fixed/dx7/tables.h"
+#include "dsp/fixed/dx7/voice.h"
+#include "dsp/fixed/noise/cong.h"
 #include "processing/dx7/dx_patch.h"
 #include <gsl/gsl>
 

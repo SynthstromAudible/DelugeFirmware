@@ -21,7 +21,7 @@
 
 #include "effects/mod_fx.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "mod_fx_workloads.h"
 #include "reference_mod_fx.h"
 #include "util/synth_noise.h"
@@ -190,7 +190,7 @@ private:
 } // namespace
 
 // clang-format off
-describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
+describe mod_fx("an owner's mod FX on the DSP library kernel", ${
 	it("renders every workload as the reference mod FX does: each block's frames and post-FX volume, and the write index "
 	   "and LFO phases at the end", _ {
 		for (const mw::ModFxWorkload& workload : mw::all_mod_fx_workloads()) {

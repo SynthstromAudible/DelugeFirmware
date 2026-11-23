@@ -454,7 +454,7 @@ dx7_case(
     dx7_patch({**ALL_SOUNDING, 0: {**ALL_SOUNDING[0], "mode": 1}}, algorithm=0),
 )
 # Mid-note engine and patch changes cannot be played by a preset and a note script: the DX7 workloads cover them, and
-# tests/unit/deluge/dsp-next/dx7_graph_spec.cpp and dx7_voice_spec.cpp hold the components to them.
+# tests/unit/dsp/dx7_graph_spec.cpp and dx7_voice_spec.cpp hold the components to them.
 
 # --- envelopes / filters / modulation ----------------------------------------
 case(

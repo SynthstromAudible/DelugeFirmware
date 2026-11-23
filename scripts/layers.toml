@@ -38,6 +38,9 @@ path = "app"
 path = "base"
 
 [[directory]]
+path = "dsp"
+
+[[directory]]
 path = "host"
 
 [[directory]]
@@ -83,6 +86,31 @@ name = "plugin-types"
 root = "src/plugin/types"
 prefix = "plugin/types/"
 
+# The L0 DSP library: the kernels reach only the base, the plugin contract's types and the SIMD headers. The legacy
+# headers below hold vocabulary that leaves the legacy tree with the DSP library's next move.
+[[library]]
+name = "dsp"
+root = "src/dsp"
+prefix = "dsp/"
+may_include = [
+    "base/",
+    "plugin/types/",
+    "util/misc.h",
+    "definitions_cxx.hpp",
+    "board_config.h",
+    # Argon, which one header names in quotes
+    "argon.hpp",
+]
+system = [
+    "argon.hpp",
+    "argon/vectorize/first_n.hpp",
+    "argon/vectorize/for_each.hpp",
+    "arm_acle.h",
+    "arm_neon.h",
+    "math.h",
+    "xmmintrin.h",
+]
+
 [[library]]
 name = "plugin"
 root = "src/plugin"
@@ -100,7 +128,7 @@ may_include = [
     "plugin/",
     "serialization/",
     "base/panic.h",
-    "dsp-next/",
+    "dsp/",
 ]
 
 [[library]]
@@ -118,7 +146,7 @@ may_include = [
     # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
     "synth/voice/sound_config.h",
     "synth/voice/unison.h",
-    "dsp-next/fixed/pitch/",
+    "dsp/fixed/pitch/",
     # the components' states, which the instrument's state is composed of
     "synth/sources/source_state.h",
     "synth/sources/input/input_channel.h",
@@ -285,7 +313,7 @@ reason = "the legacy tree reaches the scenes and the shell only through the host
 
 [[rule]]
 name = "model-includes-ui"
-files = ["src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"]
+files = ["src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp_legacy}/**"]
 pattern = '^(gui/(?!l10n/)|hid/)'
 reason = "the model and the engine raise notifications; they do not include the UI"
 
@@ -370,16 +398,9 @@ pattern = '^(RZA1|drivers|bsp)/'
 reason = "the application reaches the hardware only through libdeluge"
 
 [[rule]]
-name = "dsp-next-boundary"
-files = ["src/deluge/dsp-next/**"]
-pattern = '^(storage|model|processing|gui|playback|modulation|hid|io|dsp|RZA1|bsp|drivers|memory|util)/'
-allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
-reason = "the L0 kernels reach no app layer, the legacy dsp library or the platform"
-
-[[rule]]
 name = "synth-boundary"
 files = ["src/synth/**"]
-pattern = '^(storage|model|processing|gui|playback|hid|io|dsp|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
+pattern = '^(storage|model|processing|gui|playback|hid|io|dsp_legacy|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
 allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",

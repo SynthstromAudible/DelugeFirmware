@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "modulation/params/param.h" // the pitch-adjust params, GLOBAL_DELAY_RATE
 #include "synth/modulation/cable.h"
 

@@ -16,10 +16,10 @@
  */
 
 #pragma once
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/reverb/freeverb.h"
-#include "dsp-next/float/reverb/plate.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/reverb/freeverb.h"
+#include "dsp/float/reverb/plate.h"
 #include "effects/params.h"
 #include "effects/sidechain.h"
 #include "effects/state.h"

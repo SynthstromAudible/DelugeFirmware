@@ -1,6 +1,6 @@
 #include "effects/compressor.h"
 
-#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "dsp/fixed/dynamics/rms_feedback_compressor.h"
 #include "support/printers/compressor_knobs_printer.h"
 
 #include <cppspec.hpp>
@@ -25,7 +25,7 @@ constexpr CompressorState kState{
 } // namespace
 
 // clang-format off
-describe compressor("an owner's compressor on the dsp-next compressor", ${
+describe compressor("an owner's compressor on the DSP library compressor", ${
 	it("carries each knob across", _ {
 		constexpr deluge::dsp::fixed::CompressorKnobs knobs = compressor_knobs(kState);
 		expect(knobs.attack.raw()).to_equal(1 << 30);
@@ -35,7 +35,7 @@ describe compressor("an owner's compressor on the dsp-next compressor", ${
 		expect(knobs.sidechain_hpf.raw()).to_equal(9 << 22);
 		expect(knobs.blend.raw()).to_equal(11 << 20);
 	});
-	it("carries the defaults across as the dsp-next compressor's own", _ {
+	it("carries the defaults across as the DSP library compressor's own", _ {
 		expect(compressor_knobs(CompressorState{})).to_equal(deluge::dsp::fixed::CompressorKnobs{});
 	});
 	it("takes the state's time constants and threshold", _ {

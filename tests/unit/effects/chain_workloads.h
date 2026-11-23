@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "effects/chain_core.h"
 #include "effects/delay_arena.h"
 #include "effects/state.h"

@@ -16,7 +16,7 @@
  */
 
 #include "synth/engines/slot_engine.h"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable, noteIntervalTable
 #include <optional>
 #include <utility>

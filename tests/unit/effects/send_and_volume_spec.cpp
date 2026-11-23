@@ -1,6 +1,6 @@
 #include "effects/send_and_volume.h"
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include <algorithm>
 #include <cppspec.hpp>
 #include <cstdint>

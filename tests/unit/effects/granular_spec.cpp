@@ -22,12 +22,12 @@
 
 #include "effects/granular.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "granular_workloads.h"
 #include "reference_granular.h"
 #include "util/synth_noise.h"
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
@@ -330,7 +330,7 @@ private:
 } // namespace
 
 // clang-format off
-describe granular("an owner's granular effect on the dsp-next kernel", ${
+describe granular("an owner's granular effect on the DSP library kernel", ${
 	it("renders every workload as the reference granular does: each block's frames, post-FX volume and reverb feed, and "
 	   "the State and the ring at the end", _ {
 		for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {

@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/va/va_shapes.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/ramp.h"
-#include "dsp-next/fixed/bandlimited/analog_saw.h"
-#include "dsp-next/fixed/bandlimited/analog_square.h"
-#include "dsp-next/fixed/bandlimited/band_limited_table.h"
-#include "dsp-next/fixed/bandlimited/saw.h"
-#include "dsp-next/fixed/bandlimited/square.h"
-#include "dsp-next/fixed/bandlimited/triangle.h"
-#include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
-#include "dsp-next/fixed/osc/crude_oscillators.h"
-#include "dsp-next/fixed/osc/pulse_oscillator.h"
-#include "dsp-next/fixed/sync/resetter.h"
-#include "dsp-next/fixed/sync/synced_oscillator.h"
-#include "dsp-next/fixed/sync/synced_phasor.h"
-#include "dsp-next/fixed/tables/sine_small.h"
-#include "dsp-next/fixed/vca/amplitude.h"
-#include "dsp-next/fixed/vca/crude_amplitude.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/ramp.h"
+#include "dsp/fixed/bandlimited/analog_saw.h"
+#include "dsp/fixed/bandlimited/analog_square.h"
+#include "dsp/fixed/bandlimited/band_limited_table.h"
+#include "dsp/fixed/bandlimited/saw.h"
+#include "dsp/fixed/bandlimited/square.h"
+#include "dsp/fixed/bandlimited/triangle.h"
+#include "dsp/fixed/osc/band_limited_table_oscillator.h"
+#include "dsp/fixed/osc/crude_oscillators.h"
+#include "dsp/fixed/osc/pulse_oscillator.h"
+#include "dsp/fixed/sync/resetter.h"
+#include "dsp/fixed/sync/synced_oscillator.h"
+#include "dsp/fixed/sync/synced_phasor.h"
+#include "dsp/fixed/tables/sine_small.h"
+#include "dsp/fixed/vca/amplitude.h"
+#include "dsp/fixed/vca/crude_amplitude.h"
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -156,7 +156,7 @@ Resolved resolve_multiply(Phasor original, const BlockControls& controls, uint32
 	return Resolved{.render = original, .sync = controls.sync, .retrigger = uq32(retrigger)};
 }
 
-/// out = (scratch · amplitude) + out — the dsp-next Amplitude mixer with a ramped amplitude vector. The hard-sync
+/// out = (scratch · amplitude) + out — the DSP library Amplitude mixer with a ramped amplitude vector. The hard-sync
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
 void mix_through_vca(Ramp amplitude, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	fixed::Amplitude vca{amplitude};

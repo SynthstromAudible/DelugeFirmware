@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include <array>
 #include <cstdint>
 

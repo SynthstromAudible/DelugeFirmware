@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/granular/granular_kernel.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/granular/granular_kernel.h"
+#include "dsp/fixed/noise/cong.h"
 #include "effects/mod_fx.h" // RingAllocator
 #include "effects/words.h"
 
@@ -53,7 +53,7 @@ struct GranularInputs {
 	bool sound;             ///< Whether any sound came in this block.
 };
 
-/// @brief An owner's granular effect: the dsp-next Granular kernel's State, which lives as long as the owner once it
+/// @brief An owner's granular effect: the DSP library Granular kernel's State, which lives as long as the owner once it
 /// has entered GRAIN, and the 65,536-frame ring (about 512 KB), which is held while the owner's type is GRAIN.
 ///
 /// Both come from the allocator. The State (about 350 bytes) is allocated on the first entry into GRAIN and kept until

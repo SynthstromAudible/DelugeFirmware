@@ -23,7 +23,7 @@
 
 #include "bench/cases.h"
 
-#include "dsp-next/fixed/noise/noise.h"
+#include "dsp/fixed/noise/noise.h"
 
 #include <array>
 #include <cstddef>

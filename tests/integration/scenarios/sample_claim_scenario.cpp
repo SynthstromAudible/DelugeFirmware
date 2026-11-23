@@ -89,7 +89,7 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 
-#include "unit/deluge/dsp-next/wavetable_band_crc.h"
+#include "unit/dsp/wavetable_band_crc.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"

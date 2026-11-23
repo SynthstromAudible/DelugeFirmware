@@ -23,7 +23,7 @@
 
 | Tier | Target home | Reality today | Verdict |
 |---|---|---|---|
-| **L0 primitives** | `dsp-next/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/util` (the fold) and `dsp/oscillators/oscillator` (a scratch array + `OscType` mapper) not yet migrated.** `dsp/timestretch/time_stretcher` stays App-side behind the sample-playback port. | Clean; two small leftovers |
+| **L0 primitives** | `dsp/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/util` (the fold) and `dsp/oscillators/oscillator` (a scratch array + `OscType` mapper) not yet migrated.** `dsp/timestretch/time_stretcher` stays App-side behind the sample-playback port. | Clean; two small leftovers |
 | **L1 Source** | `synth/sources/` | **Done.** Five sources are polymorphic `synth::Source` (VA, wavetable, sample, input, DX7); ports exist (`sample_playback_port.h`, `audio_input_port.h`, `dx_voice_port.h`). | The strong part of the tree |
 | **L1 Engine** | `synth/` | Subtractive/RingMod/FM exist as objects beside the kernel in `synth/voice/`, **own behaviour but no state**, and reach state through `Voice&` / per-block args. Each engine owns its per-unison loop; `Voice::render` dispatches with a 3-way `SynthMode` switch (`voice.cpp:1184–1205`). DX7 still a Source, not an Engine. No registry; dispatch is `SynthMode`+`OscType` switches. | **Stateless coordinators** |
 | **L2 Voice** | `synth/voice/` | **Done.** `synth::Voice` plays from its sound's `SoundConfig` and `BlockValues`, a per-voice `VoiceBlock`, note-time setups and injected ports, behind the synth boundary; the instrument's `VoiceSlot` holds it over the app's `VoicePart` (`SoundVoice`, `synth_voice_lift.md`). The seam a host implements is `synth/voice/voice_host.h`. A host spec plays it. | Separate, in the library |
@@ -111,7 +111,7 @@ deluge::synth::
                        namespaced, not flat LOCAL_*. Filled by the Patcher from ParamManager-world (CLAP param events).
 
   ── DSP (CLAP "audio") ──
-    Phasor, Oscillator         L0 dsp-next (exist)
+    Phasor, Oscillator         L0 DSP library (exist)
     Source : interface         L1 per-source renderer (exist, in synth/sources/)
       VirtualAnalogSource, WavetableSource, SampleSource, InputSource, DX7Source
     Engine : interface         L1 coordinator / SWAP UNIT (lean native C++, NOT CLAP); one unison-part's worth

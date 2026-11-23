@@ -16,7 +16,7 @@ Engines are loaded by the Deluge instrument, never by the host: what the host lo
 
 | Tier | What it is | Here | To come |
 |---|---|---|---|
-| L0 kernels (`dsp-next`) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
+| L0 kernels (the DSP library) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
 | Sources | one generator in one slot of one unison part | VA, wavetable, supersaw, sample, live input, DX7 | Karplus-Strong, Plaits models, granular from a sample, additive |
 | Dual-source engines | the relationship between the two slots, plus noise | Subtractive (mix, A→B sync), RingMod (multiply, A→B sync) | AM, phase modulation A→B, exciter→resonator (Rings, a Clouds-style granular slot B) |
 | Whole-voice engines | one generator is the voice | FM (two modulators into two carriers, with feedback) | a whole-voice DX7, Plaits as the voice, physical models (a piano: exciter and strings per voice) |
@@ -135,7 +135,7 @@ when every part's sources ended. It derives each engine's controls from its para
 - **A port-free source** (Karplus-Strong, a Plaits model): a class deriving `Source`, an alternative in
   `SourceSlot::Oscillator`, and a case in `SourceSlot::build_oscillator`. The voice and the engines are unchanged.
 - **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle) and a case in
-  `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/deluge/dsp-next/synth_engine_spec.cpp` drives an engine
+  `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/dsp/synth_engine_spec.cpp` drives an engine
   and a source written against the contracts alone.
 - **The declared hooks** come into use with the engines that need them: `takes_input` with exciter→resonator,
   `owns_envelope` and `sound_stage` with a physical model.
@@ -144,7 +144,7 @@ when every part's sources ended. It derives each engine's controls from its para
 
 A float instrument instantiates the same contracts over its own backend (float samples and controls, its phase type,
 its own per-type blocks, voice and controls), with its own voice deriving controls from its own params (no Deluge param
-indices, no legacy format, per-block ramps) and sources built from dsp-next's `float/` backend. The tiers, the source
+indices, no legacy format, per-block ramps) and sources built from the DSP library's `float/` backend. The tiers, the source
 lifecycle, the slots, the engine families and the declared hooks carry over. See `TODO.md`.
 
 ## Tests
@@ -154,6 +154,6 @@ lifecycle, the slots, the engine families and the declared hooks carry over. See
   noise without a filter and across a spread unison, a DX7 patch in osc 2, a retriggered supersaw, a mono voice's osc 1
   turned saw → square (keeps its saw) and saw → supersaw (builds one) between notes (`RENDER_SETTING`), and FM
   re-triggered on a mono sound.
-- **`tests/unit/deluge/dsp-next/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots
+- **`tests/unit/dsp/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots
   and rendered; each family through a voice (subtractive mixing and syncing, ring-mod multiplying, FM modulating); a
-  voice whose sound changes mode while it sounds. `tests/unit/deluge/dsp-next/synth_voice_spec.cpp` plays the voice's lifecycle.
+  voice whose sound changes mode while it sounds. `tests/unit/dsp/synth_voice_spec.cpp` plays the voice's lifecycle.

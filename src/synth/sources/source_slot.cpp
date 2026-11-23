@@ -16,7 +16,7 @@
  */
 
 #include "synth/sources/source_slot.h"
-#include "dsp-next/core/phasor.h"
+#include "dsp/core/phasor.h"
 #include "synth/sources/va/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
 #include <type_traits>
 

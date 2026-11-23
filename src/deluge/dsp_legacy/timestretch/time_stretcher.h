@@ -1,0 +1,134 @@
+/*
+ * Copyright © 2016-2023 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "definitions_cxx.hpp"
+#include "deluge_storage_sample_reader.h"
+#include "model/sample/sample_low_level_reader.h"
+#include <cstdint>
+
+#define BUFFER_FILLING_OFF 0
+#define BUFFER_FILLING_NEWER 1
+#define BUFFER_FILLING_OLDER 2
+#define BUFFER_FILLING_NEITHER 3
+
+class VoiceSample;
+class VoiceSamplePlaybackGuide;
+struct ComputedChunk; ///< Computed/cached chunk — perc-cache + sample-cache scratch (see storage/cluster/cluster.h).
+class Sample;
+class SampleCache;
+
+class [[gnu::hot]] TimeStretcher {
+public:
+	TimeStretcher() = default;
+	bool init(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int64_t newSamplePosBig,
+	          int32_t numChannels, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
+	          int32_t priorityRating, int32_t fudgingNumSamplesTilLoop, LoopType loopingType);
+	void reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample,
+	            int32_t numChannels, int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement,
+	            int32_t playDirection, LoopType loopingType, int32_t priorityRating);
+	void beenUnassigned();
+	void unassignAllReasonsForPercLookahead();
+	void unassignAllReasonsForPercCacheClusters();
+	void unassignAllReasonsForHopBack();
+	bool hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int32_t numChannels,
+	            int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int32_t playDirection,
+	            LoopType loopingType, int32_t priorityRating);
+
+	/// @brief Record @p cluster as one of the two most-recently-needed perc-cache chunks, taking a lease.
+	///
+	/// No-op if already remembered; otherwise releases the lease on the older of the two remembered
+	/// chunks before recording the new one.
+	/// @param cluster The computed chunk to remember.
+	void rememberPercCacheCluster(ComputedChunk* cluster);
+	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection);
+
+	int32_t getSamplePos(int32_t playDirection);
+	bool allocateBuffer(int32_t numChannels);
+
+	void readFromBuffer(deluge::dsp::Q<31>* oscBufferPos, int32_t numSamples, int32_t numChannels,
+	                    int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow, int32_t amplitudeIncrementNow,
+	                    int32_t* bufferReadPos);
+
+	void setupCrossfadeFromCache(SampleCache* cache, int32_t cacheBytePos, int32_t numChannels);
+
+#if TIME_STRETCH_ENABLE_BUFFER
+	void reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio,
+	                                      int32_t newBufferFillingMode, int32_t numChannels);
+#endif
+
+	int64_t samplePosBig{}; // In whole samples including both channels. From audioDataStart. <<'d by 24
+
+	uint32_t crossfadeProgress{}; // Out of kMaxSampleValue
+	uint32_t crossfadeIncrement{};
+
+	int32_t samplesTilHopEnd{};
+
+	SampleLowLevelReader olderPartReader;
+
+	int32_t* buffer{};
+	bool olderHeadReadingFromBuffer{};
+	bool hasLoopedBackIntoPreMargin{};
+	bool playHeadStillActive[2]{};
+	uint8_t numTimesMissedHop{};
+
+	int32_t olderBufferReadPos{}; // In whole samples including both channels
+
+#if TIME_STRETCH_ENABLE_BUFFER
+	bool newerHeadReadingFromBuffer;
+	int32_t newerBufferReadPos; // In whole samples including both channels
+
+	uint8_t bufferFillingMode;
+	int32_t bufferWritePos;        // In whole samples including both channels
+	uint64_t bufferSamplesWritten; // Hopefully we can do away with the need for this
+#endif
+
+	/// @note Perc lookahead — pins the small forward/backward window of upcoming source-audio
+	///       clusters the time-stretcher's older-head search needs resident (see
+	///       updateClustersForPercLookahead), through the reservation handle (deluge_storage_sample_reader.h).
+	DelugeSampleReservation* percLookahead_ = nullptr;
+
+	ComputedChunk* percCacheClustersNearby[2]{}; ///< Reason-holder for the two most recently needed/accessed
+	                                             ///< perc-cache chunks.
+
+	/// @note Pins the earliest clusters the next hop could start the new play-head in, so they are enqueued well
+	///       before the hop. Nothing else loads audio before the start marker, which a hop reaches back into when time
+	///       is slowed down a lot (pitched up with the length kept, say). See updateClustersForHopBack.
+	DelugeSampleReservation* hopBack_ = nullptr;
+
+	/// @note Pins the cluster a failed hop wanted to start in, so it stays in the loading queue until the retry.
+	DelugeSampleReservation* hopRetry_ = nullptr;
+
+	// Where the last call to Sample::fillPercCache() started, and where it left the perc cache zone ending, so we can
+	// skip calling it (and its walk through the Sample's metadata, which lives in SDRAM) until the lookahead has moved
+	// on a bit
+	int32_t percCacheFillStartPos{};
+	int32_t percCacheFillEndPos{};
+	int8_t percCacheFillDirection{};
+
+private:
+	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,
+	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);
+	void updateClustersForHopBack(Sample* sample, int64_t samplePos, int32_t timeStretchRatio, int32_t phaseIncrement,
+	                              int32_t playDirection);
+	void keepClusterForHopRetry(Sample* sample, int32_t bytePos, int32_t playDirection);
+	void releaseClusterForHopRetry();
+};
+
+// The crossfade window-match helpers (getTotalDifferenceAbs / getTotalChange) moved to
+// dsp/fixed/timestretch/crossfade.h as deluge::dsp::fixed::totalDifferenceAbs / totalChange.

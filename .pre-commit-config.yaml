@@ -53,12 +53,12 @@ repos:
         files: ^(src/|tests/|include/|scripts/(check_layers\.py|layers\.toml|layers_baseline\.txt|test_check_layers\.py))
       - id: clang-tidy
         name: clang-tidy on the changed lines of the libraries
-        description: dsp-next, synth, effects, the instrument, plugin, serialization and controls meet .clang-tidy on every line a commit changes
+        description: the DSP library, synth, effects, the instrument, plugin, serialization and controls meet .clang-tidy on every line a commit changes
         entry: python3 scripts/check_tidy.py
         language: python
         additional_dependencies: ["clang-tidy==23.1.4"]
         types_or: [c, c++]
-        files: ^src/(deluge/dsp-next|synth|effects|instruments|plugin|serialization|ui/controls)/
+        files: ^src/(dsp|synth|effects|instruments|plugin|serialization|ui/controls)/
         require_serial: true
       - id: model-words
         name: the model names no plugin's state

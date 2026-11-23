@@ -16,13 +16,13 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"    // OscType
-#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/core/types.h" // std::span<dsp::Q<31>>
-#include "dsp-next/fixed/noise/cong.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
+#include "definitions_cxx.hpp" // OscType
+#include "dsp/core/phasor.h"   // deluge::dsp::Phasor
+#include "dsp/core/ramp.h"     // deluge::dsp::Ramp
+#include "dsp/core/stereo_sample.h"
+#include "dsp/core/types.h" // std::span<dsp::Q<31>>
+#include "dsp/fixed/noise/cong.h"
+#include "dsp/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"
 #include "synth/sources/source_state.h" // kFreeRunningPhase
 #include <cstdint>

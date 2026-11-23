@@ -1,12 +1,12 @@
 # The live pitch shifter's quirks
 
-The live pitch shifter (`src/deluge/dsp-next/fixed/pitch_shift/`, `src/synth/sources/input/live/`) was rewritten as
-dsp-next components bit-exactly: not one output sample changed. What that kept is listed here, each with where it is,
+The live pitch shifter (`src/dsp/fixed/pitch_shift/`, `src/synth/sources/input/live/`) was rewritten as
+DSP library components bit-exactly: not one output sample changed. What that kept is listed here, each with where it is,
 what it does, what it may be, and how to settle it. The code names each quirk at its line (`quirk Qn`).
 
 Settling one is a behaviour change of its own: an A/B render with the quirk fixed, a spectrum or ear check, a decision,
 and a re-baseline of the goldens it moves, with that evidence. The goldens that play the shifter are
-`tests/golden/render/presets/{,stereo/}input_pitchshift*`; the workloads and records under `tests/unit/deluge/dsp-next/` pin it at
+`tests/golden/render/presets/{,stereo/}input_pitchshift*`; the workloads and records under `tests/unit/dsp/` pin it at
 the component.
 
 | # | Where | What it does | Suspicion | How to settle |

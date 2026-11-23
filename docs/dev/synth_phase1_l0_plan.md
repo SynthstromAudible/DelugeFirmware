@@ -1,4 +1,4 @@
-# Synth Untangling — Phase 1: `dsp-next` (the clean L0 library)
+# Synth Untangling — Phase 1: the DSP library (the clean L0 library)
 
 Status: **planned** (2026-06-13, revised). Companion to
 [synth_untangling_plan.md](synth_untangling_plan.md) Part 4, Phase 1.
@@ -6,14 +6,14 @@ Prerequisite: Phase 0 golden masters (done) — every migration below is gated
 on **bit-exact** 319-fixture renders, cross-checked against the ARM/NEON
 oracle.
 
-## Strategy: build `dsp-next`, strangle the old `dsp/`
+## Strategy: build the DSP library, strangle the old `dsp_legacy/`
 
-Rather than scrub the accreted `src/deluge/dsp/` in place, stand up a **new,
-clean L0 library — `dsp-next` — and migrate primitives into it one at a
+Rather than scrub the accreted `src/deluge/dsp_legacy/` in place, stand up a **new,
+clean L0 library — the DSP library — and migrate primitives into it one at a
 time**. Each primitive is ported as idiomatic C++23, its caller is switched
 over under golden-master cover, and the old implementation is deleted once no
-caller remains. When `dsp/` is empty (its sample-path residue having moved to
-the Phase-3 `SampleSource` home), it is removed and `dsp-next` becomes the
+caller remains. When `dsp_legacy/` is empty (its sample-path residue having moved to
+the Phase-3 `SampleSource` home), it is removed and the DSP library becomes the
 canonical DSP library.
 
 Why a parallel library instead of in-place refactor:
@@ -28,7 +28,7 @@ Why a parallel library instead of in-place refactor:
 ## Library shape: `fixed/` and `float/` behind a numeric-agnostic core
 
 ```
-src/deluge/dsp-next/
+src/dsp/
   core/    headers only — numeric-agnostic interfaces, concepts, block/span
            types, strong numeric aliases, q31<->f32 conversion. No globals.
   fixed/   q31 implementations            -> lib  libdeluge-dsp-fixed
@@ -42,7 +42,7 @@ src/deluge/dsp-next/
   decision 1's "numeric-agnostic interfaces" and the "q31 is an implementation
   detail, never a public type" rule made physical.
 - **`fixed/`** is the bit-exact q31 core — that *is* the Deluge sound, and it
-  keeps golden masters bit-exact against current firmware. Most current `dsp/`
+  keeps golden masters bit-exact against current firmware. Most current `dsp_legacy/`
   kernels migrate here.
 - **`float/`** is the float32 track. It is **not** bit-exact with `fixed/`
   (different numerics, validated by tolerance/perceptual, not SHA) and is used
@@ -51,14 +51,14 @@ src/deluge/dsp-next/
   proof; **populating it is later work** (decision 3 keeps the core q31 for
   now) — the point here is that the home exists and the interface is shared.
 
-Both are STATIC libs mirroring the existing `deluge_dsp` target (unity build,
+Both are STATIC libs mirroring the existing `deluge_dsp_legacy` target (unity build,
 `-fno-lto -finline-functions`, `-marm` on hardware, link `argon`); the app and
 host-sim link whichever primitives have migrated. Targets: `deluge_dsp_fixed`,
 `deluge_dsp_float` (output names `libdeluge-dsp-fixed`, `libdeluge-dsp-float`).
 Follows the repo's existing multi-lib pattern (`deluge_midi`,
 `deluge_base`).
 
-## Idioms enforced in `dsp-next` (the migration's core focus)
+## Idioms enforced in the DSP library (the migration's core focus)
 
 - **C++23 throughout** (`gnu++23`, as the repo already builds).
 - **`std::span` for every buffer** — no `int32_t*, numSamples`, no
@@ -78,7 +78,7 @@ Follows the repo's existing multi-lib pattern (`deluge_midi`,
 
 ## What migrates, in order (dependency-led, lowest coupling first)
 
-Source material is the same `dsp/` audit as before — see the violation table
+Source material is the same `dsp_legacy/` audit as before — see the violation table
 at the end. Migration order:
 
 1. **`core/` foundations** — numeric aliases + `SampleType` concept
@@ -115,19 +115,19 @@ at the end. Migration order:
    operator through its NEON kernel and every other build through an Argon step bit-exact with it, so host, sim and
    device render DX7 presets identically.
 
-Each primitive: rewrite in `dsp-next` → **write a thorough behavioural spec**
-(`tests/unit/deluge/dsp-next/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
+Each primitive: rewrite in the DSP library → **write a thorough behavioural spec**
+(`tests/unit/dsp/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
 (SIMDe) and ARM/qemu, locking the kernel's behaviour and cross-checking x86≡ARM
 → switch the caller (oscillator dispatch / `Voice` / `FilterSet` / `WaveTable`)
-→ full golden sweep (bit-exact) → delete the old `dsp/` implementation. The spec
+→ full golden sweep (bit-exact) → delete the old `dsp_legacy/` implementation. The spec
 is mandatory and lands with (or just before) the migration, not after — it is
-the per-primitive regression net. See `tests/unit/deluge/dsp-next/README.md`.
+the per-primitive regression net. See `tests/unit/dsp/README.md`.
 
 ### Deferred to Phase 3 (do not migrate now)
-`granular/`, `timestretch/`, and the sample path stay in the old `dsp/` and
+`granular/`, `timestretch/`, and the sample path stay in the old `dsp_legacy/` and
 keep their `model/sample`, `storage/cluster`, `voice_sample`,
 `playback_handler`, granular-reverb-backdoor reaches. They move to the
-`SampleSource` home in Phase 3, not into `dsp-next`. `voice.cpp`'s
+`SampleSource` home in Phase 3, not into the DSP library. `voice.cpp`'s
 `spareRenderingBuffer` is app-side (Phase 4). The Sound-level FX chain is a
 separate untangling.
 
@@ -137,19 +137,19 @@ Bisectable commits; firmware Debug build + full golden sweep (x86 **and** ARM
 oracle) green before the next. `git mv`/port commits never carry a behaviour
 change.
 
-- **S0 — Scaffold. ✅ done (2026-06-13).** Created `dsp-next/{core,fixed,float}`:
+- **S0 — Scaffold. ✅ done (2026-06-13).** Created `src/dsp/{core,fixed,float}` beside the old `dsp_legacy/`:
   `core` is a header-only INTERFACE target (`deluge_dsp_core`); `fixed`/`float`
   are STATIC libs (`deluge_dsp_fixed`→`libdeluge-dsp-fixed`,
-  `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp` (unity,
-  `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp_next`
+  `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp_legacy` (unity,
+  `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp`
   INTERFACE links all three and is linked into `deluge_app` (so firmware + sim
   pick it up). Namespaces: `deluge::dsp` (core), `deluge::dsp::fixed`,
   `deluge::dsp::fp` (`float` is a keyword). Include-lint gate
   (`scripts/check_dsp_boundary.py`, **no allowlist**; forbids the app layers,
-  legacy `dsp/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
+  legacy `dsp_legacy/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
   wired into pre-commit + a CI workflow. Firmware Debug builds green, text
   unchanged (empty libs add no code). The per-primitive unit-spec harness
-  (`tests/unit/deluge/dsp-next/`, dual-arch CppSpec via CTest) lands with S2.
+  (`tests/unit/dsp/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
   `q31_t`, + the `SampleType` concept) and `core/convert.h` (`to_f32`/`to_q31`
@@ -164,10 +164,10 @@ change.
   an oscillator; vector FM dissolved into `sine(phase + mod)` at the `voice.cpp`
   call sites; phase-advance (the osc concern) decomposed back to the caller; the
   LUT is now a TU-local table; magic numbers became named constants; full `///@`
-  Doxygen; snake_case free functions via a scoped `dsp-next/.clang-tidy`. Bit-exact:
+  Doxygen; snake_case free functions via a scoped `dsp/.clang-tidy`. Bit-exact:
   x86 319/319, ARM oracle 5/5 (the sine/fm cases only — the full ARM/QEMU sweep
   is too slow to run per-commit, so it is reserved for phase boundaries). Shipped
-  with a thorough dual-arch unit spec: `tests/unit/deluge/dsp-next/sine_spec.cpp` (CppSpec, CTest)
+  with a thorough dual-arch unit spec: `tests/unit/dsp/sine_spec.cpp` (CppSpec, CTest)
   runs on x86 (SIMDe) and ARM/qemu, both green.
 - **Oscillator domain** (the active thread): the VA wave kernels + LUTs, the VCA
   separation, and the megaswitch → kernel-registry rewrite. Staged
@@ -175,19 +175,19 @@ change.
   (Phase B) → unify VCA (Phase C). Its own detailed plan:
   [synth_oscillator_plan.md](synth_oscillator_plan.md). Phase C (unifying the
   VCA arithmetic) is the first **deliberate golden re-baseline** — ear +
-  hardware, not SHA. dsp-next kernels are **stateless** (state → L1 SourceEngine).
+  hardware, not SHA. Kernels in the DSP library are **stateless** (state → L1 SourceEngine).
 - **Filters, then FX, then DX7** — later clusters (filters as one cohesive
   subsystem arc), per the migration order above. The first caller switch of
   each can move a fixture — gate hard.
-- **Sn — Retire.** When the only thing left in old `dsp/` is the deferred
-  sample residue, the lint allowlist for `dsp/` is gone; the final cleanup
-  (delete emptied `dsp/`, rename/settle `dsp-next`'s canonical name) is its
+- **Sn — Retire.** When the only thing left in old `dsp_legacy/` is the deferred
+  sample residue, the lint allowlist for `dsp_legacy/` is gone; the final cleanup
+  (delete emptied `dsp_legacy/`, rename/settle the DSP library's canonical name) is its
   own commit once Phase 3 has relocated the residue.
 
 ## Test & gate strategy
 
 - **`fixed/` primitives** are golden-bit-exact gated on caller-switch, and
-  each gets a dual-arch CppSpec unit spec (`tests/unit/deluge/dsp-next/`, run as CTest on x86
+  each gets a dual-arch CppSpec unit spec (`tests/unit/dsp/`, run as CTest on x86
   SIMDe + ARM/qemu) proving behaviour and x86 ≡ ARM in isolation.
 - **`float/` primitives** are validated by tolerance/perceptual comparison,
   never SHA — they are a different numeric track by design.
@@ -195,11 +195,11 @@ change.
   byte-identical fixtures; **caller-switch commits** are the ones that can
   legitimately need a documented rounding waiver (then re-baseline once, per
   the Phase-0 contract).
-- The `dsp-next` include-lint gate runs in CI from S0.
+- The include-lint gate for the DSP library runs in CI from S0.
 
 ## Risks
 
-- **Two implementations of one primitive** (old `dsp/` + new `dsp-next`)
+- **Two implementations of one primitive** (old `dsp_legacy/` + new DSP library)
   during migration — mitigated by switching the caller in the *same* commit
   that proves the new one bit-exact, and deleting the old promptly so there is
   never a silently-diverging duplicate.
@@ -215,7 +215,7 @@ change.
 - **CPU headroom** — block-granularity only; `std::span` and value types are
   zero-overhead. Goldens double as perf canaries; spot-check on hardware.
 
-## Appendix — current `dsp/` L0 violations (migration source material)
+## Appendix — current `dsp_legacy/` L0 violations (migration source material)
 
 | File / area | Upward reach | Becomes |
 |---|---|---|
@@ -223,5 +223,5 @@ change.
 | `oscillators/basic_waves.cpp`, `processing/render_wave.h` + `vector_rendering_function.h` | dsp code under `processing/` | rewritten into `fixed/` over spans |
 | `delay/delay.*` | `modulation/sync.h` (sync level and type), `effects/state.h` (`DelayState`), `io/debug/log.h`, `memory/stack_guard.h` | the synced rate resolved by the owner; logging and the stack check dropped |
 | `delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` | the `memory_allocator_interface.h` seam |
-| `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into `dsp-next` |
+| `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into the DSP library |
 | `granular/`, `timestretch/` | sample path | **deferred to Phase 3**, not migrated |

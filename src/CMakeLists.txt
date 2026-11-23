@@ -4,6 +4,7 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/third_party)
 
 add_subdirectory(plugin/types) # deluge_plugin_types: the host–plugin contract's data-only types
 add_subdirectory(base) # bottom of the stack; the layers below link it
+add_subdirectory(dsp) # deluge_dsp: the L0 DSP library (the core interfaces and the fixed and float backends)
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
 add_subdirectory(plugin) # deluge_plugin: the host–plugin contract's interface
 add_subdirectory(effects) # deluge_effects: the effects' words, state and codec

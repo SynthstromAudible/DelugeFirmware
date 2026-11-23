@@ -16,7 +16,7 @@
  */
 
 #include "model/drum/drum.h"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "model/drum/expression_combine.h"
 
 #include "base/panic.h" // FREEZE_WITH_ERROR (unbound-read guard)

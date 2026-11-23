@@ -289,8 +289,8 @@ Every effect param is declared once, in `effects/params.h`, as an `EffectParam` 
 name, the curve its word goes through around a neutral value (or none, for a word used as stored), the mapping and the
 flags. The effect classes hold copies (`Filter::kParams`, `Delay::kRate`, …). An effect with curved params computes
 them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param, word)` (`Delay::kRate`,
-`Delay::kFeedback`, `Stutter::kRate`, `Reverb::kSend`). The curves are dsp-next's
-(`dsp-next/fixed/curves/param_curve.h`); the kernels themselves take final values and stay param-free.
+`Delay::kFeedback`, `Stutter::kRate`, `Reverb::kSend`). The curves are the DSP library's
+(`dsp/fixed/curves/param_curve.h`); the kernels themselves take final values and stay param-free.
 
 An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
 extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host

@@ -21,8 +21,8 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_source.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/interpolator.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/interpolator.h"
 #include <array>
 #include <cstdint>
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0

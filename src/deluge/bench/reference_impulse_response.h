@@ -22,9 +22,9 @@
 /// kernel is checked against, and the response the bench's legacy analog case runs. Its arithmetic stays raw on
 /// purpose: a reference written independently of the code it checks.
 
-#include "dsp-next/core/detail/raw_ops.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/core/wrapping.h"
+#include "dsp/core/detail/raw_ops.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/core/wrapping.h"
 
 #include <array>
 #include <cstddef>

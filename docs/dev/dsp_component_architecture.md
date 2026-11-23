@@ -1,0 +1,2276 @@
+# The DSP library: the component architecture
+
+The shape every DSP library component takes, and the conventions every component
+follows. `src/dsp/` is the L0 DSP library: freestanding,
+header-first C++23 that may include only `base/`, `plugin/types/`, Argon, the
+standard library and its own headers, plus the legacy `util/misc.h`,
+`definitions_cxx.hpp` and `board_config.h` until they leave the legacy tree
+(`scripts/layers.toml`'s `dsp` library). Related:
+[synth_phase1_l0_plan.md](synth_phase1_l0_plan.md),
+[synth_oscillator_plan.md](synth_oscillator_plan.md).
+
+Every brief that moves or writes a component cites this document, and every
+reviewer applies its [review checklist](#review-checklist).
+
+## Prime directive: structural, not behavioural
+
+Moving code into the DSP library changes **code organisation only**. Every step is
+**bit-exact**, gated on the golden hashes (x86) and the ARM oracle. A component
+takes the shape described here but carries the synth's exact arithmetic. Audible
+improvements (analytic waves, a unified VCA arithmetic, better band-limiting,
+per-voice noise) are separate, ear-validated, re-baselined steps. A commit that
+moves code must not change a single output sample.
+
+A component is not a transcribed class. A legacy class moved field for field,
+with its verbs, callbacks and globals, is not a component, however bit-exact it
+is. The shape (the concepts, kernels and their wrappers, the settings convention,
+injected noise) is what the review gates on.
+
+## Layer 1: types (`core/sample.h`, `core/types.h`, `core/stereo_sample.h`)
+
+```cpp
+template <class T> using Sample = T;
+template <class T> using Buffer = std::span<T>;        // writable block
+template <class T> using Signal = std::span<const T>;  // read-only block
+struct StereoSample { q31 l, r; };                     // one interleaved frame
+```
+
+- `sample.h` holds the scalars (`q31`, `f32`, `SampleType`, the conversions);
+  `types.h` builds the block vocabulary on it.
+- The backend namespaces carry concrete aliases. `fixed` is the bit-exact q31
+  backend (`fixed::Sample`, `fixed::Buffer`, `fixed::Signal`,
+  `fixed::StereoSignal`, `fixed::StereoBuffer`). `fp` is the float edge backend
+  (`fp::Sample`, `fp::Buffer`, `fp::Signal`). The kernels live in the same
+  namespaces (`fixed::sine`, `fixed::TableOscillator`, ...).
+- The sample type at component interfaces is **`q31` (= `int32_t`)**, so app
+  buffers pass straight in, until the fixed-point rollout types it as `Q<31>`
+  (`core/fixed_point.h`; see [fixed_point.md](fixed_point.md)).
+- `types.h` includes no Argon, so code that names only block types (the effects
+  library, for one) needs no Argon on its include path. The SIMD stereo form,
+  `StereoVector`, lives in `core/stereo_vector.h`.
+
+## Layer 2: concepts, mixins and dispatch (`core/`)
+
+### Concepts (`core/concepts.h`)
+
+Each family has a block concept, a per-sample concept, and the composite of the two:
+
+| Family | Per-sample (`sample_*`) | Block (`block_*`) |
+|---|---|---|
+| `generator` | `render() -> value_type` | `render_block(Buffer)` |
+| `processor` | `render(value_type) -> value_type` | `render_block(Signal in, Buffer out)` |
+| `mixer` | `render(a, b) -> value_type` | `render_block(Signal a, Signal b, Buffer out)` |
+
+and two more:
+- **`control_generator`**: `advance(std::size_t n) -> value_type` returns the
+  value after `n` samples. It is for block-rate control signals, whose
+  arithmetic is per block, so it has no per-sample `render`. `Control<K>`
+  ([Wrappers](#controlk-corecontrolh)) satisfies it.
+
+  `advance(n)` is reserved for these block-rate sources. A source whose
+  arithmetic is per sample exposes `render()`. The one exception is
+  `Phasor::advance()`, the per-sample phase step inside the oscillators, which
+  keeps its name.
+- **`converter`**: `render(input_type) -> output_type`, between numeric domains.
+
+Every component exposes `value_type`. A stateful component is checked against its
+concept by a `static_assert` next to its definition, together with
+`!std::is_polymorphic_v<C>`.
+
+The `sample_*` concepts take `value_type` (`q31`), so a SIMD component, whose
+`render` takes and returns `Argon<q31>`, satisfies only the `block_*` concept and
+is asserted against that. Vector-aware `sample_*` concepts are a follow-up.
+
+### Mixins (`core/generator.h`, `core/processor.h`, `core/mixer.h`)
+
+**New components are kernels.** Every new component, and every component a
+rewrite moves, is written as a kernel and wrapped by `Mono`, `Stereo` or
+`Control` (see [Kernels](#kernels-corekernelh-coremodeh)). The mixins described
+here remain for the existing oscillators and `Amplitude` until they move onto
+kernels (see [Remaining work](#remaining-work)); no new component uses them. The
+in-place and inlining rules below bind the wrappers in the same way, and so does
+the tail rule, with one difference: a wrapper running a kernel that declares
+`kPartialStepAdvancesByCount` advances its state on the partial step by the
+active-lane count, not by a whole vector (see
+[The partial step](#the-partial-step)).
+
+`Generator<D, T>`, `Processor<D, T>` and `Mixer<D, T>` are **non-virtual CRTP
+mixins**: they add no vptr and no state. Each supplies `render_block` from the
+component's `render`. The component writes only `render`, `[[gnu::always_inline]]`,
+and the mixin picks the path from `render`'s signature. A component never names
+a path.
+
+| `render` takes and returns | Path | Fill |
+|---|---|---|
+| `Argon<T>` (arithmetic `T`) | SIMD | `argon::vectorize::for_each` |
+| `StereoVector` (`T` is `StereoSample`) | SIMD stereo | `argon::vectorize::for_each_interleaved<q31, 2>`: de-interleave on load, re-interleave on store (`vld2`/`vst2`) |
+| `T` (`q31`, `f32`, `StereoSample`) | scalar | a plain index loop over raw pointers |
+
+**Everything per sample is `[[gnu::always_inline]]`.** The app's translation
+units inline only the cheapest calls, at an inline threshold of 5 at compile time
+and at the ThinLTO link (`CMakeLists.txt`), so a function above that stays a
+call unless it is `always_inline`. The mixins are header templates instantiated in those
+translation units, so the DSP library's own `-finline-functions` does not reach
+them. The mixins' per-step lambdas are therefore `[[gnu::always_inline]]` and
+their scalar path is a plain loop with no library calls in it, and every
+function a component calls per sample or per vector (its `render`, the
+`Phasor` accessors, `util::constexpr_for` and its lane lambdas, the noise
+step) is `[[gnu::always_inline]]` as well. Code that runs once per block needs
+no attribute.
+
+**The tail rule.** `render_block` writes every sample of the block, whatever its
+length. On the SIMD paths a block that is not a lane multiple ends with one
+partial step:
+- `Generator` calls `render()` once more and stores only the lanes inside the
+  block, so `render()` runs exactly `ceil(size / lanes)` times and a generator's
+  state advances by whole vectors, the partial one included.
+- `Processor` and `Mixer` load the lanes past the end as zero, run them through
+  `render` with the rest, and do not store them. A stateful SIMD processor or
+  mixer therefore advances once on the partial step; an owner that keeps one
+  across blocks accounts for that (the VCA, `Amplitude`, is built per block).
+
+Argon's `for_each` and `for_each_interleaved` keep the partial step's data in the
+vector registers on NEON: the tail is a predicated load and store, with no
+transfer of lanes to core registers.
+
+**In place.** Each step loads before it stores, so a processor's `in` and `out`,
+or a mixer's `out` and either input, may be the same buffer. The app calls
+`render_block(in, out)` with `in` and `out` the same buffer; every path gives the
+same result in place as out of place.
+
+**Writing `render_block` directly.** The existing components that write
+`render_block` themselves do so because their arithmetic is not per sample:
+irregular sync windows (`SyncedOscillator`, `WavetableSyncOscillator`) and
+wavetable cycle chunks (`WavetableOscillator`). Such a component satisfies only
+the `block_*` concept and follows the same tail and in-place rules. In new code,
+arithmetic that is per sample or per vector is a kernel's `step`, and
+arithmetic that reads a whole block, shapes it and writes it back (the delay's
+tape I/O) is a staged kernel's `process`; neither is a hand-written
+`render_block`.
+
+The crude oscillators and `CrudeAmplitude` are per-sample arithmetic that still
+carries hand-written block loops; they move onto kernels with the rest of the
+mixin components, and they are not a precedent.
+
+### Runtime selection (`core/as_block.h`)
+
+`BlockGenerator<T>`, `BlockProcessor<T>` and `BlockMixer<T>` are the virtual
+block interfaces, for a component chosen at runtime. **`AsBlock<C>` is the only
+route to them**: it holds a concrete component by value and implements the
+interface its `block_*` concept names. The block call is virtual; everything
+inside it stays inlined, so the virtual cost is paid once per block (32 to 128
+samples), never per sample.
+
+No component inherits a virtual interface. The synth's oscillator shapes
+(`src/synth/sources/va/va_shapes.cpp`) instantiate components statically;
+the oscillator registry is the first user of `AsBlock`.
+
+## Kernels (`core/kernel.h`, `core/mode.h`)
+
+A **kernel** is a stateless type holding a component's arithmetic. It owns no
+data and runs in no loop of its own: the wrappers ([Mono, Stereo and
+Control](#wrappers)) are the only loops, and they own the `Coefficients` and
+`State`. Every new component, and every stateful piece of one, is written as a
+kernel and wrapped: per-sample or per-vector arithmetic as a `step`,
+block-staged arithmetic as a `process`, a block-rate signal as an `advance`.
+This is a documented pattern checked by the `kernel` concepts, not a base
+class.
+
+Kernels compose into kernels. [`Chain<K1, …, Kn>`](#chain-and-pinned-corechainh)
+steps its parts one after another on each sample, in one pass, and is itself a
+kernel any wrapper takes; `Pinned<K, M>` is a moded kernel with its mode fixed
+at compile time, so a chain dispatches on the modes that vary and not on the
+ones that never do.
+
+### The parts
+
+- **`value_type`**: a block's sample (`q31` or `StereoSample`).
+- **`step_type`**: what `step` takes and returns. It is `value_type` for a
+  scalar kernel, `Argon<q31>` for a vector kernel over q31 blocks, and
+  `StereoVector` for a vector kernel over stereo frames. These are the pairs the
+  wrappers have loops for; any other pair fails the concept. A control kernel
+  sets `step_type` to `value_type`: its block is its step.
+- **`Settings`**: a plain value type holding what the owner sets (knob values,
+  mode, rate).
+- **`Coefficients`**: what the arithmetic reads, computed by the pure
+  `static Coefficients coefficients(const Settings&)` (`constexpr` where the
+  arithmetic allows; float arithmetic does not). It is specced on its own. A
+  value the owner needs back, such as a filter's gain compensation, is a field
+  of `Coefficients`, read through the wrapper's `coefficients()`; there are no
+  out-parameters.
+- **`State`**: the running memory. `State{}` is the reset state.
+- **`Block`** (optional): per-block values that depend on the coefficients and
+  the state, such as a ramp's start and increment. A kernel that declares a
+  `Block` must declare a `prepare`.
+- **`Mode`** and **`Modes`** (optional): `Modes` is a `ModeList<...>` of the
+  enumerators the kernel's `step` is instantiated for, and `Coefficients`
+  carries the chosen one in a `mode` member of that enumeration. A moded
+  kernel's `step` (or `process`) is a template on the mode. All modes share one
+  `State`. A default-constructed wrapper holds `Coefficients{}` and dispatches
+  on its `mode` at the first block, so `Coefficients{}` must be a constant
+  expression naming a listed mode; the concept checks it. An enumeration member
+  defaults to its zero enumerator, so a kernel that does not list that one gives
+  `mode` a default member initialiser.
+
+`Coefficients`, `State` and `Block` are plain value structs:
+default-constructible and trivially copyable, with no pointers and no hidden
+members.
+
+### `coefficients()` and `prepare()`
+
+`coefficients(settings)` is pure and runs on `configure`, not per block.
+
+`prepare` is optional and runs once per block:
+```cpp
+static Block prepare(const Coefficients&, State&, std::size_t n);
+```
+It is detected by name, so a `prepare` of any other shape (a template on the
+mode, a non-static member, a mismatched overload) fails the concept instead of
+being skipped. The signature is matched by converting `&K::prepare` to a pointer
+to that exact function type, so a template whose parameters deduce to it is
+accepted, and a `prepare` taking any other type is rejected, never converted. `n` is the block's length and may be 0: an empty block still prepares. The compressor is the exception: its `prepare` divides by `n`, its owner skips empty blocks, and a bare Mono, Chain or Linked use of it must not pass `n = 0`.
+The wrapper runs `prepare` on the wrapper's own state, before it takes the
+local copies the loop runs on, so the loop's state stays in registers.
+
+### The kernel's Context
+
+A kernel may declare `Context`, a plain value its owner passes to each block
+(`has_context<K>`; the synth's noise stream is the one use). Its step form then
+takes the context last: `step(c, b, s, Context&)`, `step(c, b, s, x, Context&)`
+or `step(c, b, s, a, b2, Context&)`, the counted partial step taking it after the
+`ActiveLanes` tag. `Mono` and `Linked` give such a kernel only context-taking
+`render`/`render_block`/`render_lane` overloads, so an owner cannot forget it: the
+wrapper copies the owner's context into a local before the block, hands that
+local to every step of every lane in order (lane 0 then lane 1 within each
+frame), and writes it back once after the block. `prepare` never sees it; a
+staged or control kernel may not declare one; `lane_packable` and `chainable`
+exclude it.
+
+### The five forms
+
+A kernel takes exactly one form; a class providing two satisfies none.
+
+| Form | Concept | Provides |
+|---|---|---|
+| Generator | `generator_kernel` | `step(c, b, s) -> step_type` |
+| Processor | `processor_kernel` | `step(c, b, s, x) -> step_type` |
+| Mixer | `mixer_kernel` | `step(c, b, s, a, b2) -> step_type` |
+| Staged | `staged_kernel` | `process(c, s, Signal in, Buffer out)` |
+| Control | `control_kernel` | `advance(c, s, n) -> value_type` |
+
+`c` is the `Coefficients`, `b` the `Block` and `s` the `State`. **`process` is
+for block-staged arithmetic only**: arithmetic that must read a whole block,
+shape it, then write the whole block. Arithmetic that is per sample or per
+vector is a `step`, even when it reads and writes memory outside its State (see
+[A frame step over external memory](#a-frame-step-over-external-memory-delay)). A staged kernel has no `Block`, so it
+declares no `prepare`; its per-block work is `process` itself. A staged kernel may be
+moded, with `process<M>`.
+
+**`process` works in place.** The app renders with `in` and `out` the same
+buffer, and every wrapper path gives the same result in place as out of place,
+so `process` must too. The wrapper's loops get this from loading each step
+before storing it; a `process` that reads a sample after writing one it has not
+yet read (a reversal written front to back, a look-ahead) stages what it still
+needs before overwriting it.
+
+A moded kernel's `step` or `process` is checked at the first mode of its
+`Modes` only; a step ill-formed at another mode is reported where the wrapper
+instantiates it.
+
+### A frame step over external memory: `Delay`
+
+`Delay` (`fixed/delay/delay_kernel.h`) is the reference for a fused component
+whose step writes memory it does not own. It is a processor kernel of stereo
+frames, rendered in place as `Mono<Delay>::render_block(block, block)`. Each
+frame reads the primary tape at its head, runs the feedback chain
+(`Chain<FeedbackShaper, Pinned<ShiftTracker<11>, REMOVE>>`, stepped once per
+channel), mixes, and writes the primary (and a growing secondary) before the
+next frame is read.
+
+- **The memory is handed in, not owned.** The tapes belong to the owner and
+  are pointed at by the `Coefficients`, which the owner rebuilds by `configure`
+  before every block, because the tape form comes from the tapes' state and the
+  owner's lifecycle (swap, abandon) changes it between blocks. The State holds
+  only the feedback memories and the block's results (`wrapped`,
+  `secondary_written`), which the owner reads and clears after each block.
+- **Per frame, not per block, is the behaviour.** Each write lands before the
+  next read, so an echo shorter than the block comes round within the block, as
+  the delay line plays it. Reading the whole block before writing any of it
+  drops or attenuates echoes at delays under one block (on 128-frame blocks, a
+  128-sample tape); `delay_frame_order_spec` and `delay_echo_spec` pin the
+  delay line's behaviour, and `render-audio-track-delay-extremes` renders it.
+- **Modes are the per-frame choices; the rest is per block.** Shaper, mix and
+  tape form are the eight modes, one loop each. `prepare` sets up the tapes for
+  the block (`DelayTape::setup_for_render`, an out-of-line call per active tape, so up to two per block)
+  and takes their storage bounds into the `Block`. Whether the primary reads and
+  the secondary grows stays a branch in the loop: `growing` holds during every
+  secondary growth (a settled rate, the rate at least doubled, or the rate below
+  half), not only at a new delay's first blocks.
+- **Cold work stays out of line.** The resampled secondary's write runs only
+  while a resampled secondary grows, which lasts about one delay period (up to
+  about 345 blocks, roughly 1 s, at the maximum length), so it is one `noinline`
+  cold call rather than code inlined into all eight loops. The bench's `growing`
+  case uses a native secondary, so the resampled-growth path is not benched.
+- **It declares `kStateInPlace`.** Its State is two response histories, about
+  424 bytes; see [`Mono<K>`](#monok-coremonoh).
+
+### Block arithmetic in `prepare`, block inputs by event: `Compressor`
+
+`Compressor` (`fixed/dynamics/compressor_kernel.h`) is the reference for a
+processor kernel whose per-frame work follows arithmetic done once per block on
+values that arrive with each block. It is the RMS feedback compressor as one
+fused frame kernel of stereo frames, rendered in place as
+`Mono<Compressor>::render_block(block, block)` by its owner,
+`RmsFeedbackCompressor`, which holds no scratch.
+
+- **The block's inputs arrive by event, the knobs by `configure`.** The channel
+  gains, the final volume and the threshold knob come with each render call, so
+  the owner stores them with `on<&Compressor::set_levels>(levels)` before the
+  block; `prepare` reads them from the State. The knobs build the
+  `Coefficients`, so a knob change or a new makeup reconfigures the wrapper and
+  leaves the envelopes, gains, detectors, saturators and level as they are.
+- **The block arithmetic is `prepare`.** The makeup and reduction envelopes
+  (float, in nepers: a log and three exps), the gain and its clamp, the
+  gain-reduction reading, and the two increments that ramp each channel's gain
+  to its target by the block's end. The increments are the `Block`; the
+  envelopes stay in the State.
+- **The step is the frame:** ramp each channel's gain, multiply, saturate
+  (`AntialiasedTanh` at drive 3), blend in `BLEND`, and measure.
+- **Events around the block.** The owner's order per block is `set_levels`,
+  `seed` while the saturation is unseeded (from the block's first frame), the
+  block, then `finish_level`, which turns the block's 64-bit sum into the mean
+  square and the log RMS level the next block's gain follows. A reset (the
+  `reset` quirk) zeroes the envelopes and the mean and unseeds the saturation;
+  the gains, detectors and last level carry on. An empty block renders nothing
+  and changes nothing, since `prepare` divides by the block's length.
+- **The blend needs no scratch.** `BLEND` mixes the frame as it came in back at
+  the dry level, `dry_wet_blend`'s arithmetic. The step reads its input frame
+  before the wrapper stores the output, so the dry signal is the step's own
+  `x`, in place. The blend knob picks the mode per block: `WET` at `Q<31>::max()`,
+  since the blend there is not an identity.
+- **The measurement runs one frame behind.** Measured on the output it has just
+  made, a frame is one dependency chain (the gain multiply, the table lookup and
+  interpolation, then the detector, the square and the 64-bit add), and the
+  core overlaps little of one frame with the next. Each step measures the frame
+  before instead, held in the State's `pending`, which its own gain and
+  saturation do not wait on. `prepare` sets `pending` to the detectors' own
+  memories, which high-pass to 0 and leave the memories as they are, and
+  `finish_level` measures the block's last frame. The sum is integer, so its
+  order changes nothing. The cost of each form is in
+  [a9_dsp_performance.md](a9_dsp_performance.md#compressor).
+- **The level cannot wrap.** The detector output's magnitude is unsigned
+  (`INT32_MIN` measures 2^31), and its square's high word is summed in 64 bits:
+  at most 2^37 over 128 frames.
+- **It declares `kLoopState`, not `kStateInPlace`.** The loop's part of the
+  State, `Compressor::Loop` (the channel gains, the saturators, the detectors,
+  `pending` and the 64-bit sum), is scalars, which the loop keeps in registers or
+  spills to the stack: the wrapper copies only that part in and out. The levels,
+  envelopes, `log_rms`, `mean`, block length, seed flag and LED value are read
+  and written only by `prepare` and the events, so they stay in the member State.
+  Stepped in place, the loop would store eight State words every frame, since
+  the output may alias the State. Copying only `Loop` costs 100–150 cycles less
+  per block than copying the whole State, which the compiler does with NEON
+  loads and stores
+  ([a9_dsp_performance.md](a9_dsp_performance.md#compressor)).
+
+### A kernel over memory an engine component owns: `ModFx`
+
+`ModFx` (`fixed/mod_fx/mod_fx_kernel.h`) is the reference for a moded kernel
+whose memory belongs to an engine component. It is the mod FX as one processor
+kernel of stereo frames, rendered in place as `Mono<ModFx<>>::render_block(block, block, noise)`
+by `effects::ModFx` (`effects/mod_fx.{h,cpp}`). The kernel knows modes,
+rates and a ring it is pointed at; the component knows `ModFXType`, the params,
+the allocator and the soft off.
+
+- **Eight modes, one loop each.** Chorus and flanger in stereo (the right tap at
+  the negated LFO) and in mono (both taps at the left's position), dimension
+  (stereo and mono alike), warble in both, and the phaser (six stereo allpass
+  stages, no ring). `effects::mod_fx_mode` maps the type and the render's
+  width to the mode; the mode is one of `Settings`, so a change of type or
+  width reconfigures the wrapper and leaves the State as it is.
+- **The ring is keyed to the type.** A ring exists exactly when the type is a
+  ring type (chorus, stereo chorus, dimension, flanger, warble;
+  `effects::is_ring_type`) and the allocation succeeded. The component allocates
+  and zeroes it before the owner's audio-excluded section (`prepare`), hands it
+  to the kernel inside the section (`commit`, as the `set_ring` event, or takes
+  it back as `clear_ring` when the new type needs none), and frees what it took
+  back after the section (`finish`). A change between ring types holds the ring
+  and changes nothing, so the audio in it plays through the new mode's taps. A
+  ring type with no ring (out of memory) passes through, and the phaser holds
+  none. The kernel never allocates or frees.
+- **The hand-over is one pointer in the State.** `State::ring` is the only
+  link to the owner's memory, so the per-block State copy and `state()`'s
+  by-value snapshot carry the pointer, not the 4 KB it points at, and the
+  render allocates nothing. `clear_memory` zeroes the ring when one is held and
+  the phaser's memories otherwise; the component clears the phaser's memories
+  in a chain's soft off, as an owner without a ring does. `zero_ring` zeroes
+  the ring and keeps the write index.
+- **One LFO state serves every mode, and a change of wave re-seats it.** The
+  phase carries across mode changes. The waves are sine (chorus, phaser),
+  triangle (dimension, flanger) and the warbler. `prepare` zeroes the main
+  warbler when the mode's wave is not the one the LFO last stepped, so a return
+  to warble starts the warbler afresh while its taps read a full ring, and a
+  change between modes of one wave leaves it alone. Warble steps a second
+  warbler at 0.97 of the rate, every frame: in stereo it moves the right tap,
+  and in mono it only draws its random targets, which keeps the noise sequence
+  the same in both. The right tap's LFO is chosen per mode at compile time: its
+  own, the second warbler, or the left's negated.
+- **The noise is the block's Context.** The warblers' random targets are drawn
+  from the stream the owner passes (`FxInputs::noise`), so the kernel's specs
+  pass the synth's stream reseeded to the boot seed.
+- **The State is copied whole.** It declares neither `kStateInPlace` nor
+  `kLoopState`: it is 100 bytes (the ring pointer, write index, two phases, two
+  warblers, the wave, the phaser's memory and six allpass stages), copied in and
+  out by `Mono` through `__aeabi_memcpy4`, a word-by-word loop in
+  `compiler_builtins` at the shipping flags, not a NEON copy. Nearly all of it
+  is the loop's own, so a partial copy would save little; the cost is in
+  [a9_dsp_performance.md](a9_dsp_performance.md#mod-fx).
+- **Inputs by value, results by reference.** The component's `render` takes the
+  type in effect (NONE in a chain's soft off), the rate, depth, offset and
+  feedback finals, whether the render is stereo and whether any sound came in,
+  and multiplies the post-FX volume by the mode's gain whenever the block
+  renders (a sound comes in and the type is an effect, not NONE or grain), since
+  the volume cut at high feedback applies in every effect type. `tick` advances
+  the phase by a block's frames while the owner skips rendering.
+- **A type without a ring frees it.** Changing a chain's type to grain, OFF or
+  the phaser frees the ring, so coming back to a ring type starts from a zeroed
+  ring. Grain holds no ring.
+
+`RmsFeedbackCompressor` is engine glue as well (the owner of `Compressor`'s
+levels, its events and its `finish_level` call), and belongs beside
+`effects::Compressor` in `effects/`; it moves there later.
+
+### Derived knob state and a send cursor: `Granular`
+
+`Granular` (`fixed/granular/granular_kernel.h`) is the granular effect as one
+processor kernel of stereo frames, rendered in place as
+`Mono<Granular<>>::render_block(block, block, noise)` by `effects::Granular`
+(`effects/granular.{h,cpp}`). The kernel knows a ring it is pointed at,
+eight grains and four knobs; the component knows `ModFXType`, the allocator and
+what entering GRAIN does for each kind of owner.
+
+- **The knobs' derived values live in the State.** Each value is recomputed only
+  when its own knob moves (the grain size from the density and the rate, the
+  period from the rate, the wet, dry and feedback volumes from the mix), and the
+  size is computed from the period before the rate's own update. That caching
+  is not a pure function of the knobs, so it cannot be recomputed in a
+  `coefficients()` call: `State::levels` holds the values and `State::knobs` the
+  knob positions they came from, `prepare` updates them once per block, and the
+  `Block` it returns is a copy of `State::levels` (24 bytes; the randomness,
+  which is not cached, refreshed each block), so the steps read the values from
+  registers and the State carries them between blocks. The State is about 330 bytes: the ring pointer and indices,
+  eight grains of 36 bytes, the two wet low-pass memories, the send cursor and the derived values.
+- **A high-water mask replaces zeroing the ring.** `State::written` counts the
+  slots written since the ring was taken up (`set_ring`) or restarted
+  (`restart`), and a grain's tap at or past it reads zero. The ring is never
+  zeroed by the kernel or the render, so taking one up costs nothing in the
+  audio tier, and a slot a decay restart has not rewritten reads silence where
+  it would have read the owner's earlier audio. `clear` keeps the slots written
+  before it, and the frame loop keeps `written` as one conditional move
+  (a comparison).
+- **The send cursor is an explicit second output.** The reverb feed is a value
+  per frame added to a buffer the owner supplies, so `State::send` is that
+  buffer's cursor: the `set_send` event sets it and the send amount each block,
+  and the frame step adds to it and advances it. The kernel's contract stays
+  "frames in, frames out", and the second output is a pointer the component
+  hands over by event, not a global. The post-FX volume is the other
+  by-reference result: `post_fx_volume` returns the owner's volume divided by
+  √2 for the component to store.
+- **The State block is kept for the owner's life, and the ring is keyed to the
+  type.** The first entry into GRAIN allocates the State and keeps it until the
+  owner is destroyed, so the grains, the wet low-pass memories, the first-pass
+  flag and the shutdown countdown survive a stay on another type. The 512 KB
+  ring (65,536 frames) exists exactly while the type is GRAIN: `prepare`
+  allocates it before the owner's audio-excluded section, `commit` hands it to
+  the kernel inside it (`set_ring`, or `restart` and `clear_ring` when the type
+  leaves GRAIN), and `finish` frees what was taken back after it. The kernel
+  never allocates or frees. A failed allocation leaves the effect passing
+  through.
+- **Entering GRAIN is per owner.** `EnterGrain::CLEAR` stops the grains and
+  begins the first pass again (a sound, whose change to GRAIN clears the
+  effect); `EnterGrain::KEEP` only takes the ring up afresh and leaves the
+  effect idle until its first sounding block (a clip or master chain, whose
+  effect is made when it first renders). The kernel has the events
+  (`clear`, `restart`, `arm_shutdown`, `note_full`); which of them an owner
+  gets is the component's.
+- **The frame loop has no call but the grain start.** `start_grain` is
+  `[[gnu::noinline]]` and runs once per `period` frames, about every 1,242
+  frames at the benchmark's rate, with no `muls` in the loop. The eight-tap
+  loop and the frame step are inlined into `effects::Granular::render`. See
+  [a9_dsp_performance.md](a9_dsp_performance.md#granular).
+- **The State is stepped in place.** The kernel declares `kStateInPlace`: the
+  copied form is 1% to 7% slower in every case, 530 to 690 cycles per block
+  (two copies of 330 bytes through `__aeabi_memcpy4`).
+- **The noise is the block's Context.** The spray, direction, pitch class,
+  first-pass start and pan of each grain are drawn from the stream the owner
+  passes, in that order, so the kernel's specs pass the synth's stream reseeded
+  to the boot seed.
+
+### Memory the render allocates from, lent by the interaction tier: the delay's arena
+
+The delay's tapes cannot be keyed to a type the way the mod FX ring is: a
+tape's size follows the delay rate (`DelayTape::ideal_size_for_rate`, 1 to 88,200
+frames), which the render computes from params, cables and automation, and a
+rate that moves far enough grows a second tape that is swapped in once
+written. So the render takes and gives back its own tapes, from memory the
+interaction tier lends it: `effects::DelayArena`
+(`effects/delay_arena.{h,cpp}`), driven by `effects::Delay`
+(`effects/delay.{h,cpp}`, the engine glue around the kernel's
+`DelayProcessor`).
+
+- **Regions, each its own heap.** The arena holds up to 32 regions of 1.5 MB of
+  SDRAM, each with a bounded-time heap built over it (`deluge_heap_create`).
+  `take` and `give_back` run in the render; no other tier touches a region
+  while the render can. Everything outside `deluge_effects` (the general heap,
+  the BSP heap, the app loop) comes through `effects::DelayArenaMemory`.
+- **The margin.** While any owner's delay type is not OFF, the arena holds room
+  for two tapes of the largest size and, for each such owner, the reserve its
+  slot holds: the largest of a neutral-rate tape, the tape its settings need
+  (its rate param in each of its param managers, synced at the song's tempo,
+  without cables or modulation) and the largest tape it has taken. The margin
+  packs these largest first into the regions' free space, since a 1.5 MB region
+  holds only two of the largest tapes, and confirms the two largest by a trial.
+  The interaction tier sets the reserves when an owner is switched on or loaded,
+  when its rate param or sync changes and when the tempo changes; the render
+  only raises one when a tape it takes is larger. A `take` or a raised reserve
+  that leaves the margin short asks for the arena's job, which lends regions in
+  `prepare`, attaches them in `commit` inside an audio-excluded section, and
+  returns what was not needed in `finish`, a region a pass until the margin
+  holds.
+- **Regions stay while their owners stay on.** A delay that starts and rings out
+  again and again keeps its region, so it takes nothing from the general heap
+  (whose allocator evicts sample cache to find 1.5 MB) after the first time.
+  Regions are returned as owners are counted out (set OFF, hibernated or
+  destroyed), once what remains holds the margin, and all of them when no delay
+  is on.
+- **The delay type keys the margin.** An owner is counted while its type
+  (`DelayType`: off, digital, analog) is not OFF, and gives its tapes back when
+  set OFF. A file that saves no type has its delays set OFF only where no param
+  could lift the feedback.
+- **When the arena runs short.** A tape is taken and given back at the blocks
+  the delay asks for it, and the tapes never read storage they have not written,
+  so recycled storage needs no zeroing (`delay_poisoned_storage_spec`). With the
+  reserves in place before a downbeat or a tempo change, every delay finds its
+  tape (`CG-DELAYMARGIN`, `render-tempo-delays`). A delay whose rate a cable,
+  an LFO or automation pushes past its reserve, or whose sync follows an
+  external clock, finds its reserve only after its first larger tape; until the
+  job tops the arena up it passes the audio through. The render-song gates
+  require no shortfall (`RS-DELAY-ARENA shortfalls=0`).
+
+### A kernel over a tape its engine component owns, handed over by the song: `Stutter`
+
+`Stutter` (`fixed/stutter/stutter_kernel.h`) is the stutter as one processor
+kernel of stereo frames, rendered in place as `Mono<Stutter>::render_block(block, block)`
+by `effects::Stutter` (`effects/stutter.{h,cpp}`). The kernel knows
+the tape it is pointed at, the rate and whether it records or plays; the
+component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
+`model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
+stuttering, by the chain core that plays the tape; the owner's knob code keeps
+the UI mode and the quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
+the owner's chain the stutter and its rate each block (see "Effect chains").
+
+- **Four modes, one loop each.** Record or play, over a native or a resampled
+  tape. `coefficients` takes the phase from `Settings::playing` and the tape's
+  form from `DelayTape::resamples_at`, the rule the block's own
+  `setup_for_render` (in `prepare`) follows. Recording clears ahead of the read
+  head, counts the frames left, writes the frame `kWriteLag` behind and passes
+  it through. Playing steps the head forward or back and returns the tape's
+  frame; resampled, the two taps are weighed by the advance's 16.16 strengths
+  and their sum wraps (`wrapping_add`, shifted through `uint32_t`). Ping-pong
+  turns the head at either end of the tape, mid-block.
+- **Record turns to play between blocks.** When a recording block's frames ran
+  out, the component sends `finish_block` after it: the head to the tape's start
+  (its end when reversed), and `playing` set. A block never changes mode midway.
+- **The tape is the component's, and the song hands it over.** One stutter at a
+  time, owned by the song. `SongStutter::begin` runs the component's `prepare`
+  (it allocates the tape's storage from the low-speed heap, not zeroed: the read
+  head clears each sample before the write behind it reaches it), then, inside
+  an audio-excluded section, `commit`, which starts the kernel over the new
+  tape and takes a tape already held (another owner's stutter) back into the
+  change, and sets the owner; then `finish` frees what was taken back. `end`
+  does the same with `commit_end`. Both note `STUTTER_TAPE` to the
+  structural-edit probe. The render compares the owner's address with the one
+  stuttering and never dereferences it.
+- **A song swap ends it.** Both swap paths (`PlaybackHandler::doSongSwap` and
+  `deleteOldSongBeforeLoadingNew`) end the outgoing song's stutter and leave
+  the stutter UI mode before the song is let go; an owner deleted while it
+  stutters ends it too.
+- **Evidence.** `tests/unit/dsp/reference_stutter.h` is the old `Stutterer`'s
+  `processStutter` verbatim but for owned storage and the wrapping sum; it equals
+  the old app code over every workload of `stutter_workloads.h`
+  (`kRecordedReference`), and the kernel (`stutter_kernel_spec`) and the
+  component (`effects/stutter_spec`) equal it. The render gates
+  `render-stutter-*` stutter an audio track, a kit (quantized and reversed), the
+  master (ping-pong), a turned rate and a hand-over, recorded on the old code;
+  `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
+  hand-over.
+
+### A source over a shared history, hopped by a scheduler: the live pitch shifter
+
+The live pitch shifter (`fixed/pitch_shift/`, glued by `synth/sources/input/live/`) plays a voice's live input at
+another pitch by reading the input's recent history back at the shifted rate, through two play heads cross-faded at
+each hop. Its pieces split by rate:
+
+- **Per sample, kernels.** `SlopeFollower` (a processor kernel) follows the input's smoothed slope, and
+  `percussiveness()` reads an onset measure from it every 128 frames. `PlayHead<Frame>` (a processor kernel, mono
+  `Q<31>` or stereo `StereoSample`) adds one head into the voice's block in place: `DIRECT`, or repitching through the
+  windowed sinc or linearly, one mode per segment. Its window is the `Interpolator`, fed through its head and tail
+  feeds (`advance`, `fill_tail`), which the sample reader uses too; the taps are private.
+- **Per block, a component.** `InputHistory<Frame>` holds the last 8192 frames and the onset measures. The synth's
+  `LiveInput<Frame>` wraps it, ingesting each audio block once however many voices read it. The input oscillator
+  owns its histories (`LiveInputStore` on `::Source`: its channel's, and for stereo the stereo one and the left), made
+  and freed on the interaction tier as its type changes and handed to the render inside an audio-excluded section;
+  its voices read them through `LiveInputs`, bound with their ports.
+- **Per hop, objects.** `PitchShiftTuning` gives the pitch-dependent search ranges, threshold, crossfade and hop
+  lengths as coefficients of the shift. `HopPlanner` places each hop's new head: `PercussiveSearch` finds how far back
+  a pitched-up hop starts, `WaveformAligner` lines its window up with the old head's by moving averages, to a
+  sub-sample phase. `HopScheduler` is iterated over a block (`while (auto s = scheduler.next(...))`): it shortens hops
+  a head cannot last, cuts them on an onset, plans the hop when it ends, and gives each head's amplitude across each
+  segment of the linear crossfade.
+- **The component.** `LivePitchShifter<Frame>` is the scheduler, the two heads and the render loop: configure the
+  heads for the block's history and shift, then render each segment's heads in place. `PitchShifter` is the voice's
+  handle, one allocation of whichever instantiation the channel needs, owned explicitly by `InputSource`.
+- **Evidence.** `tests/unit/dsp/reference_live_pitch_shifter.h` is the old three classes verbatim but for owning their
+  storage; it and the component equal the records the old classes made over 27 workloads
+  (`pitch_shift_workload_records.h`), and each piece has a spec against its verbatim reference
+  (`slope_follower_spec`, `input_history_spec`, `pitch_shift_tuning_spec`, `play_head_spec`, `percussive_search_spec`,
+  `waveform_aligner_spec`, `hop_planner_spec`, `hop_scheduler_spec`, `interpolator_feed_spec`). The goldens
+  `input_pitchshift_*` play it up and down, in stereo, with unison and linear interpolation, through unity, and on the
+  harness's percussive test signal (`RENDER_INPUT=2`).
+- **Quirks.** Everything bit-exactness kept is named in the code and listed, with what to try, in
+  `docs/dev/live_pitch_shifter_quirks.md` (Q1–Q13).
+
+### A float kernel and a fixed one over one buffer, the model chosen per block: the reverb
+
+The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and
+`fp::Plate` (`float/reverb/plate.h`, float, modes MUTABLE and DIGITAL), each rendered in place over the master block as
+`Mono<K>::render_block(block, block)` by one component, `effects::Reverb` (`effects/reverb.{h,cpp}`).
+
+- **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
+  `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
+  float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
+  and its output stage is `to_q31_saturating` then the rounded multiply-accumulate, both named in the kernel.
+- **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 28,522 words laid out
+  end to end by `kLayout` (each line followed by the 128 words a NEON pass runs on into), or the plate's 32,768-float
+  ring. The State holds only indices, the combs' stores and the
+  filter memories. The plate does not declare `kStateInPlace`: copying its State into registers for the block measures
+  9-19% faster. Freeverb is a block-staged kernel: `process` runs the block in NEON passes of four lines per vector,
+  148 against 249 cycles per channel-sample for the frame kernel, which still renders a block's last frames when the
+  block is not a multiple of four; see `a9_dsp_performance.md`, "Reverb".
+- **Freeverb's DC blocker is a nested part.** `Pinned<ShiftTracker<11>, REMOVE>`, stepped through
+  `kernel_ops::step_at` on each send sample. A `Chain` cannot hold it: it filters the mono send, not the frame the
+  chain steps. The blocked sample is not written back into the send: nothing reads the send after the reverb, and a
+  poison fill there leaves every golden and render gate unchanged.
+- **Unrolled combs.** The eight combs and four allpasses per channel are a fold over `std::index_sequence`, so each
+  line's base and length are immediates; as loops over the layout table they run 21% slower, the State
+  indexed rather than at fixed offsets.
+- **Constexpr topologies.** Each mode's line table (`kMutable`, `kDigital`) is a constexpr aggregate read by member, in
+  the reference's topology order, each line `length + 1` slots. Named quirks: Digital's lengths are
+  `float × kRatio` truncated to whole frames, its output taps `int × kRatio` truncated to `int32_t` (`tap`, consteval),
+  its modulated reads not truncated, and its excursion `size_t(16 × kRatio) = 10`. `static_assert`s keep every read
+  inside its line, at the LFO's reach (`kLfoMin`, `kLfoMax`): the lanes are nominally 0 to 1, and the recurrence's
+  float rounding carries them to about 6.8e-4 past either end, where they settle and stay.
+- **The LFO is a control kernel inside the plate.** `fp::PlateLfo` (`float/reverb/plate_lfo.h`) on
+  `ArgonHalf<float>` is advanced through `kernel_ops::advance_at` when the write index, stepping down, is a multiple of
+  32, read every frame through `value()` (`y_0 + 0.5f`), and started by an event that reads the coefficients
+  (`Plate::start`), sent after every reset.
+- **Float under `-funsafe-math-optimizations`.** The plate's step and both kernels' `coefficients` compile in the
+  translation units that instantiate them (the component's, in `deluge_effects`), and match the reference bit for
+  bit there; every step that moved float code ran `golden-synth`, `golden-synth-arm` and the `render-reverb-*` gates.
+- **The component.** One union buffer, in SRAM `.bss`; the model chosen per block by a `switch`,
+  with no variant and no virtual call. A model change, the same model included, is three steps around two
+  audio-excluded sections: `begin_change` (inside the first) stops the render adding reverb, `prepare` (between them)
+  zeroes the buffer and resets the model's State configured from the held settings, and `commit` (inside the second)
+  hands it to the render. A song swap at a launch rebuilds on the audio tier, inside the render, where the sections
+  are empty; one that interrupts an interaction-tier rebuild only records its model, which that rebuild applies before
+  it commits (`AudioEngine::setReverbModel`). The knobs arrive by `publish`, inside an excluded section, and the
+  render configures from them at its next block (and again after every `prepare`, so no publish is lost to a
+  rebuild). The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
+  into the two return levels.
+- **Evidence.** `tests/unit/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
+  `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
+  (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`effects/reverb_spec`)
+  equal it. The render gates `render-reverb-freeverb`, `-mutable`, `-digital` and `-switch` render each model away
+  from its defaults and switch models and knobs mid-song as the menus do, recorded on the old code. The `reverb` bench
+  list times each model as the engine renders it.
+
+### The chains' small stages, the duck and the engine's own: bitcrush, EQ, send and volume, metronome, monitoring
+
+Each is a kernel run through `Mono<K>` by the `effects` class (or engine class) that held its arithmetic, now
+an adapter over it. All are bit-exact to the code they replace; `tests/unit/dsp/reference_effects.h` keeps that code line
+for line. The specs drive the adapters themselves (`effects::Bitcrush`, `Equalizer`, `SendAndVolume`, `Metronome`)
+against it over every block size, on x86 and qemu-ARM; the monitoring kernels are held to it directly, and the
+engine's monitoring decision to a copy of the function it replaced.
+
+- **`duck_gain<DuckScale>` (`fixed/dynamics/duck_gain.h`).** A sidechain's duck as a squared level, once per block,
+  so a function rather than a kernel form. One law at two output scales, both named: `CLIP` (2^27 unducked, a clip
+  chain's post-reverb volume) and `REVERB_RETURN` (2^29 unducked, the reverb's return). `effects::Sidechain::level`
+  is the one place a duck becomes a level; `TrackChain` and `effects::Reverb` (which owns its return's `Sidechain`
+  and a `ReturnDuck`, the depth and shape `AudioEngine::updateReverbParams` chooses) both call it.
+- **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A block-staged stereo kernel. Each block starts the gains at
+  this block's volumes, works out the ramp's step from the last block's post-reverb volume and folds the pan in; then
+  `process` runs four frames to a pair of NEON vectors (the gains for frames f and f + 1 in one vector, the four
+  frames' channel sums for the send in another, each product the high word as the frame arithmetic's) and the
+  block's last frames, when it is not a multiple of four, one at a time. The reverb send's cursor is advanced per frame
+  as `Granular`'s is (`set_send` points it at the block's reverb input). Named quirk: the ramp starts at this block's
+  gain and steps before the first frame, ending one block's change past its target. `prime` and `forget` are
+  events.
+- **`ShelfPair` (`fixed/filter/shelf_pair.h`).** The EQ's two shelves. Not `OnePole`: the steps truncate, and the
+  treble's is doubled while the bass's is not. Modes `BOTH`, `BASS`, `TREBLE` step only the bands that are on, so a
+  flat band's memory holds; the adapter skips the kernel with both flat. The band coefficients are computed every
+  block, so nothing is held between blocks and a clone copies nothing.
+- **`BitDepth` and `SampleRateReducer` (`fixed/shaping/`).** The mask (stateless) and the 22-bit down/up
+  interpolator (its `start` event zeroes the last input, the grab and the low position each time the effect switches
+  on). `effects::Bitcrush` composes them and returns `BitcrushBlock{volume_shift}`, which the chain applies to its own
+  post-FX volume.
+- **`Click` (`fixed/osc/click.h`).** The metronome's square, its aliasing named, gated between blocks after 1000
+  frames (`prepare` closes the gate; `trigger` and `sounding` are events). `Metronome` takes the song's post-FX
+  volume from the engine, which reads it only while the click sounds.
+- **Monitoring (`fixed/mix/output_fold.h`, `fixed/mix/track_monitor.h`).** `output_monitor_fold` is the output
+  stage's per-sample fold by a shift (`STEREO`, `LEFT_ONLY`, `DIFFERENTIAL`), a function in a header free of the
+  kernel framework. `TrackMonitor` is an audio track's mixer kernel: the input at an amplitude ramped across the
+  block, folded (`STEREO`, `LEFT`, `RIGHT`, `BALANCED`, `COMBINE`, the halves by division) and added; its State is
+  reset by each block's `prepare`, so the track runs a local `Mono` over the block's input copied out of the ring.
+  `audio::InputMonitor` (`processing/engines/input_monitor.h`) decides the output stage's fold and owns the warm-up.
+- **Evidence.** Render gates recorded on the old code before any move: `render-bitcrush`, `render-eq-bands`,
+  `render-metronome`, `render-reverb-duck-override` and `-track` (the override from the owner with the most reverb,
+  one song per branch), each red under a neutering of the path it covers. Monitoring has no render gate (the
+  scenario plays no input); `input_monitor_spec` and the exhaustive `input_monitor_decision_spec` cover it.
+
+### A family of its own: the DX7 (`fixed/dx7/`)
+
+The DX7 engine (the Dexed port: the modern engine and the MkI engine) is its own family, kept apart from the legacy FM
+synth: `dx7::` kernels for its tables' lookups, its envelopes, its LFO and its operators, and two components,
+`dx7::Graph` and `dx7::Voice`, that walk them. The app keeps the patch (`DxPatch`), the pool, the voice adapter, sysex,
+the codec and the UI.
+
+- **Tables lent by pointer.** `dx7::Tables` (`tables.h`: the exp2 and sine tables as delta/value pairs, the frequency
+  table, the MkI log-sine and exp tables) is built once at 44.1 kHz by `generate`, with the same libm calls in the same
+  order the engine always made, and owned by `DxEngine` in its heap block, allocated on first DX use. Every lookup
+  (`lookup.h`) and kernel that reads them takes a `const Tables*` in its Coefficients, as the delay is lent its tape:
+  no table is rodata, because the build's `-funsafe-math-optimizations` and two libms must not move a word, and
+  `generate` is pinned against the verbatim reference word for word.
+- **The buses lent the same way.** The two intermediate buses operators render into are one `dx7::Buses`, owned by
+  `DxEngine` and passed to `Graph::render_block` and `Voice::render_block` per block: voices render one at a time, and a
+  pair per voice would cost about 1 KB of SRAM each across the pool.
+- **Control kernels, configured from the live patch.** The pitch envelope (`PitchEnvelope`), each op's envelope
+  (`Envelope`, out of line: one `advance` per op per block), the LFO delay (`LfoDelay`) and the patch's LFO (`Lfo`,
+  owned by the patch, key sync its event) are `Control` kernels. The patch is edited live, so the envelopes and the
+  LFO are configured from its bytes before every block and every event; the LFO delay is configured at note-on only,
+  because the voice reads the delay once per note. The envelopes' States carry the engine's own state fields.
+- **The operator: twelve modes, and a vector step of its own.** `Operator` (`operator.h`) is a moded mixer kernel
+  (modulation and accumulator in, one sample out): engine (modern or MkI) × input (none, a bus, the feedback history)
+  × output (set or add). `prepare` ramps the gain over the block and moves the held phase on; `audible` is the
+  engine's gate, `skip` the gated op's bookkeeping, `resume` loads the voice's state. The modern op with no feedback is
+  `ModernVectorOperator` (`modern_vector_operator.h`), a kernel of its own because a kernel has one `step_type`
+  (`Argon<q31>`, four samples a step); both share `OperatorState` (phase and gain), so an op switches between them
+  block by block with nothing to copy.
+- **The MkI stacks.** With feedback, MkI renders op 6's whole stack in algorithms 4 (three ops) and 6 (two) sample by
+  sample, the feedback taken from the stack's bottom: `MkIFeedbackStack<N>`, a generator kernel. An op after op 6
+  holds its new attenuation for the block, or falls from silence when that attenuation is 0, a named quirk.
+- **The graph, a component.** `Graph` (`graph.{h,cpp}`) holds the six `OperatorState`s and the feedback history and
+  walks the `constexpr` algorithm table (`algorithms.h`) once per block, a `Mono` per op: the gate, adding to an empty
+  bus sets it, an empty input is no input, MkI fuses algorithms 4 and 6, and MkI shifts algorithm 32's feedback two
+  steps further, each named where it is applied. It keeps no settings: each block's levels and pitches arrive with the
+  block (`render_block(settings, out, buses)`), so a voice holds only its operators' phases and gains and the history.
+  Its verbs are documented at the class.
+- **One arithmetic, two implementations.** The modern operator's sine is the device's polynomial, not the table. The
+  device renders the modern ops with no input or a bus input through its NEON kernel (`neon_fm_kernel.s`, beside the
+  graph: `graph.cpp` takes it when the build names its symbol in `DELUGE_DX7_NEON_KERNEL`, as the firmware's does);
+  every other build steps `ModernVectorOperator` (Argon), which computes exactly what the kernel computes: integer
+  wrapping phase, `phase0 + i·freq` for sample i; a
+  float gain ramp converted with 24 fraction bits, sample 0 at `gain1` (a sample behind the scalar operator's
+  pre-increment) and one float add per step; the position `((phase + modulation) & 0x7fffff) − 0x400000` converted with
+  22 bits, bit 23 the sign; three non-fused multiply-adds in x², each rounding (the A9's NEON has none fused); the
+  product with the gain converted with 24 bits, truncating and saturating, NaN to 0; the sign applied as a bitwise
+  NOT (−y − 1); the accumulator added with wrapping. No denormal arises. `Mono` runs it three vectors at a time
+  (`kChains`, see [`Mono<K>`](#monok-coremonoh)), each stage written for the three in turn as the kernel does,
+  with the gain ramp's order held by a register barrier. So stepped it keeps pace with the kernel on ops with no
+  input, but not on ops reading a bus: the kernel issues each block's loads a block ahead, which the compiler cannot
+  do for the step without spilling (`a9_dsp_performance.md`, "DX7"), so the device keeps the kernel. The
+  graph spec on ARM builds the graph with the kernel, and holds it to the same references as the Argon build.
+- **The voice, a component; noise a policy.** `Voice<Noise>` (`voice.h`, its note-on scaling in `voice_scaling.h`)
+  runs the envelopes, base pitches, LFO delay and graph for one note. Its verbs (`start`, `release`, `retune`,
+  `render_block`) each take the patch as it stands: its bytes, clamped to the engine's ranges and lent by the owner
+  (the app's `DxPatch` keeps one clamped copy, renewed at note-on and when the patch changes), the note and the
+  velocity, so the voice keeps only what the note carries. `Noise::render()` gives one draw: a note-on draws six
+  detunes in op order, then six phases unless the oscillators are key-synced; a block draws none. The app's voices are
+  `Voice<>`, drawing from the synth's stream at note-on.
+- **Named quirks.** A new patch's LFO phase and a new voice's feedback history start at `State{}` (0); the feedback
+  history carries across a retrigger; a voice lives while an op's gain is at or above the modern engine's threshold,
+  which a silent MkI op's attenuation (near `kEnvMax`) passes, so a released MkI voice never ends; an envelope's retune
+  sets a level-less target that the stage entry overwrites; the LFO's triangle plays the sine.
+- **Evidence.** `tests/unit/dsp/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
+  workload of `dx7_workloads.h` (`kRecordedReference`: output, state, liveness) on host and ARM; each kernel and
+  component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
+  the device renders them (`VectorCore`). `reference_neon_fm_kernel.s` is the device's NEON kernel, pinned under qemu
+  over 1,200 cases (`dx7_asm_pin_records.h`); the vector step equals it on x86 and ARM, with and without the device's
+  float flags, and on ARM the graph built with the kernel equals the reference taking it on every block and voice.
+  The `dx7/` golden cases reach what no community preset does, each recorded on the engine before it moved; the one
+  re-baseline, when the host and sim took the kernel's arithmetic (the goldens had rendered the table sine, which the
+  device never played), moved only the cases that render modern. The `dx7` bench list
+  times a voice's block in each engine.
+
+### The control form
+
+A **control kernel** is a block-rate signal: an envelope or a duck that the
+owner reads once per block and applies as one value. Its arithmetic is per
+block, so the block is its step.
+
+```cpp
+static value_type advance(const Coefficients&, State&, std::size_t n);
+```
+
+- **`advance` moves the signal on by a whole block** of `n` samples and returns
+  its value after the block. `n` may be 0: an empty block still makes one call.
+- **No `prepare`, no `Block`.** The per-block work is `advance` itself, so a
+  control kernel that declares a `prepare` or a `Block` fails the concept.
+- **A scalar step.** `step_type` is `value_type`, and there is no
+  `kPartialStepAdvancesByCount`, having no vector to end partially.
+- **Moded `advance`.** A moded control kernel's `advance` is a template on the
+  mode, `template <Mode M> static value_type advance(...)`, with that signature
+  at every listed mode. All modes share one `State`.
+- **The signature is exact.** `advance` is matched like `prepare` and `reset`:
+  its address is converted to a pointer to that function type, so a function
+  template whose parameters deduce to exactly that type is accepted, and an
+  `advance` taking its count as any other type (an `int`, or a `uint32_t` where
+  that is not `std::size_t`) is rejected, never converted.
+- **Events are functions on `State`.** What happens between blocks (a hit, a
+  stop) is a function taking the kernel's `State` (and optionally its
+  `Coefficients` first), run on the wrapper's state through `Control::on` (see
+  [`Control<K>`](#controlk-corecontrolh)).
+
+`fixed::DuckEnvelope` (`fixed/dynamics/duck_envelope.h`) is the reference control
+kernel: the sidechain's duck, with `advance`, the events `hit`, `hit_at` and
+`stop`, and its quirks named where they are carried. Two hits arriving before a
+block combine by `combine_hit_strengths`, which `fixed/dynamics/hit_strength.h`
+holds as the one home of that rule. The header is free of the kernel core, so a
+caller that only combines hits needs no argon.
+
+A zero rate is a `DuckEnvelope` stage that never ends: the stage holds at its
+start, and placing a late hit divides by no zero. The owner's settings give one,
+not only an envelope never configured: the sidechain reads a song file's
+attack or release of 0 as 0, and a long rate synced at the whole level resolves
+to 0 at a slow tempo.
+
+**What not to copy from it.** `DuckEnvelope`'s `Settings` are rates the owner
+has already resolved only because tempo sync needs `plugin::SyncLevel`, which
+the DSP library must not see. A kernel whose mapping from params to rates is pure does
+that mapping in `coefficients()`.
+
+### Modes
+
+A mode that changes the per-sample arithmetic is a compile-time policy, chosen
+once per block, never a per-sample branch on settings. `with_mode<List>(mode,
+body)` compares the runtime mode with each listed mode in turn and calls `body`
+once, instantiated for the match, so each mode's loop is compiled separately and
+branch-free. A mode outside the list is a precondition violation.
+
+### The `reset` quirk hook
+
+A wrapper's `reset()` returns the state to `State{}`. A kernel whose arithmetic
+needs something else after a reset, such as a filter's post-reset sentinel
+value, declares `static void reset(State&)`, and the wrapper calls it instead.
+The quirk is named in the code and documented on that function. `reset()` never
+touches `Coefficients`. Like `prepare`, `reset` is detected by name, so a
+`reset` of any other shape (a non-static member, one returning a `State`) fails
+the concept instead of being skipped.
+
+### Composition
+
+A kernel composes by nesting. A kernel built from others holds their
+`Coefficients`, `State` and `Block` as members of its own, and is itself an
+ordinary kernel that `Mono`, `Stereo` or `Control` wraps. There is no
+inheritance and no runtime composition. It reaches its parts through the same
+calls the wrappers (`Mono`, `Stereo` and `Control`) make, in
+`deluge::dsp::kernel_ops` (`core/kernel.h`):
+
+- **`Coefficients`**: its `coefficients()` calls each part's and stores the
+  results as members.
+- **`Block` and `prepare`**: its `Block` has a `kernel_block_t<Part>` member per
+  part, and its `prepare` fills each with
+  `kernel_ops::prepare_block<Part>(c.part, s.part, n)`, which calls the part's
+  `prepare` when it declares one and gives an `EmptyBlock` when it does not. A
+  composite whose parts all lack a `prepare` declares neither.
+- **`step`**: threads the value through
+  `kernel_ops::step_at<Part, M>(c.part, b.part, s.part, x)` for each part, which
+  calls `step<M>` on a moded part and the plain `step` on one without modes
+  (pass `kernel_ops::NoMode::NONE` there). A staged or control part is called
+  through `kernel_ops::process_at` or `kernel_ops::advance_at` the same way.
+- **`Modes`**: a composite dispatches once per block on its own `mode`, so its
+  `Modes` must cover every combination of its parts' modes that it runs. With
+  one moded part it reuses that part's `Mode` and `Modes` and copies the part's
+  mode into its own `Coefficients::mode`; with several, its `Modes` is the
+  product of theirs, each of its modes naming one mode per part, and its `step`
+  maps its mode to each part's. Keep products small: a part with many modes
+  stays its own component. A composite that fixes a part's mode owns that
+  part's modes: the part's `Settings.mode` and `Coefficients.mode` are dead
+  inside it, and the composite's `step` names the part's mode directly.
+
+`SeriesPoles` in `tests/unit/dsp/mono_spec.cpp` is the reference: a moded one-pole
+and a one-pole with a `Block`, in series, checked against a hand loop over the
+parts. A composite that only runs its parts in series is a
+[`Chain`](#chain-and-pinned-corechainh), which does all of the above for any
+parts; write a composite by hand only when its step does more than thread one
+value through its parts.
+
+### `Chain` and `Pinned` (`core/chain.h`)
+
+`Chain<K1, …, Kn>` is a kernel made of kernels: each sample (or vector) goes
+through part 1's `step`, then part 2's on what part 1 returned, and so on, every
+step inline, in one pass over the block. Run as separate passes, each part loads
+and stores the whole block; chained, the block is loaded once and stored once,
+and the values between parts stay in registers. A chain is bit for bit its parts
+run in sequence, since each part steps its own State in the order it would
+alone.
+
+- **Loop state.** A part declaring `kLoopState` steps on that member of its
+  State, through `kernel_ops::loop_state`. The chain declares none, so a
+  wrapper copies the chain's whole State around its loop. `Pinned<K, M>`
+  declares K's `kLoopState` when K does.
+- **Composition and arity.** Two or more parts, all stepping the same
+  `step_type` over the same `value_type`, so a chain never converts between
+  domains. The first part may be a generator, a processor or a mixer, and the
+  chain takes its arity: a chain whose first part is an oscillator is a
+  generator, one whose first part sums two inputs is a mixer. Every later part
+  is a processor, taking the one value the part before it returns. `chainable`
+  rejects a control kernel and a staged kernel anywhere, a later part that is
+  not a processor, mismatched types, and a part whose partial step advances by
+  its count (a chain steps whole vectors).
+- **Plain values.** `Settings`, `State` and `Block` are `Parts<…>`, a recursive
+  aggregate of the parts' own, part I at `get<I>(…)`; `Coefficients` are the
+  same, beside a `mode` member when some part is moded. An aggregate, not a
+  `std::tuple`: a tuple's assignment is user-provided in libstdc++ and libc++,
+  so a tuple is never trivially copyable. A chain's values are
+  default-initialisable and trivially copyable, as every kernel's are, and an
+  empty part takes no space beside parts holding bytes. Settings are built part
+  by part: `Chain<A, B>::Settings{A::Settings{…}, B::Settings{…}}`.
+- **The mode product.** A chain's `Mode` holds one mode per moded part, in part
+  order, and its `Modes` is the product of their `ModeList`s, row-major, the
+  first entry every part's default. `coefficients(settings)` assembles the mode
+  from each part's own coefficients, and the wrapper dispatches on it once per
+  block, so each combination is a loop of its own. Rebuild the Coefficients
+  through `coefficients(settings)` (every wrapper's `configure` does): the chain
+  reads its own `mode`, never a part's.
+- **`Pinned<K, M>`** takes a part out of the product. It is K with its mode fixed
+  to M: unmoded, its `step` is `K::step<M>`, and its Settings, Coefficients,
+  State, `prepare` and `reset` are K's. The delay's high-pass is
+  `Pinned<ShiftTracker<11>, ShiftTracker<11>::Mode::REMOVE>`: a tracker that only
+  ever removes adds no mode, so the delay's chain has two loops (analog and
+  digital), not four.
+- **Per block and reset.** `prepare` runs each declaring part's `prepare` in part
+  order, and is declared only when some part declares one. `reset` is declared
+  only when some part has a reset quirk. `reset_part<I>` resets part I alone,
+  every other part's State untouched, as an event through the wrapper's `on`:
+  `stereo.on<&Chain<…>::reset_part<1>>()` runs it on each lane's State in lane
+  order. The delay resets each channel's high-pass part alone on reactivation and keeps the
+  response's history.
+- **Nesting.** A chain is a kernel, so it can be a part of another chain;
+  `Chain<Chain<A, B>, C>` steps as `Chain<A, B, C>`.
+- **Op-major.** A chain declares no `kLanePackable`, so `Linked<Chain<…>, N>` and
+  `Stereo<Chain<…>>` step it lane by lane: each lane runs every part before the
+  next lane starts.
+
+**When not to chain.**
+
+- **A part with many modes**, or several moded parts: the product is every
+  combination, each a loop of its own. Keep it small, pin what does not vary,
+  and leave a part with many modes its own component.
+- **A part that must run alone**: one whose result the owner reads between
+  stages, one that runs on a different block (another length, rate or buffer),
+  or one stepped on some blocks and not others. Two passes are then the
+  structure, not a missed fusion.
+- **A part whose step is a long loop of its own.** Fusing removes a load, a
+  store and the loop overhead per sample, one to four cycles per sample on the
+  integer core ([a9_dsp_performance.md](a9_dsp_performance.md#chain)); it does
+  not change what one part's loop costs, so get that loop right first. The
+  delay's analog response is most of its fused frame. A store inside its tap
+  loop costs about 14 cycles a tap, each next load waiting behind its
+  load→multiply→add→store; summed in direct form from a mirrored history, the
+  tap loop has no store: it issues two `smmlar`s into even- and odd-tap
+  accumulators and loads the next pair behind them. Rendered in place, as the
+  delay renders it, the analog feedback as one chain runs in 162.6 cycles per
+  channel-sample, against 260.9 for the stereo form that keeps partial sums.
+  The fused loop also stores each channel's history, index and high-pass
+  memory once per frame and spills four values, from the tap loop's register
+  pressure: chain state and one stage output held across the other channel's
+  loop, nothing else stored between stages. The next lever is the stereo
+  direct form, both channels per tap (144.4 in C, measured in place as the
+  delay renders; 139.7 out of place); it
+  needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor
+  for its per-channel parts, and is deferred to the mod-FX rewrite
+  (`.superpowers/findings/fir-form-spike/`).
+  Likewise `Stereo<Chain<OnePole, Pinned<ShiftTracker<11>, REMOVE>>>` in
+  HIGH_PASS and ALL_PASS stores the two channels' outputs separately, one store
+  more per frame than `Stereo<OnePole>`, from the chain's register pressure.
+  Bench a chain against its passes before relying on the fusion.
+
+`chain_spec` (`tests/unit/dsp`) pins a chain against its parts run in sequence: every
+form, every mode combination switched block by block, in place and out of place,
+`reset_part`, nesting, and `Stereo` and `Linked` against per-lane `Mono`s.
+
+### The domain rules
+
+1. **`prepare` is the only scalar per-block work.** Whatever must be computed
+   once per block (a ramp's increment, a smoothed coefficient) is computed in
+   `prepare`, in whatever arithmetic it needs, and handed to `step` in `Block`.
+2. **`Block` holds values in the step's domain.** A vector kernel's `Block`
+   holds vectors (already broadcast), so `step` does no scalar-to-vector
+   transfer per step.
+3. **A composed kernel stays in one domain per step.** A `step` is all scalar
+   or all vector; it does not drop to core registers and back inside the loop.
+
+### The partial step
+
+A vector loop over a block that is not a lane multiple ends with one partial
+step. Its lanes past the end load as zero and are never stored. By default a
+kernel's state advances by a whole vector on that step, which is today's
+`Amplitude` behaviour. A vector kernel whose state persists across blocks and
+must advance by exactly the samples rendered declares
+```cpp
+static constexpr bool kPartialStepAdvancesByCount = true;
+```
+and provides the counted overload, taking an `ActiveLanes{n}` tag after the
+other arguments: `step(c, b, s, ActiveLanes)` for a generator,
+`step(c, b, s, x, ActiveLanes)` for a processor. The wrapper calls it on the
+partial step only, with `n` the number of live leading lanes, 1 up to one less
+than the vector's lanes. `ActiveLanes` is a tag rather than an integer so a
+counted processor step never reads as a mixer step. A scalar, mixer or staged
+kernel has no counted partial step, so declaring the flag on one is a compile
+error.
+
+The partial step is told apart by type, which holds on NEON and SIMDe. On
+Helium (MVE) every step is predicated, so whole steps would also arrive counted,
+with `n` equal to the lane count; a counted kernel must be correct for that.
+
+## Wrappers
+
+### `Mono<K>` (`core/mono.h`)
+
+`Mono<K>` is a kernel as a mono component: one `Coefficients`, one `State`. It
+is a generator, processor or mixer to match `K`'s step arity (`render` and
+`render_block`), and a `block_processor` only for a staged kernel. It is the only
+loop a kernel runs in. A control kernel is rejected at the class: it has no
+per-sample loop, so a `Mono` of one would be inert.
+
+- **Loop selection** is by `step_type`: an index loop over raw pointers for
+  `step_type == value_type`; `argon::vectorize::for_each<q31>` for `Argon<q31>`;
+  `argon::vectorize::for_each_interleaved<q31, 2>` for `StereoVector`
+  (de-interleave on load, re-interleave on store).
+- **Once per block**, `render_block` calls `prepare` (when declared), then
+  dispatches on `coefficients().mode` through `with_mode` (when moded), then
+  runs the one loop. A mode change set by `configure` takes effect at the next
+  block, and `State` carries across it untouched.
+- **A staged kernel** has no loop: `render_block` calls `process` once (or
+  `process<M>` through `with_mode`). `staged_kernel` rejects a staged kernel
+  that declares `prepare`, since `process` takes no `Block` and the `prepare`
+  would be skipped silently.
+- **In place.** Each step loads before it stores, so the input and output may be
+  the same buffer, on every loop path.
+- **Local copies.** The loop runs on local copies of the coefficients and of
+  the kernel's loop state, written back after the block, so they stay in
+  registers even though the output may alias the component. `prepare` runs on
+  the member State first, so its writes are in place before the copy is taken.
+- **`kLoopState`.** A kernel declaring `static constexpr auto kLoopState =
+  &State::member;` names the part of its State the loop steps; `loop_state_t<K>`
+  is that member's type (the whole State without the trait). Its `step` takes
+  that member, while `prepare`, `reset`, the events and `state()` see the whole
+  State, and the wrapper copies only that member around the loop. Declare it
+  when much of the State is touched only once per block, by `prepare` and the
+  events: the compressor's levels, envelopes and mean
+  ([Block arithmetic in `prepare`](#block-arithmetic-in-prepare-block-inputs-by-event-compressor)).
+  Leave it off when the loop touches most of the State. The kernel concept
+  checks it: a pointer to a data member of `State` itself, a plain value, which
+  `step` takes; only a stepping kernel declares it (a staged or control kernel
+  has no step). Kernels call each other's steps through
+  `kernel_ops::loop_state<K>(state)`, so a composed kernel never has to know
+  whether a part declares it.
+- **`kStateInPlace`.** A kernel declaring `static constexpr bool kStateInPlace =
+  true` is stepped on its member State directly, with no per-block copy in and
+  out. Declare it when the State cannot live in registers: an array, a history
+  or a ring of hundreds of bytes, which the loop reads and writes by index
+  anyway. The price is that the compiler cannot assume the output and the State
+  are disjoint, so a scalar part of the State is stored back every frame (the
+  delay stores each channel's high-pass memory per frame). Measure it: for
+  `Delay`'s 424-byte State the copy costs 6–7% of the digital loop at n = 128
+  and 29–31% at n = 32, far more than the per-frame stores
+  ([a9_dsp_performance.md](a9_dsp_performance.md#delay)). A kernel with a
+  small, scalar State keeps the default. With `kLoopState` too, the loop steps
+  the named member in place: the two traits combine, one choosing which part
+  the loop steps and the other whether it is copied.
+- **`kChains`.** A q31 vector kernel whose step is one long dependency chain
+  declares `static constexpr std::size_t kChains = N` and `step_chains` (a
+  template on the mode when moded), taking each input as
+  `ChainVectors<step_type, N>` of consecutive vectors and returning N outputs
+  the same way. `Mono` runs
+  every whole group of N vectors through it, then the rest of the block, the
+  partial vector included, through `step`. It must compute exactly what N
+  `step`s in a row compute, state included; it exists to write the N chains'
+  instructions interleaved, stage by stage, which the A9 needs to overlap them
+  and which an unrolled loop of `step` does not give. Hold the order of any
+  float accumulation with a register barrier on every update: under
+  `-funsafe-math-optimizations` the compiler otherwise reassociates sums it can
+  see together. Only the q31 vector loop runs chains; a scalar or stereo kernel
+  declaring `kChains` fails to build, as does a `kChains` that is not a
+  `std::size_t` above 1. `dx7::ModernVectorOperator` declares N = 3
+  ([a9_dsp_performance.md](a9_dsp_performance.md#dx7)). Chains cover float
+  latency, not load latency: a chain that starts from a fresh load still waits
+  on it.
+- `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
+  A vector kernel renders it as the partial step of a block of one. It builds
+  one-sample spans and runs a whole block's glue, several `std::span`
+  constructions per call, so it
+  is a convenience for tests and control-rate values, not for per-sample use in
+  shipping code. A component renders blocks; a kernel that needs another kernel
+  per sample nests it (see [Composition](#composition)). The same holds for
+  `Stereo<K>::render`.
+
+### `Linked<K, N>` (`core/linked.h`)
+
+`Linked<K, N, F>` runs one scalar kernel on N independent streams at once (channels, voices, a ladder's sections): one
+`Coefficients` shared by every lane, one `State` per lane. It is a generator, processor or mixer to match `K`'s step
+arity, as `Mono` is. A staged or control kernel is rejected at the class: neither has a step to run per lane.
+
+- **Why.** The Cortex-A9 overlaps independent work only when the instruction stream interleaves it. Two independent
+  chains laid out one after the other cost the sum of the two, and clang lays them out that way. A recursive kernel on
+  one stream is one chain of dependent instructions, bound by its latency; N streams stepped in one loop give the core
+  other lanes' instructions to issue while each chain waits. Rule 3 of
+  [a9_dsp_performance.md](a9_dsp_performance.md#what-follows-for-kernels) gives the N that hides the latency.
+- **Frames.** A block is a span of interleaved N-lane frames, lane 0 first: `Frame<q31, N>` (`core/frame.h`) by
+  default, or any F with that layout (`StereoSample` is two q31 lanes, left in lane 0). One input pointer per input
+  block (none for a generator, two for a mixer) and one output pointer step over whole frames, with paired or multiple
+  loads and stores. There is no form over N separate
+  blocks: with 2N pointers clang shares one index register and steps it after the stores, which costs more than the
+  interleaving saves.
+- **Per block.** `prepare`, when K declares one, runs once per lane in lane order, and each lane steps with its own
+  `Block`. Then one mode dispatch covers the one loop over the frames.
+- **Lane by lane, the default.** Each frame steps lane 0, then 1, … N − 1, into a local frame, then stores it. Every
+  kernel can be stepped this way. A kernel drawing from a stream every lane shares (noise) draws in lane order on every
+  frame.
+- **Op-major, the opt-in.** A kernel written once over its value type steps a whole frame as one
+  `Pack<q31, N>` (`core/pack.h`), each operation across every lane before the next. Each pack operation is
+  its scalar operation applied lane by lane, so op-major equals lane by lane bit for bit, and `linked_spec` checks every
+  opted-in kernel against its lane-by-lane form. A kernel opts in by declaring:
+  - `static constexpr bool kLanePackable = true`;
+  - `template <class V> struct StateT`, every member a V, with `using State = StateT<q31>`;
+  - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&,
+    std::type_identity_t<V> x)` (without M for a kernel without modes), its arithmetic called unqualified
+    (`wrapping_add`, `wrapping_sub`, the fixed-point multiplies) so that it resolves for q31 and for a pack.
+
+  `lane_packable<K>` (`core/kernel.h`) detects the opt-in. A kernel with a `prepare` or a `reset` quirk stays lane by
+  lane, since both act on one lane's State. A kernel that declares the opt-in without its state and step written over
+  V fails to compile in `Linked` rather than falling back.
+
+  An op-major step must not draw noise, or from any other stream the lanes share: it steps every lane in one call, so
+  one draw would reach every lane, where lane by lane draws once per lane in lane order. A kernel that needs noise does
+  not opt in and steps lane by lane. Nothing detects a draw at compile time, since it is a call inside the step, so
+  each opted-in kernel's spec checks its op-major form against its lane-by-lane one.
+- **One lane alone.** `render_lane<Lane>(in, out)` runs one lane over a block of q31 samples, leaving every other lane's
+  State untouched (the lane is a template argument, so a lane past N is a compile error): that lane's `prepare`, one
+  mode dispatch and one loop, on local copies written back after the block, so the lane steps exactly as a `Mono<K>`
+  holding its State would (op-major, the lane is unpacked for the block and packed back). It is for an owner whose
+  stream is sometimes one lane and sometimes all of them on the same State: a voice's filter renders mono blocks through
+  the left channel and stereo blocks through both, and the voice moves between them mid-note (unison stereo spread,
+  stereo samples), so the left channel's state must carry across. A separate `Mono<K>` beside the `Stereo<K>` would drop
+  it at every switch. The mono loop costs what a dedicated mono loop does
+  ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `linked_spec` checks it against that lane's `Mono` at every
+  width and on every lane.
+- **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
+  `right()` do the same: later blocks do not update a copy taken earlier.
+- **What op-major buys.** Over interleaved frames clang compiles the two forms to the same loop at the shipping flags:
+  `OnePole` at N = 2 and 4 and `ShiftTracker` at N = 4 give the same bytes either way. Opting in guarantees the shape
+  in the source and the bit-exact check against lane by lane; it is not a speed-up. `OnePole` and `ShiftTracker` opt
+  in. A further kernel opts in only when a probe at the shipping flags shows its op-major loop beating its lane-by-lane
+  one, or when a `Pack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
+- **The loop.** Each frame is loaded whole, its lanes stepped, and then it is stored. Every input frame is read whole
+  before any lane of its output is written, so input and output may be the same buffer. Where the pointer steps fall
+  against the store is clang's choice: rendered in place (one span as input and output, as the delay renders its
+  block), the input and output pointers merge into one, stepped after the frame's store, so the next frame's load address
+  is computed after a pending store. On the A9 such a load waits for that store's data. Check the in-place disassembly,
+  and bench in place what ships in place. The digital feedback chain measures the same in place as out of place
+  ([a9_dsp_performance.md](a9_dsp_performance.md#chain)), and so is left as it is; the remedy class, once a bench shows
+  the stall matters, is a one-frame software pipeline in the `Linked`/`Mono` loop: load frame i + 1 before storing
+  frame i, so the next load's address never follows the store.
+- **The State copy.** The loop runs on local copies of the coefficients and every lane's loop state, written back
+  after the block, as in `Mono`, so that scalar state can live in registers while the output may alias the component.
+  Only scalar state gains from it. An array in a State never lives in registers, so it is copied in and out for
+  nothing, at a cost that grows with its size: the delay's feedback chain as `Stereo` copies 416 bytes in and out per
+  block, about a cycle per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Linked`
+  takes both of `Mono`'s traits (above), per lane: `kLoopState` copies only each lane's loop state, and
+  `kStateInPlace` steps each lane's member loop state with no copy, so a kernel with a big ring (a reverb's combs, a
+  chorus's or flanger's line) declares it. `prepare` runs on each lane's member State, and `on`, `reset` and
+  `state(lane)` see the whole State. `render_lane` follows the same rules for its one lane.
+- **Neither trait is op-major.** A kernel declaring `kLoopState` or `kStateInPlace` is not `lane_packable`, so `Linked`
+  steps it lane by lane, as it does a kernel with a `prepare` or a `reset` quirk. An op-major kernel has no `prepare`,
+  so nothing but an event would write a State outside its loop, and its packed State is per-block registers by
+  design.
+- **`Stereo<K>` is `Linked<K, 2, StereoSample>`** (below).
+- **Measure every use.** N is per kernel, 2 by default. Each use of `Linked` gets a bench case at its N (the `lanes`
+  list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
+  10–60%, and a compiler upgrade can undo a win. The measured figures are in
+  [a9_dsp_performance.md](a9_dsp_performance.md#lanes).
+
+### `Stereo<K>` (`core/stereo.h`)
+
+`Stereo<K>` runs a mono q31 processor kernel on both channels of a `StereoSample` block. It is
+`Linked<K, 2, StereoSample>` with the channels named: `left()` and `right()` are `state(0)` and `state(1)`. Everything
+in [`Linked`](#linkedk-n-corelinkedh) holds for it:
+
+- **Shared coefficients, a state per channel.** `configure` calls `K::coefficients` once and both channels step with
+  the result; `reset()` resets both.
+- **Left then right.** `prepare` runs left then right on every block, and each frame steps left before right, so a
+  kernel drawing from a noise stream both channels share draws in the order the legacy per-frame code does.
+- It is constrained on `processor_kernel<K>` at the class, so a generator, mixer or control kernel is a compile error,
+  not an inert class.
+
+### `Control<K>` (`core/control.h`)
+
+`Control<K>` is a control kernel as a block-rate control signal: one
+`Coefficients`, one `State`, one `advance` per block. It satisfies
+`control_generator`. It has no loop and no local copies: the kernel's `advance`
+is the block.
+
+- **Configure every block.** `configure(settings)` computes the coefficients
+  from the owner's settings and leaves the state alone. It is cheap and meant to
+  be called before every block, so a knob or tempo change applies from the next
+  block's first sample while the signal's position carries over. `coefficients()`
+  and `state()` read back what the wrapper holds; `reset()` returns to `State{}`,
+  or to the kernel's `static void reset(State&)` quirk when it declares one.
+- **Advance once per block.** `advance(n)` makes one call to the kernel's
+  `advance`, through `kernel_ops::advance_at`, dispatching a moded kernel's
+  mode once through `with_mode`, and returns the signal's value after the
+  block. `n` may be 0. It is `[[nodiscard]]`: the value is what the owner
+  applies to the block.
+- **Events.** `on<&K::event>(args...)` runs a function taking the kernel's
+  `State` (and optionally its `Coefficients` first) on the wrapper's own state
+  and returns what it returns, a reference included. The event is one of two
+  shapes:
+  - `event(const Coefficients&, State&, args...)`, given the configured
+    coefficients;
+  - `event(State&, args...)`, given the state alone.
+
+  The first shape is tried first, so the coefficients are passed exactly when
+  the event takes them. The state is taken by non-const reference. An event
+  taking it by value would change a copy, and one taking it by const reference
+  could not change it, so both fail to compile rather than silently doing
+  nothing.
+- **Unconfigured.** A default-constructed `Control` holds `Coefficients{}`; it
+  can be advanced and used with events before any configure, and a kernel
+  defines what that does (`DuckEnvelope` returns no duck).
+- **Always inline.** Every member is `[[gnu::always_inline]]`, the
+  default constructor included, so nothing sits between the owner's block and the
+  kernel's arithmetic under the app's low inline threshold.
+
+### The shared glue
+
+`Mono`, `Linked` (so `Stereo`) and `Control` call a kernel only through
+`kernel_ops` (`core/kernel.h`): `prepare_block`, `dispatch_mode`, then
+`step_at`, `process_at` or `advance_at` for the kernel's form, or
+`dispatch_mode` then `step_packed_at` for an op-major `Linked`. So the
+`prepare`, mode dispatch and form call exist once, and a composed kernel calls
+its parts through the same functions. Each passes the coefficients as a const
+reference, so the call resolves to the form's own signature even when a kernel
+overloads it on non-const `Coefficients`.
+
+## Stereo
+
+- **Frames.** A stereo block is a span of `StereoSample` frames
+  (`fixed::StereoSignal`, `fixed::StereoBuffer`). `core/stereo_sample.h` asserts
+  the layout (standard layout, `l` at offset 0, `r` at 4, size 8), so a block of
+  frames is an interleaved array of q31, left first. That one assert covers both
+  `as_frames` and the SIMD stereo path.
+- **`as_frames`** (`core/stereo.h`) views an interleaved app buffer as frames:
+  `size / 2` frames, an odd trailing sample outside the view. It takes any
+  contiguous, sized range of q31. A const range gives a `StereoSignal`, a
+  mutable one a `StereoBuffer`. A range that owns its storage must be an lvalue
+  (or the range borrowed), since a view of a temporary would dangle.
+- **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
+  channel: one `State` per channel and one shared `Coefficients`. It is
+  `Linked<K, 2, StereoSample>`, a `processor` over `StereoSample`. Each frame steps
+  the left channel and then the right, so a shared noise stream is drawn left
+  then right on every frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
+  `Settings`. See [Wrappers](#wrappers).
+- **Native stereo.** A component that is stereo by nature, such as the
+  compressor or the delay, is a kernel whose `value_type` is `StereoSample`,
+  wrapped by `Mono`.
+- **SIMD stereo.** A stereo kernel whose `step_type` is `StereoVector` (one
+  `Argon<q31>` per channel, lane `i` of each the same frame) gets NEON's
+  interleaved loads and stores from `Mono`'s loop, so its arithmetic runs on
+  whole channel vectors with no shuffles. The existing mixin components get the
+  same from the mixins when their `render` takes and returns `StereoVector`.
+
+## Noise (`fixed/noise/`)
+
+- **`CongruentialStep`** is the single definition of the synth's noise step,
+  `x' = 69069·x + 1234567` (uint32, wrapping).
+- **`Cong`** (`cong.h`) is the generator: a plain value holding the state, whose
+  `next()` steps it and returns the draw. It satisfies **`noise_stream`**, the
+  concept a kernel's noise must meet (default-constructible, trivially copyable,
+  `next()` returning `uint32_t`), so a wrapper can copy it into a local for a
+  block and write it back.
+- **The app owns the one stream.** `deluge::synth_noise` (`util/synth_noise.h`)
+  is the synth's only stream; the DSP library and the synth library hold no global.
+  The app passes it at every call site that draws: the voice's filter set and
+  sources, the LFOs, the effect chains (through `FxInputs::noise` and
+  `MasterPostInputs::noise`), DX7's note-on and the live pitch shift (through
+  `SourceBlock::noise`). The host harness reseeds it through
+  `deluge_seed_noise`.
+- **A kernel's noise is its Context.** The low-pass ladder, mod FX and the grain
+  declare `using Context = Noise;` (a `noise_stream`, `Cong` by default) and
+  draw from the context their step is handed; see
+  [the kernel's Context](#the-kernels-context). Components that draw a handful
+  of values per call (the LFO's random waves, DX7's note-on) take a `Cong&`
+  directly.
+- **`SeededNoise`** wraps a `Cong` as a `sample_generator<q31>`, for specs and
+  anything that wants a private stream.
+- **The draw order is part of the output.** Every voice draws from the one
+  stream, so one draw more or less, or two draws swapped, shifts everything
+  drawn after it, across voices. A kernel draws a fixed number of times per
+  step in every mode (the ladder once, twice when it oversamples), and under
+  `Stereo` the left channel steps first in every frame, so the draws go left
+  then right. A mono block run through `render_lane<0>(…)` draws once per
+  sample, for that lane only. Per-voice and per-effect streams, which would
+  remove the cross-voice dependence, change the output and belong to the
+  audible re-baseline.
+
+## Copies across lanes
+
+Feedback (a filter's state, a smoother's value) stops SIMD inside one signal: sample i + 1 needs sample i. Across
+independent copies there is no such dependence. `Poly<K, N>` and `Bank<K, N, Mix>` run N copies of one float kernel,
+one copy per NEON lane of a `Pack<f32, N>`, each with its own settings. The copies are voices (`Poly`) or the bands of
+a bank fed one signal (`Bank`). Both take a float kernel written once over its value type, the `poly_kernel` contract,
+and `Mono<K>` runs the same kernel as `f32`, the scalar reference. `Linked<K, N>` (above) is the case where the copies
+share one set of settings.
+
+These rules bind every kernel that runs across lanes, and every component rewrite that may become one:
+
+1. **`Coefficients` and `State` are plain value structs**, with no pointers and no hidden members. A kernel declares
+   `template <class V> struct CoefficientsT` and `StateT`, aliased at `f32` as `Coefficients` and `State`, and each
+   names its V members in `static constexpr auto fields`, a tuple of member pointers. `set_lane(packed, lane, scalar)`
+   and `get_lane<S>(packed, lane)` (`core/poly_kernel.h`) copy one lane between a packed struct and a scalar one
+   through `fields`, so the scalar `coefficients(settings)` is the only coefficient code and every lane's arithmetic is
+   the scalar kernel's. A member that is not a V is not a field; `mode` is the one such member, because every lane of
+   an adaptor shares it.
+2. **Mode is a per-block policy** (see [Kernels](#kernels-corekernelh-coremodeh)). The adaptor dispatches the one
+   mode once per block, over the kernel's `Modes`. Copies must agree on mode, never on settings: `configure` asserts a
+   lane's mode matches the others', and `set_mode` changes every lane's from the next block.
+3. **Nothing is hidden**: no globals, and a kernel that draws noise is not a `poly_kernel` (it declares no Context),
+   because drawing for N copies at once would reorder a shared stream. Per-copy noise streams are a deliberate,
+   ear-checked, re-baselined step of their own.
+4. **The scalar component is the reference.** Every lane of `Poly`, `Linked` and `Bank` is bit-identical to `Mono`
+   given the same settings, on every target; the specs check each lane against `Mono` under random per-lane settings.
+   A case that cannot meet this is a finding, not a tolerance.
+
+Two rules on the arithmetic itself, because a float kernel's result depends on how the compiler rounds it:
+
+- **Fusion is explicit.** A multiply-add is written `mul_add(a, b, c)` (`core/pack_f32.h`), which is fused where the
+  target has a fused float multiply-add (`kFusedMulAdd`: AArch64, ARMv7 with VFPv4, an x86 host built with `-mfma`) and
+  unfused on the Cortex-A9. The `f32` overload follows the same constant, so `Mono` and every lane fuse together. A
+  step, a `prepare` and a `coefficients` function open with `#pragma clang fp contract(off) reassociate(off)
+  reciprocal(off)`, and so does each of `Pack<f32, N>`'s operations, which `core/pack_f32.h` writes on a GNU vector
+  in its own bodies rather than through Argon or `arm_neon.h`, whose bodies would compile under the including
+  translation unit's flags. Clang fixes an operation's float semantics where its body is compiled, so the compiler
+  neither fuses, reorders nor takes a reciprocal on its own, whatever flags the including translation unit has (the
+  device's `-funsafe-math-optimizations` among them). Their `_unsafe_math` spec twins hold every lane to `Mono`
+  under those flags. No-signed-zeros stays set under them (`#pragma float_control(precise, on)` is ignored on 32-bit
+  ARM); it can change at most the sign of a zero. Output is bit-identical across machines per fusion policy (the
+  unfused host build equals the A9); fused against unfused is held to a tolerance spec.
+- **Flush-to-zero everywhere.** ARMv7 NEON always flushes denormals; scalar VFP, AArch64 NEON and x86 SSE do only when
+  told. `fp::FlushToZero` (`core/flush_to_zero.h`) sets it for a scope and restores the previous control word, and the
+  scalar reference and the float instrument hold it, so every lane agrees with the reference.
+
+The float kernels are `fp::OnePole`, `fp::Smoother` and `fp::Svf` (`float/filter/`):
+
+| Kernel | Modes | Settings per lane |
+|---|---|---|
+| `OnePole` (TPT one-pole) | `LOW_PASS`, `HIGH_PASS` | `cutoff`, as a fraction of the sample rate |
+| `Smoother` | `EXPONENTIAL`, `LINEAR` | `target`, `time` |
+| `Svf` (Simper/Cytomic TPT) | `LOW_PASS`, `BAND_PASS`, `HIGH_PASS`, `NOTCH` | `cutoff`, `q` |
+
+`OnePole`'s and `Svf`'s `coefficients` clamp the cutoff to [1/48000, 0.49] and `Svf`'s Q to [0.5, 40], so no setting
+makes a NaN or an infinity. `Smoother` clamps nothing: its target is taken as given, a `time` of 0 or less jumps to
+the target, and `LINEAR`'s length is the block's n, at least 1. `Svf`'s `BAND_PASS` returns `v1`, which has gain Q at
+fc (`k·v1` is the unity-gain band-pass). `Smoother`'s `prepare` starts each block's ramp at the current value and
+takes the ramp's length from the block's n, so `LINEAR` lands exactly on the target at the last sample of whatever
+block is rendered.
+
+### `Poly<K, N>` (`core/poly.h`)
+
+`Poly<K, N>` is N copies of a `poly_kernel`, N = 2 or 4, each with its own settings and its own signal. Each frame, lane
+l carries copy l's sample, and one step over `Pack<f32, N>` steps all of them.
+
+- **Settings per lane.** `configure(lane, settings)` runs K's scalar `coefficients` and writes the result into that
+  lane through `fields`. `reset(lane)` returns a lane's state to K's reset state, and `state(lane)` reads it back as
+  a scalar `State`. The shared per-lane code is `detail::Copies<K, N>` (`core/copies.h`), which `Bank` uses too.
+- **One mode.** Every lane runs one mode, dispatched once per block. `configure` and `set_mode` set it; `configure`
+  asserts it matches once any lane is configured. The mode stays the last one set, even when every lane is parked.
+- **Per block.** A K that declares `prepare` has it called once per block on the packed coefficients and state
+  (K's `prepare` is a template over V), as `Mono` does for one copy. A block of length 0, or with every lane parked,
+  steps nothing but still runs `prepare` with n = 0.
+- **Parking.** A fresh `Poly` has every lane parked; `configure` un-parks a lane. `park(lane)` resets the lane's state
+  and holds it at `State{}` after every block, feeds it zero and leaves its output unwritten, until it is `configure`d
+  again. Lanes share nothing, so a parked lane perturbs no other, and a held state never decays into denormals. The
+  parked lanes are a bit mask, read once per block.
+- **The transpose.** `render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out)` takes one span per
+  lane. Frames go in and out N at a time: N packs load one lane's N samples each, an N×N transpose turns them into
+  one pack per frame, the kernel steps each, and a transpose back stores each lane's samples. The last n mod N frames
+  go lane by lane. Every unparked lane's spans have the block's length; a parked lane's may be empty.
+
+On the A9 four lanes buy the 2x the 64-bit NEON datapath suggests: Poly at four lanes runs `OnePole` 2.27x and `Svf`
+2.10x faster than `Mono` per channel-sample, and at two lanes 1.53x and 1.59x; `Smoother`, configured every block,
+gains 1.68x at four. What the loop pays beyond the kernel's arithmetic is a parked-bit test per lane per N frames and
+the transposes. The figures and the bench are in
+[a9_dsp_performance.md](a9_dsp_performance.md#float-kernels-across-lanes).
+
+## Banks and taps
+
+Which kernel form an effect takes follows from where its state is shared:
+
+| Effect shape | Kernel form |
+|---|---|
+| Independent streams, each with its own recurrence (stereo filter, per-voice envelope) | `Linked<K, N>` / `Stereo<K>` |
+| Independent copies, each with its own settings, one signal in (a filter, comb or allpass bank) | `Bank<K, N, Mix>` |
+| Independent copies, each with its own settings and signal (voices) | `Poly<K, N>` |
+| Channels sharing state (chorus, flanger, ping-pong delay, linked compressor) | one kernel stepping `StereoSample` under `Mono` |
+| Parallel reads of one shared line (chorus, ensemble, multi-tap delay) | `Pack` inside that kernel's step, as `Taps<T, N>` (reserved) |
+
+An effect with several bands, taps or voices per channel is a bank of independent recurrences or a set of reads of one
+line.
+
+### `Bank<K, N, Mix>` (`core/bank.h`)
+
+`Bank<K, N, Mix>` is N copies of a `poly_kernel`, each with its own settings, reading one input: each sample is
+broadcast to every lane, one step over `Pack<f32, N>` steps every copy, and `Mix` reduces the lanes to the output.
+`configure`, `reset`, `state` and `set_mode` are `Poly`'s (the shared `detail::Copies`), as are the one mode per block
+and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings.
+
+| `Mix` | Output | `render_block` |
+|---|---|---|
+| `mix::Sum` | the lanes summed in lane order | `(in, out)` |
+| `mix::Weighted` | each lane times its gain (`set_gain(lane, gain)`, 1 until set), summed in lane order | `(in, out)` |
+| `mix::StereoPair` | even lanes to left, odd lanes to right: N = 4 left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2 left = lane 0, right = lane 1 | `(in, left, right)` |
+
+The mix adds unfused, in lane order, so the output is the sum of the `Mono` outputs in that order. It takes N samples at
+a time: their N packs transpose into one pack per lane, which add as packs in lane order and store as one vector; the
+last n mod N samples mix one at a time. The bench times `Bank<Svf, 4, Sum>` at 34.02 cycles per input sample, 1.3
+`Mono` `Svf`s' work, 3.08x less than four `Mono`s.
+
+A bank is for copies that each carry their own state. Reads that share one line are `Taps`, below.
+
+### `Taps<T, N>` (designed, not built)
+
+`Taps<T, N>` is the name for N reads of one shared line: taps or heads on one buffer (chorus, ensemble, multi-tap
+delay). Nothing is implemented. The design is one `StereoSample` kernel templated on the tap count, with a
+`Pack<q31, 2 * Taps>` of reads (L0 R0 L1 R1 …) inside `step` and per-tap settings as packs in its `Coefficients`.
+
+- A runtime tap count is a mode (`TAPS_2`, `TAPS_4`). `State` is sized for the maximum, and the mode is dispatched once
+  per block.
+- It needs two `Pack` additions: a gather load, and a strided lane sum.
+- It is built with its first effect (TODO.md).
+
+## The float voice (`float/osc/`, `float/filter/`, `float/envelope/`, `float/vca/`, `float/mod/`)
+
+A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
+`Poly<Chain<oscillator, filter, fp::Vca<fp::Envelope>>, N>`, the filter `fp::Svf` or `fp::Ladder`. `Poly` runs generators (a source has no input signal to
+transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
+naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
+bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
+
+### Oscillators
+
+Both oscillators share `step_phase` (`float/osc/phase.h`): the phase advances by the increment and wraps into [0, 1)
+with one compare and subtract, since the increment is below 1.
+
+**`fp::BlepOscillator`** is a saw or a pulse (`Mode::SAW`, `Mode::PULSE`) made from the naive waveform less a two-sample
+PolyBLEP residual at each discontinuity. A pulse is the saw less the saw `width` later, so each edge carries its own
+residual. `frequency` is f0/fs, clamped to [1e-6, 0.45]; `width` is clamped to [0.02, 0.98]. `coefficients` computes
+`1/inc` once, so the residual multiplies by `inv_inc` where it would divide by `inc`. The mode is the one shared member
+of the coefficients, dispatched once per block. The residual is a polynomial correction, not a band limit, and its
+response droops harmonic k by sinc²(k·f0), a treble roll-off that grows with pitch. The table below droops as linear
+interpolation does, about sinc²(h/2048) at harmonic h: the same at every pitch, and large only in the two richest bands
+(below about 47 Hz).
+
+**`fp::TableOscillator`** reads a band-limited saw from the band set, the band chosen for the pitch, the position
+linearly interpolated, and has no mode. Under `Poly` each lane reads its own band at its own position, so the two reads
+per sample are `gather(table, index)`: the index pack is built from `trunc_nonnegative(position)` (the whole part of a
+non-negative value below 2^23, a NEON convert), and the gather loads one `f32` per lane. A lane's `offset`, the band's
+first sample in the set, is a coefficient field. The scalar `gather` and `trunc_nonnegative` overloads in
+`core/pack_f32.h` make the same reads for `Mono`.
+
+**The band set** (`float/osc/saw_bands.h`) is 11 bands of 2048 samples plus a repeated first sample, so an
+interpolation at the top of the cycle reads inside the band. Band b holds harmonics 1 … 2^(10 − b): band 0 is the
+richest and band 10 a sine. `saw_band_for(inc)` picks the smallest b whose top harmonic h has h · inc < 0.5, so a band
+never aliases at its pitch. The set is 11 · 2049 · 4 = about 90 KB of `f32`.
+
+The set is built by an explicit `fp::build_saw_bands()`, called once before the first render and off the audio tier (a
+second call does nothing; `saw_bands()` asserts it ran). The build uses no library function, so it is the same on every
+target: the sines come from a table made by a rotation recurrence in double, and each sample sums in double from the
+sparsest band to the richest, each band adding its new harmonics to the band before, then stores as `f32`. The
+storage is a global in SDRAM on the device, all-zero until built; the build takes about 0.18 s on the A9, which is why
+it is explicit and not a static constructor. The Gibbs overshoot of a truncated series rides above ±1.
+
+### `Ladder` (`float/filter/ladder.h`)
+
+`fp::Ladder` is a four-pole ladder of its own design (not the q31 ladder's sound): four topology-preserving one-pole
+stages, `y = G·x + β·s` with `G = g/(1 + g)`, `β = 1 − G` and `g = tan(π·fc)`, under a feedback loop solved in closed
+form. With the stage memories `s₁…s₄`, the last stage's output is `G⁴·u + S`, `S = β·(G³s₁ + G²s₂ + G·s₃ + s₄)`, so
+the loop `u = in_gain·x − k·y₄` resolves to `u = (in_gain·x − k·S)·r` with `r = 1/(1 + k·G⁴)`: no delay in the
+feedback, so the ladder stays in tune and stable as the cutoff moves block to block, and no division in the step.
+Resonance `k` runs over [0, 4.5]: at 4 the loop gain at the cutoff is exactly 1 and an impulse rings on; above it an
+oscillation grows until the saturator holds it. `drive` (clamped to [1, 8]) scales the input into the saturator, and
+`compensate` scales it by `1 + k` so the low-pass DC gain stays at `drive` (1 at drive 1). Every setting clamps, NaN to the lower bound.
+`coefficients` computes `tan_pi`, `G`, `G⁴`, `r` and the gain in double, libm-free, and rounds each once.
+
+- **The response is five tap weights, not a mode.** The output is `w₀·u + w₁·y₁ + w₂·y₂ + w₃·y₃ + w₄·y₄`, summed left
+  to right. The presets (`Response`): LP24 (0, 0, 0, 0, 1), LP12 (0, 0, 1, 0, 0), HP (1, −4, 6, −4, 1), which is
+  `(1 − H)⁴` expanded over the taps, and BP (0, 0, 2, −4, 2), `2H²(1 − H)²`. `Settings` names a `response`, a
+  `morph_to` and a `morph` in [0, 1]; the weights are the two presets' interpolated in double at `configure`. The
+  weights are coefficient fields, so lanes of one `Poly` run different responses and morphs; the state never depends
+  on them, so the output is linear in them.
+- **The flavour is the one mode** (`Mode::CLEAN`, `Mode::DRIVE`), and both share the State, so switching between
+  blocks keeps it. CLEAN saturates the resolved input once and runs the linear stages. DRIVE saturates every stage's
+  input; that loop has no closed form, so the linear solution predicts `u`, a trial pass through the saturating
+  stages on a copy of the state gives the loop's error `f = u − in_gain·x + k·y₄`, one step `u ← u − f·r` corrects it
+  with the linear loop's slope (a fixed cost, no division), and the committed pass runs on the corrected `u`. On the
+  A9 DRIVE costs about 4 times CLEAN. The tap mixes assume each stage filters the one before, and DRIVE's stages
+  each saturate their own input, so its HP and BP are exact at small signals and leak a little of what they reject
+  when driven hard (a compensated HP at drive 8 and resonance 2 settles at −0.29 on a DC input of 0.5).
+- **The saturator** `fp::detail::soft_clip` (`float/math/detail.h`, over V) is the odd quintic
+  `x − 2x³/(3L²) + x⁵/(5L⁴)` on its input clamped to ±L, L = 15/8, ±1 beyond. Its slope `(1 − x²/L²)²` is 1 at 0,
+  never negative, and reaches 0 with zero curvature at ±L, so the curve enters the clamp with no corner. It is defined
+  by these properties, not as an approximation of tanh: a polynomial that meets the clamp cannot also follow tanh
+  closely. No division, as ARMv7 NEON has no vector divide.
+
+The ladder has no oversampling: on high notes its saturators fold harmonics back into the band (a host measure in
+`float_ladder_spec`; the figures are in [a9_dsp_performance.md](a9_dsp_performance.md#ladder-and-drift)).
+
+### `Drift` (`float/mod/drift.h`)
+
+`fp::Drift` is per-voice slow noise for wandering a voice's pitch and cutoff: a scalar object, one per voice, stepped
+once per block, not a kernel. Each `next()` draws a uniform value in [−1, 1] from a 32-bit xorshift (shifts 13, 17,
+5) and moves the value a fraction `a = 1 − e^(−1/time_blocks)` of the way towards it (a one-pole on white noise,
+through `mul_add`); `value()` reads the last result. `Settings` are `time_blocks` (at least 1) and `seed` (0 taken as
+1); `reseed` restarts the stream. It is libm-free and deterministic, so a seed gives the same stream on every target.
+The owner applies the value through `configure`, linearised: a cutoff `fc·(1 + d·depth)`, a pitch increment
+`inc·(1 + d·cents·ln2/1200)` (within 0.03 cent at ±10 cents). Reconfiguring a whole voice chain each block recomputes
+every part's coefficients; the bench's drifting ladder voice measures that cost.
+
+### `Envelope` (`float/envelope/envelope.h`)
+
+`fp::Envelope` runs a program of up to 8 segments. A `Segment` holds `target` (where it ends: the value lands on it
+exactly), `aim` (where an exponential segment heads, beyond the target for an analog-curve attack), `rate` (the
+one-pole coefficient, or a linear segment's length in samples), an exponential flag, a `hold` flag (stay until a
+gate-off, never reached) and `next` (the segment entered on reaching the target, or `kOff`). A `Program` is its
+segments, the first entered by a gate-on, and a `release` index a gate-off enters, or `kOff` to ignore gate-off. The
+flags and indices are 0/1 or whole numbers held in V, so a segment is a plain value like any coefficient.
+
+The State holds the current segment unpacked: value, target, aim, slope, flags, next, direction and an end tolerance.
+**The common path** is one step and one end-compare per sample on every lane at once: a one-pole step
+`value + slope · (aim − value)` or a linear one `value + slope`, selected per lane, then one test of whether any lane
+reached its target (in its direction, within 1e-5 for an exponential aiming at its own target, which only approaches
+it). **Transitions are rare and run scalar**: when `any(reached)`, each lane that did extracts its own scalar State and
+Coefficients, runs `enter` on its next segment and stores the result. Lanes reach on different samples, so the common
+path never branches per lane.
+
+- **Events.** `gate_on` enters segment 0 from the current value, so a retrigger never jumps. `gate_off` enters the
+  program's release from the current value, and is ignored by a program with none and by an envelope at rest.
+  `kOff` as a `next` rests at exactly 0.
+- **Clamps.** A time under one sample counts as one, for an exponential time constant and a linear length alike. The
+  builders compute the one-pole rate `1 − e^(−1/t)` libm-free (a Taylor series in double), and so the program is the
+  same on every target.
+- **The five programs.** `adsr` (exponential attack aiming at 1.2 and ending at 1, decay to the sustain, a hold, an
+  exponential release), `ad` (attack then decay to 0, ignoring gate-off), `asr` (attack, hold at 1, release),
+  `four_segment` (DX7-shaped: three linear rises, a hold, a gate-off fall to a fourth level and a hold) and
+  `looping` (two linear segments, forever).
+
+### `Vca<E>` (`float/vca/vca.h`)
+
+`fp::Vca<E>` is a processor: `y = (x · e) · gain`, in that order, where `e` is the next level of an envelope part `E`.
+`E`'s Settings, Coefficients and State nest in the Vca's, so a lane carries its own program, stage and gain, and the
+envelope steps once per sample whatever the signal. `gate_on` and `gate_off` forward to `E`, so
+`on<&Vca<E>::gate_on>` reaches the envelope of a `Mono` or of one lane of a `Poly` or `Bank`. `E` must be a float
+generator kernel with no modes and no `prepare`; the Vca `static_assert`s it, since a Vca adds neither.
+
+### Chain over V, and `part_event`
+
+A `Chain` whose parts are all `poly_kernel`s is itself one (see [`Chain` and `Pinned`](#chain-and-pinned-corechainh)):
+its Coefficients and State are built from the parts' `CoefficientsT<V>` and `StateT<V>`, so `Poly<Chain<…>, N>` steps
+the whole voice once per frame on a `Pack`, and `set_lane` and `get_lane` move one lane part by part. A moded part's
+mode sits beside the parts, shared by every lane.
+
+A part's event is reached through `part_event<I, Event>`: `Event(get<I>(c), get<I>(s), args…)`, or on the State alone.
+For the voice, `poly.on<part_event<2, &Vca<fp::Envelope>::gate_on>>(lane)` starts voice `lane`'s envelope. `Copies`
+keeps the shared members of the coefficients that are not fields (every part's mode among them) from the last
+`configure`, so an event on one lane sees the coefficients as `Mono` does.
+
+## Layer 3: oscillator components
+
+Each oscillator is a **stateful generator** that owns its phase:
+
+- `Phasor` (`core/phasor.h`): the phase accumulator (`advance()`, `seek()`,
+  `set_increment()`), the single home for phase state.
+- `fixed::sine`: the sine kernel.
+- `TableOscillator`: holds `std::span<const int16_t>` (magnitude from
+  `.size()`); `render()` is the synth's exact table gather and interpolation.
+  Backs the band-limited saw, square, triangle and analog waves; only the table
+  differs.
+- `BandLimitedTableOscillator`: a `TableOscillator` that picks its band from the
+  phase increment.
+- `PulseOscillator`: the PWM dual-square.
+- The crude oscillators (`CrudeSaw`, `CrudeSquare`, `CrudeTriangle`, `CrudeSine`):
+  the scalar analytic forms used at low pitch and as the CPU-dire fallback. Each
+  takes its phase source as a template parameter: `Phasor` free-running, or
+  `SyncedPhasor` for hard sync.
+- `WavetableOscillator`: renders a `WaveTableData` view of the bands; the app's
+  `WaveTable` owns loading and band management.
+- `BandBuilder` (`fixed/wavetable/band_builder.h`): builds a wavetable's bands a
+  cycle at a time from the cycles the app's reader hands it, into storage it is
+  lent, allocating nothing: band 0 straight from a power-of-two cycle, every
+  other band (and band 0 of any other cycle) from the cycle's spectrum through
+  an inverse `RealFft`. `BandGeometry` is the band layout both `WaveTable::setup`
+  and the spec read. The app's `WaveTable` owns the bands (`BandSamples`), the
+  reader (`WaveTableCycleReader`) and the yields between cycles and bands.
+
+Cross-cutting pieces are components too, not per-type branches:
+- `SyncedOscillator<Osc>` (`fixed/sync/`): hard sync as a generator that wraps a
+  generator, taken by template parameter. It owns the resetter and seam state,
+  restarts the wrapped oscillator at each resetter crossover, crossfades the
+  seam, and fills each window to its exact length with the wrapped oscillator's
+  `render_block`. `WavetableSyncOscillator` is the wavetable's form.
+- Band selection: a band-limited table set (`BandlimitedTable`) picks its band
+  from the phase increment. The choice between a crude and a band-limited
+  oscillator depends on the band index and the app's quality measure
+  (`AudioEngine::cpuDireness`), and stays with the app.
+
+**Phase ownership.** The generators own phase; the voice drives them per block,
+setting phase and increment and reading the phase back for the next block. The
+phase advance is identical to the synth's, so this is bit-exact. Moving phase
+state fully into the engine is later work.
+
+## Layer 4: processors and mixers
+
+- `Amplitude` (`fixed/vca/`): the VCA, a SIMD `Mixer`:
+  `out = raw * amplitude_ramp + mix`, with `vqdmulhq` arithmetic.
+  `CrudeAmplitude` is the crude paths' VCA, a separate component because its
+  arithmetic (`multiply_accumulate`, rounded) differs. Unifying the two is an
+  audible, re-baselined step.
+- Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
+- Filters, dynamics, delay, effects and the DX7 are kernels wrapped by `Mono`,
+  `Stereo` or `Control`, under the settings convention and the
+  [copies-across-lanes rules](#copies-across-lanes); the DX7's `Graph` and `Voice` are components over them.
+
+## Effect chains (`effects/`)
+
+Each home's effects run, in that home's fixed order, in a typed runtime in
+`deluge_effects`. The runtime owns the components; the app works out the
+block's inputs from its params and makes one call.
+
+- **`ChainCore`** (`chain_core.{h,cpp}`) holds what every home has: EQ, delay,
+  bitcrush, mod FX, granular, compressor, sidechain, and the send and volume. It
+  also holds the stage they share, `render_fx`: the mod FX (or the grain, when
+  the type in effect is GRAIN), then the EQ, then the delay. A host chain's soft
+  off of a GRAIN it holds (`soft_off_grain`) is here too.
+- **`FxSection`** (`fx_section.{h,cpp}`) is a sound's effects after its
+  voices: bitcrush, mod FX or grain, EQ, delay, stutter, send and volume,
+  compressor. The per-voice filter and saturation stay in `Sound`. The sidechain
+  is a patch source, and the sound renders it before its voices.
+- **`TrackChain`** (`track_chain.{h,cpp}`) is a kit's or an audio track's chain,
+  in two steps around the content render:
+  - `begin_block` configures the filters (which compensate the post-FX volume),
+    ducks the post-reverb volume by the sidechain and configures the
+    compressor.
+  - `process` runs saturation, then filter and bitcrush (only when the content
+    rendered), mod FX or grain, EQ, delay and stutter, then the `tap` callback
+    (the recorder), then send, volume and pan, then the compressor (or its
+    reset at a threshold at or below 0).
+- **`MasterChain`** (`master_chain.{h,cpp}`) is the song's master, one `render`
+  call around the reverb:
+  - The half before the reverb: mod FX or grain, EQ, delay, send and volume.
+  - Then `between(sent)`: the engine notes a send (the reverb renders only
+    within 12 s of one), renders the reverb (`effects::Reverb`) and the sample preview, and returns
+    the half after's inputs. It returns nothing for a stem export without the
+    song's effects.
+  - The half after: filter, bitcrush, stutter, pan and the compressor with the
+    song volume.
+
+  The master's saturation and sidechain are saved with the song and not
+  rendered.
+- **Inputs are values.** Each inputs struct (`FxInputs`, `FxSectionInputs`,
+  `TrackChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
+  - param finals and knobs;
+  - the owner's render copy of its settings (`const EffectStates*`);
+  - the delay's working state, which the owner set up on the chain's delay;
+  - the filter scratch;
+  - the song's stutter and its rate while this owner is the one stuttering.
+
+  No `ParamManager`, song or engine state enters the library.
+- **The adapters sit with the params that feed them.** `fxSectionInputs`
+  (`processing/sound/fx_section_inputs`) reads a sound's patcher finals, so it
+  travels with `Sound` when the synth becomes a plugin. Its `FxSection` is the
+  synth's own FX section, which the mod matrix modulates.
+  - `trackChainInputs`, `masterChainInputs` and `masterPostInputs`
+    (`model/fx/chain_inputs`) read unpatched params and automation. Those
+    chains are the host's inserts and master.
+  - The host's chains have their own owners. A kit or an audio track holds a
+    `TrackChannel` (`model/fx/track_channel`), which owns its `TrackChain`, the
+    chain's settings and render copy (`EffectsBinding`) and its knobs' view
+    (`ChainView`), and renders the chain around the content the track hands it.
+    The song holds a `MasterChannel` (`model/fx/master_channel`), which the
+    engine renders around the reverb.
+  - The master's two halves read their inputs at the points the render always
+    has: the half before, in `Song::renderAudio` before its param tick; the half
+    after, after the reverb.
+  - The reverb send is an argument to every chain (`ReverbSend`), so a plugin's
+    send can become an output port.
+- **Order.** Each runtime's `order()` names the effects it renders, in order.
+  `chain_runtime_spec` checks the track chain's and the master's against
+  `chain.h`'s `chain_effects`, the master's reverb return against
+  `reverb_return`, and the sound's against the track chain's order without
+  saturation, filter and sidechain.
+- **Evidence.** `bench/reference_chains.h` writes each home's sequence out over
+  the components.
+  - `chain_runtime_spec` runs a runtime and the reference on two chains built
+    alike, block by block, over `chain_workloads.h`: block lengths 1–9 and 128,
+    stereo and mono, sounding and silent, every mod FX path, the delay ringing,
+    the compressor on and reset, the stutter playing, and sidechain hits. It
+    compares output, send, tap and noise draws word for word.
+  - The in-app gates hold the owners' renders bit-exact: golden 370, every
+    `render-*` gate, and `container-guard`.
+  - The `fx_chains` bench list (`DELUGE_DSP_BENCH_CASES=fx_chains`) times each
+    runtime beside the reference in one image.
+
+## Shared kernels (`fixed/`)
+
+These are the reference blocks that later rewrites compose rather than re-derive.
+
+- **`OnePole`** (`filter/one_pole.h`): a one-pole low-pass with a coefficient, with `LOW_PASS`, `HIGH_PASS`
+  (`x − y` from the same updated memory) and `ALL_PASS` (`2y − x`) as modes over one memory. The granular
+  processor's wet low-pass is one.
+- **`ShiftTracker<N>`** (`filter/shift_tracker.h`): a one-pole low-pass whose coefficient is a right shift by `N`, with
+  `TRACK` (the slow part) and `REMOVE` (the input less it) modes. Its targets are the delay's DC blocker (`REMOVE`,
+  shift 11) and the low-pass ladder's noise follower (`TRACK`, shift 7); `SeriesPoles` composes it as a test fixture.
+- **`Tanh<Drive>`** (`shaping/tanh_kernel.h`) and **`AntialiasedTanh`** (`shaping/antialiased_tanh.h`): the tanh
+  saturation curves. The drive of `Tanh` is a compile-time value, at most 29, because the table lookup shifts by
+  `Drive + 2`. `AntialiasedTanh` keeps its previous table position in `State` and interpolates from it, so changing the
+  drive between two steps moves only the drive. A caller that starts mid-signal uses `seed(c, s, sample)`, which places
+  the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
+- **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade. The filters' fade runs it; the
+  compressor's `BLEND` step writes the same arithmetic with the dry level taken once per configure, pointing at it.
+  `FULL_WET` returns the wet sample unchanged, because the blend at `Q<31>::max()` is not an identity.
+- **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
+  input.
+- **The tables** (`tables/`): `kSineSmall` (one turn of sine, Q15, 257 entries with the wrap) and `kDecaySmall4` /
+  `kDecaySmall8` (the decay curves, UQ16), `constexpr` arrays the DSP library owns. The control-rate sine, the real DFT, the
+  sine band and the decay lookups read them.
+- **`fft::magnitude`** (`fft/magnitude.h`): an FFT bin's magnitude within about 0.15%, from a table of √(1 + q²) at the
+  rounded ratio of the smaller part to the larger, formed in 32 bits. The wavetable band builder and pitch detection use
+  it.
+- **`Wavefolder`** (`shaping/wavefolder.h`): the voice's pre-filter fold as a scalar `Processor`: the input scaled by the
+  fold amount (floored at 0.1) through 4(¾x − x³) twice, shifted down 7. Its doublings and ×8 wrap, as the target's
+  shifts do.
+- **`fp::LevelDetector`** (`float/dynamics/level_detector.h`): a block-rate level per channel, the block's mean
+  absolute sample smoothed by a one-pole (1 ms attack, 10 ms release) and reported as its natural log. The reverb's
+  gate and the recorder's threshold read it. Its int32 sum of a block's absolute samples wraps above a mean of 2^24,
+  about twice the level the render buffer clips at.
+
+### The filters (`fixed/filter/`)
+
+Each filter is a scalar q31 processor kernel built by nesting the shared kernels above
+([Composition](#composition)): its `State` holds their States, and its `step` calls their `step`s directly, at the
+mode it needs (a section's LOW_PASS, the follower's TRACK). Each runs under `Stereo` (one `Coefficients`, a `State`
+per channel), and each moded one shares one `State` across its modes, so a mode change between blocks carries every
+memory.
+
+- **`LowPassLadder<Noise>`** (`low_pass_ladder.h`): the transistor-ladder low-pass.
+  - Four `OnePole` sections and a `ShiftTracker<7>` TRACK noise follower. The 24 dB ladders step all four sections as
+    LOW_PASS; the 12 dB ladder steps two LOW_PASS and one ALL_PASS.
+  - Plain `tanh<N>` saturation: drive 2 on the input, and in the drive ladder, 7 on the feedback sum and 4 on the
+    output.
+  - Modes T12, T24, DRIVE and DRIVE_OVERSAMPLED. `coefficients()` chooses oversampling from `allow_oversampling` and
+    the resonance by the oversampling tables, so oversampling switching on or off under CPU load is a mode change.
+  - The noise is its `Noise` policy ([Noise](#noise-fixednoise)): one draw per step, two when oversampled.
+  - Its `reset` quirk silences the sections and keeps the follower.
+- **`HighPassLadder`** (`high_pass_ladder.h`): two `OnePole` HIGH_PASS sections and one LOW_PASS around a resonant
+  loop, and an `AntialiasedTanh` State.
+  - The saturation is the mode, chosen per block from the processed resonance: BYPASS, TANH (`tanh<2>`) or ANTIALIASED
+    (`AntialiasedTanh` at drive 1). The resonance cannot change within a block, so the loop makes no per-sample
+    test of it. That is most of the kernel's speed ([a9_dsp_performance.md](a9_dsp_performance.md#filters)).
+  - BYPASS and TANH keep the saturator's position tracking the signal (`AntialiasedTanh::place`, at shift 2 while it
+    saturates at drive 1, a quirk kept bit-exact and named in the code), so ANTIALIASED switched in interpolates from
+    the last sample.
+  - A fresh State's position is 0, not the curve's centre, because the filter set's zeroing leaves it there.
+  - Its `reset` quirk silences the sections and keeps the position.
+- **`Svf`** (`svf.h`): the state-variable filter, two passes per sample over `{low, band}`, its band saturated by
+  `tanh<3>`. Modes BAND and NOTCH. Its gain compensation is the gain it was given.
+- **`FadeIn` and `FadeInMono`** (`fade_in.h`): the fade from a filter's dry input to its output after the filter is
+  switched on, a mixer kernel of (dry, wet).
+  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is 1 − dry in float,
+    converted truncating (`from_float<31>`). Each sample is `dry_wet_blend` at the wet level, then the level steps. It
+    is over once dry falls below 0.001.
+  - **One level, stepped once per channel-sample.** In stereo the left channel blends at one level and the right at the
+    next, so the two channels sit one step apart and a stereo fade ends in half the frames. That is why the fade is
+    not a q31 kernel under `Stereo`, which would give each channel its own level.
+  - **Two forms.** `FadeIn` steps `StereoSample` frames under `Mono`, twice per frame. `FadeInMono` steps q31 samples,
+    once per sample. Over an interleaved block that is the same sequence on the same `State`.
+  - **Events.** `begin` starts or restarts a fade, and `zero` leaves none.
+  - **Who uses which.** `FadeInMono` is the one the filter set runs. `FadeIn` is the frame-buffer form, for an owner
+    whose blocks are frames.
+- **`FilterSet`** (`filter_set.h`): a low-pass and a high-pass slot, in series either way or in parallel.
+  - **The slots.** Each is a union of the `Stereo` wrappers its families need: `Stereo<LowPassLadder<>>` or
+    `Stereo<Svf>`, and `Stereo<HighPassLadder>` or `Stereo<Svf>`. A change of family rebuilds the member with a
+    zero State.
+  - **Blocks.** A stereo block runs the wrapper over its frames. A mono block runs lane 0 alone through `render_lane`
+    ([`Linked`](#linkedk-n-corelinkedh)), so the one object keeps both channels' state across a voice's mono and stereo
+    blocks.
+  - **The fades.** Each slot's fade is a `Mono<FadeInMono>` held beside the union, not inside it. A family change
+    mid-fade rebuilds the filter and leaves the fade running, with nothing to copy.
+  - **The fade pass.** It runs only on blocks where the fade is active, after a dry copy of the block. In stereo it
+    steps once per channel-sample over the interleaved block, as `FadeIn` does over frames.
+  - **The parallel route** runs the high-pass over a copy of the block and adds it back with `wrapping_add`.
+  - **Cost.** What these passes cost, and what fusing the set into one loop could save, is measured in
+    [a9_dsp_performance.md](a9_dsp_performance.md#filters).
+
+The compressor (`fixed/dynamics/compressor_kernel.h`) is a kernel, `Compressor`, which its owner
+`RmsFeedbackCompressor` (`rms_feedback_compressor.h`) renders as `Mono<Compressor>` (see
+[Block arithmetic in `prepare`, block inputs by event](#block-arithmetic-in-prepare-block-inputs-by-event-compressor)).
+Its State holds the shared kernels' States: two `OnePole` detectors stepped HIGH_PASS, and two `AntialiasedTanh`
+saturators at drive 3, each seeded from the block's first frame after a reset (`AntialiasedTanh::seed`).
+
+**Read-only inspection.** `FilterSet::view()` and `RmsFeedbackCompressor::view()` return a `View` of everything that
+carries from one block to the next:
+- **`FilterSet::View`**: each slot's held family and a const pointer to the member it holds, the slots as configured
+  and last configured, the route, and both fades' levels.
+- **`RmsFeedbackCompressor::View`**: the envelopes, levels, rates, detectors and saturators.
+
+They are for specs, which compare an owner's whole state against its reference block by block. They change nothing
+and are unused in the app, so the linker drops them.
+
+### Verbatim references
+
+A kernel that replaces hand-written code is checked bit for bit against a test-local, line-for-line copy of that code,
+not against the code itself, so the code can be deleted once its users move. The filters' copies are in
+`tests/unit/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
+the filter set. The compressor's are in `tests/unit/dsp/reference_compressor.h`, on those legacy forms: the legacy class
+verbatim, and the same class with its two level defects fixed (the 32-bit sum of squares, and `std::abs` of
+`INT32_MIN`), which is what the kernel matches. The reverb's are in `tests/unit/dsp/reference_reverb.h`: Freeverb, the Mutable plate
+and the Digital plate with the engine's model selector, verbatim, which the kernels and the component match.
+
+**What is checked against them.** They are the oracle for:
+- `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
+  `fade_in_spec`;
+- `filters_reference_spec`, which runs every filter and filter-set workload (`tests/unit/dsp/filter_workloads.h`) through
+  both and pins the references' output, noise draws and whole state in `filter_workload_records.h`;
+- `compressor_reference_spec`, which runs every compressor workload (`tests/unit/dsp/compressor_workloads.h`) through both
+  compressor references, shows where the level defects are reached, and pins each one's output, gain reduction and
+  state in `compressor_workload_records.h`; `compressor_kernel_spec` and `rms_feedback_compressor_spec` hold the
+  kernel and its owner to the fixed one.
+
+**Plain signed sums.** The copies keep the legacy plain signed sums. Those that overflow at full scale are marked
+`DELUGE_REFERENCE_LEGACY_ARITHMETIC`, which turns UBSan's overflow check off in those bodies alone. The `dsp-ubsan`
+leg therefore checks the kernels and runs with no exclusion.
+
+**Specs that step the kernel by hand.** `saturation_spec` and `bench_runner_spec` do this, and are checked through
+`antialiased_tanh_spec`'s pin of the kernel.
+
+### The real FFT (`fixed/fft/`)
+
+The firmware's int32 real FFT: the wavetable band builder's forward and inverse transforms and pitch detection's
+forward transform. It is a port of NE10's unscaled int32 real FFT to Argon, bit for bit: `tests/unit/dsp/real_fft_records.h`
+holds NE10's outputs, recorded on x86 and on ARM, at every size the firmware transforms (forward 16 to 8192 points,
+inverse 8 to 8192), over random, impulse, full-scale and real-cycle inputs, and `real_fft_spec` holds `RealFft` to
+them on x86, ARM and under UBSan.
+
+- **`Twiddles`** (`twiddles.h`): the factor list and the stage and real-split twiddles, laid out over one block the
+  caller lends (`storage_bytes`, `lay_out`), generated in three stages (`factor`, `generate_stage_twiddles`,
+  `generate_super_twiddles`) so a loader can yield between them. The phase is float arithmetic and cos/sin take it as
+  a double, in NE10's operand order, because the tables differ when that order changes: the firmware builds float code
+  with `-funsafe-math-optimizations`, under which NE10's tables differ from the plain build's from 32 points up, and
+  `twiddles_shipping_spec` holds the tables at those flags to the records made at them. In the shipping image both
+  generators compile to NE10's float sequence: the same reciprocal of the length, multiply order, conversions and
+  cos, floor, sin, floor calls (NE10's `vmla.f64` is a `vmul.f64` and a `vadd.f64` here, which round the same: the
+  A9's VFPv3 has no fused multiply-add).
+- **`RealFft`** (`real_fft.h`): forward from 2^m samples to 2^(m−1)+1 bins and inverse back, over lent tables and
+  scratch, no state between calls. NE10's radix-8 and radix-4 stages and real splits are in `radix.h`: every sum and
+  difference wraps, every vector product is the saturating doubling high half (`MultiplyFixedQMax`, `vqdmulh`) except
+  the 16-point inverse's, which rounds (`MultiplyRoundFixedQMax`, `vqrdmulh`), and only the forward split's outputs
+  halve (`AddHalve`/`SubtractHalve`). The scalar 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit
+  product shifted down by 31, and its real split sums two 64-bit products' high words and then doubles the sum. NE10's 16-point forward ran its radix-8 stage four butterflies wide over an 8-point
+  input and wrote 128 bytes past its configuration; `RealFft` runs that stage on zero-padded locals and keeps lane 0,
+  which is NE10's output.
+- **`FFTConfigManager`** (app, `dsp/fft/`) builds each size's transform on first use, yields to the cluster loader
+  between the twiddle stages, and keeps it for the run; `real_dft` (`real_dft.h`) is the band builder's DFT for a
+  cycle that is not a power of two.
+
+**Codegen at shipping flags against NE10's** (`deluge.elf`, instructions per inner-loop iteration, four butterflies):
+
+| Loop | NE10 | `RealFft` |
+| --- | ---: | ---: |
+| radix-8 first stage, forward / inverse | 271 / 265 | 271 / 268 |
+| radix-4 first stage, forward / inverse | 51 / 51 | 51 / 51 |
+| radix-4 twiddled stage, forward / inverse | 68 / 67 | 64 / 64 |
+| real split, forward / inverse (vector) | 38 / 38 | 39 / 39 |
+| inverse real split, scalar (8 points) | 34 | 37 |
+
+No radix loop calls out or multiplies in scalar registers; the twiddled stage reloads four values from the stack per
+iteration in both. The twiddled stage is out of line, as NE10's was: inlined twice into each transform it ran short of
+registers (75 instructions, a store and reload of a pointer). `forward` and `inverse` are 840 and 842 ARM instructions,
+plus 91 for each direction's twiddled stage; NE10's functions were about 6.2 KB of Thumb.
+
+**On the rig** (J-Trace, `fft_forward` and `fft_inverse` at n = 128, cycles per transform; tables and scratch
+16-byte aligned):
+
+| Points | Forward NE10 | Forward `RealFft` | ratio | Inverse NE10 | Inverse `RealFft` | ratio |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 8 | | | | 150 | 180 | 1.20 |
+| 16 | 840 | 794 | 0.95 | 238 | 263 | 1.11 |
+| 32 | 552 | 552 | 1.00 | 488 | 485 | 0.99 |
+| 64 | 1,421 | 1,355 | 0.95 | 1,393 | 1,365 | 0.98 |
+| 128 | 2,627 | 2,560 | 0.97 | 2,632 | 2,578 | 0.98 |
+| 256 | 6,574 | 6,360 | 0.97 | 6,467 | 6,339 | 0.98 |
+| 512 | 12,696 | 12,275 | 0.97 | 12,847 | 12,314 | 0.96 |
+| 1024 | 30,801 | 29,836 | 0.97 | 30,423 | 29,777 | 0.98 |
+| 2048 | 73,238 | 80,428 | 1.10 | 79,763 | 80,999 | 1.02 |
+| 4096 | 208,643 | 215,195 | 1.03 | 222,278 | 234,698 | 1.06 |
+| 8192 | 462,320 | 479,056 | 1.04 | 564,925 | 543,057 | 0.96 |
+
+The inverse at 8 and 16 points pays the frame of the one `inverse` body (nine core and eight double registers saved,
+a 476-byte frame) on every call, about 20 instructions per transform (173 to 197, 237 to 256) that NE10's separate
+4-, 8- and 16-point functions did not; the band builder runs them once per cycle for the two smallest bands. From 2048
+points up the working set outgrows the L1 data cache and data-cache stalls are a third to a half of the cycles; there
+the figures move by up to 10% between images whose transform code is the same (the 2048-point forward measured 73,782
+cycles in an image whose tables were 4 bytes off 8-byte alignment and 80,428 here, at 28,138 and 28,145 instructions,
+its data-cache stalls 12,290 and 24,883), so those ratios measure where the data landed, not the code.
+
+## Bit-exactness: how the synth's math maps in
+
+- Generator then VCA: `Oscillator.render_block(raw)` and then `Amplitude` over
+  `raw` are the same operations reordered across a temporary buffer, so the
+  output is identical. Raw output (no amplitude) is "don't run the `Amplitude`
+  mixer".
+- Kernels are the synth's exact arithmetic (`ShiftLeftLong<16>`,
+  `MultiplyDoubleAddSaturateLong`, the crude analytic forms), never a cleaner
+  equivalent.
+- A generator fills exactly its `Buffer`, so no write lands past the block.
+- Constants and arithmetic quirks the output depends on are named in the code
+  (a named constant, or a comment on the quirk), so a reader can tell them from
+  mistakes.
+
+## Remaining work
+
+- **The mixin→kernel move.** The oscillators and `Amplitude`, and the crude
+  oscillators and `CrudeAmplitude` with their hand-written loops, move onto
+  kernels wrapped by `Mono`. The `Generator`, `Processor` and `Mixer` mixins go
+  once nothing uses them.
+- **The rest of the kernel form.** Not implemented yet: `U` (the unroll factor
+  of the wrappers' loops; stateful vector kernels opt in with `split`/`merge`,
+  checked bit-exact against U = 1). `U` is chosen from device cycle-per-sample
+  measurements, as each `Linked` use's N is.
+- **The oscillator registry.** The `OscType` choice becomes a block-level
+  registry composing generator, band selection, sync and `Amplitude` behind
+  `AsBlock`.
+- **Vector-aware `sample_*` concepts**, so SIMD components satisfy the composite
+  concepts.
+- **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
+  unification, analytic-wave options, band-limiting and sync improvements,
+  full phase relocation into the engine, per-voice
+  noise, the L1 `SourceEngine`/CLAP boundary.
+
+## Measuring
+
+The choices of `U`, `Linked` and fusion rest on device cycle counts, and the
+build can take them. What the measurements have shown so far, and the rules for
+kernels that follow from them, are in [a9_dsp_performance.md](a9_dsp_performance.md). `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
+the benchmarks in `src/deluge/bench` into the device image and runs them once at
+boot: the BSP calls `deluge_app_bench()` after the static constructors and
+before `deluge_app_init()`, and the bench masks IRQs for its run. A build with the option off
+contains no bench code beyond the hook, which returns false, and a host never calls it.
+
+A bench image ends parked and dark; it never starts the app. When the hook
+returns true, the BSP skips `deluge_app_init()`, waits for the PIC handshake,
+turns off every pad, sidebar pad, button LED and gold-knob ring, clears the OLED
+and sends it DISPLAY OFF, prints `bench: parked, pads/LEDs/OLED off`, and parks.
+The PIC and the OLED controller keep their state across a CPU reset, so without
+this they would show whatever the previous boot left for as long as the device
+stays powered.
+
+**Build and run.**
+
+```sh
+./dbt configure -DDELUGE_DSP_BENCH=ON
+./dbt build RelWithDebInfo
+tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the table
+./dbt configure -DDELUGE_DSP_BENCH=OFF    # the option sticks in the CMake cache
+./dbt build RelWithDebInfo
+```
+
+The cases come in lists chosen by the CMake cache string
+`DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
+it drops some:
+
+- `kernels` (the default): one case per component;
+- `lanes`: each `Linked` case beside the mono case of its kernel;
+- `chain`: stages as separate passes beside the same stages as one `Chain` (the
+  delay's feedback, analog and digital, and three mono stages), with each stage
+  alone. The delay's cases build with the flags of the library the delay ships
+  in, ARM mode with `-finline-functions` and no LTO
+  (`src/deluge/bench/delay_feedback_cases.cpp`), and render in place, as the
+  delay does, each block over the one before's output; the digital chain is
+  also timed out of place, beside it;
+- `delay`: the whole delay block, `DelayProcessor::process` (the fused
+  `Mono<Delay>`), over real tapes
+  in every tape form (native, resampled below and above the native rate), mix
+  (straight and ping-pong crossed) and shaper (digital and analog), and with a
+  secondary tape growing. The tapes' storage is in SDRAM, sized as the app sizes
+  them, as the app allocates them; one processor and one pair of tapes serve
+  every case, so the list fits on-chip SRAM. These cases build with the
+  library's flags too (`src/deluge/bench/delay_cases.cpp`). The list ends with
+  the chain list's `delay_feedback_chain_analog` and `_digital`, code the
+  delay's own changes leave alone: compared with the chain list's figures, they
+  bound how much a delay image's code placement moves the rest;
+- `filters`: each filter as a voice runs it, mono and stereo (the low-pass
+  ladder in 12 dB, 24 dB, drive and oversampled drive, the high-pass ladder, and
+  the SVF in band and notch), the filter set on each route in stereo, and the
+  24 dB ladder with its fade running over every block (`filter_lp24_fading_stereo`,
+  switched off and on before each block; less `filter_lp24_stereo`, it is the fade
+  pass's cost). Each
+  block is `FilterSet::configure` then `render_mono` or `render_stereo`, in place,
+  through the set's public API alone, so the cases time whatever filters the set
+  holds. Each setup seeds the synth's noise stream (`deluge::synth_noise`) the low-pass ladder
+  draws from, so every run times the same stream, and the host check counts its
+  draws. These cases build with the library's flags
+  (`src/deluge/bench/filter_cases.cpp`), and the list ends with the same two
+  feedback chain controls as the delay list;
+- `compressor`: `RmsFeedbackCompressor` as its owners call it, fully wet and
+  blended at half, through `render` (the song master) and `render_volume_neutral`
+  (a sound, a track chain), in place over a loud stereo block, past the threshold
+  so it reduces the gain. One compressor serves every case, fresh at each setup.
+  These cases build with the library's flags
+  (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two
+  feedback chain controls.
+- `mod_fx`, `granular` and `stutter`: each effect component as its owners render
+  it, and `fx_chains`: each home's chain runtime beside the same sequence written
+  out (`a9_dsp_performance.md` has each list's cases); each ends with the same two
+  feedback chain controls;
+- `reverb`: each reverb model as `renderReverb` renders it through
+  `effects::Reverb`, at the boot song's knobs, centred and unducked, rebuilt at
+  each setup as a song load does; it ends with the same two feedback chain
+  controls.
+- `dx7`: a DX7 voice's block through the voice adapter, in the modern engine
+  (algorithms 1 and 32) and the MkI engine (algorithm 1 with feedback, and
+  algorithm 4's fused stack); it ends with the same two feedback chain controls.
+- `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
+  transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
+  block whatever the block size, so their figure is cycles per transform
+  (`cycles / k`), not cps;
+- `pitch_shift`: the sample reader's resampled read, windowed sinc and linear,
+  mono and stereo, and one voice's live pitch shifter up and down, in stereo
+  and on the percussive test signal, its input ingested each block (see
+  [a9_dsp_performance.md](a9_dsp_performance.md#live-pitch-shifter)).
+
+Every other case builds with the app's flags. A bench image builds only its own
+list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
+SRAM heap is negative and TLSF panics at boot, with no link error).
+
+Choose one with
+`./dbt configure -DDELUGE_DSP_BENCH=ON -DDELUGE_DSP_BENCH_CASES=lanes`; it sticks
+in the cache as the option does, so set it back to `kernels` with the option
+OFF. Any other value fails the configure. `bench_runner_spec` checks that each
+list, run at the device's block sizes, prints fewer than 70 lines in all.
+
+A case of N lanes (a component declaring `static constexpr std::size_t kLanes =
+N`) prints `lanes=N` after `n=`, and its cps is per channel-sample: cycles ÷
+(K·n·N). That includes `stereo_gain`, whose cps is therefore half the per-frame
+figure a table without `lanes=` gives for it.
+
+`dsp_bench.py` runs `deluge_jlink.py`, which loads the RAM image and starts it
+itself, so there is no probe to attach beforehand. The bench runs before
+`deluge_app_init()`, so its lines (about 6 KB) are the first large write into the
+empty 16 KB RTT buffer and arrive whole; it is the boot lines after them that may
+be dropped while the buffer is full. `dsp_bench.py` writes
+`.superpowers/estate/bench/<date>-<sha>.md` (the table) and `.json` (the records
+and the run's metadata, the `BENCH-INFO` values and the sanity result among it).
+It exits 0 on success; 2 for an incomplete or malformed capture (no table is
+written); 3 when the probe script fails (its own code is in the message); and 4
+when the run is complete but fails the sanity check below (the table is written,
+marked with a `**SANITY CHECK FAILED**` banner). `--from-capture FILE`
+re-tabulates a saved capture. It runs the probe until the parked line, so the
+device it leaves running is dark; a capture with `BENCH-DONE` but no parked line
+is still written, with a warning that the device may still be lit, and the JSON
+metadata's `parked` says which.
+
+**What is measured.** Each case is a component, built as the voice builds it and
+run on the SRAM buffers the voice uses, and each is timed at block sizes
+n = 32, 64 and 128:
+
+1. `setup(n)` configures the component and fills its inputs;
+2. blocks run untimed until at least 512 samples and at least four blocks have
+   run (16 blocks at n = 32, 8 at 64, 4 at 128), so the component's code and
+   tables are resident at every size and it is in the state its comment
+   documents;
+3. K = 64 consecutive blocks run between two counter readings;
+4. the difference, modulo 2^32, less the calibration's difference at the same n
+   (each counter floored at zero), is the case's result.
+
+The calibration (`case=calibration`) is the same loop and the same indirect call
+over a component whose block does nothing, so subtracting it removes the cost of
+reading the counters and of the call. It is printed raw, so the table shows what
+was subtracted. The image starts with cold caches, so before the first block
+size the runner times the calibration once more and discards it; every printed
+calibration, the first size's included, is measured warm.
+
+The calibration removes the trampoline and the counter reads only. `cps` still
+includes each case's per-block glue: the loads of the spans its setup took, the
+call into the component's `render_block` (`advance` for the duck), and, for
+`synced_pulse` and `duck_envelope`, the construction and `configure` they run
+every block, as the voice and the sidechain do. That glue costs about the same in every block, so it adds roughly
+constant / n to `cps` and inflates the small-n rows most.
+
+**The lines.** Each measurement is one RTT line:
+
+```
+BENCH case=<name> n=<block> [lanes=<N>] k=<blocks> cycles=<u32> cps=<x.xx> l1d_refill=<u32> inst=<u32> dc_stall=<u32> issue_empty=<u32> neon=<u32>
+```
+
+ending with `BENCH-DONE cases=<count>`, which counts every `BENCH` line before it
+(the calibration lines included). `BENCH-INFO <key>=<value>` lines before the
+cases are metadata and are not counted. The fields:
+
+| Field | Meaning |
+| --- | --- |
+| `cycles` | CPU cycles over the K timed blocks (PMCCNTR, undivided, 32 bits) |
+| `lanes` | the case's lane count N, printed only when N > 1, so a mono line has no `lanes=` |
+| `cps` | cycles per channel-sample, cycles / (K * n * N), two decimals, rounded half up |
+| `l1d_refill` | L1 data cache refills (event 0x03) |
+| `inst` | instructions through the renaming stage (0x68; includes a few renamed down a mispredicted path) |
+| `dc_stall` | cycles stalled on a data cache dependency (0x61) |
+| `issue_empty` | cycles the issue stage dispatched nothing (0x66) |
+| `neon` | NEON instructions through the renaming stage (0x74) |
+
+The events are the Cortex-A9 PMU's (Cortex-A9 TRM, DDI 0388I, Tables 11.5 and
+11.6), one counter each, so they count together without multiplexing. The table
+`dsp_bench.py` writes shows `cps` as printed and the event counts per channel-sample,
+with `n` shown as `<n>x<N>` for a case of N lanes.
+
+**Sanity.** `calibration_loop` runs a loop of known length, so its `inst` lies in
+[1024 * n, 1024 * n + 2048] and its `cps` is at least 32.00 (the arithmetic is in
+the case's comment in `cases.h`). A result outside that means the event
+programming, not the component, is at fault: settle it before trusting any row.
+`dsp_bench.py` checks both at every n, and checks that `dbgauthstatus` has SNE
+(bit 6) set; on a failure it still writes the table, marked, and exits 4.
+
+**Counters that read zero.** The A9 counts events only where non-invasive debug
+is permitted. In Secure state that needs both DBGEN or NIDEN high, and SPIDEN or
+SPNIDEN high (ARMv7-A ARM, DDI 0406C.b, Part C, "Non-invasive debug
+authentication", the table "v7 Debug non-invasive debug authentication, with
+Security Extensions"; Cortex-A9 TRM, 10.8, Table 10.12). Without them the event
+counters do not count while PMCCNTR still does, because PMCR.DP is 0 (DDI 0406C.b, "Effects of non-invasive debug
+authentication on the Performance Monitors"). The signature is a plausible
+`cycles` beside every event at zero, `inst` of `calibration_loop` first. The
+bench prints the register that settles it before the cases:
+
+```
+BENCH-INFO dbgauthstatus=0x........
+```
+
+DBGAUTHSTATUS is read with `mrc p14, 0, <Rt>, c7, c14, 6` (DDI 0406C.b,
+"DBGAUTHSTATUS, Authentication Status register"; Cortex-A9 TRM, Table 10.9). Bit 6
+(SNE) is set when non-invasive debug is permitted in Secure PL1 modes, that is
+(DBGEN or NIDEN) and (SPIDEN or SPNIDEN), and bit 2 (NSNE) when it is permitted
+in Non-secure state. The bench prints a plain `bench: reading debug
+authentication` line just before the read, so a run that stops there shows it. With bit 6 clear the events do
+not count in Secure state, and it is the board's authentication signals, not the
+firmware, that have to change.
+
+**Using the numbers.** They inform: which `U` a wrapper unrolls by, which lane
+count a recursive kernel takes, and which kernels are worth fusing. They never
+gate: no test depends on them. A table is evidence for a performance claim with
+its sha and date. A codegen claim uses the exact shipping flags
+(the app's inline threshold of 5, LTO), because a host build differs.
+
+## Review checklist
+
+Every reviewer of every component change applies these, alongside the golden
+gates:
+
+- Does each stateful class satisfy its concept, by `static_assert` next to its
+  definition (and `!std::is_polymorphic_v`)?
+- Does it map field for field onto a legacy class? It should not: a component
+  has `Settings`, `Coefficients` and `State`, not the legacy class's members and
+  verbs.
+- Are constants and bit-exactness quirks named?
+- Can a q31 add or subtract leave range? It goes through `wrapping_add` / `wrapping_sub` (`core/wrapping.h`), because
+  signed overflow is undefined behaviour once a step is inlined. A left shift of a q31 (a doubling back from Q30, a
+  feedback scale) is a plain signed `<<`, with no cast through `uint32_t`: C++20 defines it as modular.
+- Are there callback sinks, raw-pointer heads, out-parameters, or globals? (Noise
+  comes in as the block's Context or a `Cong&`, never from a global.)
+- Is a block-rate signal a control kernel, and are its events functions on its
+  State?
+- Is there a hand-written `render_block` (or a new mixin `render`) where a kernel
+  belongs? Per-sample or per-vector arithmetic is a kernel's `step`, and
+  block-staged arithmetic (the delay's tape I/O) a staged kernel's `process`,
+  wrapped by `Mono` or `Stereo`, and a block-rate signal a control kernel's
+  `advance`, wrapped by `Control` (see
+  [Kernels](#kernels-corekernelh-coremodeh)).
+- Are there public verbs beyond `render`, `render_block`, `configure`,
+  `coefficients`, `reset`, `advance` and `on`, other than accessors?
+- Is there a per-sample branch on mode, where a per-block policy belongs?
+- Are `Coefficients` and `State` anything other than plain value structs?
+- Is noise read (through `CONG`, `jcong` or a held pointer) rather than
+  injected as a template parameter?
+- Are the mono and stereo paths duplicated, where `Stereo<K>`, or a native
+  stereo kernel (`value_type` `StereoSample`) wrapped by `Mono`, would serve?
+- Do comments paraphrase the legacy code, rather than state what the component
+  does and why?
+- Does each stateful piece have a kernel, wrapped by `Mono`, `Stereo` or
+  `Control`, rather than hand-written state and loops?
+- Is `step` free of per-sample mode branches? A mode is a `Modes` entry.
+- Is `process` used only for block-staged arithmetic?
+- Does each step stay in one domain, with `prepare` the only scalar per-block
+  work and `Block` holding values in the step's domain?
+- Are a kernel's `prepare` and `step` `[[gnu::always_inline]]`? App translation
+  units inline only the cheapest calls, so an out-of-line `prepare` is one
+  call per channel per block. A control kernel's `advance`, called once per
+  block, may be out of line; `DuckEnvelope::advance` is.
+- Is a `std::array` read on a per-step path? Its accessors inline only if the
+  app's inliner judges them cheap enough. An Argon load that
+  returns a `std::array` of vectors (an interleaved stereo load) goes through
+  `detail::to_stereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`, as
+  `Mono` and the mixins do; any other such result is bit-cast the same way. A
+  kernel's own arrays (taps, a history, a window) are `std::array`s, read by
+  subscript or through a pointer taken once per step.
+- Is every function on the per-sample path, the wrapper and mixin glue included,
+  `[[gnu::always_inline]]`? The app's translation units inline only
+  the cheapest calls, so anything else can be an out-of-line call per sample
+  or per vector in the shipping image.
+- Does a performance claim cite a bench table, or the exact shipping-flags
+  disassembly?
+- Does a recurrence's tap loop store? A store inside it is itself the cost:
+  each next load waits behind the load→multiply→add→store, about 14 cycles a
+  tap in the delay's response. Prefer a form with no store per tap: direct
+  form, or accumulate in registers.
+- Where a store is unavoidable, are the pointers stepped before it? On the A9 a
+  load whose address is computed after a pending store waits for that store's
+  data: the same eight instructions cost 14.1 cycles with the pointer step
+  after the store and 8.3 with it after the load. In the disassembly the loads
+  are post-indexed (`ldrd r2, r3, [r0], #8`) or the pointer `add` follows them.
+  This is secondary to removing the store. Check the in-place codegen too: an
+  in-place loop merges its input and output pointers into one, which clang
+  steps after the store.
+- Is there a `muls` in a hot loop? It is Thumb-2's narrow flag-setting multiply,
+  which clang's size reduction picks when the registers allow it, and it costs
+  about 3.3 issue cycles against 2.0 for `mul`. Check the disassembly at the
+  shipping flags.
+- Is a block's output a multiple of 1 KB from its input? The same loop then
+  runs about a cycle per sample slower: `one_pole_lp` measures 10.29 with its
+  output 1024 bytes after its input and 9.30 otherwise, with no code change. The bench's
+  shared blocks are padded, with a `static_assert` that no two are a 1 KB
+  multiple apart, so their figures do not depend on where the linker puts them.
+- Do two or more kernels run back to back over one buffer, each a pass of its
+  own? Chain them (`Chain`, with `Pinned` for a part whose mode never varies),
+  unless a part must run alone (see
+  [`Chain` and `Pinned`](#chain-and-pinned-corechainh)), and bench the chain
+  against its passes.
+- Does each new use of `Linked` have a bench case at its N? Does a kernel opt in to
+  op-major without a probe showing its op-major loop beating lane by lane, or a
+  `Pack` specialisation lane by lane cannot reach? See
+  [`Linked<K, N>`](#linkedk-n-corelinkedh).

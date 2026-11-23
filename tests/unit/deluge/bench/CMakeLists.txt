@@ -1,6 +1,6 @@
 # Specs for the app's DSP benchmark (src/deluge/bench). The runner and the case list are portable: they reach the
 # counters only through the Counters interface, which the spec fakes, so they build from their own sources and link
-# dsp-next, which the cases' components run.
+# The DSP library, which the cases' components run.
 set(_app ${DELUGE_REPO_ROOT}/src/deluge)
 deluge_specs_driver(bench_specs TREES host arm NEON
   SOURCES

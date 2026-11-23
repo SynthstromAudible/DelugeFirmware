@@ -17,10 +17,10 @@
 
 // The reverb component (effects/reverb.h) against the reverb reference: every workload, the model hand-over,
 // settings publication, and which model renders.
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include "effects/reverb.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "reference_reverb.h"
 #include "reverb_kernel_views.h"
 #include "reverb_workload_records.h"

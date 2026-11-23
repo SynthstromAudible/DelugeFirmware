@@ -352,6 +352,101 @@ class Spellings(unittest.TestCase):
             repo.close()
 
 
+class LegacyRoot(unittest.TestCase):
+    def test_move_out_of_the_legacy_root(self):
+        repo = Repo(
+            {
+                "src/deluge/x/a.h": "#pragma once\n",
+                "src/deluge/x/b.h": '#include "x/a.h"\n',
+                "src/deluge/model/m.cpp": '#include "x/a.h"\n#include "model/m.h"\n',
+                "src/deluge/model/m.h": "",
+                "src/synth/s.cpp": '#include <x/a.h>\n#include "deluge/x/a.h"\n// see x/a.h\n',
+                "src/deluge/x/CMakeLists.txt": "# x/ headers\n",
+                "tests/unit/deluge/x/a_spec.cpp": '#include "x/a.h"\n',
+                "docs/dev/d.md": "`src/deluge/x/a.h` is `x/a.h`; tests in `tests/unit/deluge/x`.\n",
+            }
+        )
+        self.addCleanup(repo.close)
+        relocate.apply(repo.root, moves=[("deluge/x", "y")], namespaces=[], targets=[])
+        self.assertTrue((repo.root / "src/y/a.h").is_file())
+        self.assertFalse((repo.root / "src/deluge/x").exists())
+        self.assertTrue((repo.root / "tests/unit/y/a_spec.cpp").is_file())
+        self.assertEqual(repo.read("src/y/b.h"), '#include "y/a.h"\n')
+        self.assertEqual(
+            repo.read("src/deluge/model/m.cpp"),
+            '#include "y/a.h"\n#include "model/m.h"\n',
+        )
+        self.assertEqual(
+            repo.read("src/synth/s.cpp"),
+            '#include <y/a.h>\n#include "y/a.h"\n// see y/a.h\n',
+        )
+        self.assertEqual(repo.read("src/y/CMakeLists.txt"), "# y/ headers\n")
+        self.assertEqual(repo.read("tests/unit/y/a_spec.cpp"), '#include "y/a.h"\n')
+        self.assertEqual(
+            repo.read("docs/dev/d.md"),
+            "`src/y/a.h` is `y/a.h`; tests in `tests/unit/y`.\n",
+        )
+
+    def test_a_move_within_the_legacy_root_keeps_the_short_spelling(self):
+        repo = Repo(
+            {
+                "src/deluge/x/a.h": "",
+                "src/deluge/model/m.cpp": '#include "x/a.h"\n',
+            }
+        )
+        self.addCleanup(repo.close)
+        relocate.apply(
+            repo.root, moves=[("deluge/x", "deluge/x_old")], namespaces=[], targets=[]
+        )
+        self.assertEqual(repo.read("src/deluge/model/m.cpp"), '#include "x_old/a.h"\n')
+
+    def test_a_new_name_the_legacy_root_shadows_is_refused(self):
+        repo = Repo({"src/deluge/x/a.h": "", "src/deluge/y/b.h": ""})
+        self.addCleanup(repo.close)
+        with self.assertRaises(relocate.Refused):
+            relocate.apply(
+                repo.root, moves=[("deluge/x", "y")], namespaces=[], targets=[]
+            )
+        self.assertTrue((repo.root / "src/deluge/x/a.h").is_file())
+        self.assertFalse((repo.root / "src/y").exists())
+
+    def test_an_old_name_src_also_holds_is_refused(self):
+        repo = Repo(
+            {
+                "src/deluge/x/a.h": "",
+                "src/x/b.h": "",
+                "docs/d.md": "see `x/b.h`\n",
+            }
+        )
+        self.addCleanup(repo.close)
+        with self.assertRaises(relocate.Refused):
+            relocate.apply(
+                repo.root, moves=[("deluge/x", "y")], namespaces=[], targets=[]
+            )
+        self.assertTrue((repo.root / "src/deluge/x/a.h").is_file())
+        self.assertFalse((repo.root / "src/y").exists())
+        self.assertEqual(repo.read("docs/d.md"), "see `x/b.h`\n")
+
+    def test_a_new_name_src_also_holds_is_refused(self):
+        repo = Repo(
+            {
+                "src/deluge/x/a.h": "",
+                "src/y/b.h": "",
+                "src/deluge/model/m.cpp": '#include "x/a.h"\n',
+                "docs/d.md": "see `x/a.h` and `y/b.h`\n",
+            }
+        )
+        self.addCleanup(repo.close)
+        with self.assertRaises(relocate.Refused):
+            relocate.apply(
+                repo.root, moves=[("deluge/x", "deluge/y")], namespaces=[], targets=[]
+            )
+        self.assertTrue((repo.root / "src/deluge/x/a.h").is_file())
+        self.assertFalse((repo.root / "src/deluge/y").exists())
+        self.assertEqual(repo.read("src/deluge/model/m.cpp"), '#include "x/a.h"\n')
+        self.assertEqual(repo.read("docs/d.md"), "see `x/a.h` and `y/b.h`\n")
+
+
 class Refusals(unittest.TestCase):
     def test_a_move_the_legacy_root_shadows_is_refused(self):
         repo = Repo(

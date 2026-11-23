@@ -16,9 +16,9 @@
  */
 
 #include "synth/engines/dual_source_engine.h"
-#include "dsp-next/core/divide.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp/core/divide.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h"
 #include "synth/engines/pitch.h"
 #include "synth/sources/interpolation_buffer_size.h"

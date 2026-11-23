@@ -1,4 +1,4 @@
-# The dsp-next specs (tests/unit/deluge/dsp-next) built with UndefinedBehaviorSanitizer's signed-overflow, shift and
+# The DSP library specs (tests/unit/dsp) built with UndefinedBehaviorSanitizer's signed-overflow, shift and
 # float-to-int conversion checks, any finding fatal.
 #
 # The host tree builds the same specs, and on the host a plain signed `+` gives the values wrapping_add gives, so an
@@ -8,10 +8,10 @@
 # these are the same specs at the same word size.
 #
 # Only the specs are instrumented: CppSpec and argon are made available (by specs.cmake) before the sanitizer flags are
-# added, so a finding names dsp-next code or a header it includes, never the test framework.
+# added, so a finding names the DSP library code or a header it includes, never the test framework.
 #
 # Gate dsp-ubsan:
-#     the dsp-next specs (tests/unit/deluge/dsp-next) must run without a signed overflow, an out-of-range shift or an
+#     the DSP library specs (tests/unit/dsp) must run without a signed overflow, an out-of-range shift or an
 #     out-of-range float-to-int conversion under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain
 #     signed + gives the values wrapping_add gives, so the host tree cannot see a kernel that overflows where it must
 #     wrap, and an out-of-range conversion gives a host-only value where the A9 saturates. Every spec runs with every
@@ -42,6 +42,6 @@ enable_testing()
 deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)
 
 # Every spec runs with every check: the shipping code each one builds is checked whole. The verbatim references the
-# filter specs compare against (tests/unit/deluge/dsp-next/reference_filters.h) reproduce the legacy plain signed sums,
+# filter specs compare against (tests/unit/dsp/reference_filters.h) reproduce the legacy plain signed sums,
 # which overflow at full scale as the target's add wraps; each function holding one is marked
 # DELUGE_REFERENCE_LEGACY_ARITHMETIC, which drops the overflow check in that body alone.

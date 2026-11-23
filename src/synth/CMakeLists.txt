@@ -10,4 +10,4 @@ target_include_directories(deluge_synth PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
 # the input source reaches the allocator seam and the vocabulary comes through definitions_cxx.hpp. The synth boundary
 # check limits what it may reach.
 target_include_directories(deluge_synth PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../deluge)
-target_link_libraries(deluge_synth PUBLIC deluge_dsp_next deluge_plugin_types deluge_base PRIVATE argon etl::etl)
+target_link_libraries(deluge_synth PUBLIC deluge_dsp deluge_plugin_types deluge_base PRIVATE argon etl::etl)

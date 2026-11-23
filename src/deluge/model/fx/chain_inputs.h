@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/param_curve.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/track_chain.h"

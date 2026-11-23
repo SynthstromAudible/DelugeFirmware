@@ -3,10 +3,10 @@
 > **The model today:** the voice kernel is `synth_voice_lift.md`; the sound's state is the DelugeSynth state
 > (`roadmap.md`, Track A step 3). This plan records the state it was written against.
 
-Status: **architecture decided; Phase 0 (golden masters) + Phase 1 (`dsp-next` L0
+Status: **architecture decided; Phase 0 (golden masters) + Phase 1 (the DSP library L0
 library — full oscillator migration, wavetable storage port, sample/wavetable
 interpolator unification) complete; Phase 2 in planning** (updated 2026-06-14).
-Phase 1 detail lives in `dsp_next_component_architecture.md`; the original
+Phase 1 detail lives in `dsp_component_architecture.md`; the original
 Phase-2 framing ("kill the offsetof data plane") was substantially resolved by
 PR #3366 and is re-scoped to a decoupling/extraction phase in
 `synth_phase2_data_plane.md`. Phases 3–5 not yet started.
@@ -31,7 +31,7 @@ boundary inside it.
 
 ### 1.1 The synth is not where it says it is
 
-`src/deluge/dsp/` (~6k LOC) is **not** the synth engine — it is a collection
+`src/deluge/dsp_legacy/` (~6k LOC) is **not** the synth engine — it is a collection
 of mostly-clean leaf kernels: filters (SVF, ladders), reverb (header-only,
 Mutable-derived `fx_engine.hpp`), delay, granular, compressor, the DX7 port,
 and the oscillator wave renderers. The actual synthesizer lives outside it,
@@ -98,7 +98,7 @@ system, and serialization. Adding Plaits this way would scatter another set.
   "render audio on a CI box" already works.
 - **`tests/dsp_diff`** proves ARM/NEON vs x86 bit-equivalence of the DSP
   primitives at -O0 and -O2.
-- `dsp/` code is namespaced (`deluge::dsp`) and partially modernized; the
+- `dsp_legacy/` code is namespaced (`deluge::dsp`) and partially modernized; the
   reverb shows the target style (header-only, value types, no globals).
 - Spark already contains a Rust port of the oscillators
   (`libs/dsp/deluge`, shipping as the `deluge_waves` CLAP instrument) and a
@@ -147,7 +147,7 @@ per-note-id polyphonic parameter modulation.
    instruction per vector). Interfaces are designed numeric-agnostic so the
    engine infrastructure (envelopes, LFOs, patch cables) can *eventually*
    migrate to float32 as an implementation swap, not an interface change.
-   Physically this lands as the `dsp-next` library's `core/` (numeric-agnostic
+   Physically this lands as the DSP library's `core/` (numeric-agnostic
    interfaces + q31↔f32 conversion) over parallel `fixed/`
    (`libdeluge-dsp-fixed`, the bit-exact q31 core) and `float/`
    (`libdeluge-dsp-float`) backends — see Phase 1.
@@ -199,7 +199,7 @@ Thumb and a low inline threshold (5).
 
 | Layer | Directory | Target |
 |---|---|---|
-| L0 DSP primitives | `src/deluge/dsp-next/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
+| L0 DSP primitives | `src/dsp/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
 | L1 sources, modulation core (envelopes, LFOs, Patcher) | `src/synth/sources/`, `src/synth/modulation/` | `deluge_synth` |
 | L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
 | L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
@@ -207,8 +207,8 @@ Thumb and a low inline threshold (5).
 | Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin/` | `deluge_plugin` |
 
-The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/deluge/dsp-next/`, once the legacy
-`src/deluge/dsp/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;
+The end state is `code_layout_north_star.md`: `src/dsp/` (the legacy
+`src/deluge/dsp_legacy/` is retired by the time-stretcher rewrite); `src/synth/` as the backend-templated voice-building library that names no backend;
 one directory per instrument plugin under `src/instruments/` (`classic/`, the q31 instrument that holds `Fixed`, and
 `modern/`, the float one); `src/effects/` and `src/note_devices/` beside them. Only instruments include `synth/`, no
 instrument includes another, and the host reaches plugins only through `src/plugin/`.
@@ -218,7 +218,7 @@ instrument includes another, and the host reaches plugins only through `src/plug
 **L0 — DSP primitives.** Pure functions and POD-state value types:
 oscillator kernels, filters, envelope/LFO cores, FX kernels, interpolators.
 No globals, no allocator (caller provides buffers), no OS, no storage. This
-is mostly what `dsp/` already is, after scrubbing.
+is mostly what `dsp_legacy/` already was, after scrubbing.
 
 **L1 — Source engines.** The Plaits lesson applied at the right altitude:
 a `SourceEngine` renders one voice-block given pitch/phase plus a small block
@@ -383,19 +383,19 @@ render DX7 presets identically. Hardware ear-checks on the
 FM, env2-release, and DX7 changes remain pending. Sample/wavetable corpus
 cases are deferred until audio files join the card images.
 
-### Phase 1 — `dsp-next` (the clean L0 library)
+### Phase 1 — the DSP library (the clean L0 library)
 
-Rather than scrub the accreted `dsp/` in place, stand up a **new, clean L0
-library `dsp-next` and strangle the old one**: migrate primitives into it one
+Rather than scrub the accreted `dsp_legacy/` in place, stand up a **new, clean L0
+library, the DSP library, and strangle the old one**: migrate primitives into it one
 at a time as idiomatic C++23 (`std::span` buffers, injected scratch/quality/
 allocator, strong numeric aliases, no globals), switch each caller under
-golden-master cover, delete the old implementation, and remove `dsp/` once
+golden-master cover, delete the old implementation, and remove `dsp_legacy/` once
 empty. The library splits into `core/` (numeric-agnostic interfaces +
 q31↔f32 conversion), `fixed/` (the bit-exact q31 core → `libdeluge-dsp-fixed`)
 and `float/` (the float32 edge track → `libdeluge-dsp-float`, structurally
 stood up now, populated later). Clean by construction: the include-lint gate
-has no allowlist. Sample/granular/timestretch stay in old `dsp/` and relocate
-to the Phase-3 `SampleSource` home, not into `dsp-next`.
+has no allowlist. Sample/granular/timestretch stay in old `dsp_legacy/` and relocate
+to the Phase-3 `SampleSource` home, not into the DSP library.
 
 **Detailed step-by-step plan: [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md).**
 

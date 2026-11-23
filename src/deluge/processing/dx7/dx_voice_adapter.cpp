@@ -16,7 +16,7 @@
  */
 #include "processing/dx7/dx_voice_adapter.h"
 #include "board_config.h" // CACHE_LINE_SIZE
-#include "dsp-next/fixed/dx7/algorithms.h"
+#include "dsp/fixed/dx7/algorithms.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
 #include "util/synth_noise.h"

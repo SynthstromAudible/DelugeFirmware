@@ -1,6 +1,6 @@
 # DSP performance on the Deluge's Cortex-A9
 
-What the RZ/A1L's Cortex-A9 r3p0 and its NEON MPE charge for the kind of code dsp-next runs, and what follows for how
+What the RZ/A1L's Cortex-A9 r3p0 and its NEON MPE charge for the kind of code the DSP library runs, and what follows for how
 kernels are written. Every number here was measured on a Deluge with the tools in [Measuring](#measuring). The A9
 references are in the ARM manuals: the Cortex-A9 TRM (DDI 0388I) and the Cortex-A9 NEON MPE TRM (DDI 0409I).
 
@@ -9,7 +9,7 @@ references are in the ARM manuals: the Cortex-A9 TRM (DDI 0388I) and the Cortex-
 - **The bench** (`DELUGE_DSP_BENCH`, `tools/dsp_bench.py`): it times components with the A9 PMU at boot, one RTT line per
   case and block size. It reports cycles per sample, plus L1 refills, renamed instructions, data-cache stalls,
   issue-empty cycles and NEON instructions. See the "Measuring" section of
-  [dsp_next_component_architecture.md](dsp_next_component_architecture.md).
+  [dsp_component_architecture.md](dsp_component_architecture.md).
 - **The PTM trace** (`tools/deluge_trace/deluge_trace.py run --function NAME --host <host>`): it gives cycle-accurate
   instruction trace of one function through a J-Trace PRO, decoded with OpenCSD into cycles per loop block. The PTM
   times branch to branch, so it gives a block's cycles, not how they divide between the instructions inside it.
@@ -624,7 +624,7 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 
 ## Effects components
 
-The chains with the bitcrush, EQ and send-and-volume as dsp-next kernels (`BitDepth` and `SampleRateReducer`,
+The chains with the bitcrush, EQ and send-and-volume as kernels of the DSP library (`BitDepth` and `SampleRateReducer`,
 `ShelfPair`, `SendAndVolume` with the reverb send in its loop) and the reverb return's duck in `effects::Reverb`
 (after, image 2f5780ba0) against the chains before them (before, image f6815eac9), on 2026-10-29: `fx_chains` at the
 settings above, and `reverb` (after image 53b55f477; the reverb path is the same in both). Cycles per channel-sample,
@@ -728,7 +728,7 @@ qemu on ARM.
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:
 the patch's LFO, then pitch, control and the six operators. Before: the engine at a44d9e98f. After: f3e819d1f, where
-every operator is a dsp-next kernel walked by `dx7::Graph`, and the device renders the modern ops with no input or a
+every operator is a kernel of the DSP library walked by `dx7::Graph`, and the device renders the modern ops with no input or a
 bus input through the same NEON kernel as before (`fixed/dx7/neon_fm_kernel.s`), every other build through the Argon
 step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run of each image.
 
@@ -1005,7 +1005,7 @@ the ladder's.
 
 The voice's per-block ramp steps (a level's change over the block, divided by the block's length) and the time-stretch
 ratio that undoes a pitch change called the software divide: the A9 has no integer divide instruction. From upstream's
-#5256, the ramps divide by a reciprocal from a table (`dsp::divide_by_small`, `dsp-next/core/divide.h`, exact for every
+#5256, the ramps divide by a reciprocal from a table (`dsp::divide_by_small`, `dsp/core/divide.h`, exact for every
 dividend and divisors up to 256), and the sample source keeps the last time-stretch ratio, whose 64-bit divide reruns
 only when the pitch changes. Measured on 2026-11-11 with the stream bench (Cordae playing, then Glitchy_2 loaded while
 it plays), three interleaved runs of each image, cycles per voice block from `STREAM-BENCH-RENDER`:

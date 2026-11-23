@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/delay/delay_tape.h"
-#include "dsp-next/fixed/stutter/stutter_kernel.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/delay/delay_tape.h"
+#include "dsp/fixed/stutter/stutter_kernel.h"
 #include "effects/delay.h"  // TapeShape
 #include "effects/mod_fx.h" // RingAllocator
 #include "effects/params.h"
@@ -40,8 +40,8 @@ struct StutterChange {
 	dsp::StereoSample* released = nullptr; ///< Storage commit or commit_end took back; freed by finish.
 };
 
-/// @brief The stutter: the dsp-next Stutter kernel over a tape this component owns, recorded when a stutter begins and
-/// played back until it ends.
+/// @brief The stutter: the DSP library Stutter kernel over a tape this component owns, recorded when a stutter begins
+/// and played back until it ends.
 ///
 /// The tape comes from the allocator. Its storage is not zeroed: the kernel's read head clears each sample before the
 /// write behind it reaches it, so nothing unwritten is ever played. A stutter begins and ends in three steps around

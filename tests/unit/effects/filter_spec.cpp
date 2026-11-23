@@ -19,7 +19,7 @@
 // modes reaching the set, the parallel route with the high-pass fading in, and the volume compensation, each case from
 // a fresh filter with the synth-wide noise generator seeded the same.
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 

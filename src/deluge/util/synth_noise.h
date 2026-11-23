@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/fixed/noise/cong.h"
 
 #include <cstdint>
 

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/filter/shelf_pair.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/filter/shelf_pair.h"
 #include "effects/params.h"
 
 #include <array>

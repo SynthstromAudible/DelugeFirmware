@@ -1,0 +1,294 @@
+/*
+ * Copyright © 2026 Mark Adams
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Pins the supersaw kernel against a plain per-sample polyBLEP in double precision, its block-size independence (the
+// edge-to-edge BLEP has to carry an edge across a block boundary), its headroom, and the SupersawSource seam over it.
+// Run on x86 (SIMDe) + ARM/QEMU via CTest.
+
+#include "dsp/core/buffer_view.h"
+#include "dsp/core/ramp.h"
+#include "dsp/fixed/osc/supersaw.h"
+#include "synth/sources/supersaw/supersaw_source.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <complex>
+#include <cppspec.hpp>
+#include <cstdint>
+#include <numbers>
+#include <span>
+#include <vector>
+
+#include "support/spec_main.h"
+
+namespace {
+using deluge::dsp::Q;
+using deluge::dsp::Ramp;
+using deluge::dsp::UQ;
+using deluge::dsp::fixed::Supersaw;
+using deluge::synth::BlockControls;
+using deluge::synth::SupersawSource;
+namespace internal = deluge::dsp::fixed::supersaw_internal;
+
+constexpr double kSampleRate = 44100;
+constexpr uint32_t kStartPhase = 0x12345678;
+constexpr int32_t kSpreadMin = -(1 << 30);
+constexpr int32_t kSpreadMax = (1 << 30) - 1;
+
+uint32_t incrementFor(double hz) {
+	return static_cast<uint32_t>(hz / kSampleRate * 4294967296.0);
+}
+
+/// Render @p total samples in blocks cycling through @p blocks, from the same starting phases each time
+std::vector<int32_t> render(uint32_t inc, int32_t spread, int32_t saws, int32_t total, std::vector<int32_t> blocks,
+                            Supersaw::SidePhases sides = Supersaw::side_phases_from(kStartPhase),
+                            uint32_t centre = kStartPhase) {
+	std::vector<int32_t> out(total);
+	std::vector<int32_t> block(256 + 4);
+	for (int32_t pos = 0, b = 0; pos < total; b++) {
+		int32_t n = std::min(blocks[b % blocks.size()], total - pos);
+		Supersaw::render(deluge::dsp::typed_view(std::span{block.data(), static_cast<size_t>(n)}), inc, spread, saws,
+		                 centre, sides, true);
+		std::copy_n(block.begin(), n, out.begin() + pos);
+		pos += n;
+	}
+	return out;
+}
+
+/// The same supersaw as a straightforward per-sample polyBLEP in double precision, with the kernel's increments and
+/// gains
+std::vector<double> reference(uint32_t inc, int32_t spread, int32_t saws, int32_t total,
+                              Supersaw::SidePhases sides = Supersaw::side_phases_from(kStartPhase),
+                              uint32_t centre = kStartPhase) {
+	float x =
+	    static_cast<float>(std::clamp(spread, kSpreadMin, kSpreadMax) + (1 << 30)) * (internal::kMaxSpread * 0x1p-31f);
+	float detune = x * x;
+	double gc = internal::centre_mix(x);
+	double gs = internal::side_mix(x);
+	double norm = 1 / std::sqrt(gc * gc + (saws - 1) * gs * gs);
+	gc *= norm;
+	gs *= norm;
+
+	std::array<uint32_t, Supersaw::kNumSaws> dts{};
+	std::array<uint32_t, Supersaw::kNumSaws> phases{centre};
+	for (size_t i = 0; i < Supersaw::kNumSaws; i++) {
+		dts[i] = i == 0 ? inc
+		                : static_cast<uint32_t>((1.f + internal::kDetuneOffsets[i] * detune) * static_cast<float>(inc));
+		if (i > 0) {
+			phases[i] = sides[i - 1];
+		}
+	}
+
+	std::vector<double> out(total);
+	for (int32_t n = 0; n < total; n++) {
+		double y = 0;
+		for (int32_t i = 0; i < saws; i++) {
+			phases[i] += dts[i];
+			double dt = dts[i] / 4294967296.0;
+			double p = static_cast<uint32_t>(phases[i] ^ 0x80000000u) / 4294967296.0; // 0 at the falling edge
+			double saw = static_cast<int32_t>(phases[i]) / 2147483648.0;
+			if (p < dt) {
+				double t = p / dt;
+				saw += (1 - t) * (1 - t);
+			}
+			else if (p > 1 - dt) {
+				double t = (p - 1) / dt;
+				saw -= (1 + t) * (1 + t);
+			}
+			y += saw * (i == 0 ? gc : gs);
+		}
+		out[n] = y * (1 << 29);
+	}
+	return out;
+}
+
+double maxError(const std::vector<int32_t>& got, const std::vector<double>& want) {
+	double err = 0;
+	for (size_t i = 0; i < got.size(); i++) {
+		err = std::max(err, std::abs(got[i] - want[i]));
+	}
+	return err;
+}
+
+/// Power far from any harmonic of the note, over power near one, in dB. At minimum spread every saw's harmonics sit
+/// near the note's
+double aliasRatioDb(const std::vector<int32_t>& x, double hz) {
+	const int32_t n = static_cast<int32_t>(x.size());
+	double signal = 0;
+	double alias = 0;
+	for (int32_t k = 1; k < n / 2; k++) {
+		std::complex<double> acc = 0;
+		for (int32_t i = 0; i < n; i++) {
+			double window = 0.5 - 0.5 * std::cos(2 * std::numbers::pi * i / n);
+			acc += window * x[i] * std::polar(1.0, -2 * std::numbers::pi * k * i / n);
+		}
+		double harmonic = k * kSampleRate / n / hz;
+		(std::abs(harmonic - std::round(harmonic)) < 0.15 ? signal : alias) += std::norm(acc);
+	}
+	return 10 * std::log10(alias / signal);
+}
+
+BlockControls controls(bool applyAmplitude, Ramp amplitude = Ramp{Q<31>::from_raw(0), Q<31>::from_raw(0)}) {
+	return BlockControls{.amplitude = amplitude,
+	                     .apply_amplitude = applyAmplitude,
+	                     .pulse_width = 0,
+	                     .retrigger_phase = 0,
+	                     .sync = std::nullopt,
+	                     .cpu_direness = 0};
+}
+
+/// FNV-1a over the naive (unbandlimited) render for every saw count, at 2^8 random phase sets and increments, two
+/// blocks each so the phases carry. The spreads are 0, both ends of the ±2^30 param range, and random int32s, most
+/// beyond it, which render clamps.
+std::uint64_t naive_hash() {
+	std::uint64_t hash = 0xcbf2'9ce4'8422'2325ULL;
+	std::uint32_t s = 0x0dd5'eedu;
+	auto next = [&] {
+		s ^= s << 13;
+		s ^= s >> 17;
+		s ^= s << 5;
+		return s;
+	};
+	alignas(16) std::array<int32_t, 64> out{};
+	for (int32_t k = 0; k < (1 << 8); ++k) {
+		const int32_t num_saws = 1 + (k % static_cast<int32_t>(Supersaw::kNumSaws));
+		const int32_t spreads[] = {0, -(1 << 30), (1 << 30) - 1, static_cast<int32_t>(next())};
+		const int32_t spread = spreads[(k / 7) % 4];
+		const uint32_t increment = next() >> (4 + (k % 5));
+		uint32_t centre = next();
+		Supersaw::SidePhases sides{};
+		for (auto& p : sides) {
+			p = next();
+		}
+		for (int block = 0; block < 2; ++block) {
+			Supersaw::render(deluge::dsp::typed_view(std::span{out}), increment, spread, num_saws, centre, sides,
+			                 false);
+			for (const int32_t x : out) {
+				hash = (hash ^ static_cast<uint32_t>(x)) * 0x0000'0100'0000'01b3ULL;
+			}
+		}
+	}
+	return hash;
+}
+} // namespace
+
+// clang-format off
+describe supersaw("the DSP library supersaw", ${
+	it("keeps the naive pass's output for every saw count", _ {
+		// The naive pass's output hash over the sweep: a change means the kernel's output changed.
+		expect(naive_hash()).to_equal(std::uint64_t{9833080644123533529ULL});
+	});
+	context("the kernel", _ {
+		it("matches a per-sample polyBLEP for every saw count, spread and pitch", _ {
+			for (double hz : {55.0, 440.0, 1760.0, 5000.0}) {
+				for (int32_t saws = 1; saws <= static_cast<int32_t>(Supersaw::kNumSaws); saws++) {
+					for (int32_t spread : {kSpreadMin, -(1 << 29), 0, 1 << 29, kSpreadMax}) {
+						auto got = render(incrementFor(hz), spread, saws, 2048, {128});
+						auto want = reference(incrementFor(hz), spread, saws, 2048);
+						// Float rounding in the edge maths, well under a part in a million of full scale
+						expect(maxError(got, want)).to_be_less_than(1e-6 * (1 << 29));
+					}
+				}
+			}
+		});
+
+		it("gives the same output whatever the block sizes, including edges that land on a block boundary", _ {
+			for (double hz : {440.0, 5000.0}) {
+				for (int32_t saws : {1, 4, 7}) {
+					auto whole = render(incrementFor(hz), 0, saws, 4096, {128});
+					auto odd = render(incrementFor(hz), 0, saws, 4096, {4, 36, 128, 20, 8, 100});
+					expect(odd).to_equal(whole);
+				}
+			}
+		});
+
+		it("doesn't overflow with every saw starting in phase at full spread", _ {
+			Supersaw::SidePhases inPhase{};
+			for (int32_t saws = 2; saws <= static_cast<int32_t>(Supersaw::kNumSaws); saws++) {
+				auto got = render(incrementFor(440), kSpreadMax, saws, 1024, {128}, inPhase, 0);
+				auto want = reference(incrementFor(440), kSpreadMax, saws, 1024, inPhase, 0);
+				expect(maxError(got, want)).to_be_less_than(1e-6 * (1 << 29));
+			}
+		});
+
+		it("cuts the aliasing of a naive supersaw by over 40dB at 1760Hz", _ {
+			const uint32_t inc = incrementFor(1760);
+			std::vector<int32_t> naive(2048);
+			uint32_t centre = kStartPhase;
+			auto sides = Supersaw::side_phases_from(kStartPhase);
+			for (int32_t pos = 0; pos < 2048; pos += 128) {
+				Supersaw::render(deluge::dsp::typed_view(std::span{naive.data() + pos, 128}), inc, kSpreadMin, 7, centre, sides, false);
+			}
+			auto blep = render(inc, kSpreadMin, 7, 2048, {128});
+			expect(aliasRatioDb(blep, 1760)).to_be_less_than(aliasRatioDb(naive, 1760) - 40);
+		});
+
+		it("takes saws away as pulse width goes up, either way round", _ {
+			expect(Supersaw::num_saws_from_pulse_width(0)).to_equal(7);
+			expect(Supersaw::num_saws_from_pulse_width(1u << 29)).to_equal(6);
+			expect(Supersaw::num_saws_from_pulse_width(1u << 30)).to_equal(4);
+			expect(Supersaw::num_saws_from_pulse_width(0x7FFFFFFFu)).to_equal(1);
+			expect(Supersaw::num_saws_from_pulse_width(0x80000000u)).to_equal(1);
+			expect(Supersaw::num_saws_from_pulse_width(static_cast<uint32_t>(-(1 << 30)))).to_equal(4);
+		});
+	});
+
+	context("SupersawSource", _ {
+		it("renders the raw kernel standalone, keeping its phases across blocks", _ {
+			const uint32_t inc = incrementFor(440);
+			SupersawSource source{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
+			std::vector<int32_t> got(1024);
+			std::vector<int32_t> scratch(128);
+			for (int32_t pos = 0; pos < 1024; pos += 128) {
+				source.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{got.data() + pos, 128}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			}
+			expect(got).to_equal(render(inc, 0, 7, 1024, {128}));
+			expect(source.phase().raw()).to_equal(kStartPhase + inc * 1024);
+		});
+
+		it("mixes in through the VCA at four times the amplitude, as a quarter-level wave", _ {
+			const uint32_t inc = incrementFor(440);
+			const Ramp amplitude{Q<31>::from_raw(1 << 26), Q<31>::from_raw(0)};
+			SupersawSource raw{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
+			SupersawSource mixed{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
+			std::vector<int32_t> wave(128);
+			std::vector<int32_t> out(128, 1000);
+			std::vector<int32_t> scratch(128);
+			raw.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{wave}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			mixed.render_into(controls(true, amplitude), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			for (size_t i = 0; i < out.size(); i++) {
+				// vqdmulh by the halved, quadrupled amplitude, plus what was already in the buffer
+				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value().raw() << 2) >> 1)) >> 31) + 1000;
+				expect(out[i]).to_equal(want);
+			}
+		});
+
+		it("starts every retriggered note the same way", _ {
+			const uint32_t inc = incrementFor(440);
+			std::vector<int32_t> first(128);
+			std::vector<int32_t> second(128);
+			std::vector<int32_t> scratch(128);
+			SupersawSource a{UQ<32>::from_raw(0), Supersaw::side_phases_from(0)};
+			SupersawSource b{UQ<32>::from_raw(0), Supersaw::side_phases_from(0)};
+			a.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{first}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			b.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{second}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			expect(first).to_equal(second);
+		});
+	});
+});
+
+DELUGE_SPEC(supersaw_spec, supersaw)

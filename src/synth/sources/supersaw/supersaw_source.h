@@ -16,13 +16,13 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/osc/supersaw.h"     // deluge::dsp::fixed::Supersaw
+#include "dsp/fixed/osc/supersaw.h"          // deluge::dsp::fixed::Supersaw
 #include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 
 namespace deluge::synth {
 
-/// @brief The supersaw @ref Source: the dsp-next @ref deluge::dsp::fixed::Supersaw kernel and its seven saw phases,
+/// @brief The supersaw @ref Source: the DSP library @ref deluge::dsp::fixed::Supersaw kernel and its seven saw phases,
 /// which persist across blocks. The wave index sets the spread and pulse width the number of saws. It doesn't do
 /// osc sync, as a slave; as a sync master its phase is the centre saw's.
 class SupersawSource : public OscillatorSource {

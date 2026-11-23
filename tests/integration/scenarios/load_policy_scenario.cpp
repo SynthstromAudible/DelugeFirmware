@@ -48,7 +48,7 @@
 ///     synchronous backing, which a call with the mode omitted shows by loading at once while the same call made
 ///     explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT); the wavetables each fixture builds
 ///     (LP-WT-PIN: every band's range, geometry and samples, as a CRC per file under
-///     tests/unit/deluge/dsp-next/wavetable_band_records.h, for the synthetic set in
+///     tests/unit/dsp/wavetable_band_records.h, for the synthetic set in
 ///     tests/golden/render/wavetable_pins and the golden presets' wavetables); the pitch each sample's detection
 ///     finds (LP-PITCH-PIN, by its bits, against tests/integration/scenarios/pitch_pin_records.h); and a single-band
 ///     table's load (LP-WT-ZEROBAND, an 8-sample cycle, which must hold one band with a non-empty cycle range so no
@@ -80,8 +80,8 @@
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_holder.h"
 #include "support/golden_update.h"
-#include "unit/deluge/dsp-next/wavetable_band_crc.h"
-#include "unit/deluge/dsp-next/wavetable_band_records.h"
+#include "unit/dsp/wavetable_band_crc.h"
+#include "unit/dsp/wavetable_band_records.h"
 
 #include "deluge_storage_resource.h" // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h"       // DELUGE_PATH_MAX
@@ -117,7 +117,7 @@ using deluge::scenarios::WaitState;
 ScenarioReport g_report{"LP"};
 
 namespace golden = deluge::test::golden;
-constexpr std::string_view kWaveTableHeader = "tests/unit/deluge/dsp-next/wavetable_band_records.h";
+constexpr std::string_view kWaveTableHeader = "tests/unit/dsp/wavetable_band_records.h";
 constexpr std::string_view kPitchHeader = "tests/integration/scenarios/pitch_pin_records.h";
 
 /// Pin proposeLoadCandidates()'s policy: which paths a load tries, in what order. The async loader opens candidates

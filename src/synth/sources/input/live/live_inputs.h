@@ -17,8 +17,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // OscType
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/stereo_sample.h"
 
 #include <type_traits>
 

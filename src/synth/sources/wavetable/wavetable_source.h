@@ -16,10 +16,10 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent band view)
-#include "dsp-next/fixed/wavetable/wavetable_oscillator.h" // deluge::dsp::fixed::WavetableOscillator (non-sync)
-#include "dsp-next/fixed/wavetable/wavetable_sync_oscillator.h" // deluge::dsp::fixed::WavetableSyncOscillator (+ deluge::dsp::fixed::Resetter)
+#include "dsp/core/phasor.h"
+#include "dsp/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent band view)
+#include "dsp/fixed/wavetable/wavetable_oscillator.h" // deluge::dsp::fixed::WavetableOscillator (non-sync)
+#include "dsp/fixed/wavetable/wavetable_sync_oscillator.h" // deluge::dsp::fixed::WavetableSyncOscillator (+ deluge::dsp::fixed::Resetter)
 #include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 
@@ -28,7 +28,7 @@ namespace deluge::synth {
 /// @brief The wavetable source: a persistent per-voice-source @ref synth::Source over a storage-independent
 /// band-data view.
 ///
-/// It renders through the dsp-next view-based @ref deluge::dsp::fixed::WavetableOscillator (non-sync) /
+/// It renders through the DSP library view-based @ref deluge::dsp::fixed::WavetableOscillator (non-sync) /
 /// @ref deluge::dsp::fixed::WavetableSyncOscillator (hard-sync), built from a @ref deluge::dsp::fixed::WaveTableData
 /// the app supplies per block. It owns the wavetable's render phase across blocks (replacing @c oscPos for wavetable
 /// sources, as @ref synth::VirtualAnalogSource did for the VA waves), the pulse-width-as-sync preamble, the `<<3`

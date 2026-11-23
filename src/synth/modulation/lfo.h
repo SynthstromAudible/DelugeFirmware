@@ -18,12 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
-#include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
-#include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
-#include "plugin/types/sync.h"                // SyncType, SyncLevel
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/phasor.h"
+#include "dsp/fixed/bandlimited/waves.h" // square, triangle
+#include "dsp/fixed/noise/cong.h"        // the noise stream the random waves draw from
+#include "dsp/fixed/osc/sine_table.h"    // kSineTable
+#include "plugin/types/sync.h"           // SyncType, SyncLevel
 #include "synth/modulation/lfo_state.h"
 #include <cstdint>
 #include <variant>

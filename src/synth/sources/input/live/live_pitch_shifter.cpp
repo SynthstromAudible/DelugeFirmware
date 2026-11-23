@@ -16,8 +16,8 @@
  */
 
 #include "synth/sources/input/live/live_pitch_shifter.h"
-#include "dsp-next/core/stereo.h"
-#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
+#include "dsp/core/stereo.h"
+#include "dsp/fixed/interpolation/windowed_sinc_kernel.h"
 #include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"

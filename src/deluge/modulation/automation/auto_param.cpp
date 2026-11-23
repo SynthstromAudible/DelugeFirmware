@@ -17,7 +17,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"

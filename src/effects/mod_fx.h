@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/mod_fx/mod_fx_kernel.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/mod_fx/mod_fx_kernel.h"
+#include "dsp/fixed/noise/cong.h"
 #include "effects/params.h"
 #include "effects/words.h"
 
@@ -91,8 +91,8 @@ struct ModFxInputs {
 	}
 }
 
-/// @brief An owner's mod FX: the dsp-next mod FX kernel, the 4 KB ring it reads through an allocator, the soft off and
-/// the pass-through of a ring type that holds no ring.
+/// @brief An owner's mod FX: the DSP library mod FX kernel, the 4 KB ring it reads through an allocator, the soft off
+/// and the pass-through of a ring type that holds no ring.
 ///
 /// A ring type's change runs in three steps around the owner's audio-excluded section: @ref prepare allocates, @ref
 /// commit swaps the kernel's ring inside the section, @ref finish frees. A change to a type that needs a ring while one

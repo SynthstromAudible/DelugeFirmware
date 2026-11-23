@@ -17,8 +17,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // OscType, SampleRepeatMode, InterpolationMode, kNumExpressionDimensions, kFirstLocalSource
-#include "dsp-next/fixed/filter/filter_modes.h" // LowPassSlot, HighPassSlot, FilterRoute
-#include "util/misc.h"                          // util::to_underlying
+#include "dsp/fixed/filter/filter_modes.h" // LowPassSlot, HighPassSlot, FilterRoute
+#include "util/misc.h"                     // util::to_underlying
 #include <array>
 #include <bitset>
 #include <cstdint>

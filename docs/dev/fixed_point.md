@@ -1,6 +1,6 @@
 # Fixed-point formats and operations
 
-The Deluge instrument computes in fixed point. `src/deluge/dsp-next/core/fixed_point.h` gives each value a type that
+The Deluge instrument computes in fixed point. `src/dsp/core/fixed_point.h` gives each value a type that
 carries its format, and gives each operation a name that states its overflow and rounding. This page covers the
 notation, how to choose an operation, the Cortex-A9 instructions behind them, and the rules at the edges.
 
@@ -70,14 +70,14 @@ says why in a comment.
 ## The instructions
 
 Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the instruction below, in ARM and in Thumb-2.
-The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
+The app's files are Thumb-2; the DSP library's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
 (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
-`tests/unit/deluge/dsp-next/core` disassembles each operation in both instruction sets, built with
+`tests/unit/dsp/core` disassembles each operation in both instruction sets, built with
 `-O2 -fno-inline-functions`, which inlines only always_inline functions: stricter than either of the image's inliners.
 It fails on any other instruction sequence, on a wrong immediate where one matters, and on any call. It also reports,
 without failing, which loop shapes the compiler auto-vectorizes; the multiply loops stay scalar.
-`tests/unit/deluge/dsp-next/core/fixed_point_isa_spec.cpp` compares every operation, and every portable form, against
+`tests/unit/dsp/core/fixed_point_isa_spec.cpp` compares every operation, and every portable form, against
 the real instruction under qemu.
 
 | Operation | A9 instruction |
@@ -102,7 +102,7 @@ they compile to their instruction under any inliner, the probes' included.
 
 ### The high-word multiplies are asm
 
-`src/deluge/dsp-next/core/high_word_asm.h` holds `smmul`, `smmulr`, `smmla`, `smmlar`, `smmls` and `smmlsr` as inline
+`src/dsp/core/high_word_asm.h` holds `smmul`, `smmulr`, `smmla`, `smmlar`, `smmls` and `smmlsr` as inline
 asm, the one implementation behind both `detail/raw_ops.h`'s raw helpers and, at run time on ARM, `fixed_point.h`'s
 `mul` family. Moving a kernel from the helpers to the types therefore leaves its instructions as they were. The portable
 C bodies are the constant-evaluated and host forms.
@@ -120,7 +120,7 @@ model, and a scalar ×2 unroll that is 22–30% faster on the A9.
 
 ## Lane packs
 
-`src/deluge/dsp-next/core/fixed_point_lanes.h` gives the 32-bit arithmetic above on `Pack<Q<F>, N>` (and `UQ`): the
+`src/dsp/core/fixed_point_lanes.h` gives the 32-bit arithmetic above on `Pack<Q<F>, N>` (and `UQ`): the
 sums, clamps, multiplies, reformats and scales. The header lists what isn't lifted yet: the 64-bit narrows, the Q16
 forms and the float conversions. `Pack` itself gives the comparisons. Each operation applies its scalar operation
 lane by lane, so a kernel's step written once over its value type reads the same for one stream as for N:
@@ -138,7 +138,7 @@ two-lane comparison, which clang's SLP vectorizer pairs into `vcgt.s32`. NEON ke
 
 ## Vectors
 
-`src/deluge/dsp-next/core/fixed_point_neon.h` holds N lanes of one format in one NEON register, with Argon as the
+`src/dsp/core/fixed_point_neon.h` holds N lanes of one format in one NEON register, with Argon as the
 storage: `FixedVec<Lane, N>`. As with the scalars, a vector has no arithmetic operators, and each operation has the name
 of the scalar operation with the same per-lane meaning:
 
@@ -172,7 +172,7 @@ of the scalar operation with the same per-lane meaning:
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged. Helpers
 private to one family of kernels may pass the vectors between themselves: the windowed sinc's `SincWindow` holds
 `Q16Vec<15>`, for its blend, its dot product and their two window loaders. `lane(i)` reads one lane through memory, for
-tests. The lane spec (`tests/unit/deluge/dsp-next/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
+tests. The lane spec (`tests/unit/dsp/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
 operation: on the x86 host through SIMDe, and under qemu on the A9's own instructions.
 
 ## Where the types are used
@@ -306,7 +306,7 @@ operation: on the x86 host through SIMDe, and under qemu on the A9's own instruc
   adjust reaches the sound and the audio clip as Q24. The recorder's input gain is a run-time
   `scale_shl_clamp_then_shift`. What stays integer: the 64-bit tick and increment arithmetic, MIDI and menu scalings,
   and the UI's display mappings.
-- **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A fixed-point
+- **The DSP library's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A fixed-point
   kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a `StereoSample`
   stepped as itself or as `StereoVector`; the float kernels step `f32` as `Argon<float>`. The component framework has no
   raw-integer path. `fixed::SeededNoise` gives raw noise words, the specs' and benches' inputs.
@@ -338,7 +338,7 @@ source change, so an empty result is not the gate. Each changed function is clas
 
 - **Buffers** are declared as `Q<F>` arrays by the code that owns them. A single audited raw `int32_t` view sits at the
   codec/DMA edge. There is no `may_alias`.
-- **The seam view** (`dsp-next/core/buffer_view.h`): `typed_view<T = Q<31>>(span<int32_t>)` views raw words as a 32-bit
+- **The seam view** (`dsp/core/buffer_view.h`): `typed_view<T = Q<31>>(span<int32_t>)` views raw words as a 32-bit
   format and `raw_view(span<Q<F>>)` views them back, over the same storage (a `Q<F>` is standard layout with its
   `int32_t` as its only member). Raw machine code takes it: the DX7 graph's call into the device's NEON kernel and the
   supersaw's hand-written NEON passes, the only views outside the specs. The specs view their raw references' buffers
@@ -354,12 +354,12 @@ source change, so an empty result is not the gate. Each changed function is clas
   crossing fails until another in the same file is removed, or until a `--write --allow-growth` is justified in review;
   each crossing that stays says why in a comment where it crosses, for one of the reasons below. Moving a file onto the
   typed operations is the unit of progress.
-- **The raw helpers** (`dsp-next/core/detail/raw_ops.h`, in `deluge::dsp::detail`) are the arithmetic of the raw
+- **The raw helpers** (`dsp/core/detail/raw_ops.h`, in `deluge::dsp::detail`) are the arithmetic of the raw
   references the typed operations are checked against, and of the few raw sites that say why they are raw: the high-pass
   ladder's asm saturate, the granular grain size and the wavetable chunker's index scaling, integer products of a count
-  and a fraction. They are not for new code. The specs reach them through `tests/unit/deluge/dsp-next/raw_words.h`, with the full-scale
+  and a fraction. They are not for new code. The specs reach them through `tests/unit/dsp/raw_words.h`, with the full-scale
   words the references were written with.
-- **The words that stay** outside dsp-next, each with its reason in a comment where it crosses:
+- **The words that stay** outside the DSP library, each with its reason in a comment where it crosses:
   - codec and DMA words: the audio engine's input and output rings, the CV DAC, the MIDI wire;
   - file, cache and settings words: stored params (`ParamSet::getKnob` reads one typed), settings, sample data, the UI's
     display values;

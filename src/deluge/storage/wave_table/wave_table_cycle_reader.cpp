@@ -16,8 +16,8 @@
  */
 
 #include "storage/wave_table/wave_table_cycle_reader.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/wavetable/band_builder.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/wavetable/band_builder.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"

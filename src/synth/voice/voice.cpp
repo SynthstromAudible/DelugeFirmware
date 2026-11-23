@@ -17,19 +17,19 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/divide.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/param_curve.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
-#include "dsp-next/fixed/shaping/wavefolder.h"
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp/core/divide.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/param_curve.h"
+#include "dsp/fixed/interpolation/table_interpolation.h" // get_decay4
+#include "dsp/fixed/shaping/wavefolder.h"
+#include "dsp/fixed/vca/pan.h"
 #include "synth/engines/pitch.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_fixed.h"
 #include "synth/matrix/param_format.h"
 #include "util/lookuptables/lookuptables.h"
 
-#include "dsp-next/fixed/tables/decay_small.h"
+#include "dsp/fixed/tables/decay_small.h"
 #include "util/misc.h"
 #include <cstring>
 #include <limits>

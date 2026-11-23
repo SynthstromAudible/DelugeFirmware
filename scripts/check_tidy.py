@@ -5,7 +5,7 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """clang-tidy on the lines a commit changes, in the libraries that hold themselves to the house style.
 
-The libraries (dsp-next, synth, effects, the Deluge instrument, plugin, serialization) are checked with the
+The libraries (the DSP library, synth, effects, the Deluge instrument, plugin, serialization) are checked with the
 .clang-tidy that governs each file: the repo root's, plus the library's own stricter one where it has one. Only
 the staged lines are checked, so legacy code is cleaned as it is touched rather than all at once.
 
@@ -39,11 +39,11 @@ TIDY_VERSION = "23.1.4"
 
 # Library source roots, each with a path fragment that picks its compile flags out of the database.
 LIBRARIES = {
-    "src/deluge/dsp-next/": "/dsp-next/",
+    "src/dsp/": "/src/dsp/",
     "src/synth/": "/synth/",
     "src/effects/": "/src/effects/",
     "src/instruments/classic/": "/instruments/classic/",
-    "src/plugin/": "/dsp-next/",  # header-only: any library's flags see it
+    "src/plugin/": "/src/dsp/",  # header-only: any library's flags see it
     "src/serialization/": "/serialization/",
     "src/ui/controls/": "/controls/",
 }
@@ -71,7 +71,7 @@ def flags_for(database: list[dict], library: str) -> tuple[str, list[str]]:
         None,
     )
     if entry is None:
-        entry = next(e for e in database if "/dsp-next/" in e["file"])
+        entry = next(e for e in database if "/src/dsp/" in e["file"])
     args = entry.get("arguments") or shlex.split(entry["command"])
     kept, skip = [], False
     for arg in args[1:]:

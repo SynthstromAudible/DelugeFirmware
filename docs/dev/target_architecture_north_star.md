@@ -122,7 +122,7 @@ Every active effort is a step toward componentization. Grouped by what they enab
 | **Allocator redesign** (`deluge_base_alloc`) | `allocator_redesign.md` | The memory substrate; per-component arenas |
 | **Resource / asset manager** | `sram_residency_streaming_perf.md` | Residency-managed cache; arena split |
 | **Project-model extraction** | *(gap: end-state doc)* | State off `Song`; restart-from-model; serialization swap |
-| **Synth untangling / dsp-next** | `synth_state_decoupling.md`, `synth_phase4_voice_kernel.md` | The synth as an extractable L3 CLAP component (pinned C++) |
+| **Synth untangling / the DSP library** | `synth_state_decoupling.md`, `synth_phase4_voice_kernel.md` | The synth as an extractable L3 CLAP component (pinned C++) |
 | **Supervisor + MMU SYS/APP** | `app_supervisor_recovery.md` (app) · deluge-sdk `system-supervisor.md` (kernel) | Fault isolation + warm restart |
 | **Host-sim / emulator** | `host_emulator.md` | Off-target testability of every component |
 

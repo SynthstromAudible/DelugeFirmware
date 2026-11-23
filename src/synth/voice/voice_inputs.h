@@ -17,10 +17,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources, OscType, kNumExpressionDimensions, kFirstLocalSource
-#include "dsp-next/fixed/filter/filter_set.h"
-#include "dsp-next/fixed/noise/cong.h"
-#include "dsp-next/fixed/pitch/fine_tune.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "dsp/fixed/filter/filter_set.h"
+#include "dsp/fixed/noise/cong.h"
+#include "dsp/fixed/pitch/fine_tune.h"
+#include "dsp/fixed/wavetable/wave_table_data.h"
 #include "synth/matrix/matrix_block.h"
 #include "synth/voice/voice_clock.h"
 #include "util/misc.h" // util::to_underlying

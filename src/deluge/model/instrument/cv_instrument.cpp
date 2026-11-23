@@ -16,7 +16,7 @@
  */
 
 #include "model/instrument/cv_instrument.h"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"

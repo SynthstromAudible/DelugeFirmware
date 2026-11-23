@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources, kMaxNumVoicesUnison
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/fixed/noise/cong.h"
 #include "synth/engines/slot_engine.h"
 #include "synth/sources/source.h"
 #include "synth/voice/block_values.h"

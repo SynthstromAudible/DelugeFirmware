@@ -8,7 +8,7 @@
 #include "bench/pmu_a9.h"
 #include "bench/runner.h"
 #if defined(DELUGE_DSP_BENCH_FLOAT_VOICE)
-#include "dsp-next/float/osc/saw_bands.h"
+#include "dsp/float/osc/saw_bands.h"
 #endif
 
 #include <array>

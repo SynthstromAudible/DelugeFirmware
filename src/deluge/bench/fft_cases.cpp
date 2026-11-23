@@ -21,8 +21,8 @@
 
 #include "bench/cases.h"
 
-#include "dsp-next/fixed/fft/real_fft.h"
-#include "dsp-next/fixed/noise/noise.h"
+#include "dsp/fixed/fft/real_fft.h"
+#include "dsp/fixed/noise/noise.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/fft/fft_config_manager.h"
 

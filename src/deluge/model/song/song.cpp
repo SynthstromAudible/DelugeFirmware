@@ -17,7 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp/fixed/curves/param_curve.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"

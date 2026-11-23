@@ -19,7 +19,7 @@
 
 #include "base/function_ref.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "effects/track_chain.h"
 #include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"

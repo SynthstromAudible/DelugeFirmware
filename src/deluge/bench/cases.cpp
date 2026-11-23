@@ -1,10 +1,10 @@
 #include "bench/cases.h"
 
-#include "dsp-next/fixed/bandlimited/saw.h"
-#include "dsp-next/fixed/bandlimited/square.h"
-#include "dsp-next/fixed/curves/param_curve.h"
-#include "dsp-next/fixed/noise/noise.h"
-#include "dsp-next/fixed/sync/synced_oscillator.h"
+#include "dsp/fixed/bandlimited/saw.h"
+#include "dsp/fixed/bandlimited/square.h"
+#include "dsp/fixed/curves/param_curve.h"
+#include "dsp/fixed/noise/noise.h"
+#include "dsp/fixed/sync/synced_oscillator.h"
 
 #include <algorithm>
 #include <array>

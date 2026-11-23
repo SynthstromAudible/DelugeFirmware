@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "dsp-next/fixed/shaping/tanh.h" // kTanhCentre
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/shaping/antialiased_tanh.h"
+#include "dsp/fixed/shaping/tanh.h" // kTanhCentre
 
 #include <cstdint>
 #include <span>

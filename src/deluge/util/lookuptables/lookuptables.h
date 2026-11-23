@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/tables/cent_adjust.h"
+#include "dsp/fixed/tables/cent_adjust.h"
 #include "music/note_names.h"
 #include "plugin/types/rate_tables.h"
 
@@ -38,7 +38,7 @@
 // The specifier lives on the definitions only, deliberately. [dcl.align] permits a non-defining
 // declaration to carry no alignment-specifier, so these externs need no annotation and cannot
 // drift out of agreement with the definitions.
-/// The cent-ratio table (dsp-next owns it); the app's sample holders read it through this name.
+/// The cent-ratio table (the DSP library owns it); the app's sample holders read it through this name.
 inline constexpr const uint16_t* centAdjustTableSmall = deluge::dsp::fixed::tables::kCentAdjust.data();
 extern const int16_t hanningWindow[];
 

@@ -1,6 +1,5 @@
 configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
-add_subdirectory(dsp)
-add_subdirectory(dsp-next)
+add_subdirectory(dsp_legacy)
 add_subdirectory(gui/l10n)
 add_subdirectory(version)
 
@@ -11,11 +10,8 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
 
-# Filter out DSP sources as those are built as part of the deluge_dsp library
-list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
-# Likewise the new dsp-next library (built as deluge_dsp_fixed/_float); its path
-# is /dsp-next/, which the /dsp/ regex above does not match.
-list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
+# Filter out DSP sources as those are built as part of the deluge_dsp_legacy library
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp_legacy/.*)
 # The DSP benchmark (bench/) is in the app only on a device build with DELUGE_DSP_BENCH. Its boot hook,
 # app_bench.cpp, is always in, and is empty without the option. The host trees build the runner and the cases for
 # their spec only (tests/unit/deluge/bench); the PMU counters program CP15, which only the device has.
@@ -52,7 +48,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
-  # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions at LLVM's default threshold (225, in place of the app's 5)
+  # (dsp/CMakeLists.txt): ARM mode, -finline-functions at LLVM's default threshold (225, in place of the app's 5)
   # and no LTO, each after the app's own and so in force.
   # The mod FX cases call effects::ModFx::render, which deluge_effects builds; mod_fx_cases.cpp keeps the app's flags.
   # The reverb cases call the engine's reverb; reverb_cases.cpp keeps the app's flags.
@@ -72,7 +68,7 @@ endif()
 # ---------------------------------------------------------------------------
 # An OBJECT library (not STATIC): its object files embed directly into whichever
 # executable links it. That keeps the app objects always-present, so the mutual
-# references between the app, deluge_dsp (wavetables / allocator) and the BSP (the
+# references between the app, deluge_dsp_legacy (wavetables / allocator) and the BSP (the
 # boundary) resolve without static-archive scan-order games.
 add_library(deluge_app OBJECT
   ${deluge_SOURCES}
@@ -113,8 +109,8 @@ target_include_directories(deluge_app PUBLIC
 
 target_link_libraries(deluge_app PUBLIC
     eyalroz_printf
-    deluge_dsp
-    deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
+    deluge_dsp_legacy
+    deluge_dsp # the clean L0 library primitives migrate into (synth untangling Phase 1)
     deluge_synth # the synth library: sources and the modulation core
     argon
     etl::etl

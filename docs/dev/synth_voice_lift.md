@@ -51,10 +51,10 @@ itself: the sample reader reads the rating partway through a note-on and a rende
   voice's own paths — portamento on a note change, the Nyquist cutoff, free-running phases kept on a re-trigger, a
   play-once sample's auto-release and its read-rate scaling, loop points released at the note-off, the sample cache's
   pitch-modulation test, and a sample zone moved mid-note.
-- **`tests/unit/deluge/dsp-next/synth_voice_spec.cpp`** plays VA, FM and sample notes through fake ports
-  (`tests/unit/deluge/dsp-next/fake_voice_ports.h`): a release to silence, a play-once sample releasing before its end, a fast release,
+- **`tests/unit/dsp/synth_voice_spec.cpp`** plays VA, FM and sample notes through fake ports
+  (`tests/unit/dsp/fake_voice_ports.h`): a release to silence, a play-once sample releasing before its end, a fast release,
   a ring-mod note refused for an empty source, and the cull order by voice count. It links only the synth library,
-  dsp-next, the param tables and the noise stream.
+  the DSP library, the param tables and the noise stream.
 
 The cull order's voice-count term reorders voices only across sounds, which no host gate culls; the spec pins it on
 the kernel.

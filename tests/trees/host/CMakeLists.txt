@@ -1,7 +1,7 @@
 # Gate unit:
 #     every test directory under tests/unit that names the host tree (tests/support/cmake/specs.cmake): the CppSpec
-#     drivers and the model-equality driver on the committed songs; the dsp-next specs and the synth library's link
-#     closure (tests/unit/deluge/dsp-next); and the gfx-layer and layer-rules checks, on the -m32 host: policies,
+#     drivers and the model-equality driver on the committed songs; the DSP library specs and the synth library's link
+#     closure (tests/unit/dsp); and the gfx-layer and layer-rules checks, on the -m32 host: policies,
 #     parsers, storage state machines, the UI's pure steps, DSP kernels against scalar references.
 #     Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
 

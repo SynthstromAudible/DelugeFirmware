@@ -16,9 +16,9 @@
  */
 
 #include "model/sample/sample_holder_for_clip.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "dsp-next/fixed/pitch/fine_tune.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/table_interpolation.h"
+#include "dsp/fixed/pitch/fine_tune.h"
 #include "model/sample/clip_increment.h"
 #include "model/sample/sample.h"
 #include "util/lookuptables/lookuptables.h"

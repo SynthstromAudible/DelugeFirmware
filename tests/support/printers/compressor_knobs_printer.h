@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/dynamics/compressor_kernel.h"
+#include "dsp/fixed/dynamics/compressor_kernel.h"
 #include "support/printers/fixed_point_printer.h"
 
 #include <ostream>

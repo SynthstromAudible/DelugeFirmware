@@ -141,7 +141,7 @@ class ScanTest(unittest.TestCase):
     def test_the_asm_header_is_not_counted(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            asm = root / "src/deluge/dsp-next/core/high_word_asm.h"
+            asm = root / "src/dsp/core/high_word_asm.h"
             asm.parent.mkdir(parents=True)
             asm.write_text('asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));\n')
             self.assertEqual(scan(root), {})

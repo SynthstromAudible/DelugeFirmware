@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/fft/real_fft.h"
+#include "dsp/fixed/fft/real_fft.h"
 
 #include <cstddef>
 #include <cstdint>

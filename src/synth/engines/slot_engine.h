@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/pitch/fine_tune.h"
+#include "dsp/fixed/pitch/fine_tune.h"
 #include "synth/engines/engine.h"
 
 #include <cstdint>

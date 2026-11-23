@@ -1,10 +1,10 @@
 #pragma once
-// Duplicated from dsp-next/fixed/tables/sine_small.h so gfx stays a leaf; the audio copy is the original.
+// Duplicated from dsp/fixed/tables/sine_small.h so gfx stays a leaf; the audio copy is the original.
 #include <cstdint>
 
 namespace deluge::ui::gfx::grid {
 
-/// @brief 257-entry quarter-turn sine table (Q15), mirroring dsp-next's `tables::kSineSmall`.
+/// @brief 257-entry quarter-turn sine table (Q15), mirroring the DSP library's `tables::kSineSmall`.
 ///
 /// @note Duplicated here, rather than shared, so that `src/ui/gfx/**` never depends on
 ///       `src/deluge/**`. The DSP copy remains the single source of truth for DSP call sites

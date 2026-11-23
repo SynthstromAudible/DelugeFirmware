@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/shaping/bit_depth.h"
-#include "dsp-next/fixed/shaping/sample_rate_reducer.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/shaping/bit_depth.h"
+#include "dsp/fixed/shaping/sample_rate_reducer.h"
 #include "effects/params.h"
 
 #include <array>

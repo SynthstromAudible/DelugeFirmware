@@ -218,7 +218,7 @@ app wires them.
 ### 3.2 Core-side library notes
 
 **deluge-base** — purified `util/` plus `base/`: fixed-point
-(`dsp-next/core/fixed_point.h`, `detail/raw_ops.h`), lookup tables, containers, `d_string`, error enum, `Finally`,
+(`dsp/core/fixed_point.h`, `detail/raw_ops.h`), lookup tables, containers, `d_string`, error enum, `Finally`,
 semver — plus the new cross-cutting services: the diagnostics sink (replacing
 deep `display->` calls), **typed time units** (§5.3), the **execution-context
 tracker** (§4.1), the **seeded PRNG service** (§4.5), and the **feature-flag

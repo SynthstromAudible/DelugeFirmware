@@ -9,7 +9,7 @@
 >
 > Status: **REFINED — see `synth_source_ownership.md`.** This doc sketched a `SourceComponent` interface as
 > dispatch-polymorphism *over the legacy flat param plane*. That conflated three separable concerns (dispatch
-> boundary / param ownership / dsp-next residence). The reframe: **the lift (L-vi) needs only the ports** — the
+> boundary / param ownership / the DSP library residence). The reframe: **the lift (L-vi) needs only the ports** — the
 > oscType switch doesn't trip the boundary; the app reaches inside the sample/input engines do. So **L-vi = the
 > `SampleSource` + live-input ports + the `Source::renderInStereo` `AudioEngine` globals**, keeping the oscType
 > dispatch. The **polymorphic, param-owning `SourceComponent`** moves to the OO Source phase (`synth_source_ownership.md`,
@@ -26,7 +26,7 @@ heterogeneous per-source objects on `VoiceUnisonPartSource`:
 std::optional<synth::VirtualAnalogEngine> vaEngine;   // pure DSP (L0) — phase owned here
 std::optional<dsp::WavetableEngine>       wavetableEngine; // pure DSP (L0)
 SampleEngine                              sampleEngine; // app-coupled: model/sample, storage/cache, AudioEngine, playbackHandler, getPriorityRating
-dsp::DX7Engine                            dx7Engine;    // processing/dx7 + dsp-next/fixed/dx7 (L0) — pooled dx7::Voice + injected patch (slice 14)
+dsp::DX7Engine                            dx7Engine;    // processing/dx7 + dsp/fixed/dx7 (L0) — pooled dx7::Voice + injected patch (slice 14)
 InputEngine                               inputEngine;  // app-coupled: AudioEngine live-input ring + mic/line + LivePitchShifter
 ```
 
@@ -66,7 +66,7 @@ directly:
 - **live-input port** — the `AudioEngine` input ring + mic/line state + the `LivePitchShifter` lifecycle/alloc.
 
 Pure components (`VirtualAnalogEngine`, `WavetableEngine`) need **no port** (L0 already). `DX7Engine` stays
-in `processing/dx7` over `dsp-next/fixed/dx7` (its pooled `dx7::Voice` via `getDxEngine()` is L0-internal — *allowed* below the `synth/` boundary); it
+in `processing/dx7` over `dsp/fixed/dx7` (its pooled `dx7::Voice` via `getDxEngine()` is L0-internal — *allowed* below the `synth/` boundary); it
 adopts the base but needs no port.
 
 ## How a source holds its component

@@ -16,7 +16,7 @@
  */
 
 #include "dx.h"
-#include "dsp-next/fixed/dx7/algorithms.h"
+#include "dsp/fixed/dx7/algorithms.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "hid/buttons.h"
 #include "model/edits/setting_edit.h"

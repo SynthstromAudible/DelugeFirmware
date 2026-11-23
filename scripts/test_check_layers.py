@@ -212,7 +212,7 @@ RULES = textwrap.dedent(
 
     [[rule]]
     name = "dsp-boundary"
-    files = ["src/deluge/dsp-next/**"]
+    files = ["src/dsp/**"]
     pattern = '^(model|memory|util)/'
     allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
     reason = "the kernels reach nothing above them"
@@ -265,12 +265,10 @@ class CountedRules(unittest.TestCase):
 
     def test_an_allowed_header_is_not_counted(self):
         self.repo.plant(
-            "src/deluge/dsp-next/core/planted.h",
+            "src/dsp/core/planted.h",
             '#include "util/misc.h"\n#include "memory/memory_allocator_interface.h"\n#include "util/functions.h"\n',
         )
-        self.assertEqual(
-            self.counts(), {("src/deluge/dsp-next/core/planted.h", "dsp-boundary"): 1}
-        )
+        self.assertEqual(self.counts(), {("src/dsp/core/planted.h", "dsp-boundary"): 1})
 
     def test_a_commented_out_include_is_not_counted(self):
         self.repo.plant(
@@ -591,14 +589,40 @@ class RealTable(unittest.TestCase):
             if file == rel
         }
 
+    def test_the_dsp_library_includes_only_its_allow_list(self):
+        accepted = (
+            '#include "dsp/core/stereo_sample.h"\n#include "base/divide.h"\n'
+            '#include "plugin/types/sync.h"\n#include "util/misc.h"\n'
+            '#include "definitions_cxx.hpp"\n#include "board_config.h"\n'
+            "#include <argon.hpp>\n#include <arm_neon.h>\n#include <cstdint>\n"
+        )
+        self.assertEqual(self.library_found("dsp", accepted), [])
+        for outside in (
+            '#include "model/song/song.h"\n',
+            '#include "synth/sources/va/va_shapes.h"\n',
+            '#include "dsp_legacy/timestretch/time_stretcher.h"\n',
+            '#include "util/functions.h"\n',
+            '#include "bench/probe.h"\n',
+            '#include "plugin/plugin.h"\n',
+            '#include "instruments/classic/instrument.h"\n',
+            "#include <stdio.h>\n",
+        ):
+            with self.subTest(outside=outside):
+                self.assertEqual(len(self.library_found("dsp", outside)), 1)
+
     def test_the_effects_library_may_use_the_l0_dsp_library(self):
-        accepted = '#include "dsp-next/core/stereo_sample.h"\n#include "dsp-next/core/detail/raw_ops.h"\n'
+        accepted = '#include "dsp/core/stereo_sample.h"\n#include "dsp/core/detail/raw_ops.h"\n'
         self.assertEqual(self.library_found("effects", accepted), [])
         self.assertEqual(
             len(self.library_found("effects", '#include "util/functions.h"\n')), 1
         )
         self.assertEqual(
-            len(self.library_found("effects", '#include "dsp/stereo_sample.h"\n')), 1
+            len(
+                self.library_found(
+                    "effects", '#include "dsp_legacy/timestretch/time_stretcher.h"\n'
+                )
+            ),
+            1,
         )
 
     def test_base_may_use_the_standard_library_and_its_own_headers_only(self):

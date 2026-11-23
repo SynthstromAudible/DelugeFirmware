@@ -19,7 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "modulation/sync.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"

@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
+#include "dsp/core/types.h"       // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // Source, SourceBlock, BlockControls
 #include <algorithm>              // std::fill_n
 #include <cstdint>
