@@ -70,8 +70,10 @@ public:
 	DelugeResource* resourceManager_{nullptr};
 
 	/// @brief Creates the cluster slab and the resource manager. Boot calls it once, right after
-	/// AudioFileManager::init() has set Cluster::size; a second call does nothing. Both share the
-	/// uniform Cluster slot size, which this commits for the session.
+	/// AudioFileManager::init() has set Cluster::size; any later call does nothing, whether the first
+	/// succeeded or ran out of memory. Both share the uniform Cluster slot size, which this commits for
+	/// the session. The two accessors become non-null together, only once both exist and the slab is
+	/// attached to the manager; out of memory leaves both nullptr.
 	void initClusterSystem();
 
 	/// @brief The resource manager that owns SDRAM eviction. A Sample / SampleCache defines its Asset
@@ -96,6 +98,9 @@ public:
 	// physical block chain via deluge_heap_check() across the deluge_base_alloc.h boundary (the Rust
 	// deluge_base_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
+
+private:
+	bool clusterSystemInitialised_{false}; // initClusterSystem() has run (successfully or not)
 };
 
 extern "C" {

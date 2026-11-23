@@ -323,9 +323,11 @@ bool checkSampleBuildAbandon() {
 	//      expose.
 	{
 		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-		if (mgr != nullptr) {
-			deluge_resource_stats_reset(mgr);
+		if (mgr == nullptr) {
+			g_report.fail("[sampleBuildAbandon]: no resource manager -- boot did not create it");
+			return false;
 		}
+		deluge_resource_stats_reset(mgr);
 
 		constexpr int kIterations = 20000;
 		for (int i = 0; i < kIterations; i++) {
@@ -341,16 +343,14 @@ bool checkSampleBuildAbandon() {
 			sample_build::abandon(build);
 		}
 
-		if (mgr != nullptr) {
-			DelugeResourceStats stats{};
-			deluge_resource_stats(mgr, &stats);
-			if (stats.evictions != 0) {
-				g_report.fail("[sampleBuildAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
-				              "churn that should never have needed any -- abandon() is likely dropping the lease "
-				              "without destroying the object (shape (b) above)",
-				              static_cast<unsigned long long>(stats.evictions));
-				ok = false;
-			}
+		DelugeResourceStats stats{};
+		deluge_resource_stats(mgr, &stats);
+		if (stats.evictions != 0) {
+			g_report.fail("[sampleBuildAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
+			              "churn that should never have needed any -- abandon() is likely dropping the lease "
+			              "without destroying the object (shape (b) above)",
+			              static_cast<unsigned long long>(stats.evictions));
+			ok = false;
 		}
 	}
 
@@ -912,10 +912,12 @@ void runWaveTableFail() {
 	runFailedLoadLegs();
 }
 
-/// The resource manager's eviction count, over the run.
+/// The resource manager's eviction count, over the run. Without a manager (boot did not create it) it reports a
+/// failure and returns 0.
 uint64_t evictionCount() {
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 	if (mgr == nullptr) {
+		g_report.fail("[waveTableChurn]: no resource manager -- boot did not create it");
 		return 0;
 	}
 	DelugeResourceStats stats{};

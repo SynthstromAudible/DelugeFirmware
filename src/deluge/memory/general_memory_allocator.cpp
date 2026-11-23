@@ -48,9 +48,10 @@ namespace {
 } // namespace
 
 void GeneralMemoryAllocator::initClusterSystem() {
-	if (clusterSlab_ != nullptr) {
+	if (clusterSystemInitialised_) {
 		return;
 	}
+	clusterSystemInitialised_ = true;
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// Sim/golden only: a deliberate, leaked SDRAM pad to perturb allocation *layout*. Allocated here —
 	// before the slab, resource manager, and any cluster — so it shifts everything after it by
@@ -81,8 +82,8 @@ void GeneralMemoryAllocator::initClusterSystem() {
 	size_t chunkOffset = std::max<size_t>(kChunkPayloadOffset, deluge_streamed_chunk_payload_offset());
 	size_t slot = chunkOffset + Cluster::size + kChunkTrailingGuard;
 	size_t slabCapacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
-	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
-	if (clusterSlab_ == nullptr) {
+	DelugeSlab* slab = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
+	if (slab == nullptr) {
 		return;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
@@ -90,7 +91,7 @@ void GeneralMemoryAllocator::initClusterSystem() {
 	// memory (e.g. a SampleCache reading interpolation-overhang bytes past its write
 	// position) is a defined 0, not layout-dependent recycled content — keeps the offline
 	// render independent of heap layout. Firmware leaves it off (speed; behaviour unchanged).
-	deluge_slab_set_zero_on_acquire(clusterSlab_, true);
+	deluge_slab_set_zero_on_acquire(slab, true);
 #endif
 	// Stand up the resource manager alongside the slab and register it as the SDRAM heap's reclaim
 	// hook (it is the sole reclaim coordinator). It owns cluster residency + adopted objects.
@@ -100,10 +101,14 @@ void GeneralMemoryAllocator::initClusterSystem() {
 	//              so the chunk table is never the limiter.
 	constexpr size_t kAssetCap = 4096;
 	size_t chunkCapacity = slabCapacity + kAssetCap;
-	resourceManager_ = deluge_resource_create(deluge::memory::sdram_heap(), kAssetCap, chunkCapacity);
-	if (resourceManager_ != nullptr) {
-		deluge_resource_set_slab(resourceManager_, clusterSlab_);
+	DelugeResource* manager = deluge_resource_create(deluge::memory::sdram_heap(), kAssetCap, chunkCapacity);
+	if (manager == nullptr) {
+		return; // both accessors stay nullptr; the slab is left unused
 	}
+	deluge_resource_set_slab(manager, slab);
+	// Published only once complete: the audio tier is live and reads these through the accessors.
+	clusterSlab_ = slab;
+	resourceManager_ = manager;
 }
 
 void GeneralMemoryAllocator::freeSdram(void* address) {
