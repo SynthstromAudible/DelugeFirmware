@@ -1,4 +1,4 @@
-//! The lookahead reservation handle (`DelugeSampleReservation` in `libdeluge/sample_reader.h`).
+//! The lookahead reservation handle (`DelugeSampleReservation` in `deluge_storage_sample_reader.h`).
 //!
 //! Where [`crate::reader::peek`] glances at what is already resident, a reservation pins a small
 //! forward or backward window of clusters (one `Lease` each) for as long as it stays open — the
@@ -16,7 +16,7 @@ use deluge_storage_resource::DelugeResource;
 /// `kNumClustersLoadedAhead` (`src/definitions_cxx.hpp`).
 const DEPTH: usize = 2;
 
-/// Mirrors `DelugeLoadMode` (`libdeluge/sample_reader.h`). `repr(u8)` matches the header's
+/// Mirrors `DelugeLoadMode` (`deluge_storage_sample_reader.h`). `repr(u8)` matches the header's
 /// `: uint8_t`, as it crosses the FFI by value.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "libdeluge/sample_reader.h"
+#include "deluge_storage_sample_reader.h"
 #include "model/sample/sample_low_level_reader.h"
 #include <cstdint>
 

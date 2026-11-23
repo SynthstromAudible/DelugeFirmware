@@ -13,7 +13,7 @@
 
 #include "deluge_base_alloc.h"
 #include "deluge_storage_resource.h"
-#include "libdeluge/sample_reader.h"
+#include "deluge_storage_sample_reader.h"
 #include "libdeluge/sample_stream.h"
 #include "libdeluge/streaming_fill.h"
 

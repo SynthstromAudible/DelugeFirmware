@@ -1,4 +1,4 @@
-# The sample range-reader C ABI (`libdeluge/sample_reader.h`): raw-PCM frame ranges of a sample
+# The sample range-reader C ABI (`deluge_storage_sample_reader.h`): raw-PCM frame ranges of a sample
 # for non-voice consumers (pitch detect, waveform, wavetable build). The non-voice twin of
 # `deluge_storage_sample_source`.
 #

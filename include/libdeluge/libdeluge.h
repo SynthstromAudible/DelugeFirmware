@@ -47,8 +47,6 @@
 #include "flash.h"
 #include "memory.h"
 #include "midi_io.h"
-#include "sample_reader.h"
-#include "sample_source.h"
 #include "sample_stream.h"
 #include "scheduler.h"
 #include "signals.h"

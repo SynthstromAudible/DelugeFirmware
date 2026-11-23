@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/sample_reader.h — the sample range-reader C-ABI.
+/// deluge_storage_sample_reader.h — the sample range-reader C-ABI.
 ///
 /// A zero-copy streaming reader-handle (plus a stateless copy convenience) over a sample's source
 /// residency, for non-voice consumers that read raw-PCM frame RANGES (pitch detect, waveform
@@ -28,11 +28,11 @@
 ///
 /// Coexists with the existing facade (`peek`/`prefetch`/`load_now`/`request`/`dequeue`, declared in
 /// `deluge::audio::stream`).
-#ifndef LIBDELUGE_SAMPLE_READER_H
-#define LIBDELUGE_SAMPLE_READER_H
+#ifndef DELUGE_STORAGE_SAMPLE_READER_H
+#define DELUGE_STORAGE_SAMPLE_READER_H
 
-#include "abi.h"
-#include "libdeluge/sample_source.h" // DelugeSampleGeometry
+#include "deluge_storage_sample_source.h" // DelugeSampleGeometry
+#include "libdeluge/abi.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -247,4 +247,4 @@ uint32_t deluge_sample_read(uint32_t source_id, uint64_t start_frame, uint32_t n
 #ifdef __cplusplus
 }
 #endif
-#endif // LIBDELUGE_SAMPLE_READER_H
+#endif // DELUGE_STORAGE_SAMPLE_READER_H

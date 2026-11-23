@@ -10,7 +10,7 @@ use deluge_storage_resource::facade::Lease;
 use deluge_storage_resource::{DelugeResource, Resource};
 use deluge_storage_sample_fill::chunk::DelugeChunkBacking;
 
-/// Mirrors `DelugeReadHint` (`libdeluge/sample_reader.h`). `repr(u8)` matches the header's
+/// Mirrors `DelugeReadHint` (`deluge_storage_sample_reader.h`). `repr(u8)` matches the header's
 /// `: uint8_t`, as it crosses the FFI by value.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -22,7 +22,7 @@ pub enum ReadHint {
     Scan = 1,
 }
 
-/// Mirrors `DelugeSampleGeometry` (`libdeluge/sample_source.h`) field for field.
+/// Mirrors `DelugeSampleGeometry` (`deluge_storage_sample_source.h`) field for field.
 ///
 /// A local copy rather than a dependency on `deluge_storage_sample_source`, keeping the non-voice reader
 /// decoupled from the voice cursor.

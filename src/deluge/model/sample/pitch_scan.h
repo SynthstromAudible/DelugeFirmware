@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"                  // kPitchDetectWindowSizeMagnitude
-#include "libdeluge/sample_reader.h"            // DelugeFrameWindow
+#include "deluge_storage_sample_reader.h"       // DelugeFrameWindow
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include "model/sample/sample_reader_bridge.h"  // SampleFrameReader
 #include <cstdint>

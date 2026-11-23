@@ -20,7 +20,7 @@
 #include <utility>
 
 #include "definitions_cxx.hpp"
-#include "libdeluge/sample_reader.h"
+#include "deluge_storage_sample_reader.h"
 #include "model/sample/sample_playback_guide.h"
 #include "storage/audio/audio_file_holder.h"
 #include "util/c_string.h"

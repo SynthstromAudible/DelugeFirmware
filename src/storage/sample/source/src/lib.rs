@@ -1,5 +1,5 @@
 //! The region-port cursor behind the `deluge_sample_source_*` / `deluge_sample_region_*` C ABI
-//! (`libdeluge/sample_source.h`).
+//! (`deluge_storage_sample_source.h`).
 //!
 //! [`cursor::SampleSource`] is the per-reader residency state machine, generic over a
 //! [`residency::Residency`] provider; [`manager_residency::ManagerResidency`] is the production

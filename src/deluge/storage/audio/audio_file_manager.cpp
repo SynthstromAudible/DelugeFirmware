@@ -43,8 +43,8 @@
 #include "util/notify.h"
 
 #include "deluge_storage_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
-#include "libdeluge/sample_reader.h"
-#include "libdeluge/sample_source.h"
+#include "deluge_storage_sample_reader.h"
+#include "deluge_storage_sample_source.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/song/song.h"

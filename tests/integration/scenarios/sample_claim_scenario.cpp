@@ -31,6 +31,7 @@
 #include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_source.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
@@ -52,7 +53,6 @@
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
-#include "libdeluge/sample_source.h"
 #include "libdeluge/streaming_fill.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"

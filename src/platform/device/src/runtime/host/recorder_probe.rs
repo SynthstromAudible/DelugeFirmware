@@ -24,7 +24,7 @@ unsafe extern "C" {
 }
 
 /// The probe's "harness setup failed" sentinel. The other `STATE_*` values are
-/// `DelugeRegionState` (`libdeluge/sample_source.h`) as bytes.
+/// `DelugeRegionState` (`deluge_storage_sample_source.h`) as bytes.
 pub const STATE_HARNESS_ERROR: u8 = 0;
 pub const STATE_READY: u8 = crate::sys::DelugeRegionState::Ready as u8;
 pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LIBDELUGE_SAMPLE_SOURCE_H
-#define LIBDELUGE_SAMPLE_SOURCE_H
-#include "abi.h"
-#include "types.h"
+#ifndef DELUGE_STORAGE_SAMPLE_SOURCE_H
+#define DELUGE_STORAGE_SAMPLE_SOURCE_H
+#include "libdeluge/abi.h"
+#include "libdeluge/types.h"
 #include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
@@ -180,4 +180,4 @@ void deluge_sample_source_close(DelugeSampleSource* src) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#endif // LIBDELUGE_SAMPLE_SOURCE_H
+#endif // DELUGE_STORAGE_SAMPLE_SOURCE_H

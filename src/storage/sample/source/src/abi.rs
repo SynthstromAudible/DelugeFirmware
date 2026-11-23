@@ -1,4 +1,4 @@
-//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`libdeluge/sample_source.h`).
+//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`deluge_storage_sample_source.h`).
 //!
 //! Wraps [`SampleSource<ManagerResidency>`](SampleSource) behind a fixed, allocation-free static
 //! pool of cursors. The symbols are exported under the `c_abi` feature.
@@ -26,7 +26,7 @@ use crate::manager_residency::ManagerResidency;
 use deluge_storage_resource::sync::{m_get, m_set, Masked};
 use deluge_storage_resource::{DelugeResource, Resource};
 
-// C-ABI types, mirroring `libdeluge/sample_source.h`.
+// C-ABI types, mirroring `deluge_storage_sample_source.h`.
 
 /// Opaque per-reader cursor handle, mirroring `DelugeSampleSource`.
 ///

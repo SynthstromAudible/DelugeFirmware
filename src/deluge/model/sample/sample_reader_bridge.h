@@ -18,12 +18,12 @@
 #pragma once
 
 /// @file
-/// A small C++23 bridge over `libdeluge/sample_reader.h` (the Rust `deluge_sample_reader_*`
+/// A small C++23 bridge over `deluge_storage_sample_reader.h` (the Rust `deluge_sample_reader_*`
 /// C-ABI) for non-voice consumers that read raw-PCM frame RANGES (pitch detect, waveform
 /// overview, crossfade averages, perc-cache, wavetable build, hop search) instead of reaching
 /// `StreamedChunk` internals directly. This is the residency read path for those consumers.
 
-#include "libdeluge/sample_reader.h"
+#include "deluge_storage_sample_reader.h"
 
 #include <cstddef>
 #include <cstdint>
