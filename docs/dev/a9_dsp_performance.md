@@ -624,7 +624,7 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 
 ## Effects components
 
-The chains with the bitcrush, EQ and send-and-volume as the DSP library kernels (`BitDepth` and `SampleRateReducer`,
+The chains with the bitcrush, EQ and send-and-volume as kernels of the DSP library (`BitDepth` and `SampleRateReducer`,
 `ShelfPair`, `SendAndVolume` with the reverb send in its loop) and the reverb return's duck in `effects::Reverb`
 (after, image 2f5780ba0) against the chains before them (before, image f6815eac9), on 2026-10-29: `fx_chains` at the
 settings above, and `reverb` (after image 53b55f477; the reverb path is the same in both). Cycles per channel-sample,
@@ -728,7 +728,7 @@ qemu on ARM.
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:
 the patch's LFO, then pitch, control and the six operators. Before: the engine at a44d9e98f. After: f3e819d1f, where
-every operator is a DSP library kernel walked by `dx7::Graph`, and the device renders the modern ops with no input or a
+every operator is a kernel of the DSP library walked by `dx7::Graph`, and the device renders the modern ops with no input or a
 bus input through the same NEON kernel as before (`fixed/dx7/neon_fm_kernel.s`), every other build through the Argon
 step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run of each image.
 

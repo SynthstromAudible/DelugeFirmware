@@ -853,7 +853,7 @@ to 0 at a slow tempo.
 
 **What not to copy from it.** `DuckEnvelope`'s `Settings` are rates the owner
 has already resolved only because tempo sync needs `plugin::SyncLevel`, which
-The DSP library must not see. A kernel whose mapping from params to rates is pure does
+the DSP library must not see. A kernel whose mapping from params to rates is pure does
 that mapping in `coefficients()`.
 
 ### Modes

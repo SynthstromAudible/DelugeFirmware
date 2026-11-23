@@ -175,7 +175,7 @@ change.
   (Phase B) → unify VCA (Phase C). Its own detailed plan:
   [synth_oscillator_plan.md](synth_oscillator_plan.md). Phase C (unifying the
   VCA arithmetic) is the first **deliberate golden re-baseline** — ear +
-  hardware, not SHA. The DSP library kernels are **stateless** (state → L1 SourceEngine).
+  hardware, not SHA. Kernels in the DSP library are **stateless** (state → L1 SourceEngine).
 - **Filters, then FX, then DX7** — later clusters (filters as one cohesive
   subsystem arc), per the migration order above. The first caller switch of
   each can move a fixture — gate hard.
@@ -195,7 +195,7 @@ change.
   byte-identical fixtures; **caller-switch commits** are the ones that can
   legitimately need a documented rounding waiver (then re-baseline once, per
   the Phase-0 contract).
-- The DSP library include-lint gate runs in CI from S0.
+- The include-lint gate for the DSP library runs in CI from S0.
 
 ## Risks
 

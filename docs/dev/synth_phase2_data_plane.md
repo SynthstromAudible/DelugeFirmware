@@ -196,7 +196,7 @@ phase boundaries.
    `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
    `modulation/` into a new `src/synth/` (flat). Added
    `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
-   `modulation/` + `util/` + `dsp/` (the DSP library); forbids the app layers model/processing/
+   `modulation/` + `util/` + the DSP library (`dsp/`); forbids the app layers model/processing/
    storage/gui/playback/hid/io, the legacy `dsp_legacy/`, and the HAL/BSP) + a shrink-only
    `synth_boundary_allowlist.txt` (seeded **EMPTY**), a `synth-boundary` pre-commit
    hook, and a step of `.github/workflows/ci.yml`'s lint job. The one direct violation —

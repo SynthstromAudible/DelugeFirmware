@@ -69,7 +69,7 @@ Two stages, strangler-fig:
 
 The L0 primitives are the DSP library citizens — `VirtualAnalogEngine` (already `synth::`), `WavetableEngine`
 (`dsp::`), the band-limited oscillators (migrated). The **typed-param-input shape is precisely what lets them be
-pure DSP library** (no Voice / param-plane / `LOCAL_*` coupling). The DSP library track (`[[wavetable-storage-port]]`,
+pure L0 DSP** (no Voice / param-plane / `LOCAL_*` coupling). The DSP library track (`[[wavetable-storage-port]]`,
 `[[dsp-next-fixed-layout]]`) reworks each primitive to own its bits + consume typed params; this OO model is the L1
 seam that sits above them.
 
