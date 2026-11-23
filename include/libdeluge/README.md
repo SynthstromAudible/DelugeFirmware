@@ -55,7 +55,8 @@ Every table handle that crosses the ABI (an open file, directory or stream) is a
 `uint32_t`), and `DELUGE_HANDLE_NONE` (0) is none: no call hands it out, and a caller tests a stored handle against
 it. The tables behind the handles index their slots from 0, so a slot crosses as `slot + 1`; the Rust exports
 convert with `src/platform/device/src/abi/handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
-work in slots. `sample_stream.h`'s registry numbers its handles the same way.
+work in slots. The stream registry (`deluge_storage_stream.h`, beside the `deluge_storage_stream` crate) numbers its
+handles the same way.
 
 A call passed `DELUGE_HANDLE_NONE` does nothing and gives its bad-argument answer: a status-returning call (a stream
 close included) answers `DELUGE_ERR_PARAM`, a close that returns nothing does nothing, a channel request answers

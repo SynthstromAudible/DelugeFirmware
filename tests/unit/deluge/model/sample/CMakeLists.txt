@@ -28,7 +28,7 @@ deluge_specs_driver(sample_reader_specs TREES host NEON
     deluge_rust_rs_sim
     pthread dl m  # the Rust std staticlib's system libraries
   INCLUDES
-    ${DELUGE_REPO_ROOT}/include                       # libdeluge/file_io.h, libdeluge/sample_stream.h, libdeluge/streaming_fill.h, libdeluge/streaming_loader.h
+    ${DELUGE_REPO_ROOT}/include                       # libdeluge/file_io.h, libdeluge/streaming_loader.h
     ${DELUGE_REPO_ROOT}/src                           # definitions_cxx.hpp
     ${_app}                                           # model/sample/sample_reader_bridge.h, chunk_residency.h
     ${DELUGE_CRATE_INCLUDE_DIRS}                      # the crates' C headers (sample_peek_spec.cpp)

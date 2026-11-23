@@ -15,26 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/sample_stream.h — the streaming-file slot registry C-ABI.
+/// deluge_storage_stream.h — the C header of the `deluge_storage_stream` crate: the streaming-file slot
+/// registry C-ABI.
 ///
-/// Also where a streamed chunk's payload sits in its slot.
-///
-/// A fixed-capacity table of open efatfs streaming handles (`deluge_storage_stream` Rust crate),
-/// each pairing an efatfs read handle with the resource-manager asset id + geometry a caller
-/// supplies once known, registering the asset's `DelugeStreamingFillContext`
-/// (`streaming_fill.h`) with the resource manager itself the moment both are present. Handles are
-/// `DelugeHandle`s, numbered like every table handle (`types.h`: @ref DELUGE_HANDLE_NONE is none, and a
-/// slot crosses as slot + 1), NOT a pointer — the registry owns a fixed slot table rather than
-/// heap-boxing per-stream state.
+/// A fixed-capacity table of open efatfs streaming handles, each pairing an efatfs read handle with the
+/// resource-manager asset id + geometry a caller supplies once known, registering the asset's
+/// `DelugeStreamingFillContext` (`deluge_storage_sample_fill.h`) with the resource manager itself the moment both
+/// are present. Handles are `DelugeHandle`s, numbered like every table handle (`libdeluge/types.h`:
+/// @ref DELUGE_HANDLE_NONE is none, and a slot crosses as slot + 1), NOT a pointer — the registry owns a fixed
+/// slot table rather than heap-boxing per-stream state.
 ///
 /// This registry is the eventual home for `SampleStream`'s own held efatfs handle + geometry
 /// (`sample_stream.cpp`'s `register_fill_context`); moving them here lets the C++ side stop
 /// holding that state itself.
-#ifndef LIBDELUGE_SAMPLE_STREAM_H
-#define LIBDELUGE_SAMPLE_STREAM_H
+#ifndef DELUGE_STORAGE_STREAM_H
+#define DELUGE_STORAGE_STREAM_H
 
-#include "abi.h"
-#include "types.h"
+#include "libdeluge/abi.h"
+#include "libdeluge/types.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -43,14 +41,9 @@
 extern "C" {
 #endif
 
-/// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
-///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
-///        + Cluster::size + trailing guard. Rust-owned (deluge_storage_sample_fill). [task]
-uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
-
 /// @brief The geometry a stream slot needs to register its asset's fill-context.
 ///
-/// `streaming_fill.h`'s `DelugeStreamingFillContext` minus `efatfs_handle` (the registry supplies
+/// `deluge_storage_sample_fill.h`'s `DelugeStreamingFillContext` minus `efatfs_handle` (the registry supplies
 /// that field itself, from the slot's own efatfs handle).
 typedef struct DelugeSampleStreamGeometry {
 	uint32_t audio_data_start_pos_bytes; ///< Offset from the start of the file to the first audio byte.
@@ -135,4 +128,4 @@ DelugeStatus deluge_sample_stream_read_at(DelugeHandle handle, uint32_t byte_off
 #ifdef __cplusplus
 }
 #endif
-#endif // LIBDELUGE_SAMPLE_STREAM_H
+#endif // DELUGE_STORAGE_STREAM_H

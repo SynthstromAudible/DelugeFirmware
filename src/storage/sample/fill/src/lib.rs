@@ -3,7 +3,7 @@
 //! - [`fill_logic`]: the pure fill geometry and convert/stitch sequencing.
 //! - [`chunk`]: streamed-chunk construction and payload resolution.
 //! - The per-asset fill-context table ([`deluge_streaming_set_fill_context`],
-//!   [`fill_context_for`]) and the `libdeluge/streaming_fill.h` boundary types.
+//!   [`fill_context_for`]) and the `deluge_storage_sample_fill.h` boundary types.
 //! - `native` (feature `native_fill`): the synchronous, manager-reaching fill.
 #![no_std]
 
@@ -17,7 +17,7 @@ pub mod chunk;
 pub mod fill_logic;
 
 // Per-asset fill-context table: C++ registers each sample's geometry at load; the fill and the
-// sample readers read it back. The C-side contract is in `libdeluge/streaming_fill.h`.
+// sample readers read it back. The C-side contract is in `include/deluge_storage_sample_fill.h`.
 
 /// Capacity of the fill-context table, keyed by asset id.
 ///
@@ -61,7 +61,7 @@ impl FileLocation {
 }
 
 /// A sample's streaming geometry. Mirrors `DelugeStreamingFillContext` in
-/// `libdeluge/streaming_fill.h`, which documents the fields.
+/// `include/deluge_storage_sample_fill.h`, which documents the fields.
 ///
 /// `raw_data_format` is `RawDataFormat`'s `u8` representation.
 #[repr(C)]
@@ -126,7 +126,7 @@ const _: () = {
 static FILL_CONTEXTS: Mutex<CriticalSectionRawMutex, RefCell<[FillContext; FILL_CONTEXT_CAP]>> =
     Mutex::new(RefCell::new([FillContext::UNREGISTERED; FILL_CONTEXT_CAP]));
 
-/// Registers or replaces `asset`'s fill context. See `libdeluge/streaming_fill.h`.
+/// Registers or replaces `asset`'s fill context. See `include/deluge_storage_sample_fill.h`.
 ///
 /// `_mgr` is unused (there is one process-wide resource manager) and kept for parity with the
 /// manager-scoped C ABI. Out-of-range ids, including `DELUGE_RESOURCE_NO_ASSET`, and a zero
@@ -153,7 +153,7 @@ pub fn fill_context_for(asset: u32) -> Option<FillContext> {
     (ctx.cluster_size != 0).then_some(ctx)
 }
 
-/// One sector read for the fill. Mirrors `StreamingFillDescriptor` in `libdeluge/streaming_fill.h`.
+/// One sector read for the fill. Mirrors `StreamingFillDescriptor` in `include/deluge_storage_sample_fill.h`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct StreamingFillDescriptor {

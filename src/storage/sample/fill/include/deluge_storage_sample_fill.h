@@ -15,16 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/streaming_fill.h — the sample-streaming fill's per-asset geometry.
+/// deluge_storage_sample_fill.h — the C header of the `deluge_storage_sample_fill` crate: the streaming fill's
+/// per-asset geometry.
 ///
-/// The Rust async fill task (deluge_platform_device's `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
+/// The Rust async fill task (deluge_platform_device's `streaming_loader.rs`, over this crate's
 /// `native_begin`/`native_finish`) resolves each queued chunk's read geometry into a
 /// `StreamingFillDescriptor`, performs the read, then converts/stitches/publishes. This header
-/// carries the per-asset fill-context the task reads its geometry from. The loader queue's entry points
-/// (wake, enqueue a chunk, drain, drained?) are in `streaming_loader.h`; the stream slot registry is in
-/// `sample_stream.h`; the efatfs handle calls the fill reads through live in `file_io.h`.
-#pragma once
-#include "abi.h"
+/// carries the per-asset fill-context the task reads its geometry from, and where a streamed chunk's
+/// payload sits in its slot. The loader queue's entry points (wake, enqueue a chunk, drain, drained?) are in
+/// `libdeluge/streaming_loader.h`; the stream slot registry is in `deluge_storage_stream.h`; the efatfs handle
+/// calls the fill reads through live in `libdeluge/file_io.h`.
+#ifndef DELUGE_STORAGE_SAMPLE_FILL_H
+#define DELUGE_STORAGE_SAMPLE_FILL_H
+
+#include "libdeluge/abi.h"
 #include "libdeluge/types.h" // DelugeHandle, DelugeResource
 #include <stdbool.h>
 #include <stddef.h>
@@ -76,6 +80,12 @@ typedef struct DelugeStreamingFillContext {
 void deluge_streaming_set_fill_context(DelugeResource* mgr, uint32_t asset,
                                        DelugeStreamingFillContext ctx) DELUGE_NOEXCEPT;
 
+/// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
+///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
+///        + Cluster::size + trailing guard. Rust-owned (deluge_storage_sample_fill). [task]
+uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif
+#endif // DELUGE_STORAGE_SAMPLE_FILL_H

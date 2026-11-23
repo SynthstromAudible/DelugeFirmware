@@ -20,8 +20,8 @@
 /// What the fill and stream crates (`deluge_storage_sample_fill`, `deluge_storage_stream`) and the app call
 /// across the loader. The platform defines the loader queue, the fill task's wake-up and the fill trace
 /// (deluge_platform_device's `streaming_loader.rs` and `fill_trace.rs`); the app defines the resource-manager
-/// accessor and the stream's asset lookup. The fill's per-asset geometry is in `streaming_fill.h`, the stream
-/// slot registry in `sample_stream.h`.
+/// accessor and the stream's asset lookup. The fill's per-asset geometry is in `deluge_storage_sample_fill.h`,
+/// the stream slot registry in `deluge_storage_stream.h`.
 #pragma once
 #include "abi.h"
 #include "types.h" // DelugeChunkBacking, DelugeResource, DelugeStreamBacking

@@ -31,8 +31,8 @@
 #include <utility>
 
 #include "deluge_storage_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
-#include "libdeluge/sample_stream.h" // the deluge_sample_stream_* registry C-ABI this facade forwards to
-#include "libdeluge/streaming_fill.h" // DelugeStreamingFillContext + deluge_streaming_set_fill_context (no-slot fallback)
+#include "deluge_storage_sample_fill.h" // DelugeStreamingFillContext + deluge_streaming_set_fill_context (no-slot fallback)
+#include "deluge_storage_stream.h"      // the deluge_sample_stream_* registry C-ABI this facade forwards to
 #include "libdeluge/streaming_loader.h" // deluge_sample_stream_asset_id, deluge_streaming_resource_manager
 
 namespace deluge::audio::stream {
