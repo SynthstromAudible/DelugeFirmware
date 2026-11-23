@@ -80,6 +80,7 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	bool noteMightBeConstant;
 	deluge::note_locks::NoteRef locks; // Note::lockSet, and its held pad's live-edit tag if it has one
 	/// Set for a note that waited (DeferredNoteOns): its locks as they were when it was due, played instead of
 	/// looking `locks` up now

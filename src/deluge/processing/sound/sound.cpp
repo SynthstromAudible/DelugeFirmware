@@ -57,6 +57,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
+#include "storage/multi_range/round_robin_serialization.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/exceptions.h"
@@ -1548,7 +1549,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCodePreArp,
                    int16_t const* mpeValues, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-                   int32_t velocity, int32_t fromMIDIChannel) {
+                   int32_t velocity, int32_t fromMIDIChannel, bool noteMightBeConstant) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
@@ -1601,6 +1602,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			                                .invertReversed = instruction.invertReversed,
 			                                // With the arp on, the note it starts may be another held one
 			                                .locks = instruction.arpNoteOn->locks,
+			                                .noteMightBeConstant = noteMightBeConstant,
 			                            });
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
@@ -1658,7 +1660,8 @@ void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, Mode
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
-                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
+                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel,
+                                  bool noteMightBeConstant) {
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -1731,8 +1734,9 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
 
-			bool success = voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
-			                             ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
+			bool success =
+			    voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
+			                  samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues, noteMightBeConstant);
 			if (success) {
 				if (voiceToReuse != nullptr) {
 					for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -3451,6 +3455,18 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			source->cents = reader.readTagOrAttributeValueInt();
 			reader.exitTag("cents");
 		}
+		// Deliberately not called "volume": at this level that name is already the oscillator's own
+		// LOCAL_OSC_x_VOLUME param, read a few branches above.
+		else if (!strcmp(tagName, "variantVolume")) {
+			MultiRange* range = source->hasMultisampleRanges() ? source->getOrCreateFirstRange() : nullptr;
+			if (range != nullptr) {
+				((SampleHolderForVoice*)range->getAudioFileHolder())->volume =
+				    readVariantVolumeFromFile(reader, tagName);
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
 		else if (!strcmp(tagName, "loopMode")) {
 			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
@@ -3579,6 +3595,38 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			}
 			reader.exitTag("zone", true);
 		}
+		// Round-robin data belongs to a sample oscillator. A file that carries it on a wavetable one -
+		// hand-edited, truncated, or written by other firmware - would otherwise have us cast a
+		// MultiWaveTableRange and write round-robin fields straight over the wavetable holder, so skip
+		// it like any unrecognised tag. See Source::hasMultisampleRanges().
+		else if (!strcmp(tagName, "roundRobinAlternates")) {
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
+			}
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+
+				Error error = readRoundRobinAlternates(reader, range);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+		}
+		else if (!strcmp(tagName, "rrMode")) {
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
+			}
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				range->rrMode = (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
+			}
+		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 			reader.match('[');
 			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
@@ -3642,8 +3690,22 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								reader.exitTag("transpose");
 							}
 							else if (!strcmp(tagName, "cents")) {
-								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
+								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
+							}
+							else if (!strcmp(tagName, "variantVolume")) {
+								((SampleHolderForVoice*)holder)->volume = readVariantVolumeFromFile(reader, tagName);
+							}
+							else if (!strcmp(tagName, "roundRobinAlternates")) {
+								Error error = readRoundRobinAlternates(reader, (MultisampleRange*)tempRange);
+								if (error != Error::NONE) {
+									tempRange->~MultiRange();
+									return error;
+								}
+							}
+							else if (!strcmp(tagName, "rrMode")) {
+								((MultisampleRange*)tempRange)->rrMode =
+								    (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 							}
 							else {
 								goto justExitTag;
@@ -3744,6 +3806,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (range->sampleHolder.cents) {
 				writer.writeAttribute("cents", range->sampleHolder.cents);
 			}
+			if (range->sampleHolder.volume != kVariantVolumeUnity) {
+				writer.writeAttribute("variantVolume", range->sampleHolder.volume);
+			}
 
 			writer.writeOpeningTagEnd();
 
@@ -3757,6 +3822,49 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				writer.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
 			}
 			writer.closeTag();
+
+			if (range->rrMode != MultisampleRange::RRMode::Cycle) {
+				writer.writeTag("rrMode", (int32_t)range->rrMode);
+			}
+
+			if (range->rrCount > 0) {
+				writer.writeArrayStart("roundRobinAlternates");
+				for (int32_t a = 0; a < range->rrCount; a++) {
+					SampleHolderForVoice* alternateHolder = range->getVariantHolder(a + 1);
+					if (!alternateHolder) {
+						continue;
+					}
+
+					writer.writeOpeningTagBeginning("alternate", true);
+					writer.writeAttribute("fileName", alternateHolder->audioFile
+					                                      ? alternateHolder->audioFile->filePath.get()
+					                                      : alternateHolder->filePath.get());
+					if (alternateHolder->transpose) {
+						writer.writeAttribute("transpose", alternateHolder->transpose);
+					}
+					if (alternateHolder->cents) {
+						writer.writeAttribute("cents", alternateHolder->cents);
+					}
+					if (alternateHolder->volume != kVariantVolumeUnity) {
+						writer.writeAttribute("variantVolume", alternateHolder->volume);
+					}
+					writer.writeOpeningTagEnd();
+
+					writer.writeOpeningTagBeginning("zone");
+					writer.writeAttribute("startSamplePos", alternateHolder->startPos);
+					writer.writeAttribute("endSamplePos", alternateHolder->endPos);
+					if (alternateHolder->loopStartPos) {
+						writer.writeAttribute("startLoopPos", alternateHolder->loopStartPos);
+					}
+					if (alternateHolder->loopEndPos) {
+						writer.writeAttribute("endLoopPos", alternateHolder->loopEndPos);
+					}
+					writer.closeTag();
+
+					writer.writeClosingTag("alternate", true, true);
+				}
+				writer.writeArrayEnding("roundRobinAlternates");
+			}
 
 			if (numRanges > 1) {
 				writer.writeClosingTag("sampleRange", true, true);
@@ -4905,6 +5013,9 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 	// during memory allocation
 	killAllVoices();
+	// Deleting compacts the array, so the ranges after this one all move down. See
+	// MultisampleRange::setAuditionSlot().
+	MultisampleRange::clearAuditionSlot();
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.getElement(r)->~MultiRange();
 	sources[s].ranges.deleteAtIndex(r);
@@ -4951,8 +5062,13 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 			int32_t numRanges = source->ranges.getNumElements();
 
+			// A single range with variants holds several samples too, and they needn't all have the same number
+			// of channels.
+			bool singleRangeHasVariants = numRanges == 1 && source->hasMultisampleRanges()
+			                              && static_cast<MultisampleRange*>(source->ranges.getElement(0))->rrCount > 0;
+
 			// If multiple ranges, we have to come back and examine Voices to see which are in use
-			if (numRanges > 1) {
+			if (numRanges > 1 || singleRangeHasVariants) {
 				mustExamineSourceInEachVoice |= (1 << s);
 			}
 

@@ -85,6 +85,8 @@ add_executable(UnitTests
         RunAllTests.cpp
         scheduler_tests.cpp
         lfo_tests.cpp
+        multisample_round_robin_tests.cpp
+        round_robin_parser_tests.cpp
         scale_tests.cpp
         accidentals_tests.cpp
         value_scaling_tests.cpp
