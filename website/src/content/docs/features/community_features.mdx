@@ -1249,12 +1249,8 @@ For a detailed description of this feature, please refer to the feature document
 
 - (#5308) Added a `LOOP XFADE` setting to each sample oscillator, right after `REPEAT MODE`
   (`OSCILLATOR 1 / 2 > LOOP XFADE`), from `OFF` up to 1000 ms in 10 ms steps. It smooths out loops that don't join up perfectly.
-  - When playback gets that close to the loop end, the next pass starts alongside it, the same distance before the loop
-    start. The end of the loop fades out while the audio leading into the loop start fades in (equal-power), and the new
-    pass reaches the loop start just as the old one reaches the loop end, then carries on alone. The loop keeps its
-    length, so tempo-synced loops stay in time.
-  - If there isn't enough audio before the loop start (for example when the loop starts at the very start of the
-    sample), the rest of the crossfade comes out of the start of the loop, shortening the loop by that much.
+  - When playback gets that close to the loop end, the next pass through the loop starts from the loop start alongside
+    it. The end of the loop fades out while its start fades in (equal-power), then the new pass carries on alone.
   - The crossfade is limited to half the loop length, so there are never more than two passes playing at once. With no
     loop points set, the loop is the whole sample.
   - It's measured in the sample's own time, so it gets shorter as the sample is played higher.
