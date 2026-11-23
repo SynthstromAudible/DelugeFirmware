@@ -283,7 +283,7 @@ private:
 ```
 
 **The head phase.** Each alternative holds only what its phase needs, so the states the legacy's two flags and a
-progress word allow but cannot mean (an older head marked reading with its ramp done, a ramp running with no older
+progress word allow but cannot mean (an older head marked reading with its ramp done outside a plain begin's first segment, a ramp running with no older
 head, a cache tail and a reader both older) cannot be written:
 
 ```cpp
@@ -300,8 +300,15 @@ using HeadPhase = std::variant<Shadowed, Solo, Crossfading, Fading, Silent>;
 - A plain begin enters `Shadowed`; a fudge, `Crossfading` over the spare; a cache-tail begin, `Crossfading` over the
   tail, or `Shadowed` when C1 finds nothing to copy.
 - `Shadowed` leaves for `Solo` after its first segment (or `Silent` if the newer stops in it).
-- A hop (when S3 or S5 calls one) leaves for `Crossfading` when the new head starts, `Solo` when it cannot (S4: the
-  newer reads on, the spare stops), and `Fading` when it would start past the end (B6).
+- A hop from `Solo` or `Crossfading` (S3 calls it; the newer is reading) leaves for `Crossfading` over the previous
+  newer when the new head starts, `Solo` when it cannot (S4: the newer reads on, the spare stops), and `Fading` when
+  it would start past the end (B6).
+- A hop from `Fading` or `Silent` (only S5 calls it: the newer has stopped) drops the fading older head at once, and
+  the previous newer, which becomes the spare, has stopped too. So it leaves for `Solo` when the new head starts, at
+  full level with no crossfade and no alignment (A1 runs only with an older head reading), and for `Silent` when it
+  cannot start or would start past the end. This is `hopEnd` giving the older head the newer's activity before it
+  starts the new one, as `reInit` calls it.
+- `Shadowed` never hops: it lasts one segment, and the first hop comes at least 168 frames in (S1).
 - `Crossfading` leaves for `Solo` when the ramp is done or the older stops, and for `Fading` when the newer stops.
   `Fading` leaves for `Silent` when the ramp is done or the older stops; `Solo` for `Silent` when the newer stops.
 - In `Silent` the render ends the note unless a cache is being written or the voice loops, whose next wrap hops (S5).
@@ -396,7 +403,7 @@ The 44 contracts are in [time_stretcher_contracts.md](time_stretcher_contracts.m
 its inputs, its exact arithmetic in order, and the legacy computation it must equal: hop tuning 3 (T1 to T3), scheduler
 6 (S1 to S6), planner 8 (B1 to B8), aligner 7 (A0 to A6), crossfader 4 (X1 to X4), cache tail 4 (C1 to C4), perc
 analysis 5 (P1 to P5), heads 1 (H1), position, loop, exit and cache write 6 (Q1 to Q4, E1, W1). The noise stream's
-draw count is a contract too: one at a plain begin, one per hop attempt. Ten quirks the goldens pin are named there and
+draw count is a contract too: one at a plain begin, one per hop attempt. Eight quirks the goldens pin are named there and
 kept.
 
 ## 5. Lifetimes, threading and real-time limits
@@ -481,7 +488,10 @@ headers:
 
 The rewrite's budget: the stretcher's code and tables stay in `.text`/`.rodata` outside the size-optimised set, within
 a few hundred bytes of today's total (the DSP components are header-first and inline into their callers, so the
-comparison is the users' and the stretcher's functions together, about 11.7 KB); the pooled object no larger than
+comparison is the users' and the stretcher's functions together, about 11.7 KB). In memory, the spare reader (128
+bytes) moves from the stretcher into every voice-sample (160 bytes today, so 288), and the stretcher loses it: at the
+default pool sizes, 48 voice-samples and 48 stretchers, that is +6,144 bytes and about −6,144 bytes, a net change of
+about 0 (the new stretcher's exact size is settled when it is written); the pooled stretcher no larger than
 today's unless open question 2 chooses to embed the tail.
 
 ## 6. The rewrite's steps
@@ -544,13 +554,15 @@ Each is a decision with a recommendation first.
      rewrite kept, checked against the new components on generated workloads.
 5. **The plain begin's shadow reader** (X3, E1). The legacy seats the spare as a level copy of the newer, reads it once
    at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where
-   it is. E1 compares the newer's cursor with that stopped copy's, so once the first segment has run, stretching cannot
-   end at a return to a ratio of 1.0 until a hop; before it, it can. The read can also hit a card error and cut the
-   voice.
+   it is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
+   next block on: having read the same frames as the newer from the same cursor, at an increment of 1.0 it stops on
+   the newer's cursor, and a stretch that lasted one block, in one segment, ends at the next block's start, before any
+   hop. Pitched, the copy's interpolation width of 0 can leave its cursor elsewhere, and E1 then waits for a hop. The
+   copy's read can also hit a card error and cut the voice.
    - (a) **Recommended:** keep it, as the `Shadowed` phase: E1's timing and the card-error cut stay as they are, at
      the cost of one silent read of one segment per plain begin.
-   - (b) Drop the copy and the read, and let E1 hold until the first hop: stretching could end earlier, a sample
-     difference accepted by name.
+   - (b) Drop the copy and the read, and let E1 wait for a hop: a one-block stretch would run on until its first hop,
+     a sample difference accepted by name.
 6. **The slope follower and the percussiveness byte, shared with the pitch shifter?** The byte (P3) is the same
    arithmetic as the shifter's `percussiveness`; the follower (P2) floors where the shifter's rounds.
    - (a) **Recommended:** move `percussiveness` to a header both include; the stretcher gets its own floor follower.

@@ -48,6 +48,13 @@ loop end, only to crossfade into the pre-margin; `dir` is +1 forwards, −1 reve
 | B7 | loop facts, position, combined, ratio, increment | Only for the stretcher-made loop with a pre-margin: `src = int32(loop_end_frame − position_frames) × dir`; if `src ≥ 0`: `out = ((uint64(src) << 24) + (combined >> 1)) / combined`. If `out < 100`: `into = out`, or `((uint64(src) << 24) + (ratio >> 1)) / ratio` when increment ≠ 2^24; start `into` frames before the loop start; if inside the waveform: `xf = max(out, 10)`, `hop = max(min_jittered >> 2, xf)` (the width before repitching), ramp `over_loop(xf)`, align unless a cache is being written or read. Else `ceiling = out − 100 + 32`. | `hopEnd`, the pre-margin loop crossfade |
 | B8 | start, markers, residency | A start before the start marker whose frame is not resident moves to the start marker; checked after B4 and again after alignment. | `hopEnd`'s `clampToStartIfNotLoaded` |
 
+**The ratio's signedness.** The legacy passes the ratio to B3, B4, B7 and the hop-back reach as `int32_t`. Below
+2^31 − 2^24 (a ratio of about 127, reached about 7 octaves below the root) none of their sums wraps, and each equals
+the same arithmetic on the unsigned ratio widened to 64 bits; every golden is in that range. At and above it the
+legacy's ratio reads negative or its sum `ratio + 2^24` wraps (7 to 8 octaves down, where the ratio has not yet
+wrapped itself). The rewrite reads the ratio unsigned everywhere, so the saturated `2^32 − 1` of the design note's open
+question 3 is a ratio of 256, and this range is part of that accepted difference.
+
 ### Waveform aligner
 
 | # | Inputs | Arithmetic, in order | Must equal |
@@ -92,7 +99,7 @@ loop end, only to crossfade into the pre-margin; `dir` is +1 forwards, −1 reve
 
 | # | Inputs | Arithmetic, in order | Must equal |
 |---|---|---|---|
-| H1 | start byte, phase, loop type | Seating a reader at a hop's (or fudge's) start: its leases go first; the chunks for the start byte are set up and must be ready, then the reader moves on a chunk if it must (looping at the low level only for that loop type); its interpolation width is set to 0 and its phase to the planned phase (A5, or 0). Either step failing fails the start (S4). A start that succeeds but leaves the reader holding no region stops the newer head (B6's outcome, from the reader's side). A plain start's level copy of the newer reader also gets interpolation width 0. | `TimeStretcher::setupNewPlayHead`; `TimeStretcher::init`, normal start |
+| H1 | start byte, phase, loop type | Seating a reader at a hop's (or fudge's) start: its leases go first; the chunks for the start byte are set up and must be ready, then the reader moves on a chunk if it must (looping at the low level only for that loop type); its interpolation width is set to 0 and its phase to the planned phase (A5, or 0). Either step failing fails the start: a hop then takes S4; a fudge's begin fails, and the audio clip unassigns the voice. A start that succeeds but leaves the reader holding no region stops the newer head (B6's outcome, from the reader's side). A plain start's level copy of the newer reader also gets interpolation width 0. | `TimeStretcher::setupNewPlayHead`; `TimeStretcher::init`, normal start |
 
 ### Position, loop, exit and cache write
 
@@ -102,7 +109,7 @@ loop end, only to crossfade into the pre-margin; `dir` is +1 forwards, −1 reve
 | Q2 | position | The whole frame: `position >> 24` forwards, `(position + 2^24 − 1) >> 24` reversed. | `TimeStretcher::getSamplePos` |
 | Q3 | play byte | Start: `position = floor((play_byte − data_start) / bytes_per_frame) << 24` (rounding toward −∞; the byte may be before the data). | `weShouldBeTimeStretchingNow`, `fudgeTimeStretchingToAvoidClick` |
 | Q4 | position, block part `n`, loop end byte | Unsynced, per uncached read: `after = position + combined × n × dir` (`+ 2^24 − 1` reversed); `over = (int32(after >> 24) × bytes_per_frame + data_start − loop_end_byte) × dir`; if `over > 0`: `end = rel ≥ 0 ? rel / uint8(bytes_per_frame) : −1`; `left = (int64(end) << 24) − position`; if `left × dir < int64(combined)`: looping restarts at `(int64(start_frame) << 24) − left` (S5), at most 1,024 times in a block; not looping ends the note. Else `n = min(n, uint64(left × dir) / combined)`. | `VoiceSample::render`'s loop check |
-| E1 | both readers' cursors, sync lag | Checked at a block's start when the ratio is back at 1.0 and the stretcher is not a fudge: stretching ends when the newer reader's cursor equals the older reader's, whether the older is reading or stopped, and the voice is not synced or lags by 0. After a plain start's first segment the older reader has stopped (X3) while the newer moves on, so before the first hop E1 holds only in the block the stretcher started. | `VoiceSample::render`, leaving the stretcher |
+| E1 | both readers' cursors, sync lag | Checked at a block's start when the ratio is back at 1.0 and the stretcher is not a fudge, never in the block a stretcher begins (every begin skips the check): stretching ends when the newer reader's cursor equals the older reader's, whether the older is reading or stopped, and the voice is not synced or lags by 0. By reading the code: after a plain begin's single first segment the shadow copy (X3) has read the same frames from the same cursor, so at an increment of 1.0 the cursors meet at the next block's start and a one-block stretch ends there, before any hop; pitched, the copy's interpolation width of 0 can leave its cursor elsewhere. After a hop, E1 holds when the newer's cursor meets the stopped older's. The coverage run took this exit 10 times. | `VoiceSample::render`, leaving the stretcher |
 | W1 | stretched mix | Writing a cache: the heads render at X4's cache level into a zeroed scratch block; per frame the cache takes the top three bytes of `word << 1`, left then right; the output mixes the word (mono: `(l >> 1) + (r >> 1)` after the left is cached) with `mixed_in`, the amplitude stepped first. | `VoiceSample::render`, the cache copy |
 
 **Counts.** 44 contracts: hop tuning 3, scheduler 6, planner 8, aligner 7, crossfader 4, cache tail 4, perc analysis
