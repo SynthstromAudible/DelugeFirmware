@@ -31,6 +31,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/sample_folder_index.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -751,6 +752,18 @@ tryNextAlternate:
 		// Otherwise, try the regular file path
 		else {
 tryRegular:
+			// Quicker when lots of files are being loaded from one folder - and if it can't help, the normal way below
+			if (sampleFolderIndex.find(filePath.get(), &effectiveFilePointer)) {
+#ifdef SAMPLE_FOLDER_INDEX_VERIFY // Testing only: check against the normal way
+				if (f_open(&smDeserializer.readFIL, filePath.get(), FA_READ) != FR_OK
+				    || smDeserializer.readFIL.obj.sclust != effectiveFilePointer.sclust
+				    || smDeserializer.readFIL.obj.objsize != effectiveFilePointer.objsize) {
+					FREEZE_WITH_ERROR("SFI1");
+				}
+#endif
+				goto gotFilePointer;
+			}
+
 			result = f_open(&smDeserializer.readFIL, filePath.get(), FA_READ);
 
 			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
@@ -781,6 +794,7 @@ notFound:
 		}
 	}
 
+gotFilePointer:
 	// 0-byte files not allowed.
 	if (!effectiveFilePointer.objsize) {
 		*error = Error::FILE_CORRUPTED;
