@@ -28,11 +28,39 @@
 // Code which writes baseline storage directly must call parameterBaselinesChanged().
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 inline uint32_t parameter_baseline_epoch = 1;
+// Advanced whenever any parameter value may have changed other than by the playback
+// loop which advances it. Collections refresh their resolved render values when it moves.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+inline uint32_t parameter_value_epoch = 1;
+#ifdef PARAMETER_RESOLVED_VERIFY
+// Diagnostic counters for checking every resolved render read against the layers.
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+extern "C" {
+inline volatile uint32_t parameterVerifyReads = 0;
+inline volatile uint32_t parameterVerifyMismatches = 0;
+inline volatile uint32_t parameterVerifyLastMismatch = 0;
+inline volatile uint32_t parameterVerifyBumps = 0;
+inline volatile uint32_t parameterVerifyRefreshes = 0;
+inline volatile uint32_t parameterVerifyRampTicks = 0;
+inline volatile uint32_t parameterVerifyRampStores = 0;
+}
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+#endif
+inline void parameterValuesChanged() {
+#ifdef PARAMETER_RESOLVED_VERIFY
+	parameterVerifyBumps = parameterVerifyBumps + 1;
+#endif
+	// Zero marks resolved values as never filled, so skip it when wrapping.
+	if (++parameter_value_epoch == 0) {
+		parameter_value_epoch = 1;
+	}
+}
 inline void parameterBaselinesChanged() {
 	// Zero marks a curve value as unchecked, so skip it when wrapping.
 	if (++parameter_baseline_epoch == 0) {
 		parameter_baseline_epoch = 1;
 	}
+	parameterValuesChanged();
 }
 
 // The full difference between two signed 32-bit parameter values needs 33 bits.
@@ -179,6 +207,12 @@ public:
 		offset_ = offset;
 		evaluate(base);
 	}
+	// Store a value an owner advanced to from currentValue() against the same base,
+	// without reaching a limit, so the offset is exactly the difference.
+	void commitAdvanced(int32_t value) {
+		offset_ = int64_t{value} - evaluatedBase_;
+		evaluatedValue_ = value;
+	}
 
 private:
 	int64_t offset_ = 0;
@@ -220,4 +254,29 @@ inline int64_t saturatingAutomationIncrement(int64_t increment, int64_t halfTick
 		return -limit;
 	}
 	return increment * halfTicks;
+}
+
+// The increment for numSamples of interpolation at valueIncrementPerHalfTick, where inverse
+// is the 32-bit fractional number of internal ticks per sample. Ordinary ramps and tempos
+// take a single rounded 32-bit multiply; only an increment too large for 32 bits saturates.
+// value * fraction / 2^32, rounded. A node offset can need far more than 32 bits, so the product can need more
+// than 64; splitting value keeps every partial product within 64 bits.
+inline int64_t multiplyByFractionRounded(int64_t value, uint32_t fraction) {
+	int64_t high = value >> 32;
+	uint64_t low = static_cast<uint32_t>(value);
+	return (high * fraction) + static_cast<int64_t>(((low * fraction) + (uint64_t{1} << 31)) >> 32);
+}
+
+inline int64_t automationSampleIncrement(int64_t perHalfTick, uint32_t inverse, int32_t numSamples) {
+	if (perHalfTick == static_cast<int32_t>(perHalfTick) && inverse <= INT32_MAX) [[likely]] {
+		int32_t rate =
+		    multiply_32x32_rshift32_rounded(static_cast<int32_t>(perHalfTick), static_cast<int32_t>(inverse));
+		int32_t scaled_samples = 6 * numSamples;
+		int64_t increment = int64_t{rate} * scaled_samples;
+		if (increment == static_cast<int32_t>(increment)) [[likely]] {
+			return increment;
+		}
+		return saturatingAutomationIncrement(rate, int64_t{6} * numSamples);
+	}
+	return saturatingAutomationIncrement(multiplyByFractionRounded(perHalfTick, inverse), int64_t{6} * numSamples);
 }

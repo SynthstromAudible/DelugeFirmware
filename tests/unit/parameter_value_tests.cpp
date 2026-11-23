@@ -81,6 +81,46 @@ TEST(ParameterValueTests, SaturatingPlaybackIncrementRetainsWideEndpoints) {
 	CHECK_EQUAL(0, saturatingAutomationIncrement(4294967295LL, 0));
 }
 
+TEST(ParameterValueTests, FractionMultiplyIsExactBeyondSixtyFourBitProducts) {
+	CHECK_EQUAL(0, multiplyByFractionRounded(0, UINT32_MAX));
+	CHECK_EQUAL(6, multiplyByFractionRounded(12, 0x80000000U));
+	CHECK_EQUAL(-6, multiplyByFractionRounded(-12, 0x80000000U));
+	// 3 * 2^55 * (2^32 - 1) / 2^32 is exact.
+	CHECK_EQUAL((3LL << 55) - (3LL << 23), multiplyByFractionRounded(3LL << 55, UINT32_MAX));
+	CHECK_EQUAL(-(3LL << 55) + (3LL << 23), multiplyByFractionRounded(-(3LL << 55), UINT32_MAX));
+	// A half rounds up.
+	CHECK_EQUAL((1LL << 61) + 1, multiplyByFractionRounded((1LL << 62) + 1, 0x80000000U));
+	CHECK_EQUAL(INT64_MAX / 2 + 1, multiplyByFractionRounded(INT64_MAX, 0x80000000U));
+	CHECK_EQUAL(INT64_MIN / 2, multiplyByFractionRounded(INT64_MIN, 0x80000000U));
+}
+
+TEST(ParameterValueTests, SampleIncrementSaturatesForTheWidestNodeOffsets) {
+	constexpr int64_t limit = 2 * int64_t{UINT32_MAX};
+	// A ramp between the extreme stored offsets over one half-tick, at any tempo.
+	for (uint32_t inverse : {1U, 0x00400000U, 0x7FFFFFFFU, UINT32_MAX}) {
+		CHECK_EQUAL(limit, automationSampleIncrement(int64_t{1} << 56, inverse, 128));
+		CHECK_EQUAL(-limit, automationSampleIncrement(-(int64_t{1} << 56), inverse, 128));
+	}
+}
+
+TEST(ParameterValueTests, SampleIncrementMatchesTheWideCalculation) {
+	auto wide = [](int64_t per_half_tick, uint32_t inverse, int32_t num_samples) {
+		return saturatingAutomationIncrement(multiplyByFractionRounded(per_half_tick, inverse),
+		                                     int64_t{6} * num_samples);
+	};
+	const int64_t rates[] = {0,         1,         -1,           12345,        -12345,       INT32_MAX,
+	                         INT32_MIN, 1LL << 40, -(1LL << 40), 4294967295LL, -4294967295LL};
+	const uint32_t inverses[] = {0, 1, 0x00400000, 0x12345678, INT32_MAX, 0x80000000U, UINT32_MAX};
+	const int32_t samples[] = {1, 7, 128, 1024};
+	for (int64_t rate : rates) {
+		for (uint32_t inverse : inverses) {
+			for (int32_t num_samples : samples) {
+				CHECK_EQUAL(wide(rate, inverse, num_samples), automationSampleIncrement(rate, inverse, num_samples));
+			}
+		}
+	}
+}
+
 TEST_GROUP(AutomationValueTests) {
 	AutoParamValue value;
 };

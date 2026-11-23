@@ -70,7 +70,10 @@ static_assert(std::is_same_v<decltype(std::declval<ParamManager&>().unpatchedRen
 static_assert(!std::is_constructible_v<ParamRenderValues, const ParamCollectionSummary&>);
 static_assert(!std::is_default_constructible_v<ParamRenderValues>);
 static_assert(std::is_same_v<decltype(std::declval<const ParamRenderValues&>().get(0)), int32_t>);
-static_assert(sizeof(ParamRenderValues) == 2 * sizeof(void*));
+// The reader is brought up to date when made, then is just the resolved values.
+#ifndef PARAMETER_RESOLVED_VERIFY
+static_assert(sizeof(ParamRenderValues) == sizeof(void*));
+#endif
 static_assert(requires(const ExpressionParamSet& params) { params.getExpressionValue(0); });
 
 TEST_GROUP(ParameterControlValueTests) {

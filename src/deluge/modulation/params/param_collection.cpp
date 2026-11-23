@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
@@ -31,6 +32,7 @@
 #include "modulation/params/param_control_value.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
+#include <cstring>
 
 ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
@@ -43,6 +45,18 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 }
 
 ParamCollection::~ParamCollection() {
+	if (rampSteps_ != nullptr) {
+		delugeDealloc(rampSteps_);
+	}
+}
+
+int32_t* ParamCollection::allocateRampSteps(int32_t count) {
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(count * sizeof(int32_t));
+	if (memory != nullptr) {
+		std::memset(memory, 0, count * sizeof(int32_t));
+		rampSteps_ = static_cast<int32_t*>(memory);
+	}
+	return rampSteps_;
 }
 
 bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack) {
@@ -90,11 +104,21 @@ void ParamCollection::setValueFromControl(int32_t value, ModelStackWithParamId c
 
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
+	if (automatedBefore && !automatedNow) {
+		AutoParamPlayback(*modelStack->autoParam).clearAutomationOffset();
+	}
+	notifyParamValueModified(modelStack, oldValue, modelStack->autoParam->getCurrentValue(), automationChanged,
+	                         automatedBefore, automatedNow);
+}
 
-	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-	if (currentValueChanged || automationChanged) {
-		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
-		                                                       automatedNow);
+void ParamCollection::notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                               int32_t newValue, bool automationChanged,
+                                               [[maybe_unused]] bool automatedBefore, bool automatedNow) {
+
+	bool current_value_changed = (oldValue != newValue);
+	if (current_value_changed || automationChanged) {
+		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, static_cast<int32_t>(current_value_changed),
+		                                                       automationChanged, automatedNow);
 	}
 
 	if (automationChanged && automatedNow) {

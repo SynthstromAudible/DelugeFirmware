@@ -17,6 +17,71 @@ TEST(LazyParamNodeVectorTest, isJustAPointer) {
 	CHECK_EQUAL(sizeof(void*), sizeof(LazyParamNodeVector));
 }
 
+TEST(LazyParamNodeVectorTest, heldRampIsStoredBeforeTheCurveIsUsed) {
+	LazyParamNodeVector nodes;
+	addNode(nodes, 0, 10);
+	ParamNodeVector* curve = nodes.peek();
+	curve->value.setOffsetForBase(10, 100);
+	curve->value.markCurrent();
+	int32_t value_slot = 110;
+	int32_t step_slot = 0;
+	nodes.holdRamp(&value_slot, &step_slot, 3);
+	CHECK_EQUAL(3, step_slot);
+	value_slot = 150;
+	// Node queries leave the ramp held.
+	CHECK_EQUAL(1, nodes.getNumElements());
+	CHECK_EQUAL(3, step_slot);
+	CHECK_EQUAL(10, curve->value.getOffset());
+	// Any other use of the curve stores it, relative to the base it was started from.
+	CHECK(nodes.get() == curve);
+	CHECK_EQUAL(0, step_slot);
+	CHECK_EQUAL(50, curve->value.getOffset());
+	CHECK_EQUAL(150, curve->value.currentValue());
+	CHECK(curve->value.isCurrent());
+	nodes.empty();
+}
+
+TEST(LazyParamNodeVectorTest, heldRampFollowsSwapsAndClones) {
+	LazyParamNodeVector nodes;
+	addNode(nodes, 0, 10);
+	nodes.peek()->value.setOffsetForBase(0, 200);
+	int32_t value_slot = 200;
+	int32_t step_slot = 0;
+	nodes.holdRamp(&value_slot, &step_slot, 1);
+	value_slot = 260;
+
+	// A memcpy clone takes its own copy of the curve at the held value; the original keeps holding.
+	alignas(LazyParamNodeVector) unsigned char storage[sizeof(LazyParamNodeVector)];
+	std::memcpy(storage, &nodes, sizeof(LazyParamNodeVector));
+	auto* copy = reinterpret_cast<LazyParamNodeVector*>(storage);
+	CHECK(copy->beenCloned() == Error::NONE);
+	CHECK(copy->peek() != nodes.peek());
+	CHECK(copy->peek()->heldStep_ == nullptr);
+	CHECK_EQUAL(60, copy->peek()->value.getOffset());
+	CHECK_EQUAL(1, step_slot);
+
+	LazyParamNodeVector other;
+	nodes.swapStateWith(&other);
+	CHECK_EQUAL(0, nodes.getNumElements());
+	CHECK_EQUAL(0, step_slot);
+	CHECK_EQUAL(60, other.peek()->value.getOffset());
+	other.empty();
+	copy->empty();
+}
+
+TEST(LazyParamNodeVectorTest, destroyingTheOwnerDiscardsAHeldRamp) {
+	int32_t value_slot = 5;
+	int32_t step_slot = 0;
+	{
+		LazyParamNodeVector nodes;
+		addNode(nodes, 0, 10);
+		nodes.holdRamp(&value_slot, &step_slot, 2);
+		// The owning collection is going too, so the slots are left alone.
+		value_slot = 0;
+	}
+	CHECK_EQUAL(2, step_slot);
+}
+
 TEST(LazyParamNodeVectorTest, unallocatedBehavesLikeEmpty) {
 	LazyParamNodeVector nodes;
 	ParamNodeVector reference;

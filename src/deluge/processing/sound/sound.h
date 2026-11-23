@@ -300,7 +300,6 @@ public:
 		}
 		return paramManager.getPatchedValueForRender(p);
 	}
-	// Include param_set.h where this is used, so the reader's value lookup is inlined.
 	[[nodiscard]] [[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p,
 	                                                                          const ParamRenderValues& values) const {
 		if (paramLPF.p == p) {

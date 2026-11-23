@@ -41,6 +41,16 @@ ParamNode* ParamNodeVector::getLast() {
 	return getElement(getNumElements() - 1);
 }
 
+void LazyParamNodeVector::storeRamp(ParamNodeVector* vector) {
+	vector->value.commitAdvanced(*vector->heldValue_);
+	*vector->heldStep_ = 0;
+	vector->heldValue_ = nullptr;
+	vector->heldStep_ = nullptr;
+#ifdef PARAMETER_RESOLVED_VERIFY
+	parameterVerifyRampStores = parameterVerifyRampStores + 1;
+#endif
+}
+
 bool LazyParamNodeVector::allocate() {
 	if (get() != nullptr) {
 		return true;
@@ -56,9 +66,14 @@ bool LazyParamNodeVector::allocate() {
 }
 
 void LazyParamNodeVector::empty() {
-	if (get() != nullptr) {
-		get()->~ParamNodeVector();
-		delugeDealloc(get());
+	static_cast<void>(get());
+	release();
+}
+
+void LazyParamNodeVector::release() {
+	if (peek() != nullptr) {
+		peek()->~ParamNodeVector();
+		delugeDealloc(peek());
 		setVector(nullptr);
 	}
 }
@@ -84,7 +99,8 @@ bool LazyParamNodeVector::cloneFrom(LazyParamNodeVector const* other) {
 }
 
 Error LazyParamNodeVector::beenCloned() {
-	ParamNodeVector* source = get(); // Still belongs to the object we were memcpy'd from
+	// The vector, and any ramp held for it, still belong to the object we were memcpy'd from.
+	ParamNodeVector* source = peek();
 	setVector(nullptr);
 	if (!source || !source->getNumElements()) {
 		return Error::NONE;
@@ -97,6 +113,9 @@ Error LazyParamNodeVector::beenCloned() {
 		return Error::INSUFFICIENT_RAM;
 	}
 	get()->copyPlaybackStateFrom(*source);
+	if (source->heldValue_ != nullptr) {
+		get()->value.commitAdvanced(*source->heldValue_);
+	}
 	return Error::NONE;
 }
 

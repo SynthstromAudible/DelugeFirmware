@@ -37,6 +37,40 @@ public:
 	int32_t nodeBase = 0;
 };
 
+class AutoParamData;
+
+// While a collection's playback loop advances one of its parameters, that parameter's
+// value changes write its resolved render value directly instead of announcing a change
+// which would make every collection refresh. Any other change is announced.
+class ParameterPlaybackScope {
+public:
+	// slot is the parameter's resolved render value, or null for collections without one.
+	ParameterPlaybackScope(const AutoParamData& param, int32_t* slot)
+	    : previousParam_(owned_param), previousSlot_(owned_slot) {
+		owned_param = &param;
+		owned_slot = slot;
+	}
+	~ParameterPlaybackScope() {
+		owned_param = previousParam_;
+		owned_slot = previousSlot_;
+	}
+	ParameterPlaybackScope(const ParameterPlaybackScope&) = delete;
+	ParameterPlaybackScope& operator=(const ParameterPlaybackScope&) = delete;
+	[[gnu::always_inline]] static bool owns(const AutoParamData* param) { return param == owned_param; }
+	// Only for the owned parameter: its new value for rendering.
+	[[gnu::always_inline]] static void write(int32_t value) {
+		if (owned_slot != nullptr) {
+			*owned_slot = value;
+		}
+	}
+
+private:
+	inline static const AutoParamData* owned_param = nullptr;
+	inline static int32_t* owned_slot = nullptr;
+	const AutoParamData* previousParam_;
+	int32_t* previousSlot_;
+};
+
 // Independently owned parameter data and algorithms, shared by firmware and unit tests.
 // A live AutoParam privately inherits this storage and exposes only a const view.
 class AutoParamData {
@@ -104,7 +138,12 @@ public:
 	}
 	void captureState(AutoParamState& state, bool stealNodes);
 	void swapStateBasicForSetup(AutoParamState* state);
+	// Stores back any ramp a collection holds for this parameter, as LazyParamNodeVector::get() does.
+	// Call before the collection holding the ramp rearranges its storage.
+	void storeHeldRamp() const { static_cast<void>(nodes.get()); }
 	void rebindClipValueAfterMove(ClipParamValue* clip) {
+		// A held ramp is relative to the old binding's base.
+		storeHeldRamp();
 		// Any curve evaluated through the old binding must evaluate again.
 		parameterBaselinesChanged();
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
@@ -123,6 +162,7 @@ public:
 	void clearAutomationOffset() {
 		if (nodes.get() != nullptr) {
 			nodes.get()->value.setOffsetForBase(0, getNodeBase());
+			announceValueChange();
 		}
 	}
 	void setCurrentValueBasicForSetup(int32_t value);
@@ -165,6 +205,16 @@ protected:
 
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
 		binding_.standalone = value;
+		announceValueChange();
+	}
+	// Every change to the curve value or standalone value goes through here.
+	void announceValueChange() const {
+		if (ParameterPlaybackScope::owns(this)) {
+			ParameterPlaybackScope::write(getValueForRender());
+		}
+		else {
+			parameterValuesChanged();
+		}
 	}
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
 	[[nodiscard]] ClipParamValue* clipValue() const { return nodes.hasClipValue() ? binding_.clip : nullptr; }
@@ -179,6 +229,7 @@ protected:
 		}
 		else if (nodes.get() != nullptr) {
 			nodes.get()->value.setOffsetForBase(offset, getNodeBase());
+			announceValueChange();
 		}
 	}
 	[[nodiscard]] uint32_t getOverridingTime() const {

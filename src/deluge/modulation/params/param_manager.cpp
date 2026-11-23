@@ -686,11 +686,3 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
-
-// Playback summaries are maintained by the same notification path that schedules automation.
-int32_t ParamManager::getPatchedValueForRender(int32_t p) {
-	return patchedRenderValues().get(p);
-}
-int32_t ParamManager::getUnpatchedValueForRender(int32_t p) {
-	return unpatchedRenderValues().get(p);
-}

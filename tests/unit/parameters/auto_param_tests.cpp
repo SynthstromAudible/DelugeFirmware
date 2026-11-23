@@ -5,6 +5,7 @@
 #include "modulation/params/patch_cable_preset_values.h"
 #include "modulation/patch/patch_cable.h"
 #include "storage/preset_save_values.h"
+#include <array>
 
 TEST_GROUP(AutoParamTests) {
 	int32_t preset = 100;
@@ -256,6 +257,72 @@ TEST(AutoParamTests, RenderReadReusesCurveValueUntilABaselineChanges) {
 	clip.setValue(160);
 	CHECK_EQUAL(180, param.getValueForRender());
 	CHECK_EQUAL(180, param.getCurrentValue());
+}
+
+TEST(AutoParamTests, ValueChangesOutsidePlaybackAdvanceTheValueVersion) {
+	addCurve();
+	uint32_t version = parameter_value_epoch;
+	param.grabValueFromPos(0, 32);
+	CHECK(parameter_value_epoch != version);
+	version = parameter_value_epoch;
+	clip.setValue(130);
+	CHECK(parameter_value_epoch != version);
+	version = parameter_value_epoch;
+	parameterBaselinesChanged();
+	CHECK(parameter_value_epoch != version);
+}
+
+TEST(AutoParamTests, PlaybackScopeWritesItsParameterWithoutAdvancingTheVersion) {
+	addCurve();
+	param.grabValueFromPos(0, 32);
+	ClipParamValue other_clip;
+	other_clip.setValue(10);
+	AutoParamData other;
+	other.bindClipValue(&other_clip);
+	CHECK(other.setNodeAtPos(0, 20, false) >= 0);
+	int32_t slot = 0;
+	{
+		ParameterPlaybackScope scope(param, &slot);
+		uint32_t version = parameter_value_epoch;
+		param.grabValueFromPos(8, 32);
+		CHECK_EQUAL(version, parameter_value_epoch);
+		CHECK_EQUAL(145, slot);
+		CHECK_EQUAL(slot, param.getValueForRender());
+		// Any other parameter changing still announces itself.
+		other.grabValueFromPos(0, 32);
+		CHECK(parameter_value_epoch != version);
+		// So does a structural edit of the advancing parameter.
+		version = parameter_value_epoch;
+		CHECK(param.setNodeAtPos(24, 150, false) >= 0);
+		CHECK(parameter_value_epoch != version);
+	}
+	uint32_t version = parameter_value_epoch;
+	param.grabValueFromPos(0, 32);
+	CHECK(parameter_value_epoch != version);
+	other.deleteAutomationBasicForSetup();
+}
+
+TEST(AutoParamTests, NestedPlaybackScopesRestoreTheOuterParameter) {
+	addCurve();
+	// A standalone value, as MIDI and unbound cables use.
+	AutoParamData other;
+	int32_t outer_slot = 0;
+	int32_t inner_slot = 0;
+	ParameterPlaybackScope outer(param, &outer_slot);
+	{
+		ParameterPlaybackScope inner(other, &inner_slot);
+		other.setCurrentValueBasicForSetup(40);
+		CHECK_EQUAL(40, inner_slot);
+	}
+	uint32_t version = parameter_value_epoch;
+	param.setCurrentValueBasicForSetup(70);
+	CHECK_EQUAL(version, parameter_value_epoch);
+	CHECK_EQUAL(70, outer_slot);
+	// A null slot exempts the change without recording it.
+	ParameterPlaybackScope unrendered(other, nullptr);
+	other.setCurrentValueBasicForSetup(50);
+	CHECK_EQUAL(version, parameter_value_epoch);
+	CHECK_EQUAL(40, inner_slot);
 }
 
 TEST(AutoParamTests, RenderReadOfAnEmptiedCurveFollowsTheClipValue) {

@@ -67,11 +67,12 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 		bool use_float_interpolation =
 		    shouldInterpolateWithFloat(modelStack->addParamId(static_cast<int32_t>(midiParam->cc)));
 		if (param->hasInterpolationIncrement(use_float_interpolation)) {
-			int32_t old_value = 0;
-			bool should_notify = AutoParamPlayback(*param).tickTicks(numTicks, use_float_interpolation, old_value);
+			AutomationStep step;
+			// MIDI values have no resolved render values to refresh.
+			bool should_notify = AutoParamPlayback(*param).tickTicks(numTicks, use_float_interpolation, step, nullptr);
 			if (should_notify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
-				notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, false, true, true);
+				notifyParamValueModified(modelStackWithAutoParam, step.oldValue, step.newValue, false, true, true);
 			}
 		}
 	}
@@ -96,6 +97,7 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 		AutoParam* param = &midiParam->param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
+		ParameterPlaybackScope scope(param->data(), nullptr);
 		AutoParamPlayback(*param).setPlayPos(pos, modelStackWithAutoParam, reversed);
 	}
 
@@ -171,6 +173,7 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
 			// Interpolation is set up here but applied by tickTicks(), since MIDI can't interpolate per sample
+			ParameterPlaybackScope scope(param->data(), nullptr);
 			int32_t ticksTilNextEventThisParam =
 			    AutoParamPlayback(*param).processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, true, true);
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
@@ -268,7 +271,11 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
-			bool should_send = midiParam->grabValueFromPos(pos, modelStackWithAutoParam->getLoopLength());
+			bool should_send = false;
+			{
+				ParameterPlaybackScope scope(param->data(), nullptr);
+				should_send = midiParam->grabValueFromPos(pos, modelStackWithAutoParam->getLoopLength());
+			}
 
 			if (should_send) {
 				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -295,21 +302,17 @@ void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t o
 	}
 }
 
-void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                                       bool automationChanged, bool automatedBefore,
-                                                       bool automatedNow) {
-	if (automatedBefore && !automatedNow) {
-		AutoParamPlayback(*modelStack->autoParam).clearAutomationOffset();
-	}
-
-	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                              automatedNow);
+void MIDIParamCollection::notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                                   int32_t newValue, bool automationChanged, bool automatedBefore,
+                                                   bool automatedNow) {
+	ParamCollection::notifyParamValueModified(modelStack, oldValue, newValue, automationChanged, automatedBefore,
+	                                          automatedNow);
 
 	if (deluge::modulation::params::AutomationTransition{.before = automatedBefore, .after = automatedNow}.sendMidi(
 	        modelStack->song->isOutputActiveInArrangement(static_cast<MIDIInstrument*>(modelStack->modControllable)),
 	        !modelStack->timelineCounterIsSet()
 	            || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput())) {
-		auto new_v = modelStack->autoParam->getCurrentValue();
+		auto new_v = newValue;
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, new_v, getParamKind(), modelStack->paramId);
 		if (current_value_changed) {

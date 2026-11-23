@@ -209,6 +209,7 @@ void AutoParamData::setCurrentValueBasicForSetup(int32_t value) {
 	else if (isAutomated()) {
 		int32_t base = getNodeBase();
 		nodes.get()->value.setOffsetForBase(int64_t{value} - base, base);
+		announceValueChange();
 	}
 	else {
 		clipValue()->setValue(value);

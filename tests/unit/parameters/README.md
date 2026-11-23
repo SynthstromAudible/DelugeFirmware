@@ -10,6 +10,10 @@ These tests use the same CppUTest `TEST_GROUP` / `TEST` fixtures, assertions and
   cloning, automation deletion/recreation, undo/redo state capture and exchange (including saturated clip adjustments) and live
   interpolation-context preservation, undoable-trim replacement preparation, and MIDI
   parameter insertion/deletion, binding, and detachment before an output is destroyed.
+- `param_render_values_tests.cpp` runs the production render-value cache over AutoParamData: first
+  reads, reuse until a value changes, clip-value and baseline edits after the values are resolved,
+  automated reads, playback updates which skip a refresh, and a clone resolving from its own layers.
+  Every read goes through `ParamRenderValues`, so a stale resolved array fails.
 - `parameter_io_tests.cpp` compiles the production JSON/XML deserializers and shared
   parameter-table reader. It checks full-width IDs, empty tables, unknown fields,
   and preservation of subsequent fields. Only the file byte transport is mocked.

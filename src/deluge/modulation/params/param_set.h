@@ -46,9 +46,14 @@ public:
 
 private:
 	ClipParamValue* clip_values_;
+	uint32_t tickedBaselineEpoch_ = 0;
 
 protected:
-	void setClipValueStorage(ClipParamValue* values) { clip_values_ = values; }
+	void setValueStorage(ClipParamValue* values, int32_t* resolved) {
+		clip_values_ = values;
+		setRenderValues(resolved);
+	}
+	[[nodiscard]] int32_t* resolvedSlot(int32_t p) const { return &renderValues()[p]; }
 
 public:
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
@@ -57,16 +62,17 @@ protected:
 	// Internal fallback for automated values and expression storage.
 	[[nodiscard]] [[gnu::noinline]] int32_t getValue(int32_t p) const { return params[p].getValueForRender(); }
 
-private:
-	friend int32_t ParamRenderValues::get(int32_t p) const;
-	// Render readers must use the collection's automation summary so an ordinary
-	// scalar read does not touch AutoParam or its curve storage.
-	[[nodiscard]] int32_t getValueForRender(int32_t p, const ParamCollectionSummary& summary) const {
-		return (summary.whichParamsAreAutomated[p >> 5] & (uint32_t{1} << (p & 31))) != 0 ? getValue(p)
-		                                                                                  : getClipValue(p);
-	}
-
 public:
+	// What the render values are resolved from. Render readers use the collection's automation summary,
+	// as the resolved values do.
+	[[nodiscard]] ParamRenderSource<AutoParam> renderSource(const ParamCollectionSummary& summary) const {
+		return {.params = params,
+		        .clip_values = clip_values_,
+		        .values = renderValues(),
+		        .version = renderVersionStorage(),
+		        .automated = summary.whichParamsAreAutomated,
+		        .count = numParams_};
+	}
 	// The menu path needs only clip/timeline context, not an AutoParam stack.
 	using ParamCollection::getValueForControl;
 	int32_t getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack) override;
@@ -118,8 +124,8 @@ public:
 	int32_t getNumParams() { return numParams_; }
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue, int32_t newValue,
+	                              bool automationChanged, bool automatedBefore, bool automatedNow) override;
 
 	uint8_t topUintToRepParams;
 
@@ -147,14 +153,15 @@ public:
 private:
 	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
 	std::array<ClipParamValue, deluge::modulation::params::kMaxNumUnpatchedParams> clipValues_;
+	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> resolvedValues_{};
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue, int32_t newValue,
+	                              bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
@@ -163,6 +170,7 @@ public:
 private:
 	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
 	std::array<ClipParamValue, deluge::modulation::params::kNumParams> clipValues_;
+	std::array<int32_t, deluge::modulation::params::kNumParams> resolvedValues_{};
 };
 
 class ExpressionParamSet final : public ParamSet {
@@ -170,8 +178,8 @@ public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
 	[[nodiscard]] int32_t getExpressionValue(int32_t p) const { return getValue(p); }
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue, int32_t newValue,
+	                              bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -196,8 +204,5 @@ public:
 private:
 	std::array<AutoParam, kNumExpressionDimensions> params_;
 	std::array<ClipParamValue, kNumExpressionDimensions> clipValues_;
+	std::array<int32_t, kNumExpressionDimensions> resolvedValues_{};
 };
-
-inline int32_t ParamRenderValues::get(int32_t p) const {
-	return static_cast<const ParamSet&>(collection_).getValueForRender(p, summary_);
-}

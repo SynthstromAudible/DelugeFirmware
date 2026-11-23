@@ -30,6 +30,12 @@ class AutoParamPlayback;
 class AutoParamAutomation;
 class AutoParamLiveInput;
 
+// The current value a playback step moved a parameter from and to.
+struct AutomationStep {
+	int32_t oldValue = 0;
+	int32_t newValue = 0;
+};
+
 // Runtime parameters expose queries and explicit curve editing. Privileged callers
 // use role-specific interfaces; none are friends of the complete parameter class.
 class AutoParam : private AutoParamData {
@@ -68,7 +74,7 @@ public:
 	// NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
 	/// identifies if a parameter is currently interpolating
 	[[nodiscard]] bool hasInterpolationIncrement(bool use_float_interpolation) const {
-		const ParamNodeVector* curve = nodes.get();
+		const ParamNodeVector* curve = nodes.peek();
 		if (curve == nullptr) {
 			return false;
 		}
@@ -90,11 +96,17 @@ private:
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
 	                       ActionType actionType = ActionType::NOTE_EDIT);
-	// Each returns whether the current value changed, and the value before the tick in old_value.
+	// Each returns whether the current value changed. step receives the value before the tick, and
+	// the value after it when it changed.
+	// Interpolation does not announce its changes: slot, if given, receives the new render value.
+	// inverse is PlaybackHandler::getTimePerInternalTickInverse(), read once per collection.
+	// baselines_unchanged: no baseline has changed since this parameter was last ticked or read.
+	// ramp_slot, if given with slot, is where the collection may hold this parameter's ramp.
 	/// tick the interpolator by a number of samples - used for internal synths
-	bool tickSamples(int32_t numSamples, bool use_float_interpolation, int32_t& old_value);
+	bool tickSamples(int32_t numSamples, uint32_t inverse, bool use_float_interpolation, bool baselines_unchanged,
+	                 AutomationStep& step, int32_t* slot, int32_t* ramp_slot);
 	/// tick the interpolator by a number of ticks - used for midi
-	bool tickTicks(int32_t numTicks, bool use_float_interpolation, int32_t& old_value);
+	bool tickTicks(int32_t numTicks, bool use_float_interpolation, AutomationStep& step, int32_t* slot);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
@@ -144,7 +156,14 @@ private:
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 	void reverseInterpolationIncrement(bool use_float_interpolation);
 	int64_t consumeFloatInterpolationIncrement(float value_increment);
-	bool applyValueIncrement(int64_t value_increment, int32_t& old_value);
+	bool applyValueIncrement(int64_t value_increment, AutomationStep& step, int32_t* slot);
+	bool tickSamplesGeneral(int32_t numSamples, uint32_t inverse, bool use_float_interpolation, AutomationStep& step,
+	                        int32_t* slot);
+	static bool advanceHeldRamp(int32_t ramp_step, int32_t numSamples, uint32_t inverse, AutomationStep& step,
+	                            int32_t* slot);
+#ifdef PARAMETER_RESOLVED_VERIFY
+	void verifyHeldRamp(int32_t old_value, const int32_t* slot, const int32_t* ramp_slot) const;
+#endif
 
 	void cloneFrom(AutoParam* other, bool copyAutomation) { AutoParamData::cloneFrom(other, copyAutomation); }
 };

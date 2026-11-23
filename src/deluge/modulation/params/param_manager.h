@@ -114,14 +114,14 @@ public:
 		return (PatchedParamSet*)summaries[1].paramCollection;
 	}
 
-	// Reuse a reader for multiple reads in a render operation. For isolated reads,
-	// the out-of-line accessors below keep call sites compact.
+	// Reuse a reader for multiple reads in a render operation; each read is then one load.
+	// The single-value accessors below make a reader for each read.
 	[[nodiscard]] ParamRenderValues patchedRenderValues() { return ParamRenderValues(*getPatchedParamSetSummary()); }
 	[[nodiscard]] ParamRenderValues unpatchedRenderValues() {
 		return ParamRenderValues(*getUnpatchedParamSetSummary());
 	}
-	int32_t getPatchedValueForRender(int32_t p);
-	int32_t getUnpatchedValueForRender(int32_t p);
+	int32_t getPatchedValueForRender(int32_t p) { return patchedRenderValues().get(p); }
+	int32_t getUnpatchedValueForRender(int32_t p) { return unpatchedRenderValues().get(p); }
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 		if (!summaries[1].paramCollection) {

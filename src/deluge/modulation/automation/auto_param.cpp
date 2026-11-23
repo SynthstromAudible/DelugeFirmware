@@ -878,22 +878,31 @@ int64_t AutoParam::consumeFloatInterpolationIncrement(float value_increment) {
 	return (int64_t)whole_value_increment;
 }
 
-/// applies the whole value increment and resets interpolation increment if we've reached current value limits
-[[gnu::always_inline]] inline bool AutoParam::applyValueIncrement(int64_t value_increment, int32_t& old_value) {
+/// Applies the whole value increment. Interpolation does not announce the change: slot, if
+/// given, receives the new value for rendering instead.
+[[gnu::always_inline]] inline bool AutoParam::applyValueIncrement(int64_t value_increment, AutomationStep& step,
+                                                                  int32_t* slot) {
 	ClipParamValue* clip = clipValue();
 	ParamNodeVector* curve = nodes.get();
 	if (clip != nullptr && curve != nullptr) [[likely]] {
 		if (curve->value.isCurrent() && value_increment == static_cast<int32_t>(value_increment)) [[likely]] {
-			old_value = curve->value.currentValue();
-			return value_increment != 0
-			       && curve->value.advanceCurrent(static_cast<int32_t>(value_increment)) != old_value;
+			step.oldValue = curve->value.currentValue();
+			if (value_increment == 0) {
+				return false;
+			}
+			// A current curve has nodes, so its value is also its render value.
+			step.newValue = curve->value.advanceCurrent(static_cast<int32_t>(value_increment));
+			if (slot != nullptr) {
+				*slot = step.newValue;
+			}
+			return step.newValue != step.oldValue;
 		}
 		// The per-render path. While no baseline has changed, the curve's evaluated
 		// base is still the clip value, so the baseline need not be read at all.
 		// The 64-bit curve offset cannot saturate, so interpolation never needs resetting here.
 		bool current = curve->value.isCurrent();
 		int32_t base = current ? curve->value.currentBase() : clip->getValue();
-		old_value = curve->value.getValueForBase(base);
+		step.oldValue = curve->value.getValueForBase(base);
 		if (value_increment == 0) {
 			return false;
 		}
@@ -901,55 +910,136 @@ int64_t AutoParam::consumeFloatInterpolationIncrement(float value_increment) {
 		if (!current && curve->getNumElements() != 0) {
 			curve->value.markCurrent();
 		}
-		return curve->value.currentValue() != old_value;
+		if (slot != nullptr) {
+			*slot = getValueForRender();
+		}
+		step.newValue = curve->value.currentValue();
+		return step.newValue != step.oldValue;
 	}
-	old_value = getCurrentValue();
+	step.oldValue = getCurrentValue();
 	if (value_increment == 0) {
 		return false;
 	}
 	// Keep progressing along the relative curve even while its audible value
 	// is clipped. Otherwise a shifted ramp would stall at a parameter limit.
 	int64_t next = getCurveValue() + value_increment;
-	setCurveValue(next);
+	{
+		ParameterPlaybackScope scope(data(), slot);
+		setCurveValue(next);
+	}
 	if (getCurveValue() != next) {
 		// Standalone MIDI/patch-cable parameters retain their saturation behavior.
 		resetInterpolationIncrement();
 	}
-	return getCurrentValue() != old_value;
+	step.newValue = getCurrentValue();
+	return step.newValue != step.oldValue;
 }
 
-bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation, int32_t& old_value) {
+[[gnu::noinline]] bool AutoParam::tickSamplesGeneral(int32_t numSamples, uint32_t inverse, bool use_float_interpolation,
+                                                     AutomationStep& step, int32_t* slot) {
 	// if we don't have any interpolation to apply, return false
 	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
 	}
-
 	int64_t value_increment = 0;
-
 	// non-float interpolation
-	if (!use_float_interpolation) [[likely]] {
-		value_increment = saturatingAutomationIncrement(
-		    // The non-float interpolation branch selects the integer union member.
-		    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-		    (((nodes.get()->valueIncrementPerHalfTick * playbackHandler.getTimePerInternalTickInverse())
-		      + (int64_t{1} << 31))
-		     >> 32),
-		    (int64_t)6 * numSamples);
+	if (!use_float_interpolation) {
+		value_increment = automationSampleIncrement(nodes.get()->valueIncrementPerHalfTick, inverse, numSamples);
 	}
 	// float interpolation
 	else {
-		float half_ticks =
-		    (float)playbackHandler.getTimePerInternalTickInverse() * (1.0f / 4294967296.0f) * 6.0f * numSamples;
+		float half_ticks = static_cast<float>(inverse) * (1.0f / 4294967296.0f) * 6.0f * static_cast<float>(numSamples);
 		value_increment =
 		    consumeFloatInterpolationIncrement(nodes.get()->value_increment_per_half_tick_float * half_ticks);
 	}
-
 	// potentially update current value
 	// return if we've changed the current value
-	return applyValueIncrement(value_increment, old_value);
+	return applyValueIncrement(value_increment, step, slot);
 }
 
-bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation, int32_t& old_value) {
+// Advances a ramp held by the collection while its step stays within 32 bits and the value
+// within its limits. Returns whether it did; otherwise the curve must advance instead.
+[[gnu::always_inline]] inline bool AutoParam::advanceHeldRamp(int32_t ramp_step, int32_t numSamples, uint32_t inverse,
+                                                              AutomationStep& step, int32_t* slot) {
+	int32_t rate = multiply_32x32_rshift32_rounded(ramp_step, static_cast<int32_t>(inverse));
+	int32_t scaled_samples = 6 * numSamples;
+	int64_t increment = int64_t{rate} * scaled_samples;
+	int32_t old_value = *slot;
+	int32_t new_value = 0;
+	if (increment != static_cast<int32_t>(increment)
+	    || __builtin_add_overflow(old_value, static_cast<int32_t>(increment), &new_value)) [[unlikely]] {
+		return false;
+	}
+	step.oldValue = old_value;
+	step.newValue = new_value;
+	if (increment != 0) {
+		*slot = new_value;
+	}
+	return true;
+}
+
+#ifdef PARAMETER_RESOLVED_VERIFY
+// Checks a ramp held by the collection against the curve it belongs to.
+void AutoParam::verifyHeldRamp(int32_t old_value, const int32_t* slot, const int32_t* ramp_slot) const {
+	parameterVerifyRampTicks = parameterVerifyRampTicks + 1;
+	const ParamNodeVector* held = nodes.peek();
+	if (held == nullptr || held->heldStep_ != ramp_slot || held->heldValue_ != slot) {
+		parameterVerifyMismatches = parameterVerifyMismatches + 1;
+		parameterVerifyLastMismatch = 0xA1000000U;
+	}
+	else if (old_value
+	         != ClipParamValue::resolve(int64_t{clipValue()->getValue()}
+	                                    + (int64_t{old_value} - held->value.currentBase()))) {
+		parameterVerifyMismatches = parameterVerifyMismatches + 1;
+		parameterVerifyLastMismatch = 0xA0000000U;
+	}
+}
+#endif
+
+bool AutoParam::tickSamples(int32_t numSamples, uint32_t inverse, bool use_float_interpolation,
+                            bool baselines_unchanged, AutomationStep& step, int32_t* slot, int32_t* ramp_slot) {
+	// Called for every interpolating parameter on every render. A ramp held by the collection
+	// advances without touching the curve, whose memory is otherwise rarely in cache.
+	int32_t ramp_step = (ramp_slot != nullptr) ? *ramp_slot : 0;
+	if (ramp_step != 0 && baselines_unchanged && !use_float_interpolation && inverse <= INT32_MAX
+	    && advanceHeldRamp(ramp_step, numSamples, inverse, step, slot)) [[likely]] {
+#ifdef PARAMETER_RESOLVED_VERIFY
+		verifyHeldRamp(step.oldValue, slot, ramp_slot);
+#endif
+		return step.newValue != step.oldValue;
+	}
+	// The usual case without a held ramp, a current curve over a clip value advancing by a
+	// 32-bit step, is kept to 32-bit work, and starts holding the ramp.
+	ParamNodeVector* curve = nodes.get();
+	if (curve != nullptr && !use_float_interpolation && hasClipValueBinding() && curve->value.isCurrent()) [[likely]] {
+		int64_t per_half_tick = curve->valueIncrementPerHalfTick;
+		if (per_half_tick == static_cast<int32_t>(per_half_tick) && inverse <= INT32_MAX) [[likely]] {
+			int32_t rate =
+			    multiply_32x32_rshift32_rounded(static_cast<int32_t>(per_half_tick), static_cast<int32_t>(inverse));
+			int32_t scaled_samples = 6 * numSamples;
+			int64_t increment = int64_t{rate} * scaled_samples;
+			if (increment == static_cast<int32_t>(increment)) [[likely]] {
+				step.oldValue = curve->value.currentValue();
+				if (increment == 0) {
+					return false;
+				}
+				// A current curve has nodes, so its value is also its render value.
+				step.newValue = curve->value.advanceCurrent(static_cast<int32_t>(increment));
+				if (slot != nullptr) {
+					*slot = step.newValue;
+				}
+				if (slot != nullptr && ramp_slot != nullptr && per_half_tick != 0 && step.newValue != INT32_MIN
+				    && step.newValue != INT32_MAX) {
+					nodes.holdRamp(slot, ramp_slot, static_cast<int32_t>(per_half_tick));
+				}
+				return step.newValue != step.oldValue;
+			}
+		}
+	}
+	return tickSamplesGeneral(numSamples, inverse, use_float_interpolation, step, slot);
+}
+
+bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation, AutomationStep& step, int32_t* slot) {
 	// if we don't have any interpolation to apply, return false
 	if (!hasInterpolationIncrement(use_float_interpolation)) {
 		return false;
@@ -970,7 +1060,7 @@ bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation, int32_
 
 	// potentially update current value
 	// return if we've changed the current value
-	return applyValueIncrement(value_increment, old_value);
+	return applyValueIncrement(value_increment, step, slot);
 }
 
 // NOLINTEND(cppcoreguidelines-pro-type-union-access)

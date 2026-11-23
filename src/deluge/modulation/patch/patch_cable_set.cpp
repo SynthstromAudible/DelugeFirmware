@@ -28,6 +28,7 @@
 #include "modulation/params/patch_cable_preset_values.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/preset_save_values.h"
@@ -104,7 +105,16 @@ bool PatchCableSet::doesParamHaveSomethingPatchedToIt(int32_t p) {
 	return getDestinationForParam(p);
 }
 
+void PatchCableSet::storeHeldRamps() {
+	for (auto& cable : patchCables) {
+		AutoParamOwnership(cable.param).storeHeldRamp();
+	}
+}
+
 void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
+	// Ramps are held by cable index.
+	AutoParamOwnership(patchCables[c1].param).storeHeldRamp();
+	AutoParamOwnership(patchCables[c2].param).storeHeldRamp();
 	char temp[sizeof(PatchCable)];
 
 	memcpy(&temp, &patchCables[c1], sizeof(PatchCable));
@@ -137,7 +147,20 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 const int32_t neutralRangeAdjustmentValue = 536870912;
 extern int32_t rangeFinalValues[];
 
+void PatchCableSet::refreshResolved() const {
+	for (int32_t c = 0; c < kMaxNumPatchCables; ++c) {
+		resolvedStrengths_[c] = patchCables[c].param.getValueForRender();
+	}
+	resolvedVersion_ = parameter_value_epoch;
+#ifdef PARAMETER_RESOLVED_VERIFY
+	parameterVerifyRefreshes = parameterVerifyRefreshes + 1;
+#endif
+}
+
 void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStack) {
+	// Cables may have been added, moved or removed directly. Ramps are held by cable index.
+	storeHeldRamps();
+	parameterValuesChanged();
 	if (presetValues_ != nullptr) {
 		bindPresetValues(presetValues_);
 	}
@@ -478,6 +501,8 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
 	}
+	// Ramps are held by cable index.
+	storeHeldRamps();
 	AutoParamOwnership(patchCables[c].param)
 	    .deleteAutomationBasicForSetup(); // No need to record what's happening - we kind of know that
 	                                      // there's no automation left anyway...
@@ -533,7 +558,7 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 	// For some params, we square the cable strength, to make it slope up more slowly at first, so we have access
 	// to small effects as well as big
 	int32_t output;
-	int32_t amount = patchCables[c].getValue();
+	int32_t amount = getStrengthForRender(c);
 	switch (p) {
 	case params::LOCAL_PITCH_ADJUST:
 	case params::LOCAL_OSC_A_PITCH_ADJUST:
@@ -588,6 +613,11 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 	}
 
 void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {
+	uint32_t inverse = playbackHandler.getTimePerInternalTickInverse();
+	// Ramps held in parameters were started against the baselines of the last tick.
+	uint32_t baseline_epoch = parameter_baseline_epoch;
+	bool baselines_unchanged = tickedBaselineEpoch_ == baseline_epoch;
+	int32_t* ramps = rampSteps(kMaxNumPatchCables);
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
 
@@ -596,14 +626,17 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
-	int32_t old_value = 0;
-	bool should_notify = AutoParamPlayback(*param).tickSamples(
-	    numSamples, shouldInterpolateWithFloat(modelStackWithAutoParam), old_value);
+	AutomationStep step;
+	bool should_notify =
+	    AutoParamPlayback(*param).tickSamples(numSamples, inverse, shouldInterpolateWithFloat(modelStackWithAutoParam),
+	                                          baselines_unchanged && parameter_baseline_epoch == baseline_epoch, step,
+	                                          &resolvedStrengths_[c], (ramps != nullptr) ? &ramps[c] : nullptr);
 	if (should_notify) { // Should always actually be true...
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, false, true, true);
+		notifyParamValueModified(modelStackWithAutoParam, step.oldValue, step.newValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
+	tickedBaselineEpoch_ = baseline_epoch;
 }
 
 void PatchCableSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
@@ -615,7 +648,10 @@ void PatchCableSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* mode
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 	int32_t oldValue = param->getCurrentValue();
-	AutoParamPlayback(*param).setPlayPos(pos, modelStackWithAutoParam, reversed);
+	{
+		ParameterPlaybackScope scope(param->data(), &resolvedStrengths_[c]);
+		AutoParamPlayback(*param).setPlayPos(pos, modelStackWithAutoParam, reversed);
+	}
 
 	FOR_EACH_PARAM_END
 
@@ -641,7 +677,11 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 	int32_t oldValue = param->getCurrentValue();
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
-	bool should_notify = AutoParamPlayback(*param).grabValueFromPos(pos, modelStackWithAutoParam);
+	bool should_notify = false;
+	{
+		ParameterPlaybackScope scope(param->data(), &resolvedStrengths_[c]);
+		should_notify = AutoParamPlayback(*param).grabValueFromPos(pos, modelStackWithAutoParam);
+	}
 	if (should_notify) {
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 	}
@@ -756,6 +796,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		AutoParam* param = &patchCables[c].param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
+		ParameterPlaybackScope scope(param->data(), &resolvedStrengths_[c]);
 		int32_t ticks_til_next_event_this_cable =
 		    AutoParamPlayback(*param).processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
 		ticksTilNextEvent = std::min(ticksTilNextEvent, ticks_til_next_event_this_cable);
@@ -768,6 +809,9 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 }
 
 void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	resolvedVersion_ = 0;
+	// The source's ramps stay with it.
+	forgetRampSteps();
 	int32_t c;
 	for (c = 0; c < numUsablePatchCables; c++) {
 		AutoParamOwnership(patchCables[c].param).rebindClipValueAfterMove(&patchCables[c].clipValue);
@@ -1122,20 +1166,16 @@ void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinatio
 }
 
 // Watch the heck out! This might delete the PatchCable, and AutoParam, in question.
-void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                                 bool automationChanged, bool automatedBefore, bool automatedNow) {
-	if (automatedBefore && !automatedNow) {
-		AutoParamPlayback(*modelStack->autoParam).clearAutomationOffset();
-	}
-
-	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                              automatedNow);
+void PatchCableSet::notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                             int32_t newValue, bool automationChanged, bool automatedBefore,
+                                             bool automatedNow) {
+	ParamCollection::notifyParamValueModified(modelStack, oldValue, newValue, automationChanged, automatedBefore,
+	                                          automatedNow);
 
 	bool haveRedoneSetup = false;
 
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t currentValue = modelStack->autoParam->getCurrentValue();
-		bool currentValueChanged = (oldValue != currentValue);
+		bool current_value_changed = (oldValue != newValue);
 
 		PatchSource s;
 		ParamDescriptor destinationParamDescriptor;
@@ -1156,7 +1196,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 			}
 		}
 
-		if (currentValueChanged) {
+		if (current_value_changed) {
 			int32_t p =
 			    destinationParamDescriptor
 			        .getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,

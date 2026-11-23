@@ -109,6 +109,7 @@ public:
 		param_->captureState(state, stealNodes);
 	}
 
+	[[gnu::always_inline]] void storeHeldRamp() { param_->storeHeldRamp(); }
 	[[gnu::always_inline]] void rebindClipValueAfterMove(ClipParamValue* clip) {
 		param_->rebindClipValueAfterMove(clip);
 	}
@@ -121,6 +122,7 @@ private:
 
 class AutoParamPlayback {
 	friend class ExpressionParamSet;
+	friend class ParamCollection;
 	friend class MIDIParam;
 	friend class ParamSet;
 	friend class PatchCableSet;
@@ -138,11 +140,15 @@ public:
 	[[gnu::always_inline]] bool grabValueFromPos(uint32_t pos, int32_t loopLength) {
 		return param_->grabValueFromPos(pos, loopLength);
 	}
-	[[gnu::always_inline]] bool tickSamples(int32_t numSamples, bool use_float_interpolation, int32_t& old_value) {
-		return param_->tickSamples(numSamples, use_float_interpolation, old_value);
+	[[gnu::always_inline]] bool tickSamples(int32_t numSamples, uint32_t inverse, bool use_float_interpolation,
+	                                        bool baselines_unchanged, AutomationStep& step, int32_t* slot,
+	                                        int32_t* ramp_slot) {
+		return param_->tickSamples(numSamples, inverse, use_float_interpolation, baselines_unchanged, step, slot,
+		                           ramp_slot);
 	}
-	[[gnu::always_inline]] bool tickTicks(int32_t numTicks, bool use_float_interpolation, int32_t& old_value) {
-		return param_->tickTicks(numTicks, use_float_interpolation, old_value);
+	[[gnu::always_inline]] bool tickTicks(int32_t numTicks, bool use_float_interpolation, AutomationStep& step,
+	                                      int32_t* slot) {
+		return param_->tickTicks(numTicks, use_float_interpolation, step, slot);
 	}
 	[[gnu::always_inline]] void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 		param_->setPlayPos(pos, modelStack, reversed);

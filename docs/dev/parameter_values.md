@@ -129,9 +129,10 @@ CI-executable production-code tests. Emulator A/B/C inspection uses layout
 offsets compiled from each revision, not assumed shared object layouts.
 
 Unautomated parameters retain only their lazy curve pointer and scalar binding:
-`AutoParam` is 8 bytes on ARM. Each clip scalar is 12 bytes, storing its offset
-normally as the difference of two int32 endpoints. Detachment or rebinding of
-saturated values can need more than 33 bits; a second pointer tag selects a
+`AutoParam` is 8 bytes on ARM.
+Each clip scalar is 12 bytes, storing its offset normally as the difference of
+two int32 endpoints. Detachment or rebinding of saturated values can need more
+than 33 bits; a second pointer tag selects a
 signed 64-bit offset encoded in those same two words. This preserves the full
 unclamped value without growing the object. The zero-offset tag still provides
 a direct shared-preset read.
@@ -139,10 +140,8 @@ Automation playback state is allocated with the node vector only when needed.
 The runtime value stores the full-width offset, its cached base/result and the
 baseline version the result was evaluated against (24 bytes on ARM); the binding
 and standalone scalar remain with `AutoParam`.
-The complete `ParamNodeVector` is 96 bytes before allocator rounding. Render
-reads with parameter-manager context can use its existing automation summary
-to read the clip scalar directly for an unautomated parameter. No pointer to
-that movable summary is retained in the parameter set.
+The complete `ParamNodeVector` is 104 bytes before allocator rounding, including
+the pointers to a ramp its collection holds (see below).
 Cloning copies curve data into independent storage. `AutoParam::cloneFrom()`
 resets interpolation increments and override timing; `AutoParam::beenCloned()`
 clears override timing. Undo swaps curve ownership while retaining the owning
@@ -155,6 +154,49 @@ writes baseline storage directly must call `parameterBaselinesChanged()`.
 Attaching, copying or structurally editing a curve marks its evaluation as
 unchecked, so an emptied curve reads as unautomated.
 
+Rendering reads resolved values rather than the layers. Each fixed parameter set
+keeps one int32 per parameter (4 bytes each), and each patch cable set one
+unclamped strength per cable slot, holding the value its parameter resolves to
+through the automation summary. A second global version, `parameter_value_epoch`,
+advances whenever any parameter value may have changed: every baseline change,
+every curve or standalone value change, gaining or losing a curve or an
+automation summary bit, and `setupPatching()`. A render read whose collection
+was resolved at an older version first resolves the whole collection again; a
+render read is otherwise one load. Playback does not advance the version for
+the parameters it moves: a tick writes the parameter's resolved value directly,
+and the collection playback loops (`processCurrentPos`, `setPlayPos`,
+`grabValuesFromPos`) hold a `ParameterPlaybackScope` naming the parameter they
+advance and its resolved value, so its changes are written there instead of
+announced. Any other value change, including one made during a notification
+from the loop, is announced. Code that changes a curve or standalone value must
+do so through the `AutoParamData` mutators, which announce or record the change.
+So while a song plays without edits, nothing is resolved again; an edit costs one
+resolution of each collection that renders afterwards. Building with
+`PARAMETER_RESOLVED_VERIFY` defined checks every resolved read against the layers
+and counts reads, mismatches, version changes and resolutions in global
+variables for emulator inspection.
+
+A curve's memory is separate from the arrays that rendering reads, so it is
+rarely in cache when playback next advances it. While a bound, current curve
+ramps by a 32-bit step per half tick and stays below its limits, its collection
+holds the ramp: the parameter's resolved render value is its current value, and
+a step array, allocated on the collection's first tick and indexed like the
+render values, holds its step. Ticks then advance only the render value. The
+curve records where its ramp is held, and its offset is brought up to date (the
+held value minus the base it was evaluated against) whenever anything else
+obtains the curve through `LazyParamNodeVector::get()`; node queries, which
+don't involve the value, leave the ramp held. Patch cable sets store held ramps
+before moving cables between indices. A collection's tick loop only advances
+held ramps if no baseline has changed since its previous tick; otherwise each
+parameter takes the general path, which stores the ramp and reevaluates the
+curve. Only collections with interpolating automation pay for the step array.
+
+Playback ticks pass the value they produced to
+`ParamCollection::notifyParamValueModified`, so a notification does not read the
+layered value again in each collection layer. Other callers use
+`notifyParamModifiedInSomeWay`, which removes the automation offset of a
+parameter that lost its automation and then reads the new value once.
+
 Nodes stay 12 bytes: `ParamNodeOffset` packs each offset into 56 signed bits
 after the interpolation flag. Differences of int32 values need 33 bits; relative
 metadata beyond 2^52 is rejected on load, and offsets saturate rather than wrap.
@@ -163,8 +205,6 @@ blocks can be reused by later allocations rather than fragmenting the heap. The
 collections a `ParamManager` sets up together (unpatched, patched and patch
 cable sets) share one allocation, as they are always moved and freed together;
 expression parameters, which come and go separately, have their own.
-Audio-path collection getters share a non-inlined resolver to reduce duplicated
-layer-selection code and instruction-cache pressure.
 Code that runs only on load, save, clone, undo/redo or a user edit is placed in SDRAM with
 `PLACE_SDRAM_TEXT`, as GUI code is, leaving internal RAM for the audio path.
 It must never be used on code that can run while rendering.
@@ -191,22 +231,22 @@ so drawing cannot fall through to clip-scalar editing.
 
 Fixed, MIDI and cable reads share the production `readControlValue` operation.
 Preset/clip reads do not dereference AutoParam. MIDI reads do not create missing
-CC entries. Audio rendering uses a separate read-only API. Both render access
-routes use the automation summary to avoid touching AutoParam for unautomated
-parameters:
+CC entries. Audio rendering uses a separate read-only API, reading the resolved
+values described under validation and costs. Patching reads cable strengths with
+`PatchCableSet::getStrengthForRender`. There are two parameter render routes:
 
 - For isolated reads, use `ParamManager::getPatchedValueForRender` or
-  `getUnpatchedValueForRender`. These out-of-line calls keep call sites compact.
+  `getUnpatchedValueForRender`. Each checks the value version, then loads.
 - For repeated reads within a render operation, obtain `patchedRenderValues()`
-  or `unpatchedRenderValues()` once and use the returned reader's `get()`.
-  Include `param_set.h` where `get()` is called so its implementation can inline.
-  Benchmark hot callers before replacing compact calls: extra inlined code and
-  longer-lived references can increase cache misses and register pressure.
+  or `unpatchedRenderValues()` once and use the returned reader's `get()`, which
+  is a single load.
 
 Only ParamManager can construct a `ParamRenderValues` reader, pairing the set
-with its own automation summary. The raw ParamSet render accessor is private.
-The reader is a live view, not a value snapshot: it must not outlive collection
-replacement, cloning or song loading. It adds no persistent parameter storage.
+with its own automation summary. The reader brings the set's resolved values up
+to date when it is made, then reads them directly; playback keeps them current.
+So it must not be kept across any other parameter value change, nor across
+collection replacement, cloning or song loading. The resolved values live in the
+`ParamCollection` base, so these reads need only `param_render_values.h`.
 Render readers must not be used to choose which value a control edits; that
 decision belongs to the control API above.
 

@@ -1,4 +1,4 @@
-add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp midi_param_tests.cpp mocks/memory.cpp mocks/file_reader.cpp parameter_io_tests.cpp parameter_control_tests.cpp parameter_control_value_tests.cpp
+add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp midi_param_tests.cpp mocks/memory.cpp mocks/file_reader.cpp parameter_io_tests.cpp parameter_control_tests.cpp parameter_control_value_tests.cpp param_render_values_tests.cpp
   ../../../src/deluge/storage/JsonDeserializer.cpp
   ../../../src/deluge/storage/Deserializer.cpp
   ../../../src/deluge/util/format_integer.c
