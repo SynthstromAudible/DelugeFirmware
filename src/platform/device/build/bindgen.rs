@@ -7,8 +7,9 @@ use super::{allowlist, crate_types};
 
 /// The include directories, relative to the repo root, of the Rust library crates whose C header
 /// the wrapper reads: each holds `<crate name>.h` beside the crate's `Cargo.toml`. Only those that
-/// exist are passed. `src/storage/resource/include` is not among them: the resource crate pins its
-/// header's functions by hand, so bindgen does not read it.
+/// exist are passed. `src/storage/resource/include` is not among them: the resource header's
+/// functions are not yet pinned, tagged or `DELUGE_NOEXCEPT`, so the header stays out of bindgen's
+/// input until it joins the ABI surface check (see TODO.md).
 const CRATE_INCLUDE_DIRS: &[&str] = &[
     "src/base/alloc/include",
     "src/storage/sample/source/include",

@@ -5,12 +5,11 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
-Declarations are read from ``include/libdeluge/`` and each crate's ``include/deluge_*.h``. A function is *defined* by a Rust ``fn`` in
-``src/platform/device/src`` or a library crate's ``src`` (a root-workspace member under ``src/`` or
-``tests/trees``), or by a C/C++ body in ``src/``. A header in
-``EXTERNAL`` is defined by a dependency outside this repository instead, and each of its functions counts as defined
-only when an ``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function
-nobody calls keeps nothing alive.
+Declarations are read from ``include/libdeluge/`` and each crate's ``include/deluge_*.h``. A function is *defined* by
+a Rust ``fn`` in ``src/platform/device/src`` or a library crate's ``src`` (a root-workspace member under ``src/`` or
+``tests/trees``), or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a dependency outside this
+repository instead, and each of its functions counts as defined only when an ``abi_pin!`` reaches it in that crate.
+Mocks in ``tests/`` are reported apart, because a mock of a function nobody calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
