@@ -22,8 +22,8 @@
 /// (fast SRAM vs slow SDRAM) is a property of *which heap* — there is no
 /// allocMaxSpeed/allocLowSpeed split. Hand-written for now; cbindgen-generated
 /// later. Must stay in sync with src/base/alloc/src/lib.rs.
-#ifndef LIBDELUGE_ALLOC_H
-#define LIBDELUGE_ALLOC_H
+#ifndef DELUGE_BASE_ALLOC_H
+#define DELUGE_BASE_ALLOC_H
 
 #include "libdeluge/abi.h"
 #include <stddef.h>
@@ -155,4 +155,4 @@ bool deluge_slab_release(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
 }
 #endif
 
-#endif // LIBDELUGE_ALLOC_H
+#endif // DELUGE_BASE_ALLOC_H
