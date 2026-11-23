@@ -89,7 +89,7 @@ builds only `golden-vt-render`.
 | render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | pr | render | ~20s |
 | render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
 | render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
-| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~20s |
+| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~8s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |

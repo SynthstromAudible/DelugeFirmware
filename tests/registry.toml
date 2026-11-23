@@ -921,6 +921,8 @@ name = "render-audio-stretch-edges"
 template = "render-song"
 gates = "audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded"
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES" }
+runtime_s = 8
+override = ["runtime_s"]
 
 [[harness]]
 name = "render-audio-track-fx"

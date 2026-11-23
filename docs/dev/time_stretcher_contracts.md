@@ -6,12 +6,13 @@ The arithmetic the time stretcher's rewrite must keep for its output to stay bit
 Each contract is a computation whose result feeds output samples (or, for S3, S4, S5, B6, B8, E1 and P4, decides when
 they change). It is written as its inputs, its exact arithmetic in order, and the legacy computation it must equal.
 Each becomes a unit spec against values recorded from the legacy code before its component is written (the design
-note's open question 4). A side that only a card that has not answered, a failed allocation or an unbuilt source reaches
-(S4, H1's failure exits, B8's move, A4's abandoned search, C1's chunk-end limit, P1 and P5's third chunk, and the
-reservations) gets its values as the design note's step 1 table says: fault injection in the probe, a sweep, or
-accepted as unpinned. Integer types are the legacy's: where a contract says 32-bit unsigned, a signed value is
-reinterpreted, and the wrap is part of the contract. A **quirk** is arithmetic a fresh design would not choose; it is
-kept and named in the code. The goldens pin each quirk unless its row says it is kept, not golden-pinned.
+note's open question 4). A side that only a card that has not answered, a failed allocation, a cull or an unbuilt
+source reaches (S4, H1's failure exits, B8's move, A4's abandoned search, C1's chunk-end limit, P1 and P5's third chunk,
+and the reservations) gets its values as the design note's step 1 table says (its open question 11): fault injection in
+the probe, a sweep, or accepted as unpinned. Integer types are the legacy's: where a contract says 32-bit unsigned, a
+signed value is reinterpreted, and the wrap is part of the contract. A **quirk** is arithmetic a fresh design would not
+choose; it is kept and named in the code. The goldens pin each quirk unless its row says no golden case is known to pin
+it.
 
 Words: a **frame** is one sample of every channel; a **pixel** is 128 source frames, the span one percussiveness byte
 describes (pixel `p` is frames `[128p, 128p + 128)`); the **pre-margin** is the waveform before the start marker in
@@ -66,7 +67,7 @@ no build overrides, so it is compiled out and reads no ratio.
 |---|---|---|---|
 | A0 | the newer head's reader, about to become the older | The old head's reference byte: `(region_index << chunk_shift) + (cursor − payload_base) + 4 − byte_depth`; if the reader's last interpolation width `w` is not 0, minus `(w >> 1) × channels × byte_depth × dir` (half the interpolation window, against the play direction). A reader holding no region gives `end_byte + int32(cursor) × dir`. A1 and A2 use it; the search runs only if it is at or after the data's start. | `SampleLowLevelReader::getPlayByteLowLevel` with its interpolation compensation, as `hopEnd` calls it before the hop |
 | A1 | increment, crossfade | `each = clamp(int32((uint64(increment) × 35) >> 24), 1, 70)`; `xf_src = int32((uint64(xf) × increment) >> 24)`. Only while the older head reads, and only if its byte is not before the data's start. | `hopEnd`, the search set-up |
-| A2 | frames, start, `xf_src`, `each` | `mid = start + (xf_src >> 1) × dir`; `read = mid − ((each × 3) >> 1) × dir`. Forwards only: fail if `read` is within half the crossfade of either end. Fail if the window's end falls outside the data (one byte of slack before its start). Three totals, each the sum over `each` frames of `word >> 16` per channel (left plus right). The words are unmasked 32-bit reads ending at each sample's top byte. **Quirk:** the reversed direction has no half-crossfade margin; kept, not golden-pinned. | `Sample::getAveragesForCrossfade` |
+| A2 | frames, start, `xf_src`, `each` | `mid = start + (xf_src >> 1) × dir`; `read = mid − ((each × 3) >> 1) × dir`. Forwards only: fail if `read` is within half the crossfade of either end. Fail if the window's end falls outside the data (one byte of slack before its start). Three totals, each the sum over `each` frames of `word >> 16` per channel (left plus right). The words are unmasked 32-bit reads ending at each sample's top byte. **Quirk:** the reversed direction has no half-crossfade margin; kept; no golden case is known to pin it. | `Sample::getAveragesForCrossfade` |
 | A3 | hop frames, increment, rate | `limit = (hop × 40) >> 8`; `limit = int32((uint64(limit) × increment) >> 24)`; `limit = min(limit, (rate / 45) >> 1)`. `hop` is the value after B5 (or B7). | `hopEnd`, the search size |
 | A4 | old and new averages | Best starts as `totalDifferenceAbs(old, new)` at offset 0. Search the play direction first. Each pass: the four window boundaries step one frame at a time (against play: the first boundary starts one frame back); each running total gains its upper boundary's value and loses its lower one, signed by search-against-play. At each step: if this is the first step of a first pass searching with play and it is worse, switch direction now (that pass does not count: the other direction is searched in full, then the play direction again); a strictly smaller difference is the new best; when the sign of `totalChange` flips, count a flip (four flips over both passes stop the search). A pass ends at the limit or the waveform's end; a frame not resident abandons the search. | `hopEnd`, the phase search |
 | A5 | at a sign flip, increment ≠ 2^24 | If this step or the previous is the best: `phase = (uint64(abs(last)) << 24) / uint32(abs(last) + abs(this))`, `2^24 − phase` when searching against play; if (this step is best) differs from (searching against play), the best offset moves one frame back in play. At the end: `phase += older head's phase`; at or past 2^24, subtract 2^24 and move one frame on. | `hopEnd`, sub-sample alignment |
@@ -76,7 +77,7 @@ no build overrides, so it is compiled out and reads no ratio.
 
 | # | Inputs | Arithmetic, in order | Must equal |
 |---|---|---|---|
-| X1 | frames `n` | Four increments, all 32-bit unsigned: (a) a hop: `2^24 / n`; (b) a loop crossfade: `(2^24 − 1 + n) / n`; (c) a fudge: `(2^24 + n) / n`; (d) a cache tail: `2^24 / uint16(n) + 1`. Progress starts at 0. **Quirk:** (b) and (c) differ by one where `n` divides 2^24; kept, not golden-pinned. | `hopEnd` (a, b), `init` (c), `setupCrossfadeFromCache` (d) |
+| X1 | frames `n` | Four increments, all 32-bit unsigned: (a) a hop: `2^24 / n`; (b) a loop crossfade: `(2^24 − 1 + n) / n`; (c) a fudge: `(2^24 + n) / n`; (d) a cache tail: `2^24 / uint16(n) + 1`. Progress starts at 0. **Quirk:** (b) and (c) differ by one where `n` divides 2^24; kept; no golden case is known to pin it, and the probe logs each fudge's `n`. | `hopEnd` (a, b), `init` (c), `setupCrossfadeFromCache` (d) |
 | X2 | ramp, segment `n`, level, step | `newer = as_wrap<Q31>(Q24::from_raw(progress))`; `older = 2147483647 − newer`; `progress += increment × n` (wrapping); `after = as_clamp_then_shift<Q31>(Q24::from_raw(progress))`; `newer_step = divide_by_small(after − newer, n)`; `change = mul_as_wrap<Q31>(level, newer_step)`; gains: newer `mul_as_wrap<Q31>(level, newer)` stepped `level_step + change`; older `mul_as_wrap<Q31>(level, older)` stepped `level_step − change`. | `VoiceSample::render`, the crossfade envelope |
 | X3 | ramp, heads | The older head sounds while it reads and `progress < 2^24`; after it is read in a segment, if `progress ≥ 2^24` it stops reading. A plain start's older reader is a level copy of the newer with the ramp already done: its first segment reads it at level 0 and step 0 (it adds exactly 0: `mixed_in` rounds a zero product to 0), and the check above then stops it, so it reads in that one segment only. That read can fail on a card error, which cuts the voice. The stopped reader keeps its cursor, which E1 compares against. | `VoiceSample::render`, the older head |
 | X4 | voice amplitude `a`, step `s` | `a <<= 3`; `<<= 1` more if increment ≠ 2^24; `<<= 1` more if stretching (likewise `s`). The level is `a >> 1`, step `s >> 1`; when writing a cache, level 2147483647, step 0. After each segment, when not writing a cache, `a += s × n`. | `VoiceSample::render`, amplitude set-up |
@@ -118,10 +119,10 @@ no build overrides, so it is compiled out and reads no ratio.
 | W1 | stretched mix | Writing a cache: the heads render at X4's cache level into a zeroed scratch block; per frame the cache takes the top three bytes of `word << 1`, left then right; the output mixes the word (mono: `(l >> 1) + (r >> 1)` after the left is cached) with `mixed_in`, the amplitude stepped first. | `VoiceSample::render`, the cache copy |
 
 **Counts.** 44 contracts: hop tuning 3, scheduler 6, planner 8, aligner 7, crossfader 4, cache tail 4, perc analysis
-5, heads 1, position, loop, exit and cache write 6. Seven are about when, not what (S3, S4, S5, B6, B8, E1, P4); the rest are
-arithmetic.
+5, heads 1, position, loop, exit and cache write 6. Seven are about when, not what (S3, S4, S5, B6, B8, E1, P4); the
+rest are arithmetic.
 
 **Noise draws.** The synth's noise stream is shared by every voice, so the draw count is a contract too: one at a
-normal start (S1) and one per hop attempt, a failed one included, whatever the hop does after (B1). None at a fudge or at a restart that does
-not hop.
+normal start (S1) and one per hop attempt, a failed one included, whatever the hop does after (B1). None at a fudge or
+at a restart that does not hop.
 

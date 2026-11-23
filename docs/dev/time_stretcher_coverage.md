@@ -36,9 +36,10 @@ result it tests is named (`after`), and repeats are counted in source order.
 | **Not a stretcher path** | 6 | |
 | NS | 6 | a voice with no stretcher, or an unstretched cache; other goldens own it |
 
-EDIT, LATE and STOP sit in the functions the rewrite changes (`AudioClip::processCurrentPos`, `AudioClip::resumePlayback`
-and `AudioClip::render`, which reach the stretcher's queries and `end`); whether gates are built for them is the
-design note's open question 10. How the RES, MEM and OPEN sides' legacy values are recorded is its open question 4.
+EDIT, LATE and STOP sit in the functions the rewrite changes (`AudioClip::processCurrentPos`,
+`AudioClip::resumePlayback` and `AudioClip::render`, which reach the stretcher's queries and `end`); whether gates are
+built for them is the design note's open question 10. How the RES, MEM, CULL and OPEN sides' legacy values are recorded
+is its open question 11. A side's reason is left as "—" where its category's meaning gives it.
 
 ## Functions
 
@@ -218,7 +219,7 @@ lines there count as run in the table above; they never ran (the render always f
 | `static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE` | both | 0 / 0 | LATE | — |
 | `result != LateStartAttemptStatus::SUCCESS` | both | 0 / 0 | LATE | — |
 | `result == LateStartAttemptStatus::FAILURE` | both | 0 / 0 | LATE | — |
-| `!playbackHandler.isEitherClockActive()` | true | 0 / 16409 | STOP | or LATE |
+| `!playbackHandler.isEitherClockActive()` | true | 0 / 16409 | STOP | the clocks stopped; the `\|\|`'s other operand, `doingLateStart`, is LATE's |
 | `doingLateStart` (second of 2) | true | 0 / 16409 | LATE | — |
 | `playbackHandler.isEitherClockActive()` | false | 6770 / 0 | STOP | a tied clip without pitch change rendering with the clocks stopped |
 | `!doingLateStart` | false | 6770 / 0 | LATE | — |
@@ -336,7 +337,7 @@ lines there count as run in the table above; they never ran (the render always f
 | `interpolationBufferSize != kInterpolationMaxNumSamples` (second of 2) | true | 0 / 1 | NS | linear interpolation at the written end of an unstretched cache |
 | `!stillGoing` after `reassessReassessmentLocation` | true | 0 / 1 | RES | — |
 | `!stillGoing` after `changeClusterIfNecessary` | true | 0 / 1 | RES | — |
-| `bytesTilCacheEnd < 0` | true | 0 / 43537 | DEF | — |
+| `bytesTilCacheEnd < 0` | true | 0 / 43537 | DEF | the read's earlier checks keep the cache position at or before the cache's written end |
 | `!cacheCluster` after `getCluster` (first of 2) | true | 0 / 43537 | DEF | a stolen cache cluster, caught earlier |
 | `numSamplesThisCacheRead <= 0` | true | 0 / 43537 | DEF | ALPHA check |
 | `true` (first of 2) | false | 5207416 / 0 | CON | `while (true)` |

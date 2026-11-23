@@ -13,15 +13,18 @@ The open questions (section 7), one line each, with the recommendation:
 1. Where the stretcher reaches the sample: its own `SampleStretchPort` (14 operations); `SamplePlaybackPort` unchanged.
 2. The cache tail's buffer: eight tail buffers the engine makes at start, lent through the `StretchContext`.
 3. The ratio far below the root: read it unsigned everywhere, saturate it at `2^32 − 1`, floor B5's hop at 2.
-4. Recording the contracts' values: a temporary probe of the legacy code, only its records header committed; the
-   sides no golden reaches by fault injection, a sweep, or accepted as unpinned (step 1's table).
+4. Recording the contracts' values: a temporary probe of the legacy code, only its records header committed.
 5. The plain begin's shadow reader: keep it, as the `Shadowed` phase.
-6. The percussiveness byte and slope follower: share `percussiveness` with the pitch shifter; a floor follower of its own.
+6. The percussiveness byte and slope follower: share `percussiveness` with the pitch shifter; a floor follower of
+   its own.
 7. The aligner's abandoned search: start the head at phase 0.
 8. The read heads: keep the legacy `SampleLowLevelReader` behind the port for this rewrite.
-9. The aligner's search: one core shared with the pitch shifter's `WaveformAligner`, parameterised by its flip count.
+9. The aligner's search: one core shared with the pitch shifter's `WaveformAligner`, parameterised by its flip
+   count, its first direction and whether it turns.
 10. The reachable sides no gate scripts: build render-song cases for them (marker moves, clip-length edits, late starts,
     the stopped-clock tail) before step 7.
+11. The sides no golden reaches: fault injection in the probe, a sweep for C1's chunk-end limit, and the third
+    perc-cache chunk accepted as unpinned (step 1's table).
 
 The differences Kate accepts by name if the recommendations are taken; everything else stays bit-identical, and the
 contracts file's quirks are kept:
@@ -39,7 +42,8 @@ The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch
 `RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
 (`scripts/tasks/stretcher_coverage.py`) reaches 815 of the 1,040 branch sides of the stretcher and its users' stretcher
 functions. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 225 it does not reach, keyed by function
-and condition, each with a category and a reason:
+and condition, each with a category, and a reason where the category's meaning does not already
+give it:
 - 64 the code itself rules out (defensive checks, conditions fixed by construction);
 - 91 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull;
 - 6 are not stretcher paths;
@@ -52,7 +56,7 @@ and condition, each with a category and a reason:
   built for: a third perc-cache chunk, which needs a source over 2^23 frames, and a crossfade out of a cache whose read
   position is in a cache chunk's last frame.
 
-How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (open question 4).
+How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (open question 11).
 
 ## Words
 
@@ -542,7 +546,8 @@ today's unless open question 2 chooses to embed the tail.
 ## 6. The rewrite's steps
 
 One step per component, each with its contracts' unit specs written and failing before the component. Each step is
-bit-identical on the goldens before it lands (golden-synth on x86, and golden-synth-arm filtered to the stretcher cases).
+bit-identical on the goldens before it lands (golden-synth on x86, and golden-synth-arm filtered to the stretcher
+cases).
 1. **Records.** For every contract, workloads and the legacy's results, recorded by a temporary probe of the legacy code
   and committed as a records header under `tests/unit/dsp/` (open question 4). The render-song scenario reports its
   render-allocation count, so the songs get a ceiling. The probe's workloads:
@@ -566,6 +571,7 @@ bit-identical on the goldens before it lands (golden-synth on x86, and golden-sy
   | X3, Q4's reads | a card error cuts the voice mid-read (`readSamplesForTimeStretching`) | fault injection: the reader loses its region mid-read |
   | C1 | the chunk-end limit: the read position in a cache chunk's last frame at the switch | a sweep: `sample/ts_cache_crossfade` rendered with its note length stepped a frame at a time until the switch lands there (about 1 in 5,400) |
   | P1, P5, and section 5's perc-chunk leases | a third distinct perc-cache chunk, the older of the two held dropped (`rememberPercCacheCluster`) | accepted as unpinned: it decides which chunks stay leased, never a sample; specced from reading against a fake port |
+  | `AudioClip::getCullImmunity` and the voice cull (CULL) | a voice culled under CPU load | fault injection: the probe raises the direness at a chosen block, logging each voice's cull immunity and which voice the legacy culls |
   | Section 5's hop-back and lookahead reservations | where each is kept and let go | logged from the goldens, which run them; they decide residency only |
   | The allocations (the stretcher pool, the tail buffer, the perc store, a cache) and memory pressure | an allocation fails, or a cache or perc-cache chunk is stolen | fault injection in the probe's allocator, or an eviction between calls; the tail buffer's case changes with open question 2 |
 
@@ -588,8 +594,8 @@ bit-identical on the goldens before it lands (golden-synth on x86, and golden-sy
   nightly with both corpora; an emulator sweep against `main` with no unexplained difference; the device placement and
   sizes above; and the coverage script re-run over the new files, its untaken sides written into
   [time_stretcher_coverage.md](time_stretcher_coverage.md) in place of the legacy's, keyed by function and condition,
-  each with a category and a reason, and no RES, MEM or reachable side without the record or the acceptance step 1
-  gave its contract.
+  each with a category and, where the category does not give it, a reason; and no RES, MEM, CULL or reachable side
+  without the record or the acceptance step 1 gave its contract.
 
 ## 7. Open questions for Kate
 
@@ -630,8 +636,8 @@ Each is a decision with a recommendation first.
      changes nothing at planned hops of 2 or more, but the unsigned reading changes the 7-to-8-octave range above.
    - (b) Keep the legacy's signed reading from 7 to 8 octaves (bit-exact there), and saturate and floor only past 8.
      Past 8 octaves the saturated ratio is read unsigned, as 256 (read signed, `2^32 − 1` would be −1, a ratio
-     below 0). This keeps arithmetic that is wrong by construction, and the rewrite would have to reproduce the wrapping int32
-     sums on purpose (signed overflow is undefined in C++), to keep a range no golden pins.
+     below 0). This keeps arithmetic that is wrong by construction, and the rewrite would have to reproduce the
+     wrapping int32 sums on purpose (signed overflow is undefined in C++), to keep a range no golden pins.
    - (c) Stretching stops (the voice plays unstretched) once the ratio passes 2^31 − 2^24, about 7 octaves down.
    - (d) The voice is cut there.
 4. **How the contracts' values are recorded.**
@@ -639,17 +645,6 @@ Each is a decision with a recommendation first.
      header is committed. No legacy code enters the tree's tests.
    - (b) A verbatim test-only reference of the legacy computations under `tests/unit/dsp/`, as the live pitch shifter's
      rewrite kept, checked against the new components on generated workloads.
-
-   And for the sides no golden reaches (step 1's table: a card that has not answered, a failed allocation or memory
-   pressure, the two unbuilt sides):
-   - (a) **Recommended:** as the table says: fault injection in the probe for the seat, read, residency-check and
-     allocation failures; a sweep for C1's chunk-end limit; and the perc store's third-chunk rotation accepted as
-     unpinned by name, since it decides residency and no sample. Each injected record becomes a unit spec, so the
-     rewrite's failure paths equal the legacy's without a golden.
-   - (b) As (a), and also a slow-card render-song gate (the stretch songs under `RENDER_FILL_BURST`) whose check allows
-     the stretcher's retries, so the hop-retry path is pinned end to end. Its timing depends on the storage model, so
-     its record moves whenever that model does.
-   - (c) Accept every side no golden reaches as unpinned, specced from reading the legacy code.
 5. **The plain begin's shadow reader** (X3, E1). The legacy seats the spare as a level copy of the newer, reads it once
    at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where it
    is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
@@ -690,7 +685,8 @@ Each is a decision with a recommendation first.
    resident), and in the shifter's backward-first search when pitching down, which searches one way and never turns
    (its quirk Q10), a case the stretcher never has.
    - (a) **Recommended:** one search core, src/dsp/fixed/timestretch/waveform_search.h, templated on the frame reader
-     (how far it reaches, and whether a frame is readable) and parameterised by the flip count; the shifter's
+     (how far it reaches, and whether a frame is readable) and parameterised by the flip count, the first pass's
+     direction and whether the search turns (the shifter's pitch-down search is one way); the shifter's
      `WaveformAligner` and the stretcher's aligner become its two users, each keeping its own set-up and, for the
      stretcher, A5's final phase sum. The loop's sign, offset and phase rules then exist once. The shifter already
      includes `crossfade.h` from `timestretch/`, so the dependency runs the way it does today, and the shifter's goldens
@@ -700,16 +696,29 @@ Each is a decision with a recommendation first.
    - (c) Write the stretcher's own in step 6, and merge the two as a step of their own after step 8.
 10. **The reachable sides no gate scripts** (EDIT, LATE and STOP in the coverage list, 35 sides). They are reachable
     on the device: an audio clip's marker moved while it plays (`VoiceSample::sampleZoneChanged` for an audio clip),
-    `AudioClip::resumePlayback` after a clip-length edit with the voice alive, a late start part-way through a clip,
-    and a release tail rendering after the clocks stop. They sit in `AudioClip::processCurrentPos`,
+    `AudioClip::resumePlayback` after a clip-length edit with the voice alive, an audio clip reversed while its voice
+    reads a cache, a long sample the project does not reference auditioned from the browser, a late start part-way
+    through a clip, and a release tail rendering after the clocks stop. They sit in `AudioClip::processCurrentPos`,
     `AudioClip::resumePlayback`, `AudioClip::render` and the paths to `end`, all of which step 7 changes.
     - (a) **Recommended:** build render-song knobs and cases for them before step 7, recorded on the legacy: a marker
       move on a playing audio clip (as render-preset's `RENDER_ZONE_MOVE` moves a synth's zone), a clip-length edit
       while the clip's voice plays (`Song::setClipLength`), playback started part-way through a stretched clip, and
       the clocks stopped while a stretched clip's tail renders (render-song fails a render whose playback stops, so this
-      case needs its own check). The recording (REC) and stem-export (EXPORT) sides stay unpinned, accepted by name.
+      case needs its own check). The reversed-while-cached and auditioned EDIT sides (4), and the recording (REC) and
+      stem-export (EXPORT) sides, stay unpinned, accepted by name.
     - (b) Accept the 35 sides by name as unpinned: specced from reading, checked only by step 8's emulator sweep.
     - (c) Build the late start and the stopped-clock tail only, and accept the edits by name.
+
+11. **The sides no golden reaches** (step 1's table: a card that has not answered, a failed allocation or memory
+    pressure, CPU load high enough to cull, the two unbuilt sides).
+    - (a) **Recommended:** as the table says: fault injection in the probe for the seat, read, residency-check and
+      allocation failures and for a forced cull; a sweep for C1's chunk-end limit; and the perc store's third-chunk
+      rotation accepted as unpinned by name, since it decides residency and no sample. Each injected record becomes a
+      unit spec, so the rewrite's failure paths equal the legacy's without a golden.
+    - (b) As (a), and also a slow-card render-song gate (the stretch songs under `RENDER_FILL_BURST`) whose check
+      allows the stretcher's retries, so the hop-retry path is pinned end to end. Its timing depends on the storage
+      model, so its record moves whenever that model does.
+    - (c) Accept every side no golden reaches as unpinned, specced from reading the legacy code.
 
 **Findings that need no decision.** These disappear with the legacy code and change no output:
 - In `TimeStretcher::hopEnd`, the comment on the one-frame floor says it happens "if pitch up very high and also
