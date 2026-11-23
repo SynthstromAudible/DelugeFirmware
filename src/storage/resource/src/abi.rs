@@ -33,9 +33,6 @@ pub type DelugeResourceConstructFn = Option<
 pub type DelugeResourceAdoptEvictFn =
     Option<unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut c_void)>;
 
-// Each callback `transmute` changes only a pointer parameter's pointee (`void*` to `*mut u8`), which
-// the C ABI passes identically.
-
 /// [`resource_create`] in the header's types.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_resource_create(
@@ -82,6 +79,7 @@ pub unsafe extern "C" fn deluge_resource_define_asset(
     resource_define_asset(
         mgr.cast(),
         owner,
+        // SAFETY: same arity and `extern "C"` convention; only `dest`'s pointee differs.
         transmute::<DelugeResourceMaterializeFn, Option<MaterializeFn>>(materialize),
         on_evict,
         ctx,
@@ -106,6 +104,7 @@ pub unsafe extern "C" fn deluge_resource_set_construct(
     resource_set_construct(
         mgr.cast(),
         asset,
+        // SAFETY: same arity and `extern "C"` convention; only `dest`'s pointee differs.
         transmute::<DelugeResourceConstructFn, Option<ConstructFn>>(construct),
     )
 }
@@ -284,6 +283,7 @@ pub unsafe extern "C" fn deluge_resource_adopt(
         size,
         cost,
         ctx,
+        // SAFETY: same arity and `extern "C"` convention; only `ptr`'s pointee differs.
         transmute::<DelugeResourceAdoptEvictFn, Option<AdoptEvictFn>>(on_evict),
     )
     .cast()

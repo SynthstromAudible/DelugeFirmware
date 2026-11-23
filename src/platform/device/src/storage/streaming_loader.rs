@@ -444,6 +444,7 @@ abi_pin!(
     deluge_streaming_signal_fill,
 );
 
-// The production wiring's imports.
+// The production wiring's imports, `pub` in `prod` only so this pin can reach them; call the typed
+// API, not these.
 abi_pin!(in self::prod: deluge_resource_loader_next, deluge_resource_loader_enqueue, deluge_resource_slot_of,
     deluge_resource_external_lease_count_by_slot, deluge_resource_loader_release_owned);

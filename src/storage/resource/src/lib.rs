@@ -154,6 +154,58 @@ mod tests {
         assert_eq!(p, p2, "cache hit should return the resident pointer");
     }
 
+    /// `mock_materialize` in the header's callback type (`void* dest`).
+    unsafe extern "C" fn c_materialize(
+        ctx: *mut c_void,
+        owner: *mut c_void,
+        index: u32,
+        dest: *mut c_void,
+        len: usize,
+    ) -> bool {
+        mock_materialize(ctx, owner, index, dest.cast(), len)
+    }
+
+    #[test]
+    fn the_c_shims_resolve_and_forward() {
+        use crate::abi::*;
+        let (_buf, h) = arena(1 << 20);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        assert!(!mgr.is_null());
+        let a = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(7),
+                Some(c_materialize),
+                None,
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        assert_ne!(a, u32::MAX, "define_asset failed");
+        assert!(
+            unsafe { deluge_resource_try_acquire(mgr, a, 0) }.is_null(),
+            "not resident yet"
+        );
+        let p = unsafe { deluge_resource_acquire(mgr, a, 0, 4096) };
+        assert!(!p.is_null());
+        check_pattern(p.cast(), owner(7), 0, 4096);
+        unsafe { deluge_resource_release(mgr, p) };
+        let q = unsafe { deluge_resource_try_acquire(mgr, a, 0) };
+        assert_eq!(q, p, "resident and ready: the same chunk");
+        let (mut asset, mut index) = (u32::MAX, u32::MAX);
+        assert!(unsafe { deluge_resource_chunk_ident(mgr, q, &mut asset, &mut index) });
+        assert_eq!((asset, index), (a, 0));
+        assert_eq!(unsafe { deluge_resource_slot_of(mgr, q) }, unsafe {
+            resource_slot_of(mgr.cast(), q.cast())
+        });
+        unsafe { deluge_resource_release(mgr, q) };
+        assert_eq!(
+            unsafe { deluge_resource_lease_count_by_slot(mgr, deluge_resource_slot_of(mgr, q)) },
+            0
+        );
+    }
+
     #[test]
     fn cache_hit_same_asset_index_still_leases() {
         // The identity re-validation must not reject a genuine cache hit.
