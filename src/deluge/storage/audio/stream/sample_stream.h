@@ -34,7 +34,7 @@ namespace deluge::audio::stream {
 ///        chunks.
 ///
 /// Every `Sample` owns exactly one `SampleStream` (as a member). It is a thin forwarding facade
-/// over the `deluge_storage_stream` Rust registry (`include/libdeluge/sample_stream.h`), which
+/// over the `deluge_storage_stream` Rust registry (`deluge_storage_stream.h`), which
 /// holds this sample's streaming state behind one opaque `stream_handle_` once a real efatfs file
 /// is open:
 ///   - residency itself, which lives entirely in the resource manager -- there is nothing left on
