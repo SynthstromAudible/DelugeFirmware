@@ -1,9 +1,10 @@
 """Generated render cards, made once per generator and kept under the build tree.
 
-tests/golden/render/songs/make_render_song.py is deterministic: a card depends only on the song's name and the
-generator's source. So each card is generated once into build/render-cards/<generator key>/<SONG>/ and every later run
-plays that directory read-only. The samples every song shares are synthesised once per key, into <key>/samples/, and
-hard-linked into each card.
+tests/golden/render/songs/make_render_song.py is deterministic: a card depends only on the song's name, the
+generator's source and the committed sample sources the generator reads, each pinned there by its sha256, so a changed
+source fails generation rather than reaching a card cached under the old key. So each card is generated once into
+build/render-cards/<generator key>/<SONG>/ and every later run plays that directory read-only. The samples every song
+shares are synthesised once per key, into <key>/samples/, and hard-linked into each card.
 
 Gates fill the cache concurrently: each directory and file is built under a temporary name and published (a card with a
 rename, a shared sample with a hard link), and a publish that loses the race leaves the winner's in place.
@@ -25,7 +26,7 @@ _loading = threading.Lock()
 
 def generator_key(root: Path) -> str:
     """The cache key for the generator under @p root: a prefix of its source's sha256 (it imports only the standard
-    library, so its source is its whole input)."""
+    library, and pins every file it reads by sha256, so its source stands for its whole input)."""
     return _key((root / GENERATOR).read_bytes())
 
 

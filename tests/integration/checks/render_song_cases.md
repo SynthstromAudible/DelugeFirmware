@@ -52,12 +52,37 @@ plays the clip untuned and must render differently (RS-FX), so the clip's cents 
 
 ## render-audio-stretch
 
-audio clips stretched to the song's tempo render as recorded, and differ from the clips at their native tempo: a
-generated song (tests/golden/render/songs/make_render_song.py --song RS_AUDIO_STRETCH) of two audio clips alone, pitch
-and speed independent, playing the sample goldens' tone (from a start marker, with a pre-margin) and percussive source
-at 120 BPM, about 11.5% faster than their native tempo, so the time stretcher hops through them in step with the
-song's ticks; compared with its record in tests/golden/render/songs.json; its dry twin plays them at their native
-tempo, where they are not stretched, and must render differently (RS-FX), so the stretch reaches the render
+audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled: a generated
+song (tests/golden/render/songs/make_render_song.py --song RS_AUDIO_STRETCH) of ten audio clips alone at 120 BPM, pitch
+and speed independent, each at its own ratio to the tempo, so the time stretcher hops through each in step with the
+song's ticks: the sample goldens' tone and percussive source sped up and slowed within an octave, past one octave and
+past two (where the coarse hop tables clamp), reversed with a pre-margin after its end marker, and transposed two
+semitones, which reads a cache; and sample A within a hair of its native tempo, left unstretched until it drifts out
+of sync, then stretched until it is back. Compared with its record in tests/golden/render/songs.json; its dry twin
+plays the same clips with pitch and speed tied, resampled rather than stretched, and must render differently (RS-FX),
+so the stretch, not just the tempo, reaches the render
+
+## render-audio-stretch-native
+
+audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops: a generated song
+(make_render_song.py --song RS_AUDIO_STRETCH_NATIVE) of the tone and the percussive source at their native tempo (250
+samples a tick), from start markers with frames before them. Neither is stretched, but at each loop end a time
+stretcher is fudged in to crossfade into those frames, the pre-margin, without a click. Compared with its record in
+songs.json; its dry twin plays the same frames from files that hold only them, with no pre-margin and so no fudged
+crossfade, and must render differently (RS-FX)
+
+## render-audio-stretch-arranged
+
+stretched audio clips render as recorded from arrangement instances that end without looping: a generated song
+(make_render_song.py --song RS_AUDIO_STRETCH_ARRANGED) in the arranger, its stretched clips played from instances that
+end part-way through a loop or after a single pass, so the clip does not loop at its end; the forward tone and the
+reversed tone have waveform past the end they play to, so each fades out before its instance ends. Compared with its
+record in songs.json; its dry twin plays the clips resampled and must render differently (RS-FX)
+
+## render-audio-stretch-arm
+
+audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86: render-audio-stretch's song and
+record, run by the ARM build under qemu, where the stretcher's synced path does its double and 64-bit divides
 
 ## render-audio-track-fx
 

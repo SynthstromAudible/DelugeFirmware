@@ -86,7 +86,9 @@ builds only `golden-vt-render`.
 | render-audio-track-filters | integration | scenario | property | gate | an audio track's filter chain renders as recorded | pr | render | ~20s |
 | render-master-filters | integration | scenario | property | gate | the song master's filter chain renders as recorded | pr | render | ~20s |
 | render-audio-cents | integration | scenario | property | gate | an audio clip's fine tune renders as recorded, and differs from the clip untuned | pr | render | ~20s |
-| render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the clips at their native tempo | pr | render | ~20s |
+| render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | pr | render | ~20s |
+| render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
+| render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |
@@ -143,6 +145,7 @@ builds only `golden-vt-render`.
 | golden-synth | integration | scenario | differential | gate | every synth golden master must render as recorded | pr | render | ~20s |
 | param-dump | integration | scenario | regression | gate | the audible window's parameter dump | nightly | render | ~5s |
 | golden-synth-arm | integration | scenario | differential | gate | the synth golden masters on 32-bit ARM | nightly | unit | ~1m |
+| render-audio-stretch-arm | integration | scenario | property | gate | audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
 | streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
