@@ -35,6 +35,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -1670,7 +1671,7 @@ void View::setModLedStates() {
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 		// in automation view's velocity editor, affect entire shows whether the editor is folded to all note rows
 		if (rootUI == &automationView && automationView.inNoteEditor()) {
-			affectEntire = automationView.inFoldedNoteEditor();
+			affectEntire = automationEditorLayoutNoteVelocity.fold.isFolded();
 		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);

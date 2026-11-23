@@ -19,9 +19,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/note/note.h"
-#include "model/note/note_row.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
@@ -59,71 +57,15 @@ const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112
 
 PLACE_SDRAM_BSS AutomationEditorLayoutNoteVelocity automationEditorLayoutNoteVelocity{};
 
-// relative velocity scaling
-// When a press edits several notes at once, the highest velocity note goes to the velocity of the pad pressed and the
-// others are scaled with it so they keep the same ratio to it. Squares with several notes are drawn up to their
-// highest velocity, so the column ends up at the pressed pad.
+using namespace velocity_edit;
 
-namespace {
-int32_t scaleVelocity(int32_t velocity, float scale) {
-	return std::clamp<int32_t>(static_cast<int32_t>(std::lround(static_cast<float>(velocity) * scale)), 1, 127);
+int32_t velocity_edit::getVelocityFromY(int32_t y) {
+	return std::clamp<int32_t>(padPressValues[y], 1, 127);
 }
 
-/// the scale which puts the highest velocity note (maxVelocity) exactly on targetVelocity. Every other note is scaled
-/// by the same amount so they keep their ratio to it
-float getRelativeVelocityScale(int32_t maxVelocity, int32_t targetVelocity) {
-	return maxVelocity ? static_cast<float>(targetVelocity) / static_cast<float>(maxVelocity) : 1.f;
+bool velocity_edit::velocityReachesY(int32_t velocity, int32_t y) {
+	return velocity >= minPadDisplayValues[y];
 }
-
-/// fn(note) for every note of noteRow starting in [startPos, endPos)
-template <typename F>
-void forNotesInRange(NoteRow* noteRow, int32_t startPos, int32_t endPos, F&& fn) {
-	int32_t noteI = noteRow->notes.search(startPos, GREATER_OR_EQUAL);
-	for (Note* note = noteRow->notes.getElement(noteI); note && note->pos < endPos;
-	     note = noteRow->notes.getElement(++noteI)) {
-		fn(note);
-	}
-}
-
-/// fn(x, velocity) for each step between leftX and rightX that isStep(x) accepts, with the velocity interpolated
-/// linearly from leftVelocity on the first step to rightVelocity on the last
-template <typename IsStep, typename F>
-void forEachRampStep(int32_t leftX, int32_t rightX, int32_t leftVelocity, int32_t rightVelocity, IsStep&& isStep,
-                     F&& fn) {
-	int32_t steps[kDisplayWidth];
-	int32_t numSteps = 0;
-	for (int32_t x = leftX; x <= rightX; x++) {
-		if (isStep(x)) {
-			steps[numSteps++] = x;
-		}
-	}
-	for (int32_t step = 0; step < numSteps; step++) {
-		int32_t velocity = leftVelocity;
-		if (numSteps > 1) {
-			float fraction = static_cast<float>(step) / static_cast<float>(numSteps - 1);
-			velocity += static_cast<int32_t>(std::round((rightVelocity - leftVelocity) * fraction));
-		}
-		fn(steps[step], std::clamp<int32_t>(velocity, 1, 127));
-	}
-}
-
-/// scale the velocities of the notes in [startPos, endPos) of one note row so the highest one becomes
-/// targetVelocity. Calls onNoteChanged(note) for each note after changing it.
-template <typename F>
-void setRelativeVelocity(NoteRow* noteRow, ModelStackWithNoteRow* modelStackWithNoteRow, Action* action,
-                         int32_t startPos, int32_t endPos, int32_t targetVelocity, F&& onNoteChanged) {
-	int32_t maxVelocity = 0;
-	forNotesInRange(noteRow, startPos, endPos,
-	                [&](Note* note) { maxVelocity = std::max<int32_t>(maxVelocity, note->getVelocity()); });
-	float scale = getRelativeVelocityScale(maxVelocity, targetVelocity);
-
-	forNotesInRange(noteRow, startPos, endPos, [&](Note* note) {
-		noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
-		                                     scaleVelocity(note->getVelocity(), scale));
-		onNoteChanged(note);
-	});
-}
-} // namespace
 
 /// render each square in each column of the note editor grid
 void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow,
@@ -151,7 +93,7 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 	}
 	else {
 		// render square
-		if (value >= minPadDisplayValues[yDisplay]) {
+		if (velocityReachesY(value, yDisplay)) {
 			doRender = true;
 			if (squareType == SQUARE_NOTE_HEAD) {
 				pixel = velocityRowColour[yDisplay];
@@ -248,7 +190,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 
 					// get note info on all the squares in the note row
 					noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
-					setupVelocityRamp(firstPadX, rowSquareInfo[firstPadX].maxVelocity, x, y);
+					ramp.setup(firstPadX, rowSquareInfo[firstPadX].maxVelocity, x, y);
 
 					// update multi pad press selection indicator
 					getMultiPadPressSelected() = true;
@@ -302,7 +244,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 		uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
 		// if holding a multi pad press, render left and right velocity of the multi pad press
 		if (getMultiPadPressActive()) {
-			renderRampDisplay(x);
+			ramp.renderValues(x);
 		}
 		else {
 			if (velocity) {
@@ -313,22 +255,6 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 			}
 		}
 	}
-}
-
-// convert y of pad press into velocity value between 1 and 127
-int32_t AutomationEditorLayoutNoteVelocity::getVelocityFromY(int32_t y) {
-	int32_t velocity = std::clamp<int32_t>(padPressValues[y], 1, 127);
-	return velocity;
-}
-
-// convert velocity of a square into y
-int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
-	for (int32_t i = 0; i < kDisplayHeight; i++) {
-		if (minPadDisplayValues[i] <= velocity && velocity <= maxPadDisplayValues[i]) {
-			return i;
-		}
-	}
-	return kNoSelection;
 }
 
 // add note and set velocity
@@ -390,12 +316,12 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 
 				int32_t intendedPos = instrumentClipView.editPadPresses[i].intendedPos;
 				int32_t intendedEndPos = intendedPos + instrumentClipView.editPadPresses[i].intendedLength;
-				setRelativeVelocity(noteRow, modelStackWithNoteRow, action, intendedPos, intendedEndPos, newVelocity,
-				                    [&](Note* note) {
-					                    instrumentClipView.updateVelocityValue(velocityValue, note->getVelocity());
-					                    numNotesThisSquare++;
-					                    velocitySumThisSquare += note->getVelocity();
-				                    });
+				setRelativeVelocity(action, modelStackWithNoteRow, intendedPos, intendedEndPos, newVelocity);
+				forNotesInRange(noteRow, intendedPos, intendedEndPos, [&](Note* note) {
+					instrumentClipView.updateVelocityValue(velocityValue, note->getVelocity());
+					numNotesThisSquare++;
+					velocitySumThisSquare += note->getVelocity();
+				});
 
 				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I
 				// didn't
@@ -436,318 +362,12 @@ void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* 
 		return;
 	}
 
-	forEachRampStep(
-	    getLeftPadSelectedX(), getRightPadSelectedX(), rampLeftVelocity, rampRightVelocity,
+	ramp.forEachStep(
 	    [&](int32_t x) { return rowSquareInfo[x].numNotes != 0 && rowSquareInfo[x].squareType != SQUARE_NOTE_TAIL; },
 	    [&](int32_t x, int32_t velocity) {
-		    setRelativeVelocity(noteRow, modelStackWithNoteRow, action, rowSquareInfo[x].squareStartPos,
-		                        rowSquareInfo[x].squareEndPos, velocity, [](Note*) {});
+		    setRelativeVelocity(action, modelStackWithNoteRow, rowSquareInfo[x].squareStartPos,
+		                        rowSquareInfo[x].squareEndPos, velocity);
 	    });
-}
-
-/// set up a ramp between an existing press at firstX and a new press at (x, y). The first press keeps its current
-/// velocity (firstVelocity) and the new press sets the other end. The ramp is stored as if it was entered left to
-/// right.
-void AutomationEditorLayoutNoteVelocity::setupVelocityRamp(int32_t firstX, int32_t firstVelocity, int32_t x,
-                                                           int32_t y) {
-	int32_t newVelocity = getVelocityFromY(y);
-	bool firstIsLeft = firstX < x;
-	getLeftPadSelectedX() = firstIsLeft ? firstX : x;
-	getRightPadSelectedX() = firstIsLeft ? x : firstX;
-	rampLeftVelocity = firstIsLeft ? firstVelocity : newVelocity;
-	rampRightVelocity = firstIsLeft ? newVelocity : firstVelocity;
-	getLeftPadSelectedY() = getYFromVelocity(rampLeftVelocity);
-	getRightPadSelectedY() = getYFromVelocity(rampRightVelocity);
-}
-
-/// show the velocity at both ends of the ramp, or on 7seg the end at the pad pressed last
-void AutomationEditorLayoutNoteVelocity::renderRampDisplay(int32_t x) {
-	if (display->haveOLED()) {
-		renderDisplay(rampLeftVelocity, rampRightVelocity);
-	}
-	else {
-		renderDisplay(getLeftPadSelectedX() == x ? rampLeftVelocity : rampRightVelocity);
-	}
-}
-
-// ---- folded velocity editor ----
-// In the folded velocity editor every note row in the clip is shown in one velocity lane, so a pad press edits all
-// notes that start on a step regardless of which row they are in.
-
-namespace {
-/// fn(modelStackWithNoteRow, noteRow, noteRowIndex) for every note row in the clip that has notes
-template <typename F>
-void forEachNoteRow(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack, F&& fn) {
-	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-		NoteRow* noteRow = clip->noteRows.getElement(i);
-		if (!noteRow->notes.getNumElements()) {
-			continue;
-		}
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(clip->getNoteRowId(noteRow, i), noteRow);
-		fn(modelStackWithNoteRow, noteRow, i);
-	}
-}
-
-/// fn(modelStackWithNoteRow, noteRow, note) for every note starting in [startPos, endPos) in every note row
-template <typename F>
-void forEachFoldedNote(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack, int32_t startPos,
-                       int32_t endPos, F&& fn) {
-	forEachNoteRow(clip, modelStack, [&](ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t) {
-		if (startPos < modelStackWithNoteRow->getLoopLength()) {
-			forNotesInRange(noteRow, startPos, endPos, [&](Note* note) { fn(modelStackWithNoteRow, noteRow, note); });
-		}
-	});
-}
-
-/// the highest velocity of the notes starting on each step in any note row, or 0 if no note starts there.
-/// Only steps with notes starting on them can be edited.
-void getFoldedStepVelocities(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack,
-                             int32_t stepVelocity[kDisplayWidth]) {
-	std::fill(stepVelocity, stepVelocity + kDisplayWidth, 0);
-	SquareInfo noteRowSquareInfo[kDisplayWidth];
-	forEachNoteRow(clip, modelStack, [&](ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t) {
-		noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), noteRowSquareInfo);
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			uint8_t type = noteRowSquareInfo[x].squareType;
-			if (type == SQUARE_NOTE_HEAD || type == SQUARE_BLURRED) {
-				stepVelocity[x] = std::max(stepVelocity[x], noteRowSquareInfo[x].maxVelocity);
-			}
-		}
-	});
-}
-
-int32_t getStepStartPos(int32_t x) {
-	return instrumentClipView.getPosFromSquare(x);
-}
-} // namespace
-
-/// render the folded velocity editor, where every note row is drawn in its own colour (the same colour it has in the
-/// clip view). Each row draws a bar up to its velocity on that step; where bars overlap, the shorter bar wins, so each
-/// row shows as a band between its velocity and the next lower row's. Rows with notes starting on a step hide rows
-/// that only have a tail there.
-void AutomationEditorLayoutNoteVelocity::renderFoldedNoteEditor(
-    InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack, RGB image[][kDisplayWidth + kSideBarWidth],
-    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	constexpr int16_t kNoVelocity = 1000;
-	int16_t bestVelocity[kDisplayWidth][kDisplayHeight];
-	RGB bestColour[kDisplayWidth][kDisplayHeight];
-	bool anyHead[kDisplayWidth] = {};
-	for (auto& column : bestVelocity) {
-		std::fill(std::begin(column), std::end(column), kNoVelocity);
-	}
-
-	bool isKit = clip->output->type == OutputType::KIT;
-	SquareInfo noteRowSquareInfo[kDisplayWidth];
-
-	forEachNoteRow(clip, modelStack, [&](ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t i) {
-		noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), noteRowSquareInfo);
-
-		// same colours as the clip view (see InstrumentClip::renderAsSingleRow)
-		RGB mainColour = clip->getMainColourFromY(isKit ? i : noteRow->y, noteRow->getColourOffset(clip));
-		RGB tailColour = mainColour.forTail();
-		RGB blurColour = mainColour.forBlur();
-
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			SquareInfo& square = noteRowSquareInfo[x];
-			if (square.squareType == SQUARE_NO_NOTE) {
-				continue;
-			}
-			bool isTail = square.squareType == SQUARE_NOTE_TAIL;
-			if (isTail && anyHead[x]) {
-				continue;
-			}
-			// the first note starting on this step replaces any tails drawn so far
-			if (!isTail && !anyHead[x]) {
-				anyHead[x] = true;
-				std::fill(std::begin(bestVelocity[x]), std::end(bestVelocity[x]), kNoVelocity);
-			}
-			const RGB& colour = isTail ? tailColour : (square.squareType == SQUARE_NOTE_HEAD) ? mainColour : blurColour;
-			for (int32_t y = 0; y < kDisplayHeight && square.maxVelocity >= minPadDisplayValues[y]; y++) {
-				if (square.maxVelocity < bestVelocity[x][y]) {
-					bestVelocity[x][y] = static_cast<int16_t>(square.maxVelocity);
-					bestColour[x][y] = colour;
-				}
-			}
-		}
-	});
-
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (bestVelocity[x][y] == kNoVelocity) {
-				image[y][x] = colours::black;
-			}
-			else {
-				image[y][x] = bestColour[x][y];
-				occupancyMask[y][x] = 64;
-			}
-		}
-	}
-}
-
-/// scale every note starting in [startPos, endPos) in every note row so the highest one (maxVelocity) becomes
-/// targetVelocity
-void AutomationEditorLayoutNoteVelocity::setFoldedStepVelocity(ModelStackWithTimelineCounter* modelStack,
-                                                               InstrumentClip* clip, Action* action, int32_t startPos,
-                                                               int32_t endPos, int32_t maxVelocity,
-                                                               int32_t targetVelocity) {
-	float scale = getRelativeVelocityScale(maxVelocity, targetVelocity);
-	forEachFoldedNote(clip, modelStack, startPos, endPos,
-	                  [&](ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, Note* note) {
-		                  noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-		                                                       CORRESPONDING_NOTES_SET_VELOCITY,
-		                                                       scaleVelocity(note->getVelocity(), scale));
-	                  });
-}
-
-/// add offset to every note starting in [startPos, endPos) in every note row.
-/// returns the highest velocity of the changed notes, or 0 if there were none
-int32_t AutomationEditorLayoutNoteVelocity::adjustFoldedStepVelocity(ModelStackWithTimelineCounter* modelStack,
-                                                                     InstrumentClip* clip, Action* action,
-                                                                     int32_t startPos, int32_t endPos, int32_t offset) {
-	int32_t maxVelocity = 0;
-	forEachFoldedNote(clip, modelStack, startPos, endPos,
-	                  [&](ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, Note* note) {
-		                  noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-		                                                       CORRESPONDING_NOTES_ADJUST_VELOCITY, offset);
-		                  maxVelocity = std::max<int32_t>(maxVelocity, note->getVelocity());
-	                  });
-	return maxVelocity;
-}
-
-void AutomationEditorLayoutNoteVelocity::endFoldedPadPresses() {
-	for (auto& press : foldedPadPresses) {
-		press.isActive = false;
-	}
-	if (numFoldedPadPresses) {
-		numFoldedPadPresses = 0;
-		actionLogger.closeAction(ActionType::NOTE_EDIT);
-	}
-	getMultiPadPressActive() = false;
-}
-
-// folded velocity edit pad action
-// 1) single press: set the velocity of every note starting on that step
-// 2) two presses in one column: set the velocity to the middle of the two pads
-// 3) two presses in different columns: ramp the velocity of every step between them
-// empty steps are left alone because there is no single row to add a note to
-void AutomationEditorLayoutNoteVelocity::foldedVelocityEditPadAction(ModelStackWithTimelineCounter* modelStack,
-                                                                     InstrumentClip* clip, int32_t x, int32_t y,
-                                                                     int32_t velocity) {
-	// release
-	if (!velocity) {
-		for (auto& press : foldedPadPresses) {
-			if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
-				if (numFoldedPadPresses == 1) {
-					endFoldedPadPresses();
-					renderDisplay();
-				}
-				else {
-					press.isActive = false;
-					numFoldedPadPresses--;
-				}
-				break;
-			}
-		}
-		return;
-	}
-
-	int32_t stepVelocity[kDisplayWidth];
-	getFoldedStepVelocities(clip, modelStack, stepVelocity);
-
-	// only steps with notes starting on them can be edited
-	if (!stepVelocity[x]) {
-		return;
-	}
-
-	// find a previous press to combine with before registering this one
-	FoldedPadPress* firstPress = nullptr;
-	if (numFoldedPadPresses == 1) {
-		for (auto& press : foldedPadPresses) {
-			if (press.isActive) {
-				firstPress = &press;
-				break;
-			}
-		}
-	}
-
-	FoldedPadPress* newPress = nullptr;
-	for (auto& press : foldedPadPresses) {
-		if (!press.isActive) {
-			newPress = &press;
-			break;
-		}
-	}
-	if (!newPress) {
-		return;
-	}
-	*newPress = {true, x, y, getStepStartPos(x), getStepStartPos(x + 1)};
-	numFoldedPadPresses++;
-
-	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-	if (!action) {
-		return;
-	}
-
-	getMiddlePadPressSelected() = false;
-	getMultiPadPressSelected() = false;
-	getLeftPadSelectedX() = x;
-
-	int32_t newVelocity = getVelocityFromY(y);
-
-	// two presses in the same column: middle velocity
-	if (firstPress && firstPress->xDisplay == x) {
-		newVelocity = (newVelocity + getVelocityFromY(firstPress->yDisplay)) / 2;
-		getMiddlePadPressSelected() = true;
-	}
-	// two presses in different columns: ramp
-	else if (firstPress) {
-		setupVelocityRamp(firstPress->xDisplay, stepVelocity[firstPress->xDisplay], x, y);
-		forEachRampStep(
-		    getLeftPadSelectedX(), getRightPadSelectedX(), rampLeftVelocity, rampRightVelocity,
-		    [&](int32_t i) { return stepVelocity[i] > 0; },
-		    [&](int32_t i, int32_t rampVelocity) {
-			    setFoldedStepVelocity(modelStack, clip, action, getStepStartPos(i), getStepStartPos(i + 1),
-			                          stepVelocity[i], rampVelocity);
-		    });
-
-		getMultiPadPressSelected() = true;
-		getMultiPadPressActive() = true;
-		uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
-		renderRampDisplay(x);
-		return;
-	}
-
-	setFoldedStepVelocity(modelStack, clip, action, getStepStartPos(x), getStepStartPos(x + 1), stepVelocity[x],
-	                      newVelocity);
-	uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
-	renderDisplay(newVelocity);
-}
-
-/// fine tune the velocity of every note on the held steps with the horizontal encoder
-bool AutomationEditorLayoutNoteVelocity::foldedAdjustHeldVelocity(ModelStackWithTimelineCounter* modelStack,
-                                                                  InstrumentClip* clip, int32_t offset) {
-	if (!numFoldedPadPresses) {
-		return false;
-	}
-	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-	if (!action) {
-		return true;
-	}
-	int32_t displayVelocity = 0;
-	for (auto& press : foldedPadPresses) {
-		if (press.isActive) {
-			int32_t highest = adjustFoldedStepVelocity(modelStack, clip, action, press.startPos, press.endPos, offset);
-			if (highest) {
-				displayVelocity = highest;
-			}
-		}
-	}
-	getMultiPadPressActive() = false;
-	uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
-	if (displayVelocity) {
-		renderDisplay(displayVelocity);
-	}
-	return true;
 }
 
 // }; // namespace deluge::gui::views::automation::editor_layout::note

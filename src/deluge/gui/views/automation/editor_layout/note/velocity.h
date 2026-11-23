@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/views/automation/editor_layout/note.h"
+#include "gui/views/automation/editor_layout/note/velocity_fold.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
@@ -29,19 +30,10 @@ public:
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 
-	// folded velocity editor: every note row in the clip is shown and edited together
-	void foldedVelocityEditPadAction(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t x,
-	                                 int32_t y, int32_t velocity);
-	bool foldedAdjustHeldVelocity(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t offset);
-	void endFoldedPadPresses();
-	bool anyFoldedPadPresses() const { return numFoldedPadPresses > 0; }
-	static void renderFoldedNoteEditor(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack,
-	                                   RGB image[][kDisplayWidth + kSideBarWidth],
-	                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	// folded velocity editor, toggled with affect entire
+	VelocityFold fold;
 
 private:
-	int32_t getVelocityFromY(int32_t y);
-	int32_t getYFromVelocity(int32_t velocity);
 	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
 	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
 	                        int32_t newVelocity, uint8_t squareType);
@@ -49,26 +41,7 @@ private:
 	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
 	                     SquareInfo rowSquareInfo[kDisplayWidth]);
 
-	// ramp between two presses in different columns, shared by the folded and unfolded editors
-	void setupVelocityRamp(int32_t firstX, int32_t firstVelocity, int32_t x, int32_t y);
-	void renderRampDisplay(int32_t x);
-	int32_t rampLeftVelocity{0};
-	int32_t rampRightVelocity{0};
-
-	struct FoldedPadPress {
-		bool isActive;
-		int32_t xDisplay;
-		int32_t yDisplay;
-		int32_t startPos;
-		int32_t endPos;
-	};
-	FoldedPadPress foldedPadPresses[kEditPadPressBufferSize]{};
-	int32_t numFoldedPadPresses{0};
-
-	void setFoldedStepVelocity(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Action* action,
-	                           int32_t startPos, int32_t endPos, int32_t maxVelocity, int32_t targetVelocity);
-	int32_t adjustFoldedStepVelocity(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Action* action,
-	                                 int32_t startPos, int32_t endPos, int32_t offset);
+	velocity_edit::Ramp ramp;
 
 public:
 	// Automation View Render Functions

@@ -96,7 +96,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 
 // name of the note row being edited, or "All notes" / "All drums" when the editor is folded
 std::string AutomationEditorLayoutNote::getSelectedNoteRowName(InstrumentClip* clip, bool isKit) {
-	if (automationView.inFoldedNoteEditor()) {
+	if (automationEditorLayoutNoteVelocity.fold.isFolded()) {
 		return deluge::l10n::get(isKit ? deluge::l10n::String::STRING_FOR_ALL_DRUMS
 		                               : deluge::l10n::String::STRING_FOR_ALL_NOTES);
 	}
