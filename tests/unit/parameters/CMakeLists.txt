@@ -1,4 +1,5 @@
 add_executable(ParameterTests ../RunAllTests.cpp auto_param_tests.cpp mocks/memory.cpp
+  ../../32bit_unit_tests/container/lazy_param_node_vector.cpp
   ../../../src/deluge/util/d_stringbuf.cpp
   ../../../src/deluge/processing/engines/voice_culling.cpp
   ../../../src/deluge/util/container/list/bidirectional_linked_list.cpp
