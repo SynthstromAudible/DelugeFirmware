@@ -21,6 +21,7 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeSampleGeometry", "deluge_storage_sample_source::geometry::Geometry"),
     ("DelugeSampleRegion", "deluge_storage_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_storage_stream::DelugeSampleStreamGeometry"),
+    ("DelugeResourceStats", "deluge_storage_resource::manager::Stats"),
 ];
 
 /// Enums, likewise. `sys_layout` generates each as a Rust enum, so `abi_layout!` can match on its

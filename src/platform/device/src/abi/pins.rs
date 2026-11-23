@@ -43,14 +43,16 @@ abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
 
 abi_pin!(in deluge_storage_resource::manager: deluge_debug_now_frames);
 abi_pin!(in deluge_storage_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
-abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager);
+abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager, deluge_resource_try_acquire,
+    deluge_resource_release, deluge_resource_mark_ready);
 abi_pin!(in deluge_storage_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
 abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
     deluge_streaming_signal_fill);
 abi_pin!(in deluge_storage_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
 abi_pin!(in deluge_storage_sample_source::manager_residency: deluge_streaming_signal_fill);
 abi_pin!(in deluge_storage_stream: deluge_efatfs_open, deluge_efatfs_open_at, deluge_efatfs_close,
-    deluge_efatfs_read_at, deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
+    deluge_efatfs_read_at, deluge_streaming_resource_manager, deluge_streaming_set_fill_context,
+    deluge_resource_release_asset);
 
 // --- The copies of header typedefs ---
 
@@ -95,6 +97,12 @@ abi_layout!(enum deluge_storage_sample_source::abi::DelugeRegionState => DelugeR
     Ready = DELUGE_REGION_READY, Loading = DELUGE_REGION_LOADING, Unavailable = DELUGE_REGION_UNAVAILABLE });
 abi_layout!(deluge_storage_sample_source::abi::DelugeSampleRegion => DelugeSampleRegion { payload_base, region_index,
     resident_bytes, lease });
+
+abi_layout!(deluge_storage_resource::manager::Stats => DelugeResourceStats { acquires, acquire_hits, requests,
+    materializes, evictions, alloc_failures, adopts, evictions_by_cost, scan_resident_calls, scan_resident_slots,
+    scan_ptr_calls, scan_ptr_slots, scan_free_calls, scan_free_slots, scan_evict_calls, scan_evict_slots,
+    loader_depth_polls, loader_depth_total, loader_depth_max, queue_wait_samples, queue_wait_total, queue_wait_max,
+    fill_samples, fill_total, fill_max, queue_wait_buckets, fill_buckets });
 
 abi_layout!(deluge_storage_stream::DelugeSampleStreamGeometry => DelugeSampleStreamGeometry {
     audio_data_start_pos_bytes, audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size,

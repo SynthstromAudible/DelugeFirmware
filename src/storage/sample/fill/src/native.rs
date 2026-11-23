@@ -19,9 +19,9 @@ unsafe extern "C" {
     ) -> bool;
     // `try_acquire` returns a chunk only if it is resident and ready, taking a hard lease on it
     // atomically so it cannot be evicted mid-stitch; `release` drops the lease.
-    fn deluge_resource_try_acquire(mgr: *mut c_void, asset: u32, index: u32) -> *mut u8;
-    fn deluge_resource_release(mgr: *mut c_void, ptr: *mut u8);
-    fn deluge_resource_mark_ready(mgr: *mut c_void, ptr: *mut c_void);
+    pub fn deluge_resource_try_acquire(mgr: *mut c_void, asset: u32, index: u32) -> *mut c_void;
+    pub fn deluge_resource_release(mgr: *mut c_void, ptr: *mut c_void);
+    pub fn deluge_resource_mark_ready(mgr: *mut c_void, ptr: *mut c_void);
 }
 
 /// The descriptor for a chunk whose identity, fill context or geometry cannot be resolved.
@@ -152,44 +152,40 @@ pub unsafe fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
     // Gather each neighbour with `try_acquire`, which checks resident-and-ready and leases in one
     // step, so eviction cannot race a separate check. The leases pin the neighbours' payloads only
     // until the stitch is done.
-    let mut prev_lease: Option<*mut u8> = None;
+    let mut prev_lease: Option<*mut c_void> = None;
     let mut prev_state = crate::fill_logic::ConvertState::default();
     if let Some(prev_index) = index.checked_sub(1) {
         // SAFETY: `mgr` is the live manager; the rest is a plain lookup.
         let p = unsafe { deluge_resource_try_acquire(mgr, asset, prev_index) };
         if !p.is_null() {
             // SAFETY: `try_acquire` just leased `p` and found it resident.
-            prev_state = to_logic_state(unsafe { crate::chunk::convert_state(p as *mut c_void) });
+            prev_state = to_logic_state(unsafe { crate::chunk::convert_state(p) });
             prev_lease = Some(p);
         }
     }
     let prev_view = prev_lease.map(|p| crate::fill_logic::NeighbourView {
         // SAFETY: `p` is a leased, resident chunk backing; its payload buffer holds
         // `cluster_size + 7` bytes, matching `payload_len`.
-        payload: unsafe {
-            core::slice::from_raw_parts_mut(crate::chunk::payload(p as *mut c_void), payload_len)
-        },
+        payload: unsafe { core::slice::from_raw_parts_mut(crate::chunk::payload(p), payload_len) },
         unconverted_head: &prev_state.first_three_bytes,
         start_converted: &mut prev_state.start_converted,
         end_converted: &mut prev_state.end_converted,
     });
 
-    let mut next_lease: Option<*mut u8> = None;
+    let mut next_lease: Option<*mut c_void> = None;
     let mut next_state = crate::fill_logic::ConvertState::default();
     if let Some(next_index) = index.checked_add(1) {
         // SAFETY: `mgr` is the live manager; the rest is a plain lookup.
         let p = unsafe { deluge_resource_try_acquire(mgr, asset, next_index) };
         if !p.is_null() {
             // SAFETY: `try_acquire` just leased `p` and found it resident.
-            next_state = to_logic_state(unsafe { crate::chunk::convert_state(p as *mut c_void) });
+            next_state = to_logic_state(unsafe { crate::chunk::convert_state(p) });
             next_lease = Some(p);
         }
     }
     let next_view = next_lease.map(|p| crate::fill_logic::NeighbourView {
         // SAFETY: same as the prev branch above.
-        payload: unsafe {
-            core::slice::from_raw_parts_mut(crate::chunk::payload(p as *mut c_void), payload_len)
-        },
+        payload: unsafe { core::slice::from_raw_parts_mut(crate::chunk::payload(p), payload_len) },
         unconverted_head: &next_state.first_three_bytes,
         start_converted: &mut next_state.start_converted,
         end_converted: &mut next_state.end_converted,
@@ -209,13 +205,13 @@ pub unsafe fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
     unsafe { crate::chunk::set_convert_state(chunk_backing, from_logic_state(self_state)) };
     if let Some(p) = prev_lease {
         // SAFETY: `p` is still leased and resident.
-        unsafe { crate::chunk::set_convert_state(p as *mut c_void, from_logic_state(prev_state)) };
+        unsafe { crate::chunk::set_convert_state(p, from_logic_state(prev_state)) };
         // SAFETY: `p` is leased by this call and released exactly once.
         unsafe { deluge_resource_release(mgr, p) };
     }
     if let Some(p) = next_lease {
         // SAFETY: same as the prev write-back above.
-        unsafe { crate::chunk::set_convert_state(p as *mut c_void, from_logic_state(next_state)) };
+        unsafe { crate::chunk::set_convert_state(p, from_logic_state(next_state)) };
         // SAFETY: same as the prev release above.
         unsafe { deluge_resource_release(mgr, p) };
     }

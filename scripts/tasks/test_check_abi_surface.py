@@ -84,7 +84,6 @@ REPO = CHECKER.parent.parent
 CMAKE_LIST = "cmake/deluge_crate_includes.cmake"
 BINDGEN = "src/platform/device/build/bindgen.rs"
 WRAPPER = "src/platform/device/wrapper.h"
-UNBOUND_CRATE_DIR = "src/storage/resource/include"
 
 
 def crate_include_dirs_on_disk(root: Path) -> set[str]:
@@ -106,7 +105,7 @@ def crate_header_names_on_disk(root: Path) -> set[str]:
 
 def crate_list_problems(root: Path) -> list[str]:
     """What disagrees among the crate-header lists, as messages naming each missing or extra entry: the CMake list,
-    bindgen's `CRATE_INCLUDE_DIRS` plus the resource dir, wrapper.h's includes, and the headers on disk."""
+    bindgen's `CRATE_INCLUDE_DIRS`, wrapper.h's includes, and the headers on disk."""
     disk = crate_include_dirs_on_disk(root)
     cmake = set(
         re.findall(
@@ -122,7 +121,6 @@ def crate_list_problems(root: Path) -> list[str]:
             r'^#include "(deluge_[^"]+\.h)"', (root / WRAPPER).read_text(), re.MULTILINE
         )
     )
-    wrapper_expected = crate_header_names_on_disk(root) - {"deluge_storage_resource.h"}
 
     problems = []
 
@@ -133,18 +131,8 @@ def crate_list_problems(root: Path) -> list[str]:
             problems.append(f"{name} has {entry}, which is not in {against}")
 
     compare(CMAKE_LIST, cmake, disk, "the src/**/include/deluge_*.h dirs")
-    compare(
-        "CRATE_INCLUDE_DIRS + the resource dir",
-        bindgen | {UNBOUND_CRATE_DIR},
-        disk,
-        "the src/**/include/deluge_*.h dirs",
-    )
-    compare(
-        WRAPPER,
-        wrapper,
-        wrapper_expected,
-        "the crate headers except deluge_storage_resource.h",
-    )
+    compare("CRATE_INCLUDE_DIRS", bindgen, disk, "the src/**/include/deluge_*.h dirs")
+    compare(WRAPPER, wrapper, crate_header_names_on_disk(root), "the crate headers")
     return problems
 
 
@@ -192,22 +180,36 @@ class CrateHeaderLists(unittest.TestCase):
         self.assertEqual(
             [
                 (
-                    "CRATE_INCLUDE_DIRS + the resource dir is missing src/storage/stream/include "
+                    "CRATE_INCLUDE_DIRS is missing src/storage/stream/include "
                     "(the src/**/include/deluge_*.h dirs)"
                 )
             ],
             crate_list_problems(root),
         )
 
-    def test_a_header_missing_from_the_wrapper_is_named(self):
-        root = self.copy_with(WRAPPER, '#include "deluge_storage_stream.h"\n', "")
+    def test_the_resource_dir_missing_from_bindgen_is_named(self):
+        root = self.copy_with(BINDGEN, '    "src/storage/resource/include",\n', "")
         self.assertEqual(
             [
                 (
-                    f"{WRAPPER} is missing deluge_storage_stream.h "
-                    "(the crate headers except deluge_storage_resource.h)"
+                    "CRATE_INCLUDE_DIRS is missing src/storage/resource/include "
+                    "(the src/**/include/deluge_*.h dirs)"
                 )
             ],
+            crate_list_problems(root),
+        )
+
+    def test_the_resource_header_missing_from_the_wrapper_is_named(self):
+        root = self.copy_with(WRAPPER, '#include "deluge_storage_resource.h"\n', "")
+        self.assertEqual(
+            [(f"{WRAPPER} is missing deluge_storage_resource.h (the crate headers)")],
+            crate_list_problems(root),
+        )
+
+    def test_a_header_missing_from_the_wrapper_is_named(self):
+        root = self.copy_with(WRAPPER, '#include "deluge_storage_stream.h"\n', "")
+        self.assertEqual(
+            [(f"{WRAPPER} is missing deluge_storage_stream.h (the crate headers)")],
             crate_list_problems(root),
         )
 
@@ -215,13 +217,13 @@ class CrateHeaderLists(unittest.TestCase):
         root = self.copy_with(
             WRAPPER,
             '#include "deluge_storage_stream.h"\n',
-            '#include "deluge_storage_stream.h"\n#include "deluge_storage_resource.h"\n',
+            '#include "deluge_storage_stream.h"\n#include "deluge_storage_extra.h"\n',
         )
         self.assertEqual(
             [
                 (
-                    f"{WRAPPER} has deluge_storage_resource.h, which is not in "
-                    "the crate headers except deluge_storage_resource.h"
+                    f"{WRAPPER} has deluge_storage_extra.h, which is not in "
+                    "the crate headers"
                 )
             ],
             crate_list_problems(root),

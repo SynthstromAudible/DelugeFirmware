@@ -273,6 +273,14 @@ mod prod {
         fn deluge_resource_loader_release_owned(mgr: *mut c_void, slot: u32) -> bool;
     }
 
+    abi_pin!(
+        deluge_resource_loader_next,
+        deluge_resource_loader_enqueue,
+        deluge_resource_slot_of,
+        deluge_resource_external_lease_count_by_slot,
+        deluge_resource_loader_release_owned,
+    );
+
     /// The production [`FillOps`]: the resource manager's loader queue and the efatfs streaming
     /// read.
     ///
@@ -435,6 +443,9 @@ async fn streaming_fill_task_body() {
 }
 
 abi_pin!(
+    deluge_resource_slot_of,
+    deluge_resource_loader_enqueue_owned,
+    deluge_resource_loader_has_any,
     deluge_streaming_queue_drained,
     deluge_streaming_request_chunk,
     deluge_streaming_request_drain,
