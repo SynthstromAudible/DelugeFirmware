@@ -75,7 +75,7 @@ DelugeHandle deluge_sample_stream_open(const char* path, bool* out_table_full) D
 DelugeHandle deluge_sample_stream_open_at(const DelugeFileLocation* location, bool* out_table_full) DELUGE_NOEXCEPT;
 
 /// @brief Release @p handle's slot: close its efatfs handle (if any) and release its
-///        resource-manager asset (if one was ever assigned). [task]
+///        resource-manager asset (if one was ever assigned). [task] [audio]
 ///
 /// Idempotent — a no-op on @ref DELUGE_HANDLE_NONE or an already-closed handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open, or @ref DELUGE_HANDLE_NONE.
