@@ -50,6 +50,15 @@ an audio clip's fine tune renders as recorded, and differs from the clip untuned
 their defaults, beside RS_STREAM's two synths, compared with its record in tests/golden/render/songs.json; its dry twin
 plays the clip untuned and must render differently (RS-FX), so the clip's cents reach the render
 
+## render-audio-stretch
+
+audio clips stretched to the song's tempo render as recorded, and differ from the clips at their native tempo: a
+generated song (tests/golden/render/songs/make_render_song.py --song RS_AUDIO_STRETCH) of two audio clips alone, pitch
+and speed independent, playing the sample goldens' tone (from a start marker, with a pre-margin) and percussive source
+at 120 BPM, about 11.5% faster than their native tempo, so the time stretcher hops through them in step with the
+song's ticks; compared with its record in tests/golden/render/songs.json; its dry twin plays them at their native
+tempo, where they are not stretched, and must render differently (RS-FX), so the stretch reaches the render
+
 ## render-audio-track-fx
 
 an audio track's effect chain renders as recorded: a generated song (tests/golden/render/songs/make_render_song.py

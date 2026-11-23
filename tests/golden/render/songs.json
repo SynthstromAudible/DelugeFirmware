@@ -83,6 +83,12 @@
   "rms_db": -22.75,
   "sha256": "15509971ae678972d332e758dab40de8eb967f7baff2f0d18d2cedcb3a3a325f"
  },
+ "RS_AUDIO_STRETCH": {
+  "frames": 384000,
+  "peak": 835368448,
+  "rms_db": -18.6,
+  "sha256": "ca44f3a033a4e80be4713b172a21b28f0c3ac535ac81483c88e93230f92ab57a"
+ },
  "RS_BITCRUSH": {
   "frames": 384000,
   "peak": 313873408,

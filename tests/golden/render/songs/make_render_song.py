@@ -28,6 +28,9 @@ on an audio track: the resampled and analog crossings RS_KIT_PINGPONG leaves out
 RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to its maximum and back: its tape heads at
 the fastest and the slowest the rate's range reaches.
 RS_AUDIO_CENTS plays the audio clip 30 cents up beside its dry twin, so an audio clip's fine tune is pinned.
+RS_AUDIO_STRETCH plays two audio clips alone, pitch and speed independent, at a tempo away from their native one, so the
+time stretcher stretches them to the song's ticks: the sample goldens' tone (SAMPLES/RS/TONE.WAV) and percussive source
+(SAMPLES/RS/PERC.WAV). Its dry twin plays them at their native tempo, where they are not stretched.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -74,6 +77,7 @@ RS_MASTER_GRAIN_OFF holds the master's grain in its soft off (its selected knob 
 RS_MASTER_FX's.
 """
 
+import hashlib
 import math
 import re
 import struct
@@ -1171,6 +1175,71 @@ def loud_audio_parts(fx: dict) -> tuple[str, str]:
     return track, clip.replace("SAMPLES/RS/A.WAV", LOUD_SAMPLE)
 
 
+# Two audio clips stretched to the song's tempo: pitch and speed independent, each clip's length in ticks set against
+# its sample's length, so a tempo away from the clips' native one makes the time stretcher hop through them in step
+# with the song's ticks. Their sources are the sample goldens' tone and percussive sources (presets/make_sample.py),
+# read from their committed files; each file's sha256 is checked here, so a changed source fails generation rather
+# than reaching a card cached under this generator's unchanged key.
+STRETCH_SOURCES = {
+    "SAMPLES/RS/TONE.WAV": (
+        "_tone.wav",
+        "e39bf9988e513fe346ca81eeb68e1a8adee200cf1ab4f480cead30e073e895b4",
+    ),
+    "SAMPLES/RS/PERC.WAV": (
+        "_perc.wav",
+        "7750c096031b6f669c2df4924a99513680bb175304b60bd3f98415bf8b16969b",
+    ),
+}
+# Both clips play their sources at their own speed at 256 samples a tick (about 107.7 BPM): the tone from frame 512 to
+# its end (3,584 frames, 14 ticks), so its loops crossfade into the 512 frames before its start marker, and the whole
+# percussive source (32,768 frames, 128 ticks). The song's 120 BPM (229.6875 samples a tick) plays them about 11.5%
+# faster without changing their pitch; the dry twin plays them at their native tempo, where nothing is stretched.
+STRETCH_TRACKS = (
+    ("RSTONE", "SAMPLES/RS/TONE.WAV", 512, 4096, 14),
+    ("RSPERC", "SAMPLES/RS/PERC.WAV", 0, 32768, 128),
+)
+# Each track's volume, low enough that the two clips' sum stays below full scale, so no clipping hides the stretch.
+STRETCH_VOLUME = 'volume="0xC0000000"'
+TEMPO_120 = 'timePerTimerTick="229" timerTickFraction="-1342177280"'
+TEMPO_STRETCH_NATIVE = 'timePerTimerTick="256" timerTickFraction="0"'
+
+
+def stretch_source(path: str) -> bytes:
+    """The committed sample golden source behind card path @p path, refusing one whose bytes have changed."""
+    name, sha256 = STRETCH_SOURCES[path]
+    data = (
+        Path(__file__).resolve().parents[1] / "presets" / "sample" / name
+    ).read_bytes()
+    if hashlib.sha256(data).hexdigest() != sha256:
+        raise ValueError(
+            f"{name} changed: update its sha256 in make_render_song.py's STRETCH_SOURCES"
+        )
+    return data
+
+
+def stretch_song(native: bool) -> str:
+    """The stretched audio clips alone, at 120 BPM, or at their native tempo when @p native."""
+    fx = _host(params=STRETCH_VOLUME)
+    tracks = ""
+    clips = ""
+    for name, path, start, end, ticks in STRETCH_TRACKS:
+        tracks += AUDIO_TRACK.format(**fx).replace('name="RSAUD"', f'name="{name}"')
+        clips += (
+            AUDIO_CLIP.format(
+                frames=end,
+                ticks=ticks,
+                clip_attributes=' pitchSpeedIndependent="1"',
+                params=fx["params"],
+                param_tags=fx["param_tags"],
+            )
+            .replace('trackName="RSAUD"', f'trackName="{name}"')
+            .replace("SAMPLES/RS/A.WAV", path)
+            .replace('startSamplePos="0"', f'startSamplePos="{start}"')
+        )
+    xml = song_xml([], instruments=tracks, clips=clips)
+    return xml.replace(TEMPO_120, TEMPO_STRETCH_NATIVE) if native else xml
+
+
 # A bar at the song's 120 BPM, about 2 s: an arrangement take of RS_ARRANGE_TAKE's clips repeats each of them three
 # times or more within the default render.
 TAKE_TICKS = 384
@@ -1239,6 +1308,8 @@ SONGS = {
     "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
     "RS_AUDIO_CENTS": lambda v: audio_song(v, AUDIO_CENTS),
     "RS_AUDIO_CENTS_DRY": lambda v: audio_song(v, DRY),
+    "RS_AUDIO_STRETCH": lambda v: stretch_song(native=False),
+    "RS_AUDIO_STRETCH_DRY": lambda v: stretch_song(native=True),
     "RS_MASTER_FX": lambda v: master_song(v, FX),
     "RS_MASTER_DRY": lambda v: master_song(v, DRY),
     # RS_MASTER_FX under its own name, rendered in stereo, where the master's pan applies.
@@ -1510,6 +1581,7 @@ SAMPLE_FILES = {
     "SAMPLES/RS/A.WAV": lambda: wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
     "SAMPLES/RS/B.WAV": lambda: wav(sample_frames(2, [138.6, 277.2, 415.8])),
     LOUD_SAMPLE: lambda: wav(loud_sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
+    **{path: lambda path=path: stretch_source(path) for path in STRETCH_SOURCES},
 }
 VOICES = [("RSA", "SAMPLES/RS/A.WAV", 60), ("RSB", "SAMPLES/RS/B.WAV", 64)]
 
@@ -1519,6 +1591,8 @@ def samples_for(name: str) -> list[str]:
     paths = ["SAMPLES/RS/A.WAV", "SAMPLES/RS/B.WAV"]
     if name.startswith("RS_AUDIO_COMP_BLEND"):
         paths.append(LOUD_SAMPLE)
+    if name.startswith("RS_AUDIO_STRETCH"):
+        paths += list(STRETCH_SOURCES)
     return paths
 
 

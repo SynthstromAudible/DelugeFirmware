@@ -899,6 +899,12 @@ gates = "an audio clip's fine tune renders as recorded, and differs from the cli
 env = { RENDER_GENERATED = "RS_AUDIO_CENTS" }
 
 [[harness]]
+name = "render-audio-stretch"
+template = "render-song"
+gates = "audio clips stretched to the song's tempo render as recorded, and differ from the clips at their native tempo"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH" }
+
+[[harness]]
 name = "render-audio-track-fx"
 template = "render-song"
 gates = "an audio track's effect chain renders as recorded"
