@@ -2,7 +2,8 @@
 
 The sample time stretcher is rewritten as new C++23 code: pure DSP components in `src/dsp/fixed/timestretch/`, beside
 `src/dsp/fixed/timestretch/crossfade.h`, and the playback side in `src/synth/sources/sample/`. Its output stays
-bit-identical. This note defines the components and the arithmetic they must keep. The legacy stretcher
+bit-identical. This note defines the components; the arithmetic they must keep, contract by contract, is in
+[time_stretcher_contracts.md](time_stretcher_contracts.md), which also defines the words used here. The legacy stretcher
 (`src/deluge/dsp_legacy/timestretch/time_stretcher.cpp` and the stretcher paths of its five users) appears here only as
 the computation each contract must equal; nothing is moved, split or copied from it.
 
@@ -21,6 +22,10 @@ Words used throughout:
 - **combined**: `(ratio × increment) >> 24`, 64-bit: source frames consumed per output frame, UQ.24.
 - **direction**: +1 forwards, −1 reversed.
 - **head**: a sample reader playing the source from some position at the increment.
+- **pixel**: 128 source frames, the span one byte of the perc analysis describes.
+- **pre-margin**: the waveform before the start marker, in the play direction; a stretcher-made loop crossfades into it.
+- **fudge**: a stretcher an unstretched looping audio clip takes for its last frames before a loop end, only to
+  crossfade into the pre-margin.
 
 ## 1. What the stretcher does
 
@@ -43,7 +48,7 @@ at the increment.
 - The first hop comes 200 output frames into the note, give or take 32 at random.
 - Later hops come every few thousand output frames: the width depends on the ratio through tuned tables (a fine band
   within an octave of 1.0, a coarse band out to two octaves, clamped beyond: `RS_AUDIO_STRETCH`'s RSCLAMP and RSHALT
-  tracks, `sample/ts_pitch_up36` and `_down36`), and the crossfade is a share of the hop plus a fixed part.
+  tracks, stretched at 4.46 and 0.238, `sample/ts_pitch_up36` and `_down36`), and the crossfade is a share of the hop plus a fixed part.
 - The new head's start is moved a few frames, and given a sub-sample phase, so that its waveform lines up with the old
   head's at the crossfade's middle: a search over three moving averages either way.
 - At most three hops run in one audio routine call across all voices; a voice whose hop is due waits, and the more
@@ -75,12 +80,13 @@ every parameter. The live pitch shifter (`src/dsp/fixed/pitch_shift/hop_schedule
 shape, but its arithmetic differs (rounded slope steps, a ring history instead of a file), so these are their own types.
 
 The new files are named in plain text below; none exists yet. The interfaces are sketches: the small value types they
-name without defining (`BlockArgs`, `Markers`, `PercFill`, `Reservation` and the like) are settled when the rewrite is
+name without defining (`Block`, `Markers`, `PercFill`, `Reservation` and the like) are settled when the rewrite is
 planned; the responsibilities, the ownership and the contracts are what this note fixes.
 
 ### 2.1 Hop tuning (DSP)
 
-Home: src/dsp/fixed/timestretch/hop_tuning.h. Pure, constexpr tables, no state.
+Home: src/dsp/fixed/timestretch/hop_tuning.h. Pure, constexpr tables, no state. The tables are the legacy
+`getHopParams`' values, kept as they are: they are the behaviour (tuned by ear), and every hop depends on them.
 
 ```cpp
 namespace deluge::dsp::fixed::timestretch {
@@ -190,8 +196,8 @@ struct HeadGains { Q<31> newer, newer_step, older, older_step; };
 ### 2.5 Cache tail (DSP)
 
 Home: src/dsp/fixed/timestretch/cache_tail.h. The older head when a stretcher crossfades out of a cache: up to 255
-frames copied from the cache, read once into the mix. It owns no memory: the playback side lends it a buffer (see
-section 5).
+frames copied from the cache, read once into the mix. It owns no memory: the engine lends it a buffer through the
+`StretchContext` (section 5).
 
 ```cpp
 class CacheTail {
@@ -226,50 +232,90 @@ void analyse(const FrameRun&, int32_t first_frame, int32_t frames, Direction, So
 ### 2.7 The playback-side stretcher
 
 Home: src/synth/sources/sample/sample_stretcher.{h,cpp}, namespace `deluge::synth`. One per stretched voice-sample,
-pooled. It owns the stretch state, the older head, the cache tail's lent buffer and every lease the stretcher takes;
-it drives the DSP components and reaches the sample only through the stretch port (section 3).
+pooled. It owns the source position, the hop clock, the head phase, the perc-fill memo and every lease handle the
+stretcher takes. It owns no reader (below). It drives the DSP components and reaches the sample only through the stretch
+port (section 3). Engine-wide resources come in a `StretchContext` the engine passes to every call: the `HopBudget`,
+the synth's noise stream and the cache-tail buffers.
+
+**What the behaviour forces, and what is free.** Forced, because each is a point where the voice must be able to
+cause an effect the goldens pin:
+- three ways to begin: plain (S1: one noise draw, the first hop at 200 ± 32, the spare reader a level copy, X3);
+  out of a cache tail (C1 to C3: a plain begin whose older head is the tail; a fresh stretcher is always begun just
+  before it); a fudge (S2: a hop into the pre-margin at once, no draw, no later hop);
+- one render per block that fills the perc analysis first (P4), then renders its segments (S3, X2 to X4, Q1);
+- the voice moving the position when its own loop check wraps it (Q4), which hops at once if the newer head has
+  stopped (S5);
+- the queries the voice and the audio clip act on: whether stretching may end (E1), the position's whole frame (Q2),
+  whether the newer head still reads, whether this stretcher is a fudge;
+- ending, which lets go of every lease.
+
+Free: the names and the grouping (a cache-tail begin is an opening of `begin`, not a call of its own); the state's
+shape (the head phase below); where the position lives (here, not in the voice).
 
 ```cpp
 class SampleStretcher {
 public:
-	struct Start { int64_t position; Ratio ratio; Increment increment; Direction direction; LoopType loop; };
-	/// A normal start: first hop at 200 ± 32 (contract S1), the hop-back reservation placed. One noise draw.
-	bool start(SampleStretchPort&, const Start&, Cong& noise);
-	/// A fudge: the new head starts in the pre-margin now and crossfades in over the frames to the loop. S2.
-	bool start_fudge(SampleStretchPort&, const Start&, int32_t output_frames_to_loop);
-	/// The stretcher-made loop wrapped the position: take it, and hop now if the newer head has stopped. S5.
-	void restart_at(SampleStretchPort&, int64_t position, const BlockArgs&);
-	/// Fill the perc analysis ahead of the position for this block. P4.
-	void prepare_block(SampleStretchPort&, const BlockArgs&);
-	/// Crossfade out of a cache's next written frames into this stretcher's head. C1-C3.
-	void crossfade_from_cache(SampleStretchPort&, const CacheWindow&, int32_t channels);
-	/// Render `frames` into `out`: hops, segments, both heads, the position. False: the note ended (or a card error).
-	bool render(SampleStretchPort&, Q<31>* out, const BlockArgs&, HopBudget&, Cong& noise);
-	/// Whether stretching may stop now without a click (contract E1).
-	[[nodiscard]] bool can_stop(SampleStretchPort&) const;
-	[[nodiscard]] int32_t position_frame() const;                         // Q2
-	[[nodiscard]] bool newer_sounding() const;
-	[[nodiscard]] bool fudging() const;
-	/// Release every lease, the older head and the tail buffer. Explicit: the object is pooled and reused in place.
-	void release(SampleStretchPort&);
+	struct Motion { Ratio ratio; Increment increment; Direction direction; };
+	struct Plain {};
+	struct FromCacheTail { CacheWindow window; int32_t channels; };
+	struct Fudge { int32_t output_frames_to_loop; };
+	using Opening = std::variant<Plain, FromCacheTail, Fudge>;
+
+	bool begin(SampleStretchPort&, StretchContext&, int64_t position, Motion, LoopType, Opening);
+	/// P4, then the block's segments. False: the note ended, or a card error cut it.
+	bool render(SampleStretchPort&, StretchContext&, const Block&);
+	/// The voice's loop check moved the position (Q4); hop now if the newer head has stopped (S5).
+	void wrap_to(SampleStretchPort&, StretchContext&, int64_t position, const Block&);
+	/// Let go of every reservation, perc chunk and tail buffer. Explicit: the object is pooled and reused in place.
+	void end(SampleStretchPort&, StretchContext&);
+	[[nodiscard]] bool may_end(const SampleStretchPort&) const; // E1
+	[[nodiscard]] int32_t frame() const;                         // Q2
+	[[nodiscard]] bool newer_reading() const;
+	[[nodiscard]] bool is_fudge() const;
 
 private:
-	SourcePosition position_;      ///< Q24 frames, int64 (Q1).
-	HopClock hop_;                 ///< Frames to the next hop, times passed over by the budget (S3).
-	CrossfadeRamp ramp_;
-	HeadActivity heads_;           ///< Which heads still read: newer, older.
-	OlderHead older_;              ///< A reader slot the port owns, or the cache tail.
-	PercFillMemo perc_fill_;       ///< Where the last fill started and ended, and its direction (P4).
-	StretchLeases leases_;         ///< Perc lookahead, hop-back, hop-retry reservations; two perc chunks.
+	SourcePosition position_; ///< Q24 frames, int64 (Q1, Q2).
+	HopClock clock_;          ///< Output frames to the next hop, and how often the budget passed it over (S3).
+	HeadPhase phase_;
+	PercFillMemo perc_fill_;  ///< Where the last fill started and ended, and its direction (P4).
+	Leases leases_;           ///< The three reservations and the two perc chunks (section 5).
 };
 ```
 
-Two small engine-side pieces go with it:
-- **`HopBudget`** (src/synth/sources/sample/hop_budget.h): how many hops this audio routine call has run, and whether a
-  hop asked for culling to be bypassed. The engine owns one, resets it at each routine call, and passes it to every
-  render. It replaces two engine globals (contract S3).
-- **The pool**: the engine keeps an `ObjectPool` (`src/deluge/memory/object_pool.h`) of `SampleStretcher`, as it does
-  of the legacy class today.
+**The head phase.** Each alternative holds only what its phase needs, so the states the legacy's two flags and a
+progress word allow but cannot mean (an older head marked reading with its ramp done, a ramp running with no older
+head, a cache tail and a reader both older) cannot be written:
+
+```cpp
+/// The older head: the voice-sample's spare reader, or a cache tail.
+using Older = std::variant<SpareReader, CacheTail>;
+struct Shadowed {};                                     ///< A plain begin before its first segment ends (X3).
+struct Solo {};                                         ///< The newer head reads alone.
+struct Crossfading { CrossfadeRamp ramp; Older older; }; ///< Both read; the older fades out.
+struct Fading { CrossfadeRamp ramp; Older older; };     ///< The newer has stopped; the older fades out alone.
+struct Silent {};                                       ///< Neither reads.
+using HeadPhase = std::variant<Shadowed, Solo, Crossfading, Fading, Silent>;
+```
+
+- A plain begin enters `Shadowed`; a fudge, `Crossfading` over the spare; a cache-tail begin, `Crossfading` over the
+  tail, or `Shadowed` when C1 finds nothing to copy.
+- `Shadowed` leaves for `Solo` after its first segment (or `Silent` if the newer stops in it).
+- A hop (when S3 or S5 calls one) leaves for `Crossfading` when the new head starts, `Solo` when it cannot (S4: the
+  newer reads on, the spare stops), and `Fading` when it would start past the end (B6).
+- `Crossfading` leaves for `Solo` when the ramp is done or the older stops, and for `Fading` when the newer stops.
+  `Fading` leaves for `Silent` when the ramp is done or the older stops; `Solo` for `Silent` when the newer stops.
+- In `Silent` the render ends the note unless a cache is being written or the voice loops, whose next wrap hops (S5).
+
+**Who owns the readers.** May the app's `SampleLowLevelReader` (128 bytes) live inside this `deluge::synth` object?
+No. It is an app type: its cursor and chunk leases are the storage layer's, and the synth tree names no app type
+(`docs/dev/synth_source_ports.md`); embedding it would also tie the synth object's layout to it. So:
+- the voice-sample (app) owns two readers, the one it plays from and a spare, with their cursors and chunk leases;
+- the stretcher owns which role each plays, through its head phase, and how loud each is;
+- the port seats, reads and marks the readers by role. A hop seats the spare at the new start (H1) and only once it
+  has started swaps the roles, so a start that fails leaves the newer untouched and S4 needs no undo;
+- when stretching ends, the voice-sample unseats its spare itself.
+
+This is the one statement of who owns what; section 5's table follows it.
 
 ## 3. The seam to the sample
 
@@ -277,181 +323,99 @@ Two small engine-side pieces go with it:
 (`src/synth/sources/sample/sample_playback_port.h`), implemented by `SamplePlaybackAdapter`
 (`src/deluge/model/voice/sample_playback_adapter.h`); an audio clip renders its `VoiceSample` directly, with no port.
 Both reach the stretcher from `VoiceSample::render`. So the stretcher's sample access cannot live on
-`SamplePlaybackPort` alone. The design gives it a narrow port, `SampleStretchPort`
+`SamplePlaybackPort` alone. It gets a port of its own, `SampleStretchPort`
 (src/synth/sources/sample/sample_stretch_port.h), implemented once app-side over a voice-sample, its `Sample` and its
-playback guide, and reached by both kinds of voice. `SamplePlaybackPort` keeps its render signature; it gains nothing.
+playback guide, and reached by both kinds of voice. `SamplePlaybackPort` keeps its render signature and gains nothing.
 This is open question 1.
 
 ```cpp
 class SampleStretchPort {
 public:
-	// The source's layout and markers.
-	struct Layout { int32_t length_frames; int32_t channels; int32_t byte_depth; int32_t sample_rate; };
-	[[nodiscard]] virtual Layout layout() const = 0;
-	[[nodiscard]] virtual Markers markers() const = 0;         // start, start marker, end-or-loop-end, loop start, in frames
-	[[nodiscard]] virtual std::optional<int64_t> synced_position() const = 0; // a synced clip with a running clock
-	// Frames, for the aligner: a zero-lease peek (FrameSource).
+	enum class Head : uint8_t { kNewer, kOlder };
+	// The source.
+	[[nodiscard]] virtual SourceFacts facts() const = 0;                 // layout and markers, in frames
+	[[nodiscard]] virtual std::optional<int64_t> synced_position() const = 0;
 	[[nodiscard]] virtual std::optional<FrameRun> run(int32_t frame, Direction) const = 0;
-	// The perc analysis: what is filled at a pixel, and a fill.
+	// The perc analysis.
 	[[nodiscard]] virtual std::optional<PercWindow> perc_at(int32_t pixel, Direction) = 0;
 	virtual PercFill fill_perc(int32_t from, int32_t to, Direction, int32_t max_frames) = 0;
-	// The heads. The newer head is the voice-sample's own reader; the older is a reader slot the stretcher holds.
-	virtual bool start_newer(int32_t frame, UQ<24> phase, LoopType) = 0; // leases for the new head
-	virtual void newer_becomes_older(OlderSlot&) = 0;                   // the reader and its leases move
-	virtual void older_becomes_newer(OlderSlot&) = 0;                   // a failed hop puts it back
-	virtual HeadRead read(Head, Q<31>* out, int32_t frames, const ReadArgs&) = 0; // C++ reader, unchanged arithmetic
-	[[nodiscard]] virtual int32_t head_frame(Head) const = 0;
-	[[nodiscard]] virtual UQ<24> head_phase(Head) const = 0;
-	[[nodiscard]] virtual bool heads_level() const = 0;                 // contract E1
-	virtual void release_older(OlderSlot&) = 0;
-	// Leases the stretcher holds, by handle; the port opens, moves and closes them.
-	virtual void reserve(Reservation&, int32_t frame, Direction) = 0;
-	virtual void close(Reservation&) = 0;
-	virtual void lease_perc_chunk(PercChunk) = 0;
-	virtual void release_perc_chunk(PercChunk) = 0;
-	// The cache tail's buffer.
-	virtual std::span<Q<31>> borrow_tail(int32_t channels) = 0;          // empty: none free (open question 2)
-	virtual void return_tail(std::span<Q<31>>) = 0;
+	// The readers, by role.
+	virtual void shadow() = 0;                                           // the spare becomes a level copy (H1)
+	virtual SeatResult seat_and_swap(int32_t frame, UQ<24> phase, LoopType) = 0; // H1; swaps only on success
+	virtual HeadRead read(Head, Q<31>* out, int32_t frames, HeadGain) = 0;
+	[[nodiscard]] virtual HeadMark mark(Head) const = 0;                 // A0's byte, and the phase (A5)
+	[[nodiscard]] virtual bool cursors_meet() const = 0;                 // E1
+	// Residency the stretcher holds, by handle.
+	virtual void keep(Reservation&, int32_t frame, Direction) = 0;
+	virtual void let_go(Reservation&) = 0;
+	virtual void hold(PercChunk) = 0;
+	virtual void drop(PercChunk) = 0;
 };
 ```
 
+**Its size.** Fourteen operations, each one forced by a behaviour:
+
+| Operations | Needed by |
+|---|---|
+| `facts`, `synced_position` | every hop's position (S6), the loop crossfade (B7), the end (B6), the clamps (B4, B8) |
+| `run` | the aligner's frames (A2, A4) and the start clamp's residency check (B8) |
+| `perc_at`, `fill_perc` | the beam search (B3) and the fill (P4); the bytes and zones are the sample's, shared by its voices |
+| `shadow`, `seat_and_swap`, `read`, `mark`, `cursors_meet` | the plain begin (X3), every hop and fudge (H1, S4), the segments (X2), the aligner's reference (A0, A5), E1 |
+| `keep`, `let_go`, `hold`, `drop` | the hop-back, hop-retry and lookahead reservations and the two perc chunks (section 5) |
+
+Merging further (the facts with the sync, the two lease pairs into one) would put two behaviours behind one call. The
+port is smaller than `SamplePlaybackPort`, which has 23.
+
 **The five users.**
-- `src/deluge/model/voice/voice_sample.cpp`: `VoiceSample` holds a `SampleStretcher*` from the pool instead of the
-  legacy class, and builds the port over itself, its sample and its guide on the stack for each call. Its render keeps
-  the choice between reading a cache, writing one, and playing plain or stretched, and the cache-write copy (contract
-  W1); the stretched segment loop (hops, gains, both heads, the position) moves into `SampleStretcher::render`. The
-  unsynced loop-end check (contract Q4) stays with the voice, which owns the loop, and calls `restart_at`.
-  `fudgeTimeStretchingToAvoidClick`, `weShouldBeTimeStretchingNow`, `endTimeStretching`, `sampleZoneChanged` and
-  `getPlaySample` call the stretcher's `start_fudge`, `start` and `prepare_block`, `release`, and `position_frame`.
+- `src/deluge/model/voice/voice_sample.cpp`: `VoiceSample` holds a `SampleStretcher*` from the pool and the spare
+  reader, and builds the port over itself, its sample and its guide on the stack for each call. Its render keeps the
+  choice between reading a cache, writing one, and playing plain or stretched, the unsynced loop check (Q4, which calls
+  `wrap_to`) and the cache-write copy (W1); the stretched segment loop (hops, gains, both heads, the position) is
+  `SampleStretcher::render`. `fudgeTimeStretchingToAvoidClick` and `weShouldBeTimeStretchingNow` become `begin` (with a
+  `Fudge` or `Plain` opening, and a `FromCacheTail` one where the render leaves a stretched cache); `endTimeStretching`
+  becomes `end` and unseats the spare; `sampleZoneChanged` and `getPlaySample` read `frame()`.
 - `src/deluge/model/sample/sample.cpp`: `Sample::fillPercCache` takes no stretcher. It returns a `PercFill`: where the
-  filled zone now ends, the perc chunks the fill touched (for the stretcher to lease), and whether the lookahead
-  reservation may close, with the frame it should move to. Its per-frame arithmetic calls the perc analysis
+  filled zone now ends, the perc chunks the fill touched (for the stretcher to hold), and whether the lookahead
+  reservation may be let go, with the frame it should move to. Its per-frame arithmetic calls the perc analysis
   (2.6). `Sample::prepareToReadPercCache` becomes the port's `perc_at`, returning a `PercWindow` with an origin in
   place of a pointer offset back from a chunk's payload. `Sample::getAveragesForCrossfade` goes: the aligner's
-  `moving_averages` reads the same frames through the port.
+  `moving_averages` reads the same frames through `run`.
 - `src/deluge/model/sample/sample_low_level_reader.cpp`: `SampleLowLevelReader` takes no stretcher. Its
   `readSamplesNative` and `readSamplesResampled` drop the parameter they only passed on, and
-  `readSamplesForTimeStretching` returns whether the head is still reading, and whether a card error stopped it,
-  instead of writing a flag into the stretcher. Its reading arithmetic is unchanged: it is the sample reader's, shared
-  with unstretched playback, not the stretcher's.
-- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_sounding()` and `fudging()` where it reads the legacy flags
-  today (the restart at the loop, the fudge, the cull immunity), and starts the fudge through the voice-sample.
-- `src/deluge/processing/engines/audio_engine.cpp`: the pool's type, and a `HopBudget` in place of the two globals;
-  the render's culling bypass reads the budget.
+  `readSamplesForTimeStretching` returns whether the head still reads, and whether a card error stopped it, instead of
+  writing a flag into the stretcher. Its reading arithmetic is unchanged: it is the sample reader's, shared with
+  unstretched playback (open question 8).
+- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and `is_fudge()` where it reads the legacy flags
+  today (the restart at the loop, the fudge, the cull immunity), and begins the fudge through the voice-sample.
+- `src/deluge/processing/engines/audio_engine.cpp`: the pool's type, and the `StretchContext` (a `HopBudget` in place
+  of the two globals, the noise stream, the tail buffers); the render's culling bypass reads the budget.
 
 ## 4. Numeric contracts
 
-Each contract is a computation whose result feeds output samples (or, for S3 and E1, decides when they change). It is
-written as its inputs, its exact arithmetic in order, and the legacy computation it must equal. Each becomes a unit
-spec against values recorded from the legacy code before its component is written (open question 4). Integer types are
-the legacy's: where a contract says 32-bit unsigned, a signed value is reinterpreted, and the wrap is part of the
-contract. A **quirk** is arithmetic the goldens pin that a fresh design would not choose; it is kept and named in the
-code.
-
-### Hop tuning
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| T1 | ratio | `log = quick_log(ratio)` (`src/dsp/fixed/curves/quick_log.h`). Fine band when `800·2^20 ≤ log < 864·2^20`: `pos = log − 800·2^20`; each field is `kLinearTableInterpolator.interpolate_signed(pos, 26, fine_table, 4)`; widths and the fixed crossfade part `>> 16`; the share `<< 8` (32-bit, wrapping); the jitter share unshifted. | `getHopParams`, fine branch |
-| T2 | ratio | Coarse band otherwise: clamp `log` to [768·2^20, 896·2^20]; `pos = log − 768·2^20`, then `pos = 2^27 − 1` if `pos ≥ 2^27`; each field is `interpolate_signed(pos, 27, coarse_table, 2)`, shifted as T1. | `getHopParams`, coarse branch |
-| T3 | — | The ten tables, fine (17 entries, −12 to +12 semitones of speed in steps of 1.5) and coarse (5 entries, −2 to +2 octaves): minimum width, maximum width, crossfade share, fixed crossfade part, jitter. Values as the legacy's `minHopSizeFine` … `randomCoarse`. **Quirks:** the fixed part's fine entry at −1.5 semitones is 170 among 10s; share entries of 128 and over (fine 160 and 140, coarse 200 and 160) wrap negative at `<< 8`, which B5's unsigned cap turns into half the hop (pinned: `sample/ts_speed_slow`, RSCRAWL, RSHALT). | the legacy tables |
-
-### Hop scheduler (in the playback-side stretcher)
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| S1 | noise | First hop: `200 + (int8_t(noise.next() >> 24) >> 2)` output frames (−32 to +31); ramp done (`progress = 2^24`, increment 0). Exactly one draw, at a normal start; none at a fudge. | `TimeStretcher::init`, normal start |
-| S2 | frames to loop `n` (output), increment | If increment ≠ 2^24: `n' = (uint64(n) × increment + 2^23) >> 24`, else `n' = n`. The new head starts `n'` frames into the pre-margin; ramp `over_fudge(n')` (X1 c); the next hop never comes (INT32_MAX). **Quirk:** the crossfade lasts `n'` output frames, a source-frame count, so a pitched fudge's crossfade ends off the loop point (pinned: `RS_AUDIO_STRETCH_EDGES`'s tied tracks). | `TimeStretcher::init`, fudge |
-| S3 | hops this routine `h`, times passed over `m`, frames to hop `t` | Per segment, only while the newer head reads: due when `t ≤ 0`; allowed when `h < 3` and `uint32(m) ≥ uint32(h) << 1`. Due and allowed: hop, `h += 1`, `m = 0`, culling bypassed. Due and not allowed: `m += 1`. When allowed, the segment is `min(rest of block, t)`; when not, the rest of the block (so `t` goes negative). After the segment `t −= length`. | `VoiceSample::render`'s hop check; `TimeStretcher::hopEnd`'s counter and culling bypass |
-| S4 | — | A hop whose new head cannot start (its chunk not ready): the old head is put back as the newer, the older is marked stopped, the ramp's increment is 0, the next hop in 500 frames; the wanted chunk is reserved for the retry if it is not resident, else the retry reservation closes. | `TimeStretcher::hopEnd`, failed start |
-| S5 | new position | Restart: the position is set; if the newer head has stopped, hop now. | `TimeStretcher::reInit` |
-| S6 | start-marker byte, synced frames in `k` | Synced hop: `start = uint32(start_byte − data_start) / uint8(bytes_per_frame)`; `position_frames = start + k × direction`; position `= uint64(position_frames) << 24`. | `TimeStretcher::hopEnd`, synced branch |
-
-### Hop planner
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| B1 | shape, noise | One draw per hop, before any branch: `f = mul(Q31(noise.next()), Q31(jitter << 8))` (Q30, floor); `min += scale_shl_wrap<2>(mul(Q31::from_raw(min), f)).raw()`. The maximum is not jittered. | `TimeStretcher::hopEnd`, the random element |
-| B2 | shape, increment | Repitch: `min = (uint64(uint32(min)) × increment) >> 24`, likewise `max`; default best `(min + max) >> 1`. | `hopEnd`, repitching |
-| B3 | perc window, widths, ratio, position | `top = int32(position_frames >> 7)`. For `w` from `min`, while `uint32(w) < uint32(max)`, step 128: `back = top + int32((int64(w) × (ratio − 2^24)) >> 32) × dir`; `front = top + int32((uint64(w) × (ratio + 2^24)) >> 32) × dir`; `pw = (front − back) × dir`; skip if 0; stop if `front` passes `latest` or `back` passes `earliest`; keep a running total over pixels [back, front) (adding ahead; removing behind; re-adding, decrement first, when `back` moves back); best when `total × best_pw ≥ best_total × pw` (32-bit products; ties go to the wider). Starts `best_total = 0`, `best_pw = 1`. | `hopEnd`, the perc search |
-| B4 | best width, ratio, position | `back = position_frames + int32((int64(best) × (ratio − 2^24)) >> 25) × dir`, clamped to the waveform's first frame in the direction (0, or length − 1). | `hopEnd`, the back edge |
-| B5 | best width, increment, shape, ceiling | `hop = (uint64(best) << 24) / uint32(increment)`; `hop = 1` if under 1. `xf = uint32(mul_r(Q31::from_raw(hop), crossfade_share).raw() + fixed × 4)`; if `xf ≥ uint32(hop >> 1)`, `xf = hop >> 1`. `hop −= xf`; `hop = min(hop, ceiling)`; `xf = min(hop, xf)`; ramp `over_hop(xf)`. | `hopEnd`, hop and crossfade lengths |
-| B6 | back edge | Past the end (`(back − end) × dir ≥ 0`, end = length or −1): the new head is silenced; no alignment, no new head. | `hopEnd`, past the end |
-| B7 | loop facts, position, combined, ratio, increment | Only for the stretcher-made loop with a pre-margin: `src = int32(loop_end_frame − position_frames) × dir`; if `src ≥ 0`: `out = ((uint64(src) << 24) + (combined >> 1)) / combined`. If `out < 100`: `into = out`, or `((uint64(src) << 24) + (ratio >> 1)) / ratio` when increment ≠ 2^24; start `into` frames before the loop start; if inside the waveform: `xf = max(out, 10)`, `hop = max(min_jittered >> 2, xf)` (the width before repitching), ramp `over_loop(xf)`, align unless a cache is being written or read. Else `ceiling = out − 100 + 32`. | `hopEnd`, the pre-margin loop crossfade |
-| B8 | start, markers, residency | A start before the start marker whose frame is not resident moves to the start marker; checked after B4 and again after alignment. | `hopEnd`'s `clampToStartIfNotLoaded` |
-
-### Waveform aligner
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| A1 | increment, crossfade | `each = clamp(int32((uint64(increment) × 35) >> 24), 1, 70)`; `xf_src = int32((uint64(xf) × increment) >> 24)`. Only while the older head reads, and only if its byte is not before the data's start. | `hopEnd`, the search set-up |
-| A2 | frames, start, `xf_src`, `each` | `mid = start + (xf_src >> 1) × dir`; `read = mid − ((each × 3) >> 1) × dir`. Forwards only: fail if `read` is within half the crossfade of either end. Fail if the window's end falls outside the data (one byte of slack before its start). Three totals, each the sum over `each` frames of `word >> 16` per channel (left plus right). The words are unmasked 32-bit reads ending at each sample's top byte. **Quirk:** the reversed direction has no half-crossfade margin. | `Sample::getAveragesForCrossfade` |
-| A3 | hop frames, increment, rate | `limit = (hop × 40) >> 8`; `limit = int32((uint64(limit) × increment) >> 24)`; `limit = min(limit, (rate / 45) >> 1)`. `hop` is the value after B5 (or B7). | `hopEnd`, the search size |
-| A4 | old and new averages | Best starts as `totalDifferenceAbs(old, new)` at offset 0. Search the play direction first. Each pass: the four window boundaries step one frame at a time (against play: the first boundary starts one frame back); each running total gains its upper boundary's value and loses its lower one, signed by search-against-play. At each step: if this is the first step of a first pass searching with play and it is worse, switch direction now (that pass does not count: the other direction is searched in full, then the play direction again); a strictly smaller difference is the new best; when the sign of `totalChange` flips, count a flip (four flips over both passes stop the search). A pass ends at the limit or the waveform's end; a frame not resident abandons the search. | `hopEnd`, the phase search |
-| A5 | at a sign flip, increment ≠ 2^24 | If this step or the previous is the best: `phase = (uint64(abs(last)) << 24) / uint32(abs(last) + abs(this))`, `2^24 − phase` when searching against play; if (this step is best) differs from (searching against play), the best offset moves one frame back in play. At the end: `phase += older head's phase`; past 2^24, subtract 2^24 and move one frame on. | `hopEnd`, sub-sample alignment |
-| A6 | offset | The start moves by the offset; clamped to the waveform's first frame; then B8. | `hopEnd`, after the search |
-
-### Crossfader
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| X1 | frames `n` | Four increments, all 32-bit unsigned: (a) a hop: `2^24 / n`; (b) a loop crossfade: `(2^24 − 1 + n) / n`; (c) a fudge: `(2^24 + n) / n`; (d) a cache tail: `2^24 / uint16(n) + 1`. Progress starts at 0. **Quirk:** (b) and (c) differ by one where `n` divides 2^24. | `hopEnd` (a, b), `init` (c), `setupCrossfadeFromCache` (d) |
-| X2 | ramp, segment `n`, level, step | `newer = as_wrap<Q31>(Q24::from_raw(progress))`; `older = 2147483647 − newer`; `progress += increment × n` (wrapping); `after = as_clamp_then_shift<Q31>(Q24::from_raw(progress))`; `newer_step = divide_by_small(after − newer, n)`; `change = mul_as_wrap<Q31>(level, newer_step)`; gains: newer `mul_as_wrap<Q31>(level, newer)` stepped `level_step + change`; older `mul_as_wrap<Q31>(level, older)` stepped `level_step − change`. | `VoiceSample::render`, the crossfade envelope |
-| X3 | ramp, heads | The older head sounds while it reads and `progress < 2^24`; after its segment, if `progress ≥ 2^24` it stops. While it reads but the ramp is done (before the first hop), it is read at level 0 and step 0 (open question 5). | `VoiceSample::render`, the older head |
-| X4 | voice amplitude `a`, step `s` | `a <<= 3`; `<<= 1` more if increment ≠ 2^24; `<<= 1` more if stretching (likewise `s`). The level is `a >> 1`, step `s >> 1`; when writing a cache, level 2147483647, step 0. After each segment, when not writing a cache, `a += s × n`. | `VoiceSample::render`, amplitude set-up |
-
-### Cache tail
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| C1 | frames to hop, cache position, written end | `n = min(frames_to_hop, 255)`; nothing if the written end is within one cache frame (`3 × channels` bytes); `to_chunk_end = chunk_size − offset + (3 × channels − 1)`, nothing if `≤ 3 × channels`; `n = min(n, min(to_chunk_end, written_end − position) / (3 × channels))`. | `setupCrossfadeFromCache` |
-| C2 | cache bytes | Each word is the unmasked 32-bit read whose top three bytes are the cache sample (the read origin of `frame_read_origin` in `src/deluge/storage/cluster/cluster.h`): its low byte is the byte before the sample. **Quirk:** that low byte reaches the mix. | `setupCrossfadeFromCache`, the copy |
-| C3 | `n` | Ramp `over_cache_tail(n)`; the older head reads the tail from its start. | `setupCrossfadeFromCache` |
-| C4 | tail, segment, level, step | Per frame: read (stereo, or mono); position `(p + 1) & 255`; to mono `(l >> 1) + (r >> 1)`; level `+= step` first; `out = mla(Q30 view of out, sample, level)`, the high word **floored**, not rounded. **Quirk:** the sample reader's heads round (`mixed_in` in `src/deluge/model/sample/sample_low_level_reader.h`); the tail floors. | `TimeStretcher::readFromBuffer` |
-
-### Perc analysis
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| P1 | length, chunk size | One byte per 128 frames per direction: `bytes = ((length − 1) >> 7) + 1`, at least 1. One block when `bytes < chunk_size / 2`, else `ceil(bytes / chunk_size)` chunks of `chunk_size` bytes (with 32 KB chunks: one block below 2,097,152 frames; a chunk covers 4,194,304 frames). Pixel `p` covers frames `[128p, 128p + 128)`. | `Sample::fillPercCache`, the store |
-| P2 | frame words | `x = (left_word >> 2) + (right_word >> 2)` (unmasked words, as A2); `slope = abs(x − last)`; `last = x`; for each of two poles: `pole += (slope − pole) >> 9` (floor), `slope = pole`. **Quirk:** floor, where the pitch shifter's follower rounds (`SlopeFollower` in `src/dsp/fixed/pitch_shift/slope_follower.h`). | `fillPercCache`'s inner loop |
-| P3 | slope, previous slope | When the fill reaches frame `128p + 64` forwards (`128p + 63` reversed), from the slope of the last frame read: `d = abs(slope − previous)`; `v = slope ? ((uint64(d) × 2^18) / slope) >> 1 : 0`; byte `= tanh<23>(Q31::from_raw(v)).raw()` (0 to 63). The previous slope is the frame before's. The same arithmetic as the pitch shifter's `percussiveness` (`src/dsp/fixed/pitch_shift/slope_follower.h`). | `fillPercCache`, the pixel byte |
-| P4 | position, increment, block | Only while stretching (ratio ≠ 2^24): `end = position_frame + (increment >> 10) × dir`. Skip if the last fill was this direction, started at or before the position, and reached `end`. Else fill from the position to `end + block × 4 × dir`, at most `block × 32` frames when writing a cache, else `block × 6`. | `VoiceSample::weShouldBeTimeStretchingNow` |
-| P5 | zones | A fill continues the zone it starts in, or one ending at most 2,048 frames short of it (restarting there); a new zone's first `max(2048, its length)` frames may be overwritten by a zone growing into it, which then merges. The slope state is the zone's. | `fillPercCache`, zones |
-
-### Position, loop, exit and cache write
-
-| # | Inputs | Arithmetic, in order | Must equal |
-|---|---|---|---|
-| Q1 | segment `n` | `position += int64(combined) × n × dir`, combined `= (uint64(uint32(ratio)) × uint32(increment)) >> 24`. | `VoiceSample::render`, after the heads |
-| Q2 | position | The whole frame: `position >> 24` forwards, `(position + 2^24 − 1) >> 24` reversed. | `TimeStretcher::getSamplePos` |
-| Q3 | play byte | Start: `position = floor((play_byte − data_start) / bytes_per_frame) << 24` (rounding toward −∞; the byte may be before the data). | `weShouldBeTimeStretchingNow`, `fudgeTimeStretchingToAvoidClick` |
-| Q4 | position, block part `n`, loop end byte | Unsynced, per uncached read: `after = position + combined × n × dir` (`+ 2^24 − 1` reversed); `over = (int32(after >> 24) × bytes_per_frame + data_start − loop_end_byte) × dir`; if `over > 0`: `end = rel ≥ 0 ? rel / uint8(bytes_per_frame) : −1`; `left = (int64(end) << 24) − position`; if `left × dir < int64(combined)`: looping restarts at `(int64(start_frame) << 24) − left` (S5), at most 1,024 times in a block; not looping ends the note. Else `n = min(n, uint64(left × dir) / combined)`. | `VoiceSample::render`'s loop check |
-| E1 | heads | Stretching may stop when the newer and older heads are at the same byte and the voice is synced with no lag (or not synced). | `VoiceSample::render`, leaving the stretcher |
-| W1 | stretched mix | Writing a cache: the heads render at X4's cache level into a zeroed scratch block; per frame the cache takes the top three bytes of `word << 1`, left then right; the output mixes the word (mono: `(l >> 1) + (r >> 1)` after the left is cached) with `mixed_in`, the amplitude stepped first. | `VoiceSample::render`, the cache copy |
-
-**Counts.** 42 contracts: hop tuning 3, scheduler 6, planner 8, aligner 6, crossfader 4, cache tail 4, perc analysis
-5, position, loop, exit and cache write 6. Seven are about when, not what (S3, S4, S5, B6, B8, E1, P4); the rest are
-arithmetic.
-
-**Noise draws.** The synth's noise stream is shared by every voice, so the draw count is a contract too: one at a
-normal start (S1) and one per hop attempt, a failed one included, whatever the hop does after (B1). None at a fudge or at a restart that does
-not hop.
+The 44 contracts are in [time_stretcher_contracts.md](time_stretcher_contracts.md), one table per component, each as
+its inputs, its exact arithmetic in order, and the legacy computation it must equal: hop tuning 3 (T1 to T3), scheduler
+6 (S1 to S6), planner 8 (B1 to B8), aligner 7 (A0 to A6), crossfader 4 (X1 to X4), cache tail 4 (C1 to C4), perc
+analysis 5 (P1 to P5), heads 1 (H1), position, loop, exit and cache write 6 (Q1 to Q4, E1, W1). The noise stream's
+draw count is a contract too: one at a plain begin, one per hop attempt. Ten quirks the goldens pin are named there and
+kept.
 
 ## 5. Lifetimes, threading and real-time limits
 
 ### Who owns what
 
+Following section 2.7: the voice-sample owns the readers, the stretcher owns the roles and every lease handle, the
+engine owns the tail buffers.
+
 | Resource | Owner | Taken | Given back |
 |---|---|---|---|
-| The newer head's reader and its chunk leases | the voice-sample (its own reader) | a normal start: none taken (the voice's reader plays on); a hop: fresh leases for the new head | moves to the older slot at the next hop |
-| The older head's reader | the stretcher's older slot | a normal start: an independent copy with its own lease on the shared chunk (the copy has no cursor of its own); a fudge or a hop: the voice's reader moves in, leases and cursor | the next hop (replaced), a failed hop (moved back), `release` |
-| Hop-back reservation | the stretcher | at a start and after every hop, from the earliest frame the next hop could start (below) | `release` |
-| Hop-retry reservation | the stretcher | a hop whose start chunk is not resident | that hop's retry succeeding, or `release` |
-| Perc lookahead reservation | the stretcher | each perc fill, moved to where it stopped reading | when the filled zone already covers the lookahead, or `release` |
-| Perc-cache chunk leases | the stretcher, the two most recently used | a fill or a read touching a chunk not held (the older of the two is released) | `release` |
-| The cache tail's buffer | the stretcher, lent | `crossfade_from_cache` | the next hop, or `release` |
-| The stretcher | the voice-sample, from the engine's pool | the first stretched block, or a fudge | `release`, then back to the pool |
+| The reader the voice plays from (the newer head), its cursor and chunk leases | the voice-sample | a plain begin takes nothing (the reader plays on); a hop or fudge seats the spare (H1), which becomes the newer | becomes the older at the next successful hop |
+| The spare reader (the older head) | the voice-sample | a plain begin seats it as a level copy with its own lease on the shared chunk (`shadow`); a successful hop or fudge makes the previous newer the spare | reseated at the next hop (its leases go first, H1); unseated by the voice-sample when stretching ends |
+| Hop-back reservation | the stretcher (a handle; the port keeps it) | at a begin and after every hop, from the earliest frame the next hop could start (below) | `end` |
+| Hop-retry reservation | the stretcher | a hop whose start chunk is not resident | that hop's retry succeeding, or `end` |
+| Perc lookahead reservation | the stretcher | each perc fill, moved to where it stopped reading | when the filled zone already covers the lookahead, or `end` |
+| Perc-cache chunk leases | the stretcher, the two most recently used | a fill or a read touching a chunk not held (the older of the two is dropped) | `end` |
+| A cache-tail buffer | the engine's tail buffers, lent to the stretcher through the `StretchContext` | a `FromCacheTail` begin | the crossfade's end, or `end` |
+| The stretcher | the voice-sample, from the engine's pool | the first stretched block, or a fudge | `end`, then back to the pool |
 
 The hop-back reach: `widest = max(max_width, min_width << 1)`, repitched as B2; `back = ((rate / 45) >> 1) + 1`, plus
 `(int64(widest) × (2^24 − ratio)) >> 25` when slowed down; the reservation starts at `clamp(position − back × dir, 0,
@@ -462,13 +426,13 @@ valid only for the call they are passed to.
 
 ### Tiers
 
-- **Audio tier (the render).** Every call that reads or writes samples: `start`, `start_fudge`, `prepare_block`,
-  `render` (hops included), `crossfade_from_cache`, `restart_at`. Taking a stretcher from the pool happens here.
+- **Audio tier (the render).** Every call that reads or writes samples: `begin`, `render` (hops included) and
+  `wrap_to`. Taking a stretcher from the pool happens here.
 - **The render's sequencer tick, or a playhead move on the interaction tier.** `AudioClip::processCurrentPos` and
-  `AudioClip::resumePlayback` read `newer_sounding()` and `fudging()` and may end stretching (`release`). On the
+  `AudioClip::resumePlayback` read `newer_reading()` and `is_fudge()` and may end stretching (`end`). On the
   interaction tier they run inside a move's section (`docs/dev/playback_moves.md`): the render is held off and nothing
-  may allocate. `release` allocates nothing; returning to the pool pushes onto its reserved free list.
-- **Voice unassignment** calls `release` from wherever the voice-sample is unassigned today, under the same exclusion.
+  may allocate. `end` allocates nothing; returning a tail buffer or the stretcher pushes onto a reserved free list.
+- **Voice unassignment** calls `end` from wherever the voice-sample is unassigned today, under the same exclusion.
 
 ### No allocation on the render
 
@@ -532,10 +496,11 @@ bit-identical on the goldens before it lands (golden-synth on x86, and golden-sy
 4. **Perc analysis** (2.6; P1 to P3, P5), and `Sample::fillPercCache` computes through it and returns a `PercFill`
   instead of taking the stretcher.
 5. **Hop planner** (2.2; B1 to B8).
-6. **Waveform aligner** (2.3; A1 to A6).
-7. **The playback side.** `SampleStretchPort`, its app adapter, `HopBudget` and `SampleStretcher` (S1 to S6, X3,
-  X4, P4, Q1 to Q4, E1, W1); `VoiceSample`, `AudioClip` and the engine switch over; `SampleLowLevelReader` stops taking
-  the stretcher. The legacy class is deleted in this step, with `src/deluge/dsp_legacy/`, its target and its
+6. **Waveform aligner** (2.3; A1 to A6; A0 is the port's, specced in step 7).
+7. **The playback side.** `SampleStretchPort` and its app adapter (A0, H1), the `StretchContext` with `HopBudget` and
+  the tail buffers, and `SampleStretcher` with its head phase (S1 to S6, X3, X4, P4, Q1 to Q4, E1, W1); `VoiceSample`
+  gains its spare reader, and it, `AudioClip` and the engine switch over; `SampleLowLevelReader` stops taking the
+  stretcher. The legacy class is deleted in this step, with `src/deluge/dsp_legacy/`, its target and its
   `scripts/layers.toml` rows.
 8. **The gate.** Every golden bit for bit on x86 and ARM; no case's `RP-ALLOC` rises; x86 parity 0 differences; the
   nightly with both corpora; an emulator sweep against `main` with no unexplained difference; the device placement and
@@ -546,24 +511,30 @@ bit-identical on the goldens before it lands (golden-synth on x86, and golden-sy
 Each is a decision with a recommendation first.
 
 1. **Where the stretcher reaches the sample.** Audio clips render their voice-sample with no `SamplePlaybackPort`.
-   - (a) **Recommended:** a narrow `SampleStretchPort`, implemented once app-side over a voice-sample; both synth
-     voices and audio clips reach it through `VoiceSample::render`. `SamplePlaybackPort` is unchanged.
+   - (a) **Recommended:** `SampleStretchPort`, a port of its own (14 operations, section 3), implemented once app-side
+     over a voice-sample; synth voices and audio clips both reach it through `VoiceSample::render`.
+     `SamplePlaybackPort` is unchanged.
    - (b) `SamplePlaybackPort` gains the stretch operations, and audio clips first move onto a `SamplePlaybackAdapter`
      (a larger change, outside the stretcher).
-   - (c) Both: the stretch operations on `SamplePlaybackPort` for synth voices and a second adapter for clips.
+   - (c) Both: the stretch operations on `SamplePlaybackPort` for synth voices, and a second adapter for clips.
 2. **The cache tail's buffer, the stretcher's one render allocation.**
-   - (a) **Recommended:** a fixed set of tail buffers made when the engine starts (eight stereo buffers, 16 KB),
-     lent by the port; with none free, no crossfade, as the legacy does when its allocation fails. `RP-ALLOC` falls by
-     one in the six crossfade cases.
+   - (a) **Recommended:** a fixed set of tail buffers the engine makes when it starts (eight stereo buffers, 16 KB),
+     lent through the `StretchContext`, an engine resource like the `HopBudget`, not through the per-voice port. With
+     none free there is no crossfade, as the legacy does when its allocation fails. `RP-ALLOC` falls by one in the six
+     crossfade cases.
    - (b) Embed the 2 KB buffer in every stretcher: the pool grows by about 96 KB of fast memory.
    - (c) Keep allocating on the render; the ceiling still holds.
-3. **The stretch ratio far below the root** (accepted difference, already decided: the rewrite fixes it; no golden
-   pins it). Past 8 octaves below the root the ratio wraps; at 12 a zero combined increment divides by zero. The same
-   range also makes the planner's one-frame hop give a zero crossfade and divide 2^24 by zero (B5), which no golden
-   reaches. What the fix does:
-   - (a) **Recommended:** the ratio saturates at the largest UQ8.24 value instead of wrapping (in
-     `SampleSource::stretch_to_undo_pitch`, beside the playback side), and a hop of one frame gets a one-frame
-     crossfade; a zero combined increment cannot occur.
+3. **The stretch ratio far below the root** (an accepted difference already decided: the rewrite fixes it; no golden
+   pins it). Past 8 octaves below the root the ratio wraps; at 12 a zero combined increment divides by zero. In the
+   same range a planned hop can come to one frame (B5: `hop = 1` when under 1), its crossfade is then capped at
+   `1 >> 1` = 0, and `2^24 / 0` divides by zero again. What the fix does:
+   - (a) **Recommended:** two changes. The ratio saturates at `2^32 − 1` instead of wrapping (in
+     `SampleSource::stretch_to_undo_pitch`, beside the playback side), so the combined increment is never 0. And B5's
+     floor becomes `hop = max(hop, 2)`, applied where `hop = 1` is today, before the crossfade. Then the uncapped
+     crossfade is at least 39 frames (the fixed part is at least 40; at a 2-frame hop the share's product rounds to 0
+     or −1), so it is capped at `2 >> 1` = 1; `hop −= 1` leaves 1; the ceiling is at least 32, so `hop` stays 1; and
+     `xf = min(1, 1)` = 1, `over_hop(1)` = 2^24: a one-frame hop with a one-frame crossfade. At planned hops of 2 or
+     more the legacy computes exactly this already, so nothing it reaches without dividing by zero changes.
    - (b) Stretching stops (the voice plays unstretched) once the ratio would leave the range.
    - (c) The voice is cut there.
 4. **How the contracts' values are recorded.**
@@ -571,12 +542,15 @@ Each is a decision with a recommendation first.
      header is committed. No legacy code enters the tree's tests.
    - (b) A verbatim test-only reference of the legacy computations under `tests/unit/dsp/`, as the live pitch shifter's
      rewrite kept, checked against the new components on generated workloads.
-5. **The older head read in silence before the first hop.** From a normal start until the first hop, the legacy reads
-   its shadow older head at level 0 every block; mixing at level 0 adds exactly 0 (`mixed_in` rounds 0 to 0), so it
-   changes no sample, but it keeps the two heads level for E1 and for the note's end.
-   - (a) **Recommended:** no older head until the first hop; E1 holds before it, and the note ends when the newer head
-     does. No sample changes; the stretcher reads half as much for its first 200 frames.
-   - (b) Keep the silent read.
+5. **The plain begin's shadow reader** (X3, E1). The legacy seats the spare as a level copy of the newer, reads it once
+   at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where
+   it is. E1 compares the newer's cursor with that stopped copy's, so once the first segment has run, stretching cannot
+   end at a return to a ratio of 1.0 until a hop; before it, it can. The read can also hit a card error and cut the
+   voice.
+   - (a) **Recommended:** keep it, as the `Shadowed` phase: E1's timing and the card-error cut stay as they are, at
+     the cost of one silent read of one segment per plain begin.
+   - (b) Drop the copy and the read, and let E1 hold until the first hop: stretching could end earlier, a sample
+     difference accepted by name.
 6. **The slope follower and the percussiveness byte, shared with the pitch shifter?** The byte (P3) is the same
    arithmetic as the shifter's `percussiveness`; the follower (P2) floors where the shifter's rounds.
    - (a) **Recommended:** move `percussiveness` to a header both include; the stretcher gets its own floor follower.
@@ -585,9 +559,16 @@ Each is a decision with a recommendation first.
 7. **The aligner's abandoned search keeps a partial phase.** When a frame turns out not resident mid-search, the legacy
    starts the head at the planned frame (offset 0) but with a sub-sample phase from a sign flip found before it gave
    up: a phase for an offset it did not take. Only a card still loading reaches it; no golden does.
-   - (a) **Recommended:** fix, as a difference accepted by name: an abandoned search starts the head at phase 0 (or
-     the older head's phase, as a finished search adds).
+   - (a) **Recommended:** fix, as a difference accepted by name: an abandoned search starts the head at phase 0.
    - (b) Keep it.
+8. **The read heads.** The arc's design names the "dual read heads" a component and has the new code decide where the
+   read heads sit. This note keeps the legacy `SampleLowLevelReader` as both heads, behind the port: the stretcher
+   decides where they sit and how loud they are (H1, A0, X2), not how they read.
+   - (a) **Recommended:** keep the legacy reader behind the port for this rewrite. Its interpolation and chunk walk are
+     shared with unstretched playback, so a new head here would change both at once, and its contracts at the seam
+     (A0, H1) are already the port's. A read-head rewrite follows as its own step over the same goldens.
+   - (b) Write a new read-head component now (the interpolation window and the cursor over a `FrameSource` in the DSP
+     library, the leases app-side) and switch unstretched playback to it as well.
 
 **Findings that need no decision.** These disappear with the legacy code and change no output:
 - In `TimeStretcher::hopEnd`, the comment on the one-frame floor says it happens "if pitch up very high and also
