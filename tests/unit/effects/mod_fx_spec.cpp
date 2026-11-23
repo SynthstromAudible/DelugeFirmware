@@ -21,7 +21,7 @@
 
 #include "effects/mod_fx.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "mod_fx_workloads.h"
 #include "reference_mod_fx.h"
 #include "util/synth_noise.h"

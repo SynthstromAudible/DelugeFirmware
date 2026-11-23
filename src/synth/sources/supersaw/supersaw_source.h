@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/osc/supersaw.h"     // deluge::dsp::fixed::Supersaw
+#include "dsp/fixed/osc/supersaw.h"          // deluge::dsp::fixed::Supersaw
 #include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 

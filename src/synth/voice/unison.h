@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kMaxNumVoicesUnison
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/pitch/fine_tune.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/pitch/fine_tune.h"
 #include "modulation/params/param.h"
 #include "synth/matrix/param_format.h"
 

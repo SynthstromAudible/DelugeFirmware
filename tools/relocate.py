@@ -14,14 +14,16 @@ For each --move OLD NEW (both relative to src/, e.g. --move scenes ui/scenes):
 - the include-style token OLD/ becomes NEW/ where nothing path-like precedes it, and only where it names a path or
   layer: prose, CMake files, the layer table, its baselines and rules, and comments in C-family files. A string
   literal in code, a script and a shell file keep their OLD/;
+- an OLD under the legacy root (`deluge/x`) is also spelled `x/` in includes and tokens, since src/deluge is an
+  include root; that spelling becomes NEW, or NEW without its `deluge/` when NEW stays under the legacy root;
 - src/OLD and tests/unit/OLD are moved with git mv.
 Each --namespace OLD=NEW respells OLD and every name under it (OLD::...) in every tracked text file, code, strings and
 comments alike (read the dry run for fixtures that spell OLD on purpose); an unqualified use that leaned on the old
 enclosing namespace is left for the compiler to name. Each --target OLD=NEW renames a CMake target as a whole word,
 in every tracked text file the same way.
 
-A move is refused, and nothing is changed, when src/deluge/OLD exists (the legacy root precedes src/ on the include
-path, so OLD/ would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name
+A move is refused, and nothing is changed, when src/deluge/OLD or src/deluge/NEW exists (the legacy root precedes
+src/ on the include path, so the spelling would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name
 the same directory or one inside the other (a chain would move on disk differently from how the text reads). The
 north-star layout document is never rewritten: its tables name today's paths beside their targets. Nor is any file
 under third_party/, toolchain/, lib/ or website/. An include spelled from tests/ (`"unit/OLD/..."`) is not respelled.
@@ -108,6 +110,7 @@ NEVER = frozenset(
 NEVER_UNDER = ("third_party/", "toolchain/", "lib/", "website/", "tools/testdata/")
 INCLUDE = re.compile(r'^(\s*#\s*include\s*)([<"])([^">]+)([>"])')
 INCLUDE_ROOTS = ("src/deluge", "src")
+LEGACY = "deluge/"
 
 
 class Refused(Exception):
@@ -139,6 +142,18 @@ def resolve(repo: Path, including: str, spelled: str) -> str | None:
     return None
 
 
+def spellings(old: str, new: str) -> list[tuple[str, str]]:
+    """How an include or a bare token spells OLD, each with its respelling.
+
+    OLD under the legacy root (`deluge/x`) is also spelled `x/`, resolved through src/deluge; that spelling becomes
+    NEW's shortest: `y/` for a NEW outside the legacy root, `x_old/` for `deluge/x_old`.
+    """
+    pairs = [(old, new)]
+    if old.startswith(LEGACY):
+        pairs.append((old[len(LEGACY) :], new.removeprefix(LEGACY)))
+    return sorted(pairs, key=lambda p: -len(p[0]))
+
+
 def respell_includes(
     repo: Path, rel: str, text: str, moves: list[tuple[str, str]]
 ) -> str:
@@ -152,13 +167,17 @@ def respell_includes(
         if target is None:
             continue
         for old, new in sorted(moves, key=lambda m: -len(m[0])):
-            if target.startswith(f"src/{old}/") and spelled.startswith(f"{old}/"):
-                lines[i] = line.replace(
-                    f"{match.group(2)}{spelled}",
-                    f"{match.group(2)}{new}/{spelled[len(old) + 1 :]}",
-                    1,
-                )
-                break
+            if not target.startswith(f"src/{old}/"):
+                continue
+            for was, now in spellings(old, new):
+                if spelled.startswith(f"{was}/"):
+                    lines[i] = line.replace(
+                        f"{match.group(2)}{spelled}",
+                        f"{match.group(2)}{now}/{spelled[len(was) + 1 :]}",
+                        1,
+                    )
+                    break
+            break
     return "".join(lines)
 
 
@@ -242,7 +261,14 @@ def path_tokens(
     qualified = re.compile(
         rf"(?<![\w/.\-])((?:\$\{{[^}}]*\}}/|\$\w+/|(?:\.\./)+)?(?:src|tests/unit))/({alternation})(?![\w\-]|\.\w)"
     )
-    word = re.compile(rf"(?<![\w/.\-])({alternation})/")
+    spelled = sorted(
+        (pair for old, new in moves for pair in spellings(old, new)),
+        key=lambda p: -len(p[0]),
+    )
+    spelled_new = dict(spelled)
+    word = re.compile(
+        rf"(?<![\w/.\-])({'|'.join(re.escape(was) for was, _ in spelled)})/"
+    )
     mask = comment_mask(text) if bare == "comments" else None
     both = re.compile(f"{qualified.pattern}|{word.pattern}")
     out = []
@@ -258,7 +284,7 @@ def path_tokens(
             if m.group(1) is not None:
                 return f"{m.group(1)}/{new_of[m.group(2)]}"
             if bare == "all" or (mask is not None and mask[start + m.start()]):
-                return f"{new_of[m.group(3)]}/"
+                return f"{spelled_new[m.group(3)]}/"
             return m.group(0)
 
         out.append(both.sub(respell, line))
@@ -297,6 +323,8 @@ def check(repo: Path, moves: list[tuple[str, str]]) -> None:
             raise Refused(f"src/deluge/{old} exists: {old}/ would name two directories")
         if (repo / "src" / new).exists():
             raise Refused(f"src/{new} already exists")
+        if (repo / "src" / "deluge" / new).exists():
+            raise Refused(f"src/deluge/{new} exists: {new}/ would name two directories")
         if (repo / "tests" / "unit" / new).exists():
             raise Refused(f"tests/unit/{new} already exists")
         if not (repo / "src" / old).is_dir():

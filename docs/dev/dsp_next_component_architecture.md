@@ -1,7 +1,7 @@
 # dsp-next: the component architecture
 
 The shape every `dsp-next` component takes, and the conventions every component
-follows. `dsp-next` (`src/deluge/dsp-next/`) is the L0 DSP library: freestanding,
+follows. `dsp-next` (`src/dsp/`) is the L0 DSP library: freestanding,
 header-first C++23 that may include only `util/`, `definitions*`, Argon, the
 standard library and its own headers (`scripts/check_layers.py`'s `dsp-next-boundary` rule). Related:
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md),
@@ -593,7 +593,7 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `deleteOldSongBeforeLoadingNew`) end the outgoing song's stutter and leave
   the stutter UI mode before the song is let go; an owner deleted while it
   stutters ends it too.
-- **Evidence.** `tests/unit/deluge/dsp-next/reference_stutter.h` is the old `Stutterer`'s
+- **Evidence.** `tests/unit/dsp/reference_stutter.h` is the old `Stutterer`'s
   `processStutter` verbatim but for owned storage and the wrapping sum; it equals
   the old app code over every workload of `stutter_workloads.h`
   (`kRecordedReference`), and the kernel (`stutter_kernel_spec`) and the
@@ -628,7 +628,7 @@ each hop. Its pieces split by rate:
 - **The component.** `LivePitchShifter<Frame>` is the scheduler, the two heads and the render loop: configure the
   heads for the block's history and shift, then render each segment's heads in place. `PitchShifter` is the voice's
   handle, one allocation of whichever instantiation the channel needs, owned explicitly by `InputSource`.
-- **Evidence.** `tests/unit/deluge/dsp-next/reference_live_pitch_shifter.h` is the old three classes verbatim but for owning their
+- **Evidence.** `tests/unit/dsp/reference_live_pitch_shifter.h` is the old three classes verbatim but for owning their
   storage; it and the component equal the records the old classes made over 27 workloads
   (`pitch_shift_workload_records.h`), and each piece has a spec against its verbatim reference
   (`slope_follower_spec`, `input_history_spec`, `pitch_shift_tuning_spec`, `play_head_spec`, `percussive_search_spec`,
@@ -685,7 +685,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   render configures from them at its next block (and again after every `prepare`, so no publish is lost to a
   rebuild). The sidechain duck, the pan and the 12 s/RMS gate stay in `AudioEngine`, which folds them
   into the two return levels.
-- **Evidence.** `tests/unit/deluge/dsp-next/reference_reverb.h` is the three old models verbatim, pinned over every workload of
+- **Evidence.** `tests/unit/dsp/reference_reverb.h` is the three old models verbatim, pinned over every workload of
   `reverb_workloads.h` (`kRecordedReference`: output, whole state and send), host and ARM alike; the kernels
   (`freeverb_kernel_spec`, `plate_lfo_spec`, `plate_kernel_spec`) and the component (`effects/reverb_spec`)
   equal it. The render gates `render-reverb-freeverb`, `-mutable`, `-digital` and `-switch` render each model away
@@ -695,7 +695,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
 ### The chains' small stages, the duck and the engine's own: bitcrush, EQ, send and volume, metronome, monitoring
 
 Each is a kernel run through `Mono<K>` by the `effects` class (or engine class) that held its arithmetic, now
-an adapter over it. All are bit-exact to the code they replace; `tests/unit/deluge/dsp-next/reference_effects.h` keeps that code line
+an adapter over it. All are bit-exact to the code they replace; `tests/unit/dsp/reference_effects.h` keeps that code line
 for line. The specs drive the adapters themselves (`effects::Bitcrush`, `Equalizer`, `SendAndVolume`, `Metronome`)
 against it over every block size, on x86 and qemu-ARM; the monitoring kernels are held to it directly, and the
 engine's monitoring decision to a copy of the function it replaced.
@@ -798,7 +798,7 @@ the codec and the UI.
   history carries across a retrigger; a voice lives while an op's gain is at or above the modern engine's threshold,
   which a silent MkI op's attenuation (near `kEnvMax`) passes, so a released MkI voice never ends; an envelope's retune
   sets a level-less target that the stage entry overwrites; the LFO's triangle plays the sine.
-- **Evidence.** `tests/unit/deluge/dsp-next/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
+- **Evidence.** `tests/unit/dsp/reference_dx7.h` is the engine verbatim, with named edits for its seams, pinned over every
   workload of `dx7_workloads.h` (`kRecordedReference`: output, state, liveness) on host and ARM; each kernel and
   component spec equals it (`dx7_tables_spec` to `dx7_voice_spec`), with the modern no-input and bus-input ops taken as
   the device renders them (`VectorCore`). `reference_neon_fm_kernel.s` is the device's NEON kernel, pinned under qemu
@@ -905,7 +905,7 @@ calls the wrappers (`Mono`, `Stereo` and `Control`) make, in
   part's modes: the part's `Settings.mode` and `Coefficients.mode` are dead
   inside it, and the composite's `step` names the part's mode directly.
 
-`SeriesPoles` in `tests/unit/deluge/dsp-next/mono_spec.cpp` is the reference: a moded one-pole
+`SeriesPoles` in `tests/unit/dsp/mono_spec.cpp` is the reference: a moded one-pole
 and a one-pole with a `Block`, in series, checked against a hand loop over the
 parts. A composite that only runs its parts in series is a
 [`Chain`](#chain-and-pinned-corechainh), which does all of the above for any
@@ -1003,7 +1003,7 @@ alone.
   more per frame than `Stereo<OnePole>`, from the chain's register pressure.
   Bench a chain against its passes before relying on the fusion.
 
-`chain_spec` (`tests/unit/deluge/dsp-next`) pins a chain against its parts run in sequence: every
+`chain_spec` (`tests/unit/dsp`) pins a chain against its parts run in sequence: every
 form, every mode combination switched block by block, in place and out of place,
 `reset_part`, nesting, and `Stereo` and `Linked` against per-lane `Mono`s.
 
@@ -1847,18 +1847,18 @@ and are unused in the app, so the linker drops them.
 
 A kernel that replaces hand-written code is checked bit for bit against a test-local, line-for-line copy of that code,
 not against the code itself, so the code can be deleted once its users move. The filters' copies are in
-`tests/unit/deluge/dsp-next/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
-the filter set. The compressor's are in `tests/unit/deluge/dsp-next/reference_compressor.h`, on those legacy forms: the legacy class
+`tests/unit/dsp/reference_filters.h`: `OnePole`'s and `AntialiasedTanh`'s legacy forms, the fade, both ladders, the SVF and
+the filter set. The compressor's are in `tests/unit/dsp/reference_compressor.h`, on those legacy forms: the legacy class
 verbatim, and the same class with its two level defects fixed (the 32-bit sum of squares, and `std::abs` of
-`INT32_MIN`), which is what the kernel matches. The reverb's are in `tests/unit/deluge/dsp-next/reference_reverb.h`: Freeverb, the Mutable plate
+`INT32_MIN`), which is what the kernel matches. The reverb's are in `tests/unit/dsp/reference_reverb.h`: Freeverb, the Mutable plate
 and the Digital plate with the engine's model selector, verbatim, which the kernels and the component match.
 
 **What is checked against them.** They are the oracle for:
 - `one_pole_spec`, `antialiased_tanh_spec`, `low_pass_ladder_spec`, `high_pass_ladder_spec`, `svf_spec` and
   `fade_in_spec`;
-- `filters_reference_spec`, which runs every filter and filter-set workload (`tests/unit/deluge/dsp-next/filter_workloads.h`) through
+- `filters_reference_spec`, which runs every filter and filter-set workload (`tests/unit/dsp/filter_workloads.h`) through
   both and pins the references' output, noise draws and whole state in `filter_workload_records.h`;
-- `compressor_reference_spec`, which runs every compressor workload (`tests/unit/deluge/dsp-next/compressor_workloads.h`) through both
+- `compressor_reference_spec`, which runs every compressor workload (`tests/unit/dsp/compressor_workloads.h`) through both
   compressor references, shows where the level defects are reached, and pins each one's output, gain reduction and
   state in `compressor_workload_records.h`; `compressor_kernel_spec` and `rms_feedback_compressor_spec` hold the
   kernel and its owner to the fixed one.
@@ -1873,7 +1873,7 @@ leg therefore checks the kernels and runs with no exclusion.
 ### The real FFT (`fixed/fft/`)
 
 The firmware's int32 real FFT: the wavetable band builder's forward and inverse transforms and pitch detection's
-forward transform. It is a port of NE10's unscaled int32 real FFT to Argon, bit for bit: `tests/unit/deluge/dsp-next/real_fft_records.h`
+forward transform. It is a port of NE10's unscaled int32 real FFT to Argon, bit for bit: `tests/unit/dsp/real_fft_records.h`
 holds NE10's outputs, recorded on x86 and on ARM, at every size the firmware transforms (forward 16 to 8192 points,
 inverse 8 to 8192), over random, impulse, full-scale and real-cycle inputs, and `real_fft_spec` holds `RealFft` to
 them on x86, ARM and under UBSan.

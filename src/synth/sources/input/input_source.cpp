@@ -16,7 +16,7 @@
  */
 #include "synth/sources/input/input_source.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_inputs.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"

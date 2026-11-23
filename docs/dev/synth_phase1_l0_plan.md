@@ -28,7 +28,7 @@ Why a parallel library instead of in-place refactor:
 ## Library shape: `fixed/` and `float/` behind a numeric-agnostic core
 
 ```
-src/deluge/dsp-next/
+src/dsp/
   core/    headers only — numeric-agnostic interfaces, concepts, block/span
            types, strong numeric aliases, q31<->f32 conversion. No globals.
   fixed/   q31 implementations            -> lib  libdeluge-dsp-fixed
@@ -116,12 +116,12 @@ at the end. Migration order:
    device render DX7 presets identically.
 
 Each primitive: rewrite in `dsp-next` → **write a thorough behavioural spec**
-(`tests/unit/deluge/dsp-next/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
+(`tests/unit/dsp/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
 (SIMDe) and ARM/qemu, locking the kernel's behaviour and cross-checking x86≡ARM
 → switch the caller (oscillator dispatch / `Voice` / `FilterSet` / `WaveTable`)
 → full golden sweep (bit-exact) → delete the old `dsp/` implementation. The spec
 is mandatory and lands with (or just before) the migration, not after — it is
-the per-primitive regression net. See `tests/unit/deluge/dsp-next/README.md`.
+the per-primitive regression net. See `tests/unit/dsp/README.md`.
 
 ### Deferred to Phase 3 (do not migrate now)
 `granular/`, `timestretch/`, and the sample path stay in the old `dsp/` and
@@ -137,11 +137,11 @@ Bisectable commits; firmware Debug build + full golden sweep (x86 **and** ARM
 oracle) green before the next. `git mv`/port commits never carry a behaviour
 change.
 
-- **S0 — Scaffold. ✅ done (2026-06-13).** Created `dsp-next/{core,fixed,float}`:
+- **S0 — Scaffold. ✅ done (2026-06-13).** Created `dsp/{core,fixed,float}`:
   `core` is a header-only INTERFACE target (`deluge_dsp_core`); `fixed`/`float`
   are STATIC libs (`deluge_dsp_fixed`→`libdeluge-dsp-fixed`,
   `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp_legacy` (unity,
-  `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp_next`
+  `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp`
   INTERFACE links all three and is linked into `deluge_app` (so firmware + sim
   pick it up). Namespaces: `deluge::dsp` (core), `deluge::dsp::fixed`,
   `deluge::dsp::fp` (`float` is a keyword). Include-lint gate
@@ -149,7 +149,7 @@ change.
   legacy `dsp/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
   wired into pre-commit + a CI workflow. Firmware Debug builds green, text
   unchanged (empty libs add no code). The per-primitive unit-spec harness
-  (`tests/unit/deluge/dsp-next/`, dual-arch CppSpec via CTest) lands with S2.
+  (`tests/unit/dsp/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
   `q31_t`, + the `SampleType` concept) and `core/convert.h` (`to_f32`/`to_q31`
@@ -164,10 +164,10 @@ change.
   an oscillator; vector FM dissolved into `sine(phase + mod)` at the `voice.cpp`
   call sites; phase-advance (the osc concern) decomposed back to the caller; the
   LUT is now a TU-local table; magic numbers became named constants; full `///@`
-  Doxygen; snake_case free functions via a scoped `dsp-next/.clang-tidy`. Bit-exact:
+  Doxygen; snake_case free functions via a scoped `dsp/.clang-tidy`. Bit-exact:
   x86 319/319, ARM oracle 5/5 (the sine/fm cases only — the full ARM/QEMU sweep
   is too slow to run per-commit, so it is reserved for phase boundaries). Shipped
-  with a thorough dual-arch unit spec: `tests/unit/deluge/dsp-next/sine_spec.cpp` (CppSpec, CTest)
+  with a thorough dual-arch unit spec: `tests/unit/dsp/sine_spec.cpp` (CppSpec, CTest)
   runs on x86 (SIMDe) and ARM/qemu, both green.
 - **Oscillator domain** (the active thread): the VA wave kernels + LUTs, the VCA
   separation, and the megaswitch → kernel-registry rewrite. Staged
@@ -187,7 +187,7 @@ change.
 ## Test & gate strategy
 
 - **`fixed/` primitives** are golden-bit-exact gated on caller-switch, and
-  each gets a dual-arch CppSpec unit spec (`tests/unit/deluge/dsp-next/`, run as CTest on x86
+  each gets a dual-arch CppSpec unit spec (`tests/unit/dsp/`, run as CTest on x86
   SIMDe + ARM/qemu) proving behaviour and x86 ≡ ARM in isolation.
 - **`float/` primitives** are validated by tolerance/perceptual comparison,
   never SHA — they are a different numeric track by design.

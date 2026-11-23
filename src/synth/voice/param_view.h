@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "synth/modulation/patch_routing.h" // Globality
 #include "synth/modulation/patch_source.h"
 #include <array>

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/table_interpolation.h"
 #include "util/lookuptables/lookuptables.h"
 
 #include <algorithm>

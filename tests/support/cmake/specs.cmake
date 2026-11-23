@@ -90,7 +90,7 @@ endfunction()
 # below the directory the file sits, so a spec moves without an edit. SOURCES are the code under test and any mocks;
 # relative paths resolve against the calling directory. Every spec includes against the calling directory and then
 # tests/, so a header from another test directory is named by its path there ("support/golden_update.h",
-# "harness/ui_script.h", "unit/deluge/dsp-next/raw_words.h"). NEON links argon as deluge_test_neon() does.
+# "harness/ui_script.h", "unit/dsp/raw_words.h"). NEON links argon as deluge_test_neon() does.
 # DEFINITIONS are compile definitions for the driver's own sources (the specs and SOURCES).
 # Every executable gets GOLDEN_ROOT (golden.cmake).
 function(deluge_specs_driver name)

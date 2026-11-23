@@ -17,7 +17,7 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/curves/instant_tan.h"
+#include "dsp/fixed/curves/instant_tan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"

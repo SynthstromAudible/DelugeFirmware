@@ -16,8 +16,8 @@
  */
 
 #include "synth/engines/block_controls.h"
-#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
+#include "dsp/core/phasor.h" // deluge::dsp::Phasor
+#include "dsp/core/ramp.h"   // deluge::dsp::Ramp
 #include <optional>
 
 namespace deluge::synth {

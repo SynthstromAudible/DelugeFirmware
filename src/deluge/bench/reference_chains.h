@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "dsp-next/core/detail/raw_ops.h"
+#include "dsp/core/detail/raw_ops.h"
 #include "effects/chain_core.h"
 #include "effects/filter.h"
 #include "effects/fx_section.h"

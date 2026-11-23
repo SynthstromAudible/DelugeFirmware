@@ -58,7 +58,7 @@ repos:
         language: python
         additional_dependencies: ["clang-tidy==23.1.4"]
         types_or: [c, c++]
-        files: ^src/(deluge/dsp-next|synth|effects|instruments|plugin|serialization|ui/controls)/
+        files: ^src/(dsp|synth|effects|instruments|plugin|serialization|ui/controls)/
         require_serial: true
       - id: model-words
         name: the model names no plugin's state

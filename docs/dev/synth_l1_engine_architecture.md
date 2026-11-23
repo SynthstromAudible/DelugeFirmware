@@ -135,7 +135,7 @@ when every part's sources ended. It derives each engine's controls from its para
 - **A port-free source** (Karplus-Strong, a Plaits model): a class deriving `Source`, an alternative in
   `SourceSlot::Oscillator`, and a case in `SourceSlot::build_oscillator`. The voice and the engines are unchanged.
 - **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle) and a case in
-  `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/deluge/dsp-next/synth_engine_spec.cpp` drives an engine
+  `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/dsp/synth_engine_spec.cpp` drives an engine
   and a source written against the contracts alone.
 - **The declared hooks** come into use with the engines that need them: `takes_input` with exciter→resonator,
   `owns_envelope` and `sound_stage` with a physical model.
@@ -154,6 +154,6 @@ lifecycle, the slots, the engine families and the declared hooks carry over. See
   noise without a filter and across a spread unison, a DX7 patch in osc 2, a retriggered supersaw, a mono voice's osc 1
   turned saw → square (keeps its saw) and saw → supersaw (builds one) between notes (`RENDER_SETTING`), and FM
   re-triggered on a mono sound.
-- **`tests/unit/deluge/dsp-next/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots
+- **`tests/unit/dsp/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots
   and rendered; each family through a voice (subtractive mixing and syncing, ring-mod multiplying, FM modulating); a
-  voice whose sound changes mode while it sounds. `tests/unit/deluge/dsp-next/synth_voice_spec.cpp` plays the voice's lifecycle.
+  voice whose sound changes mode while it sounds. `tests/unit/dsp/synth_voice_spec.cpp` plays the voice's lifecycle.

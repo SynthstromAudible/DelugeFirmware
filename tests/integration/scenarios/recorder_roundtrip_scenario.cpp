@@ -37,7 +37,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_source.h" // DELUGE_REGION_LOADING
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "io/file.hpp"
 #include "io/stream.hpp"
 #include "model/sample/sample.h"

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/delay/delay_tape.h"
-#include "dsp-next/fixed/stutter/stutter_kernel.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/delay/delay_tape.h"
+#include "dsp/fixed/stutter/stutter_kernel.h"
 #include "effects/delay.h"  // TapeShape
 #include "effects/mod_fx.h" // RingAllocator
 #include "effects/params.h"

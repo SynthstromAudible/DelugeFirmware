@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/granular/granular_kernel.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/granular/granular_kernel.h"
+#include "dsp/fixed/noise/cong.h"
 #include "effects/mod_fx.h" // RingAllocator
 #include "effects/words.h"
 

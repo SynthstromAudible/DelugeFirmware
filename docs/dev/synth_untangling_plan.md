@@ -199,7 +199,7 @@ Thumb and a low inline threshold (5).
 
 | Layer | Directory | Target |
 |---|---|---|
-| L0 DSP primitives | `src/deluge/dsp-next/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
+| L0 DSP primitives | `src/dsp/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
 | L1 sources, modulation core (envelopes, LFOs, Patcher) | `src/synth/sources/`, `src/synth/modulation/` | `deluge_synth` |
 | L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
 | L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
@@ -207,7 +207,7 @@ Thumb and a low inline threshold (5).
 | Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin/` | `deluge_plugin` |
 
-The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/deluge/dsp-next/`, once the legacy
+The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/dsp/`, once the legacy
 `src/deluge/dsp_legacy/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;
 one directory per instrument plugin under `src/instruments/` (`classic/`, the q31 instrument that holds `Fixed`, and
 `modern/`, the float one); `src/effects/` and `src/note_devices/` beside them. Only instruments include `synth/`, no

@@ -16,10 +16,10 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent band view)
-#include "dsp-next/fixed/wavetable/wavetable_oscillator.h" // deluge::dsp::fixed::WavetableOscillator (non-sync)
-#include "dsp-next/fixed/wavetable/wavetable_sync_oscillator.h" // deluge::dsp::fixed::WavetableSyncOscillator (+ deluge::dsp::fixed::Resetter)
+#include "dsp/core/phasor.h"
+#include "dsp/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent band view)
+#include "dsp/fixed/wavetable/wavetable_oscillator.h" // deluge::dsp::fixed::WavetableOscillator (non-sync)
+#include "dsp/fixed/wavetable/wavetable_sync_oscillator.h" // deluge::dsp::fixed::WavetableSyncOscillator (+ deluge::dsp::fixed::Resetter)
 #include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 

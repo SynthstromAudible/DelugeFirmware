@@ -18,7 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"

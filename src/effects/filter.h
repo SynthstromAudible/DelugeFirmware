@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/filter/filter_set.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/filter/filter_set.h"
 #include "effects/params.h"
 #include "effects/state.h"
 

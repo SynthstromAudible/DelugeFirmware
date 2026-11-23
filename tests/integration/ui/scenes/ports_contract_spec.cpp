@@ -25,7 +25,7 @@
 #include "project/device_settings.h"
 #include "storage/flash_storage.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "libdeluge/cv_gate.h"
 #include "model/clip/audio_clip.h"
 #include "model/project_bridge/slot_bridge.h"

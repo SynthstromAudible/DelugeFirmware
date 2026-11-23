@@ -3,7 +3,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Ratchet on raw fixed-point arithmetic outside the format types (dsp-next/core/fixed_point.h).
+"""Ratchet on raw fixed-point arithmetic outside the format types (dsp/core/fixed_point.h).
 
 Counts three things per C/C++ file under src/, comments excluded:
 - raw sites: calls to detail/raw_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...),
@@ -29,8 +29,8 @@ Usage:
     scripts/check_fixed_point_raw.py --write    # rewrite the allowlist; refuses to raise a count or add a counted file
 
 Gate fixed-point-raw:
-    raw fixed-point arithmetic outside the core headers that define it (dsp-next/core/fixed_point.h, fixed_point_neon.h,
-    buffer_view.h, high_word_asm.h and detail/raw_ops.h), the raw seam views of dsp-next/core/buffer_view.h, and the
+    raw fixed-point arithmetic outside the core headers that define it (dsp/core/fixed_point.h, fixed_point_neon.h,
+    buffer_view.h, high_word_asm.h and detail/raw_ops.h), the raw seam views of dsp/core/buffer_view.h, and the
     typed-boundary crossings, only shrink: no file's count of raw helper calls and DSP-instruction asm, of
     typed_view/raw_view calls, or of from_raw/.raw()/reinterpret_bits crossings differs from
     scripts/fixed_point_raw_allowlist.txt (a lower count fails until the list is rewritten, so freed headroom cannot be
@@ -52,11 +52,11 @@ SCOPE = ("src",)
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".inc"}
 EXEMPT = frozenset(
     {
-        "src/deluge/dsp-next/core/buffer_view.h",
-        "src/deluge/dsp-next/core/fixed_point.h",
-        "src/deluge/dsp-next/core/fixed_point_neon.h",
-        "src/deluge/dsp-next/core/high_word_asm.h",
-        "src/deluge/dsp-next/core/detail/raw_ops.h",
+        "src/dsp/core/buffer_view.h",
+        "src/dsp/core/fixed_point.h",
+        "src/dsp/core/fixed_point_neon.h",
+        "src/dsp/core/high_word_asm.h",
+        "src/dsp/core/detail/raw_ops.h",
     }
 )
 
@@ -97,7 +97,7 @@ DSP_INSTRUCTION = re.compile(
 )
 
 HEADER = """\
-# Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp-next/core/fixed_point.h and
+# Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp/core/fixed_point.h and
 # detail/raw_ops.h. `raw`: raw_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
 # fixed-point methods. `view`: buffer_view.h's typed_view()/raw_view() calls, written only where there are any.
 # `boundary`: from_raw()/.raw()/reinterpret_bits<> crossings, each with its reason at the crossing.
@@ -319,7 +319,7 @@ def main() -> int:
     if grown(counts, allowlist):
         print(
             "Raw fixed-point arithmetic, the seam views or the boundary crossings grew. Write it with "
-            "dsp-next/core/fixed_point.h's typed operations and typed buffers, or remove another crossing in the "
+            "dsp/core/fixed_point.h's typed operations and typed buffers, or remove another crossing in the "
             "same file; if a raw site, a view or a crossing is unavoidable, say why where it is, justify it in review "
             "and rewrite the list with --write --allow-growth.",
             file=sys.stderr,

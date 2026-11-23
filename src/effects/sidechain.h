@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/control.h"
-#include "dsp-next/fixed/dynamics/duck_envelope.h"
-#include "dsp-next/fixed/dynamics/duck_gain.h"
+#include "dsp/core/control.h"
+#include "dsp/fixed/dynamics/duck_envelope.h"
+#include "dsp/fixed/dynamics/duck_gain.h"
 #include "effects/params.h"
 #include "effects/state.h"
 

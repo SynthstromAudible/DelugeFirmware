@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "modulation/params/param.h" // params::kNumParams
 #include "synth/matrix/program.h"
 #include "synth/modulation/cable.h"

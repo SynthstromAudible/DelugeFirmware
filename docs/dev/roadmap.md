@@ -198,7 +198,7 @@ PIC and parity with main.
   renderer's collapse arithmetic, `pad_leds`' `divide_round_negative`, the timeline's `divide_round_negative` and the
   audio clip scene's bar formatting. Each moves onto `base/divide.h` when its code is rewritten.
 
-R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
+R2d must also close the transitive leaks a build without `deluge_app` shows: `src/dsp/**` headers reached
 through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,
 equalizer, filter, granular, mod-FX, stutter, send-and-volume, chain, master-chain, track-chain, LFO, live-input and
 sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definitions_cxx.hpp`; and `etl/string.h` through
@@ -268,7 +268,7 @@ budget.
 
 | Area | Where | Size (lines) | State |
 | --- | --- | --- | --- |
-| DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp-next/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
+| DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
 | Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in dsp-next; loading and the holder app-side |
 | Time-stretch, sample playback | `src/deluge/dsp_legacy/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
@@ -322,7 +322,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- |
 | UI shell | Off `next`; R2, then the root-view program | `src/ui/scenes`, `src/ui/shell`, `gui/ui` | Scene binding tables |
 | Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
-| Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
+| Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |
 

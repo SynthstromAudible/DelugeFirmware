@@ -1,10 +1,10 @@
 # Gate unit-arm:
 #     the dsp-next, NEON, model, effects, instrument, music, serialization, plugin, host-chain and
-#     bench specs and model equality hold on ARM, cross-built with clang and run under qemu: tests/unit/deluge/dsp-next
+#     bench specs and model equality hold on ARM, cross-built with clang and run under qemu: tests/unit/dsp
 #     and the test directories under tests/unit that name this tree, the fixed-point and VFP specs among them. The NEON
 #     conversion kernels must match their scalar references bit for bit, every fixed-point operation (and its portable
 #     twin) must match the A9 instruction it stands for, and every fixed-point operation must compile, at the shipping
-#     image's ARM and Thumb-2 codegen flags, to the instruction it names (tests/unit/deluge/dsp-next/core);
+#     image's ARM and Thumb-2 codegen flags, to the instruction it names (tests/unit/dsp/core);
 #     model_equality_synthetic reads the synthetic songs and the model records on ARM as on the host
 
 cmake_minimum_required(VERSION 3.24)

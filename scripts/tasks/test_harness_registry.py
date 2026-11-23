@@ -491,7 +491,7 @@ class GoldenRootTest(unittest.TestCase):
         for good in (
             "tests/golden/songs/fixtures.json",
             "tests/golden/ui/app",
-            "tests/unit/deluge/dsp-next/x_records.h",
+            "tests/unit/dsp/x_records.h",
             "tests/integration/scenarios/pitch_pin_records.h",
             "website/src/data/generated/menu-tree.json",
         ):

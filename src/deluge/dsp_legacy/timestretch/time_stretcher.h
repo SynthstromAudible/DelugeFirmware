@@ -131,4 +131,4 @@ private:
 };
 
 // The crossfade window-match helpers (getTotalDifferenceAbs / getTotalChange) moved to
-// dsp-next/fixed/timestretch/crossfade.h as deluge::dsp::fixed::totalDifferenceAbs / totalChange.
+// dsp/fixed/timestretch/crossfade.h as deluge::dsp::fixed::totalDifferenceAbs / totalChange.

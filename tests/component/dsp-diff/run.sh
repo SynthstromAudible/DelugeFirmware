@@ -20,7 +20,7 @@ trap 'rm -rf "$out"' EXIT
 
 # Match the firmware/host builds: C++23, signed char. Test at -O0 and -O2 (catches
 # optimisation-dependent divergence, e.g. UB the optimiser exploits differently). tests/ is an
-# include root too, so a test header is named by its path there ("unit/deluge/dsp-next/raw_words.h").
+# include root too, so a test header is named by its path there ("unit/dsp/raw_words.h").
 common=(-std=gnu++23 -fsigned-char -I "$root/src/deluge" -I "$root/src" -I "$root/tests")
 
 # argon (vendored via the host-app build's FetchContent, the `host-app` product this

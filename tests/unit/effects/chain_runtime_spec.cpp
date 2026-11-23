@@ -22,7 +22,7 @@
 // draws compared word for word. And each runtime's order against chain.h's, and the master's between: once per block,
 // after the send and volume, before the filter.
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include "effects/chain.h"
 #include "effects/fx_section.h"
 #include "effects/master_chain.h"

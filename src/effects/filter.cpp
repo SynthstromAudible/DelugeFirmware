@@ -17,7 +17,7 @@
 
 #include "effects/filter.h"
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include "effects/filter_slots.h"
 
 #include <cstddef>

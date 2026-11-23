@@ -13,7 +13,7 @@
    switch) and how app-coupled sources reach storage/`AudioEngine` (ports). *Needed for the lift.*
 2. **Param ownership** — whether a source reads its modulated params from the Voice's **flat plane** by global
    index, or **owns typed params** fed to it. *The OO question; gated on the patcher.*
-3. **dsp-next residence** — whether the DSP primitive lives in `dsp-next/` owning its state + config. *The dsp-next
+3. **dsp-next residence** — whether the DSP primitive lives in `dsp/` owning its state + config. *The dsp-next
    track.*
 
 These are orthogonal. The lift only needs (1)-as-ports. (2) and (3) are the OO migration and should not be
@@ -99,7 +99,7 @@ the next phase.
    dispatch *here* (now it carries typed params — OO-correct). Per-component slices.
 3. **OO Source phase B (optional/with the modulation rework)** — patcher writes typed natively; retire the flat
    local plane.
-4. **dsp-next residence** — fold the now-typed-param components into `dsp-next/` proper (ongoing on the dsp-next
+4. **dsp-next residence** — fold the now-typed-param components into `dsp/` proper (ongoing on the dsp-next
    track).
 
 This makes the **L1 engine API** real: a third-party engine receives typed params, not the Deluge's `LOCAL_*`

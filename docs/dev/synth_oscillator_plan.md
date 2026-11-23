@@ -4,7 +4,7 @@ Status: **planned** (2026-06-13). Companion to
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md). Follows the sine kernel (S2,
 done). The filter subsystem is deferred to a later cohesive arc — see that plan.
 
-Goal: migrate the rest of the oscillator domain into `dsp-next/fixed/oscillators/`
+Goal: migrate the rest of the oscillator domain into `dsp/fixed/oscillators/`
 as clean, modular, per-wave **kernel + LUT** primitives (the shape sine took),
 breaking the rendering out of the `OscType` megaswitch and **separating the VCA
 (amplitude) from wave generation**.
@@ -41,12 +41,12 @@ Problems:
 The fixed DSP library holds **stateless kernels** — pure functions, the caller
 owns the phase accumulator, exactly like `sine()`. Wave generation, band-limit
 table selection, the osc-sync crossover render, pulse-width math, and the VCA
-are all pure-given-inputs and live here. **No owned state in `dsp-next/fixed`.**
+are all pure-given-inputs and live here. **No owned state in `dsp/fixed`.**
 
 The **stateful oscillator** — owning phase / unison sub-phases / feedback across
 blocks, advancing them, composing the kernels — is the **L1 `SourceEngine`**
 (Phase 3, Plaits-style: `Init(allocator)` + `Render`). It is a higher layer, not
-in `dsp-next/fixed`; putting state here would blur L0/L1 and cost
+in `dsp/fixed`; putting state here would blur L0/L1 and cost
 composability/testability. Today that stateful role is `Voice` (it holds
 `oscPos`/`modulatorPhase`); it becomes `SourceEngine` later. So the kernels
 migrated here are phase-in/out functions — the same kernel can back an
@@ -87,7 +87,7 @@ cache-hot scratch block. Validate with a hardware voice-count/CPU spot-check
 add a fused `generate+scale+mix` fast path — built as an explicit composition
 on top of the clean kernel, never welded back into the kernel contract.
 
-## Target structure (`dsp-next/fixed/oscillators/`)
+## Target structure (`dsp/fixed/oscillators/`)
 
 Per-wave **kernel + LUT** combos (each owns its band-limited table set, like
 sine owns `sineWaveDiff`):
@@ -198,7 +198,7 @@ caught with the cleanest possible signal.
   `applyAmplitude` dual-path (raw == "skip the VCA stage"). Reordering identical
   ops across a temp is bit-identical → still gated on the same hashes.
 
-### Phase B — migrate to `dsp-next/fixed/oscillators/` (dual-arch spec + golden gate)
+### Phase B — migrate to `dsp/fixed/oscillators/` (dual-arch spec + golden gate)
 Now near-mechanical: relocate the already-split, already-clean pieces.
 - **B1 — render core + LUTs.** Move the vector wave-render core
   (`waveRenderingFunctionGeneral`/`Pulse`, `renderOscSync`) and the per-wave LUTs

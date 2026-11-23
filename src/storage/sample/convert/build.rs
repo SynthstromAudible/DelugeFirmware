@@ -66,7 +66,7 @@ fn main() {
     // The headers those sources include, so a change to one (fixed_point.h's float conversion, say) rebuilds the C++ the
     // tests run. Cargo scans a directory recursively, so a header added there is tracked too.
     for header in [
-        src_deluge.join("dsp-next/core"),
+        src.join("dsp/core"),
         stream.clone(),
         src_deluge.join("storage/audio/audio_file_format.h"),
         src_deluge.join("util/audio_format_helpers.h"),

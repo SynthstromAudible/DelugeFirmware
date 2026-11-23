@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/delay/delay_processor.h"
-#include "dsp-next/fixed/delay/delay_tape.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/delay/delay_processor.h"
+#include "dsp/fixed/delay/delay_tape.h"
 #include "effects/delay_arena.h"
 #include "effects/params.h"
 #include "effects/state.h"

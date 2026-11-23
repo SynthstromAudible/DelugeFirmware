@@ -24,7 +24,7 @@
 /// the `signed_saturate`/`add_saturate`/`subtract_saturate` stub bugs and the q31_* gaps are caught,
 /// and a regression guard going forward). See run.sh.
 
-#include "unit/deluge/dsp-next/raw_words.h"
+#include "unit/dsp/raw_words.h"
 
 #include <cstdint>
 #include <cstdio>

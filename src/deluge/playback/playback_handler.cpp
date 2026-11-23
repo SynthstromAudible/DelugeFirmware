@@ -17,7 +17,7 @@
 
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/filter/filter_modes.h"
+#include "dsp/fixed/filter/filter_modes.h"
 #include "effects/words.h"
 
 namespace deluge::effects {

@@ -43,7 +43,7 @@ builds only `golden-vt-render`.
 | song-preview-ab | integration | scenario | differential | gate | the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously | nightly | render | ~5m |
 | preemptive-race-tsan | integration | script | sanitizer | gate | every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory) | manual | unit | ~30m |
 | snapshot-primitive-tsan | component | script | sanitizer | gate | Published<T> and SpscRing<E,N> must be race-free under concurrent stress | pr | unit | ~3m |
-| dsp-ubsan | unit | ctest | sanitizer | gate | the dsp-next specs (tests/unit/deluge/dsp-next) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
+| dsp-ubsan | unit | ctest | sanitizer | gate | the dsp-next specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
 | param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic | nightly | unit | ~40s |
 | dsp-diff | component | script | differential | gate | the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback | nightly | unit | ~5m |
 | corpus-guard | integration | script | property | gate | golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus | pr | unit | ~1s |

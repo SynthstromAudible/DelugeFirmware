@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/noise/cong.h"
 #include "effects/bitcrush.h"
 #include "effects/compressor.h"
 #include "effects/delay.h"

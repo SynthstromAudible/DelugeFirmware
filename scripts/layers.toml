@@ -38,6 +38,9 @@ path = "app"
 path = "base"
 
 [[directory]]
+path = "dsp"
+
+[[directory]]
 path = "host"
 
 [[directory]]
@@ -100,7 +103,7 @@ may_include = [
     "plugin/",
     "serialization/",
     "base/panic.h",
-    "dsp-next/",
+    "dsp/",
 ]
 
 [[library]]
@@ -118,7 +121,7 @@ may_include = [
     # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
     "synth/voice/sound_config.h",
     "synth/voice/unison.h",
-    "dsp-next/fixed/pitch/",
+    "dsp/fixed/pitch/",
     # the components' states, which the instrument's state is composed of
     "synth/sources/source_state.h",
     "synth/sources/input/input_channel.h",
@@ -371,7 +374,7 @@ reason = "the application reaches the hardware only through libdeluge"
 
 [[rule]]
 name = "dsp-next-boundary"
-files = ["src/deluge/dsp-next/**"]
+files = ["src/dsp/**"]
 pattern = '^(storage|model|processing|gui|playback|modulation|hid|io|dsp_legacy|RZA1|bsp|drivers|memory|util)/'
 allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
 reason = "the L0 kernels reach no app layer, the legacy dsp library or the platform"

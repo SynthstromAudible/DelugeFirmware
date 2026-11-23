@@ -188,7 +188,7 @@ gates = "the sample loader's candidate order, admission rule, build contract and
 scenario = "load_policy"
 markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-OPEN-PATH", "LP-DEFAULT", "LP-INVARIANTS", "LP-WT-PIN", "LP-PITCH-PIN", "LP-WT-ZEROBAND", "LP-WT-FAIL"]
 result = "LP-RESULT failures=0"
-baseline = ["tests/unit/deluge/dsp-next/wavetable_band_records.h", "tests/integration/scenarios/pitch_pin_records.h"]
+baseline = ["tests/unit/dsp/wavetable_band_records.h", "tests/integration/scenarios/pitch_pin_records.h"]
 tier = "pr"
 job = "app"
 runtime_s = 10
@@ -362,7 +362,7 @@ level = "unit"
 runner = "ctest"
 kind = "sanitizer"
 status = "gate"
-gates = "the dsp-next specs (tests/unit/deluge/dsp-next) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan"
+gates = "the dsp-next specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan"
 source = "tests/trees/ubsan"
 tree = "build/test-ubsan"
 configure = ["-G", "Ninja"]
@@ -1351,9 +1351,9 @@ baseline = [
   "tests/golden/shell",
   "tests/golden/ui/widgets",
   "tests/golden/ui/shell",
-  "tests/unit/deluge/dsp-next/hop_scheduler_records.h",
-  "tests/unit/deluge/dsp-next/pitch_shift_component_records.h",
-  "tests/unit/deluge/dsp-next/dx7_workload_records.h",
+  "tests/unit/dsp/hop_scheduler_records.h",
+  "tests/unit/dsp/pitch_shift_component_records.h",
+  "tests/unit/dsp/dx7_workload_records.h",
 ]
 tier = "pr"
 job = "unit-cpp"
@@ -1371,7 +1371,7 @@ source = "tests/trees/arm"
 tree = "build/test-arm"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm", "llvm-objdump"]
-baseline = ["tests/unit/deluge/dsp-next/dx7_asm_pin_records.h"]
+baseline = ["tests/unit/dsp/dx7_asm_pin_records.h"]
 tier = "pr"
 job = "unit-cpp-variants"
 # Its first run, building its tree from cold, takes ~1m.

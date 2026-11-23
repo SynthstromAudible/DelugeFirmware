@@ -16,7 +16,7 @@
  */
 
 #include "processing/metronome/metronome.h"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 
 #include <cmath>
 

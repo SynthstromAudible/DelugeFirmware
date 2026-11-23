@@ -16,8 +16,8 @@
  */
 
 #include "model/fx/track_channel.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/param_curve.h"
 #include "memory/stack_guard.h"
 #include "model/fx/chain_inputs.h"
 #include "model/fx/channel_setup.h"

@@ -34,7 +34,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge_base_alloc.h"
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
 #include "effects/mod_fx.h"

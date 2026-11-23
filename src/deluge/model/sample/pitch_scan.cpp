@@ -16,8 +16,8 @@
  */
 
 #include "model/sample/pitch_scan.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/table_interpolation.h"
 
 #include "definitions_cxx.hpp"
 #include "libdeluge/clock.h" // deluge_clock_now

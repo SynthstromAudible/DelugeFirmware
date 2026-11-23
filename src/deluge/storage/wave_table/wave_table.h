@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "dsp/fixed/wavetable/wave_table_data.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/band_samples.h"

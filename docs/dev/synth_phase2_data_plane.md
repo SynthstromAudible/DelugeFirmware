@@ -120,7 +120,7 @@ phase boundaries.
    monolithic `util/functions.cpp` into a new leaf `util/interpolation.{h,cpp}` (only
    dep = the decay/release LUTs); 5 callers + `functions.cpp` re-include it. (`getSine`
    already lived in the leaf `util/waves.h`.) That unblocked a dual-arch
-   `tests/unit/deluge/dsp-next/envelope_spec.cpp` — 8 cases driving the `Envelope` in isolation
+   `tests/unit/dsp/envelope_spec.cpp` — 8 cases driving the `Envelope` in isolation
    (`envelope.cpp` + `interpolation.cpp` + `lookuptables.cpp`, no fatfs/gui/hid), green
    on x86 (SIMDe) and ARM/qemu. Pure relocation, bit-exact (x86 333/333, ARM subset).
 
@@ -151,7 +151,7 @@ phase boundaries.
    envelope cull-timing shift): per-struct state means a *live local-LFO shape change
    between two stateful waves* resets the accumulators (an accidental cross-type state
    leak in the old shared-fields code), unobservable in the corpus. Added a dual-arch
-   `tests/unit/deluge/dsp-next/lfo_spec.cpp` (exact per-waveform values from the x86-only CppUTest LFO
+   `tests/unit/dsp/lfo_spec.cpp` (exact per-waveform values from the x86-only CppUTest LFO
    suite it supersedes) — 12 cases green on x86 + ARM/qemu.
    Bit-exact: x86 golden 333/333, ARM oracle 8/8 LFO-exercising cases.
 4. **`ControlBlock` + patcher param source — DONE.** The audit showed the Patcher's
@@ -196,7 +196,7 @@ phase boundaries.
    `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
    `modulation/` into a new `src/synth/` (flat). Added
    `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
-   `modulation/` + `util/` + `dsp-next/`; forbids the app layers model/processing/
+   `modulation/` + `util/` + `dsp/`; forbids the app layers model/processing/
    storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
    `synth_boundary_allowlist.txt` (seeded **EMPTY**), a `synth-boundary` pre-commit
    hook, and a step of `.github/workflows/ci.yml`'s lint job. The one direct violation —
@@ -268,7 +268,7 @@ of the synth objects showed their only out-of-core link-deps were defs in gui-la
 into gui-free TUs (all bit-exact, x86 golden 333/333 + ARM oracle):
 - param-math defs (`getFinalParameterValue*`, `getExp`, `lookupReleaseRate`, `paramRanges`/`paramNeutralValues`,
   `getParamRange`/`getParamNeutralValue`, `functionsInit`) → new `util/param_functions.cpp` (the deferred
-  "A-full"; the curves now live in `dsp-next/fixed/curves/param_curve.h`, and only the envelope case stays there); `increase_magnitude_and_saturate` → `param_functions.h`; `functions.h` re-exports.
+  "A-full"; the curves now live in `dsp/fixed/curves/param_curve.h`, and only the envelope case stays there); `increase_magnitude_and_saturate` → `param_functions.h`; `functions.h` re-exports.
 - the 3 l10n/iterance preset-table defs → new `util/lookuptables/preset_tables.cpp` (numeric `lookuptables.cpp`
   is now gui-free).
 - `PatchCableSet::getModifiedPatchCableAmount` (the patcher's one PatchCableSet runtime dep — self-contained:
@@ -289,13 +289,13 @@ they moved into **dsp-next** (the L0 lib everything may depend on; its boundary 
 verbatim relocation — each arrived as a proper OO component in dsp-next's idioms, behaviour held bit-exact (the
 LUTs themselves stayed in `util/lookuptables`, which dsp-next is permitted to read — no risky table moves). Three
 bisectable commits, each x86 golden 333/333 + ARM/qemu oracle, both arches' dsp specs + `synth_link_test` green:
-- **Interpolation → `dsp-next/fixed/interpolation/table_interpolation.{h,cpp}`:** `LinearTableInterpolator`
+- **Interpolation → `dsp/fixed/interpolation/table_interpolation.{h,cpp}`:** `LinearTableInterpolator`
   (`interpolate`/`inverse`/`interpolate_signed`) + shared `inline constexpr kLinearTableInterpolator`, mirroring
   `WindowedSincKernel`; `getDecay4/8` alongside. The 7 unsigned-interp consumers repointed; `util/interpolation.*`
   deleted.
 - **LFO square/triangle → the dsp-next wave kernels** (`deluge::dsp::fixed::square` / `triangle_full`, the latter
   added beside the half-scale `triangle`). `util/waves.h`'s now-dead `getSquare`/`getTriangle*` dropped.
-- **Scalar sine → `dsp-next/fixed/osc/sine_table.h`** (`SineTable` evaluator + `kSineTable` instance) and
+- **Scalar sine → `dsp/fixed/osc/sine_table.h`** (`SineTable` evaluator + `kSineTable` instance) and
   **`CrudeSine`** completing the crude-osc family. The LFO/envelope/sync-seam/GUI eval-at-a-phase consumers call
   `kSineTable.value()`; `getSine` dropped from `util/waves.h` (`interpolateTableSigned` stays — sample/timestretch/
   filter still use it). The vector FM `sine` stays distinct; unifying the two sines is the deferred audible pass.

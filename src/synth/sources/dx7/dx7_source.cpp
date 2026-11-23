@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/dx7/dx7_source.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/stereo_sample.h"
 #include <span>
 
 namespace deluge::synth {

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include <cstdint>
 
 /// @brief An exponential-family param's final value: the release-rate table for envelope decays and releases, the

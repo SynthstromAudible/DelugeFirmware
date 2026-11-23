@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "dsp/fixed/dynamics/rms_feedback_compressor.h"
 #include "effects/params.h"
 #include "effects/state.h"
 

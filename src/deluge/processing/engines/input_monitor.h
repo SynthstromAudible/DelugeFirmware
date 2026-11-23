@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/types.h"
-#include "dsp-next/fixed/mix/output_fold.h"
+#include "dsp/core/types.h"
+#include "dsp/fixed/mix/output_fold.h"
 
 #include <cstdint>
 #include <limits>

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "dsp-next/core/mono.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/vca/send_and_volume.h"
+#include "dsp/core/mono.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/vca/send_and_volume.h"
 
 #include <cstdint>
 #include <span>

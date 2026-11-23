@@ -25,8 +25,8 @@
 
 #include "board_config.h" // PLACE_SDRAM_BSS, the codec ring's size
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/noise/cong.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/noise/cong.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "synth/sources/input/audio_input_port.h"

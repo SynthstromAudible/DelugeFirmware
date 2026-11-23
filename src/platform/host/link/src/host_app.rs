@@ -194,8 +194,8 @@ fn link_closure(build_dir: &Path, archive: &Path) {
     const DEPS: [(&str, &str); 26] = [
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp_legacy", "libdeluge_dsp_legacy.a"),
-        ("app/dsp-next", "libdeluge-dsp-fixed.a"),
-        ("app/dsp-next", "libdeluge-dsp-float.a"),
+        ("dsp", "libdeluge-dsp-fixed.a"),
+        ("dsp", "libdeluge-dsp-float.a"),
         ("synth", "libdeluge_synth.a"),
         ("base", "libdeluge_base.a"),
         ("serialization", "libdeluge_serialization.a"),

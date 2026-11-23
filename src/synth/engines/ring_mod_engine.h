@@ -17,7 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // OscType
-#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "dsp/fixed/wavetable/wave_table_data.h"
 #include "synth/engines/dual_source_engine.h"
 #include <array>
 #include <cstdint>

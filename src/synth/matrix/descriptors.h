@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kMaxSampleValue
-#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp/fixed/curves/param_curve.h"
 #include "modulation/params/param.h"
 #include "synth/modulation/cable.h"
 

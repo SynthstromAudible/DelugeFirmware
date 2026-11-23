@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "dsp-next/core/control.h"
-#include "dsp-next/fixed/dx7/lfo.h"
-#include "dsp-next/fixed/dx7/operator.h"
-#include "dsp-next/fixed/dx7/patch.h"
+#include "dsp/core/control.h"
+#include "dsp/fixed/dx7/lfo.h"
+#include "dsp/fixed/dx7/operator.h"
+#include "dsp/fixed/dx7/patch.h"
 #include <cstdint>
 
 class DxPatch {

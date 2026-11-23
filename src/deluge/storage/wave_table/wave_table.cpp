@@ -17,8 +17,8 @@
 
 #include "storage/wave_table/wave_table.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/fft/real_fft.h"
-#include "dsp-next/fixed/wavetable/band_builder.h"
+#include "dsp/fixed/fft/real_fft.h"
+#include "dsp/fixed/wavetable/band_builder.h"
 #include "memory/allocate_unique.h"
 #include "memory/fast_allocator.h"
 #include "model/sample/sample.h"

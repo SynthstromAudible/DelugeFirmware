@@ -17,7 +17,7 @@
 
 #include "instruments/classic/deluge_synth.h"
 
-#include "dsp-next/fixed/pitch/fine_tune.h"
+#include "dsp/fixed/pitch/fine_tune.h"
 #include "instruments/classic/state_access.h"
 #include "synth/voice/unison.h"
 

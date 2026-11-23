@@ -17,7 +17,7 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"

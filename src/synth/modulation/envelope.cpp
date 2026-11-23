@@ -16,10 +16,10 @@
  */
 
 #include "synth/modulation/envelope.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4/8, kLinearTableInterpolator
-#include "dsp-next/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
-#include "dsp-next/fixed/tables/decay_small.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/table_interpolation.h" // get_decay4/8, kLinearTableInterpolator
+#include "dsp/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
+#include "dsp/fixed/tables/decay_small.h"
 #include <algorithm>
 
 using deluge::dsp::Q;

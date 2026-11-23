@@ -250,8 +250,8 @@ describe golden_update("deluge::test::golden", $ {
 	it("hands a record line over with its indentation", _ {
 		const fs::path dir = fresh_dir();
 		const Switch on{dir / "log"};
-		golden::record("tests/unit/deluge/dsp-next/x_records.h", "kRecords", "    0x1ULL, // ONE");
-		expect(slurp(dir / "log")).to_equal(std::string{"GOLDEN-RECORD tests/unit/deluge/dsp-next/x_records.h kRecords     0x1ULL, // ONE\n"});
+		golden::record("tests/unit/dsp/x_records.h", "kRecords", "    0x1ULL, // ONE");
+		expect(slurp(dir / "log")).to_equal(std::string{"GOLDEN-RECORD tests/unit/dsp/x_records.h kRecords     0x1ULL, // ONE\n"});
 		fs::remove_all(dir);
 	});
 

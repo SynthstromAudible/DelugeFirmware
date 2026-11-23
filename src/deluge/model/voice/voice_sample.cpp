@@ -17,9 +17,9 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/divide.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
+#include "dsp/core/divide.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp_legacy/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "io/debug/log.h"

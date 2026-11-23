@@ -18,13 +18,13 @@
 #include "synth/engines/fm_engine.h"
 #include "arm_neon_shim.h" // NEON intrinsics (SIMDe on host) for the operator renders
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/divide.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/fixed_point_neon.h"
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp/core/divide.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/fixed_point_neon.h"
+#include "dsp/core/phasor.h"
+#include "dsp/core/stereo_sample.h"
+#include "dsp/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
+#include "dsp/fixed/vca/pan.h"
 #include "synth/engines/pitch.h"
 #include "synth/sources/va/va_shapes.h" // va_shape::initial_phase_for_zero
 #include "synth/voice/sound_config.h"

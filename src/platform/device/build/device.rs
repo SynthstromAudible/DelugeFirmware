@@ -202,8 +202,8 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
     let deps: [(&str, &str); 23] = [
         ("printf", "libeyalroz_printf.a"),
         ("src/deluge/dsp_legacy", "libdeluge_dsp_legacy.a"),
-        ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
-        ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
+        ("src/dsp", "libdeluge-dsp-fixed.a"),
+        ("src/dsp", "libdeluge-dsp-float.a"),
         ("src/synth", "libdeluge_synth.a"),
         ("src/base", "libdeluge_base.a"),
         ("src/serialization", "libdeluge_serialization.a"),

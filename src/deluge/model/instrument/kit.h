@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "model/fx/track_channel.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/rendering_drums.h"

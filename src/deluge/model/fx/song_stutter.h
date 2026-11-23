@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // Error
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "effects/chain_core.h"
 #include "effects/state.h"
 #include "effects/stutter.h"

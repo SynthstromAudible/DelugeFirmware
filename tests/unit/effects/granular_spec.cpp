@@ -22,12 +22,12 @@
 
 #include "effects/granular.h"
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "granular_workloads.h"
 #include "reference_granular.h"
 #include "util/synth_noise.h"
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp/core/buffer_view.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>

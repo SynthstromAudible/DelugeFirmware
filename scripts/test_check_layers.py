@@ -212,7 +212,7 @@ RULES = textwrap.dedent(
 
     [[rule]]
     name = "dsp-boundary"
-    files = ["src/deluge/dsp-next/**"]
+    files = ["src/dsp/**"]
     pattern = '^(model|memory|util)/'
     allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
     reason = "the kernels reach nothing above them"
@@ -265,12 +265,10 @@ class CountedRules(unittest.TestCase):
 
     def test_an_allowed_header_is_not_counted(self):
         self.repo.plant(
-            "src/deluge/dsp-next/core/planted.h",
+            "src/dsp/core/planted.h",
             '#include "util/misc.h"\n#include "memory/memory_allocator_interface.h"\n#include "util/functions.h"\n',
         )
-        self.assertEqual(
-            self.counts(), {("src/deluge/dsp-next/core/planted.h", "dsp-boundary"): 1}
-        )
+        self.assertEqual(self.counts(), {("src/dsp/core/planted.h", "dsp-boundary"): 1})
 
     def test_a_commented_out_include_is_not_counted(self):
         self.repo.plant(
@@ -592,13 +590,18 @@ class RealTable(unittest.TestCase):
         }
 
     def test_the_effects_library_may_use_the_l0_dsp_library(self):
-        accepted = '#include "dsp-next/core/stereo_sample.h"\n#include "dsp-next/core/detail/raw_ops.h"\n'
+        accepted = '#include "dsp/core/stereo_sample.h"\n#include "dsp/core/detail/raw_ops.h"\n'
         self.assertEqual(self.library_found("effects", accepted), [])
         self.assertEqual(
             len(self.library_found("effects", '#include "util/functions.h"\n')), 1
         )
         self.assertEqual(
-            len(self.library_found("effects", '#include "dsp/stereo_sample.h"\n')), 1
+            len(
+                self.library_found(
+                    "effects", '#include "dsp_legacy/timestretch/time_stretcher.h"\n'
+                )
+            ),
+            1,
         )
 
     def test_base_may_use_the_standard_library_and_its_own_headers_only(self):

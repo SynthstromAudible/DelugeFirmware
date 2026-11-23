@@ -17,9 +17,9 @@
 
 #include "processing/engines/audio_engine.h"
 #include "bench/render_profile.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/param_curve.h"
-#include "dsp-next/fixed/vca/pan.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/param_curve.h"
+#include "dsp/fixed/vca/pan.h"
 #include "model/clip/instrument_clip.h"
 #include "model/fx/chain_inputs.h"
 #include "modulation/params/staged_repeat.h"
@@ -29,9 +29,9 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "deluge_storage_resource.h" // deluge_resource_stats (loader instrumentation)
-#include "dsp-next/core/wrapping.h"
-#include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
-#include "dsp-next/fixed/mix/output_fold.h"
+#include "dsp/core/wrapping.h"
+#include "dsp/fixed/dynamics/hit_strength.h" // combine_hit_strengths
+#include "dsp/fixed/mix/output_fold.h"
 #include "dsp_legacy/timestretch/time_stretcher.h"
 #include "effects/reverb.h"
 #include "effects/sidechain.h"

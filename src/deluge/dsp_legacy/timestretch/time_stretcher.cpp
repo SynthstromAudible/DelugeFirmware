@@ -19,10 +19,10 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/sample/sample_low_level_reader.h"
 #include "deluge_storage_sample_reader.h"
-#include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/quick_log.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
+#include "dsp/core/fixed_point.h"
+#include "dsp/fixed/curves/quick_log.h"
+#include "dsp/fixed/interpolation/table_interpolation.h"
+#include "dsp/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"

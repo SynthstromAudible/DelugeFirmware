@@ -5,8 +5,8 @@
 
 #include "bench/cases.h"
 
-#include "dsp-next/core/phasor.h"
-#include "dsp-next/core/ramp.h"
+#include "dsp/core/phasor.h"
+#include "dsp/core/ramp.h"
 #include "synth/sources/source.h"
 #include "synth/sources/va/va_shapes.h"
 

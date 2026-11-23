@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/fixed/pitch_shift/input_history.h"
+#include "dsp/fixed/pitch_shift/input_history.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/input_channel.h"
 #include "synth/sources/input/live/live_inputs.h" // MonoLiveInput, StereoLiveInput

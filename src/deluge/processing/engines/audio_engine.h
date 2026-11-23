@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/float/dynamics/level_detector.h"
+#include "dsp/float/dynamics/level_detector.h"
 #include "effects/state.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"

@@ -17,8 +17,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"    // OscType
-#include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
+#include "dsp/core/phasor.h"      // deluge::dsp::Phasor
+#include "dsp/core/types.h"       // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // BlockControls
 #include <cstdint>
 

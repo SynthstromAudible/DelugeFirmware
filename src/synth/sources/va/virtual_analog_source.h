@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/phasor.h"            // deluge::dsp::Phasor
+#include "dsp/core/phasor.h"                 // deluge::dsp::Phasor
 #include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include "synth/sources/va/va_shapes.h"      // the shape vocabulary + va_shape::Wave
 #include <cstdint>

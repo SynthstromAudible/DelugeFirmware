@@ -1,5 +1,5 @@
 #include "storage/audio/stream/convert.h"
-#include "dsp-next/core/fixed_point.h"
+#include "dsp/core/fixed_point.h"
 #include "util/audio_format_helpers.h"
 #include <cstdint>
 

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/fixed/vca/amplitude.h"
+#include "dsp/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/fixed/tables/cent_adjust.h"
+#include "dsp/fixed/tables/cent_adjust.h"
 #include "music/note_names.h"
 #include "plugin/types/rate_tables.h"
 

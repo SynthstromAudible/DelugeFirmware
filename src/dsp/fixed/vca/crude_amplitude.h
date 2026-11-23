@@ -1,0 +1,70 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#pragma once
+
+#include "dsp/core/concepts.h"
+#include "dsp/core/fixed_point.h"
+#include "dsp/core/ramp.h"
+#include "dsp/core/types.h"
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+
+namespace deluge::dsp::fixed {
+
+/// @brief The crude oscillators' VCA: out = mix + (raw * amplitude) with a *rounded* 32x32
+/// multiply-accumulate, the amplitude ramping one increment per sample.
+///
+/// This is the sibling of @ref Amplitude for the crude (low-CPU) wave path. The two paths
+/// use deliberately different VCA arithmetic — the band-limited paths use a doubling
+/// `vqdmulhq`, the crude paths use `multiply_accumulate_32x32_rshift32_rounded` (scalar; the
+/// legacy notes it as a ~20% saving there). Keeping both bit-exact for now means keeping both
+/// arithmetics; unifying them is a later, ear-validated step.
+///
+/// The amplitude is Q31, **pre-incremented** each sample (`amplitude += increment; out = mac(...)`), wrapping. The
+/// product of the Q31 wave and amplitude is Q30, accumulated into the mix as it comes: the mix is in whatever format
+/// the voice sums at, read as Q30 for the accumulate. It is a plain
+/// @ref block_mixer with no vptr; the arithmetic is per sample, but it keeps a hand-written block loop rather than a
+/// scalar `render(raw, mix)` under the @ref Mixer mixin.
+/// @todo Give it a scalar `render` under the @ref Mixer mixin.
+class CrudeAmplitude {
+	Q<31> amplitude_;
+	Q<31> increment_;
+
+public:
+	using value_type = Q<31>; ///< Wave and mix samples.
+
+	/// @param amplitude starting amplitude; the 32x32 MAC scales raw by `amplitude / 2^32`
+	/// @param increment per-sample amplitude step, in the same units
+	CrudeAmplitude(Q<31> amplitude, Q<31> increment) : amplitude_{amplitude}, increment_{increment} {}
+
+	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
+	explicit CrudeAmplitude(Ramp ramp) : amplitude_{ramp.value()}, increment_{ramp.increment()} {}
+
+	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
+	void render_block(dsp::Signal<Q<31>> input_a, dsp::Signal<Q<31>> input_b, dsp::Buffer<Q<31>> output) {
+		for (std::size_t i = 0; i < output.size(); ++i) {
+			amplitude_ = add_wrap(amplitude_, increment_);
+			// The mix block holds Q30 words, the sum's format
+			output[i] = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(input_b[i]), input_a[i], amplitude_));
+		}
+	}
+};
+static_assert(block_mixer<CrudeAmplitude>, "the crude VCA mixes a block");
+static_assert(!std::is_polymorphic_v<CrudeAmplitude>, "the crude VCA mixes a block without a vptr");
+
+} // namespace deluge::dsp::fixed

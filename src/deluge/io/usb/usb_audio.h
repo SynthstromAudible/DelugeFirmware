@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp/core/stereo_sample.h"
 #include "util/functions.h"
 #include <cstddef>
 #include <cstdint>

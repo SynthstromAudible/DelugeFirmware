@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/filter/filter_set.h"
+#include "dsp/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
 #include "modulation/params/param.h"
 #include "synth/engines/engine_set.h"

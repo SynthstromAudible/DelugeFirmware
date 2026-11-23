@@ -1,5 +1,5 @@
 #pragma once
-// Duplicated from dsp-next/fixed/tables/sine_small.h so gfx stays a leaf; the audio copy is the original.
+// Duplicated from dsp/fixed/tables/sine_small.h so gfx stays a leaf; the audio copy is the original.
 #include <cstdint>
 
 namespace deluge::ui::gfx::grid {

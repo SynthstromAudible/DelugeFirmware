@@ -7,7 +7,7 @@
 
 #include "bench/cases.h"
 #include "board_config.h" // PLACE_SDRAM_BSS
-#include "dsp-next/fixed/noise/noise.h"
+#include "dsp/fixed/noise/noise.h"
 
 #include <algorithm>
 #include <array>

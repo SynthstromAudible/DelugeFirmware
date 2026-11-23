@@ -54,7 +54,7 @@ endif()
 
 # dsp-next (deluge_dsp_fixed, deluge_dsp_float) and the synth library (deluge_synth), built as the firmware builds them,
 # and what they reach outside themselves. Spec directories link them; none compiles their sources. A host tree off Linux
-# builds only the triangle distribution spec of the dsp specs (tests/unit/deluge/dsp-next), which links none of them.
+# builds only the triangle distribution spec of the dsp specs (tests/unit/dsp), which links none of them.
 #
 # Off the A9 they build as the host sim builds them: DELUGE_HOST leaves out the library flags' ARM mode and the DX7's
 # NEON kernel. The ARM tree builds them as the device does, the DX7's modern operators through
@@ -64,7 +64,7 @@ if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
 endif()
 FetchContent_MakeAvailable(etl)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/libs/base EXCLUDE_FROM_ALL)
-add_subdirectory(${DELUGE_REPO_ROOT}/src/deluge/dsp-next ${CMAKE_BINARY_DIR}/libs/dsp-next EXCLUDE_FROM_ALL)
+add_subdirectory(${DELUGE_REPO_ROOT}/src/dsp ${CMAKE_BINARY_DIR}/libs/dsp EXCLUDE_FROM_ALL)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/synth ${CMAKE_BINARY_DIR}/libs/synth EXCLUDE_FROM_ALL)
 
 # The app's code dsp-next reaches outside itself, and the panic contract: the lookup tables, the noise stream, and a

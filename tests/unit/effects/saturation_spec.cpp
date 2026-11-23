@@ -1,7 +1,7 @@
 #include "effects/saturation.h"
 
-#include "dsp-next/core/kernel.h"
-#include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "dsp/core/kernel.h"
+#include "dsp/fixed/shaping/antialiased_tanh.h"
 
 #include <algorithm>
 #include <cppspec.hpp>

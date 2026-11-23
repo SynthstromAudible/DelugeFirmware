@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // SSI_TX_BUFFER_NUM_SAMPLES
-#include "dsp-next/fixed/filter/filter_set.h"
+#include "dsp/fixed/filter/filter_set.h"
 
 #include <cstddef>
 #include <cstdint>

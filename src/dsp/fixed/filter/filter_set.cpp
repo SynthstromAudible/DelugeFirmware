@@ -1,0 +1,322 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "dsp/fixed/filter/filter_set.h"
+#include "dsp/core/buffer_view.h"
+
+#include "dsp/core/fixed_point.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+
+namespace deluge::dsp::fixed {
+
+namespace {
+
+/// @brief Whether two high-pass slots run the same mode (the SVF's mode counting only for an SVF).
+[[nodiscard]] bool same_mode(HighPassSlot a, HighPassSlot b) {
+	return a.kind == b.kind && (a.kind != HighPassSlot::Kind::SVF || a.svf == b.svf);
+}
+
+/// @brief Restarts @p fade from dry when @p from_off: a filter switched on from off fades in.
+template <typename Fade>
+void fade_in_if(Fade& fade, bool from_off) {
+	if (from_off) {
+		fade.template on<&FadeIn::begin>();
+	}
+}
+
+/// @brief @p filter over a mono @p block, its left channel alone; @p fade blended in over it while active.
+/// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
+template <typename Filter, typename Fade, typename... Context>
+void render_slot_mono(Filter& filter, Fade& fade, std::span<Q<31>> block, FadeScratch scratch, Context&... context) {
+	const bool fading = FadeIn::active(fade.state());
+	std::span<Q<31>> dry;
+	if (fading) {
+		dry = scratch.first(block.size());
+		std::ranges::copy(block, dry.begin());
+	}
+	filter.template render_lane<0>(block, block, context...);
+	if (fading) {
+		fade.render_block(dry, block, block);
+	}
+}
+
+/// @brief @p filter over an interleaved L/R block; @p fade blended in over its samples, left then right, while
+/// active.
+/// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
+template <typename Filter, typename Fade, typename... Context>
+void render_slot_stereo(Filter& filter, Fade& fade, std::span<Q<31>> interleaved, FadeScratch scratch,
+                        Context&... context) {
+	const bool fading = FadeIn::active(fade.state());
+	std::span<Q<31>> dry;
+	if (fading) {
+		dry = scratch.first(interleaved.size());
+		std::ranges::copy(interleaved, dry.begin());
+	}
+	const auto frames = as_frames(interleaved);
+	filter.render_block(frames, frames, context...);
+	if (fading) {
+		fade.render_block(dry, interleaved, interleaved);
+	}
+}
+
+} // namespace
+
+FilterSet::View FilterSet::view() const {
+	const bool low_svf = low_held_ == LowPassSlot::Kind::SVF;
+	const bool high_svf = high_held_ == HighPassSlot::Kind::SVF;
+	return {
+	    .low_held = low_held_,
+	    .low_ladder = low_svf ? nullptr : &low_pass_.ladder,
+	    .low_svf = low_svf ? &low_pass_.svf : nullptr,
+	    .high_held = high_held_,
+	    .high_ladder = high_svf ? nullptr : &high_pass_.ladder,
+	    .high_svf = high_svf ? &high_pass_.svf : nullptr,
+	    .low_slot = low_slot_,
+	    .high_slot = high_slot_,
+	    .low_last = low_last_,
+	    .high_last = high_last_,
+	    .route = route_,
+	    .low_fade = low_fade_.state(),
+	    .high_fade = high_fade_.state(),
+	};
+}
+
+void FilterSet::reset() {
+	std::construct_at(&low_pass_.ladder);
+	std::construct_at(&high_pass_.ladder);
+	low_fade_.on<&FadeIn::zero>();
+	high_fade_.on<&FadeIn::zero>();
+	low_held_ = LowPassSlot::Kind::LADDER;
+	high_held_ = HighPassSlot::Kind::LADDER;
+	low_slot_ = {};
+	high_slot_ = {};
+	low_last_ = LowPassSlot::Kind::LADDER;
+	high_last_ = {.kind = HighPassSlot::Kind::LADDER};
+	route_ = FilterRoute::HIGH_TO_LOW;
+	last_args_.reset();
+}
+
+void FilterSet::hold_low_pass(LowPassSlot::Kind kind) {
+	if (kind == low_held_) {
+		return;
+	}
+	if (kind == LowPassSlot::Kind::SVF) {
+		std::construct_at(&low_pass_.svf);
+	}
+	else {
+		std::construct_at(&low_pass_.ladder);
+	}
+	low_held_ = kind;
+}
+
+void FilterSet::hold_high_pass(HighPassSlot::Kind kind) {
+	if (kind == high_held_) {
+		return;
+	}
+	if (kind == HighPassSlot::Kind::SVF) {
+		std::construct_at(&high_pass_.svf);
+	}
+	else {
+		std::construct_at(&high_pass_.ladder);
+	}
+	high_held_ = kind;
+}
+
+int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
+                             HighPassSlot high_slot, FilterRoute route) {
+	// The high-pass's resonance as it is configured, its low bits dropped: a change only there repeats the last
+	FilterConfig high_key = high;
+	high_key.resonance = Q<29>::from_raw((high.resonance.raw() >> 21) << 21);
+	const ConfigureArgs args{
+	    .gain = gain, .low = low, .low_slot = low_slot, .high = high_key, .high_slot = high_slot, .route = route};
+	if (last_args_ == args) {
+		return last_gain_;
+	}
+	low_slot_ = low_slot;
+	high_slot_ = high_slot;
+	route_ = route;
+
+	if (low_slot.kind != LowPassSlot::Kind::OFF) {
+		hold_low_pass(low_slot.kind);
+		const bool family_changed = low_last_ != low_slot.kind;
+		const bool from_off = low_last_ == LowPassSlot::Kind::OFF;
+		if (family_changed) {
+			if (low_slot.kind == LowPassSlot::Kind::SVF) {
+				low_pass_.svf.reset();
+			}
+			else {
+				low_pass_.ladder.reset();
+			}
+			fade_in_if(low_fade_, from_off);
+		}
+		if (low_slot.kind == LowPassSlot::Kind::SVF) {
+			low_pass_.svf.configure({.gain = gain, .config = low, .mode = low_slot.svf});
+			gain = Svf::gain(low_pass_.svf.coefficients());
+		}
+		else {
+			low_pass_.ladder.configure({.gain = gain, .config = low, .mode = low_slot.ladder});
+			gain = LowPassLadder<>::gain(low_pass_.ladder.coefficients());
+		}
+	}
+	low_last_ = low_slot.kind;
+
+	// At 50% resonance this keeps the level the filters had before their resonance compensation.
+	// The gain is read as Q31 only to scale it: the Q31 factor moved back gives the same bits in any format.
+	gain = mul_as_wrap<Q<31>>(Q<31>::from_raw(gain), Q<31>::from_raw(1720000000)).raw();
+
+	if (high_slot.kind != HighPassSlot::Kind::OFF) {
+		hold_high_pass(high_slot.kind);
+		// Changes in the resonance's low bits, made too often, rustle: the configured resonance drops them.
+		FilterConfig config = high_key;
+		const bool mode_changed = !same_mode(high_last_, high_slot);
+		const bool from_off = high_last_.kind == HighPassSlot::Kind::OFF;
+		if (high_slot.kind == HighPassSlot::Kind::LADDER) {
+			high_pass_.ladder.configure({.gain = gain, .config = config});
+			gain = HighPassLadder::gain(high_pass_.ladder.coefficients());
+			if (mode_changed) {
+				high_pass_.ladder.reset();
+			}
+		}
+		else {
+			// The morph inverted, so the high-pass SVF sweeps high → band or notch → low.
+			config.morph = sub_wrap(Q<29>::from_raw((1 << 29) - 1), high.morph);
+			high_pass_.svf.configure({.gain = gain, .config = config, .mode = high_slot.svf});
+			gain = Svf::gain(high_pass_.svf.coefficients());
+			if (mode_changed) {
+				high_pass_.svf.reset();
+			}
+		}
+		if (mode_changed) {
+			fade_in_if(high_fade_, from_off);
+		}
+	}
+	high_last_ = high_slot;
+
+	last_args_ = args;
+	last_gain_ = gain;
+	return gain;
+}
+
+void FilterSet::render_low_pass_mono(std::span<Q<31>> block, FadeScratch scratch, Cong& noise) {
+	switch (low_slot_.kind) {
+	case LowPassSlot::Kind::LADDER:
+		render_slot_mono(low_pass_.ladder, low_fade_, block, scratch, noise);
+		break;
+	case LowPassSlot::Kind::SVF:
+		render_slot_mono(low_pass_.svf, low_fade_, block, scratch);
+		break;
+	case LowPassSlot::Kind::OFF:
+		break;
+	}
+}
+
+void FilterSet::render_high_pass_mono(std::span<Q<31>> block, FadeScratch scratch) {
+	switch (high_slot_.kind) {
+	case HighPassSlot::Kind::LADDER:
+		render_slot_mono(high_pass_.ladder, high_fade_, block, scratch);
+		break;
+	case HighPassSlot::Kind::SVF:
+		render_slot_mono(high_pass_.svf, high_fade_, block, scratch);
+		break;
+	case HighPassSlot::Kind::OFF:
+		break;
+	}
+}
+
+void FilterSet::render_low_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch, Cong& noise) {
+	switch (low_slot_.kind) {
+	case LowPassSlot::Kind::LADDER:
+		render_slot_stereo(low_pass_.ladder, low_fade_, interleaved, scratch, noise);
+		break;
+	case LowPassSlot::Kind::SVF:
+		render_slot_stereo(low_pass_.svf, low_fade_, interleaved, scratch);
+		break;
+	case LowPassSlot::Kind::OFF:
+		break;
+	}
+}
+
+void FilterSet::render_high_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch) {
+	switch (high_slot_.kind) {
+	case HighPassSlot::Kind::LADDER:
+		render_slot_stereo(high_pass_.ladder, high_fade_, interleaved, scratch);
+		break;
+	case HighPassSlot::Kind::SVF:
+		render_slot_stereo(high_pass_.svf, high_fade_, interleaved, scratch);
+		break;
+	case HighPassSlot::Kind::OFF:
+		break;
+	}
+}
+
+namespace {
+
+/// @brief @p block += @p other, sample by sample, wrapping on overflow (two's complement, as the hardware adds).
+void add_wrapping(std::span<Q<31>> block, std::span<const Q<31>> other) {
+	for (std::size_t i = 0; i < block.size(); i++) {
+		block[i] = add_wrap(block[i], other[i]);
+	}
+}
+
+} // namespace
+
+[[gnu::hot]] void FilterSet::render_mono(std::span<Q<31>> block, FilterScratch scratch, Cong& noise) {
+	switch (route_) {
+	case FilterRoute::HIGH_TO_LOW:
+		render_high_pass_mono(block, scratch.fade);
+		render_low_pass_mono(block, scratch.fade, noise);
+		break;
+	case FilterRoute::LOW_TO_HIGH:
+		render_low_pass_mono(block, scratch.fade, noise);
+		render_high_pass_mono(block, scratch.fade);
+		break;
+	case FilterRoute::PARALLEL: {
+		const std::span<Q<31>> copy = scratch.parallel.first(block.size());
+		std::ranges::copy(block, copy.begin());
+		render_high_pass_mono(copy, scratch.fade);
+		render_low_pass_mono(block, scratch.fade, noise);
+		add_wrapping(block, copy);
+		break;
+	}
+	}
+}
+
+[[gnu::hot]] void FilterSet::render_stereo(std::span<Q<31>> interleaved, FilterScratch scratch, Cong& noise) {
+	switch (route_) {
+	case FilterRoute::HIGH_TO_LOW:
+		render_high_pass_stereo(interleaved, scratch.fade);
+		render_low_pass_stereo(interleaved, scratch.fade, noise);
+		break;
+	case FilterRoute::LOW_TO_HIGH:
+		render_low_pass_stereo(interleaved, scratch.fade, noise);
+		render_high_pass_stereo(interleaved, scratch.fade);
+		break;
+	case FilterRoute::PARALLEL: {
+		const std::span<Q<31>> copy = scratch.parallel.first(interleaved.size());
+		std::ranges::copy(interleaved, copy.begin());
+		render_high_pass_stereo(copy, scratch.fade);
+		render_low_pass_stereo(interleaved, scratch.fade, noise);
+		add_wrapping(interleaved, copy);
+		break;
+	}
+	}
+}
+
+} // namespace deluge::dsp::fixed

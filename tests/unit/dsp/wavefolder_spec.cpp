@@ -1,0 +1,63 @@
+#include "dsp/core/buffer_view.h"
+#include "dsp/core/concepts.h"
+#include "dsp/fixed/noise/noise.h"
+#include "dsp/fixed/shaping/wavefolder.h"
+#include "reference_wavefold.h"
+
+#include <cppspec.hpp>
+#include <type_traits>
+#include <vector>
+
+#include "support/spec_main.h"
+
+using namespace deluge::dsp;
+using namespace deluge::dsp::fixed;
+
+static_assert(processor<Wavefolder>);
+static_assert(!std::is_polymorphic_v<Wavefolder>);
+
+namespace {
+/// A block of full-range noise, so every fold region is visited.
+std::vector<int32_t> noise_block(uint32_t seed, std::size_t n) {
+	SeededNoise noise{seed};
+	std::vector<int32_t> out(n);
+	for (auto& s : out) {
+		s = noise.render();
+	}
+	return out;
+}
+} // namespace
+
+// clang-format off
+describe wavefolder("the wavefolder", ${
+	it("folds every sample as the voice always has, at every amount", _ {
+		int32_t mismatches = 0;
+		for (int32_t amount : {int32_t{0}, int32_t{1}, int32_t{1 << 20}, int32_t{0x20000000}, int32_t{0x40000000}, int32_t{0x7FFFFFFF}}) {
+			auto expected = noise_block(9 + static_cast<uint32_t>(amount), 257);
+			auto actual = expected;
+			reference_wavefold::foldBufferPolyApproximation(expected.data(), expected.data() + expected.size(), amount);
+			Wavefolder{Q<31>::from_raw(amount)}.render_block(typed_view(std::span{actual}), typed_view(std::span{actual}));
+			mismatches += expected != actual ? 1 : 0;
+		}
+		expect(mismatches).to_equal(0);
+	});
+
+	it("renders a block as it renders each sample", _ {
+		const auto in = noise_block(3, 64);
+		std::vector<int32_t> block(64);
+		Wavefolder folder{Q<31>::from_raw(0x30000000)};
+		folder.render_block(typed_view(std::span{in}), typed_view(std::span{block}));
+		int32_t mismatches = 0;
+		for (std::size_t i = 0; i < in.size(); i++) {
+			mismatches += block[i] != folder.render(Q<31>::from_raw(in[i])).raw() ? 1 : 0;
+		}
+		expect(mismatches).to_equal(0);
+	});
+
+	it("folds silence to silence", _ {
+		expect(Wavefolder{Q<31>::from_raw(0x40000000)}.render(Q<31>{}).raw()).to_equal(0);
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(wavefolder_spec, wavefolder)
