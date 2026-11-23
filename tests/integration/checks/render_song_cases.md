@@ -4,6 +4,12 @@ What each render gate judged by `render_song.py` covers, beyond its one-sentence
 `tests/registry.toml`: one `## <test name>` section per test. `./dbt test --list --verbose <test name>` prints a
 section.
 
+Every generated song with an audio track playing sample A (track RSAUD, whose clip saves no `pitchSpeedIndependent`)
+time-stretches it: the attribute defaults true, and the clip's six seconds of sample over its eight-second clip is a
+ratio of 0.75, in the stretcher's fine band. Thirty-nine render-* gates play such a song (render-audio-cents,
+render-audio-track-*, the reverb, mod FX, grain, stutter, bitcrush, EQ and ducking songs among them), so a change to
+the time stretcher re-records them too.
+
 ## render-song
 
 a song must play as the device plays it: loaded through the real load browser (RS-LOADED, which fails if the load gave
@@ -59,15 +65,17 @@ song's ticks: the sample goldens' tone and percussive source sped up and slowed 
 past two (where the coarse hop tables clamp), reversed with a pre-margin after its end marker, and transposed two
 semitones, which reads a cache; and sample A within a hair of its native tempo, left unstretched until it drifts out
 of sync, then stretched until it is back. Compared with its record in tests/golden/render/songs.json; its dry twin
-plays the same clips with pitch and speed tied, resampled rather than stretched, and must render differently (RS-FX),
-so the stretch, not just the tempo, reaches the render
+plays the same clips with pitch and speed tied, so nine resample rather than stretch (the transposed clip still
+stretches, as a tied clip with a transpose does), and must render differently (RS-FX), so the stretch, not just the
+tempo, reaches the render
 
 ## render-audio-stretch-native
 
 audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops: a generated song
 (make_render_song.py --song RS_AUDIO_STRETCH_NATIVE) of the tone and the percussive source at their native tempo (250
-samples a tick), from start markers with frames before them. Neither is stretched, but at each loop end a time
-stretcher is fudged in to crossfade into those frames, the pre-margin, without a click. Compared with its record in
+samples a tick), from start markers with frames before them. Neither is stretched, but at a loop end that a render
+block starts within reach of (88 of about 110 for the tone) a time stretcher is fudged in to crossfade into those
+frames, the pre-margin, without a click. Compared with its record in
 songs.json; its dry twin plays the same frames from files that hold only them, with no pre-margin and so no fudged
 crossfade, and must render differently (RS-FX)
 

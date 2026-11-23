@@ -1308,10 +1308,11 @@ runtime_s = 60
 [[harness]]
 name = "render-audio-stretch-arm"
 template = "render-song"
-override = ["builds", "tier", "job"]
+override = ["builds", "tier", "job", "baseline"]
 gates = "audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86"
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH" }
 builds = ["golden-vt-render-arm"]
+baseline = []
 tier = "nightly"
 job = "unit"
 

@@ -32,11 +32,13 @@ RS_AUDIO_STRETCH plays ten audio clips alone, pitch and speed independent, each 
 the time stretcher stretches them in step with the song's ticks: the sample goldens' tone (SAMPLES/RS/TONE.WAV) and
 percussive source (SAMPLES/RS/PERC.WAV) sped up and slowed within an octave, past one and past two, reversed and
 transposed, and sample A within a hair of its native tempo, where it is stretched only when it drifts out of sync. Its
-dry twin plays the same clips with pitch and speed tied, resampled rather than stretched.
+dry twin plays the same clips with pitch and speed tied: nine resample, and the transposed one still stretches, as a
+tied clip with a transpose does.
 RS_AUDIO_STRETCH_NATIVE plays the tone and the percussive source at their native tempo, where they are not stretched but
-each loop has a time stretcher fudged in to crossfade into its pre-margin; its twin plays the same frames from files
-that hold only them, with no pre-margin to crossfade into. RS_AUDIO_STRETCH_ARRANGED plays stretched clips from
-arrangement instances that end without looping, fading out before each instance's end; its twin plays them resampled.
+a loop end that a render block starts within reach of has a time stretcher fudged in to crossfade into its pre-margin;
+its twin plays the same frames from files that hold only them, with no pre-margin to crossfade into.
+RS_AUDIO_STRETCH_ARRANGED plays stretched clips from arrangement instances that end without looping; the two tones,
+with waveform past the end they play to, fade out before their instances end. Its twin plays them resampled.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -1231,10 +1233,11 @@ STRETCH_TRACKS = (
 )
 # RS_AUDIO_STRETCH_NATIVE's two clips are both native at 250 samples a tick (about 105.8 BPM): the tone from 596
 # (3,500 frames over 14 ticks) and the percussive source from 1,018 (31,750 frames over 127 ticks). Their ratios fall
-# in the window where nothing is stretched, but each loop, with a pre-margin to crossfade into, has a time stretcher
-# fudged in at its end to crossfade it without a click. Neither loop is a whole number of 128-frame render blocks, so
-# a block starts within the crossfade's reach of the loop end, where the fudge is set up. Its twin plays the same
-# frames from files that hold only them: no pre-margin, so no fudged crossfade.
+# in the window where nothing is stretched, but a loop end with a pre-margin to crossfade into has a time stretcher
+# fudged in to crossfade it without a click when a render block starts within the crossfade's 100-frame reach of it,
+# where the fudge is set up; a loop end no block start reaches plays unfudged. Neither loop is a whole number of
+# 128-frame render blocks, so the block starts drift across the loop and most loop ends (88 of about 110 for the tone)
+# are reached. Its twin plays the same frames from files that hold only them: no pre-margin, so no fudged crossfade.
 TEMPO_STRETCH_NATIVE = 'timePerTimerTick="250" timerTickFraction="0"'
 STRETCH_NATIVE_TRACKS = (
     ("RSTONE", "SAMPLES/RS/TONE.WAV", 596, 4096, 14, ""),
@@ -1244,11 +1247,11 @@ STRETCH_NATIVE_DRY_TRACKS = (
     ("RSTONE", "SAMPLES/RS/TONE_TRIM.WAV", 0, 4096 - 596, 14, ""),
     ("RSPERC", "SAMPLES/RS/PERC_TRIM.WAV", 0, 32768 - 1018, 127, ""),
 )
-# RS_AUDIO_STRETCH_ARRANGED plays clips from arrangement instances that end without looping, each with waveform past
-# the end it plays to, so each fades out before its instance ends: the percussive source for two loops and a half,
-# then once through; the tone forwards to 3,584 of its 4,096 frames for three loops and a half; and the reversed tone
-# for twelve and a half, then on past the render's end, so the arrangement plays throughout. Each instance is
-# (position, length) in ticks.
+# RS_AUDIO_STRETCH_ARRANGED plays clips from arrangement instances that end without looping: the percussive source for
+# two loops and a half, then once through, its whole file, so it has no waveform past its end and plays to the end
+# unfaded; the tone forwards to 3,584 of its 4,096 frames for three loops and a half; and the reversed tone for twelve
+# and a half, then on past the render's end, so the arrangement plays throughout. The two tones have waveform past the
+# end they play to, so each fades out before its instance ends. Each instance is (position, length) in ticks.
 ARRANGED_TRACKS = (
     (("RSPERC", "SAMPLES/RS/PERC.WAV", 0, 32768, 128, ""), ((0, 320), (384, 128))),
     (("RSTONE", "SAMPLES/RS/TONE.WAV", 0, 3584, 14, ""), ((0, 49),)),
@@ -1405,7 +1408,8 @@ SONGS = {
     "RS_AUDIO_CENTS": lambda v: audio_song(v, AUDIO_CENTS),
     "RS_AUDIO_CENTS_DRY": lambda v: audio_song(v, DRY),
     "RS_AUDIO_STRETCH": lambda v: stretch_song(STRETCH_TRACKS),
-    # Every clip played at 120 BPM as before, but pitch and speed tied: resampled, not stretched.
+    # Every clip at 120 BPM as in RS_AUDIO_STRETCH, but pitch and speed tied: nine resample, and the transposed clip
+    # still stretches, as a tied clip with a transpose does.
     "RS_AUDIO_STRETCH_DRY": lambda v: stretch_song(STRETCH_TRACKS, independent=False),
     "RS_AUDIO_STRETCH_NATIVE": lambda v: stretch_song(
         STRETCH_NATIVE_TRACKS, native=True

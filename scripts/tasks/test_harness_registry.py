@@ -450,6 +450,7 @@ class BaselineDeclarationTest(unittest.TestCase):
     # Entries that run an owner's code but record nothing: entry -> why.
     NOT_OWNERS: ClassVar[dict[str, str]] = {
         "golden-synth-arm": "the ARM render must equal the x86 records golden-synth makes",
+        "render-audio-stretch-arm": "the ARM render must equal the x86 record render-audio-stretch makes",
         "upgrade-differential-corpus": "its part records nothing: upgrade_run.py refuses to re-record it",
     }
 
