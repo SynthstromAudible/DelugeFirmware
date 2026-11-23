@@ -74,8 +74,9 @@ unsafe extern "C" {
         asset: u32,
         ctx: DelugeStreamingFillContext,
     );
-    /// Retires an asset, freeing its resident chunks (`deluge_storage_resource.h`).
-    fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
+    /// Retires an asset, freeing its resident chunks (`deluge_storage_resource.h`). `pub` only so
+    /// pins.rs can pin it; other crates call `deluge_storage_resource`'s typed functions, not this import.
+    pub fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 
 // `deluge_storage_sample_fill` exports the real `deluge_streaming_set_fill_context`, and a test binary

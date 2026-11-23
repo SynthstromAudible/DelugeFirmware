@@ -22,8 +22,8 @@ use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 use deluge_storage_resource::{
-    BACKING_SLAB, deluge_resource_create, deluge_resource_define_asset, deluge_resource_request,
-    deluge_resource_set_construct, deluge_resource_set_slab,
+    BACKING_SLAB, resource_create, resource_define_asset, resource_request, resource_set_construct,
+    resource_set_slab,
 };
 use deluge_storage_sample_fill::{FillContext, deluge_streaming_set_fill_context};
 use deluge_storage_sample_reader::abi::{
@@ -97,7 +97,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     index: u32,
     dest: *mut u8,
 ) {
-    // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
+    // SAFETY: forwards `dest` unchanged under the construct contract `resource_request`
     // upholds for this callback.
     unsafe {
         deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
@@ -183,13 +183,13 @@ impl ChunkHarness {
         };
         assert!(!slab.is_null());
         // SAFETY: `heap` is live.
-        let handle = unsafe { deluge_resource_create(heap, 4, 32) };
+        let handle = unsafe { resource_create(heap, 4, 32) };
         assert!(!handle.is_null());
         // SAFETY: `handle`/`slab` are both live, over the same heap.
-        unsafe { deluge_resource_set_slab(handle, slab) };
+        unsafe { resource_set_slab(handle, slab) };
         // SAFETY: `handle` is live.
         let asset = unsafe {
-            deluge_resource_define_asset(
+            resource_define_asset(
                 handle,
                 ptr::null_mut(),
                 None,
@@ -202,7 +202,7 @@ impl ChunkHarness {
         // SAFETY: `handle`/`asset` are live/valid; `construct_streamed_chunk` has the exact
         // `ConstructFn` C-ABI signature.
         unsafe {
-            deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
+            resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         // Must be set before any reader or `native_finish` call.
         ACTIVE_MANAGER.store(handle as *mut c_void, Ordering::Relaxed);
@@ -211,7 +211,7 @@ impl ChunkHarness {
         let mut backings = Vec::with_capacity(prefill as usize);
         for index in 0..prefill {
             // SAFETY: `handle`/`asset` are live. The slab ignores `size`.
-            let backing = unsafe { deluge_resource_request(handle, asset, index, backing_size) };
+            let backing = unsafe { resource_request(handle, asset, index, backing_size) };
             assert!(!backing.is_null(), "request failed for cluster {index}");
             // SAFETY: `backing` was just constructed; its payload holds `CLUSTER_SIZE` bytes and is
             // reached through the accessor, never assumed equal to the backing.

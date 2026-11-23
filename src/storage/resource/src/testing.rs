@@ -6,9 +6,8 @@
 
 extern crate std;
 use crate::{
-    deluge_resource_acquire, deluge_resource_create, deluge_resource_define_asset,
-    deluge_resource_reference, deluge_resource_release, deluge_resource_touch, BACKING_HEAP,
-    COST_IO,
+    resource_acquire, resource_create, resource_define_asset, resource_reference, resource_release,
+    resource_touch, BACKING_HEAP, COST_IO,
 };
 use core::ffi::c_void;
 use std::vec::Vec;
@@ -71,11 +70,11 @@ impl Harness {
         let h = unsafe {
             deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
         };
-        let mgr = unsafe { deluge_resource_create(h, NUM_ASSETS as usize + 1, chunk_cap) };
+        let mgr = unsafe { resource_create(h, NUM_ASSETS as usize + 1, chunk_cap) };
         assert!(!mgr.is_null());
         let assets = (0..NUM_ASSETS)
             .map(|a| unsafe {
-                deluge_resource_define_asset(
+                resource_define_asset(
                     mgr,
                     owner(a),
                     Some(materialize),
@@ -100,7 +99,7 @@ impl Harness {
             Op::Acquire { asset, index } => {
                 let asset = self.assets[(asset % NUM_ASSETS) as usize];
                 let index = index % CHUNKS_PER_ASSET;
-                let p = unsafe { deluge_resource_acquire(self.mgr, asset, index, CHUNK_SIZE) };
+                let p = unsafe { resource_acquire(self.mgr, asset, index, CHUNK_SIZE) };
                 if !p.is_null() {
                     assert_eq!(p as usize % 16, 0, "misaligned acquire");
                     self.live.push(Lease {
@@ -113,18 +112,18 @@ impl Harness {
             Op::Release { which } => {
                 if !self.live.is_empty() {
                     let l = self.live.remove(which % self.live.len());
-                    unsafe { deluge_resource_release(self.mgr, l.ptr) };
+                    unsafe { resource_release(self.mgr, l.ptr) };
                 }
             }
             Op::Touch { which } => {
                 if !self.live.is_empty() {
                     let l = &self.live[which % self.live.len()];
-                    unsafe { deluge_resource_touch(self.mgr, l.ptr) };
+                    unsafe { resource_touch(self.mgr, l.ptr) };
                 }
             }
             Op::Reference { asset } => {
                 let asset = self.assets[(asset % NUM_ASSETS) as usize];
-                unsafe { deluge_resource_reference(self.mgr, asset) };
+                unsafe { resource_reference(self.mgr, asset) };
             }
         }
         self.check();

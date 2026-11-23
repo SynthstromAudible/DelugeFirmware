@@ -16,10 +16,9 @@ use std::sync::Mutex;
 
 use deluge_storage_resource::value::COST_IO;
 use deluge_storage_resource::{
-    deluge_resource_create, deluge_resource_define_asset, deluge_resource_lease_count_by_slot,
-    deluge_resource_mark_ready, deluge_resource_release, deluge_resource_request,
-    deluge_resource_set_construct, deluge_resource_try_acquire, manager::BACKING_HEAP,
-    DelugeResource,
+    manager::BACKING_HEAP, resource_create, resource_define_asset, resource_lease_count_by_slot,
+    resource_mark_ready, resource_release, resource_request, resource_set_construct,
+    resource_try_acquire, DelugeResource,
 };
 use deluge_storage_sample_source::cursor::{RegionOut, RegionState, SampleSource};
 use deluge_storage_sample_source::geometry::Geometry;
@@ -106,7 +105,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     index: u32,
     dest: *mut u8,
 ) {
-    // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
+    // SAFETY: forwards `dest` unchanged under the construct contract `resource_request`
     // upholds for this callback.
     unsafe {
         deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
@@ -140,11 +139,11 @@ impl ChunkHarness {
         // SAFETY: `buf` is a 16-aligned `words * 16`-byte arena kept alive by the harness.
         let heap = unsafe { fs_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         // SAFETY: `heap` is the live handle just created above.
-        let handle = unsafe { deluge_resource_create(heap, 4, CHUNK_CAP as usize) };
+        let handle = unsafe { resource_create(heap, 4, CHUNK_CAP as usize) };
         assert!(!handle.is_null());
         // SAFETY: `handle` is live for the duration of this call.
         let asset = unsafe {
-            deluge_resource_define_asset(
+            resource_define_asset(
                 handle,
                 ptr::null_mut(),
                 None,
@@ -157,7 +156,7 @@ impl ChunkHarness {
         // SAFETY: `handle`/`asset` are live and valid; `construct_streamed_chunk`
         // has the exact `ConstructFn` C-ABI signature.
         unsafe {
-            deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
+            resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         let payload_offset =
             deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
@@ -175,13 +174,11 @@ impl ChunkHarness {
     /// through the payload accessor, marks it ready and drops this call's lease.
     fn seed_and_mark_ready(&self, index: u32) {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
-        let ptr = unsafe { deluge_resource_try_acquire(self.handle, self.asset, index) };
+        let ptr = unsafe { resource_try_acquire(self.handle, self.asset, index) };
         let ptr = if ptr.is_null() {
             // SAFETY: `self.handle`/`self.asset` are live; `self.backing_size` is what
             // `construct_streamed_chunk` expects.
-            let p = unsafe {
-                deluge_resource_request(self.handle, self.asset, index, self.backing_size)
-            };
+            let p = unsafe { resource_request(self.handle, self.asset, index, self.backing_size) };
             assert!(!p.is_null(), "reserve for seeding index {index} failed");
             p
         } else {
@@ -194,17 +191,17 @@ impl ChunkHarness {
         // SAFETY: `payload` is valid for `CLUSTER_SIZE` writable bytes; `ramp` is that long.
         unsafe { ptr::copy_nonoverlapping(ramp.as_ptr(), payload, CLUSTER_SIZE as usize) };
         // SAFETY: `self.handle`/`ptr` are live/valid per the calls above.
-        unsafe { deluge_resource_mark_ready(self.handle, ptr) };
+        unsafe { resource_mark_ready(self.handle, ptr) };
         // Drop this call's lease so it doesn't skew the tests' lease counts.
         // SAFETY: `self.handle`/`ptr` are live/valid.
-        unsafe { deluge_resource_release(self.handle, ptr) };
+        unsafe { resource_release(self.handle, ptr) };
     }
 
     /// Returns the total live hard-lease count across the chunk table, for lease-balance checks.
     fn total_leases(&self) -> u64 {
         (0..CHUNK_CAP)
             // SAFETY: `self.handle` is live; out-of-range slots report 0.
-            .map(|slot| unsafe { deluge_resource_lease_count_by_slot(self.handle, slot) as u64 })
+            .map(|slot| unsafe { resource_lease_count_by_slot(self.handle, slot) as u64 })
             .sum()
     }
 }

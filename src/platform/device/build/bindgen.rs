@@ -6,11 +6,10 @@ use std::path::Path;
 use super::{allowlist, crate_types};
 
 /// The include directories, relative to the repo root, of the Rust library crates whose C header the wrapper reads:
-/// each holds `<crate name>.h` beside the crate's `Cargo.toml`. `src/storage/resource/include` is not among them: the
-/// resource header's functions are not yet pinned, tagged or `DELUGE_NOEXCEPT`, so the header stays out of bindgen's
-/// input until it joins the ABI surface check (see TODO.md).
+/// each holds `<crate name>.h` beside the crate's `Cargo.toml`.
 const CRATE_INCLUDE_DIRS: &[&str] = &[
     "src/base/alloc/include",
+    "src/storage/resource/include",
     "src/storage/sample/source/include",
     "src/storage/sample/reader/include",
     "src/storage/sample/fill/include",

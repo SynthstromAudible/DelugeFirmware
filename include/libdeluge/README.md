@@ -16,17 +16,17 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 2. **The header is the contract.** bindgen reads every header: `src/platform/device/wrapper.h` includes the umbrella
    `<libdeluge/libdeluge.h>`, then each crate header, from the directories in `CRATE_INCLUDE_DIRS`
    (`src/platform/device/build/bindgen.rs`). The crate headers (`src/**/include/deluge_*.h`) follow rules 1, 2 and 4 and
-   are checked by the same hook, except `deluge_storage_resource.h` (see `TODO.md`). Every
-   Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
-   one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
-   imports, via its `in path:` form, in `src/platform/device/src/abi/pins.rs`. That file also holds the `abi_layout!`
-   and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
-   type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
-   field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
-   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags --noexcept` fails when a declared
-   function has no definition, when a Rust definition or `extern "C"` import of one has no pin that reaches it, or
-   when a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place
-   that disagrees.
+   are checked by the same hook. Every Rust export is pinned to its generated declaration by `abi_pin!` — beside the
+   definition it pins (including the one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another
+   crate's own exports and imports, via its `in path:` form, in `src/platform/device/src/abi/pins.rs`. That file also
+   holds the `abi_layout!` and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A
+   crate-defined type that crosses the boundary is re-exported into `sys` under the header's name and checked
+   exhaustively, field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`.
+   The pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags --noexcept` fails when a declared
+   function has no definition, when a Rust definition or `extern "C"` import of one has no pin that reaches it, or when
+   a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place that
+   disagrees. A crate whose own types differ from the header's (the resource crate) exports thin shims in the header's
+   types (`abi.rs`), which the pins compare.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. Other app-defined seams live here too, such as
    `streaming_loader.h`'s resource-manager accessor and asset lookup. `scripts/check_layers.py`'s `platform-boundary`
@@ -46,11 +46,14 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
      (IRQ mode), so `[task]` does not mean thread mode.
    - `[isr]`: may be called from an interrupt handler or a fault path.
 
-   Before `registerJobs()`, the boot's song-less render runs `routine()` once on the task executor, so the
+   Before `registerJobs()`, the boot's song-less render runs `routine()` once on the task executor, and the offline
+   stem export (`StemExport::driveElement`, the default mode) runs it there for as long as the export lasts, so the
    functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
    `deluge_heap_check`, and `deluge_audio_frames_until_block_offset`, which times every sub-window's MIDI) also carry
-   `[task]`. The render's deeper callees do not: the one `[audio]`-only one (`deluge_sample_region_state`, reached
-   only by a playing sample voice) needs a song that boot has not loaded.
+   `[task]`, and so do the callees of a playing voice and the USB audio stream (`deluge_sample_region_state`,
+   `deluge_usb_audio_read` and `deluge_usb_audio_write`): the export renders every voice. The `[audio]`-only
+   functions are the ones the export does not reach, such as `deluge_app_audio_tick`, which the BSP's audio tier calls
+   and which renders nothing while an export owns rendering.
 
 ## Handles
 

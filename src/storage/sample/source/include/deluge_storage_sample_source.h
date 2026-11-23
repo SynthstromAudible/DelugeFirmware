@@ -132,7 +132,7 @@ DelugeRegionState deluge_sample_region_acquire_ex(DelugeSampleSource* src, uint3
 bool deluge_sample_region_acquire(DelugeSampleSource* src, uint32_t index, int8_t direction, uint32_t priority,
                                   DelugeSampleRegion* out) DELUGE_NOEXCEPT;
 
-/// @brief Residency of @p index as tracked by this cursor RIGHT NOW, WITHOUT acquiring anything. [audio]
+/// @brief Residency of @p index as tracked by this cursor RIGHT NOW, WITHOUT acquiring anything. [task] [audio]
 ///
 /// No lease taken, no fetch scheduled, no state changed. This consults every reservation the
 /// cursor is currently holding -- `current`, the standing `prefetch`, and any retained `pending`

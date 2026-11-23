@@ -39,8 +39,8 @@ use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 use deluge_storage_resource::{
-    BACKING_HEAP, DelugeResource, deluge_resource_create, deluge_resource_define_asset,
-    deluge_resource_request, deluge_resource_set_construct,
+    BACKING_HEAP, DelugeResource, resource_create, resource_define_asset, resource_request,
+    resource_set_construct,
 };
 use deluge_storage_sample_fill::FillContext;
 use deluge_storage_sample_fill::chunk::StreamedChunk;
@@ -84,7 +84,7 @@ unsafe extern "C" fn construct_streamed_chunk(
     index: u32,
     dest: *mut u8,
 ) {
-    // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
+    // SAFETY: forwards `dest` unchanged under the construct contract `resource_request`
     // upholds for this callback.
     unsafe {
         deluge_storage_sample_fill::chunk::deluge_streaming_chunk_construct(
@@ -148,11 +148,11 @@ impl ChunkHarness {
         // and so alive as long as `handle`.
         let heap = unsafe { fs_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         // SAFETY: `heap` is the live handle just created above.
-        let handle = unsafe { deluge_resource_create(heap, 4, 8) };
+        let handle = unsafe { resource_create(heap, 4, 8) };
         assert!(!handle.is_null());
         // SAFETY: `handle` is live for the duration of this call.
         let asset = unsafe {
-            deluge_resource_define_asset(
+            resource_define_asset(
                 handle,
                 ptr::null_mut(),
                 None,
@@ -165,7 +165,7 @@ impl ChunkHarness {
         // SAFETY: `handle`/`asset` are live; `construct_streamed_chunk` has the `ConstructFn`
         // signature.
         unsafe {
-            deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
+            resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
         let payload_offset =
             deluge_storage_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
@@ -196,7 +196,7 @@ impl ChunkHarness {
     fn request(&self, index: u32) -> *mut u8 {
         // SAFETY: `self.handle`/`self.asset` are live and valid; `self.backing_size` is exactly
         // what `construct_streamed_chunk` (via `deluge_streamed_chunk_payload_offset`) expects.
-        unsafe { deluge_resource_request(self.handle, self.asset, index, self.backing_size) }
+        unsafe { resource_request(self.handle, self.asset, index, self.backing_size) }
     }
 
     /// Returns the chunk's `CLUSTER_SIZE + 7`-byte payload span at `backing + payload_offset`.

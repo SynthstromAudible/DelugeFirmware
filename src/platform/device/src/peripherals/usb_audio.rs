@@ -98,7 +98,7 @@ static FROM_HOST: FrameRing = FrameRing::new();
 #[unsafe(link_section = ".sdram_bss")]
 static TO_HOST: FrameRing = FrameRing::new();
 
-/// The from-host reader: the audio tier's alone (`deluge_usb_audio_read` is `[audio]`).
+/// The from-host reader: one consumer, since `routine()` (via `deluge_usb_audio_read`) never runs on two tiers at once.
 static mut READER: FromHostReader = FromHostReader::new();
 /// The to-host packet filler: [`CaptureSource`]'s alone. That runs in the USB0 interrupt, and
 /// twice in a critical section when the pipe is enabled, never both at once.
@@ -282,7 +282,7 @@ pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u3
     }
     let generation = SPEAKER_GENERATION.load(Ordering::Acquire);
     let lead = block_lead_frames() as u32;
-    // SAFETY: READER is the audio tier's alone, and this is FROM_HOST's one consumer.
+    // SAFETY: READER has one consumer: `routine()`, which never runs on two tiers at once.
     unsafe { (*addr_of_mut!(READER)).read(&FROM_HOST, generation, lead, out) as u32 }
 }
 

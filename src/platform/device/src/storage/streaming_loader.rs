@@ -266,11 +266,11 @@ mod prod {
     use deluge_storage_sample_fill::StreamingFillDescriptor;
 
     unsafe extern "C" {
-        fn deluge_resource_loader_next(mgr: *mut c_void) -> *mut c_void;
-        fn deluge_resource_loader_enqueue(mgr: *mut c_void, slot: u32, priority: u32);
-        fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
-        fn deluge_resource_external_lease_count_by_slot(mgr: *mut c_void, slot: u32) -> u32;
-        fn deluge_resource_loader_release_owned(mgr: *mut c_void, slot: u32) -> bool;
+        pub fn deluge_resource_loader_next(mgr: *mut c_void) -> *mut c_void;
+        pub fn deluge_resource_loader_enqueue(mgr: *mut c_void, slot: u32, priority: u32);
+        pub fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
+        pub fn deluge_resource_external_lease_count_by_slot(mgr: *mut c_void, slot: u32) -> u32;
+        pub fn deluge_resource_loader_release_owned(mgr: *mut c_void, slot: u32) -> bool;
     }
 
     /// The production [`FillOps`]: the resource manager's loader queue and the efatfs streaming
@@ -435,8 +435,16 @@ async fn streaming_fill_task_body() {
 }
 
 abi_pin!(
+    deluge_resource_slot_of,
+    deluge_resource_loader_enqueue_owned,
+    deluge_resource_loader_has_any,
     deluge_streaming_queue_drained,
     deluge_streaming_request_chunk,
     deluge_streaming_request_drain,
     deluge_streaming_signal_fill,
 );
+
+// The production wiring's imports, `pub` in `prod` only so this pin can reach them; other crates
+// call `deluge_storage_resource`'s typed functions, not these imports.
+abi_pin!(in self::prod: deluge_resource_loader_next, deluge_resource_loader_enqueue, deluge_resource_slot_of,
+    deluge_resource_external_lease_count_by_slot, deluge_resource_loader_release_owned);

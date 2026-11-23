@@ -6,7 +6,7 @@ serialization in `deluge::project`; reverb is authority-flipped. This doc design
 automation subtree** — the Level-3 doc's identified dominant cost *and* payoff (it is the musical
 automation data) — and lays out a bottom-up, golden-gated build. No code lands with this doc; it
 commits the schema, the projection-vs-DTO decision, the scatter-collapse strategy, and the phase order
-before the large build, the way `synth_phase*`, `resource_manager.md`, and `project_model_level3.md`
+before the large build, the way `synth_phase*` and `project_model_level3.md`
 were handled.
 
 ## Why this tier is different

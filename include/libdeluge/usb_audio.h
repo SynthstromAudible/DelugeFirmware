@@ -55,12 +55,12 @@ bool deluge_usb_audio_sending(void) DELUGE_NOEXCEPT;
 /// arrives). Frames with nothing from the host behind them - before streaming starts, after it stops, or on an
 /// underrun - are silence. The platform keeps the stream's latency in a fixed window, dropping or repeating the odd
 /// frame if a host that ignores implicit feedback drifts from our clock. Returns how many frames came from the host.
-/// [audio]
+/// [task] [audio]
 uint32_t deluge_usb_audio_read(DelugeStereoSample* dst, uint32_t frames) DELUGE_NOEXCEPT;
 
 /// Queue `frames` stereo frames for the host, each channel a full-scale signed 32-bit sample (cut to the stream's
 /// 16 or 24 bits on the way out). Call once per render block, with that block's frames, in order. Dropped when the
-/// host isn't collecting, or past what the queue can hold. [audio]
+/// host isn't collecting, or past what the queue can hold. [task] [audio]
 void deluge_usb_audio_write(const DelugeStereoSample* src, uint32_t frames) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

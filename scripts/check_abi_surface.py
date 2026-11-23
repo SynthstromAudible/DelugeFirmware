@@ -42,13 +42,10 @@ from pathlib import Path
 import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
-# deluge_storage_resource.h stays out: its functions carry no signature pins, context tags or DELUGE_NOEXCEPT yet, and
-# pinning them needs bindgen to read the header.
-UNCHECKED_CRATE_HEADERS = {"deluge_storage_resource.h"}
 CRATE_HEADERS = sorted(
     p
     for p in (ROOT / "src").glob("**/include/deluge_*.h")
-    if "third_party" not in p.parts and p.name not in UNCHECKED_CRATE_HEADERS
+    if "third_party" not in p.parts
 )
 HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + CRATE_HEADERS
 

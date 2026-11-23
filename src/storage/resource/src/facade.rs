@@ -33,7 +33,7 @@ pub struct Resource<'m> {
 }
 
 impl<'m> Resource<'m> {
-    /// Wraps a handle from `deluge_resource_create` or `deluge_resource_create_unhooked`.
+    /// Wraps a handle from `resource_create` or `resource_create_unhooked`.
     ///
     /// # Safety
     ///
@@ -248,7 +248,7 @@ mod tests {
             deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
         };
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { crate::deluge_resource_create(h, 4, 16) };
+        let handle = unsafe { crate::resource_create(h, 4, 16) };
         assert!(!handle.is_null());
         TestResource { _buf: buf, handle }
     }
@@ -263,7 +263,7 @@ mod tests {
         fn define_test_asset(&self) -> u32 {
             // SAFETY: `self.handle` is live.
             let asset = unsafe {
-                crate::deluge_resource_define_asset(
+                crate::resource_define_asset(
                     self.handle,
                     core::ptr::null_mut(),
                     Some(mock_materialize),
@@ -274,7 +274,7 @@ mod tests {
                 )
             };
             unsafe {
-                crate::deluge_resource_set_construct(self.handle, asset, Some(mock_construct));
+                crate::resource_set_construct(self.handle, asset, Some(mock_construct));
             }
             asset
         }
@@ -405,7 +405,7 @@ mod tests {
             assert_eq!(rsrc.resource().peek(asset, 0), Some(c0));
         }
         // SAFETY: `rsrc.handle` is the live handle backing this test's manager.
-        let evicted = unsafe { crate::deluge_resource_try_evict(rsrc.handle) };
+        let evicted = unsafe { crate::resource_try_evict(rsrc.handle) };
         assert!(evicted, "something evictable should have been reclaimed");
         assert!(
             rsrc.resource().peek(asset, 0).is_none(),
