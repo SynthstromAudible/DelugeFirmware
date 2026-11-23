@@ -116,7 +116,6 @@ target_link_libraries(deluge_app PUBLIC
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
     deluge_synth # the synth library: sources and the modulation core
-    deluge_scheduler # task_scheduler/clock_type.h on its path
     argon
     etl::etl
     deluge_base

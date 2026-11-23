@@ -245,7 +245,6 @@ add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # d
 add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_*: see src/ui/CMakeLists.txt
 add_subdirectory(${REPO_ROOT}/src/app        ${CMAKE_BINARY_DIR}/app-ports)  # deluge_app_ports_waveforms
 add_subdirectory(${REPO_ROOT}/third_party/printf ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
-add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # deluge_synth
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner

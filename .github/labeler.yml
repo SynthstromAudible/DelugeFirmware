@@ -71,7 +71,6 @@
       - any-glob-to-any-file:
           - src/deluge/memory/**
           - src/deluge/drivers/**
-          - src/OSLikeStuff/**
           - src/RZA1/**
 
 "area: toolchain":

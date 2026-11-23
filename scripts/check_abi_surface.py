@@ -15,7 +15,7 @@ Mocks in ``tests/`` are reported apart, because a mock of a function nobody call
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
 
 Callers are counted by name, per area:
-- ``app``: ``src/deluge`` and ``src/OSLikeStuff``;
+- ``app``: ``src/deluge``;
 - ``tests``: ``tests/``, excluding the mocks' own definitions;
 - ``rust``: ``src/platform/device/src``, ``tests/harness`` and the library crates' and the excluded src/ crates'
   directories, excluding the definitions.
@@ -215,9 +215,7 @@ RUST = source_files(
     *(d.relative_to(ROOT).as_posix() for d in (*MEMBERS, *workspace_excluded())),
     suffixes=(".rs",),
 )
-CXX_APP = source_files(
-    "src/deluge", "src/OSLikeStuff", suffixes=(".c", ".cpp", ".h", ".hpp")
-)
+CXX_APP = source_files("src/deluge", suffixes=(".c", ".cpp", ".h", ".hpp"))
 CXX_TESTS = source_files("tests", suffixes=(".c", ".cpp", ".h", ".hpp", ".rs"))
 
 
